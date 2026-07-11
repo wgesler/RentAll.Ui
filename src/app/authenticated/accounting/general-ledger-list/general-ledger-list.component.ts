@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Even
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { BehaviorSubject, Subject, catchError, filter, finalize, forkJoin, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, filter, finalize, forkJoin, merge, of, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -95,6 +95,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
+  private journalEntryLinesLoadId = 0;
+  private cancelJournalEntryLinesLoad$ = new Subject<void>();
 
   constructor(
     public generalLedgerService: GeneralLedgerService,
@@ -551,7 +553,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       ? (filteredAccountIds.length === 1 ? filteredAccountIds[0] : null)
       : (this.chartOfAccountId != null && this.chartOfAccountId > 0 ? this.chartOfAccountId : null);
 
-    const journalEntryLinesRequest = this.generalLedgerService.searchJournalEntryLines({
+    this.cancelJournalEntryLinesLoad$.next();
+    const loadId = ++this.journalEntryLinesLoadId;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'journalEntryLines');
+    const loadUntil = merge(this.cancelJournalEntryLinesLoad$, this.destroy$);
+
+    this.generalLedgerService.searchJournalEntryLines({
       officeIds,
       chartOfAccountId,
       sourceTypeId: this.printChecksOnly
@@ -565,55 +572,48 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       includeUnposted: true,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
-    });
-    const depositsRequest = this.undepositedFundsOnly
-      ? this.depositService.searchDeposits({
-        officeIds,
-        isActive: true,
-        includeInactive: false
-      })
-      : of([] as DepositResponse[]);
+    }).pipe(takeUntil(loadUntil)).subscribe({
+      next: (lines) => {
+        if (this.journalEntryLinesLoadId !== loadId) {
+          return;
+        }
 
-    forkJoin({
-      lines: journalEntryLinesRequest,
-      deposits: depositsRequest
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ lines, deposits }) => {
-        let resolvedLines = lines || [];
-        if (usesFixedAccountFilter && filteredAccountIds.length > 1) {
-          const accountIdSet = new Set(filteredAccountIds);
-          resolvedLines = resolvedLines.filter(line => accountIdSet.has(line.chartOfAccountId));
-        }
-        if (this.printChecksOnly) {
-          const bankAccountIdSet = new Set(filteredAccountIds);
-          resolvedLines = resolvedLines.filter(line =>
-            Number(line.sourceTypeId) === SourceType.BillPayment
-            && bankAccountIdSet.has(line.chartOfAccountId)
-            && Number(line.credit || 0) > 0);
-        }
-        if (this.depositsOnly) {
-          const bankAccountIdSet = new Set(filteredAccountIds);
-          resolvedLines = resolvedLines.filter(line =>
-            Number(line.sourceTypeId) === SourceType.Deposit
-            && bankAccountIdSet.has(line.chartOfAccountId)
-            && Number(line.debit || 0) > 0);
-        }
+        const resolvedLines = this.filterJournalEntryLinesByMode(
+          lines || [],
+          filteredAccountIds,
+          usesFixedAccountFilter,
+          null
+        );
+        this.applyLoadedJournalEntryLines(resolvedLines, loadId);
+        this.finishJournalEntryLinesLoad(loadId);
+
         if (this.undepositedFundsOnly) {
-          const depositedLineIds = this.buildDepositedJournalEntryLineIds(deposits);
-          resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, depositedLineIds);
+          this.depositService.searchDeposits({
+            officeIds,
+            isActive: true,
+            includeInactive: false
+          }).pipe(takeUntil(loadUntil)).subscribe({
+            next: (deposits) => {
+              if (this.journalEntryLinesLoadId !== loadId) {
+                return;
+              }
+
+              const refinedLines = this.filterJournalEntryLinesByMode(
+                lines || [],
+                filteredAccountIds,
+                usesFixedAccountFilter,
+                deposits
+              );
+              this.applyLoadedJournalEntryLines(refinedLines, loadId);
+            }
+          });
         }
-        this.allLines = resolvedLines;
-        this.noActivityMessage = this.undepositedFundsOnly
-          ? 'No Undeposited Funds activity for the selected office and date range.'
-          : this.depositsOnly
-            ? 'No bank deposit activity for the selected office and date range.'
-            : this.printChecksOnly
-              ? 'No bill payment bank credits for the selected office and date range.'
-              : 'No general ledger activity for the selected filters and date range.';
-        this.applyLinesDisplay();
-        this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
+        if (this.journalEntryLinesLoadId !== loadId) {
+          return;
+        }
+
         console.error('General Ledger List - error loading journal entry lines:', error);
         this.isServiceError = true;
         this.allLines = [];
@@ -624,13 +624,73 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.noActivityMessage = apiMessage
           ? `Unable to load general ledger activity: ${apiMessage}`
           : 'Unable to load general ledger activity.';
-        this.markViewForCheck();
+        this.finishJournalEntryLinesLoad(loadId);
       }
     });
   }
   //#endregion
 
   //#region Utility Methods
+  private filterJournalEntryLinesByMode(
+    lines: JournalEntryLineSearchResponse[],
+    filteredAccountIds: number[],
+    usesFixedAccountFilter: boolean,
+    deposits: DepositResponse[] | null
+  ): JournalEntryLineSearchResponse[] {
+    let resolvedLines = lines || [];
+    if (usesFixedAccountFilter && filteredAccountIds.length > 1) {
+      const accountIdSet = new Set(filteredAccountIds);
+      resolvedLines = resolvedLines.filter(line => accountIdSet.has(line.chartOfAccountId));
+    }
+    if (this.printChecksOnly) {
+      const bankAccountIdSet = new Set(filteredAccountIds);
+      resolvedLines = resolvedLines.filter(line =>
+        Number(line.sourceTypeId) === SourceType.BillPayment
+        && bankAccountIdSet.has(line.chartOfAccountId)
+        && Number(line.credit || 0) > 0);
+    }
+    if (this.depositsOnly) {
+      const bankAccountIdSet = new Set(filteredAccountIds);
+      resolvedLines = resolvedLines.filter(line =>
+        Number(line.sourceTypeId) === SourceType.Deposit
+        && bankAccountIdSet.has(line.chartOfAccountId)
+        && Number(line.debit || 0) > 0);
+    }
+    if (this.undepositedFundsOnly) {
+      const depositedLineIds = this.buildDepositedJournalEntryLineIds(deposits || []);
+      resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, depositedLineIds);
+    }
+    return resolvedLines;
+  }
+
+  private applyLoadedJournalEntryLines(
+    resolvedLines: JournalEntryLineSearchResponse[],
+    loadId: number
+  ): void {
+    if (this.journalEntryLinesLoadId !== loadId) {
+      return;
+    }
+
+    this.allLines = resolvedLines;
+    this.noActivityMessage = this.undepositedFundsOnly
+      ? 'No Undeposited Funds activity for the selected office and date range.'
+      : this.depositsOnly
+        ? 'No bank deposit activity for the selected office and date range.'
+        : this.printChecksOnly
+          ? 'No bill payment bank credits for the selected office and date range.'
+          : 'No general ledger activity for the selected filters and date range.';
+    this.applyLinesDisplay();
+    this.markViewForCheck();
+  }
+
+  private finishJournalEntryLinesLoad(loadId: number): void {
+    if (this.journalEntryLinesLoadId !== loadId) {
+      return;
+    }
+
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntryLines');
+    this.markViewForCheck();
+  }
   applyLinesDisplay(): void {
     this.linesDisplay = this.mappingService.mapJournalEntryLineListDisplay(
       this.allLines,
@@ -1031,6 +1091,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   ngOnDestroy(): void {
+    this.cancelJournalEntryLinesLoad$.next();
+    this.cancelJournalEntryLinesLoad$.complete();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

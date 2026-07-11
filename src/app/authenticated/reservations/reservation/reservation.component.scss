@@ -1,14 +1,6 @@
 // Reservation styles
 .shell-tabs {
   ::ng-deep {
-    .mat-mdc-tab.mdc-tab--active {
-      border-top: 2px solid rgb(148, 163, 184); // Same color as tab background
-      border-left: 2px solid rgb(148, 163, 184);
-      border-right: 2px solid rgb(148, 163, 184);
-      border-bottom: none; // No border on bottom
-      border-radius: 0.5rem;
-    }
-
     // Ensure all tab body content has the same height to prevent jumping
     .mat-mdc-tab-body-wrapper {
       min-height: 600px; // Set minimum height for all tab content

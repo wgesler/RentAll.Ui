@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
-import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, merge, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
@@ -52,6 +52,8 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transferLines']));
   destroy$ = new Subject<void>();
+  private transferLinesLoadId = 0;
+  private cancelTransferLinesLoad$ = new Subject<void>();
 
   constructor(
     private reportService: ReportService,
@@ -184,17 +186,34 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.isServiceError = false;
+    this.cancelTransferLinesLoad$.next();
+    const loadId = ++this.transferLinesLoadId;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'transferLines');
     this.reportService.searchTransferReport({
       officeIds,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
-    }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferLines'))).subscribe({
+    }).pipe(
+      take(1),
+      takeUntil(merge(this.cancelTransferLinesLoad$, this.destroy$)),
+      finalize(() => {
+        if (this.transferLinesLoadId === loadId) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferLines');
+        }
+        this.markViewForCheck();
+      })
+    ).subscribe({
       next: report => {
+        if (this.transferLinesLoadId !== loadId) {
+          return;
+        }
         this.rowsDisplay = report?.rows || [];
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
+        if (this.transferLinesLoadId !== loadId) {
+          return;
+        }
         console.error('Transfer Report - error loading transfer lines:', error);
         this.isServiceError = true;
         this.rowsDisplay = [];
@@ -239,6 +258,8 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.cancelTransferLinesLoad$.next();
+    this.cancelTransferLinesLoad$.complete();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

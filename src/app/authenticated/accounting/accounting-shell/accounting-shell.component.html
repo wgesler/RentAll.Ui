@@ -536,6 +536,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isTransferDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onTransferBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isOwnersUtilityReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -560,7 +565,7 @@
       </div>
     </div>
     <mat-card>
-        <mat-tab-group [selectedIndex]="effectiveSelectedTabIndex" class="shell-tabs shell-tabs--6-slots dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
+        <mat-tab-group [selectedIndex]="effectiveSelectedTabIndex" class="shell-tabs shell-tabs--6-slots dbg-band-tabs" (selectedTabChange)="onMatTabSelected($event)">
           <mat-tab label="Invoices">
             @if (showInvoiceCreate && invoiceCreateContext) {
               @for (instance of [invoiceCreateInstance]; track instance) {
@@ -611,14 +616,18 @@
               <button
                 type="button"
                 class="accounting-shell-dropdown-tab-label"
-                [matMenuTriggerFor]="billsReceiptsMenu"
-                #billsReceiptsMenuTrigger="matMenuTrigger"
-                (click)="onDropdownTabLabelClick($event)"
+                (click)="onDropdownTabButtonClick($event, billsReceiptsMenuTrigger)"
                 aria-label="Choose bills or receipts">
                 <span class="accounting-shell-dropdown-tab-label__text">{{ billsReceiptsTabLabel }}</span>
-                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                <span
+                  class="accounting-shell-dropdown-tab-icon-wrap"
+                  [matMenuTriggerFor]="billsReceiptsMenu"
+                  #billsReceiptsMenuTrigger="matMenuTrigger"
+                  (click)="onDropdownTabLabelClick($event)">
+                  <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                </span>
               </button>
-              <mat-menu #billsReceiptsMenu="matMenu" panelClass="accounting-reports-tab-menu">
+              <mat-menu #billsReceiptsMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (option of shellBillsReceiptMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBillsReceipt(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
@@ -707,14 +716,18 @@
               <button
                 type="button"
                 class="accounting-shell-dropdown-tab-label"
-                [matMenuTriggerFor]="bankActivitiesMenu"
-                #bankActivitiesMenuTrigger="matMenuTrigger"
-                (click)="onDropdownTabLabelClick($event)"
+                (click)="onDropdownTabButtonClick($event, bankActivitiesMenuTrigger)"
                 aria-label="Choose bank view">
                 <span class="accounting-shell-dropdown-tab-label__text">Bank</span>
-                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                <span
+                  class="accounting-shell-dropdown-tab-icon-wrap"
+                  [matMenuTriggerFor]="bankActivitiesMenu"
+                  #bankActivitiesMenuTrigger="matMenuTrigger"
+                  (click)="onDropdownTabLabelClick($event)">
+                  <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                </span>
               </button>
-              <mat-menu #bankActivitiesMenu="matMenu" panelClass="accounting-reports-tab-menu">
+              <mat-menu #bankActivitiesMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (option of shellBankActivityMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBankActivity(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
@@ -734,6 +747,8 @@
                     Undeposited Funds
                   } @else if (selectedBankActivityKind === 'deposits') {
                     Deposits
+                  } @else if (selectedBankActivityKind === 'transfers') {
+                    Transfers
                   } @else {
                     Print Checks
                   }
@@ -792,6 +807,24 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-deposits-list>
                 }
+              } @else if (selectedBankActivityKind === 'transfers') {
+                @if (showTransfersDetail) {
+                  <app-transfer
+                    [property]="transfersProperty"
+                    [transferId]="selectedTransferId"
+                    [officeId]="selectedOfficeId"
+                    (backEvent)="onTransferBack()"
+                    (savedEvent)="onTransferSaved()" />
+                } @else {
+                  <app-transfers-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInAccounting]="true"
+                    [refreshTrigger]="transfersRefreshTrigger"
+                    (transferSelect)="onTransferSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-transfers-list>
+                }
               } @else if (selectedBankActivityKind === 'printChecks') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
@@ -832,14 +865,18 @@
               <button
                 type="button"
                 class="accounting-shell-dropdown-tab-label"
-                [matMenuTriggerFor]="ownersMenu"
-                #ownersMenuTrigger="matMenuTrigger"
-                (click)="onDropdownTabLabelClick($event)"
+                (click)="onDropdownTabButtonClick($event, ownersMenuTrigger)"
                 aria-label="Choose owner view">
                 <span class="accounting-shell-dropdown-tab-label__text">Owners</span>
-                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                <span
+                  class="accounting-shell-dropdown-tab-icon-wrap"
+                  [matMenuTriggerFor]="ownersMenu"
+                  #ownersMenuTrigger="matMenuTrigger"
+                  (click)="onDropdownTabLabelClick($event)">
+                  <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                </span>
               </button>
-              <mat-menu #ownersMenu="matMenu" panelClass="accounting-reports-tab-menu">
+              <mat-menu #ownersMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (option of shellOwnerMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectOwnerKind(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
@@ -966,14 +1003,18 @@
               <button
                 type="button"
                 class="accounting-shell-dropdown-tab-label"
-                [matMenuTriggerFor]="reportsMenu"
-                #reportsMenuTrigger="matMenuTrigger"
-                (click)="onDropdownTabLabelClick($event)"
+                (click)="onDropdownTabButtonClick($event, reportsMenuTrigger)"
                 aria-label="Choose report">
                 <span class="accounting-shell-dropdown-tab-label__text">Reports</span>
-                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                <span
+                  class="accounting-shell-dropdown-tab-icon-wrap"
+                  [matMenuTriggerFor]="reportsMenu"
+                  #reportsMenuTrigger="matMenuTrigger"
+                  (click)="onDropdownTabLabelClick($event)">
+                  <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                </span>
               </button>
-              <mat-menu #reportsMenu="matMenu" panelClass="accounting-reports-tab-menu">
+              <mat-menu #reportsMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (reportOption of shellReportMenuOptions; track reportOption.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectReport(reportOption.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ reportOption.label }}</span>
@@ -1015,14 +1056,18 @@
               <button
                 type="button"
                 class="accounting-shell-dropdown-tab-label"
-                [matMenuTriggerFor]="generalLedgerMenu"
-                #generalLedgerMenuTrigger="matMenuTrigger"
-                (click)="onDropdownTabLabelClick($event)"
+                (click)="onDropdownTabButtonClick($event, generalLedgerMenuTrigger)"
                 aria-label="Choose general ledger view">
                 <span class="accounting-shell-dropdown-tab-label__text">General Ledger</span>
-                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                <span
+                  class="accounting-shell-dropdown-tab-icon-wrap"
+                  [matMenuTriggerFor]="generalLedgerMenu"
+                  #generalLedgerMenuTrigger="matMenuTrigger"
+                  (click)="onDropdownTabLabelClick($event)">
+                  <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+                </span>
               </button>
-              <mat-menu #generalLedgerMenu="matMenu" panelClass="accounting-reports-tab-menu">
+              <mat-menu #generalLedgerMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (option of shellGeneralLedgerMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectGeneralLedgerKind(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>

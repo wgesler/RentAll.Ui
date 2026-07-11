@@ -14,44 +14,44 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DepositDisplayList, DepositResponse, DepositSearchRequest, DepositSelection } from '../models/deposit.model';
-import { DepositService } from '../services/deposit.service';
+import { TransferDisplayList, TransferResponse, TransferSearchRequest, TransferSelection } from '../models/transfer.model';
+import { TransferService } from '../services/transfer.service';
 
 @Component({
   standalone: true,
-  selector: 'app-deposits-list',
+  selector: 'app-transfers-list',
   imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
-  templateUrl: './deposits-list.component.html',
-  styleUrl: './deposits-list.component.scss',
+  templateUrl: './transfers-list.component.html',
+  styleUrl: './transfers-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
+export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
-  @Input() searchRequest?: DepositSearchRequest | null;
+  @Input() searchRequest?: TransferSearchRequest | null;
   @Input() embeddedInAccounting = false;
   @Input() refreshTrigger = 0;
-  @Output() depositSelect = new EventEmitter<DepositSelection>();
+  @Output() transferSelect = new EventEmitter<TransferSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['deposits']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transfers']));
   destroy$ = new Subject<void>();
   showInactive = false;
   isAdmin = false;
   canEditIsActiveCheckbox = false;
-  deposits: DepositResponse[] = [];
-  depositsDisplay: DepositDisplayList[] = [];
-  allDeposits: DepositDisplayList[] = [];
+  transfers: TransferResponse[] = [];
+  transfersDisplay: TransferDisplayList[] = [];
+  allTransfers: TransferDisplayList[] = [];
   propertyCodeLookup = new Map<string, string>();
-  depositsLoadId = 0;
-  lastDepositSearchKey: string | null = null;
-  depositSearchInFlightKey: string | null = null;
-  private cancelDepositsLoad$ = new Subject<void>();
+  transfersLoadId = 0;
+  lastTransferSearchKey: string | null = null;
+  transferSearchInFlightKey: string | null = null;
+  private cancelTransfersLoad$ = new Subject<void>();
 
-  readonly depositDisplayedColumns: ColumnSet = {
-    depositCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    depositDate: { displayAs: 'Deposit Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
+  readonly transferDisplayedColumns: ColumnSet = {
+    transferCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    transferDate: { displayAs: 'Transfer Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
     bankAccountDisplay: { displayAs: 'Bank Account', wrap: true, maxWidth: '25ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
@@ -63,7 +63,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   constructor(
-    private depositService: DepositService,
+    private transferService: TransferService,
     private mappingService: MappingService,
     private propertyService: PropertyService,
     private authService: AuthService,
@@ -73,7 +73,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  //#region Deposits List
+  //#region Transfers List
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
@@ -82,127 +82,127 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     this.loadPropertyLookup();
-    this.loadDepositsForCurrentSearchCriteria();
+    this.loadTransfersForCurrentSearchCriteria();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] && !changes['officeId'].firstChange) {
-      this.applyDepositDisplayMappings();
+      this.applyTransferDisplayMappings();
       this.applyFilters();
-      this.loadDepositsForCurrentSearchCriteria();
+      this.loadTransfersForCurrentSearchCriteria();
     }
 
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
-      this.loadDepositsForCurrentSearchCriteria(true);
+      this.loadTransfersForCurrentSearchCriteria(true);
     }
 
     if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInAccounting) {
-      this.loadDepositsForCurrentSearchCriteria();
+      this.loadTransfersForCurrentSearchCriteria();
     }
   }
 
-  getDeposits(force = false): void {
+  getTransfers(force = false): void {
     if (this.embeddedInAccounting && !this.canRunAccountingSearch(this.searchRequest)) {
-      this.lastDepositSearchKey = null;
-      this.depositSearchInFlightKey = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposits');
+      this.lastTransferSearchKey = null;
+      this.transferSearchInFlightKey = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transfers');
       this.markViewForCheck();
       return;
     }
 
-    const searchKey = this.buildDepositSearchKey();
-    if (!force && searchKey === this.lastDepositSearchKey) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposits');
+    const searchKey = this.buildTransferSearchKey();
+    if (!force && searchKey === this.lastTransferSearchKey) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transfers');
       this.markViewForCheck();
       return;
     }
-    if (!force && searchKey === this.depositSearchInFlightKey) {
+    if (!force && searchKey === this.transferSearchInFlightKey) {
       return;
     }
-    this.depositSearchInFlightKey = searchKey;
+    this.transferSearchInFlightKey = searchKey;
 
-    this.cancelDepositsLoad$.next();
-    const loadId = ++this.depositsLoadId;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'deposits');
+    this.cancelTransfersLoad$.next();
+    const loadId = ++this.transfersLoadId;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'transfers');
 
-    this.depositService.searchDeposits(this.buildSearchRequest()).pipe(
+    this.transferService.searchTransfers(this.buildSearchRequest()).pipe(
       take(1),
-      takeUntil(merge(this.cancelDepositsLoad$, this.destroy$)),
+      takeUntil(merge(this.cancelTransfersLoad$, this.destroy$)),
       finalize(() => {
-        if (this.depositsLoadId === loadId) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposits');
-          if (this.depositSearchInFlightKey === searchKey) {
-            this.depositSearchInFlightKey = null;
+        if (this.transfersLoadId === loadId) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transfers');
+          if (this.transferSearchInFlightKey === searchKey) {
+            this.transferSearchInFlightKey = null;
           }
         }
         this.markViewForCheck();
       })
     ).subscribe({
-      next: (deposits: DepositResponse[]) => {
-        if (this.depositsLoadId !== loadId) {
+      next: (transfers: TransferResponse[]) => {
+        if (this.transfersLoadId !== loadId) {
           return;
         }
-        this.lastDepositSearchKey = searchKey;
-        this.deposits = deposits || [];
+        this.lastTransferSearchKey = searchKey;
+        this.transfers = transfers || [];
         try {
-          this.allDeposits = this.mappingService.mapDepositDisplays(this.deposits);
+          this.allTransfers = this.mappingService.mapTransferDisplays(this.transfers);
         } catch {
-          this.toastr.error('Unable to load deposits.', 'Error');
-          this.deposits = [];
-          this.allDeposits = [];
-          this.depositsDisplay = [];
+          this.toastr.error('Unable to load transfers.', 'Error');
+          this.transfers = [];
+          this.allTransfers = [];
+          this.transfersDisplay = [];
           this.markViewForCheck();
           return;
         }
-        this.applyDepositDisplayMappings();
+        this.applyTransferDisplayMappings();
         this.applyFilters();
         this.markViewForCheck();
       },
       error: () => {
-        if (this.depositsLoadId !== loadId) {
+        if (this.transfersLoadId !== loadId) {
           return;
         }
-        this.toastr.error('Unable to load deposits.', 'Error');
-        this.deposits = [];
-        this.allDeposits = [];
-        this.depositsDisplay = [];
+        this.toastr.error('Unable to load transfers.', 'Error');
+        this.transfers = [];
+        this.allTransfers = [];
+        this.transfersDisplay = [];
         this.markViewForCheck();
       }
     });
   }
 
-  addDeposit(): void {
-    this.depositSelect.emit({
-      depositId: null,
+  addTransfer(): void {
+    this.transferSelect.emit({
+      transferId: null,
       officeId: this.officeId ?? null,
       propertyId: (this.property?.propertyId || '').trim() || null
     });
   }
 
-  deleteDeposit(event: DepositDisplayList): void {
-    this.depositService.deleteDeposit(event.depositId).pipe(take(1)).subscribe({
+  deleteTransfer(event: TransferDisplayList): void {
+    this.transferService.deleteTransfer(event.transferId).pipe(take(1)).subscribe({
       next: () => {
-        this.toastr.success('Deposit deleted successfully', CommonMessage.Success);
-        this.deposits = this.deposits.filter(deposit => deposit.depositId !== event.depositId);
-        this.allDeposits = this.mappingService.mapDepositDisplays(this.deposits);
-        this.applyDepositDisplayMappings();
+        this.toastr.success('Transfer deleted successfully', CommonMessage.Success);
+        this.transfers = this.transfers.filter(transfer => transfer.transferId !== event.transferId);
+        this.allTransfers = this.mappingService.mapTransferDisplays(this.transfers);
+        this.applyTransferDisplayMappings();
         this.applyFilters();
         this.journalEntriesChanged.emit();
         this.markViewForCheck();
       },
       error: () => {
-        this.toastr.error('Unable to delete deposit.', 'Error');
+        this.toastr.error('Unable to delete transfer.', 'Error');
         this.markViewForCheck();
       }
     });
   }
 
-  goToDeposit(event: DepositDisplayList): void {
+  goToTransfer(event: TransferDisplayList): void {
     const selectedPropertyId = (event.propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
       .find(propertyId => propertyId.length > 0) || null;
-    this.depositSelect.emit({
-      depositId: event.depositId,
+    this.transferSelect.emit({
+      transferId: event.transferId,
       officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
       propertyId: selectedPropertyId
     });
@@ -210,21 +210,21 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
-  loadDepositsForCurrentSearchCriteria(force = false): void {
+  loadTransfersForCurrentSearchCriteria(force = false): void {
     if (!this.embeddedInAccounting) {
-      this.getDeposits(force);
+      this.getTransfers(force);
       return;
     }
 
     queueMicrotask(() => {
       if (!this.canRunAccountingSearch(this.searchRequest)) {
-        this.lastDepositSearchKey = null;
-        this.depositSearchInFlightKey = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposits');
+        this.lastTransferSearchKey = null;
+        this.transferSearchInFlightKey = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transfers');
         this.markViewForCheck();
         return;
       }
-      this.getDeposits(force);
+      this.getTransfers(force);
     });
   }
   
@@ -234,7 +234,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
         this.propertyCodeLookup = new Map(
           (properties || []).map(property => [property.propertyId, property.propertyCode])
         );
-        this.applyDepositDisplayMappings();
+        this.applyTransferDisplayMappings();
         this.applyFilters();
         this.markViewForCheck();
       },
@@ -247,7 +247,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  buildSearchRequest(): DepositSearchRequest {
+  buildSearchRequest(): TransferSearchRequest {
     const request = this.searchRequest ?? { officeIds: [] };
     return {
       ...request,
@@ -260,7 +260,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  buildDepositSearchKey(): string {
+  buildTransferSearchKey(): string {
     const request = this.buildSearchRequest();
     return JSON.stringify({
       officeIds: request.officeIds,
@@ -272,44 +272,44 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  onDepositCheckboxChange(event: DepositDisplayList): void {
+  onTransferCheckboxChange(event: TransferDisplayList): void {
     if (!this.canEditIsActiveCheckbox) {
       return;
     }
 
-    const changedCheckboxColumn = (event as DepositDisplayList & { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    const changedCheckboxColumn = (event as TransferDisplayList & { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
     if (changedCheckboxColumn !== 'isActive') {
       return;
     }
 
-    const previousValue = (event as DepositDisplayList & { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
-    const nextValue = (event as DepositDisplayList & { __checkboxValue?: boolean }).__checkboxValue === true;
+    const previousValue = (event as TransferDisplayList & { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as TransferDisplayList & { __checkboxValue?: boolean }).__checkboxValue === true;
     if (previousValue === nextValue) {
       return;
     }
 
-    this.applyDepositIsActiveValue(event.depositId, nextValue);
+    this.applyTransferIsActiveValue(event.transferId, nextValue);
 
-    this.depositService.getDepositById(event.depositId).pipe(
+    this.transferService.getTransferById(event.transferId).pipe(
       take(1),
-      switchMap((deposit: DepositResponse) => this.depositService.updateDeposit(
-        this.mappingService.mapDepositUpdateRequest(deposit, nextValue)
+      switchMap((transfer: TransferResponse) => this.transferService.updateTransfer(
+        this.mappingService.mapTransferUpdateRequest(transfer, nextValue)
       ).pipe(take(1))),
       finalize(() => {
         this.applyFilters();
         this.markViewForCheck();
       })
     ).subscribe({
-      next: (saved: DepositResponse) => {
-        this.replaceDepositInCollections(saved);
-        this.applyDepositDisplayMappings();
+      next: (saved: TransferResponse) => {
+        this.replaceTransferInCollections(saved);
+        this.applyTransferDisplayMappings();
         this.applyFilters();
-        this.toastr.success('Deposit updated.', CommonMessage.Success);
+        this.toastr.success('Transfer updated.', CommonMessage.Success);
         this.markViewForCheck();
       },
       error: () => {
-        this.applyDepositIsActiveValue(event.depositId, previousValue);
-        this.toastr.error('Unable to update deposit.', CommonMessage.Error);
+        this.applyTransferIsActiveValue(event.transferId, previousValue);
+        this.toastr.error('Unable to update transfer.', CommonMessage.Error);
         this.markViewForCheck();
       }
     });
@@ -318,14 +318,14 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     if (this.embeddedInAccounting) {
-      this.loadDepositsForCurrentSearchCriteria(true);
+      this.loadTransfersForCurrentSearchCriteria(true);
       return;
     }
     this.applyFilters();
     this.markViewForCheck();
   }
 
-  canRunAccountingSearch(request?: DepositSearchRequest | null): boolean {
+  canRunAccountingSearch(request?: TransferSearchRequest | null): boolean {
     if (!this.embeddedInAccounting || request == null) {
       return false;
     }
@@ -337,7 +337,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     );
   }
 
-  resolveAccountingSearchOfficeIds(request?: DepositSearchRequest | null): number[] {
+  resolveAccountingSearchOfficeIds(request?: TransferSearchRequest | null): number[] {
     const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
     if (fromShell.length > 0) {
       return fromShell;
@@ -351,17 +351,17 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     return [];
   }
 
-  applyDepositDisplayMappings(): void {
-    this.allDeposits = this.allDeposits.map(row => ({
+  applyTransferDisplayMappings(): void {
+    this.allTransfers = this.allTransfers.map(row => ({
       ...row,
       propertyCode: this.formatPropertyCodes(row.propertyIds)
     }));
   }
 
   applyFilters(): void {
-    this.depositsDisplay = this.showInactive
-      ? this.allDeposits.filter(row => row.isActive === false)
-      : this.allDeposits.filter(row => row.isActive !== false);
+    this.transfersDisplay = this.showInactive
+      ? this.allTransfers.filter(row => row.isActive === false)
+      : this.allTransfers.filter(row => row.isActive !== false);
   }
 
   formatPropertyCodes(propertyIds: string[] | undefined | null): string {
@@ -373,34 +373,34 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
 
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
-    this.depositDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+    this.transferDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
   }
 
-  applyDepositIsActiveValue(depositId: string, isActive: boolean): void {
-    const updateRow = (row: { depositId: string; isActive: boolean }) => {
-      if (row.depositId === depositId) {
+  applyTransferIsActiveValue(transferId: string, isActive: boolean): void {
+    const updateRow = (row: { transferId: string; isActive: boolean }) => {
+      if (row.transferId === transferId) {
         row.isActive = isActive;
       }
     };
-    this.allDeposits.forEach(updateRow);
-    this.deposits.forEach(updateRow);
+    this.allTransfers.forEach(updateRow);
+    this.transfers.forEach(updateRow);
     this.applyFilters();
   }
 
-  replaceDepositInCollections(saved: DepositResponse): void {
-    const savedId = (saved.depositId || '').trim();
+  replaceTransferInCollections(saved: TransferResponse): void {
+    const savedId = (saved.transferId || '').trim();
     if (!savedId) {
       return;
     }
-    const depositIndex = this.deposits.findIndex(deposit => deposit.depositId === savedId);
-    if (depositIndex >= 0) {
-      this.deposits = [
-        ...this.deposits.slice(0, depositIndex),
+    const transferIndex = this.transfers.findIndex(transfer => transfer.transferId === savedId);
+    if (transferIndex >= 0) {
+      this.transfers = [
+        ...this.transfers.slice(0, transferIndex),
         saved,
-        ...this.deposits.slice(depositIndex + 1)
+        ...this.transfers.slice(transferIndex + 1)
       ];
     }
-    this.allDeposits = this.mappingService.mapDepositDisplays(this.deposits);
+    this.allTransfers = this.mappingService.mapTransferDisplays(this.transfers);
   }
   //#endregion
 
@@ -410,8 +410,8 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.cancelDepositsLoad$.next();
-    this.cancelDepositsLoad$.complete();
+    this.cancelTransfersLoad$.next();
+    this.cancelTransfersLoad$.complete();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

@@ -40,6 +40,8 @@
     app-receipt,
     app-deposits-list,
     app-deposit,
+    app-transfers-list,
+    app-transfer,
     app-rent-roll,
     app-cost-codes-list,
     app-general-ledger-list,
@@ -361,26 +363,55 @@ mat-card {
 }
 
 .accounting-shell-dropdown-tab-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.125rem;
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   min-width: 0;
-  min-height: 100%;
+  min-height: var(--shell-tab-min-height);
+  height: 100%;
   margin: 0;
   padding: 0;
   border: 0;
-  background: transparent;
+  background: transparent !important;
   font: inherit;
   color: inherit;
   cursor: pointer;
   box-sizing: border-box;
+  text-align: center;
+
+  &:hover,
+  &:focus,
+  &:focus-visible,
+  &:active {
+    background: transparent !important;
+  }
+
+  *,
+  *:hover,
+  *:focus,
+  *:active {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
 }
 
 .accounting-shell-dropdown-tab-label__text {
   white-space: nowrap;
+  background: transparent !important;
+}
+
+.accounting-shell-dropdown-tab-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent !important;
+  cursor: pointer;
+  line-height: 0;
 }
 
 .accounting-shell-dropdown-tab-icon {
@@ -389,27 +420,63 @@ mat-card {
   font-size: 24px;
   line-height: 24px;
   flex-shrink: 0;
+  background: transparent !important;
 }
 
 :host ::ng-deep .shell-tabs .mat-mdc-tab-header {
+  .mdc-tab:has(.accounting-shell-dropdown-tab-label),
+  .mat-mdc-tab:has(.accounting-shell-dropdown-tab-label) {
+    position: relative;
+    padding: 0;
+    pointer-events: none;
+
+    .accounting-shell-dropdown-tab-label {
+      pointer-events: auto;
+    }
+
+    .mdc-tab__ripple,
+    .mat-mdc-tab-ripple {
+      display: none;
+    }
+  }
+
   .mdc-tab:has(.accounting-shell-dropdown-tab-label) .mdc-tab__content,
   .mat-mdc-tab:has(.accounting-shell-dropdown-tab-label) .mdc-tab__content {
+    position: relative;
     flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
-    padding-inline: 0.625rem;
+    min-height: var(--shell-tab-min-height);
+    padding-inline: 0;
+    padding-block: 0;
     box-sizing: border-box;
-    align-items: stretch;
+    align-items: center;
+    justify-content: center;
   }
 
   .mdc-tab__text-label:has(.accounting-shell-dropdown-tab-label) {
+    position: relative;
     display: flex;
     flex: 1 1 auto;
-    align-items: stretch;
+    align-items: center;
+    justify-content: center;
     width: 100%;
+    min-height: 100%;
     overflow: visible;
     text-overflow: unset;
     max-width: 100%;
+    background: transparent !important;
+  }
+
+  .mdc-tab--active:has(.accounting-shell-dropdown-tab-label),
+  .mdc-tab:has(.accounting-shell-dropdown-tab-label) {
+    &:hover {
+      .accounting-shell-dropdown-tab-label,
+      .accounting-shell-dropdown-tab-label * {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+    }
   }
 }
 

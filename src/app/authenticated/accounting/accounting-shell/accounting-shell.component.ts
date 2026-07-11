@@ -31,6 +31,9 @@ import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-
 import { DepositsListComponent } from '../deposits-list/deposits-list.component';
 import { DepositComponent } from '../deposit/deposit.component';
 import { DepositSelection } from '../models/deposit.model';
+import { TransfersListComponent } from '../transfers-list/transfers-list.component';
+import { TransferComponent } from '../transfer/transfer.component';
+import { TransferSelection } from '../models/transfer.model';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -100,6 +103,8 @@ interface JournalEntrySyncProgressRow {
     ReceiptComponent,
     DepositsListComponent,
     DepositComponent,
+    TransfersListComponent,
+    TransferComponent,
     WorkOrderListComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
@@ -131,6 +136,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
   @ViewChild('generalLedgerMenuTrigger') generalLedgerMenuTrigger?: MatMenuTrigger;
 
+  private skipNextDropdownTabMenuOpen = false;
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
   readonly tabBillsReceipts = 1;
   readonly tabBankActivities = 2;
@@ -147,6 +153,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
     { kind: 'undepositedFunds', label: 'Undeposited Funds' },
     { kind: 'deposits', label: 'Deposits' },
+    { kind: 'transfers', label: 'Transfers' },
     { kind: 'transferReport', label: 'Transfer Report' },
     { kind: 'printChecks', label: 'Print Checks' },
     { kind: 'reconcile', label: 'Reconcile' }
@@ -214,6 +221,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   showDepositsDetail = false;
   selectedDepositId: string | null = null;
   depositsProperty: PropertyResponse | null = null;
+  showTransfersDetail = false;
+  selectedTransferId: string | null = null;
+  transfersProperty: PropertyResponse | null = null;
   selectedChartOfAccountId: number | null = null;
   selectedFinancialReportClass: Class = Class.TotalOnly;
   selectedArAgingDatePreset: ArAgingDatePreset = 'today';
@@ -240,6 +250,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   financialReportsRefreshTrigger = 0;
   undepositedFundsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
+  transfersRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
   transferReportRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
@@ -1035,6 +1046,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.receiptsRefreshTrigger++;
     this.undepositedFundsRefreshTrigger++;
     this.depositsRefreshTrigger++;
+    this.transfersRefreshTrigger++;
     this.printChecksRefreshTrigger++;
     this.transferReportRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
@@ -1138,6 +1150,51 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   onDepositSaved(): void {
     this.onDepositBack();
     this.depositsRefreshTrigger++;
+    this.onJournalEntriesChanged();
+  }
+
+  onTransferSelect(selection: TransferSelection): void {
+    const transferId = selection?.transferId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.syncBillsSearchRequest();
+    }
+    this.syncBillsSearchRequest();
+
+    const openTransferDetail = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = this.tabBankActivities;
+      this.selectedBankActivityKind = 'transfers';
+      this.transfersProperty = property;
+      this.selectedTransferId = transferId;
+      this.showTransfersDetail = true;
+    };
+
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => openTransferDetail(property),
+        error: () => this.toastr.error('Unable to load property for transfer.', 'Error')
+      });
+      return;
+    }
+
+    openTransferDetail(this.buildBillsReceiptPropertyStub(officeId));
+  }
+
+  onTransferBack(): void {
+    this.showTransfersDetail = false;
+    this.selectedTransferId = null;
+    this.transfersProperty = null;
+  }
+
+  onTransferSaved(): void {
+    this.onTransferBack();
+    this.transfersRefreshTrigger++;
     this.onJournalEntriesChanged();
   }
 
@@ -1578,7 +1635,57 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     event.stopPropagation();
   }
 
+  onDropdownTabButtonClick(event: Event, trigger: MatMenuTrigger): void {
+    event.stopPropagation();
+    event.preventDefault();
+    trigger.openMenu();
+  }
+
+  isDropdownTabIndex(tabIndex: number): boolean {
+    return tabIndex === this.tabBillsReceipts
+      || tabIndex === this.tabBankActivities
+      || tabIndex === this.tabOwners
+      || tabIndex === this.tabReports
+      || tabIndex === this.tabGeneralLedger;
+  }
+
+  openDropdownTabMenu(tabIndex: number): void {
+    switch (tabIndex) {
+      case this.tabBillsReceipts:
+        this.billsReceiptsMenuTrigger?.openMenu();
+        break;
+      case this.tabBankActivities:
+        this.bankActivitiesMenuTrigger?.openMenu();
+        break;
+      case this.tabOwners:
+        this.ownersMenuTrigger?.openMenu();
+        break;
+      case this.tabReports:
+        this.reportsMenuTrigger?.openMenu();
+        break;
+      case this.tabGeneralLedger:
+        this.generalLedgerMenuTrigger?.openMenu();
+        break;
+    }
+  }
+
+  onMatTabSelected(event: { index: number }): void {
+    if (this.skipNextDropdownTabMenuOpen) {
+      this.skipNextDropdownTabMenuOpen = false;
+      return;
+    }
+
+    if (this.isDropdownTabIndex(event.index)) {
+      this.openDropdownTabMenu(event.index);
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.onTabChange(event);
+  }
+
   onTabChange(event: { index: number }): void {
+    this.skipNextDropdownTabMenuOpen = true;
     if (!this.hasAccountingFullAccess && event.index > this.tabMaxIndexLimited) {
       this.selectedTabIndex = 0;
       return;
@@ -1607,6 +1714,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
       this.onDepositBack();
+      this.onTransferBack();
     }
     if (event.index !== this.tabReports) {
       this.isFinancialReportDrillDownActive = false;
@@ -1699,6 +1807,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (kindChanged) {
       this.onGeneralLedgerBack();
       this.onDepositBack();
+      this.onTransferBack();
     }
 
     this.selectedBankActivityKind = kind;
@@ -1851,6 +1960,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.selectedBankActivityKind === 'deposits') {
       this.depositsRefreshTrigger++;
+      return;
+    }
+    if (this.selectedBankActivityKind === 'transfers') {
+      this.transfersRefreshTrigger++;
       return;
     }
     if (this.selectedBankActivityKind === 'undepositedFunds') {
@@ -2164,6 +2277,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.isBillsReceiptDetailActive
       && !this.isReceiptsReceiptDetailActive
       && !this.isDepositDetailActive
+      && !this.isTransferDetailActive
       && !this.isOwnersUtilityReceiptDetailActive
       && !this.isOwnersWorkOrderDetailActive
       && !this.isWorkOrderCreateActive
@@ -2411,6 +2525,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind === 'deposits'
       && this.showDepositsDetail;
+  }
+
+  get isTransferDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'transfers'
+      && this.showTransfersDetail;
   }
 
   get isOwnersUtilityReceiptDetailActive(): boolean {
@@ -2775,6 +2895,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (
         bankActivity === 'undepositedFunds'
         || bankActivity === 'deposits'
+        || bankActivity === 'transfers'
         || bankActivity === 'transferReport'
         || bankActivity === 'printChecks'
         || bankActivity === 'reconcile'
@@ -2932,6 +3053,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.receiptsRefreshTrigger++;
             this.undepositedFundsRefreshTrigger++;
             this.depositsRefreshTrigger++;
+            this.transfersRefreshTrigger++;
             this.printChecksRefreshTrigger++;
             this.transferReportRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
@@ -3254,6 +3376,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.syncBillsSearchRequest();
             if (this.selectedTabIndex === this.tabBankActivities && this.selectedBankActivityKind === 'deposits') {
               this.depositsRefreshTrigger++;
+            }
+            if (this.selectedTabIndex === this.tabBankActivities && this.selectedBankActivityKind === 'transfers') {
+              this.transfersRefreshTrigger++;
             }
           }
         });

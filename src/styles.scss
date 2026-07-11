@@ -53,6 +53,14 @@
   --shell-tab-min-height: 48px;
   --shell-tab-padding-block: 12px;
   --shell-tab-label-line-height: 1.35;
+  --shell-tab-inactive-bg: rgb(226 232 240 / 0.5);
+  --shell-tab-inactive-hover-bg: rgb(226 232 240 / 0.95);
+  --shell-tab-accordion-bg: #cbd5e1;
+  --shell-tab-blue-wash: color-mix(in srgb, #2563eb 14%, #ffffff 86%);
+  --shell-tab-active-bg: color-mix(in srgb, var(--shell-tab-blue-wash) 50%, var(--shell-tab-accordion-bg) 50%);
+  --shell-tab-active-hover-bg: color-mix(in srgb, var(--shell-tab-blue-wash) 58%, var(--shell-tab-accordion-bg) 42%);
+  --shell-tab-active-border-color: color-mix(in srgb, #2563eb 42%, #64748b 58%);
+  --shell-tab-active-label-color: rgb(15 23 42);
   /* Settings accordion alignment: shared top offset for embedded action rows/lists. */
   --settings-embedded-actions-top-offset: 1.5rem;
   --settings-embedded-list-actions-visual-adjust: 0.1875rem;
@@ -1766,6 +1774,8 @@ mat-tab-header {
       min-height: var(--shell-tab-min-height);
       padding-block: var(--shell-tab-padding-block);
       box-sizing: border-box;
+      justify-content: center;
+      align-items: center;
     }
 
     .mdc-tab__text-label {
@@ -1774,6 +1784,8 @@ mat-tab-header {
       text-overflow: ellipsis;
       white-space: nowrap;
       max-width: 100%;
+      justify-content: center;
+      text-align: center;
     }
   }
 }
@@ -1791,25 +1803,46 @@ mat-tab-header {
   --shell-tab-slot-count: 3;
 }
 
+/* All Material tabs: uniform fill on select; labels stay transparent. */
 .mat-mdc-tab {
   position: relative;
   border-radius: 0.5rem;
   overflow: hidden;
   margin: 0.25rem !important;
-  background-color: rgb(226, 232, 240, 0.5) !important;
+  background-color: var(--shell-tab-inactive-bg) !important;
   border: 1px solid transparent;
   transition: background-color 300ms linear, border-radius 300ms linear;
+
+  .mdc-tab__content,
+  .mdc-tab__text-label,
+  .mdc-tab__text-label *,
+  .mat-mdc-tab-ripple,
+  .mdc-tab__ripple,
+  button,
+  .mdc-button {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
   &:hover {
-    background-color: rgb(226, 232, 240, 0.95) !important;
+    background-color: var(--shell-tab-inactive-hover-bg) !important;
+
+    .mdc-tab__content,
+    .mdc-tab__text-label,
+    .mdc-tab__text-label * {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
   }
 
   &.mdc-tab--active {
-    background-color: #fff !important;
+    background-color: var(--shell-tab-active-bg) !important;
     border-bottom-color: transparent !important;
     box-shadow: none !important;
-    border-bottom-left-radius: .1rem;
-    border-bottom-right-radius: .1rem;
+    border-bottom-left-radius: 0.1rem;
+    border-bottom-right-radius: 0.1rem;
     margin-bottom: -1px !important;
+
     &::after {
       content: '';
       position: absolute;
@@ -1817,25 +1850,33 @@ mat-tab-header {
       left: 0;
       right: 0;
       bottom: 0;
-      border-top: 1px solid rgba(100, 116, 139, 0.95);
-      border-left: 1px solid rgba(100, 116, 139, 0.95);
-      border-right: 1px solid rgba(100, 116, 139, 0.95);
+      border-top: 1px solid var(--shell-tab-active-border-color);
+      border-left: 1px solid var(--shell-tab-active-border-color);
+      border-right: 1px solid var(--shell-tab-active-border-color);
       border-bottom: 0;
       border-top-left-radius: 0.5rem;
       border-top-right-radius: 0.5rem;
       pointer-events: none;
       z-index: 2;
     }
+
     &:hover {
-      background-color: rgb(241, 245, 249) !important;
-      * {
-        background-color: rgb(241, 245, 249);
+      background-color: var(--shell-tab-active-hover-bg) !important;
+
+      .mdc-tab__content,
+      .mdc-tab__text-label,
+      .mdc-tab__text-label * {
+        background: transparent !important;
+        background-color: transparent !important;
       }
     }
+
     .mdc-tab__text-label {
-      color: black !important;
+      color: var(--shell-tab-active-label-color) !important;
+      background: transparent !important;
     }
   }
+
   .mdc-tab-indicator {
     display: none;
   }

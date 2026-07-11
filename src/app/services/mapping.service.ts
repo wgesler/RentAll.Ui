@@ -22,6 +22,7 @@ import { MaintenanceListSearchRequest } from '../authenticated/maintenance/model
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
+import { TransferDisplayList, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -3180,6 +3181,233 @@ export class MappingService {
       bankAccountId: deposit.bankAccountId ?? null,
       splits,
       journalEntryId: deposit.journalEntryId ?? null,
+      isActive
+    };
+  }
+  //#endregion
+
+  //#region Transfer Mapping
+  mapTransferResponse(raw: TransferResponse | Record<string, unknown>): TransferResponse {
+    const base = raw as TransferResponse;
+    const rawRecord = raw as Record<string, unknown>;
+    const transferDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['transferDate'] ?? rawRecord['TransferDate'] ?? base.transferDate
+      ) ??
+      base.transferDate ??
+      '';
+    const accountingPeriod =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['accountingPeriod'] ?? rawRecord['AccountingPeriod'] ?? base.accountingPeriod
+      ) ??
+      transferDate;
+    const createdOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
+      ) ??
+      base.createdOn ??
+      '';
+    const transferCodeRaw = rawRecord['transferCode'] ?? rawRecord['TransferCode'] ?? base.transferCode;
+    const transferCode = String(transferCodeRaw ?? base.transferCode ?? '').trim();
+    const transferIdRaw = rawRecord['transferId'] ?? rawRecord['TransferId'] ?? base.transferId;
+    const transferId = String(transferIdRaw ?? '').trim();
+    const journalEntryIdRaw = rawRecord['journalEntryId'] ?? rawRecord['JournalEntryId'] ?? base.journalEntryId;
+    const journalEntryId = journalEntryIdRaw == null || String(journalEntryIdRaw).trim().length === 0
+      ? null
+      : String(journalEntryIdRaw).trim();
+
+    const propertyIdRaw = rawRecord['propertyId'] ?? rawRecord['PropertyId'] ?? base.propertyId;
+    const propertyId = propertyIdRaw == null || String(propertyIdRaw).trim().length === 0
+      ? null
+      : String(propertyIdRaw).trim();
+    const modifiedOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['modifiedOn'] ?? rawRecord['ModifiedOn'] ?? base.modifiedOn
+      ) ??
+      base.modifiedOn ??
+      '';
+    const bankAccountIdRaw = rawRecord['bankAccountId'] ?? rawRecord['BankAccountId'] ?? base.bankAccountId;
+    const parsedBankAccountId = Number(bankAccountIdRaw ?? 0);
+    const bankAccountId = Number.isFinite(parsedBankAccountId) && parsedBankAccountId > 0
+      ? parsedBankAccountId
+      : null;
+    const createdBy = String(rawRecord['createdBy'] ?? rawRecord['CreatedBy'] ?? base.createdBy ?? base.createdByName ?? '').trim();
+    const createdByName = String(rawRecord['createdByName'] ?? rawRecord['CreatedByName'] ?? base.createdByName ?? createdBy).trim();
+    const modifiedBy = String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim();
+    const isActiveRaw = rawRecord['isActive'] ?? rawRecord['IsActive'] ?? base.isActive;
+    const isActive = isActiveRaw === true || isActiveRaw === 'true' || isActiveRaw === 1;
+    const mappedSplits = this.mapTransferSplitsFromApi(
+      (rawRecord['splits'] ?? rawRecord['Splits'] ?? base.splits) as TransferSplit[] | undefined | null
+    );
+    const mappedPropertyIds = this.normalizeTransferPropertyIds(
+      rawRecord['propertyIds'] ?? rawRecord['PropertyIds'] ?? base.propertyIds
+    );
+
+    return {
+      ...base,
+      transferDate,
+      accountingPeriod,
+      createdOn,
+      modifiedOn,
+      transferCode,
+      transferId,
+      journalEntryId,
+      propertyId,
+      organizationId: String(rawRecord['organizationId'] ?? rawRecord['OrganizationId'] ?? base.organizationId ?? '').trim(),
+      officeId: Number(rawRecord['officeId'] ?? rawRecord['OfficeId'] ?? base.officeId ?? 0) || 0,
+      officeName: String(rawRecord['officeName'] ?? rawRecord['OfficeName'] ?? base.officeName ?? '').trim(),
+      description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
+      amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,
+      bankAccountId,
+      bankAccountDisplayName: String(rawRecord['bankAccountDisplayName'] ?? rawRecord['BankAccountDisplayName'] ?? base.bankAccountDisplayName ?? '').trim(),
+      isActive,
+      createdBy: createdBy || createdByName,
+      createdByName: createdByName || createdBy,
+      modifiedBy,
+      splits: mappedSplits,
+      propertyIds: this.resolveTransferPropertyIds(mappedSplits, mappedPropertyIds, propertyId)
+    };
+  }
+
+  private normalizeTransferPropertyIds(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map(propertyId => String(propertyId ?? '').trim())
+      .filter(propertyId => propertyId.length > 0);
+  }
+
+  private resolveTransferPropertyIds(
+    splits: TransferSplit[] | undefined | null,
+    existing: string[] | undefined | null,
+    headerPropertyId?: string | null
+  ): string[] {
+    const normalizedExisting = this.normalizeTransferPropertyIds(existing);
+    if (normalizedExisting.length > 0) {
+      return normalizedExisting;
+    }
+    const propertyIds = new Set<string>();
+    const normalizedHeaderPropertyId = (headerPropertyId || '').trim();
+    if (normalizedHeaderPropertyId.length > 0) {
+      propertyIds.add(normalizedHeaderPropertyId);
+    }
+    (splits || [])
+      .map(split => (split.propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0)
+      .forEach(propertyId => propertyIds.add(propertyId));
+    return Array.from(propertyIds);
+  }
+
+  mapTransferSplitsFromApi(splits: TransferSplit[] | undefined | null): TransferSplit[] {
+    const mapped = (splits || []).map(split => this.mapTransferSplitFromApi(split));
+    const seenSplitIds = new Set<number>();
+    return mapped.filter(split => {
+      const splitId = Number(split.transferSplitId ?? 0);
+      if (!Number.isFinite(splitId) || splitId <= 0) {
+        return true;
+      }
+      if (seenSplitIds.has(splitId)) {
+        return false;
+      }
+      seenSplitIds.add(splitId);
+      return true;
+    });
+  }
+
+  mapTransferSplitFromApi(raw: TransferSplit | Record<string, unknown>): TransferSplit {
+    const record = raw as TransferSplit & Record<string, unknown>;
+    const chartOfAccountId = Number(record.chartOfAccountId ?? record['ChartOfAccountId'] ?? 0);
+    return {
+      transferSplitId: (record.transferSplitId ?? record['TransferSplitId'] ?? null) as number | null,
+      amount: Number(record.amount ?? record['Amount'] ?? 0) || 0,
+      description: String(record.description ?? record['Description'] ?? '').trim(),
+      propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
+      propertyCode: String(record.propertyCode ?? record['PropertyCode'] ?? '').trim() || null,
+      journalEntryLineId: String(record.journalEntryLineId ?? record['JournalEntryLineId'] ?? '').trim() || null,
+      chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
+      chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null
+    };
+  }
+
+  mapTransferDisplays(transfers: TransferResponse[]): TransferDisplayList[] {
+    return (transfers || []).map((transfer: TransferResponse): TransferDisplayList => {
+      const splits = this.mapTransferSplitsFromApi(transfer.splits);
+      const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+      const transferAmount = Number(transfer.amount) || 0;
+      const distinctAccounts = Array.from(
+        new Set(
+          splits
+            .map(split => (split.chartOfAccountDisplayName || '').trim())
+            .filter(label => label.length > 0)
+        )
+      );
+      const propertyIds = this.resolveTransferPropertyIds(splits, transfer.propertyIds, transfer.propertyId);
+      return {
+        transferId: transfer.transferId,
+        transferCode: transfer.transferCode,
+        officeId: transfer.officeId,
+        officeName: transfer.officeName,
+        propertyIds,
+        transferDate: this.formatter.formatDateString(transfer.transferDate),
+        period: this.formatter.formatInvoiceListAccountingPeriod(transfer.accountingPeriod),
+        propertyCode: this.buildTransferPropertyCodesDisplay(propertyIds, splits),
+        descriptionDisplay: transfer.description || '',
+        amount: transferAmount,
+        amountDisplay: this.formatter.currencyUsd(transferAmount),
+        splits,
+        splitTotalAmount,
+        splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
+        splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        bankAccountId: transfer.bankAccountId ?? null,
+        bankAccountDisplay: (transfer.bankAccountDisplayName || '').trim(),
+        accountDisplay: distinctAccounts.join(', '),
+        isSplitAmountValid: splitTotalAmount <= transferAmount,
+        isActive: transfer.isActive,
+        createdBy: transfer.createdBy ?? transfer.createdByName ?? '',
+        createdByName: transfer.createdByName ?? transfer.createdBy ?? '',
+        modifiedOn: this.formatter.formatDateString(transfer.modifiedOn),
+        modifiedBy: transfer.modifiedBy
+      };
+    });
+  }
+
+  private buildTransferPropertyCodesDisplay(propertyIds: string[], splits: TransferSplit[]): string {
+    const codes = new Set<string>();
+    (propertyIds || [])
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0)
+      .forEach(propertyId => {
+        const splitCode = (splits || [])
+          .find(split => (split.propertyId || '').trim() === propertyId)?.propertyCode;
+        if ((splitCode || '').trim().length > 0) {
+          codes.add((splitCode || '').trim());
+        }
+      });
+    return Array.from(codes).join(', ');
+  }
+
+  mapTransferUpdateRequest(transfer: TransferResponse, isActive: boolean): TransferRequest {
+    const splits = this.mapTransferSplitsFromApi(transfer.splits).map(split => ({
+      transferSplitId: split.transferSplitId ?? null,
+      amount: Number(split.amount) || 0,
+      description: (split.description || '').trim(),
+      propertyId: split.propertyId ?? null,
+      chartOfAccountId: split.chartOfAccountId ?? null
+    }));
+
+    return {
+      transferId: transfer.transferId,
+      organizationId: transfer.organizationId,
+      officeId: transfer.officeId,
+      transferDate: transfer.transferDate,
+      accountingPeriod: transfer.accountingPeriod,
+      amount: Number(transfer.amount) || 0,
+      description: (transfer.description || '').trim(),
+      propertyId: transfer.propertyId ?? null,
+      bankAccountId: transfer.bankAccountId ?? null,
+      splits,
+      journalEntryId: transfer.journalEntryId ?? null,
       isActive
     };
   }

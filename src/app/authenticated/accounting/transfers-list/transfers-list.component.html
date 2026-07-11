@@ -1,0 +1,42 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading transfers...</p>
+  </div>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="transfers-list"
+        [data]="transfersDisplay"
+        [columns]="transferDisplayedColumns"
+        noDataMessage="No transfers"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="true"
+        deleteConfirmTitle="Delete Transfer"
+        deleteConfirmMessage="Are you sure you want to delete this transfer?"
+        [itemsPerPage]="10"
+        (editEvent)="goToTransfer($event)"
+        (rowClickEvent)="goToTransfer($event)"
+        (deleteEvent)="deleteTransfer($event)"
+        (checkboxChangeEvent)="onTransferCheckboxChange($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
+              InActive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="primary" id="add-transfer-button" class="text-nowrap flex-shrink-0" (click)="addTransfer()">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          </div>
+        </div>
+      </app-data-table>
+    </div>
+  </div>
+}
