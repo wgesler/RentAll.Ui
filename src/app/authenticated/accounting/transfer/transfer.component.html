@@ -37,7 +37,7 @@
                   class="transfer-overall-bank-account-field"
                   [renderInFormField]="true"
                   [formFieldClass]="'transfer-overall-bank-account-field'"
-                  [formFieldLabel]="'Bank Account'"
+                  [formFieldLabel]="'Escrow Deposits'"
                   [value]="form.get('bankAccountId')?.value ?? 0"
                   [options]="bankAccountOptions"
                   [required]="true"
@@ -48,7 +48,7 @@
                   [showInstructionOption]="false"
                   [noResultsText]="'No bank accounts match your search'"
                   [showError]="shouldShowControlError(form.get('bankAccountId'))"
-                  errorText="Bank account is required"
+                  errorText="Escrow deposit account is required"
                   (valueChange)="onOverallBankAccountSelectionChange($event)">
                 </app-searchable-select>
               </div>

@@ -385,6 +385,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
         amount,
         description: (group.get('description')?.value || '').toString().trim(),
         propertyId: this.normalizeSplitPropertyId(group.get('propertyId')?.value ?? null),
+        reservationId: this.normalizeSplitPropertyId(group.get('reservationId')?.value ?? null),
+        contactId: this.normalizeSplitPropertyId(group.get('contactId')?.value ?? null),
+        journalEntryLineId: this.normalizeSplitPropertyId(group.get('journalEntryLineId')?.value ?? null),
         chartOfAccountId: Number(group.get('chartOfAccountId')?.value ?? 0) > 0
           ? Number(group.get('chartOfAccountId')?.value)
           : null
@@ -557,6 +560,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required]),
       propertyId: new FormControl(split?.propertyId || null),
+      reservationId: new FormControl(split?.reservationId || null),
+      contactId: new FormControl(split?.contactId || null),
+      journalEntryLineId: new FormControl(split?.journalEntryLineId || null),
       chartOfAccountId: new FormControl(split?.chartOfAccountId ?? null, [Validators.required, this.requireAccountId])
     });
   }

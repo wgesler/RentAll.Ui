@@ -57,7 +57,6 @@ import { OwnerStatementCreateComponent } from '../owner-statement-create/owner-s
 import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../journal-entry-recap/journal-entry-recap.component';
-import { TransferReportComponent } from '../transfer-report/transfer-report.component';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -110,7 +109,6 @@ interface JournalEntrySyncProgressRow {
     WorkOrderCreateComponent,
     GeneralLedgerListComponent,
     JournalEntryRecapComponent,
-    TransferReportComponent,
     GeneralLedgerComponent,
     FinancialReportComponent,
     ArAgingReportComponent,
@@ -153,8 +151,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
     { kind: 'undepositedFunds', label: 'Undeposited Funds' },
     { kind: 'deposits', label: 'Deposits' },
+    { kind: 'untransferredFunds', label: 'Untransferred Funds' },
     { kind: 'transfers', label: 'Transfers' },
-    { kind: 'transferReport', label: 'Transfer Report' },
     { kind: 'printChecks', label: 'Print Checks' },
     { kind: 'reconcile', label: 'Reconcile' }
   ];
@@ -249,10 +247,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   generalLedgerRefreshTrigger = 0;
   financialReportsRefreshTrigger = 0;
   undepositedFundsRefreshTrigger = 0;
+  untransferredFundsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
   transfersRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
-  transferReportRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
   ownersStatementsRefreshTrigger = 0;
@@ -1045,10 +1043,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.billsRefreshTrigger++;
     this.receiptsRefreshTrigger++;
     this.undepositedFundsRefreshTrigger++;
+    this.untransferredFundsRefreshTrigger++;
     this.depositsRefreshTrigger++;
     this.transfersRefreshTrigger++;
     this.printChecksRefreshTrigger++;
-    this.transferReportRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
     if (this.selectedTabIndex === this.tabOwners) {
       if (this.selectedOwnerKind === 'ownerStatements') {
@@ -1954,10 +1952,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.printChecksRefreshTrigger++;
       return;
     }
-    if (this.selectedBankActivityKind === 'transferReport') {
-      this.transferReportRefreshTrigger++;
-      return;
-    }
     if (this.selectedBankActivityKind === 'deposits') {
       this.depositsRefreshTrigger++;
       return;
@@ -1968,6 +1962,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.selectedBankActivityKind === 'undepositedFunds') {
       this.undepositedFundsRefreshTrigger++;
+      return;
+    }
+    if (this.selectedBankActivityKind === 'untransferredFunds') {
+      this.untransferredFundsRefreshTrigger++;
     }
   }
 
@@ -2894,13 +2892,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       const bankActivity = params['bankActivity'];
       if (
         bankActivity === 'undepositedFunds'
+        || bankActivity === 'untransferredFunds'
+        || bankActivity === 'transferReport'
         || bankActivity === 'deposits'
         || bankActivity === 'transfers'
-        || bankActivity === 'transferReport'
         || bankActivity === 'printChecks'
         || bankActivity === 'reconcile'
       ) {
-        this.selectedBankActivityKind = bankActivity;
+        this.selectedBankActivityKind = bankActivity === 'transferReport' ? 'untransferredFunds' : bankActivity;
       }
     }
 
@@ -3052,10 +3051,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.billsRefreshTrigger++;
             this.receiptsRefreshTrigger++;
             this.undepositedFundsRefreshTrigger++;
+            this.untransferredFundsRefreshTrigger++;
             this.depositsRefreshTrigger++;
             this.transfersRefreshTrigger++;
             this.printChecksRefreshTrigger++;
-            this.transferReportRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
             if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {

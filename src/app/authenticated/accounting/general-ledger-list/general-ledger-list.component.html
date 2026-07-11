@@ -46,7 +46,7 @@
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
-    } @else if (!undepositedFundsOnly && !depositsOnly && !printChecksOnly && linesDisplay.length === 0) {
+    } @else if (!undepositedFundsOnly && !untransferredFundsOnly && !depositsOnly && !printChecksOnly && linesDisplay.length === 0) {
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
@@ -55,7 +55,7 @@
         <app-data-table
           [data]="linesDisplay"
           [columns]="displayedColumns"
-          [noDataMessage]="undepositedFundsOnly || depositsOnly || printChecksOnly ? noActivityMessage : null"
+          [noDataMessage]="undepositedFundsOnly || untransferredFundsOnly || depositsOnly || printChecksOnly ? noActivityMessage : null"
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasToggleTop]="false"

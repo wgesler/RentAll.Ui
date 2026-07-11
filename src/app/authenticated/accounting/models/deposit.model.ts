@@ -6,6 +6,10 @@ export interface DepositSplit {
   description: string;
   propertyId?: string | null;
   propertyCode?: string | null;
+  reservationId?: string | null;
+  reservationCode?: string | null;
+  contactId?: string | null;
+  contactName?: string | null;
   journalEntryLineId?: string | null;
   chartOfAccountId?: number | null;
   chartOfAccountDisplayName?: string | null;

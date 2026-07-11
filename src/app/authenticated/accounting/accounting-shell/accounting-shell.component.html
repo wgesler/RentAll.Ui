@@ -741,10 +741,10 @@
             @if (selectedTabIndex === tabBankActivities) {
               @if (selectedBankActivityKind !== 'reconcile') {
                 <div class="accounting-shell-subview-title">
-                  @if (selectedBankActivityKind === 'transferReport') {
-                    Transfer Report
-                  } @else if (selectedBankActivityKind === 'undepositedFunds') {
+                  @if (selectedBankActivityKind === 'undepositedFunds') {
                     Undeposited Funds
+                  } @else if (selectedBankActivityKind === 'untransferredFunds') {
+                    Untransferred Funds
                   } @else if (selectedBankActivityKind === 'deposits') {
                     Deposits
                   } @else if (selectedBankActivityKind === 'transfers') {
@@ -754,24 +754,7 @@
                   }
                 </div>
               }
-              @if (selectedBankActivityKind === 'transferReport') {
-                @if (showGeneralLedgerDetail && activeJournalEntryId) {
-                  <app-general-ledger
-                    [journalEntryId]="activeJournalEntryId"
-                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
-                    (backEvent)="onGeneralLedgerBack()"
-                    (savedEvent)="onJournalEntriesChanged()">
-                  </app-general-ledger>
-                } @else {
-                  <app-transfer-report
-                    [officeId]="selectedOfficeId"
-                    [searchDateRange]="invoiceSearchDateRange"
-                    [refreshTrigger]="transferReportRefreshTrigger"
-                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
-                    (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
-                  </app-transfer-report>
-                }
-              } @else if (selectedBankActivityKind === 'undepositedFunds') {
+              @if (selectedBankActivityKind === 'undepositedFunds') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
@@ -787,6 +770,23 @@
                     [refreshTrigger]="undepositedFundsRefreshTrigger"
                     (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
                     (depositCompletedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger-list>
+                }
+              } @else if (selectedBankActivityKind === 'untransferredFunds') {
+                @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else {
+                  <app-general-ledger-list
+                    [officeId]="selectedOfficeId"
+                    [untransferredFundsOnly]="true"
+                    [searchDateRange]="invoiceSearchDateRange"
+                    [refreshTrigger]="untransferredFundsRefreshTrigger"
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
                   </app-general-ledger-list>
                 }
               } @else if (selectedBankActivityKind === 'deposits') {

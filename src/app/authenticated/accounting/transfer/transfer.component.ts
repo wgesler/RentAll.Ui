@@ -13,7 +13,6 @@ import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-import { AccountType } from '../models/accounting-enum';
 import { TransferRequest, TransferResponse, TransferSplit } from '../models/transfer.model';
 import { TransferService } from '../services/transfer.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
@@ -164,7 +163,9 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     }
     this.splitTotalValidationError = false;
 
-    const bankAccountId = Number(this.form.get('bankAccountId')?.value ?? 0);
+    const bankAccountId = Number(this.form.get('bankAccountId')?.value ?? 0)
+      || this.getDefaultEscrowDepositAccountId(this.getTransferOfficeId() ?? 0)
+      || 0;
     if (!Number.isFinite(bankAccountId) || bankAccountId <= 0) {
       this.form.get('bankAccountId')?.markAsTouched();
       this.showValidationErrorToast();
@@ -304,12 +305,22 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     this.utilityService.addLoadItem(this.itemsToLoad$, 'accounts');
     this.chartOfAccountsService.getChartOfAccountsByOfficeId(officeId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts')) ).subscribe({
       next: (accounts) => {
-        const bankAccounts = (accounts || []).filter(account => Number(account.accountTypeId) === AccountType.Bank);
-        this.bankAccountOptions = bankAccounts.map(account => ({
-          value: account.accountId,
-          label: this.utilityService.getChartOfAccountDropdownLabel(account)
-        }));
-        this.splitAccountOptions = this.buildSplitAccountOptions(accounts || [], officeId);
+        const officeId = this.getTransferOfficeId();
+        const escrowDepositAccount = officeId != null
+          ? this.resolveEscrowDepositAccount(accounts || [], officeId)
+          : null;
+        this.bankAccountOptions = escrowDepositAccount
+          ? [{
+              value: escrowDepositAccount.accountId,
+              label: this.utilityService.getChartOfAccountDropdownLabel(escrowDepositAccount)
+            }]
+          : [];
+        if (escrowDepositAccount) {
+          this.form.patchValue({ bankAccountId: escrowDepositAccount.accountId }, { emitEvent: false });
+        }
+        this.splitAccountOptions = officeId != null
+          ? this.buildSplitAccountOptions(accounts || [], officeId)
+          : [];
         this.applyDefaultSplitAccountIfNeeded();
         this.cdr.markForCheck();
       },
@@ -385,6 +396,9 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
         amount,
         description: (group.get('description')?.value || '').toString().trim(),
         propertyId: this.normalizeSplitPropertyId(group.get('propertyId')?.value ?? null),
+        reservationId: this.normalizeSplitPropertyId(group.get('reservationId')?.value ?? null),
+        contactId: this.normalizeSplitPropertyId(group.get('contactId')?.value ?? null),
+        journalEntryLineId: this.normalizeSplitPropertyId(group.get('journalEntryLineId')?.value ?? null),
         chartOfAccountId: Number(group.get('chartOfAccountId')?.value ?? 0) > 0
           ? Number(group.get('chartOfAccountId')?.value)
           : null
@@ -557,13 +571,16 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required]),
       propertyId: new FormControl(split?.propertyId || null),
+      reservationId: new FormControl(split?.reservationId || null),
+      contactId: new FormControl(split?.contactId || null),
+      journalEntryLineId: new FormControl(split?.journalEntryLineId || null),
       chartOfAccountId: new FormControl(split?.chartOfAccountId ?? null, [Validators.required, this.requireAccountId])
     });
   }
 
   buildSplitAccountOptions(accounts: ChartOfAccountResponse[], officeId: number): SearchableSelectOption<number>[] {
-    const undepositedAccounts = this.resolveUndepositedFundsAccounts(accounts, officeId);
-    const options = undepositedAccounts.map(account => ({
+    const destinationAccounts = this.resolveTransferDestinationAccounts(accounts, officeId);
+    const options = destinationAccounts.map(account => ({
       value: account.accountId,
       label: this.utilityService.getChartOfAccountDropdownLabel(account)
     }));
@@ -599,7 +616,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       return null;
     }
 
-    const configuredDefaultAccountId = this.getDefaultUndepositedFundsAccountId(officeId);
+    const configuredDefaultAccountId = this.getDefaultEscrowOwnersAccountId(officeId);
     if (configuredDefaultAccountId != null
       && this.splitAccountOptions.some(option => option.value === configuredDefaultAccountId)) {
       return configuredDefaultAccountId;
@@ -731,39 +748,42 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     return `${isNegative ? '-' : ''}${numericPortion}`;
   }
  
-  resolveUndepositedFundsAccounts(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse[] {
-    const undepositedByName = (accounts || []).filter(account =>
-      Number(account.accountTypeId) === AccountType.OtherCurrentAsset
-      && this.isUndepositedFundsAccount(account)
-    );
-
-    const defaultAccountId = this.getDefaultUndepositedFundsAccountId(officeId);
-    if (defaultAccountId == null) {
-      return undepositedByName;
-    }
-
-    const defaultAccount = accounts.find(account => account.accountId === defaultAccountId);
-    if (!defaultAccount) {
-      return undepositedByName;
-    }
-
-    if (undepositedByName.some(account => account.accountId === defaultAccountId)) {
-      return undepositedByName;
-    }
-
-    return [defaultAccount, ...undepositedByName];
+  resolveTransferDestinationAccounts(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse[] {
+    const destinationAccountIds = new Set(this.getTransferDestinationAccountIds(officeId));
+    return (accounts || []).filter(account => destinationAccountIds.has(account.accountId));
   }
 
-  isUndepositedFundsAccount(account: ChartOfAccountResponse): boolean {
-    const name = (account.name || '').toLowerCase();
-    const accountNo = (account.accountNo || '').toLowerCase();
-    return name.includes('undeposited') || accountNo.includes('undeposited');
+  resolveEscrowDepositAccount(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse | null {
+    const escrowDepositAccountId = this.getDefaultEscrowDepositAccountId(officeId);
+    if (escrowDepositAccountId == null) {
+      return null;
+    }
+
+    return accounts.find(account => account.accountId === escrowDepositAccountId) ?? null;
   }
 
-  getDefaultUndepositedFundsAccountId(officeId: number): number | null {
+  getTransferDestinationAccountIds(officeId: number): number[] {
     const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
       .find(office => Number(office.officeId) === officeId);
-    const accountId = Number(accountingOffice?.defaultUndepFundsAccountId ?? 0);
+    return [
+      Number(accountingOffice?.defaultEscrowSecDepAccountId ?? 0),
+      Number(accountingOffice?.defaultEscrowSdwAccountId ?? 0),
+      Number(accountingOffice?.defaultEscrowOwnersAccountId ?? 0),
+      Number(accountingOffice?.defaultBankAccountId ?? 0)
+    ].filter(accountId => accountId > 0);
+  }
+
+  getDefaultEscrowDepositAccountId(officeId: number): number | null {
+    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
+      .find(office => Number(office.officeId) === officeId);
+    const accountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
+    return accountId > 0 ? accountId : null;
+  }
+
+  getDefaultEscrowOwnersAccountId(officeId: number): number | null {
+    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
+      .find(office => Number(office.officeId) === officeId);
+    const accountId = Number(accountingOffice?.defaultEscrowOwnersAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
 

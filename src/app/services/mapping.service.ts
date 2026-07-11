@@ -3097,6 +3097,10 @@ export class MappingService {
       description: String(record.description ?? record['Description'] ?? '').trim(),
       propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
       propertyCode: String(record.propertyCode ?? record['PropertyCode'] ?? '').trim() || null,
+      reservationId: String(record.reservationId ?? record['ReservationId'] ?? '').trim() || null,
+      reservationCode: String(record.reservationCode ?? record['ReservationCode'] ?? '').trim() || null,
+      contactId: String(record.contactId ?? record['ContactId'] ?? '').trim() || null,
+      contactName: String(record.contactName ?? record['ContactName'] ?? '').trim() || null,
       journalEntryLineId: String(record.journalEntryLineId ?? record['JournalEntryLineId'] ?? '').trim() || null,
       chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
       chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null
@@ -3166,6 +3170,9 @@ export class MappingService {
       amount: Number(split.amount) || 0,
       description: (split.description || '').trim(),
       propertyId: split.propertyId ?? null,
+      reservationId: split.reservationId ?? null,
+      contactId: split.contactId ?? null,
+      journalEntryLineId: split.journalEntryLineId ?? null,
       chartOfAccountId: split.chartOfAccountId ?? null
     }));
 
@@ -3324,6 +3331,10 @@ export class MappingService {
       description: String(record.description ?? record['Description'] ?? '').trim(),
       propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
       propertyCode: String(record.propertyCode ?? record['PropertyCode'] ?? '').trim() || null,
+      reservationId: String(record.reservationId ?? record['ReservationId'] ?? '').trim() || null,
+      reservationCode: String(record.reservationCode ?? record['ReservationCode'] ?? '').trim() || null,
+      contactId: String(record.contactId ?? record['ContactId'] ?? '').trim() || null,
+      contactName: String(record.contactName ?? record['ContactName'] ?? '').trim() || null,
       journalEntryLineId: String(record.journalEntryLineId ?? record['JournalEntryLineId'] ?? '').trim() || null,
       chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
       chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null
@@ -3393,6 +3404,9 @@ export class MappingService {
       amount: Number(split.amount) || 0,
       description: (split.description || '').trim(),
       propertyId: split.propertyId ?? null,
+      reservationId: split.reservationId ?? null,
+      contactId: split.contactId ?? null,
+      journalEntryLineId: split.journalEntryLineId ?? null,
       chartOfAccountId: split.chartOfAccountId ?? null
     }));
 
