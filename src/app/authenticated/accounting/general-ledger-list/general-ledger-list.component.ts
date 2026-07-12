@@ -214,12 +214,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return this.untransferredFundsOnly && this.showTransferSelections;
   }
 
-  private usesEscrowOpenLinesFilter(): boolean {
+  private usesUntransferredOpenLinesFilter(): boolean {
     return this.untransferredFundsOnly || this.transferReportOnly;
   }
 
   private usesFixedBankActivityFilter(): boolean {
-    return this.undepositedFundsOnly || this.usesEscrowOpenLinesFilter() || this.depositsOnly || this.printChecksOnly;
+    return this.undepositedFundsOnly || this.usesUntransferredOpenLinesFilter() || this.depositsOnly || this.printChecksOnly;
   }
 
   get showPrintCheckTableSelections(): boolean {
@@ -421,7 +421,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    const escrowDepositAccountId = this.getDefaultEscrowDepositAccountId(officeId);
+    const escrowDepositAccountId = this.resolveTransferSourceEscrowDepositAccountId(
+      officeId,
+      selectedLines.map(line => line.journalEntryLineId)
+    );
     if (!escrowDepositAccountId) {
       this.toastr.error('Escrow Deposits account is not configured for this office.', CommonMessage.Error);
       return;
@@ -744,7 +747,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         } else {
           this.clearDepositLineSelection();
         }
-      } else if (this.usesEscrowOpenLinesFilter()) {
+      } else if (this.usesUntransferredOpenLinesFilter()) {
         if (this.untransferredFundsOnly && this.showTransferForm) {
           this.cancelTransferForm();
         } else if (this.untransferredFundsOnly) {
@@ -760,7 +763,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const undepositedFundsAccountIds = this.undepositedFundsOnly
       ? this.resolveUndepositedFundsAccountIds(officeIds)
       : [];
-    const untransferredFundsAccountIds = this.usesEscrowOpenLinesFilter()
+    const untransferredFundsAccountIds = this.usesUntransferredOpenLinesFilter()
       ? this.resolveUntransferredFundsAccountIds(officeIds)
       : [];
     const printChecksBankAccountIds = this.printChecksOnly
@@ -794,7 +797,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }
       this.noActivityMessage = this.undepositedFundsOnly
         ? 'No Undeposited Funds account is configured for the selected office.'
-        : this.usesEscrowOpenLinesFilter()
+        : this.usesUntransferredOpenLinesFilter()
           ? 'No configured escrow deposit account for the selected office.'
           : this.depositsOnly
             ? 'No Bank account is configured for the selected office.'
@@ -809,7 +812,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       } else {
         this.clearDepositLineSelection();
       }
-    } else if (this.usesEscrowOpenLinesFilter()) {
+    } else if (this.usesUntransferredOpenLinesFilter()) {
       if (this.untransferredFundsOnly && this.showTransferForm) {
         this.cancelTransferForm();
       } else if (this.untransferredFundsOnly) {
@@ -849,7 +852,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           return;
         }
 
-        if (this.usesEscrowOpenLinesFilter()) {
+        if (this.usesUntransferredOpenLinesFilter()) {
           const startDate = this.searchDateRange?.startDate ?? null;
           const endDate = this.searchDateRange?.endDate ?? null;
           forkJoin({
@@ -996,7 +999,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       const depositedLineIds = this.buildDepositedJournalEntryLineIds(deposits || []);
       resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, depositedLineIds);
     }
-    if (this.usesEscrowOpenLinesFilter()) {
+    if (this.usesUntransferredOpenLinesFilter()) {
+      const escrowAccountIdSet = new Set(filteredAccountIds);
+      resolvedLines = resolvedLines.filter(line =>
+        Number(line.sourceTypeId) === SourceType.Deposit
+        && escrowAccountIdSet.has(line.chartOfAccountId)
+        && Number(line.debit || 0) > 0);
       const enrichedLines = this.enrichUntransferredFundsLinesFromDeposits(resolvedLines, deposits || []);
       resolvedLines = this.filterUntransferredFundsOpenLines(
         enrichedLines,
@@ -1199,18 +1207,31 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    this.depositBankChartOfAccounts = this.chartOfAccounts
-      .filter(account => account.officeId === officeId)
+    const officeAccounts = this.chartOfAccounts.filter(account => account.officeId === officeId);
+    const optionById = new Map<number, { value: number; label: string }>();
+
+    officeAccounts
       .filter(account => Number(account.accountTypeId) === AccountType.Bank)
-      .sort((left, right) => {
-        const leftLabel = `${left.accountNo || ''} ${left.name || ''}`.trim();
-        const rightLabel = `${right.accountNo || ''} ${right.name || ''}`.trim();
-        return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: 'base' });
-      })
-      .map(account => ({
-        value: Number(account.accountId),
-        label: `${account.accountNo}: ${account.name}`
-      }));
+      .forEach(account => {
+        optionById.set(Number(account.accountId), {
+          value: Number(account.accountId),
+          label: `${account.accountNo}: ${account.name}`
+        });
+      });
+
+    const escrowDepositAccountId = this.getDefaultEscrowDepositAccountId(officeId);
+    if (escrowDepositAccountId != null) {
+      const escrowDepositAccount = officeAccounts.find(account => Number(account.accountId) === escrowDepositAccountId);
+      if (escrowDepositAccount) {
+        optionById.set(escrowDepositAccountId, {
+          value: escrowDepositAccountId,
+          label: this.utilityService.getChartOfAccountDropdownLabel(escrowDepositAccount)
+        });
+      }
+    }
+
+    this.depositBankChartOfAccounts = Array.from(optionById.values())
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
 
     if (
       this.selectedDepositBankChartOfAccountId != null
@@ -1218,6 +1239,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     ) {
       this.selectedDepositBankChartOfAccountId = null;
       this.depositTransactionType = '';
+    }
+
+    if (this.selectedDepositBankChartOfAccountId == null && escrowDepositAccountId != null) {
+      this.onDepositBankChartOfAccountChange(escrowDepositAccountId);
     }
   }
 
@@ -1443,9 +1468,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }
 
       const linkedLineIds = this.buildLinkedLineIdsForOpenLine(line, depositById);
-      const openLinesWithSameNet = openLines.filter(openLine =>
-        Math.abs(this.getLineNetAmountFromSearchLine(openLine) - lineNet) <= 0.005
-      );
 
       for (const transfer of transfers || []) {
         if (transfer.isActive === false) {
@@ -1479,7 +1501,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           .map(split => this.normalizeJournalEntryLineId(split.journalEntryLineId))
           .filter(splitLineId => splitLineId.length > 0);
         const hasLineLink = splitLineIds.some(splitLineId => linkedLineIds.has(splitLineId));
-        if (hasLineLink || openLinesWithSameNet.length === 1) {
+        if (hasLineLink) {
           settledLineIds.add(lineId);
           break;
         }
@@ -1535,7 +1557,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     );
 
     if (transferPropertyIds.size === 0 || depositPropertyIds.size === 0) {
-      return true;
+      return false;
     }
 
     return [...transferPropertyIds].some(propertyId => depositPropertyIds.has(propertyId));
@@ -1746,6 +1768,30 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
     return accountId > 0 ? accountId : null;
+  }
+
+  private resolveTransferSourceEscrowDepositAccountId(
+    officeId: number,
+    selectedLineIds: string[]
+  ): number | null {
+    const selectedIdSet = new Set(
+      (selectedLineIds || [])
+        .map(lineId => String(lineId || '').trim())
+        .filter(lineId => lineId.length > 0)
+    );
+    const accountIds = new Set(
+      this.allLines
+        .filter(line => selectedIdSet.has(line.journalEntryLineId))
+        .map(line => Number(line.chartOfAccountId || 0))
+        .filter(accountId => accountId > 0)
+    );
+
+    if (accountIds.size === 1) {
+      return [...accountIds][0];
+    }
+
+    return this.getDefaultEscrowDepositAccountId(officeId)
+      ?? (accountIds.size > 0 ? [...accountIds][0] : null);
   }
 
   private resolveTransferAllocationAccountIds(officeId: number): {

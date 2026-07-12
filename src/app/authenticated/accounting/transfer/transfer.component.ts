@@ -769,6 +769,12 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     return accounts.find(account => account.accountId === escrowDepositAccountId) ?? null;
   }
 
+  getDefaultBankAccountId(officeId: number): number | null {
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
+    const accountId = Number(accountingOffice?.defaultBankAccountId ?? 0);
+    return accountId > 0 ? accountId : null;
+  }
+
   getTransferDestinationAccountIds(officeId: number): number[] {
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     return [
@@ -779,15 +785,15 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     ].filter(accountId => accountId > 0);
   }
 
-  getDefaultEscrowDepositAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
-    const accountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
-    return accountId > 0 ? accountId : null;
-  }
-
   getDefaultEscrowOwnersAccountId(officeId: number): number | null {
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultEscrowOwnersAccountId ?? 0);
+    return accountId > 0 ? accountId : null;
+  }
+
+  getDefaultEscrowDepositAccountId(officeId: number): number | null {
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
+    const accountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
 
