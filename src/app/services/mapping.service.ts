@@ -675,6 +675,7 @@ export class MappingService {
     const parsedSourceTypeId = sourceTypeRaw == null || sourceTypeRaw === '' ? null : Number(sourceTypeRaw);
     const sourceTypeId = parsedSourceTypeId != null && Number.isFinite(parsedSourceTypeId) ? parsedSourceTypeId : null;
     const ownerPaymentValue = Math.max(0, Number(raw['ownerPaymentValue'] ?? raw['OwnerPaymentValue'] ?? 0));
+    const ownerRentActualValue = Number(raw['ownerRentActualValue'] ?? raw['OwnerRentActualValue'] ?? 0);
 
     return {
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
@@ -692,24 +693,26 @@ export class MappingService {
       transactionDate: String(raw['transactionDate'] ?? raw['TransactionDate'] ?? ''),
       expectedIncome: String(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? ''),
       rentPlus4000: String(raw['rentPlus4000'] ?? raw['RentPlus4000'] ?? ''),
+      ownerRent: String(raw['ownerRent'] ?? raw['OwnerRent'] ?? ''),
+      ownerRentActual: this.formatter.currencyUsd(ownerRentActualValue),
       securityDeposit: String(raw['securityDeposit'] ?? raw['SecurityDeposit'] ?? ''),
       sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
       fee: String(raw['fee'] ?? raw['Fee'] ?? ''),
       payment: String(raw['payment'] ?? raw['Payment'] ?? ''),
       prePayment: String(raw['prePayment'] ?? raw['PrePayment'] ?? ''),
       unPaid: String(raw['unPaid'] ?? raw['UnPaid'] ?? ''),
-      ownerRent: String(raw['ownerRent'] ?? raw['OwnerRent'] ?? ''),
       ownerExpense: String(raw['ownerExpense'] ?? raw['OwnerExpense'] ?? ''),
       ownerPayment: this.formatter.currencyUsd(ownerPaymentValue),
       expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
       rentPlus4000Value: Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0),
+      ownerRentValue: Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0),
+      ownerRentActualValue,
       securityDepositValue: Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0),
       sdwValue: Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0),
       feeValue: Number(raw['feeValue'] ?? raw['FeeValue'] ?? 0),
       paymentValue: Number(raw['paymentValue'] ?? raw['PaymentValue'] ?? 0),
       prePaymentValue: Number(raw['prePaymentValue'] ?? raw['PrePaymentValue'] ?? 0),
       unPaidValue: Number(raw['unPaidValue'] ?? raw['UnPaidValue'] ?? 0),
-      ownerRentValue: Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0),
       ownerExpenseValue: Number(raw['ownerExpenseValue'] ?? raw['OwnerExpenseValue'] ?? 0),
       ownerPaymentValue,
       sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
@@ -731,14 +734,19 @@ export class MappingService {
     const sourceTypeRaw = raw['sourceTypeId'] ?? raw['SourceTypeId'];
     const parsedSourceTypeId = sourceTypeRaw == null || sourceTypeRaw === '' ? null : Number(sourceTypeRaw);
     const sourceTypeId = parsedSourceTypeId != null && Number.isFinite(parsedSourceTypeId) ? parsedSourceTypeId : null;
-    const rentPlus4000Value = Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0);
     const ownerRentValue = Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0);
-    const businessValue = Number(raw['businessValue'] ?? raw['BusinessValue'] ?? (rentPlus4000Value - ownerRentValue));
+    const ownerRentActualValue = Number(raw['ownerRentActualValue'] ?? raw['OwnerRentActualValue'] ?? 0);
+    const businessValue = Number(raw['businessValue'] ?? raw['BusinessValue'] ?? (
+      Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0)
+      - ownerRentActualValue
+      - Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0)
+      - Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0)
+    ));
     const expectedIncomeValue = Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0);
     const securityDepositValue = Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0);
     const sdwValue = Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0);
     const balanceValue = Math.round((
-      expectedIncomeValue - rentPlus4000Value - securityDepositValue - sdwValue - businessValue
+      expectedIncomeValue - ownerRentActualValue - securityDepositValue - sdwValue - businessValue
       + Number.EPSILON
     ) * 100) / 100;
 
@@ -759,6 +767,7 @@ export class MappingService {
       expectedIncome: String(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? ''),
       rentPlus4000: String(raw['rentPlus4000'] ?? raw['RentPlus4000'] ?? ''),
       ownerRent: String(raw['ownerRent'] ?? raw['OwnerRent'] ?? ''),
+      ownerRentActual: String(raw['ownerRentActual'] ?? raw['OwnerRentActual'] ?? this.formatter.currencyUsd(ownerRentActualValue)),
       business: String(raw['business'] ?? raw['Business'] ?? this.formatter.currencyUsd(businessValue)),
       securityDeposit: String(raw['securityDeposit'] ?? raw['SecurityDeposit'] ?? ''),
       sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
@@ -766,8 +775,9 @@ export class MappingService {
       balance: this.formatter.currencyUsd(balanceValue),
       balanceIsAlert: balanceValue !== 0,
       expectedIncomeValue,
-      rentPlus4000Value,
+      rentPlus4000Value: Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0),
       ownerRentValue,
+      ownerRentActualValue,
       businessValue,
       securityDepositValue,
       sdwValue,

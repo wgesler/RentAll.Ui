@@ -37,21 +37,21 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false, alignment: 'center' },
-    propertyCode: { displayAs: 'Property', maxWidth: '12ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '14ch' },
-    source: { displayAs: 'Source', maxWidth: '15ch' },
-    accountingPeriod: { displayAs: 'Period', maxWidth: '10ch' },
-    journalEntryCode: { displayAs: 'JEntry', maxWidth: '14ch', sortType: 'natural' },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '12ch' },
+    source: { displayAs: 'Source', maxWidth: '15ch' },
+    journalEntryCode: { displayAs: 'JEntry', maxWidth: '14ch', sortType: 'natural' },
+    accountingPeriod: { displayAs: 'Period', maxWidth: '10ch' },
     expectedIncome: { displayAs: 'Invoiced', maxWidth: '12ch', alignment: 'right', sort: false },
     rentPlus4000: { displayAs: 'Rent/4000', maxWidth: '12ch', alignment: 'right', sort: false },
+    ownerRent: { displayAs: 'OwnRent', maxWidth: '12ch', alignment: 'right', sort: false },
     securityDeposit: { displayAs: 'SecDep', maxWidth: '10ch', alignment: 'right', sort: false },
     sdw: { displayAs: 'SDW', maxWidth: '10ch', alignment: 'right', sort: false },
     fee: { displayAs: 'Fees', maxWidth: '10ch', alignment: 'right', sort: false },
     payment: { displayAs: 'Payment', maxWidth: '12ch', alignment: 'right', sort: false },
     prePayment: { displayAs: 'PrePay', maxWidth: '12ch', alignment: 'right', sort: false },
     unPaid: { displayAs: 'UnPaid', maxWidth: '12ch', alignment: 'right', sort: false },
-    ownerRent: { displayAs: 'OwnRent', maxWidth: '12ch', alignment: 'right', sort: false },
+    ownerRentActual: { displayAs: 'OwnAct', maxWidth: '12ch', alignment: 'right', sort: false },
     ownerExpense: { displayAs: 'OwnExp', maxWidth: '12ch', alignment: 'right', sort: false },
     ownerPayment: { displayAs: 'OwnPay', maxWidth: '12ch', alignment: 'right', sort: false }
   };

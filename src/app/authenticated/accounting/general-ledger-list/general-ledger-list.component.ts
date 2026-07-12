@@ -1772,10 +1772,47 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return (value || '').trim().toUpperCase();
   }
 
+  private extractTransferInvoiceSourceCode(...values: Array<string | null | undefined>): string | null {
+    const invoicePattern = /\bR-\d+-\d+\b/i;
+    for (const value of values) {
+      const text = (value || '').trim();
+      if (!text) {
+        continue;
+      }
+
+      const match = text.match(invoicePattern);
+      if (match?.[0]) {
+        return match[0].toUpperCase();
+      }
+    }
+
+    return null;
+  }
+
+  private findTransferReportRowByInvoiceSource(
+    rows: TransferReportRowDisplay[],
+    invoiceSourceCode: string | null
+  ): TransferReportRowDisplay | null {
+    const normalizedInvoiceSource = this.normalizeTransferSourceKey(invoiceSourceCode);
+    if (!normalizedInvoiceSource) {
+      return null;
+    }
+
+    return rows.find(row => this.normalizeTransferSourceKey(row.source) === normalizedInvoiceSource) ?? null;
+  }
+
   private findTransferReportRowForLine(
     line: JournalEntryLineListDisplay,
     rows: TransferReportRowDisplay[]
   ): TransferReportRowDisplay | null {
+    const byInvoiceSource = this.findTransferReportRowByInvoiceSource(
+      rows,
+      this.extractTransferInvoiceSourceCode(line.description, line.source, line.journalEntryCode)
+    );
+    if (byInvoiceSource) {
+      return byInvoiceSource;
+    }
+
     const lineId = String(line.journalEntryLineId || '').trim();
     if (lineId) {
       const byLineId = rows.find(row => String(row.journalEntryLineId || '').trim() === lineId);
@@ -1823,6 +1860,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     rows: TransferReportRowDisplay[],
     journalEntryLines: JournalEntryLineSearchResponse[]
   ): TransferReportRowDisplay | null {
+    const byInvoiceSource = this.findTransferReportRowByInvoiceSource(
+      rows,
+      this.extractTransferInvoiceSourceCode(split.description)
+    );
+    if (byInvoiceSource) {
+      return byInvoiceSource;
+    }
+
     const splitLineId = String(split.journalEntryLineId || '').trim();
     if (splitLineId) {
       const byLineId = rows.find(row => String(row.journalEntryLineId || '').trim() === splitLineId);
@@ -1834,6 +1879,19 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         String(line.journalEntryLineId || '').trim() === splitLineId
       );
       if (sourceLine) {
+        const bySourceLineInvoice = this.findTransferReportRowByInvoiceSource(
+          rows,
+          this.extractTransferInvoiceSourceCode(
+            sourceLine.memo,
+            sourceLine.journalEntryMemo,
+            sourceLine.sourceCode,
+            sourceLine.journalEntryCode
+          )
+        );
+        if (bySourceLineInvoice) {
+          return bySourceLineInvoice;
+        }
+
         const journalEntryCode = (sourceLine.journalEntryCode || '').trim();
         if (journalEntryCode) {
           const byJournalEntryCode = rows.find(row =>
@@ -1945,20 +2003,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     depositSplit?: DepositSplit
   ): TransferSplit[] {
     const expectedIncome = Number(recapRow.expectedIncomeValue || 0);
-    const ownerEscrow = this.scaleTransferAllocationAmount(recapRow.ownerRentValue, baseAmount, expectedIncome);
-    const secDep = this.scaleTransferAllocationAmount(recapRow.securityDepositValue, baseAmount, expectedIncome);
-    const sdw = this.scaleTransferAllocationAmount(recapRow.sdwValue, baseAmount, expectedIncome);
-    const fees = this.scaleTransferAllocationAmount(recapRow.feeValue, baseAmount, expectedIncome);
-    const businessEarnings = this.scaleTransferAllocationAmount(
-      expectedIncome
-        - recapRow.ownerRentValue
-        - recapRow.securityDepositValue
-        - recapRow.sdwValue
-        - recapRow.feeValue,
+    const ownerEscrow = this.scaleTransferAllocationAmount(
+      recapRow.ownerRentActualValue ?? recapRow.ownerRentValue,
       baseAmount,
       expectedIncome
     );
-    let bank = this.roundCurrencyValue(businessEarnings + fees);
+    const secDep = this.scaleTransferAllocationAmount(recapRow.securityDepositValue, baseAmount, expectedIncome);
+    const sdw = this.scaleTransferAllocationAmount(recapRow.sdwValue, baseAmount, expectedIncome);
+    let bank = this.roundCurrencyValue(baseAmount - ownerEscrow - secDep - sdw);
 
     const drift = this.roundCurrencyValue(baseAmount - (ownerEscrow + secDep + sdw + bank));
     if (drift !== 0) {

@@ -349,15 +349,16 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
 
-    const rentPlus4000Value = this.sumNetDebitAmountsForAccount(netDebitLines, accountIds.owners);
+    const ownerRentActualValue = this.sumNetDebitAmountsForAccount(netDebitLines, accountIds.owners);
+    const rentPlus4000Value = ownerRentActualValue;
     const securityDepositValue = this.sumNetDebitAmountsForAccount(netDebitLines, accountIds.secDep);
     const sdwValue = this.sumNetDebitAmountsForAccount(netDebitLines, accountIds.sdw);
     const businessValue = this.sumNetDebitAmountsForAccount(netDebitLines, accountIds.bank);
     const expectedIncomeValue = this.roundCurrency(
-      rentPlus4000Value + securityDepositValue + sdwValue + businessValue
+      ownerRentActualValue + securityDepositValue + sdwValue + businessValue
     );
     const balanceValue = this.roundCurrency(
-      expectedIncomeValue - rentPlus4000Value - securityDepositValue - sdwValue - businessValue
+      expectedIncomeValue - ownerRentActualValue - securityDepositValue - sdwValue - businessValue
     );
     const source = transfer ? this.resolveTransferSource(transfer) : this.resolveTransferSourceFromLines(netDebitLines);
     const contextLine = netDebitLines.find(line =>
@@ -389,7 +390,8 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
       transactionDate: this.formatter.formatDateString(rawTransactionDate),
       expectedIncome: this.formatter.currencyUsd(expectedIncomeValue),
       rentPlus4000: this.formatter.currencyUsd(rentPlus4000Value),
-      ownerRent: this.formatter.currencyUsd(rentPlus4000Value),
+      ownerRent: this.formatter.currencyUsd(ownerRentActualValue),
+      ownerRentActual: this.formatter.currencyUsd(ownerRentActualValue),
       business: this.formatter.currencyUsd(businessValue),
       securityDeposit: this.formatter.currencyUsd(securityDepositValue),
       sdw: this.formatter.currencyUsd(sdwValue),
@@ -398,7 +400,8 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
       balanceIsAlert: balanceValue !== 0,
       expectedIncomeValue,
       rentPlus4000Value,
-      ownerRentValue: rentPlus4000Value,
+      ownerRentValue: ownerRentActualValue,
+      ownerRentActualValue,
       businessValue,
       securityDepositValue,
       sdwValue,
