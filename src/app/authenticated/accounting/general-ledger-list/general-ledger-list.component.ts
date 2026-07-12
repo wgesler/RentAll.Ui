@@ -524,7 +524,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    this.applyLineSelectionSet(selection, line => this.getLineNetAmount(line) > 0);
+    this.applyLineSelectionSet(selection, line => this.isUntransferredFundsLineSelectable(line));
 
     if (this.isTransferSelectionMode) {
       this.syncTransferAmountFromLineSelection();
@@ -1004,7 +1004,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       resolvedLines = resolvedLines.filter(line =>
         Number(line.sourceTypeId) === SourceType.Deposit
         && escrowAccountIdSet.has(line.chartOfAccountId)
-        && Number(line.debit || 0) > 0);
+        && Math.abs(this.getLineNetAmountFromSearchLine(line)) > 0.005);
       const enrichedLines = this.enrichUntransferredFundsLinesFromDeposits(resolvedLines, deposits || []);
       resolvedLines = this.filterUntransferredFundsOpenLines(
         enrichedLines,
@@ -1065,7 +1065,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       selected: (this.showDepositTableSelections || this.showTransferTableSelections || this.showPrintCheckTableSelections)
         && this.selectedJournalEntryLineIds.has(line.journalEntryLineId),
       disabled: (this.showDepositTableSelections && this.getLineNetAmount(line) <= 0)
-        || (this.showTransferTableSelections && this.getLineNetAmount(line) <= 0)
+        || (this.showTransferTableSelections && !this.isUntransferredFundsLineSelectable(line))
         || (this.showPrintCheckTableSelections && !this.isPrintCheckLineSelectable(line))
     }));
   }
@@ -1281,6 +1281,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   getLineNetAmount(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): number {
     return this.roundCurrencyValue(Number(line.debitValue || 0) - Number(line.creditValue || 0));
+  }
+
+  isUntransferredFundsLineSelectable(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): boolean {
+    return Math.abs(this.getLineNetAmount(line)) > 0.005;
   }
 
   private getLineNetAmountFromSearchLine(line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit'>): number {
