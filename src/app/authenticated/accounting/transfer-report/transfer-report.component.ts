@@ -309,7 +309,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     return (lines || []).filter(line =>
       finalAccountIds.has(Number(line.chartOfAccountId))
       && Number(line.chartOfAccountId) !== Number(accountIds.escrowDeposit || 0)
-      && this.getLineNetAmount(line) > 0
+      && Math.abs(this.getLineNetAmount(line)) > 0.005
     );
   }
 
