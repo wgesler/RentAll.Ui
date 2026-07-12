@@ -1992,14 +1992,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         const depositSplits = (deposit?.splits || []).filter(split => Number(split.amount || 0) !== 0);
         if (depositSplits.length === 0) {
           const recapRow = this.findTransferReportRowForLine(line, transferReportRows);
-          if (recapRow) {
-            splits.push(...this.buildTransferSplitsFromRecapRow(
-              recapRow,
-              this.getLineNetAmount(line),
-              line,
-              accountIds
-            ));
-          }
+          splits.push(...this.buildTransferSplitsForLineAmount(
+            recapRow,
+            this.getLineNetAmount(line),
+            line,
+            accountIds
+          ));
           continue;
         }
 
@@ -2009,11 +2007,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
             transferReportRows,
             this.allLines
           );
-          if (!recapRow) {
-            continue;
-          }
 
-          splits.push(...this.buildTransferSplitsFromRecapRow(
+          splits.push(...this.buildTransferSplitsForLineAmount(
             recapRow,
             Number(depositSplit.amount || 0),
             line,
@@ -2025,11 +2020,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }
 
       const recapRow = this.findTransferReportRowForLine(line, transferReportRows);
-      if (!recapRow) {
-        continue;
-      }
-
-      splits.push(...this.buildTransferSplitsFromRecapRow(
+      splits.push(...this.buildTransferSplitsForLineAmount(
         recapRow,
         this.getLineNetAmount(line),
         line,
@@ -2038,6 +2029,69 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }
 
     return splits;
+  }
+
+  private shouldAllocateTransferToBusinessOnly(recapRow: TransferReportRowDisplay | null): boolean {
+    if (!recapRow) {
+      return true;
+    }
+
+    const ownerRent = Number(recapRow.ownerRentActualValue ?? recapRow.ownerRentValue ?? 0);
+    const secDep = Number(recapRow.securityDepositValue ?? 0);
+    const sdw = Number(recapRow.sdwValue ?? 0);
+    return ownerRent === 0 && secDep === 0 && sdw === 0;
+  }
+
+  private buildTransferSplitsForLineAmount(
+    recapRow: TransferReportRowDisplay | null,
+    baseAmount: number,
+    contextLine: JournalEntryLineListDisplay,
+    accountIds: {
+      owners: number | null;
+      secDep: number | null;
+      sdw: number | null;
+      bank: number | null;
+    },
+    depositSplit?: DepositSplit
+  ): TransferSplit[] {
+    if (this.shouldAllocateTransferToBusinessOnly(recapRow)) {
+      return this.buildBusinessOnlyTransferSplits(baseAmount, contextLine, accountIds, depositSplit);
+    }
+
+    return this.buildTransferSplitsFromRecapRow(
+      recapRow!,
+      baseAmount,
+      contextLine,
+      accountIds,
+      depositSplit
+    );
+  }
+
+  private buildBusinessOnlyTransferSplits(
+    baseAmount: number,
+    contextLine: JournalEntryLineListDisplay,
+    accountIds: {
+      bank: number | null;
+    },
+    depositSplit?: DepositSplit
+  ): TransferSplit[] {
+    const amount = this.roundCurrencyValue(baseAmount);
+    if (amount === 0 || !accountIds.bank) {
+      return [];
+    }
+
+    const source = (depositSplit?.description || contextLine.source || contextLine.description || '').trim();
+    const description = source ? `Transfer ${source}` : 'Transfer';
+
+    return [{
+      amount,
+      description,
+      propertyId: (depositSplit?.propertyId || contextLine.propertyId || '').trim() || null,
+      reservationId: (depositSplit?.reservationId || contextLine.reservationId || '').trim() || null,
+      contactId: (depositSplit?.contactId || contextLine.contactId || '').trim() || null,
+      journalEntryLineId: (contextLine.journalEntryLineId || depositSplit?.journalEntryLineId || '').trim() || null,
+      chartOfAccountId: accountIds.bank
+    }];
   }
 
   private buildTransferSplitsFromRecapRow(
@@ -2112,17 +2166,21 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
       const officeId = line.officeId ?? this.officeId ?? 0;
       const recapRow = this.findTransferReportRowForLine(line, this.transferReportRows);
-      if (!recapRow || officeId <= 0) {
+      if (officeId <= 0) {
         continue;
       }
 
       const accountIds = this.resolveTransferAllocationAccountIds(officeId);
-      const projectedSplits = this.buildTransferSplitsFromRecapRow(
+      const projectedSplits = this.buildTransferSplitsForLineAmount(
         recapRow,
         this.getLineNetAmount(line),
         line,
         accountIds
       );
+
+      if (projectedSplits.length === 0) {
+        continue;
+      }
 
       for (const split of projectedSplits) {
         const account = this.chartOfAccounts.find(item =>
@@ -2225,7 +2283,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }
   ): string | null {
     if (splits.length === 0) {
-      return 'Unable to resolve transfer allocations from the Journal Entry Recap for the selected lines.';
+      return 'Unable to resolve transfer allocations for the selected lines.';
     }
 
     const totals = splits.reduce((acc, split) => {
@@ -2248,6 +2306,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }
     if (totals.sdw !== 0 && !accountIds.sdw) {
       return 'SDW escrow account is not configured for this office.';
+    }
+    if (totals.bank !== 0 && !accountIds.bank) {
+      return 'Business bank account is not configured for this office.';
     }
 
     return null;
