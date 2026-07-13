@@ -40,6 +40,13 @@
               <mat-icon>push_pin</mat-icon>
             </button>
           </div>
+          <div class="datatable-search-wrap__actions mobile-view-full">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <button mat-raised-button type="button" color="primary" (click)="markAll()">Mark All</button>
+              <button mat-raised-button type="button" color="primary" (click)="unmarkAll()">Unmark All</button>
+              <button mat-raised-button type="button" color="primary" (click)="openColumnsDialog()">Columns</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -149,15 +156,6 @@
     }
   </div>
   @if (showReconcileFooter) {
-    <div class="reconcile-action-bar">
-      <div class="reconcile-action-bar__center">
-        <button mat-stroked-button type="button" class="reconcile-action-btn" (click)="markAll()">Mark All</button>
-        <button mat-stroked-button type="button" class="reconcile-action-btn" (click)="unmarkAll()">Unmark All</button>
-      </div>
-      <div class="reconcile-action-bar__side reconcile-action-bar__side--right">
-        <button mat-stroked-button type="button" class="reconcile-action-btn" (click)="openColumnsDialog()">Columns to Display...</button>
-      </div>
-    </div>
     <div class="reconcile-summary">
       <div class="reconcile-summary__left">
         <div class="reconcile-summary__row">

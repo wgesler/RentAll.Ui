@@ -19,7 +19,10 @@
           </thead>
           <tbody>
             @for (line of entry.journalEntryLines; track line.journalEntryLineId; let lineIndex = $index) {
-              <tr [class.detail-row-disabled]="line.disabled">
+              <tr
+                [class.detail-row-disabled]="line.disabled"
+                [class.detail-row-clickable]="!showDepositForm && !showTransferForm && !showCheckPreview"
+                (click)="onDetailLineSelect(entry, line)">
                 @for (columnName of getDetailLineColumnNames(); track columnName) {
                   @if (activeDetailLineDisplayedColumns[columnName]) {
                     <td [style.max-width]="getDetailLineColumnWidth(columnName)"
@@ -131,9 +134,15 @@
           [buttonToggleTextTop2]="'Sort By Created'"
           [isToggle2Checked]="sortByCreated"
           [hasButtonTop]="showGeneralLedgerAddButton"
-          [buttonDisabledTop]="!officeId"
-          [buttonTextTop]="'Add'"
-          [buttonColorTop]="'accent'"
+          [buttonDisabledTop]="!officeId || isPostingJournalEntries"
+          [buttonTextTop]="'Post'"
+          [buttonColorTop]="'primary'"
+          [buttonIconTop]="isPostingJournalEntries ? 'spinner' : 'publish'"
+          [hasButtonTopSecondary]="showGeneralLedgerAddButton"
+          [buttonDisabledTopSecondary]="!officeId"
+          [buttonTextTopSecondary]="'Add'"
+          [buttonColorTopSecondary]="'accent'"
+          [buttonIconTopSecondary]="'add'"
           [hasButtonSelectAll]="hasButtonSelectAllInTable"
           [hasActionsSelect]="hasActionsSelectInTable"
           [hasDetailRow]="usesGroupedJournalEntryDisplay"
@@ -150,7 +159,8 @@
           deleteConfirmMessage="Are you sure you want to delete this journal entry? All lines for this entry will be removed."
           [itemsPerPage]="10"
           (topToggle2ButtonEvent)="onSortByCreatedToggle($event)"
-          (topButtonEvent)="openCreateJournalEntry()"
+          (topButtonEvent)="postSelectedJournalEntries()"
+          (topSecondaryButtonEvent)="openCreateJournalEntry()"
           (rowClickEvent)="onLineSelect($event)"
           (editEvent)="editJournalEntryLine($event)"
           (deleteEvent)="deleteJournalEntryLine($event)"

@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Even
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { BehaviorSubject, Subject, catchError, finalize, forkJoin, merge, of, switchMap, take, takeUntil, throwError } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, throwError, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -68,8 +68,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Output() officeValidationRequiredEvent = new EventEmitter<void>();
 
   selectedJournalEntryLineIds = new Set<string>();
+  selectedJournalEntryIds = new Set<string>();
   showCreateJournalEntry = false;
   sortByCreated = false;
+  isPostingJournalEntries = false;
   showDepositSelections = false;
   showDepositForm = false;
   showTransferSelections = false;
@@ -539,21 +541,148 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       this.onTransferLineSelectionSet(selection);
     } else if (this.showPrintCheckTableSelections) {
       this.onPrintCheckLineSelectionSet(selection);
+    } else if (this.showJournalEntryPostSelections) {
+      this.onPostJournalEntrySelectionSet(selection);
     }
   }
 
-  onLineSelect(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
-    if (this.showDepositForm || this.showTransferForm || this.showCheckPreview || !row?.journalEntryId || row.disabled) {
+  postSelectedJournalEntries(): void {
+    if (this.isPostingJournalEntries) {
       return;
     }
+
+    const journalEntryIds = [...this.selectedJournalEntryIds]
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
+    if (journalEntryIds.length === 0) {
+      this.toastr.warning('Select one or more journal entries to post.');
+      return;
+    }
+
+    const postingDate = this.utilityService.todayAsCalendarDateString();
+    if (!postingDate) {
+      this.toastr.warning('Posting date is required.');
+      return;
+    }
+
+    this.isPostingJournalEntries = true;
+    this.markViewForCheck();
+
+    from(journalEntryIds).pipe(
+      concatMap(journalEntryId => this.generalLedgerService.postJournalEntry(journalEntryId, postingDate).pipe(
+        map(() => ({ journalEntryId, posted: true as const })),
+        catchError(() => of({ journalEntryId, posted: false as const }))
+      )),
+      toArray(),
+      finalize(() => {
+        this.isPostingJournalEntries = false;
+        this.markViewForCheck();
+      }),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe((results: Array<{ journalEntryId: string; posted: boolean }>) => {
+      const postedCount = results.filter(result => result.posted).length;
+      const failedCount = results.length - postedCount;
+
+      this.selectedJournalEntryIds.clear();
+      this.syncPostJournalEntrySelectionInPlace();
+
+      if (postedCount > 0) {
+        this.toastr.success(
+          postedCount === 1 ? 'Journal entry posted successfully.' : `${postedCount} journal entries posted successfully.`,
+          CommonMessage.Success
+        );
+        this.journalEntryCreatedEvent.emit();
+      }
+
+      if (failedCount > 0) {
+        this.toastr.error(
+          failedCount === 1 ? 'Unable to post one journal entry.' : `Unable to post ${failedCount} journal entries.`,
+          CommonMessage.Error
+        );
+      }
+
+      if (postedCount > 0 || failedCount > 0) {
+        this.loadJournalEntryLines();
+      }
+
+      this.markViewForCheck();
+    });
+  }
+
+  onPostJournalEntrySelectionSet(selection: SelectionModel<unknown>): void {
+    if (!this.showJournalEntryPostSelections) {
+      return;
+    }
+
+    const selectedRows = (selection?.selected ?? []) as GeneralLedgerEntryDisplay[];
+    const nextSelectedIds = new Set(
+      selectedRows
+        .map(row => (row.journalEntryId || '').trim())
+        .filter(id => id.length > 0)
+    );
+
+    for (const journalEntryId of [...nextSelectedIds]) {
+      const entry = this.entriesDisplay.find(item => item.journalEntryId === journalEntryId);
+      if (!entry || !this.isPostJournalEntrySelectable(entry)) {
+        nextSelectedIds.delete(journalEntryId);
+        if (entry) {
+          entry.selected = false;
+        }
+      }
+    }
+
+    this.selectedJournalEntryIds = nextSelectedIds;
+    this.syncPostJournalEntrySelectionInPlace();
+    this.markViewForCheck();
+  }
+
+  isPostJournalEntrySelectable(entry: GeneralLedgerEntryDisplay): boolean {
+    const firstLine = entry.journalEntryLines?.[0];
+    if (!firstLine) {
+      return false;
+    }
+
+    return !firstLine.isPosted && !firstLine.isVoided && !entry.disabled;
+  }
+
+  isPostJournalEntryLinesPostable(lines: JournalEntryLineListDisplay[]): boolean {
+    const firstLine = lines[0];
+    if (!firstLine) {
+      return false;
+    }
+
+    return !firstLine.isPosted && !firstLine.isVoided && !lines.every(line => line.disabled);
+  }
+
+  syncPostJournalEntrySelectionInPlace(): void {
+    this.entriesDisplay.forEach(entry => {
+      entry.selected = this.selectedJournalEntryIds.has(entry.journalEntryId);
+    });
+  }
+
+  onLineSelect(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
+    this.emitJournalEntryLineSelection(row.journalEntryId, row.journalEntryLineId);
+  }
+
+  onDetailLineSelect(entry: GeneralLedgerEntryDisplay, line: JournalEntryLineListDisplay): void {
+    this.emitJournalEntryLineSelection(entry.journalEntryId, line.journalEntryLineId);
+  }
+
+  private emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journalEntryLineId: string | null | undefined): void {
+    const resolvedJournalEntryId = (journalEntryId || '').trim();
+    if (this.showDepositForm || this.showTransferForm || this.showCheckPreview || !resolvedJournalEntryId) {
+      return;
+    }
+
     const journalEntry = buildJournalEntryFromSearchLines(
-      row.journalEntryId,
+      resolvedJournalEntryId,
       this.allLines,
       this.organizationId
     );
     this.lineSelectEvent.emit({
-      journalEntryId: row.journalEntryId,
-      journalEntryLineId: row.journalEntryLineId,
+      journalEntryId: resolvedJournalEntryId,
+      journalEntryLineId,
       journalEntry
     });
   }
@@ -751,14 +880,17 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         propertyCode: this.summarizeGroupedField(entryLines.map(line => line.propertyCode)),
         reservationCode: this.summarizeGroupedField(entryLines.map(line => line.reservationCode)),
         contactName: this.summarizeGroupedField(entryLines.map(line => line.contactName)),
-        account: entryLines.length === 1 ? firstLine.account : `${entryLines.length} lines`,
-        description: entryLines.length === 1 ? firstLine.description : `${entryLines.length} lines`,
+        account: (firstLine.account || '').trim() || '—',
+        description: (firstLine.journalEntryMemo || '').trim() || '—',
         debit: this.formatGroupedAmount(totalDebit),
         credit: this.formatGroupedAmount(totalCredit),
         balance: lastLine.balance,
         debitValue: totalDebit,
         creditValue: totalCredit,
-        disabled: entryLines.every(line => line.disabled),
+        disabled: this.showJournalEntryPostSelections
+          ? !this.isPostJournalEntryLinesPostable(entryLines)
+          : entryLines.every(line => line.disabled),
+        selected: this.showJournalEntryPostSelections && this.selectedJournalEntryIds.has(journalEntryId),
         journalEntryLines: entryLines,
         expand: journalEntryId,
         expanded: this.expandedJournalEntries.has(journalEntryId),
@@ -2272,6 +2404,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       contactName: contextLine.contactName,
       account: accountLabel,
       description: (split.description || '').trim() || 'Transfer',
+      journalEntryMemo: contextLine.journalEntryMemo,
       debit: this.formatter.currencyUsd(amount),
       credit: '',
       balance: '',
@@ -2609,6 +2742,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   //#endregion
 
   //#region Get Methods
+  get showJournalEntryPostSelections(): boolean {
+    return this.showGeneralLedgerRowActions && this.usesGroupedJournalEntryDisplay;
+  }
+
   get showDepositTableSelections(): boolean {
     return this.undepositedFundsOnly && this.showDepositSelections;
   }
@@ -2707,7 +2844,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   get hasActionsSelectInTable(): boolean {
-    return this.showTableLineSelections && !this.usesGroupedJournalEntryDisplay;
+    return (this.showTableLineSelections && !this.usesGroupedJournalEntryDisplay)
+      || this.showJournalEntryPostSelections;
   }
 
   get hasButtonSelectAllInTable(): boolean {

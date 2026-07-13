@@ -854,7 +854,9 @@ export class MappingService {
 
     chronologicalLines.forEach(line => {
       const transactionDate = line.transactionDate || '';
-      const description = (line.memo || line.journalEntryMemo || '').trim();
+      const lineMemo = (line.memo || '').trim();
+      const journalEntryMemo = (line.journalEntryMemo || '').trim();
+      const description = lineMemo || journalEntryMemo;
       const debitValue = Number(line.debit) || 0;
       const creditValue = Number(line.credit) || 0;
       const sortDateValue = transactionDate ? Date.parse(`${transactionDate}T00:00:00`) : 0;
@@ -887,6 +889,7 @@ export class MappingService {
         contactName: (line.contactName || '').trim(),
         account: accountLabel,
         description,
+        journalEntryMemo,
         debit: debitValue ? this.formatter.currency(debitValue) : '',
         credit: creditValue ? this.formatter.currency(creditValue) : '',
         balance: this.formatter.currency(runningBalance),

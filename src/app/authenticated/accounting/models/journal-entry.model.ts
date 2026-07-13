@@ -198,6 +198,7 @@ export interface GeneralLedgerEntryDisplay {
   debitValue: number;
   creditValue: number;
   disabled?: boolean;
+  selected?: boolean;
   journalEntryLines: JournalEntryLineListDisplay[];
   expand: string;
   expanded: boolean;
@@ -222,6 +223,7 @@ export interface JournalEntryLineListDisplay {
   contactName: string;
   account: string;
   description: string;
+  journalEntryMemo: string;
   debit: string;
   credit: string;
   balance: string;

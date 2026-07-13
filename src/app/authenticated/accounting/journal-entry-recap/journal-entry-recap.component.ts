@@ -152,6 +152,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
       contactName: '',
       account: '',
       description: '',
+      journalEntryMemo: '',
       debit: '',
       credit: '',
       balance: '',

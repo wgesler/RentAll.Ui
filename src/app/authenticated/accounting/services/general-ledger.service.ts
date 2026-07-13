@@ -108,8 +108,9 @@ export class GeneralLedgerService {
     );
   }
 
-  postJournalEntry(journalEntryId: string): Observable<JournalEntryResponse> {
-    return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/post`, {}).pipe(
+  postJournalEntry(journalEntryId: string, postingDate?: string | null): Observable<JournalEntryResponse> {
+    const body = postingDate?.trim() ? { postingDate: postingDate.trim() } : {};
+    return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/post`, body).pipe(
       map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
     );
   }

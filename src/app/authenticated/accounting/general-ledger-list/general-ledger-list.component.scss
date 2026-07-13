@@ -497,6 +497,14 @@
   opacity: 0.55;
 }
 
+:host ::ng-deep .detail-row-clickable {
+  cursor: pointer;
+
+  &:hover td {
+    background-color: rgba(59, 130, 246, 0.08);
+  }
+}
+
 :host ::ng-deep .detail-lines-wrapper {
   display: block;
   margin: 0;
