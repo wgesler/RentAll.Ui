@@ -487,6 +487,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
             this.welcomeLetterReloadService.triggerReload();
             this.documentReloadService.triggerReload();
             this.notifyOwnerShellContextChangedIfEmbedded();
+            this.propertyService.notifyPropertyCodesChanged();
             this.loadReservations();
             onComplete?.(true);
           },
@@ -548,6 +549,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
           this.notifyOwnerShellContextChangedIfEmbedded();
+          this.propertyService.notifyPropertyCodesChanged();
           this.loadReservations();
           onComplete?.(true);
         },

@@ -11,6 +11,7 @@ export interface JournalEntryLineSearchRequest {
   contactId?: string | null;
   includeVoided: boolean;
   includeUnposted: boolean;
+  unclearedOnly?: boolean;
   startDate?: string | null;
   endDate?: string | null;
 }
@@ -30,6 +31,7 @@ export interface JournalEntryLineSearchResponse {
   debit: number;
   credit: number;
   memo?: string | null;
+  clearedOn?: string | null;
   officeId: number;
   transactionDate: CalendarDateString;
   postingDate: CalendarDateString;

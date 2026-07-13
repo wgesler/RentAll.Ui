@@ -209,7 +209,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.setIsActiveCheckboxEditability();
     this.loadAccountingOffices();
     this.loadVendors();
-    this.loadPropertyLookup();
+    this.loadPropertyCodes();
     this.loadChartOfAccountsForAccounting();
     this.loadReceiptsForCurrentSearchCriteria();
   }
@@ -451,21 +451,25 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
-  loadPropertyLookup(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: properties => {
-        this.propertyCodeLookup = new Map(
-          (properties || []).map(property => [
-            this.utilityService.normalizeId(property.propertyId),
-            (property.propertyCode || '').trim()
-          ])
-        );
-        this.applyPropertyCodesToDisplays();
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.markViewForCheck();
+  loadPropertyCodes(): void {
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.propertyCodeLookup = new Map(
+              (properties || []).map(property => [
+                this.utilityService.normalizeId(property.propertyId),
+                (property.propertyCode || '').trim()
+              ])
+            );
+            this.applyPropertyCodesToDisplays();
+            this.applyFilters();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.markViewForCheck();
+          }
+        });
       }
     });
   }

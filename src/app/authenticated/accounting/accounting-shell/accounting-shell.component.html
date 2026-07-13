@@ -178,6 +178,19 @@
                 (valueChange)="onShellOfficeDropdownChange($event)">
               </app-title-bar-select>
             }
+            @if (showReconcileChartOfAccountFilter) {
+              <app-title-bar-select
+                [label]="'Account'"
+                [formFieldClass]="'titlebar-field-chart-of-account'"
+                [value]="selectedChartOfAccountId"
+                [options]="shellReconcileChartOfAccountTitleBarOptions"
+                [nullOptionLabel]="'Select Account'"
+                [noResultsText]="'No accounts match your search'"
+                [showSearchInput]="true"
+                [searchPlaceholder]="'Search accounts...'"
+                (valueChange)="onShellChartOfAccountDropdownChange($event)">
+              </app-title-bar-select>
+            }
             @if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
@@ -867,20 +880,12 @@
                   </app-general-ledger-list>
                 }
               } @else {
-                <div class="mat list-layout-standard accounting-shell-reconcile-layout">
-                  <div class="accounting-shell-reconcile-context-band property-tab-actions-band dbg-band-actions">
-                    <div class="property-tab-actions-band__row accounting-shell-reconcile-context-band__row">
-                      <div class="accounting-shell-reconcile-context-band__titles">
-                        <p class="accounting-shell-reconcile-title">Reconcile</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="accounting-shell-reconcile-panel dbg-band-main">
-                    <div class="accounting-shell-report-placeholder">
-                      Bank reconciliation is not available yet.
-                    </div>
-                  </div>
-                </div>
+                <app-reconcile
+                  [officeId]="selectedOfficeId"
+                  [chartOfAccountId]="selectedChartOfAccountId"
+                  [searchDateRange]="invoiceSearchDateRange"
+                  [refreshTrigger]="reconcileRefreshTrigger">
+                </app-reconcile>
               }
             }
           </mat-tab>

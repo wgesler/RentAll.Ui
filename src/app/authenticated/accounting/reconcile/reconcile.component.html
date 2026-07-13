@@ -1,0 +1,133 @@
+<div class="mat list-layout-standard reconcile-layout">
+  @if (showReconcileToolbar) {
+    <div class="reconcile-context-band property-tab-actions-band dbg-band-actions">
+      <div class="datatable-search-wrap reconcile-actions-wrap">
+        <div class="datatable-search-wrap__row mobile-flex-column-reverse">
+          <div class="datatable-filter-with-sticky">
+            <mat-form-field
+              floatLabel="always"
+              subscriptSizing="dynamic"
+              class="mobile-view-full datatable-search-field">
+              <mat-label>Filter</mat-label>
+              <mat-icon matPrefix class="datatable-filter-prefix-icon">filter_list</mat-icon>
+              <input
+                matInput
+                #reconcileFilterInput
+                class="datatable-search-input"
+                placeholder="Filter both lists by word or value..."
+                autocomplete="off"
+                [(ngModel)]="filterVal"
+                (ngModelChange)="onFilterInput()" />
+              @if (filterVal) {
+                <span matSuffix>
+                  <button mat-icon-button type="button" class="datatable-clear-btn" (click)="clearFilter(reconcileFilterInput)">
+                    <mat-icon class="text-sm relative bottom-0.5">clear</mat-icon>
+                  </button>
+                </span>
+              }
+            </mat-form-field>
+          </div>
+          <div class="datatable-search-wrap__actions mobile-view-full">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <button mat-raised-button type="button" color="primary" (click)="markAll()">Mark All</button>
+              <button mat-raised-button type="button" color="primary" (click)="unmarkAll()">Unmark All</button>
+              <button mat-raised-button type="button" color="primary" (click)="openColumnsDialog()">Columns to Display...</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+  <div class="reconcile-panel dbg-band-main">
+    @if (isLoading$ | async) {
+      <div class="reconcile-loading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+    } @else if (placeholderMessage) {
+      <div class="reconcile-placeholder">
+        {{ placeholderMessage }}
+      </div>
+    } @else {
+      <div class="reconcile-columns">
+        <section class="reconcile-column reconcile-column--payments">
+          <h3 class="reconcile-column__title">Checks and Payments</h3>
+          <div class="reconcile-lines-wrap">
+            <table class="reconcile-lines-table">
+              <thead>
+                <tr>
+                  <th class="reconcile-lines-table__clr">Clr</th>
+                  @for (columnKey of tableColumnOrder; track columnKey) {
+                    @if (isColumnVisible('payments', columnKey)) {
+                      <th [class]="'reconcile-lines-table__' + columnKey">{{ getColumnHeader(columnKey) }}</th>
+                    }
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of filteredPaymentsLines; track line.journalEntryLineId; let rowIndex = $index) {
+                  <tr [class.reconcile-lines-table__row--cleared]="line.isCleared" [class.reconcile-lines-table__row--alt]="rowIndex % 2 === 1">
+                    <td class="reconcile-lines-table__clr">
+                      <mat-checkbox
+                        color="primary"
+                        [checked]="line.isCleared"
+                        (change)="onClearedChange(line, $event.checked)">
+                      </mat-checkbox>
+                    </td>
+                    @for (columnKey of tableColumnOrder; track columnKey) {
+                      @if (isColumnVisible('payments', columnKey)) {
+                        <td [class]="'reconcile-lines-table__' + columnKey">{{ getLineCellValue(line, columnKey) }}</td>
+                      }
+                    }
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td class="reconcile-lines-table__empty" [attr.colspan]="getVisibleColumnCount('payments')">No uncleared checks or payments.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="reconcile-column reconcile-column--deposits">
+          <h3 class="reconcile-column__title">Deposits and Other Credits</h3>
+          <div class="reconcile-lines-wrap">
+            <table class="reconcile-lines-table">
+              <thead>
+                <tr>
+                  <th class="reconcile-lines-table__clr">Clr</th>
+                  @for (columnKey of tableColumnOrder; track columnKey) {
+                    @if (isColumnVisible('deposits', columnKey)) {
+                      <th [class]="'reconcile-lines-table__' + columnKey">{{ getColumnHeader(columnKey) }}</th>
+                    }
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of filteredDepositsLines; track line.journalEntryLineId; let rowIndex = $index) {
+                  <tr [class.reconcile-lines-table__row--cleared]="line.isCleared" [class.reconcile-lines-table__row--alt]="rowIndex % 2 === 1">
+                    <td class="reconcile-lines-table__clr">
+                      <mat-checkbox
+                        color="primary"
+                        [checked]="line.isCleared"
+                        (change)="onClearedChange(line, $event.checked)">
+                      </mat-checkbox>
+                    </td>
+                    @for (columnKey of tableColumnOrder; track columnKey) {
+                      @if (isColumnVisible('deposits', columnKey)) {
+                        <td [class]="'reconcile-lines-table__' + columnKey">{{ getLineCellValue(line, columnKey) }}</td>
+                      }
+                    }
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td class="reconcile-lines-table__empty" [attr.colspan]="getVisibleColumnCount('deposits')">No uncleared deposits or credits.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    }
+  </div>
+</div>

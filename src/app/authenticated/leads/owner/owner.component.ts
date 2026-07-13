@@ -58,7 +58,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   agents: AgentResponse[] = [];
   states: string[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead', 'property-codes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -517,18 +517,21 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-codes');
-      this.syncPropertyOfficeFromSelectedCode();
-      this.markViewForCheck();
-    })).subscribe({
-      next: codes => {
-        this.allPropertyCodes = (codes || []).slice().sort((a, b) =>
-          String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
-        );
-      },
-      error: () => {
-        this.allPropertyCodes = [];
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+          this.syncPropertyOfficeFromSelectedCode();
+          this.markViewForCheck();
+        })).subscribe({
+          next: codes => {
+            this.allPropertyCodes = (codes || []).slice().sort((a, b) =>
+              String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+            );
+          },
+          error: () => {
+            this.allPropertyCodes = [];
+          }
+        });
       }
     });
   }

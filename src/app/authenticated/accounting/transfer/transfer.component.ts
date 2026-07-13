@@ -269,14 +269,18 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: (properties) => {
-        this.propertyOptions = properties || [];
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.propertyOptions = [];
-        this.cdr.markForCheck();
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: (properties) => {
+            this.propertyOptions = properties || [];
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.propertyOptions = [];
+            this.cdr.markForCheck();
+          }
+        });
       }
     });
   }

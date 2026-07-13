@@ -122,7 +122,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     
     this.loadCurrentUserAgentId();
     this.loadOffices();
-    this.loadProperties();
+    this.loadPropertyCodes();
     this.loadContacts();
     this.loadReservationCodes();
 
@@ -393,17 +393,21 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  loadProperties(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
-      next: properties => {
-        this.allProperties = properties || [];
-        this.refreshPropertyScope();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.allProperties = [];
-        this.properties = [];
-        this.markViewForCheck();
+  loadPropertyCodes(): void {
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.allProperties = properties || [];
+            this.refreshPropertyScope();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.allProperties = [];
+            this.properties = [];
+            this.markViewForCheck();
+          }
+        });
       }
     });
   }

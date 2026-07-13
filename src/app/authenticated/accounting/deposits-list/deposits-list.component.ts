@@ -82,7 +82,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-    this.loadPropertyLookup();
+    this.loadPropertyCodes();
     this.loadDepositsForCurrentSearchCriteria();
   }
 
@@ -229,19 +229,23 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
   
-  loadPropertyLookup(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: (properties) => {
-        this.propertyCodeLookup = new Map(
-          (properties || []).map(property => [property.propertyId, property.propertyCode])
-        );
-        this.applyDepositDisplayMappings();
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.propertyCodeLookup = new Map();
-        this.markViewForCheck();
+  loadPropertyCodes(): void {
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: (properties) => {
+            this.propertyCodeLookup = new Map(
+              (properties || []).map(property => [property.propertyId, property.propertyCode])
+            );
+            this.applyDepositDisplayMappings();
+            this.applyFilters();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.propertyCodeLookup = new Map();
+            this.markViewForCheck();
+          }
+        });
       }
     });
   }

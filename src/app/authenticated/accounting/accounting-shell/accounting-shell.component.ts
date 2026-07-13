@@ -58,6 +58,7 @@ import { OwnerStatementCreateComponent } from '../owner-statement-create/owner-s
 import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../journal-entry-recap/journal-entry-recap.component';
+import { ReconcileComponent } from '../reconcile/reconcile.component';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -137,6 +138,7 @@ interface AccountingShellPinnedTopBarState {
     WorkOrderCreateComponent,
     GeneralLedgerListComponent,
     JournalEntryRecapComponent,
+    ReconcileComponent,
     GeneralLedgerComponent,
     FinancialReportComponent,
     ArAgingReportComponent,
@@ -283,6 +285,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   depositsRefreshTrigger = 0;
   transfersRefreshTrigger = 0;
   transferReportRefreshTrigger = 0;
+  reconcileRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
@@ -353,11 +356,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.userId = this.authService.getUser()?.userId || '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.applyPinnedDateRangeFromStorage();
     this.loadChartOfAccounts();
     this.loadPropertyCodes();
     this.loadReservationCodes();
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
       this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
@@ -563,6 +566,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
     this.refreshGeneralLedgerListView();
+    if (this.showReconcileChartOfAccountFilter) {
+      this.reconcileRefreshTrigger++;
+    }
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.buildShellQueryParams(),
@@ -2078,6 +2084,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.selectedBankActivityKind === 'untransferredFunds') {
       this.untransferredFundsRefreshTrigger++;
+      return;
+    }
+    if (this.selectedBankActivityKind === 'reconcile') {
+      this.reconcileRefreshTrigger++;
     }
   }
 
@@ -2993,6 +3003,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.isGeneralLedgerDetailActive;
   }
 
+  get showReconcileChartOfAccountFilter(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'reconcile';
+  }
+
   get showGeneralLedgerShellDateRange(): boolean {
     return this.showShellDateRange
       && this.usesGeneralLedgerTitleBarFilters()
@@ -3033,14 +3048,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get shellChartOfAccountTitleBarOptions(): { value: number, label: string }[] {
-    const accounts = (this.chartOfAccounts || [])
-      .filter(account => this.selectedOfficeId == null || account.officeId === this.selectedOfficeId)
-      .sort((a, b) => a.accountNo.localeCompare(b.accountNo, undefined, { numeric: true, sensitivity: 'base' }));
+    return this.buildShellChartOfAccountTitleBarOptions();
+  }
 
-    return accounts.map(account => ({
-      value: account.accountId,
-      label: this.utilityService.getChartOfAccountDropdownLabel(account)
-    }));
+  get shellReconcileChartOfAccountTitleBarOptions(): { value: number, label: string }[] {
+    return this.buildShellChartOfAccountTitleBarOptions({ maxAccountNumberExclusive: 4000 });
   }
 
   get shellGlPropertyTitleBarOptions(): SearchableSelectOption[] {
@@ -3353,6 +3365,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.depositsRefreshTrigger++;
             this.transfersRefreshTrigger++;
             this.transferReportRefreshTrigger++;
+            this.reconcileRefreshTrigger++;
             this.printChecksRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
@@ -3546,7 +3559,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       arAgingInterval: this.usesArAgingTitleBarFilters() ? String(this.selectedArAgingIntervalDays) : null,
       arAgingThrough: this.usesArAgingTitleBarFilters() ? String(this.selectedArAgingThroughValue) : null,
       arAgingSort: this.usesArAgingTitleBarFilters() ? this.selectedArAgingSortBy : null,
-      chartOfAccountId: this.usesGeneralLedgerTitleBarFilters() && this.selectedChartOfAccountId != null
+      chartOfAccountId: (this.usesGeneralLedgerTitleBarFilters() || this.showReconcileChartOfAccountFilter) && this.selectedChartOfAccountId != null
         ? String(this.selectedChartOfAccountId)
         : null,
       propertyId: this.usesGeneralLedgerTitleBarFilters() ? this.selectedGlPropertyId : null,
@@ -3560,10 +3573,45 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const isValid = this.shellChartOfAccountTitleBarOptions.some(option => option.value === this.selectedChartOfAccountId);
+    const options = this.showReconcileChartOfAccountFilter
+      ? this.shellReconcileChartOfAccountTitleBarOptions
+      : this.shellChartOfAccountTitleBarOptions;
+    const isValid = options.some(option => option.value === this.selectedChartOfAccountId);
     if (!isValid) {
       this.selectedChartOfAccountId = null;
     }
+  }
+
+  private buildShellChartOfAccountTitleBarOptions(options?: {
+    maxAccountNumberExclusive?: number;
+  }): { value: number; label: string }[] {
+    const maxAccountNumberExclusive = options?.maxAccountNumberExclusive ?? null;
+    const accounts = (this.chartOfAccounts || [])
+      .filter(account => this.selectedOfficeId == null || account.officeId === this.selectedOfficeId)
+      .filter(account => {
+        if (maxAccountNumberExclusive == null) {
+          return true;
+        }
+
+        const accountNumber = this.parseChartOfAccountNumber(account.accountNo);
+        return accountNumber !== null && accountNumber < maxAccountNumberExclusive;
+      })
+      .sort((a, b) => a.accountNo.localeCompare(b.accountNo, undefined, { numeric: true, sensitivity: 'base' }));
+
+    return accounts.map(account => ({
+      value: account.accountId,
+      label: this.utilityService.getChartOfAccountDropdownLabel(account)
+    }));
+  }
+
+  private parseChartOfAccountNumber(accountNo: string | null | undefined): number | null {
+    const match = String(accountNo ?? '').trim().match(/^(\d+)/);
+    if (!match) {
+      return null;
+    }
+
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private clearInvoiceShellDetailState(): void {
@@ -3697,18 +3745,22 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: properties => {
-        this.glProperties = properties || [];
-        this.refreshBillsPropertyOptions();
-        this.refreshPropertyOptions();
-      },
-      error: () => {
-        this.glProperties = [];
-        this.shellBillsPropertyTitleBarOptions = [];
-        this.selectedBillsPropertyId = null;
-        this.availableGlProperties = [];
-        this.selectedGlPropertyId = null;
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.glProperties = properties || [];
+            this.refreshBillsPropertyOptions();
+            this.refreshPropertyOptions();
+          },
+          error: () => {
+            this.glProperties = [];
+            this.shellBillsPropertyTitleBarOptions = [];
+            this.selectedBillsPropertyId = null;
+            this.availableGlProperties = [];
+            this.selectedGlPropertyId = null;
+          }
+        });
       }
     });
   }

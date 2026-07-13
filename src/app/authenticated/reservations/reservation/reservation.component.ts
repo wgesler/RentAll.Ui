@@ -123,7 +123,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts', 'cleaners']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'contacts', 'cleaners']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
@@ -568,16 +568,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-    })).subscribe({
-      next: (codes: PropertyCodeResponse[]) => {
-        this.propertyCodes = codes || [];
-        this.filterPropertiesByOffice();
-      },
-      error: () => {
-        this.propertyCodes = [];
-        this.availablePropertyCodes = [];
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: (codes: PropertyCodeResponse[]) => {
+            this.propertyCodes = codes || [];
+            this.filterPropertiesByOffice();
+          },
+          error: () => {
+            this.propertyCodes = [];
+            this.availablePropertyCodes = [];
+          }
+        });
       }
     });
   }

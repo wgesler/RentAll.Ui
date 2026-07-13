@@ -1,8 +1,9 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, firstValueFrom, of, switchMap, take, tap } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { CalendarUrlResponse } from '../models/property-calendar';
@@ -25,12 +26,20 @@ import {
 export class PropertyService {
   
   private readonly controller = this.configService.config().apiUrl + 'property/';
+  private allPropertyCodes$ = new BehaviorSubject<PropertyCodeResponse[]>([]);
+  private propertyCodesLoaded$ = new BehaviorSubject<boolean>(false);
+  private loadedOrganizationId: string | null = null;
 
   constructor(
       private http: HttpClient,
       private configService: ConfigService,
+      private authService: AuthService,
       private mappingService: MappingService,
       private mixedMappingService: MixedMappingService) {
+  }
+
+  private getOrganizationId(): string {
+    return this.authService.getUser()?.organizationId?.trim() ?? '';
   }
 
   // GET: Get property list (summary view)
@@ -46,6 +55,77 @@ export class PropertyService {
     return this.http.get<PropertyCodeResponse[]>(this.controller + 'codes');
   }
 
+  private fetchPropertyCodesFromApi(): Observable<PropertyCodeResponse[]> {
+    const id = this.getOrganizationId();
+    if (!id) {
+      this.clearPropertyCodes();
+      return of([]);
+    }
+    return this.getPropertyCodes().pipe(
+      tap((codes) => {
+        this.allPropertyCodes$.next(codes || []);
+        this.propertyCodesLoaded$.next(true);
+        this.loadedOrganizationId = id;
+      }),
+      catchError((err: HttpErrorResponse) => {
+        console.error('Property Service - Error loading property codes:', err);
+        this.allPropertyCodes$.next([]);
+        this.propertyCodesLoaded$.next(true);
+        this.loadedOrganizationId = id;
+        return of([]);
+      })
+    );
+  }
+
+  loadPropertyCodes(): Observable<PropertyCodeResponse[]> {
+    const id = this.getOrganizationId();
+    if (!id) {
+      this.clearPropertyCodes();
+      return of([]);
+    }
+    if (this.propertyCodesLoaded$.value && this.loadedOrganizationId === id) {
+      return this.getAllPropertyCodes().pipe(take(1));
+    }
+    return this.fetchPropertyCodesFromApi().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
+  }
+
+  refreshPropertyCodes(): Observable<PropertyCodeResponse[]> {
+    this.propertyCodesLoaded$.next(false);
+    this.loadedOrganizationId = null;
+    return this.fetchPropertyCodesFromApi().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
+  }
+
+  /** Reload the global property codes cache and push to all getAllPropertyCodes() subscribers. */
+  notifyPropertyCodesChanged(): void {
+    this.refreshCachedPropertyCodesAfterMutation();
+  }
+
+  private refreshCachedPropertyCodesAfterMutation(): void {
+    const id = this.getOrganizationId() || this.loadedOrganizationId?.trim();
+    if (!id) {
+      return;
+    }
+    this.refreshPropertyCodes().pipe(take(1)).subscribe();
+  }
+
+  arePropertyCodesLoaded(): Observable<boolean> {
+    return this.propertyCodesLoaded$.asObservable();
+  }
+
+  clearPropertyCodes(): void {
+    this.allPropertyCodes$.next([]);
+    this.propertyCodesLoaded$.next(false);
+    this.loadedOrganizationId = null;
+  }
+
+  getAllPropertyCodes(): Observable<PropertyCodeResponse[]> {
+    return this.allPropertyCodes$.asObservable();
+  }
+
+  getAllPropertyCodesValue(): PropertyCodeResponse[] {
+    return this.allPropertyCodes$.value;
+  }
+
   // GET: Get property by ID
   getPropertyByGuid(propertyId: string): Observable<PropertyResponse> {
     return this.http.get<PropertyResponse>(this.controller + propertyId).pipe(
@@ -56,14 +136,16 @@ export class PropertyService {
   // POST: Create a new property
   createProperty(property: PropertyRequest): Observable<PropertyResponse> {
     return this.http.post<PropertyResponse>(this.controller, property).pipe(
-      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>))
+      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>)),
+      tap(() => this.refreshCachedPropertyCodesAfterMutation())
     );
   }
 
   // PUT: Update entire property
   updateProperty(property: PropertyRequest): Observable<PropertyResponse> {
     return this.http.put<PropertyResponse>(this.controller, property).pipe(
-      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>))
+      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>)),
+      tap(() => this.refreshCachedPropertyCodesAfterMutation())
     );
   }
 
@@ -86,7 +168,9 @@ export class PropertyService {
 
   // DELETE: Delete property
   deleteProperty(propertyId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + propertyId);
+    return this.http.delete<void>(this.controller + propertyId).pipe(
+      tap(() => this.refreshCachedPropertyCodesAfterMutation())
+    );
   }
 
   // GET: Get property selection criteria for a user

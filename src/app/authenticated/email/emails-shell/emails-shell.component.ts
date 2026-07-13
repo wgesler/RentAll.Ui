@@ -294,15 +294,19 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
-      next: properties => {
-        this.properties = properties || [];
-        this.refreshPropertyOptions();
-      },
-      error: () => {
-        this.properties = [];
-        this.availableProperties = [];
-        this.selectedPropertyId = null;
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.properties = properties || [];
+            this.refreshPropertyOptions();
+          },
+          error: () => {
+            this.properties = [];
+            this.availableProperties = [];
+            this.selectedPropertyId = null;
+          }
+        });
       }
     });
   }

@@ -184,7 +184,7 @@ body.dbg-page-debug-on {
     box-sizing: border-box;
   }
 
-  .shell-tabs .mat-mdc-tab-body-content .accounting-shell-reconcile-layout .accounting-shell-reconcile-context-band.dbg-band-actions {
+  .shell-tabs .mat-mdc-tab-body-content .reconcile-layout .reconcile-context-band.dbg-band-actions {
     @include dbg-band-actions-visual;
     @include dbg-band-actions-spacing;
     width: 100%;
@@ -195,7 +195,7 @@ body.dbg-page-debug-on {
   .shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-main-block,
   .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel,
   .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel,
-  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .accounting-shell-reconcile-panel {
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .reconcile-panel {
     @include dbg-band-main-visual;
     width: 100%;
     max-width: 100%;

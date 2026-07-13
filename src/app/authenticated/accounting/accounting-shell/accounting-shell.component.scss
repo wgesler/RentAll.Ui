@@ -46,6 +46,7 @@
     app-cost-codes-list,
     app-general-ledger-list,
     app-journal-entry-recap,
+    app-reconcile,
     app-transfer-report,
     app-owner-report,
     app-general-ledger,
@@ -484,56 +485,6 @@ mat-card {
   padding: 2rem 0;
   color: rgba(0, 0, 0, 0.6);
   text-align: center;
-}
-
-.accounting-shell-reconcile-layout {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.accounting-shell-reconcile-context-band {
-  margin-bottom: var(--datatable-search-wrap-margin-bottom);
-}
-
-.accounting-shell-reconcile-context-band__row {
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: center;
-  justify-items: center;
-  width: 100%;
-  min-height: var(--property-tab-actions-band-height);
-}
-
-.accounting-shell-reconcile-context-band__titles {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.175rem;
-}
-
-.accounting-shell-reconcile-title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  color: #000;
-}
-
-.accounting-shell-reconcile-panel {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
 }
 
 .accounting-shell-subview-title {

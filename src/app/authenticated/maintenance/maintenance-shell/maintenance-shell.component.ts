@@ -277,18 +277,22 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   loadTitleBarProperties(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
-      next: properties => {
-        const propertyRows = properties || [];
-        this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
-          ? propertyRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
-          : propertyRows;
-        this.syncTitleBarSelections();
-        this.syncMaintenanceSearchRequests();
-      },
-      error: () => {
-        this.allProperties = [];
-        this.availableProperties = [];
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            const propertyRows = properties || [];
+            this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
+              ? propertyRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
+              : propertyRows;
+            this.syncTitleBarSelections();
+            this.syncMaintenanceSearchRequests();
+          },
+          error: () => {
+            this.allProperties = [];
+            this.availableProperties = [];
+          }
+        });
       }
     });
   }

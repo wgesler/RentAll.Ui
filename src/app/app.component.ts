@@ -32,7 +32,7 @@ export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes', 'chartOfAccounts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes', 'chartOfAccounts', 'propertyCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
@@ -77,6 +77,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.initializeOrganizationList();
         this.loadContacts();
         this.loadOffices();
+        this.loadPropertyCodes();
         this.loadPropertySelectionFilterState();
       } else {
         this.organizationId = '';
@@ -85,6 +86,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
         this.officeService.clearOffices();
+        this.propertyService.clearPropertyCodes();
         this.organizationFeatureService.clearFeatures();
         this.accountingOfficeService.clearAccountingOffices();
         this.chartOfAccountsService.clearChartOfAccounts();
@@ -143,6 +145,7 @@ export class AppComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     if (!this.organizationId) {
       this.officeService.clearOffices();
+      this.propertyService.clearPropertyCodes();
       this.organizationFeatureService.clearFeatures();
       this.accountingOfficeService.clearAccountingOffices();
       this.globalSelectionService.clearGlobalOfficeSelection();
@@ -179,6 +182,18 @@ export class AppComponent implements OnInit, OnDestroy {
       },
       error: () => {}
     });
+  }
+
+  loadPropertyCodes(): void {
+    if (!this.organizationId) {
+      this.propertyService.clearPropertyCodes();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes');
+      return;
+    }
+    this.propertyService.loadPropertyCodes().pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes'))
+    ).subscribe({ error: () => {} });
   }
 
   verifyMainProgramAccess(features?: FeatureResponse[]): boolean {

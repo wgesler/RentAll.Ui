@@ -1,0 +1,59 @@
+.reconcile-columns-dialog {
+  display: flex;
+  flex-direction: column;
+}
+
+.reconcile-columns-dialog__header {
+  align-items: center;
+  background: #e2e8f0;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.reconcile-columns-dialog__title {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.reconcile-columns-dialog__close {
+  box-shadow: none !important;
+}
+
+.reconcile-columns-dialog__content {
+  min-width: min(100%, 42rem);
+  padding: 1rem;
+}
+
+.reconcile-columns-dialog__intro {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+}
+
+.reconcile-columns-dialog__panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.reconcile-columns-dialog__panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.reconcile-columns-dialog__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reconcile-columns-dialog__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 12px;
+}

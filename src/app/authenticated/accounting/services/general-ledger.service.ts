@@ -46,9 +46,23 @@ export class GeneralLedgerService {
       body['chartOfAccountId'] = chartOfAccountId;
     }
 
+    if (request.unclearedOnly) {
+      body['unclearedOnly'] = true;
+    }
+
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/search`, body).pipe(
       map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
     );
+  }
+
+  searchUnclearedJournalEntryLines(officeId: number, chartOfAccountId: number): Observable<JournalEntryLineSearchResponse[]> {
+    return this.searchJournalEntryLines({
+      officeIds: [officeId],
+      chartOfAccountId,
+      includeVoided: false,
+      includeUnposted: false,
+      unclearedOnly: true
+    });
   }
 
   getJournalEntryById(journalEntryId: string): Observable<JournalEntryResponse> {

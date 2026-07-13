@@ -577,24 +577,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
-      next: (properties) => {
-        this.allPropertyOptions = (properties || []).filter(p => !!p.propertyId);
-        this.applyPropertyOptionsForCurrentOffice();
-        if (this.isAddMode && this.selectedPropertyId) {
-          this.form.patchValue({ propertyIds: [this.selectedPropertyId] });
-        } else if (this.showAccountingCompanyPropertyOption && this.shouldDefaultToAccountingCompany()) {
-          this.applyAccountingCompanySelection();
-        } else {
-          this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) });
-        }
-        this.lastPropertyIdsValue = this.getFormPropertyIds();
-        this.updatePropertyRequirementByReceiptType();
-      },
-      error: () => {
-        this.allPropertyOptions = [];
-        this.propertyOptions = [];
-        this.toastr.error('Unable to load properties.', 'Error');
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: (properties) => {
+            this.allPropertyOptions = (properties || []).filter(p => !!p.propertyId);
+            this.applyPropertyOptionsForCurrentOffice();
+            if (this.isAddMode && this.selectedPropertyId) {
+              this.form.patchValue({ propertyIds: [this.selectedPropertyId] });
+            } else if (this.showAccountingCompanyPropertyOption && this.shouldDefaultToAccountingCompany()) {
+              this.applyAccountingCompanySelection();
+            } else {
+              this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) });
+            }
+            this.lastPropertyIdsValue = this.getFormPropertyIds();
+            this.updatePropertyRequirementByReceiptType();
+          },
+          error: () => {
+            this.allPropertyOptions = [];
+            this.propertyOptions = [];
+            this.toastr.error('Unable to load properties.', 'Error');
+          }
+        });
       }
     });
   }

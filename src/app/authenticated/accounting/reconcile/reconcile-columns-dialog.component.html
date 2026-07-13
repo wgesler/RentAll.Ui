@@ -1,0 +1,46 @@
+<div class="reconcile-columns-dialog">
+  <div class="reconcile-columns-dialog__header">
+    <span class="reconcile-columns-dialog__title">Customize Columns</span>
+    <button mat-mini-fab mat-dialog-close type="button" color="none" class="reconcile-columns-dialog__close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="reconcile-columns-dialog__content">
+    <p class="reconcile-columns-dialog__intro">Select the fields you would like to have displayed when reconciling.</p>
+    <div class="reconcile-columns-dialog__panels">
+      <section class="reconcile-columns-dialog__panel">
+        <h3 class="reconcile-columns-dialog__panel-title">Checks &amp; Payments</h3>
+        <div class="reconcile-columns-dialog__options">
+          @for (option of columnOptions; track option.key) {
+            <mat-checkbox
+              color="primary"
+              [checked]="isPaymentsColumnSelected(option.key)"
+              (change)="onPaymentsColumnChange(option.key, $event.checked)">
+              {{ option.label }}
+            </mat-checkbox>
+          }
+        </div>
+      </section>
+      <section class="reconcile-columns-dialog__panel">
+        <h3 class="reconcile-columns-dialog__panel-title">Deposits and Other Credits</h3>
+        <div class="reconcile-columns-dialog__options">
+          @for (option of columnOptions; track option.key) {
+            <mat-checkbox
+              color="primary"
+              [checked]="isDepositsColumnSelected(option.key)"
+              (change)="onDepositsColumnChange(option.key, $event.checked)">
+              {{ option.label }}
+            </mat-checkbox>
+          }
+        </div>
+      </section>
+    </div>
+  </mat-dialog-content>
+
+  <mat-divider></mat-divider>
+  <div class="reconcile-columns-dialog__actions">
+    <button mat-raised-button type="button" color="accent" (click)="onCancel()">Cancel</button>
+    <button mat-raised-button type="button" color="primary" (click)="onConfirm()">OK</button>
+  </div>
+</div>
