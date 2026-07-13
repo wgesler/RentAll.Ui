@@ -184,7 +184,7 @@ body.dbg-page-debug-on {
     box-sizing: border-box;
   }
 
-  .shell-tabs .mat-mdc-tab-body-content .reconcile-layout .reconcile-context-band.dbg-band-actions {
+  .shell-tabs .mat-mdc-tab-body-content .reconcile-layout .datatable-search-wrap.dbg-band-actions {
     @include dbg-band-actions-visual;
     @include dbg-band-actions-spacing;
     width: 100%;

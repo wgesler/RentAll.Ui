@@ -9,6 +9,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -350,6 +352,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private costCodesService: CostCodesService,
     private chartOfAccountsService: ChartOfAccountsService,
     private generalLedgerService: GeneralLedgerService,
+    private formatterService: FormatterService,
+    private mappingService: MappingService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
@@ -2261,6 +2265,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Reconcile
+  onReconcileLeave(): void {
+    this.selectBankActivity('undepositedFunds');
+  }
+  //#endregion
+
   //#region Date Range
   syncInvoiceSearchDateRange(): void {
     this.invoiceSearchDateRange = {
@@ -3029,13 +3039,26 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showAccountingShellStartDate(): boolean {
+    if (this.isReconcileBankActivityActive) {
+      return false;
+    }
+
     return !(this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging'));
   }
 
   get accountingShellEndDateLabel(): string {
+    if (this.isReconcileBankActivityActive) {
+      return 'Statement Date';
+    }
+
     return this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging')
       ? 'As of'
       : 'End Date';
+  }
+
+  get isReconcileBankActivityActive(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'reconcile';
   }
 
   usesGeneralLedgerTitleBarFilters(): boolean {

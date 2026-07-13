@@ -195,6 +195,16 @@ mat-card {
   flex: 0 0 auto;
 }
 
+.reconcile-balance-field {
+  min-width: 10rem;
+  max-width: 12rem;
+}
+
+:host ::ng-deep .reconcile-balance-field input[readonly] {
+  cursor: default;
+  color: rgba(0, 0, 0, 0.87);
+}
+
 .accounting-shell-date-pin-btn {
   flex-shrink: 0;
   width: 32px;
@@ -510,7 +520,8 @@ mat-card {
 }
 
 :host ::ng-deep .accounting-shell-subview-title + app-receipts-list .list-layout-standard app-data-table .datatable-search-wrap,
-:host ::ng-deep .accounting-shell-subview-title + app-rent-roll .list-layout-standard app-data-table .datatable-search-wrap {
+:host ::ng-deep .accounting-shell-subview-title + app-rent-roll .list-layout-standard app-data-table .datatable-search-wrap,
+:host ::ng-deep .accounting-shell-subview-title + app-reconcile .list-layout-standard .datatable-search-wrap {
   margin-top: 0 !important;
 }
 

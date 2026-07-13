@@ -523,12 +523,20 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   box-sizing: border-box;
 }
 
-.shell-tabs .mat-mdc-tab-body-content .reconcile-layout .reconcile-context-band {
+.shell-tabs .mat-mdc-tab-body-content .reconcile-layout .datatable-search-wrap.dbg-band-actions {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   margin-inline: 0;
+  margin-top: 0 !important;
+  margin-bottom: var(--datatable-search-wrap-margin-bottom) !important;
+  padding-left: var(--global-page-inner-padding) !important;
+  padding-right: calc(2 * var(--global-page-inner-padding)) !important;
+  padding-top: var(--property-tab-actions-band-inner-padding-block) !important;
+  padding-bottom: var(--property-tab-actions-band-inner-padding-block) !important;
+  min-height: var(--property-tab-actions-band-height);
   box-sizing: border-box;
+  overflow-x: clip;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .reconcile-panel {
@@ -2244,6 +2252,10 @@ app-data-table .datatable-search-wrap {
 }
 
 .list-layout-standard app-data-table .datatable-search-wrap__actions .table-filter-actions-group {
+  gap: 0.75rem !important;
+}
+
+.list-layout-standard .reconcile-layout .datatable-search-wrap__actions .table-filter-actions-group {
   gap: 0.75rem !important;
 }
 

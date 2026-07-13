@@ -23,10 +23,20 @@ export interface ReconcileColumnsDialogResult {
   depositsVisibleColumns: ReconcileColumnKey[];
 }
 
+export interface ReconcileColumnPreferencesState {
+  tableName: string;
+  paymentsVisibleColumns: ReconcileColumnKey[];
+  depositsVisibleColumns: ReconcileColumnKey[];
+}
+
+export interface ReconcileBeginningBalanceResponse {
+  beginningBalance: number;
+}
+
 export const RECONCILE_COLUMN_HEADERS: Record<ReconcileColumnKey, string> = {
   date: 'Date',
   type: 'Type',
-  checkRef: 'Chk#/Ref#',
+  checkRef: 'Chk#',
   payee: 'Payee',
   memo: 'Memo'
 };

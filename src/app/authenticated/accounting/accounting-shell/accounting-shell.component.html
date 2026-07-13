@@ -196,6 +196,7 @@
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
               </div>
             }
+
             </div>
           </div>
         } @else if (hasAccountingFullAccess && selectedTabIndex === tabOwners) {
@@ -766,23 +767,23 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabBankActivities) {
-              @if (selectedBankActivityKind !== 'reconcile') {
-                <div class="accounting-shell-subview-title">
-                  @if (selectedBankActivityKind === 'undepositedFunds') {
-                    Undeposited Funds
-                  } @else if (selectedBankActivityKind === 'untransferredFunds') {
-                    Untransferred Funds
-                  } @else if (selectedBankActivityKind === 'deposits') {
-                    Deposits
-                  } @else if (selectedBankActivityKind === 'transfers') {
-                    Transfers
-                  } @else if (selectedBankActivityKind === 'transferReport') {
-                    Transfer Report
-                  } @else if (selectedBankActivityKind === 'printChecks') {
-                    Print Checks
-                  }
-                </div>
-              }
+              <div class="accounting-shell-subview-title">
+                @if (selectedBankActivityKind === 'undepositedFunds') {
+                  Undeposited Funds
+                } @else if (selectedBankActivityKind === 'untransferredFunds') {
+                  Untransferred Funds
+                } @else if (selectedBankActivityKind === 'deposits') {
+                  Deposits
+                } @else if (selectedBankActivityKind === 'transfers') {
+                  Transfers
+                } @else if (selectedBankActivityKind === 'transferReport') {
+                  Transfer Report
+                } @else if (selectedBankActivityKind === 'printChecks') {
+                  Print Checks
+                } @else if (selectedBankActivityKind === 'reconcile') {
+                  Reconcile
+                }
+              </div>
               @if (selectedBankActivityKind === 'undepositedFunds') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
@@ -910,7 +911,8 @@
                   [officeId]="selectedOfficeId"
                   [chartOfAccountId]="selectedChartOfAccountId"
                   [searchDateRange]="invoiceSearchDateRange"
-                  [refreshTrigger]="reconcileRefreshTrigger">
+                  [refreshTrigger]="reconcileRefreshTrigger"
+                  (leaveEvent)="onReconcileLeave()">
                 </app-reconcile>
               }
             }

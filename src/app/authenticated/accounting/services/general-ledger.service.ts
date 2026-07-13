@@ -55,14 +55,28 @@ export class GeneralLedgerService {
     );
   }
 
-  searchUnclearedJournalEntryLines(officeId: number, chartOfAccountId: number): Observable<JournalEntryLineSearchResponse[]> {
+  searchUnclearedJournalEntryLines(officeId: number, chartOfAccountId: number, statementDate?: string | null): Observable<JournalEntryLineSearchResponse[]> {
     return this.searchJournalEntryLines({
       officeIds: [officeId],
       chartOfAccountId,
       includeVoided: false,
-      includeUnposted: false,
-      unclearedOnly: true
+      includeUnposted: true,
+      unclearedOnly: true,
+      endDate: statementDate || null
     });
+  }
+
+  getReconcileBeginningBalance(officeId: number, chartOfAccountId: number, statementDate?: string | null): Observable<number> {
+    return this.http.post<{ beginningBalance?: number; BeginningBalance?: number }>(
+      `${this.controller}journal-entry-line/reconcile/beginning-balance`,
+      {
+        officeId,
+        chartOfAccountId,
+        statementDate: statementDate || null
+      }
+    ).pipe(
+      map(response => Number(response?.beginningBalance ?? response?.BeginningBalance ?? 0))
+    );
   }
 
   getJournalEntryById(journalEntryId: string): Observable<JournalEntryResponse> {

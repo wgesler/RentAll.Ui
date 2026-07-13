@@ -1,10 +1,11 @@
-<div class="mat list-layout-standard reconcile-layout">
+<div class="mat list-layout-standard dbg-band-main reconcile-layout">
   @if (showReconcileToolbar) {
-    <div class="reconcile-context-band property-tab-actions-band dbg-band-actions">
-      <div class="datatable-search-wrap reconcile-actions-wrap">
+    <div class="tableDiv">
+      <div class="datatable-search-wrap dbg-band-actions px-4">
         <div class="datatable-search-wrap__row mobile-flex-column-reverse">
           <div class="datatable-filter-with-sticky">
             <mat-form-field
+              id="datatable-search-field-reconcile-list"
               floatLabel="always"
               subscriptSizing="dynamic"
               class="mobile-view-full datatable-search-field">
@@ -13,8 +14,9 @@
               <input
                 matInput
                 #reconcileFilterInput
+                id="datatable-search-input-reconcile-list"
                 class="datatable-search-input"
-                placeholder="Filter both lists by word or value..."
+                placeholder="Filter table by word or value..."
                 autocomplete="off"
                 [(ngModel)]="filterVal"
                 (ngModelChange)="onFilterInput()" />
@@ -26,13 +28,17 @@
                 </span>
               }
             </mat-form-field>
-          </div>
-          <div class="datatable-search-wrap__actions mobile-view-full">
-            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-              <button mat-raised-button type="button" color="primary" (click)="markAll()">Mark All</button>
-              <button mat-raised-button type="button" color="primary" (click)="unmarkAll()">Unmark All</button>
-              <button mat-raised-button type="button" color="primary" (click)="openColumnsDialog()">Columns to Display...</button>
-            </div>
+            <button
+              mat-icon-button
+              type="button"
+              class="datatable-sticky-filter-btn"
+              [class.datatable-sticky-filter-btn--active]="filterSticky"
+              [attr.aria-pressed]="filterSticky"
+              aria-label="Sticky filter"
+              matTooltip="Keep filter between visits"
+              (click)="onStickyFilterToggle()">
+              <mat-icon>push_pin</mat-icon>
+            </button>
           </div>
         </div>
       </div>
@@ -67,11 +73,17 @@
                 @for (line of filteredPaymentsLines; track line.journalEntryLineId; let rowIndex = $index) {
                   <tr [class.reconcile-lines-table__row--cleared]="line.isCleared" [class.reconcile-lines-table__row--alt]="rowIndex % 2 === 1">
                     <td class="reconcile-lines-table__clr">
-                      <mat-checkbox
-                        color="primary"
-                        [checked]="line.isCleared"
-                        (change)="onClearedChange(line, $event.checked)">
-                      </mat-checkbox>
+                      <button
+                        type="button"
+                        class="reconcile-clr-btn"
+                        [class.reconcile-clr-btn--cleared]="line.isCleared"
+                        [attr.aria-pressed]="line.isCleared"
+                        [attr.aria-label]="line.isCleared ? 'Cleared' : 'Not cleared'"
+                        (click)="toggleCleared(line)">
+                        @if (line.isCleared) {
+                          <mat-icon class="reconcile-clr-icon" aria-hidden="true">check</mat-icon>
+                        }
+                      </button>
                     </td>
                     @for (columnKey of tableColumnOrder; track columnKey) {
                       @if (isColumnVisible('payments', columnKey)) {
@@ -106,11 +118,17 @@
                 @for (line of filteredDepositsLines; track line.journalEntryLineId; let rowIndex = $index) {
                   <tr [class.reconcile-lines-table__row--cleared]="line.isCleared" [class.reconcile-lines-table__row--alt]="rowIndex % 2 === 1">
                     <td class="reconcile-lines-table__clr">
-                      <mat-checkbox
-                        color="primary"
-                        [checked]="line.isCleared"
-                        (change)="onClearedChange(line, $event.checked)">
-                      </mat-checkbox>
+                      <button
+                        type="button"
+                        class="reconcile-clr-btn"
+                        [class.reconcile-clr-btn--cleared]="line.isCleared"
+                        [attr.aria-pressed]="line.isCleared"
+                        [attr.aria-label]="line.isCleared ? 'Cleared' : 'Not cleared'"
+                        (click)="toggleCleared(line)">
+                        @if (line.isCleared) {
+                          <mat-icon class="reconcile-clr-icon" aria-hidden="true">check</mat-icon>
+                        }
+                      </button>
                     </td>
                     @for (columnKey of tableColumnOrder; track columnKey) {
                       @if (isColumnVisible('deposits', columnKey)) {
@@ -130,4 +148,110 @@
       </div>
     }
   </div>
+  @if (showReconcileFooter) {
+    <div class="reconcile-action-bar">
+      <div class="reconcile-action-bar__center">
+        <button mat-stroked-button type="button" class="reconcile-action-btn" (click)="markAll()">Mark All</button>
+        <button mat-stroked-button type="button" class="reconcile-action-btn" (click)="unmarkAll()">Unmark All</button>
+      </div>
+      <div class="reconcile-action-bar__side reconcile-action-bar__side--right">
+        <button mat-stroked-button type="button" class="reconcile-action-btn" (click)="openColumnsDialog()">Columns to Display...</button>
+      </div>
+    </div>
+    <div class="reconcile-summary">
+      <div class="reconcile-summary__left">
+        <div class="reconcile-summary__row">
+          <span class="reconcile-summary__label">Beginning Balance:</span>
+          <span class="reconcile-summary__value">{{ formatCurrency(beginningBalance) }}</span>
+        </div>
+        <div class="reconcile-summary__cleared-heading">Items you have marked cleared:</div>
+        <div class="reconcile-summary__row reconcile-summary__row--indented">
+          <span class="reconcile-summary__label">{{ clearedDepositsCount }} Deposits and Other Credits:</span>
+          <span class="reconcile-summary__value">{{ formatCurrency(clearedDepositsTotal) }}</span>
+        </div>
+        <div class="reconcile-summary__row reconcile-summary__row--indented">
+          <span class="reconcile-summary__label">{{ clearedPaymentsCount }} Checks and Payments:</span>
+          <span class="reconcile-summary__value">{{ formatCurrency(clearedPaymentsTotal) }}</span>
+        </div>
+      </div>
+      <div class="reconcile-summary__right">
+        <button mat-stroked-button type="button" class="reconcile-modify-btn" (click)="toggleAdjustments()">Modify</button>
+        <div class="reconcile-summary__right-fields">
+          @if (showAdjustments) {
+            <div class="reconcile-summary__row">
+              <span class="reconcile-summary__label">Service Charge:</span>
+              <input
+                class="reconcile-summary__input"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [ngModel]="serviceChargeInput"
+                (ngModelChange)="onServiceChargeInputChange($event)"
+                (focus)="onServiceChargeFocus($event)"
+                (blur)="onServiceChargeBlur()" />
+            </div>
+            <div class="reconcile-summary__row">
+              <span class="reconcile-summary__label">Interest Earned:</span>
+              <input
+                class="reconcile-summary__input"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [ngModel]="interestEarnedInput"
+                (ngModelChange)="onInterestEarnedInputChange($event)"
+                (focus)="onInterestEarnedFocus($event)"
+                (blur)="onInterestEarnedBlur()" />
+            </div>
+          } @else {
+            <div class="reconcile-summary__row">
+              <span class="reconcile-summary__label">Service Charge:</span>
+              <span class="reconcile-summary__value">{{ formatCurrency(serviceCharge) }}</span>
+            </div>
+            <div class="reconcile-summary__row">
+              <span class="reconcile-summary__label">Interest Earned:</span>
+              <span class="reconcile-summary__value">{{ formatCurrency(interestEarned) }}</span>
+            </div>
+          }
+          <div class="reconcile-summary__row">
+            <span class="reconcile-summary__label">Ending Balance:</span>
+            <input
+              class="reconcile-summary__input reconcile-summary__input--ending"
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              [ngModel]="endingBalanceInput"
+              (ngModelChange)="onEndingBalanceInputChange($event)"
+              (focus)="onEndingBalanceFocus($event)"
+              (blur)="onEndingBalanceBlur()" />
+          </div>
+          <div class="reconcile-summary__row">
+            <span class="reconcile-summary__label">Cleared Balance:</span>
+            <span class="reconcile-summary__value reconcile-summary__value--emphasis">{{ formatCurrency(clearedBalance) }}</span>
+          </div>
+          <div class="reconcile-summary__row">
+            <span class="reconcile-summary__label">Difference:</span>
+            <span
+              class="reconcile-summary__value reconcile-summary__value--emphasis"
+              [class.reconcile-summary__value--balanced]="isDifferenceZero"
+              [class.reconcile-summary__value--unbalanced]="!isDifferenceZero">
+              {{ formatCurrency(difference) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="reconcile-footer-actions">
+      <button
+        mat-flat-button
+        type="button"
+        color="primary"
+        class="reconcile-now-btn"
+        [disabled]="!canReconcileNow"
+        [matTooltip]="canReconcileNow ? 'Save reconciliation (coming soon)' : 'Cleared balance must match ending balance'"
+        (click)="onReconcileNow()">
+        Reconcile Now
+      </button>
+      <button mat-stroked-button type="button" class="reconcile-leave-btn" (click)="onLeave()">Leave</button>
+    </div>
+  }
 </div>
