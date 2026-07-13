@@ -140,7 +140,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
         if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
           return;
         }
-        this.resolveOfficeScope(officeId);
+        this.applyOfficeFromGlobal(officeId);
         this.loadReservations();
         this.loadBoardProperties();
       }
@@ -386,25 +386,29 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   initializeOfficeScope(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
-        this.loadReservations(true);
-        this.loadBoardProperties();
-      },
-      error: () => {
-        this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.globalSelectionService.getSelectedOfficeId$().pipe(take(1)).subscribe({
+      next: officeId => {
+        this.applyOfficeFromGlobal(officeId);
         this.loadReservations(true);
         this.loadBoardProperties();
       }
     });
   }
 
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
+  applyOfficeFromGlobal(officeId: number | null): void {
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangeSticky,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     this.markViewForCheck();
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.applyOfficeFromGlobal(officeId);
   }
   //#endregion
 
@@ -420,6 +424,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
         this.dateRangeSticky = true;
         this.startDate = start;
         this.endDate = end;
+        this.selectedOfficeId = stored.officeId ?? null;
         return;
       }
       this.clearStickyDateRangeStorage();
@@ -437,6 +442,10 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     } else {
       this.clearStickyDateRangeStorage();
       this.setDefaultDateRange();
+      this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+      this.lastLoadedOfficeId = null;
+      this.loadReservations(true);
+      this.loadBoardProperties();
       this.onDateRangeChange();
     }
     this.markViewForCheck();
@@ -456,11 +465,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     localStorage.setItem(this.getStickyDateRangeStorageKey(), JSON.stringify({
       enabled: true,
       startDate,
-      endDate
+      endDate,
+      officeId: this.selectedOfficeId
     }));
   }
 
-  readStickyDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string } | null {
+  readStickyDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string; officeId: number | null } | null {
     if (typeof localStorage === 'undefined') {
       return null;
     }
@@ -471,14 +481,16 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     try {
-      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string };
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string; officeId?: number | null };
       if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
         return null;
       }
+      const officeId = parsed.officeId == null || parsed.officeId === undefined ? null : Number(parsed.officeId);
       return {
         enabled: true,
         startDate: String(parsed.startDate),
-        endDate: String(parsed.endDate)
+        endDate: String(parsed.endDate),
+        officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null
       };
     } catch {
       return null;
@@ -512,7 +524,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onOfficeDropdownChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    this.lastLoadedOfficeId = null;
+    if (this.dateRangeSticky) {
+      this.persistStickyDateRange();
+    }
+    this.loadReservations(true);
+    this.loadBoardProperties();
   }
 
   get officeOptions(): OfficeResponse[] {

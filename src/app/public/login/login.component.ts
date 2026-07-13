@@ -9,6 +9,7 @@ import { StorageKey } from '../../enums/storage-keys.enum';
 import { CommonMessage, CommonTimeouts } from '../../enums/common-message.enum';
 import { MaterialModule } from '../../material.module';
 import { GlobalSelectionService } from '../../authenticated/organizations/services/global-selection.service';
+import { OrganizationFeatureService } from '../../authenticated/organizations/services/organization-feature.service';
 import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
 import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../shared/utils/cdk-overlay.util';
@@ -47,7 +48,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
       private toastr: ToastrService,
       private storageService: StorageService,
       private authService: AuthService,
-      private globalSelectionService: GlobalSelectionService)
+      private globalSelectionService: GlobalSelectionService,
+      private organizationFeatureService: OrganizationFeatureService)
   {
     const username = this.storageService.getItem(StorageKey.Username);
     const password = this.storageService.getItem(StorageKey.Password);
@@ -96,8 +98,9 @@ export class LoginComponent implements OnInit, AfterViewInit {
         if (!organizationId) {
           return of(true);
         }
-        return this.globalSelectionService.ensureOfficeScope(organizationId).pipe(
-          map(scope => this.globalSelectionService.verifyMainProgramAccess(scope.features))
+        return this.organizationFeatureService.refreshFeatures(organizationId).pipe(
+          take(1),
+          map(features => this.globalSelectionService.verifyMainProgramAccess(features || []))
         );
       }),
       finalize(() => this.isSubmitting = false)

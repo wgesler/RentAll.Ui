@@ -322,12 +322,12 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     if (!this.isAddMode || this.offices.length === 0) {
       return;
     }
-    if (this.offices.length === 1) {
-      this.titleBarPropertyOfficeId = this.offices[0].officeId;
-      this.propertySection?.applyTitleBarPropertyOfficeSelection(this.offices[0].officeId);
-      return;
-    }
-    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    const resolved = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.titleBarPropertyOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
     this.titleBarPropertyOfficeId = resolved;
     this.propertySection?.applyTitleBarPropertyOfficeSelection(resolved);
   }

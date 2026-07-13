@@ -105,7 +105,11 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -244,14 +248,12 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
-    if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-    } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.applyPageOfficeScope(resolved);
-    } else {
-      this.applyPageOfficeScope(officeId);
-    }
+    this.applyPageOfficeScope(this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    }));
     this.applyPageOfficeChangeEffects();
   }
 

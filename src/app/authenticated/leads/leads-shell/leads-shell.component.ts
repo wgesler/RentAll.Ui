@@ -85,8 +85,11 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.isAdmin = this.authService.isAdmin();
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    /** Page-level office filter: seeded from global; does not write global. */
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
     this.loadOffices();
     this.globalSelectionService
       .getSelectedOfficeId$()
@@ -354,16 +357,21 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
 
   /** Page-level office follows global header; does not write global. */
   private applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-    } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.applyPageOfficeScope(resolved);
+    const resolvedId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
+    if (this.offices.length > 0) {
+      this.selectedOffice = this.offices.find(o => o.officeId === resolvedId) || null;
+      this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
     } else {
-      this.selectedOfficeId = officeId;
       this.selectedOffice = null;
-      this.clearOfficeTitleBarErrorIfValid();
+      this.selectedOfficeId = resolvedId;
     }
+    this.clearOfficeTitleBarErrorIfValid();
+    this.propagateOfficeToLeadLists();
     this.cdr.markForCheck();
   }
 

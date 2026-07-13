@@ -142,7 +142,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.selectedOfficeId = this.openWithAllSelections
       ? null
-      : this.globalSelectionService.getSelectedOfficeIdValue();
+      : this.globalSelectionService.resolvePageOfficeId({
+        topBarPinned: false,
+        pageOfficeId: this.selectedOfficeId,
+        offices: this.offices
+      });
     this.loadOffices();
     this.globalSelectionService
       .getSelectedOfficeId$()
@@ -610,14 +614,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   private applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-    } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.applyPageOfficeScope(resolved);
-    } else {
-      this.applyPageOfficeScope(officeId);
-    }
+    this.applyPageOfficeScope(this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    }));
     this.applyPageOfficeChangeEffects();
   }
 

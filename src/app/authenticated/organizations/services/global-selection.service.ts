@@ -1,11 +1,8 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, forkJoin, map, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, map, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { FeatureResponse } from '../models/organization-feature.model';
 import { OfficeResponse } from '../models/office.model';
-import { AccountingOfficeService } from './accounting-office.service';
-import { OfficeService } from './office.service';
-import { OrganizationFeatureService } from './organization-feature.service';
 
 export interface OfficeUiStateOptions {
   explicitOfficeId?: number | null;
@@ -15,16 +12,18 @@ export interface OfficeUiStateOptions {
   requireResolvedSelectionEmpty?: boolean;
 }
 
+export interface ResolvePageOfficeIdOptions {
+  topBarPinned?: boolean;
+  pageOfficeId?: number | null;
+  offices?: OfficeResponse[];
+  globalOfficeId?: number | null;
+}
+
 export interface OfficeUiState {
   selectedOfficeId: number | null;
   selectedOffice: OfficeResponse | null;
   showOfficeDropdown: boolean;
   autoSelectedOfficeId: number | null;
-}
-
-export interface OfficeScopeResult {
-  selectedOfficeId: number | null;
-  features: FeatureResponse[];
 }
 
 @Injectable({
@@ -38,9 +37,6 @@ export class GlobalSelectionService {
   private furnishedPropertySelection$ = new BehaviorSubject<boolean>(this.readFurnishedPropertySelectionFromStorage());
 
   constructor(
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private organizationFeatureService: OrganizationFeatureService,
     private authService: AuthService
   ) {}
 
@@ -107,24 +103,6 @@ export class GlobalSelectionService {
     return null;
   }
 
-  ensureOfficeScope(organizationId: string): Observable<OfficeScopeResult> {
-    return this.officeService.ensureOfficesLoaded(organizationId).pipe(
-      take(1),
-      switchMap(offices => {
-        const activeOffices = (offices || []).filter(office => office.isActive);
-        return forkJoin({
-          accountingOffices: this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)),
-          features: this.organizationFeatureService.refreshFeatures(organizationId).pipe(take(1))
-        }).pipe(
-          map(({ features }) => ({
-            selectedOfficeId: this.syncWithAvailableOffices(activeOffices),
-            features: features || []
-          }))
-        );
-      })
-    );
-  }
-
   verifyMainProgramAccess(features?: FeatureResponse[]): boolean {
     return this.authService.hasMainProgramAccess(features);
   }
@@ -139,6 +117,35 @@ export class GlobalSelectionService {
       return null;
     }
     return accessibleOffices.some(office => office.officeId === defaultOfficeId) ? defaultOfficeId : null;
+  }
+
+  /** Page office follows global unless the shell top bar is pinned. Never writes global. */
+  resolvePageOfficeId(options: ResolvePageOfficeIdOptions = {}): number | null {
+    const offices = options.offices ?? [];
+    const pageOfficeId = options.pageOfficeId ?? null;
+    const globalOfficeId = options.globalOfficeId ?? this.getSelectedOfficeIdValue();
+    const topBarPinned = options.topBarPinned === true;
+
+    if (topBarPinned) {
+      if (!offices.length) {
+        return pageOfficeId;
+      }
+      if (pageOfficeId != null && offices.some(office => office.officeId === pageOfficeId)) {
+        return pageOfficeId;
+      }
+      return null;
+    }
+
+    if (!offices.length) {
+      return globalOfficeId;
+    }
+    if (offices.length === 1) {
+      return offices[0].officeId;
+    }
+    if (globalOfficeId != null && offices.some(office => office.officeId === globalOfficeId)) {
+      return globalOfficeId;
+    }
+    return null;
   }
 
   getOfficeUiState$(offices: OfficeResponse[], options: OfficeUiStateOptions = {}): Observable<OfficeUiState> {

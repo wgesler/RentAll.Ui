@@ -41,7 +41,11 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
     if (tabIndex !== null) {
       this.selectedTabIndex = tabIndex;
     }
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: []
+    });
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applyOfficeFromGlobal(officeId);
@@ -96,11 +100,16 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Page-level office follows global header; does not write global. */
   private applyOfficeFromGlobal(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: [],
+      globalOfficeId: officeId
+    });
     queueMicrotask(() => {
       this.userSections?.forEach(section => {
         if (section.offices.length > 0) {
-          section.resolveOfficeScope(officeId);
+          section.resolveOfficeScope(this.selectedOfficeId);
           section.markViewForCheck();
         }
       });

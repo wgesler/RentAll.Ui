@@ -703,7 +703,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

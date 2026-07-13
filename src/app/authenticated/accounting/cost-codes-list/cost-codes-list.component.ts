@@ -400,9 +400,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    if (!this.embeddedInSettings) {
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    }
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {

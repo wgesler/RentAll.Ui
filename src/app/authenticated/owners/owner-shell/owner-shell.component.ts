@@ -323,14 +323,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-    } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.applyPageOfficeScope(resolved);
-    } else {
-      this.applyPageOfficeScope(officeId);
-    }
+    const resolved = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
+    this.applyPageOfficeScope(resolved);
     if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
       this.propertyContextLoaded = false;
       this.loadPropertyCodeOptions();

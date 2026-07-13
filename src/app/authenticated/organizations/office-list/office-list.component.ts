@@ -82,14 +82,17 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     this.officeSelected.emit('new');
   }
 
-  getOffices(): void {
+  getOffices(forceRefresh = false): void {
     const orgId = (this.organizationId ?? this.authService.getUser()?.organizationId ?? '').trim();
     if (!orgId) {
       this.isServiceError = true;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.officeService.refreshOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    const load$ = forceRefresh
+      ? this.officeService.refreshOffices(orgId)
+      : this.officeService.ensureOfficesLoaded(orgId);
+    load$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();
@@ -107,7 +110,7 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     this.officeService.deleteOffice(office.officeId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Office deleted successfully', CommonMessage.Success);
-        this.getOffices();
+        this.getOffices(true);
       },
       error: (_err: HttpErrorResponse) => {}
     });

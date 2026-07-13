@@ -242,7 +242,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -365,9 +365,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    if (this.source !== 'emails' && !this.hideFilters) {
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
-    }
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterCompanies();
     this.filterReservations();

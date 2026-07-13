@@ -320,7 +320,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   onOfficeBack(): void {
     if (this.shouldRefreshOffices) {
-      this.officeListComponent?.getOffices();
+      this.officeListComponent?.getOffices(true);
     }
     this.shouldRefreshOffices = false;
     this.officeId = null;

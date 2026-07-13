@@ -254,9 +254,6 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
 
   //#region Filter Methods
   onOfficeChange(): void {
-    if (!this.embeddedInSettings) {
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    }
     this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     this.filterChartOfAccounts();
   }

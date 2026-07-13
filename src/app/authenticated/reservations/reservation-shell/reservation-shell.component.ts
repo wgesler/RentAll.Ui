@@ -227,16 +227,12 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     if (this.isAddMode && !this.routeReservationId) {
       return;
     }
-    if (this.offices.length === 0) {
-      this.selectedOfficeId = officeId;
-      return;
-    }
-    if (this.offices.length === 1) {
-      this.selectedOfficeId = this.offices[0].officeId;
-    } else {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.selectedOfficeId = resolved;
-    }
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
     this.resolveOfficeScope(this.selectedOfficeId);
     this.refreshHeaderReservationOptions();
   }

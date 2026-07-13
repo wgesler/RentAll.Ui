@@ -10,6 +10,7 @@
         <app-data-table
           [data]="alerts"
           [columns]="alertsDisplayedColumns"
+          tableName="alert-list"
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasToggleTop]="false"
@@ -115,6 +116,7 @@
               <app-data-table
                 [data]="alerts"
                 [columns]="alertsDisplayedColumns"
+                tableName="alert-list"
                 [hasColumnIndex]="true"
                 [hasFilter]="true"
                 [hasToggleTop]="false"

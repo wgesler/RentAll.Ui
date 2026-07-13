@@ -45,30 +45,43 @@
             [noResultsText]="'No document types match your search'"
             (valueChange)="onDocumentTypeDropdownChange($event)">
           </app-title-bar-select>
-          <mat-form-field appearance="outline" class="titlebar-field-office">
-            <mat-label>Start Date</mat-label>
-            <input
-              matInput
-              [matDatepicker]="documentsStartPicker"
-              [(ngModel)]="startDate"
-              [ngModelOptions]="{ standalone: true }"
-              (dateChange)="onDateRangeChange()"
-              [max]="endDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="documentsStartPicker"></mat-datepicker-toggle>
-            <mat-datepicker #documentsStartPicker></mat-datepicker>
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="titlebar-field-office">
-            <mat-label>End Date</mat-label>
-            <input
-              matInput
-              [matDatepicker]="documentsEndPicker"
-              [(ngModel)]="endDate"
-              [ngModelOptions]="{ standalone: true }"
-              (dateChange)="onDateRangeChange()"
-              [min]="startDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="documentsEndPicker"></mat-datepicker-toggle>
-            <mat-datepicker #documentsEndPicker></mat-datepicker>
-          </mat-form-field>
+          <div class="documents-shell-titlebar-dates">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Start Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="documentsStartPicker"
+                [(ngModel)]="startDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [max]="endDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="documentsStartPicker"></mat-datepicker-toggle>
+              <mat-datepicker #documentsStartPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>End Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="documentsEndPicker"
+                [(ngModel)]="endDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [min]="startDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="documentsEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker #documentsEndPicker></mat-datepicker>
+            </mat-form-field>
+            <button
+              mat-icon-button
+              type="button"
+              class="documents-shell-date-pin-btn"
+              [class.documents-shell-date-pin-btn--active]="dateRangePinned"
+              [attr.aria-pressed]="dateRangePinned"
+              [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
+              [matTooltip]="dateRangePinned ? 'Unpin top bar' : 'Keep top bar selections fixed'"
+              (click)="toggleDateRangePin()">
+              <mat-icon>push_pin</mat-icon>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -86,6 +99,7 @@
             [reservationId]="selectedReservationId"
             [propertyCode]="selectedPropertyCode"
             [reservations]="reservations"
+            [documentTypeId]="selectedDocumentTypeId ?? undefined"
             [documentRequest]="documentRequest">
           </app-document-list>
         </mat-tab>

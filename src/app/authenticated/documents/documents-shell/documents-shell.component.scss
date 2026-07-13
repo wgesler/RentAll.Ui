@@ -10,3 +10,31 @@
 :host ::ng-deep .documents-shell-single-tab .mat-mdc-tab-header {
   display: none;
 }
+
+.documents-shell-titlebar-dates {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.documents-shell-date-pin-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin-top: -4px;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+    color: rgba(15, 23, 42, 0.55);
+  }
+
+  &.documents-shell-date-pin-btn--active .mat-icon {
+    color: var(--mat-sys-secondary, #e91e63);
+  }
+}

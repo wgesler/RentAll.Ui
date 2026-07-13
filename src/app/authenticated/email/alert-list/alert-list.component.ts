@@ -228,7 +228,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -357,9 +357,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
-    if (this.source !== 'alerts') {
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
-    }
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterReservations();
     this.selectedReservationId = null;

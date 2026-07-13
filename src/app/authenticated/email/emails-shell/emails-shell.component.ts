@@ -37,6 +37,9 @@ import { AlertResponse } from '../models/alert.model';
   styleUrl: './emails-shell.component.scss'
 })
 export class EmailsShellComponent implements OnInit, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
+  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-emails-shell-pinned-dates';
+
   @ViewChild('emailsTabList') emailsTabList?: EmailListComponent;
   @ViewChild('alertsTabList') alertsTabList?: AlertListComponent;
 
@@ -46,10 +49,12 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null;
   selectedPropertyId: string | null = null;
   selectedReservationId: string | null = null;
+  selectedEmailTypeId: number | null = null;
   selectedReservationSummary: ReservationCodeResponse | null = null;
 
   startDate: Date | null = null;
   endDate: Date | null = null;
+  dateRangePinned = false;
   emailSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   alertSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
 
@@ -74,15 +79,20 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     private reservationService: ReservationService
   ) {
     // Before child lists bind @Input date range — ngOnInit is too late (first search can omit dates).
-    this.setDefaultDateRange();
+    this.applyPinnedDateRangeFromStorage();
     this.syncEmailSearchDateRange();
     this.syncAlertSearchDateRange();
   }
 
   //#region Emails-Shell
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangePinned,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       this.applyQueryParamState(queryParams);
@@ -120,12 +130,14 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
     this.refreshPropertyOptions();
     this.refreshReservationOptions();
+    this.persistPinnedTopBarIfActive();
     this.reloadActiveTabList();
   }
 
   onPropertyDropdownChange(value: string | number | null): void {
     this.selectedPropertyId = value == null || value === '' ? null : String(value);
     this.refreshReservationOptions();
+    this.persistPinnedTopBarIfActive();
     this.reloadActiveTabList();
   }
 
@@ -133,6 +145,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.selectedReservationId = value == null || value === '' ? null : String(value);
     this.selectedReservationSummary = this.reservations.find(r => r.reservationId === this.selectedReservationId) || null;
     this.selectedPropertyId = this.selectedReservationSummary?.propertyId ?? this.selectedPropertyId;
+    this.persistPinnedTopBarIfActive();
     this.reloadActiveTabList();
   }
 
@@ -200,16 +213,22 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     }));
   }
 
-  get selectedEmailTypeId(): number | null {
-    return this.emailsTabList?.selectedEmailTypeId ?? null;
+  onEmailTypeDropdownChange(value: string | number | null): void {
+    this.selectedEmailTypeId = value == null || value === '' ? null : Number(value);
+    this.emailsTabList?.onEmailTypeDropdownChange(value);
+    this.persistPinnedTopBarIfActive();
+    this.reloadActiveTabList();
   }
 
-  onEmailTypeDropdownChange(value: string | number | null): void {
-    this.emailsTabList?.onEmailTypeDropdownChange(value);
+  private persistPinnedTopBarIfActive(): void {
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
   }
 
   onDateRangeChange(): void {
     this.normalizeDateRangeValues();
+    this.persistPinnedTopBarIfActive();
     this.syncEmailSearchDateRange();
     this.syncAlertSearchDateRange();
     this.reloadActiveTabList();
@@ -307,28 +326,21 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   //#region Utility Methods
   applyShellOfficeScope(): void {
     this.showOfficeDropdown = this.offices.length > 1;
-    let officeIdToUse = this.selectedOfficeId;
-    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
-      officeIdToUse = null;
-    }
-    if (this.offices.length === 1) {
-      officeIdToUse = this.offices[0].officeId;
-    }
-    this.selectedOfficeId = officeIdToUse;
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangePinned,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 0) {
-      this.selectedOfficeId = officeId;
-      return;
-    }
     this.showOfficeDropdown = this.offices.length > 1;
-    if (this.offices.length === 1) {
-      this.selectedOfficeId = this.offices[0].officeId;
-      return;
-    }
-    const resolved = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.selectedOfficeId = resolved != null && this.offices.some(o => o.officeId === resolved) ? resolved : null;
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangePinned,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
   }
 
   refreshReservationOptions(): void {
@@ -409,7 +421,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
       this.syncAlertSearchDateRange();
       return;
     }
-    if (!this.startDate && !this.endDate) {
+    if (!this.startDate && !this.endDate && !this.dateRangePinned) {
       this.setDefaultDateRange();
       this.syncEmailSearchDateRange();
       this.syncAlertSearchDateRange();
@@ -417,7 +429,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   }
 
   normalizeDateRangeValues(): void {
-    if (!this.startDate && !this.endDate) {
+    if (!this.startDate && !this.endDate && !this.dateRangePinned) {
       this.setDefaultDateRange();
       return;
     }
@@ -455,7 +467,126 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     };
   }
 
+  //#region Pinned Date Range
+  toggleDateRangePin(): void {
+    this.dateRangePinned = !this.dateRangePinned;
+    if (this.dateRangePinned) {
+      this.onDateRangeChange();
+      this.persistPinnedDateRange();
+      return;
+    }
+    this.clearPinnedDateRangeStorage();
+    this.setDefaultDateRange();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.selectedEmailTypeId = null;
+    this.refreshPropertyOptions();
+    this.refreshReservationOptions();
+    this.onDateRangeChange();
+  }
+
+  applyPinnedDateRangeFromStorage(): void {
+    const stored = this.readPinnedDateRangeFromStorage();
+    if (stored?.enabled && stored.startDate && stored.endDate) {
+      const start = this.utilityService.parseCalendarDateInput(stored.startDate);
+      const end = this.utilityService.parseCalendarDateInput(stored.endDate);
+      if (start && end) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        this.dateRangePinned = true;
+        this.startDate = start;
+        this.endDate = end;
+        this.selectedOfficeId = stored.officeId ?? null;
+        this.selectedPropertyId = stored.propertyId ?? null;
+        this.selectedReservationId = stored.reservationId ?? null;
+        this.selectedEmailTypeId = stored.emailTypeId ?? null;
+        return;
+      }
+      this.clearPinnedDateRangeStorage();
+    }
+
+    this.dateRangePinned = false;
+    this.setDefaultDateRange();
+  }
+
+  persistPinnedDateRange(): void {
+    if (!this.dateRangePinned || !this.startDate || !this.endDate) {
+      return;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify({
+      enabled: true,
+      startDate,
+      endDate,
+      officeId: this.selectedOfficeId,
+      propertyId: this.selectedPropertyId,
+      reservationId: this.selectedReservationId,
+      emailTypeId: this.selectedEmailTypeId
+    }));
+  }
+
+  readPinnedDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string; officeId: number | null; propertyId: string | null; reservationId: string | null; emailTypeId: number | null } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getPinnedDateRangeStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string; officeId?: number | null; propertyId?: string | null; reservationId?: string | null; emailTypeId?: number | null };
+      if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
+        return null;
+      }
+      const officeId = parsed.officeId == null || parsed.officeId === undefined ? null : Number(parsed.officeId);
+      const emailTypeId = parsed.emailTypeId == null || parsed.emailTypeId === undefined ? null : Number(parsed.emailTypeId);
+      return {
+        enabled: true,
+        startDate: String(parsed.startDate),
+        endDate: String(parsed.endDate),
+        officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null,
+        propertyId: parsed.propertyId == null || parsed.propertyId === '' ? null : String(parsed.propertyId),
+        reservationId: parsed.reservationId == null || parsed.reservationId === '' ? null : String(parsed.reservationId),
+        emailTypeId: Number.isFinite(emailTypeId) && emailTypeId > 0 ? emailTypeId : null
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearPinnedDateRangeStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.removeItem(this.getPinnedDateRangeStorageKey());
+  }
+
+  getPinnedDateRangeStorageKey(): string {
+    const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
+    return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
+  }
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedDateRangeStorage();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.refreshPropertyOptions();
+    this.refreshReservationOptions();
+  };
+  //#endregion
+
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
   }

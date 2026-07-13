@@ -640,13 +640,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.syncDefaultOfficeOptions();
     });
 
-    // When not in compact dialog mode, syncing contact's default office to global selection is desired (e.g. add contact).
-    // In compact dialog mode (e.g. owner edit from property page) do not overwrite global office so property list stays filtered by user's office.
     this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(selectedOfficeId => {
       this.syncOfficeAccessFromDefaultOffice(selectedOfficeId);
-      if (!this.compactDialogMode) {
-        this.globalSelectionService.setSelectedOfficeId(selectedOfficeId ?? null);
-      }
     });
   }
 

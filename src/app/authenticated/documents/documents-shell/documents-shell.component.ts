@@ -33,11 +33,15 @@ import { DocumentListComponent } from '../document-list/document-list.component'
   styleUrl: './documents-shell.component.scss'
 })
 export class DocumentsShellComponent implements OnInit, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
+  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-documents-shell-pinned-dates';
+
   @ViewChild('documentsTabList') documentsTabList?: DocumentListComponent;
 
   selectedOfficeId: number | null = null;
   selectedPropertyId: string | null = null;
   selectedReservationId: string | null = null;
+  selectedDocumentTypeId: number | null = null;
   selectedReservationSummary: ReservationCodeResponse | null = null;
 
   offices: OfficeResponse[] = [];
@@ -50,6 +54,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
   organizationId = '';
   startDate: Date | null = null;
   endDate: Date | null = null;
+  dateRangePinned = false;
   documentRequest: DocumentGetRequest = { officeIds: [] };
   private initialOfficeScopeApplied = false;
   destroy$ = new Subject<void>();
@@ -63,14 +68,19 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService,
     private reservationService: ReservationService
   ) {
-    this.setDefaultDateRange();
+    this.applyPinnedDateRangeFromStorage();
     this.syncDocumentRequest();
   }
 
   //#region Documents-Shell
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangePinned,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
 
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -78,7 +88,9 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     ).subscribe(event => {
       const currentPath = event.urlAfterRedirects.split('?')[0];
       if (currentPath.endsWith('/documents')) {
-        this.selectedReservationId = null;
+        if (!this.dateRangePinned) {
+          this.selectedReservationId = null;
+        }
         this.refreshReservationOptions();
         this.syncDocumentRequest();
       }
@@ -90,7 +102,9 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applyOfficeFromGlobal(officeId);
-      this.selectedReservationId = null;
+      if (!this.dateRangePinned) {
+        this.selectedReservationId = null;
+      }
       this.applyPageOfficeChangeEffects();
     });
   }
@@ -101,12 +115,14 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     const officeId = value == null || value === '' ? null : Number(value);
     this.applyPageOfficeScope(officeId);
     this.selectedReservationId = null;
+    this.persistPinnedTopBarIfActive();
     this.applyPageOfficeChangeEffects();
   }
 
   onPropertyDropdownChange(value: string | number | null): void {
     this.selectedPropertyId = value == null || value === '' ? null : String(value);
     this.refreshReservationOptions();
+    this.persistPinnedTopBarIfActive();
     this.syncDocumentRequest();
   }
 
@@ -114,15 +130,25 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     this.selectedReservationId = value == null || value === '' ? null : String(value);
     this.selectedReservationSummary = this.reservations.find(r => r.reservationId === this.selectedReservationId) || null;
     this.selectedPropertyId = this.selectedReservationSummary?.propertyId ?? this.selectedPropertyId;
+    this.persistPinnedTopBarIfActive();
     this.syncDocumentRequest();
   }
 
   onDocumentTypeDropdownChange(value: string | number | null): void {
+    this.selectedDocumentTypeId = value == null || value === '' ? null : Number(value);
     this.documentsTabList?.onDocumentTypeDropdownChange(value);
+    this.persistPinnedTopBarIfActive();
+    this.syncDocumentRequest();
+  }
+
+  private persistPinnedTopBarIfActive(): void {
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
   }
 
   onDateRangeChange(): void {
-    if (!this.startDate && !this.endDate) {
+    if (!this.startDate && !this.endDate && !this.dateRangePinned) {
       this.setDefaultDateRange();
     } else if (this.startDate && !this.endDate) {
       const end = new Date(this.startDate);
@@ -147,6 +173,8 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
       this.startDate = this.endDate;
       this.endDate = tmp;
     }
+
+    this.persistPinnedTopBarIfActive();
 
     this.syncDocumentRequest();
   }
@@ -173,10 +201,6 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     }));
   }
 
-  get selectedDocumentTypeId(): number | null {
-    return this.documentsTabList?.selectedDocumentTypeId ?? null;
-  }
-
   get selectedPropertyCode(): string {
     const selectedProperty = this.properties.find(property => property.propertyId === this.selectedPropertyId) || null;
     if (selectedProperty?.propertyCode) {
@@ -186,30 +210,27 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 0) {
-      this.selectedOfficeId = officeId;
-      this.showOfficeDropdown = false;
-      return;
-    }
+    const previousOfficeId = this.selectedOfficeId;
     this.showOfficeDropdown = this.offices.length > 1;
-    if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-      return;
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangePinned,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
+    if (!this.dateRangePinned && previousOfficeId !== this.selectedOfficeId) {
+      this.selectedReservationId = null;
     }
-    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-    this.applyPageOfficeScope(resolved);
   }
 
   /** Title-bar office change on this page only (never updates global selection). */
   applyPageOfficeScope(officeId: number | null): void {
-    let resolvedOfficeId = officeId;
-    if (resolvedOfficeId != null && !this.offices.some(o => o.officeId === resolvedOfficeId)) {
-      resolvedOfficeId = null;
+    this.selectedOfficeId = officeId;
+    if (officeId != null && this.offices.length > 0 && !this.offices.some(o => o.officeId === officeId)) {
+      this.selectedOfficeId = null;
+    } else if (!this.dateRangePinned && this.offices.length === 1) {
+      this.selectedOfficeId = this.offices[0].officeId;
     }
-    if (this.offices.length === 1) {
-      resolvedOfficeId = this.offices[0].officeId;
-    }
-    this.selectedOfficeId = resolvedOfficeId;
   }
 
   applyPageOfficeChangeEffects(): void {
@@ -258,9 +279,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
           this.offices = offices || [];
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            this.applyOfficeFromGlobal(
-              this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
-            );
+            this.applyOfficeFromGlobal(this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue());
           } else if (this.selectedOfficeId != null) {
             this.applyPageOfficeScope(this.selectedOfficeId);
           } else {
@@ -337,7 +356,126 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     return this.offices.map(office => office.officeId).filter(id => id > 0);
   }
 
+  //#region Pinned Date Range
+  toggleDateRangePin(): void {
+    this.dateRangePinned = !this.dateRangePinned;
+    if (this.dateRangePinned) {
+      this.onDateRangeChange();
+      this.persistPinnedDateRange();
+      return;
+    }
+    this.clearPinnedDateRangeStorage();
+    this.setDefaultDateRange();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.selectedDocumentTypeId = null;
+    this.selectedReservationId = null;
+    this.applyPageOfficeChangeEffects();
+    this.onDateRangeChange();
+  }
+
+  applyPinnedDateRangeFromStorage(): void {
+    const stored = this.readPinnedDateRangeFromStorage();
+    if (stored?.enabled && stored.startDate && stored.endDate) {
+      const start = this.utilityService.parseCalendarDateInput(stored.startDate);
+      const end = this.utilityService.parseCalendarDateInput(stored.endDate);
+      if (start && end) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        this.dateRangePinned = true;
+        this.startDate = start;
+        this.endDate = end;
+        this.selectedOfficeId = stored.officeId ?? null;
+        this.selectedPropertyId = stored.propertyId ?? null;
+        this.selectedReservationId = stored.reservationId ?? null;
+        this.selectedDocumentTypeId = stored.documentTypeId ?? null;
+        return;
+      }
+      this.clearPinnedDateRangeStorage();
+    }
+
+    this.dateRangePinned = false;
+    this.setDefaultDateRange();
+  }
+
+  persistPinnedDateRange(): void {
+    if (!this.dateRangePinned || !this.startDate || !this.endDate) {
+      return;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify({
+      enabled: true,
+      startDate,
+      endDate,
+      officeId: this.selectedOfficeId,
+      propertyId: this.selectedPropertyId,
+      reservationId: this.selectedReservationId,
+      documentTypeId: this.selectedDocumentTypeId
+    }));
+  }
+
+  readPinnedDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string; officeId: number | null; propertyId: string | null; reservationId: string | null; documentTypeId: number | null } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getPinnedDateRangeStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string; officeId?: number | null; propertyId?: string | null; reservationId?: string | null; documentTypeId?: number | null };
+      if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
+        return null;
+      }
+      const officeId = parsed.officeId == null || parsed.officeId === undefined ? null : Number(parsed.officeId);
+      const documentTypeId = parsed.documentTypeId == null || parsed.documentTypeId === undefined ? null : Number(parsed.documentTypeId);
+      return {
+        enabled: true,
+        startDate: String(parsed.startDate),
+        endDate: String(parsed.endDate),
+        officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null,
+        propertyId: parsed.propertyId == null || parsed.propertyId === '' ? null : String(parsed.propertyId),
+        reservationId: parsed.reservationId == null || parsed.reservationId === '' ? null : String(parsed.reservationId),
+        documentTypeId: Number.isFinite(documentTypeId) && documentTypeId > 0 ? documentTypeId : null
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearPinnedDateRangeStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.removeItem(this.getPinnedDateRangeStorageKey());
+  }
+
+  getPinnedDateRangeStorageKey(): string {
+    const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
+    return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
+  }
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedDateRangeStorage();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.selectedReservationId = null;
+    this.applyPageOfficeChangeEffects();
+  };
+  //#endregion
+
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
   }

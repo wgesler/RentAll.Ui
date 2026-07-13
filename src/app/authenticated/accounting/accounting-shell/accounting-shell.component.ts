@@ -90,6 +90,31 @@ interface JournalEntrySyncProgressRow {
   status: string;
 }
 
+interface AccountingShellPinnedTopBarState {
+  enabled: boolean;
+  startDate: string;
+  endDate: string;
+  selectedTabIndex?: number;
+  selectedBillsReceiptKind?: AccountingShellBillsReceiptKind;
+  selectedBankActivityKind?: AccountingShellBankActivityKind;
+  selectedOwnerKind?: AccountingShellOwnerKind;
+  selectedReportKind?: AccountingShellReportKind;
+  selectedGeneralLedgerKind?: AccountingShellGeneralLedgerKind;
+  organizationId?: string | null;
+  officeId?: number | null;
+  companyId?: string | null;
+  reservationId?: string | null;
+  billsPropertyId?: string | null;
+  chartOfAccountId?: number | null;
+  financialReportClass?: Class;
+  arAgingDatePreset?: ArAgingDatePreset;
+  arAgingIntervalDays?: number;
+  arAgingThroughValue?: number;
+  arAgingSortBy?: ArAgingSortBy;
+  glPropertyId?: string | null;
+  glReservationId?: string | null;
+}
+
 @Component({
     selector: 'app-accounting-shell',
     standalone: true,
@@ -335,7 +360,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
-      this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+      this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+        topBarPinned: this.dateRangePinned,
+        pageOfficeId: this.selectedOfficeId,
+        offices: this.offices
+      });
       this.loadOffices();
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
         this.applyOfficeFromGlobal(officeId);
@@ -425,6 +454,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   onAccountingInvoiceCompanyDropdownChange(value: string | number | null): void {
     this.selectedCompanyId = value == null || value === '' ? null : String(value);
+    this.persistPinnedTopBarIfActive();
   }
 
   onAccountingInvoiceReservationDropdownChange(value: string | number | null): void {
@@ -433,6 +463,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
     this.selectedReservationId = reservationId;
+    this.persistPinnedTopBarIfActive();
   }
 
   onAccountingInvoiceEditorOfficeDropdownChange(value: string | number | null): void {
@@ -531,6 +562,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: this.buildShellQueryParams(),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   onShellGlPropertyDropdownChange(value: string | number | null): void {
@@ -553,6 +585,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: this.buildShellQueryParams(),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   onShellGlReservationDropdownChange(value: string | number | null): void {
@@ -580,6 +613,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: this.buildShellQueryParams(),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
   //#endregion
 
@@ -681,6 +715,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedArAgingDatePreset = datePreset;
     this.syncArAgingAsOfDateFromFilters();
     this.publishArAgingFilterState();
+    this.persistPinnedTopBarIfActive();
   }
 
   onShellArAgingIntervalChange(value: string | number | null): void {
@@ -691,6 +726,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.selectedArAgingIntervalDays = intervalDays;
     this.publishArAgingFilterState();
+    this.persistPinnedTopBarIfActive();
   }
 
   onShellArAgingThroughChange(value: string | number | null): void {
@@ -701,6 +737,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.selectedArAgingThroughValue = throughValue;
     this.publishArAgingFilterState();
+    this.persistPinnedTopBarIfActive();
   }
 
   onShellArAgingSortByChange(value: string | number | null): void {
@@ -711,6 +748,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.selectedArAgingSortBy = sortBy;
     this.publishArAgingFilterState();
+    this.persistPinnedTopBarIfActive();
   }
 
   syncArAgingAsOfDateFromFilters(): void {
@@ -1817,6 +1855,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: shellQueryParams,
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   selectBillsReceipt(kind: AccountingShellBillsReceiptKind): void {
@@ -1853,6 +1892,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (kind === 'rentRoll' && rentRollDatesChanged) {
       this.publishDateRangeState();
     }
+    this.persistPinnedTopBarIfActive();
   }
 
   selectBankActivity(kind: AccountingShellBankActivityKind): void {
@@ -1880,6 +1920,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: this.buildShellQueryParams({ bankActivity: kind }),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   selectOwnerKind(kind: AccountingShellOwnerKind): void {
@@ -1925,6 +1966,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         queryParamsHandling: 'merge'
       });
     }
+    this.persistPinnedTopBarIfActive();
   }
 
   selectGeneralLedgerKind(kind: AccountingShellGeneralLedgerKind): void {
@@ -1954,6 +1996,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: this.buildShellQueryParams({ glView: kind }),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   selectReport(kind: AccountingShellReportKind): void {
@@ -1987,6 +2030,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         queryParamsHandling: 'merge'
       });
     }
+    this.persistPinnedTopBarIfActive();
   }
 
   refreshActiveBillsReceiptList(): void {
@@ -2193,6 +2237,56 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Pinned Date Range
+  private persistPinnedTopBarIfActive(): void {
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
+  }
+
+  private applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
+    this.selectedTabIndex = stored.selectedTabIndex ?? this.selectedTabIndex;
+    if (stored.selectedBillsReceiptKind) {
+      this.selectedBillsReceiptKind = stored.selectedBillsReceiptKind;
+    }
+    if (stored.selectedBankActivityKind) {
+      this.selectedBankActivityKind = stored.selectedBankActivityKind;
+    }
+    if (stored.selectedOwnerKind) {
+      this.selectedOwnerKind = stored.selectedOwnerKind;
+    }
+    if (stored.selectedReportKind) {
+      this.selectedReportKind = stored.selectedReportKind;
+    }
+    if (stored.selectedGeneralLedgerKind) {
+      this.selectedGeneralLedgerKind = stored.selectedGeneralLedgerKind;
+    }
+    this.selectedOrganizationId = stored.organizationId ?? null;
+    this.selectedOfficeId = stored.officeId ?? null;
+    this.selectedCompanyId = stored.companyId ?? null;
+    this.selectedReservationId = stored.reservationId ?? null;
+    this.selectedBillsPropertyId = stored.billsPropertyId ?? null;
+    this.selectedChartOfAccountId = stored.chartOfAccountId ?? null;
+    if (stored.financialReportClass != null) {
+      this.selectedFinancialReportClass = stored.financialReportClass;
+    }
+    if (stored.arAgingDatePreset) {
+      this.selectedArAgingDatePreset = stored.arAgingDatePreset;
+    }
+    if (stored.arAgingIntervalDays != null) {
+      this.selectedArAgingIntervalDays = stored.arAgingIntervalDays;
+    }
+    if (stored.arAgingThroughValue != null) {
+      this.selectedArAgingThroughValue = stored.arAgingThroughValue;
+    }
+    if (stored.arAgingSortBy) {
+      this.selectedArAgingSortBy = stored.arAgingSortBy;
+    }
+    this.selectedGlPropertyId = stored.glPropertyId ?? null;
+    this.selectedGlReservationId = stored.glReservationId ?? null;
+    this.syncArAgingReportFilters();
+    this.syncArAgingAsOfDateFromFilters();
+  }
+
   toggleDateRangePin(): void {
     this.dateRangePinned = !this.dateRangePinned;
     if (this.dateRangePinned) {
@@ -2202,6 +2296,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.clearPinnedDateRangeStorage();
     this.setDefaultDateRange();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
     this.publishDateRangeState();
   }
 
@@ -2216,6 +2311,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         this.dateRangePinned = true;
         this.startDate = start;
         this.endDate = end;
+        this.applyPinnedTopBarFields(stored);
         this.syncInvoiceSearchDateRange();
         this.syncBillsSearchRequest();
         return;
@@ -2240,14 +2336,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify({
+    const snapshot: AccountingShellPinnedTopBarState = {
       enabled: true,
       startDate,
-      endDate
-    }));
+      endDate,
+      selectedTabIndex: this.selectedTabIndex,
+      selectedBillsReceiptKind: this.selectedBillsReceiptKind,
+      selectedBankActivityKind: this.selectedBankActivityKind,
+      selectedOwnerKind: this.selectedOwnerKind,
+      selectedReportKind: this.selectedReportKind,
+      selectedGeneralLedgerKind: this.selectedGeneralLedgerKind,
+      organizationId: this.selectedOrganizationId,
+      officeId: this.selectedOfficeId,
+      companyId: this.selectedCompanyId,
+      reservationId: this.selectedReservationId,
+      billsPropertyId: this.selectedBillsPropertyId,
+      chartOfAccountId: this.selectedChartOfAccountId,
+      financialReportClass: this.selectedFinancialReportClass,
+      arAgingDatePreset: this.selectedArAgingDatePreset,
+      arAgingIntervalDays: this.selectedArAgingIntervalDays,
+      arAgingThroughValue: this.selectedArAgingThroughValue,
+      arAgingSortBy: this.selectedArAgingSortBy,
+      glPropertyId: this.selectedGlPropertyId,
+      glReservationId: this.selectedGlReservationId
+    };
+
+    localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify(snapshot));
   }
 
-  readPinnedDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string } | null {
+  readPinnedDateRangeFromStorage(): AccountingShellPinnedTopBarState | null {
     if (typeof localStorage === 'undefined') {
       return null;
     }
@@ -2258,14 +2375,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     try {
-      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string };
+      const parsed = JSON.parse(rawValue) as AccountingShellPinnedTopBarState;
       if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
         return null;
       }
+      const officeId = parsed.officeId == null || parsed.officeId === undefined ? null : Number(parsed.officeId);
+      const chartOfAccountId = parsed.chartOfAccountId == null || parsed.chartOfAccountId === undefined ? null : Number(parsed.chartOfAccountId);
       return {
         enabled: true,
         startDate: String(parsed.startDate),
-        endDate: String(parsed.endDate)
+        endDate: String(parsed.endDate),
+        selectedTabIndex: Number.isFinite(Number(parsed.selectedTabIndex)) ? Number(parsed.selectedTabIndex) : 0,
+        selectedBillsReceiptKind: parsed.selectedBillsReceiptKind,
+        selectedBankActivityKind: parsed.selectedBankActivityKind,
+        selectedOwnerKind: parsed.selectedOwnerKind,
+        selectedReportKind: parsed.selectedReportKind,
+        selectedGeneralLedgerKind: parsed.selectedGeneralLedgerKind,
+        organizationId: parsed.organizationId == null || parsed.organizationId === '' ? null : String(parsed.organizationId),
+        officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null,
+        companyId: parsed.companyId == null || parsed.companyId === '' ? null : String(parsed.companyId),
+        reservationId: parsed.reservationId == null || parsed.reservationId === '' ? null : String(parsed.reservationId),
+        billsPropertyId: parsed.billsPropertyId == null || parsed.billsPropertyId === '' ? null : String(parsed.billsPropertyId),
+        chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
+        financialReportClass: parsed.financialReportClass,
+        arAgingDatePreset: parsed.arAgingDatePreset,
+        arAgingIntervalDays: parsed.arAgingIntervalDays,
+        arAgingThroughValue: parsed.arAgingThroughValue,
+        arAgingSortBy: parsed.arAgingSortBy,
+        glPropertyId: parsed.glPropertyId == null || parsed.glPropertyId === '' ? null : String(parsed.glPropertyId),
+        glReservationId: parsed.glReservationId == null || parsed.glReservationId === '' ? null : String(parsed.glReservationId)
       };
     } catch {
       return null;
@@ -2922,6 +3060,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
     }
+    this.persistPinnedTopBarIfActive();
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
@@ -2961,14 +3100,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParams: this.buildShellQueryParams(),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
     const organizationId = value == null || value === '' ? null : String(value);
     this.selectedOrganizationId = organizationId;
+    this.persistPinnedTopBarIfActive();
   }
 
   applyQueryParamState(params: Record<string, string>): void {
+    if (this.dateRangePinned) {
+      return;
+    }
     let tabIndex = getNumberQueryParam(params, 'tab', 0, this.tabMaxIndex + 3);
     if (tabIndex !== null) {
       if ('report' in params) {
@@ -3065,7 +3209,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
     }
 
-    if ('officeId' in params) {
+    if ('officeId' in params && !this.dateRangePinned) {
       this.applyPageOfficeScope(getNumberQueryParam(params, 'officeId'));
     }
 
@@ -3209,15 +3353,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
-    let resolvedOfficeId: number | null = officeId;
-    if (this.offices.length === 1) {
-      resolvedOfficeId = this.offices[0].officeId;
-    } else if (this.offices.length > 1) {
-      resolvedOfficeId = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-    }
-    const officeChanged = this.selectedOfficeId !== resolvedOfficeId;
+    const previousOfficeId = this.selectedOfficeId;
+    const resolvedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: this.dateRangePinned,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
+    const officeChanged = previousOfficeId !== resolvedOfficeId;
     this.applyPageOfficeScope(resolvedOfficeId);
-    if (officeChanged) {
+    if (officeChanged && !this.dateRangePinned) {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
     }
@@ -3245,6 +3390,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onOwnersWorkOrderBack();
       this.refreshActiveOwnerView();
     }
+    this.persistPinnedTopBarIfActive();
   }
 
   setDefaultDateRange(): void {
@@ -3488,13 +3634,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            if (this.offices.length === 1) {
-              this.applyPageOfficeScope(this.offices[0].officeId);
-            } else {
-              this.applyOfficeFromGlobal(
-                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
-              );
-            }
+            this.applyOfficeFromGlobal(
+              this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+            );
             this.syncBillsSearchRequest();
             if (this.selectedTabIndex === this.tabBankActivities && this.selectedBankActivityKind === 'deposits') {
               this.depositsRefreshTrigger++;

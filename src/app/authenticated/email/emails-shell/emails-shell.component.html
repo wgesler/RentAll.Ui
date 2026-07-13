@@ -72,6 +72,17 @@
               <mat-datepicker-toggle matIconSuffix [for]="emailsShellEndPicker"></mat-datepicker-toggle>
               <mat-datepicker #emailsShellEndPicker></mat-datepicker>
             </mat-form-field>
+            <button
+              mat-icon-button
+              type="button"
+              class="emails-shell-date-pin-btn"
+              [class.emails-shell-date-pin-btn--active]="dateRangePinned"
+              [attr.aria-pressed]="dateRangePinned"
+              [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
+              [matTooltip]="dateRangePinned ? 'Unpin top bar' : 'Keep top bar selections fixed'"
+              (click)="toggleDateRangePin()">
+              <mat-icon>push_pin</mat-icon>
+            </button>
           </div>
         </div>
       </div>
@@ -100,6 +111,7 @@
             [reservationId]="selectedReservationId"
             [propertyCode]="selectedPropertyCode"
             [reservations]="reservations"
+            [emailTypeId]="selectedEmailTypeId ?? undefined"
             [emailSearchDateRange]="emailSearchDateRange">
           </app-email-list>
         </mat-tab>

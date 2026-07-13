@@ -15,6 +15,26 @@
   flex: 0 0 auto;
 }
 
+.emails-shell-date-pin-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin-top: -4px;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+    color: rgba(15, 23, 42, 0.55);
+  }
+
+  &.emails-shell-date-pin-btn--active .mat-icon {
+    color: var(--mat-sys-secondary, #e91e63);
+  }
+}
+
 :host ::ng-deep .property-titlebar .header-title.form-titlebar-fields-wrap > .titlebar-field-office {
   margin-left: 0 !important;
   margin-right: 0 !important;

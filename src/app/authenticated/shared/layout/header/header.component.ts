@@ -46,6 +46,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   selectedGlobalOfficeId: number | null = null;
   organizationId = '';
   canViewUserAudit = false;
+  private globalOfficeOptionsInitialized = false;
 
   // Profile picture properties
   profilePictureUrl: string | null = null;
@@ -218,10 +219,24 @@ export class HeaderComponent implements OnInit, OnDestroy {
         }
         const activeOffices = (allOffices || []).filter(office => office.isActive);
         this.offices = this.globalSelectionService.filterOfficeListForUser(activeOffices);
-        this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices);
+        if (!this.globalOfficeOptionsInitialized) {
+          this.globalOfficeOptionsInitialized = true;
+          this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices);
+        } else {
+          this.reconcileGlobalOfficeSelection();
+        }
         this.markViewForCheck();
       });
     });
+  }
+
+  /** Keep header in sync when office cache reloads without re-seeding global office from defaults. */
+  private reconcileGlobalOfficeSelection(): void {
+    const currentOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    if (currentOfficeId !== null && !this.offices.some(office => office.officeId === currentOfficeId)) {
+      this.globalSelectionService.setSelectedOfficeId(null);
+    }
+    this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
   }
 
   isPinStorageKey(key: string): boolean {

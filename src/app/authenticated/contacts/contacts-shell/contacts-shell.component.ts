@@ -61,7 +61,11 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   //#region Contacts
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
     this.applyQueryParamState(this.route.snapshot.queryParams);
 
     this.route.queryParams
@@ -210,14 +214,12 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
 
   /** Page-level office follows global header; does not write global. */
   private applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 1) {
-      this.resolveOfficeScope(this.offices[0].officeId);
-    } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.resolveOfficeScope(resolved);
-    } else {
-      this.resolveOfficeScope(officeId);
-    }
+    this.resolveOfficeScope(this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    }));
     this.updateUrlWithCurrentState();
     this.cdr.markForCheck();
     this.propagateOfficeToContactLists();

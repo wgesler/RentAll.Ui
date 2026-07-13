@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
@@ -151,14 +151,28 @@ export class AppComponent implements OnInit, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       return;
     }
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(
+      take(1),
+      switchMap(offices => {
+        const activeOffices = (offices || []).filter(office => office.isActive);
+        return forkJoin({
+          accountingOffices: this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)),
+          features: this.organizationFeatureService.refreshFeatures(this.organizationId).pipe(take(1))
+        }).pipe(
+          map(({ features }) => {
+            this.globalSelectionService.syncWithAvailableOffices(activeOffices);
+            return features || [];
+          })
+        );
+      }),
+      finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'features');
     })).subscribe({
-      next: (scope) => {
+      next: (features) => {
         const onLoginRoute = this.normalizePath(this.router.url) === '/login';
-        if (!onLoginRoute && !this.verifyMainProgramAccess(scope.features)) {
+        if (!onLoginRoute && !this.verifyMainProgramAccess(features)) {
           return;
         }
         this.loadCostCodes();

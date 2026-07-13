@@ -1185,9 +1185,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   setupOfficeIdHandler(): void {
     this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (!this.shellMode) {
-        this.globalSelectionService.setSelectedOfficeId(officeId ?? null);
-      }
       this.resolveOfficeScope(officeId);
       this.updateAvailableReservations();
       this.filterCostCodes();
