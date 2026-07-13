@@ -378,10 +378,14 @@
             @if (showShellOfficeDropdown) {
               <app-title-bar-select
                 [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
+                [formFieldClass]="generalLedgerShellOfficeFieldClass"
                 [value]="selectedOfficeId"
                 [options]="shellOfficeTitleBarOptions"
                 [nullOptionLabel]="'All Offices'"
+                [showInstructionOption]="!showGeneralLedgerOfficeRequired"
+                [required]="showGeneralLedgerOfficeRequired"
+                [showError]="showGeneralLedgerOfficeValidationError"
+                errorText="Office is required"
                 [noResultsText]="'No offices match your search'"
                 (valueChange)="onShellOfficeDropdownChange($event)">
               </app-title-bar-select>
@@ -391,7 +395,7 @@
               [formFieldClass]="'titlebar-field-property-code'"
               [value]="selectedGlPropertyId"
               [options]="shellGlPropertyTitleBarOptions"
-              [nullOptionLabel]="'All Properties'"
+              [nullOptionLabel]="generalLedgerPropertyNullOptionLabel"
               [noResultsText]="'No properties match your search'"
               (valueChange)="onShellGlPropertyDropdownChange($event)">
             </app-title-bar-select>
@@ -417,7 +421,7 @@
               (valueChange)="onShellChartOfAccountDropdownChange($event)">
             </app-title-bar-select>
             }
-            @if (showShellDateRange) {
+            @if (showGeneralLedgerShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
               </div>
@@ -1129,10 +1133,16 @@
                   [officeId]="selectedOfficeId"
                   [propertyId]="selectedGlPropertyId"
                   [reservationId]="selectedGlReservationId"
+                  [reservationContactId]="selectedGlContactId"
                   [chartOfAccountId]="selectedChartOfAccountId"
                   [searchDateRange]="invoiceSearchDateRange"
                   [refreshTrigger]="generalLedgerRefreshTrigger"
-                  (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+                  [dismissCreateJournalEntryTrigger]="generalLedgerCreateDismissTrigger"
+                  (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                  (createJournalEntryEvent)="onCreateJournalEntry()"
+                  (createJournalEntryClosedEvent)="onCreateJournalEntryClosed()"
+                  (journalEntryCreatedEvent)="onGeneralLedgerCreated($event)"
+                  (officeValidationRequiredEvent)="onGeneralLedgerOfficeValidationRequired()">
                 </app-general-ledger-list>
               }
             }

@@ -65,7 +65,7 @@ import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
-import { JournalEntrySyncResult } from '../models/journal-entry.model';
+import { JournalEntryResponse, JournalEntrySyncResult } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owner-report-details/owner-report-details.component';
 import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
@@ -246,6 +246,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   availableGlProperties: SearchableSelectOption[] = [];
   availableGlReservations: SearchableSelectOption[] = [];
   showGeneralLedgerDetail = false;
+  showGeneralLedgerCreate = false;
+  showGeneralLedgerOfficeValidationError = false;
+  generalLedgerCreateDismissTrigger = 0;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
   generalLedgerRefreshTrigger = 0;
@@ -451,21 +454,61 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region General Ledger
   onGeneralLedgerLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
+    this.showGeneralLedgerCreate = false;
     this.activeJournalEntryId = event.journalEntryId;
     this.selectedJournalEntryLineId = event.journalEntryLineId;
     this.showGeneralLedgerDetail = true;
+  }
+
+  onCreateJournalEntry(): void {
+    this.showGeneralLedgerOfficeValidationError = false;
+    this.selectedGlPropertyId = null;
+    this.selectedGlReservationId = null;
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+    this.showGeneralLedgerCreate = true;
+  }
+
+  onGeneralLedgerOfficeValidationRequired(): void {
+    this.showGeneralLedgerOfficeValidationError = true;
   }
 
   onGeneralLedgerBack(): void {
     const shouldRefreshOwnerStatements = this.selectedTabIndex === this.tabOwners
       && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines;
+    this.showGeneralLedgerOfficeValidationError = false;
+    if (this.showGeneralLedgerCreate) {
+      this.generalLedgerCreateDismissTrigger++;
+    }
     this.showGeneralLedgerDetail = false;
+    this.showGeneralLedgerCreate = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
     if (shouldRefreshOwnerStatements) {
       this.ownersStatementsRefreshTrigger++;
     }
+  }
+
+  onCreateJournalEntryClosed(): void {
+    this.showGeneralLedgerCreate = false;
+  }
+
+  onGeneralLedgerCreated(created?: JournalEntryResponse): void {
+    this.showGeneralLedgerCreate = false;
+    this.showGeneralLedgerOfficeValidationError = false;
+    if (created?.transactionDate) {
+      this.ensureDateRangeIncludesTransactionDate(created.transactionDate);
+    }
+    if (this.usesGeneralLedgerTitleBarFilters()) {
+      this.selectedChartOfAccountId = null;
+      this.selectedGlPropertyId = null;
+      this.selectedGlReservationId = null;
+    }
+    this.syncInvoiceSearchDateRange();
+    this.onJournalEntriesChanged();
+    this.refreshGeneralLedgerListView();
   }
 
   onOwnerStatementJournalEntryLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
@@ -497,6 +540,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.selectedGlPropertyId = propertyId;
     this.refreshReservationOptions();
+
+    if (this.isGeneralLedgerDetailActive) {
+      return;
+    }
+
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
     this.refreshGeneralLedgerListView();
@@ -517,7 +565,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (reservation?.propertyId) {
       this.selectedGlPropertyId = reservation.propertyId;
       this.refreshPropertyOptions();
+      this.refreshReservationOptions();
     }
+
+    if (this.isGeneralLedgerDetailActive) {
+      return;
+    }
+
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
     this.refreshGeneralLedgerListView();
@@ -2045,6 +2099,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.generalLedgerRefreshTrigger++;
   }
+
+  private ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
+    const date = this.utilityService.parseDateOnlyStringToDate(transactionDate);
+    if (!date) {
+      return;
+    }
+
+    date.setHours(0, 0, 0, 0);
+    let changed = false;
+
+    if (!this.startDate || date.getTime() < this.startDate.getTime()) {
+      this.startDate = new Date(date);
+      changed = true;
+    }
+
+    if (!this.endDate || date.getTime() > this.endDate.getTime()) {
+      this.endDate = new Date(date);
+      changed = true;
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    this.normalizeDateRangeValues();
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
+  }
   //#endregion
 
   //#region Date Range
@@ -2591,7 +2674,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && this.selectedBankActivityKind !== 'reconcile'
       || this.selectedTabIndex === this.tabGeneralLedger
       || this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines)
-      && this.showGeneralLedgerDetail;
+      && (this.showGeneralLedgerDetail || this.showGeneralLedgerCreate);
   }
 
   get isOwnerStatementJournalEntryLineListActive(): boolean {
@@ -2735,7 +2818,40 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showGeneralLedgerChartOfAccountFilter(): boolean {
-    return this.usesGeneralLedgerTitleBarFilters() && this.selectedGeneralLedgerKind === 'ledger';
+    return this.usesGeneralLedgerTitleBarFilters()
+      && this.selectedGeneralLedgerKind === 'ledger'
+      && !this.isGeneralLedgerDetailActive;
+  }
+
+  get showGeneralLedgerShellDateRange(): boolean {
+    return this.showShellDateRange
+      && this.usesGeneralLedgerTitleBarFilters()
+      && !this.isGeneralLedgerDetailActive;
+  }
+
+  get generalLedgerPropertyNullOptionLabel(): string {
+    return this.isGeneralLedgerDetailActive ? 'Company' : 'All Properties';
+  }
+
+  get showGeneralLedgerOfficeRequired(): boolean {
+    return this.showGeneralLedgerCreate;
+  }
+
+  get generalLedgerShellOfficeFieldClass(): string {
+    const baseClass = 'titlebar-field-office';
+    if (!this.showGeneralLedgerOfficeValidationError) {
+      return baseClass;
+    }
+    return `${baseClass} invoice-required-field`;
+  }
+
+  get selectedGlContactId(): string | null {
+    if (!this.selectedGlReservationId) {
+      return null;
+    }
+
+    const reservation = this.glReservations.find(item => item.reservationId === this.selectedGlReservationId);
+    return (reservation?.contactId || '').trim() || null;
   }
 
   usesReportTitleBarFilters(): boolean {
@@ -2800,6 +2916,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   onShellOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
     const officeChanged = this.selectedOfficeId !== officeId;
+    this.showGeneralLedgerOfficeValidationError = false;
     this.applyPageOfficeScope(officeId);
     if (officeChanged) {
       this.selectedCompanyId = null;

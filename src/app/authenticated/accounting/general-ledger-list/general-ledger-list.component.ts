@@ -24,7 +24,7 @@ import { AccountType, isJournalEntrySourceNavigable, SourceType, SourceTypeLabel
 import { OwnerStatementActivityLinkSelection } from '../models/owner-statement.model';
 import { JournalEntrySourceService } from '../services/journal-entry-source.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
-import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse, TransferReportRowDisplay } from '../models/journal-entry.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryResponse, TransferReportRowDisplay } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../services/check-html.service';
 import { CheckPrintService } from '../services/check-print.service';
@@ -34,11 +34,12 @@ import { TransferRequest, TransferResponse, TransferSplit } from '../models/tran
 import { TransferService } from '../services/transfer.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { ReportService } from '../services/report.service';
+import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 
 @Component({
   selector: 'app-general-ledger-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, GeneralLedgerComponent],
   templateUrl: './general-ledger-list.component.html',
   styleUrls: ['./general-ledger-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -47,6 +48,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() reservationId: string | null = null;
+  @Input() reservationContactId: string | null = null;
   @Input() chartOfAccountId: number | null = null;
   @Input() undepositedFundsOnly = false;
   @Input() untransferredFundsOnly = false;
@@ -55,12 +57,19 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() printChecksOnly = false;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
+  @Input() dismissCreateJournalEntryTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() depositCompletedEvent = new EventEmitter<void>();
   @Output() transferCompletedEvent = new EventEmitter<void>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
+  @Output() createJournalEntryEvent = new EventEmitter<void>();
+  @Output() createJournalEntryClosedEvent = new EventEmitter<void>();
+  @Output() journalEntryCreatedEvent = new EventEmitter<JournalEntryResponse | undefined>();
+  @Output() officeValidationRequiredEvent = new EventEmitter<void>();
 
   selectedJournalEntryLineIds = new Set<string>();
+  showCreateJournalEntry = false;
+  sortByCreated = false;
   showDepositSelections = false;
   showDepositForm = false;
   showTransferSelections = false;
@@ -98,6 +107,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   noActivityMessage = 'No general ledger activity for the selected office and date range.';
 
   displayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
     source: { displayAs: 'Source', maxWidth: '16ch' },
@@ -106,9 +116,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '28ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
-    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    balance: { displayAs: 'Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    balance: { displayAs: 'Balance', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   isPageReady = false;
@@ -169,7 +179,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       this.applyLinesDisplay();
     }
 
-    const shouldReloadLines =
+    const shouldReloadLines = !this.showCreateJournalEntry && (
       (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
       || (changes['undepositedFundsOnly'] && !changes['undepositedFundsOnly'].firstChange)
       || (changes['untransferredFundsOnly'] && !changes['untransferredFundsOnly'].firstChange)
@@ -180,7 +190,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       || (changes['reservationId'] && !changes['reservationId'].firstChange)
       || (changes['searchDateRange'] && !changes['searchDateRange'].firstChange)
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
-      || (changes['officeId'] && !changes['officeId'].firstChange);
+      || (changes['officeId'] && !changes['officeId'].firstChange)
+    );
 
     if (shouldReloadLines) {
       if (this.undepositedFundsOnly && this.showDepositForm) {
@@ -195,6 +206,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.clearPrintCheckLineSelection();
       }
       this.loadJournalEntryLines();
+    }
+
+    if (changes['dismissCreateJournalEntryTrigger'] && !changes['dismissCreateJournalEntryTrigger'].firstChange) {
+      this.closeCreateJournalEntry(false);
     }
   }
   //#endregion
@@ -520,6 +535,60 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
+  editJournalEntryLine(row: JournalEntryLineListDisplay): void {
+    this.closeCreateJournalEntry(false);
+    this.onLineSelect(row);
+  }
+
+  deleteJournalEntryLine(row: JournalEntryLineListDisplay): void {
+    const journalEntryId = (row?.journalEntryId || '').trim();
+    if (!journalEntryId) {
+      return;
+    }
+
+    this.generalLedgerService.deleteJournalEntry(journalEntryId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Journal entry deleted successfully', CommonMessage.Success);
+        this.journalEntryCreatedEvent.emit();
+        this.loadJournalEntryLines();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Unable to delete journal entry.', 'Error');
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  openCreateJournalEntry(): void {
+    this.showCreateJournalEntry = true;
+    this.createJournalEntryEvent.emit();
+    this.markViewForCheck();
+  }
+
+  closeCreateJournalEntry(emitClosedEvent = true): void {
+    if (!this.showCreateJournalEntry) {
+      return;
+    }
+
+    this.showCreateJournalEntry = false;
+    if (emitClosedEvent) {
+      this.createJournalEntryClosedEvent.emit();
+    }
+    this.markViewForCheck();
+  }
+
+  onCreateJournalEntrySaved(created?: JournalEntryResponse): void {
+    this.closeCreateJournalEntry();
+    this.journalEntryCreatedEvent.emit(created);
+  }
+
+  onSortByCreatedToggle(checked: boolean): void {
+    this.sortByCreated = checked;
+    this.applyLinesDisplay();
+    this.markViewForCheck();
+  }
+
   usesUntransferredOpenLinesFilter(): boolean {
     return this.untransferredFundsOnly || this.transferReportOnly;
   }
@@ -603,7 +672,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const mappedLines = this.mappingService.mapJournalEntryLineListDisplay(
       this.allLines,
       this.chartOfAccounts,
-      SourceTypeLabels
+      SourceTypeLabels,
+      this.sortByCreated && !this.transferReportOnly
     );
 
     if (this.transferReportOnly) {
@@ -2350,6 +2420,18 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   get isPrintChecksFormValid(): boolean {
     return this.selectedJournalEntryLineIds.size > 0;
+  }
+
+  get showGeneralLedgerAddButton(): boolean {
+    return this.showGeneralLedgerRowActions;
+  }
+
+  get showGeneralLedgerRowActions(): boolean {
+    return !this.undepositedFundsOnly
+      && !this.untransferredFundsOnly
+      && !this.transferReportOnly
+      && !this.depositsOnly
+      && !this.printChecksOnly;
   }
   //#endregion
 

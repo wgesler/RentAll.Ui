@@ -811,25 +811,19 @@ export class MappingService {
   mapJournalEntryLineListDisplay(
     lines: JournalEntryLineSearchResponse[],
     chartOfAccounts?: ChartOfAccountResponse[],
-    sourceTypes?: { value: number; label: string }[]
+    sourceTypes?: { value: number; label: string }[],
+    displayNewestFirst = false
   ): JournalEntryLineListDisplay[] {
-    const sortedLines = [...(lines ?? [])].sort((left, right) => {
-      const dateCompare = (left.transactionDate || '').localeCompare(right.transactionDate || '');
-      if (dateCompare !== 0) {
-        return dateCompare;
-      }
-
-      const createdCompare = (left.createdOn || '').localeCompare(right.createdOn || '');
-      if (createdCompare !== 0) {
-        return createdCompare;
-      }
-
-      return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '');
-    });
+    const sourceLines = lines ?? [];
+    const journalEntryCreatedOn = this.buildJournalEntryCreatedOnLookup(sourceLines);
+    const chronologicalLines = [...sourceLines].sort((left, right) =>
+      this.compareJournalEntryLinesForListDisplay(left, right, false, journalEntryCreatedOn)
+    );
 
     let runningBalance = 0;
+    const mappedByLineId = new Map<string, JournalEntryLineListDisplay>();
 
-    return sortedLines.map(line => {
+    chronologicalLines.forEach(line => {
       const transactionDate = line.transactionDate || '';
       const description = (line.memo || line.journalEntryMemo || '').trim();
       const debitValue = Number(line.debit) || 0;
@@ -846,7 +840,7 @@ export class MappingService {
         : accountNo || accountName || String(line.chartOfAccountId);
       runningBalance += debitValue - creditValue;
 
-      return {
+      mappedByLineId.set(line.journalEntryLineId, {
         journalEntryLineId: line.journalEntryLineId,
         journalEntryId: line.journalEntryId,
         officeId: line.officeId,
@@ -873,8 +867,66 @@ export class MappingService {
         isPosted: line.isPosted,
         isVoided: line.isVoided,
         sortDateValue
-      };
+      });
     });
+
+    const displayLines = [...sourceLines].sort((left, right) =>
+      this.compareJournalEntryLinesForListDisplay(left, right, displayNewestFirst, journalEntryCreatedOn)
+    );
+
+    return displayLines
+      .map(line => mappedByLineId.get(line.journalEntryLineId))
+      .filter((line): line is JournalEntryLineListDisplay => !!line);
+  }
+
+  private buildJournalEntryCreatedOnLookup(lines: JournalEntryLineSearchResponse[]): Map<string, string> {
+    const journalEntryCreatedOn = new Map<string, string>();
+
+    lines.forEach(line => {
+      const journalEntryId = (line.journalEntryId || '').trim();
+      if (!journalEntryId) {
+        return;
+      }
+
+      const createdOn = (line.createdOn || '').trim();
+      const existing = journalEntryCreatedOn.get(journalEntryId) || '';
+      if (createdOn.localeCompare(existing) > 0) {
+        journalEntryCreatedOn.set(journalEntryId, createdOn);
+      }
+    });
+
+    return journalEntryCreatedOn;
+  }
+
+  private compareJournalEntryLinesForListDisplay(
+    left: JournalEntryLineSearchResponse,
+    right: JournalEntryLineSearchResponse,
+    newestFirst: boolean,
+    journalEntryCreatedOn: Map<string, string>
+  ): number {
+    const direction = newestFirst ? -1 : 1;
+    const dateCompare = (left.transactionDate || '').localeCompare(right.transactionDate || '');
+    if (dateCompare !== 0) {
+      return dateCompare * direction;
+    }
+
+    if ((left.journalEntryId || '') !== (right.journalEntryId || '')) {
+      const leftEntryCreated = journalEntryCreatedOn.get(left.journalEntryId) || '';
+      const rightEntryCreated = journalEntryCreatedOn.get(right.journalEntryId) || '';
+      const entryCreatedCompare = leftEntryCreated.localeCompare(rightEntryCreated);
+      if (entryCreatedCompare !== 0) {
+        return entryCreatedCompare * direction;
+      }
+
+      return (left.journalEntryId || '').localeCompare(right.journalEntryId || '') * direction;
+    }
+
+    const lineCreatedCompare = (left.createdOn || '').localeCompare(right.createdOn || '');
+    if (lineCreatedCompare !== 0) {
+      return lineCreatedCompare;
+    }
+
+    return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '');
   }
 
   mapJournalEntryLineDetailDisplay(

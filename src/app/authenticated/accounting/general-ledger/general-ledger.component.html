@@ -1,5 +1,5 @@
 @if (isPageReady) {
-  @if (isServiceError || !journalEntry) {
+  @if (!isCreateMode && (isServiceError || !journalEntry)) {
     <div class="general-ledger-empty-state">
       <p>Unable to load journal entry details.</p>
     </div>
@@ -17,7 +17,7 @@
           type="submit"
           color="primary"
           class="text-nowrap flex-shrink-0"
-          [disabled]="!canSave || isSaving">
+          [disabled]="isSaving">
           <mat-icon>save</mat-icon>
           Save
         </button>
@@ -26,17 +26,28 @@
       <div class="general-ledger-header-row">
         <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-entry w-full">
           <mat-label>Entry No</mat-label>
-          <input matInput [value]="journalEntry.journalEntryCode || ''" readonly disabled class="readonly-field">
+          <input matInput [value]="isCreateMode ? 'New' : (journalEntry?.journalEntryCode || '')" readonly disabled class="readonly-field">
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="general-ledger-field w-full">
+        <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-source w-full">
           <mat-label>Source</mat-label>
           <input matInput [value]="getSourceTypeLabel()" readonly disabled class="readonly-field">
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="general-ledger-field w-full">
           <mat-label>Transaction Date</mat-label>
-          <input matInput [value]="formatter.formatDateString(journalEntry.transactionDate)" readonly disabled class="readonly-field">
+          @if (isCreateMode) {
+            <input matInput [matDatepicker]="transactionDatePicker" formControlName="transactionDate">
+          } @else {
+            <input matInput [value]="formatter.formatDateString(journalEntry?.transactionDate)" readonly disabled class="readonly-field">
+          }
+          @if (isCreateMode) {
+            <mat-datepicker-toggle matIconSuffix [for]="transactionDatePicker"></mat-datepicker-toggle>
+          }
+          <mat-datepicker #transactionDatePicker></mat-datepicker>
+          @if (isCreateMode && shouldShowControlError(form.get('transactionDate'))) {
+            <mat-error>Transaction date is required</mat-error>
+          }
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="general-ledger-field w-full">
@@ -44,23 +55,154 @@
           <input matInput [matDatepicker]="postingDatePicker" formControlName="postingDate">
           <mat-datepicker-toggle matIconSuffix [for]="postingDatePicker"></mat-datepicker-toggle>
           <mat-datepicker #postingDatePicker></mat-datepicker>
+          @if (shouldShowControlError(form.get('postingDate'))) {
+            <mat-error>Posting date is required when posted</mat-error>
+          }
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-memo w-full">
+        <mat-form-field
+          appearance="outline"
+          class="general-ledger-field general-ledger-field-memo w-full"
+          [class.mat-form-field-invalid]="shouldShowHeaderMemoError()"
+          [class.mat-mdc-form-field-invalid]="shouldShowHeaderMemoError()">
           <mat-label>Memo</mat-label>
           <input matInput formControlName="memo" maxlength="2500">
+          @if (shouldShowHeaderMemoError()) {
+            <mat-error>Memo is required</mat-error>
+          }
         </mat-form-field>
       </div>
 
-      <div class="general-ledger-lines-table">
-        <app-data-table
-          [data]="lineRows"
-          [columns]="lineDisplayedColumns"
-          [hasColumnIndex]="false"
-          [hasFilter]="false"
-          [hasToggleTop]="false"
-          [itemsPerPage]="100">
-        </app-data-table>
+      <div class="general-ledger-splits-section">
+        <div class="general-ledger-splits-header">
+          <span class="text-lg font-medium">Lines</span>
+          @if (isCreateMode) {
+            <button type="button" mat-raised-button color="primary" (click)="addEditableLine()">
+              <mat-icon>add</mat-icon>
+              Add Line
+            </button>
+          }
+        </div>
+
+        <div class="general-ledger-splits-list">
+          <div class="general-ledger-splits-table-wrap">
+            @if (isCreateMode) {
+              <table class="split-lines-table split-lines-table--general-ledger">
+                <thead>
+                  <tr>
+                    <th class="split-col-no">No</th>
+                    <th class="split-col-account">Account</th>
+                    <th class="split-col-description">Memo</th>
+                    <th class="split-col-amount split-col-amount--right">Debit</th>
+                    <th class="split-col-amount split-col-amount--right">Credit</th>
+                    <th class="split-col-actions"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of editableLines; track line.lineKey; let lineIndex = $index) {
+                    <tr>
+                      <td class="split-col-no">{{ lineIndex + 1 }}</td>
+                      <td class="split-col-account">
+                        <app-searchable-select
+                          class="split-account-select"
+                          [renderInFormField]="false"
+                          [value]="line.chartOfAccountId"
+                          [options]="chartOfAccountOptions"
+                          [required]="true"
+                          [showInstructionOption]="true"
+                          [instructionOptionValue]="null"
+                          nullOptionLabel="Select Account"
+                          [showSearchInput]="true"
+                          [hideSearchHint]="false"
+                          [hideSearchText]="false"
+                          [openScrollWhenNoSelection]="true"
+                          searchPlaceholder="Type to filter accounts..."
+                          noResultsText="No accounts match your search"
+                          [selectClass]="getLineAccountSelectClass(line)"
+                          [showError]="shouldShowLineAccountError(line)"
+                          errorText="Account is required"
+                          (valueChange)="onAccountSelectionChange(line.lineKey, $event)" />
+                      </td>
+                      <td class="split-col-description">
+                        <input
+                          type="text"
+                          class="split-editable-input"
+                          [class.split-input-invalid]="shouldShowLineMemoError(line)"
+                          [(ngModel)]="line.memo"
+                          [ngModelOptions]="{ standalone: true }"
+                          maxlength="2500">
+                      </td>
+                      <td class="split-col-amount split-col-amount--right">
+                        <input
+                          type="text"
+                          inputmode="decimal"
+                          class="split-editable-input split-editable-input--amount"
+                          [class.split-input-invalid]="shouldShowLineDebitError(line)"
+                          [value]="getLineAmountDisplay(line, 'debit')"
+                          (focus)="onLineAmountFocus($event, line, 'debit')"
+                          (blur)="onLineAmountBlur($event, line, 'debit')"
+                          (input)="onLineAmountInput($event)"
+                          (keydown.enter)="onLineAmountKeydown($event, line, 'debit')">
+                      </td>
+                      <td class="split-col-amount split-col-amount--right">
+                        <input
+                          type="text"
+                          inputmode="decimal"
+                          class="split-editable-input split-editable-input--amount"
+                          [class.split-input-invalid]="shouldShowLineCreditError(line)"
+                          [value]="getLineAmountDisplay(line, 'credit')"
+                          (focus)="onLineAmountFocus($event, line, 'credit')"
+                          (blur)="onLineAmountBlur($event, line, 'credit')"
+                          (input)="onLineAmountInput($event)"
+                          (keydown.enter)="onLineAmountKeydown($event, line, 'credit')">
+                      </td>
+                      <td class="split-col-actions">
+                        <button
+                          type="button"
+                          mat-icon-button
+                          color="accent"
+                          [disabled]="editableLines.length <= 1"
+                          (click)="removeEditableLine(line.lineKey)"
+                          matTooltip="Remove this line">
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <table class="split-lines-table split-lines-table--general-ledger">
+                <thead>
+                  <tr>
+                    <th class="split-col-no">No</th>
+                    <th class="split-col-property">Property</th>
+                    <th class="split-col-property">Reservation</th>
+                    <th class="split-col-contact">Contact</th>
+                    <th class="split-col-account">Account</th>
+                    <th class="split-col-description">Memo</th>
+                    <th class="split-col-amount split-col-amount--right">Debit</th>
+                    <th class="split-col-amount split-col-amount--right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of lineRows; track line.journalEntryLineId; let lineIndex = $index) {
+                    <tr>
+                      <td class="split-col-no">{{ line.lineNo || lineIndex + 1 }}</td>
+                      <td class="split-col-property">{{ line.propertyCode }}</td>
+                      <td class="split-col-property">{{ line.reservationCode }}</td>
+                      <td class="split-col-contact">{{ line.contactName }}</td>
+                      <td class="split-col-account">{{ line.account }}</td>
+                      <td class="split-col-description">{{ line.memo }}</td>
+                      <td class="split-col-amount split-col-amount--right">{{ line.debit }}</td>
+                      <td class="split-col-amount split-col-amount--right">{{ line.credit }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </div>
       </div>
 
       <div class="general-ledger-totals-row">
@@ -68,6 +210,7 @@
           appearance="outline"
           subscriptSizing="dynamic"
           class="general-ledger-field general-ledger-total-debit general-ledger-total-display-field w-full"
+          [class.general-ledger-total-invalid]="linesBalanceValidationError"
           (mousedown)="$event.preventDefault()">
           <mat-label>Total Debit</mat-label>
           <input
@@ -82,6 +225,7 @@
           appearance="outline"
           subscriptSizing="dynamic"
           class="general-ledger-field general-ledger-total-credit general-ledger-total-display-field w-full"
+          [class.general-ledger-total-invalid]="linesBalanceValidationError"
           (mousedown)="$event.preventDefault()">
           <mat-label>Total Credit</mat-label>
           <input

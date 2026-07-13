@@ -1292,8 +1292,19 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
         rest[name] = this.columns[name];
     }
     columns = { ...columns, ...leading };
-    if (this.hasColumnIndex)
-      columns['no'] = { displayAs: 'No', wrap: false, sort: false, maxWidth: '5ch' };
+    const userNoColumn = rest['no'];
+    if (userNoColumn) {
+      delete rest['no'];
+    }
+    if (this.hasColumnIndex) {
+      columns['no'] = {
+        displayAs: 'No',
+        wrap: false,
+        sort: false,
+        maxWidth: '5ch',
+        ...userNoColumn
+      };
+    }
     columns = { ...columns, ...rest };
     
     if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsStartingBalance || this.hasColumnDynamicAction)
