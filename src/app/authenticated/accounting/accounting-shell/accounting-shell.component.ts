@@ -21,20 +21,20 @@ import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { ReceiptPrefill, ReceiptRequest, ReceiptSelection } from '../../maintenance/models/receipt.model';
+import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/work-order-create.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
-import { WorkOrderPreviewSelection } from '../../maintenance/models/work-order.model';
+import { WorkOrderPreviewSelection, WorkOrderResponse } from '../../maintenance/models/work-order.model';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
 import { DepositsListComponent } from '../deposits-list/deposits-list.component';
 import { DepositComponent } from '../deposit/deposit.component';
-import { DepositSelection } from '../models/deposit.model';
+import { DepositResponse, DepositSelection } from '../models/deposit.model';
 import { TransfersListComponent } from '../transfers-list/transfers-list.component';
 import { TransferComponent } from '../transfer/transfer.component';
 import { TransferReportComponent } from '../transfer-report/transfer-report.component';
-import { TransferSelection } from '../models/transfer.model';
+import { TransferResponse, TransferSelection } from '../models/transfer.model';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -46,7 +46,7 @@ import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceCreateComponent } from '../invoice-create/invoice-create.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { InvoiceService } from '../services/invoice.service';
-import { InvoicePreviewSelection } from '../models/invoice.model';
+import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../models/invoice.model';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledger-list.component';
 import { FinancialReportComponent } from '../financial-report/financial-report.component';
@@ -66,7 +66,7 @@ import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
-import { JournalEntryResponse, JournalEntrySyncResult } from '../models/journal-entry.model';
+import { JournalEntryLineSelection, JournalEntryResponse, JournalEntrySyncResult } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owner-report-details/owner-report-details.component';
 import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
@@ -221,6 +221,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedCompanyId: string | null = null;
   selectedReservationId: string | null = null;
   activeInvoiceId: string | null = null;
+  selectedInvoice: InvoiceResponse | null = null;
   userId = '';
   startDate: Date | null = null;
   endDate: Date | null = null;
@@ -231,7 +232,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   receiptsRefreshTrigger = 0;
   rentRollRefreshTrigger = 0;
   showBillsReceiptDetail = false;
+  billsReceiptDetailMounted = false;
   selectedBillsReceiptId: string | null = null;
+  selectedBillsReceipt: ReceiptResponse | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
   billsReceiptPrefill: ReceiptPrefill | null = null;
   billsReceiptAgreementLineId: number | null = null;
@@ -245,13 +248,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   rentRollTransitionUnlockTimer: ReturnType<typeof setTimeout> | null = null;
   billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
   showReceiptsReceiptDetail = false;
+  receiptsReceiptDetailMounted = false;
   selectedReceiptsReceiptId: string | null = null;
+  selectedReceiptsReceipt: ReceiptResponse | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
   showDepositsDetail = false;
+  depositDetailMounted = false;
   selectedDepositId: string | null = null;
+  selectedDeposit: DepositResponse | null = null;
   depositsProperty: PropertyResponse | null = null;
   showTransfersDetail = false;
+  transferDetailMounted = false;
   selectedTransferId: string | null = null;
+  selectedTransfer: TransferResponse | null = null;
   transfersProperty: PropertyResponse | null = null;
   selectedChartOfAccountId: number | null = null;
   selectedFinancialReportClass: Class = Class.TotalOnly;
@@ -278,6 +287,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   generalLedgerCreateDismissTrigger = 0;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
+  selectedJournalEntry: JournalEntryResponse | null = null;
   generalLedgerRefreshTrigger = 0;
   financialReportsRefreshTrigger = 0;
   undepositedFundsRefreshTrigger = 0;
@@ -306,10 +316,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   invoiceCreateInstance = 0;
   invoiceCreateReturnToEditor = false;
   showOwnersUtilityReceiptDetail = false;
+  ownersUtilityReceiptDetailMounted = false;
   selectedOwnersUtilityReceiptId: string | null = null;
+  selectedOwnersUtilityReceipt: ReceiptResponse | null = null;
   ownersUtilityReceiptProperty: PropertyResponse | null = null;
   showOwnersWorkOrderDetail = false;
+  ownersWorkOrderDetailMounted = false;
   selectedOwnersWorkOrderId: string | null = null;
+  selectedOwnersWorkOrder: WorkOrderResponse | null = null;
   ownersWorkOrderProperty: PropertyResponse | null = null;
   ownersWorkOrderDetailInstance = 0;
   showWorkOrderCreate = false;
@@ -493,10 +507,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region General Ledger
-  onGeneralLedgerLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
+  onGeneralLedgerLineSelect(event: JournalEntryLineSelection): void {
     this.showGeneralLedgerCreate = false;
     this.activeJournalEntryId = event.journalEntryId;
     this.selectedJournalEntryLineId = event.journalEntryLineId;
+    this.selectedJournalEntry = event.journalEntry ?? null;
     this.showGeneralLedgerDetail = true;
   }
 
@@ -507,6 +522,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+    this.selectedJournalEntry = null;
     this.showGeneralLedgerCreate = true;
   }
 
@@ -526,6 +542,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerCreate = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+    this.selectedJournalEntry = null;
     if (shouldRefreshOwnerStatements) {
       this.ownersStatementsRefreshTrigger++;
     }
@@ -551,10 +568,36 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.refreshGeneralLedgerListView();
   }
 
-  onOwnerStatementJournalEntryLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
+  onOwnerStatementJournalEntryLineSelect(event: JournalEntryLineSelection): void {
     this.activeJournalEntryId = event.journalEntryId;
     this.selectedJournalEntryLineId = event.journalEntryLineId;
+    this.selectedJournalEntry = event.journalEntry ?? null;
     this.showGeneralLedgerDetail = true;
+  }
+
+  onInvoiceSelect(selection: InvoiceSelection): void {
+    const invoiceId = (selection?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return;
+    }
+
+    if (selection.officeId != null && this.selectedOfficeId !== selection.officeId) {
+      this.selectedOfficeId = selection.officeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+    }
+    if (selection.reservationId && this.selectedReservationId !== selection.reservationId) {
+      this.selectedReservationId = selection.reservationId;
+    }
+
+    this.selectedInvoice = selection.invoice ?? null;
+    this.activeInvoiceId = invoiceId;
+    this.selectedTabIndex = 0;
+    this.router.navigate([RouterUrl.replaceTokens(RouterUrl.Accounting, [invoiceId])], {
+      queryParams: this.buildShellQueryParams({ tab: '0' }),
+      queryParamsHandling: 'merge',
+      state: selection.invoice ? { prefetchedInvoice: selection.invoice } : undefined
+    });
   }
 
   onShellChartOfAccountDropdownChange(value: string | number | null): void {
@@ -802,36 +845,34 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
       this.refreshBillsPropertyOptions();
-      this.syncBillsSearchRequest();
     }
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
 
-    const openReceiptDetail = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabBillsReceipts;
-      this.selectedBillsReceiptKind = 'bills';
-      this.billsReceiptOrigin = origin;
-      this.billsReceiptProperty = property;
-      this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
-      this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
-      this.billsReceiptAutoSaveAttemptToken = selection?.autoSaveValidationAttempt ? Date.now() : 0;
-      this.selectedBillsReceiptId = receiptId;
-      this.billsReceiptPrefill = null;
-      this.showBillsReceiptDetail = true;
-    };
+    this.selectedBillsReceipt = selection?.receipt ?? null;
 
+    const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: (property: PropertyResponse) => openReceiptDetail(property),
-        error: () => {
-          this.toastr.warning('Unable to load property details for this bill. Opening bill anyway.', 'Warning');
-          openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
-        }
-      });
-      return;
+      propertyStub.propertyId = propertyId;
+      const cachedProperty = this.glProperties.find(property => property.propertyId === propertyId);
+      if (cachedProperty?.propertyCode) {
+        propertyStub.propertyCode = cachedProperty.propertyCode;
+      }
     }
 
-    openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
+    this.selectedTabIndex = this.tabBillsReceipts;
+    this.selectedBillsReceiptKind = 'bills';
+    this.billsReceiptOrigin = origin;
+    this.billsReceiptProperty = propertyStub;
+    this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
+    this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
+    this.billsReceiptAutoSaveAttemptToken = selection?.autoSaveValidationAttempt ? Date.now() : 0;
+    this.selectedBillsReceiptId = receiptId;
+    this.billsReceiptPrefill = null;
+    this.billsReceiptDetailMounted = true;
+    queueMicrotask(() => {
+      this.showBillsReceiptDetail = true;
+    });
   }
 
   onBillsReceiptBack(): void {
@@ -846,6 +887,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.showBillsReceiptDetail = false;
     this.selectedBillsReceiptId = null;
+    this.selectedBillsReceipt = null;
     this.billsReceiptProperty = null;
     this.billsReceiptPrefill = null;
     this.billsReceiptAgreementLineId = null;
@@ -1179,33 +1221,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
       this.refreshBillsPropertyOptions();
-      this.syncBillsSearchRequest();
     }
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
 
-    const openReceiptDetail = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabBillsReceipts;
-      this.selectedBillsReceiptKind = 'receipts';
-      this.receiptsReceiptProperty = property;
-      this.selectedReceiptsReceiptId = receiptId;
-      this.showReceiptsReceiptDetail = true;
-    };
+    this.selectedReceiptsReceipt = selection?.receipt ?? null;
 
+    const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: (property: PropertyResponse) => openReceiptDetail(property),
-        error: () => this.toastr.error('Unable to load property for receipt.', 'Error')
-      });
-      return;
+      propertyStub.propertyId = propertyId;
+      const cachedProperty = this.glProperties.find(property => property.propertyId === propertyId);
+      if (cachedProperty?.propertyCode) {
+        propertyStub.propertyCode = cachedProperty.propertyCode;
+      }
     }
 
-    openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
+    this.selectedTabIndex = this.tabBillsReceipts;
+    this.selectedBillsReceiptKind = 'receipts';
+    this.receiptsReceiptProperty = propertyStub;
+    this.selectedReceiptsReceiptId = receiptId;
+    this.receiptsReceiptDetailMounted = true;
+    queueMicrotask(() => {
+      this.showReceiptsReceiptDetail = true;
+    });
   }
 
   onReceiptsReceiptBack(): void {
     this.showReceiptsReceiptDetail = false;
     this.selectedReceiptsReceiptId = null;
+    this.selectedReceiptsReceipt = null;
     this.receiptsReceiptProperty = null;
   }
 
@@ -1224,32 +1268,34 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOfficeId = resolvedOfficeId;
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
-      this.syncBillsSearchRequest();
     }
     this.syncBillsSearchRequest();
 
-    const openDepositDetail = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabBankActivities;
-      this.selectedBankActivityKind = 'deposits';
-      this.depositsProperty = property;
-      this.selectedDepositId = depositId;
-      this.showDepositsDetail = true;
-    };
+    this.selectedDeposit = selection?.deposit ?? null;
 
+    const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: (property: PropertyResponse) => openDepositDetail(property),
-        error: () => this.toastr.error('Unable to load property for deposit.', 'Error')
-      });
-      return;
+      propertyStub.propertyId = propertyId;
+      const cachedProperty = this.glProperties.find(property => property.propertyId === propertyId);
+      if (cachedProperty?.propertyCode) {
+        propertyStub.propertyCode = cachedProperty.propertyCode;
+      }
     }
 
-    openDepositDetail(this.buildBillsReceiptPropertyStub(officeId));
+    this.selectedTabIndex = this.tabBankActivities;
+    this.selectedBankActivityKind = 'deposits';
+    this.depositsProperty = propertyStub;
+    this.selectedDepositId = depositId;
+    this.depositDetailMounted = true;
+    queueMicrotask(() => {
+      this.showDepositsDetail = true;
+    });
   }
 
   onDepositBack(): void {
     this.showDepositsDetail = false;
     this.selectedDepositId = null;
+    this.selectedDeposit = null;
     this.depositsProperty = null;
   }
 
@@ -1269,32 +1315,34 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOfficeId = resolvedOfficeId;
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
-      this.syncBillsSearchRequest();
     }
     this.syncBillsSearchRequest();
 
-    const openTransferDetail = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabBankActivities;
-      this.selectedBankActivityKind = 'transfers';
-      this.transfersProperty = property;
-      this.selectedTransferId = transferId;
-      this.showTransfersDetail = true;
-    };
+    this.selectedTransfer = selection?.transfer ?? null;
 
+    const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: (property: PropertyResponse) => openTransferDetail(property),
-        error: () => this.toastr.error('Unable to load property for transfer.', 'Error')
-      });
-      return;
+      propertyStub.propertyId = propertyId;
+      const cachedProperty = this.glProperties.find(property => property.propertyId === propertyId);
+      if (cachedProperty?.propertyCode) {
+        propertyStub.propertyCode = cachedProperty.propertyCode;
+      }
     }
 
-    openTransferDetail(this.buildBillsReceiptPropertyStub(officeId));
+    this.selectedTabIndex = this.tabBankActivities;
+    this.selectedBankActivityKind = 'transfers';
+    this.transfersProperty = propertyStub;
+    this.selectedTransferId = transferId;
+    this.transferDetailMounted = true;
+    queueMicrotask(() => {
+      this.showTransfersDetail = true;
+    });
   }
 
   onTransferBack(): void {
     this.showTransfersDetail = false;
     this.selectedTransferId = null;
+    this.selectedTransfer = null;
     this.transfersProperty = null;
   }
 
@@ -1330,28 +1378,31 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.syncBillsSearchRequest();
     }
 
-    const openReceiptDetail = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabOwners;
-      this.selectedOwnerKind = 'utilities';
-      this.ownersUtilityReceiptProperty = property;
-      this.selectedOwnersUtilityReceiptId = receiptId;
-      this.showOwnersUtilityReceiptDetail = true;
-    };
+    this.selectedOwnersUtilityReceipt = selection?.receipt ?? null;
 
+    const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: (property: PropertyResponse) => openReceiptDetail(property),
-        error: () => this.toastr.error('Unable to load property for utility bill.', 'Error')
-      });
-      return;
+      propertyStub.propertyId = propertyId;
+      const cachedProperty = this.glProperties.find(property => property.propertyId === propertyId);
+      if (cachedProperty?.propertyCode) {
+        propertyStub.propertyCode = cachedProperty.propertyCode;
+      }
     }
 
-    openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
+    this.selectedTabIndex = this.tabOwners;
+    this.selectedOwnerKind = 'utilities';
+    this.ownersUtilityReceiptProperty = propertyStub;
+    this.selectedOwnersUtilityReceiptId = receiptId;
+    this.ownersUtilityReceiptDetailMounted = true;
+    queueMicrotask(() => {
+      this.showOwnersUtilityReceiptDetail = true;
+    });
   }
 
   onOwnersUtilityReceiptBack(): void {
     this.showOwnersUtilityReceiptDetail = false;
     this.selectedOwnersUtilityReceiptId = null;
+    this.selectedOwnersUtilityReceipt = null;
     this.ownersUtilityReceiptProperty = null;
 
     if (this.ownerStatementReturnAfterUtilityDetail) {
@@ -1386,29 +1437,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const propertyId = (selection?.propertyId || '').trim() || null;
     const resolvedOfficeId = this.selectedOfficeId;
 
-    const openWorkOrderDetail = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabOwners;
-      this.selectedOwnerKind = 'workOrders';
-      this.ownersWorkOrderProperty = property;
-      this.selectedOwnersWorkOrderId = workOrderId;
-      this.ownersWorkOrderDetailInstance++;
+    this.selectedOwnersWorkOrder = selection?.workOrder ?? null;
+    this.ownersWorkOrderProperty = propertyId
+      ? this.buildOwnersWorkOrderPropertyStub(resolvedOfficeId, propertyId)
+      : this.buildBillsReceiptPropertyStub(resolvedOfficeId);
+
+    this.selectedTabIndex = this.tabOwners;
+    this.selectedOwnerKind = 'workOrders';
+    this.selectedOwnersWorkOrderId = workOrderId;
+    this.ownersWorkOrderDetailMounted = true;
+    queueMicrotask(() => {
       this.showOwnersWorkOrderDetail = true;
       this.cdr.detectChanges();
-    };
-
-    if (propertyId) {
-      openWorkOrderDetail(this.buildOwnersWorkOrderPropertyStub(resolvedOfficeId, propertyId));
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: (property: PropertyResponse) => {
-          this.ownersWorkOrderProperty = property;
-          this.cdr.detectChanges();
-        },
-        error: () => this.toastr.error('Unable to load property for work order.', 'Error')
-      });
-      return;
-    }
-
-    openWorkOrderDetail(this.buildBillsReceiptPropertyStub(resolvedOfficeId));
+    });
   }
 
   buildOwnersWorkOrderPropertyStub(officeId: number | null, propertyId: string): PropertyResponse {
@@ -1422,6 +1463,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   onOwnersWorkOrderBack(): void {
     this.showOwnersWorkOrderDetail = false;
     this.selectedOwnersWorkOrderId = null;
+    this.selectedOwnersWorkOrder = null;
     this.ownersWorkOrderProperty = null;
 
     if (this.ownerStatementReturnAfterWorkOrderDetail) {
@@ -1626,6 +1668,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+    this.selectedJournalEntry = null;
     this.ownerStatementJournalEntryLinesRefreshTrigger++;
   }
 
@@ -1636,20 +1679,22 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+    this.selectedJournalEntry = null;
   }
 
-  private openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null): void {
-    const openInvoice = (invoiceId: string) => {
+  private openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null, invoice?: InvoiceResponse | null): void {
+    const openInvoice = (invoiceId: string, prefetchedInvoice: InvoiceResponse | null = null) => {
       this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterInvoiceDetail = true;
       this.selectedTabIndex = 0;
+      this.selectedInvoice = prefetchedInvoice;
       this.activeInvoiceId = invoiceId;
       this.selectedOfficeId = officeId;
       this.syncBillsSearchRequest();
     };
 
     if (activityId) {
-      openInvoice(activityId);
+      openInvoice(activityId, invoice ?? null);
       return;
     }
 
@@ -1666,7 +1711,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           return;
         }
 
-        openInvoice(invoice.invoiceId);
+        openInvoice(invoice.invoiceId, invoice);
       },
       error: () => this.toastr.error('Unable to locate invoice by code.', 'Error')
     });
@@ -1698,7 +1743,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
         this.captureOwnerStatementReturnContext();
         this.ownerStatementReturnAfterUtilityDetail = true;
-        this.onOwnersUtilityReceiptSelect({ receiptId: matched.receiptId, officeId, propertyId });
+        this.onOwnersUtilityReceiptSelect({ receiptId: matched.receiptId, officeId, propertyId, receipt: matched });
       },
       error: () => this.toastr.error('Unable to locate receipt by code.', 'Error')
     });
@@ -3637,6 +3682,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.ownerStatementReturnAfterInvoiceDetail) {
       this.ownerStatementReturnAfterInvoiceDetail = false;
       this.activeInvoiceId = null;
+      this.selectedInvoice = null;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
       if (this.isOwnerReportView(this.selectedOwnerKind)) {
@@ -3657,6 +3703,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     this.activeInvoiceId = null;
+    this.selectedInvoice = null;
 
     const currentQueryParams = this.route.snapshot.queryParams || {};
     const editorFormValue = this.accountingInvoiceEditor?.form?.getRawValue?.() || {};

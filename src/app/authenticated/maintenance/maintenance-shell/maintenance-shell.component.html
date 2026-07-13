@@ -165,18 +165,7 @@
               (saveRequestCompleted)="onMaintenanceSaveRequestCompleted($event)" />
           </mat-tab>
           <mat-tab label="Receipts">
-            @if (showReceiptDetail) {
-              <app-receipt
-                [property]="property"
-                [receiptId]="selectedReceiptId"
-                [officeId]="selectedOfficeId"
-                [shellContext]="'maintenance'"
-                (saveValidationAttempted)="onReceiptSaveValidationAttempted()"
-                (propertySelectionRequiredChange)="onReceiptPropertySelectionRequiredChange($event)"
-                (workOrderSelect)="onWorkOrderSelect($event)"
-                (backEvent)="onReceiptBack()"
-                (savedEvent)="onReceiptSaved()" />
-            } @else {
+            @if (!showReceiptDetail) {
               <app-receipts-list
                 [property]="property"
                 [officeId]="selectedOfficeId"
@@ -185,6 +174,21 @@
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)"
                 (workOrderSelect)="onWorkOrderSelect($event)" />
+            }
+            @if (receiptDetailMounted) {
+              <div [style.display]="showReceiptDetail ? '' : 'none'">
+                <app-receipt
+                  [property]="property"
+                  [receiptId]="selectedReceiptId"
+                  [prefetchedReceipt]="selectedReceipt"
+                  [officeId]="selectedOfficeId"
+                  [shellContext]="'maintenance'"
+                  (saveValidationAttempted)="onReceiptSaveValidationAttempted()"
+                  (propertySelectionRequiredChange)="onReceiptPropertySelectionRequiredChange($event)"
+                  (workOrderSelect)="onWorkOrderSelect($event)"
+                  (backEvent)="onReceiptBack()"
+                  (savedEvent)="onReceiptSaved()" />
+              </div>
             }
           </mat-tab>
           @if (showWorkOrdersTab) {
@@ -199,32 +203,36 @@
                     (backEvent)="onWorkOrderCreateBack()">
                   </app-work-order-create>
                 }
-              } @else if (showWorkOrderDetail) {
-                @for (instance of [workOrderDetailInstance]; track instance) {
-                  <app-work-order
+              } @else {
+                @if (!showWorkOrderDetail) {
+                  <app-work-order-list
                     [property]="property"
-                    [workOrderId]="selectedWorkOrderId"
                     [officeId]="selectedOfficeId"
+                    [searchRequest]="workOrderSearchRequest"
+                    [reservationId]="titleBarReservationId"
                     [embeddedInMaintenance]="true"
                     [embedDocumentPreviewInShell]="true"
-                    (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
-                    (propertySelectionRequiredChange)="onWorkOrderPropertySelectionRequiredChange($event)"
-                    (shellLocationSync)="onWorkOrderShellLocationSync($event)"
-                    (receiptSelect)="onReceiptSelect($event)"
-                    (previewEvent)="onWorkOrderPreviewOpen($event)"
-                    (backEvent)="onWorkOrderBack()"
-                    (savedEvent)="onWorkOrderSaved()" />
+                    (workOrderSelect)="onWorkOrderSelect($event)"
+                    (previewEvent)="onWorkOrderPreviewOpen($event)" />
                 }
-              } @else {
-                <app-work-order-list
-                  [property]="property"
-                  [officeId]="selectedOfficeId"
-                  [searchRequest]="workOrderSearchRequest"
-                  [reservationId]="titleBarReservationId"
-                  [embeddedInMaintenance]="true"
-                  [embedDocumentPreviewInShell]="true"
-                  (workOrderSelect)="onWorkOrderSelect($event)"
-                  (previewEvent)="onWorkOrderPreviewOpen($event)" />
+                @if (workOrderDetailMounted) {
+                  <div [style.display]="showWorkOrderDetail ? '' : 'none'">
+                    <app-work-order
+                      [property]="property"
+                      [workOrderId]="selectedWorkOrderId"
+                      [prefetchedWorkOrder]="selectedWorkOrder"
+                      [officeId]="selectedOfficeId"
+                      [embeddedInMaintenance]="true"
+                      [embedDocumentPreviewInShell]="true"
+                      (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
+                      (propertySelectionRequiredChange)="onWorkOrderPropertySelectionRequiredChange($event)"
+                      (shellLocationSync)="onWorkOrderShellLocationSync($event)"
+                      (receiptSelect)="onReceiptSelect($event)"
+                      (previewEvent)="onWorkOrderPreviewOpen($event)"
+                      (backEvent)="onWorkOrderBack()"
+                      (savedEvent)="onWorkOrderSaved()" />
+                  </div>
+                }
               }
             </mat-tab>
           }

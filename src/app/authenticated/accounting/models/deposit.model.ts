@@ -97,4 +97,5 @@ export interface DepositSelection {
   depositId: string | null;
   officeId: number | null;
   propertyId: string | null;
+  deposit?: DepositResponse | null;
 }

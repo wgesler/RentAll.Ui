@@ -67,6 +67,13 @@ export interface InvoiceResponse {
   modifiedBy: string;
 }
 
+export interface InvoiceSelection {
+  invoiceId: string;
+  officeId: number | null;
+  reservationId: string | null;
+  invoice?: InvoiceResponse | null;
+}
+
 export interface InvoiceMonthlyDataRequest {
   invoiceCode: string;
   reservationId: string;

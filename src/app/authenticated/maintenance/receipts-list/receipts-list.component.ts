@@ -361,11 +361,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const selectedPropertyId = (event.propertyIds || [])
         .map(propertyId => (propertyId || '').trim())
         .find(propertyId => propertyId.length > 0) || null;
+      const receipt = this.receipts.find(item => item.receiptId === event.receiptId) ?? null;
       this.receiptSelect.emit({
         receiptId: event.receiptId,
         officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
         propertyId: selectedPropertyId,
-        autoSaveValidationAttempt: true
+        autoSaveValidationAttempt: true,
+        receipt
       });
       return;
     }
@@ -377,20 +379,26 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   goToReceipt(event: ReceiptDisplayList): void {
-    if (this.embeddedInMaintenance) {
+    if (this.embeddedInMaintenance || this.embeddedInAccounting) {
       const selectedPropertyId = (event.propertyIds || [])
         .map(propertyId => (propertyId || '').trim())
         .find(propertyId => propertyId.length > 0) || null;
+      const receipt = this.receipts.find(item => item.receiptId === event.receiptId) ?? null;
       this.receiptSelect.emit({
         receiptId: event.receiptId,
         officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
-        propertyId: selectedPropertyId
+        propertyId: selectedPropertyId,
+        receipt
       });
       return;
     }
     if (!this.property) return;
+    const receipt = this.receipts.find(item => item.receiptId === event.receiptId) ?? null;
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceReceipt, [String(event.receiptId)]);
-    this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
+    this.router.navigate([url], {
+      queryParams: { propertyId: this.property.propertyId },
+      state: { property: this.property, prefetchedReceipt: receipt }
+    });
   }
 
   goToWorkOrderFromCode(event: { rowItem?: ReceiptDisplayList; workOrderCode?: string }): void {

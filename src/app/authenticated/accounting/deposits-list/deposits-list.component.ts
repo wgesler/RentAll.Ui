@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
@@ -14,7 +14,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DepositDisplayList, DepositResponse, DepositSearchRequest, DepositSelection } from '../models/deposit.model';
+import { DepositDisplayList, DepositResponse, DepositSearchRequest, DepositSelection, DepositSplit } from '../models/deposit.model';
 import { DepositService } from '../services/deposit.service';
 
 @Component({
@@ -26,6 +26,8 @@ import { DepositService } from '../services/deposit.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
+  @ViewChild('depositSplitsTemplate') depositSplitsTemplate?: TemplateRef<unknown>;
+
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() searchRequest?: DepositSearchRequest | null;
@@ -43,6 +45,8 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   deposits: DepositResponse[] = [];
   depositsDisplay: DepositDisplayList[] = [];
   allDeposits: DepositDisplayList[] = [];
+  expandedDeposits = new Set<string>();
+  isAllExpanded = false;
   propertyCodeLookup = new Map<string, string>();
   depositsLoadId = 0;
   lastDepositSearchKey: string | null = null;
@@ -61,6 +65,16 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+  };
+
+  readonly depositSplitDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', wrap: false },
+    contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
+    account: { displayAs: 'Account', maxWidth: '28ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   constructor(
@@ -202,10 +216,12 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     const selectedPropertyId = (event.propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
       .find(propertyId => propertyId.length > 0) || null;
+    const deposit = this.deposits.find(item => item.depositId === event.depositId) ?? null;
     this.depositSelect.emit({
       depositId: event.depositId,
       officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
-      propertyId: selectedPropertyId
+      propertyId: selectedPropertyId,
+      deposit
     });
   }
   //#endregion
@@ -364,9 +380,113 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    this.depositsDisplay = this.showInactive
+    const filtered = this.showInactive
       ? this.allDeposits.filter(row => row.isActive === false)
       : this.allDeposits.filter(row => row.isActive !== false);
+
+    this.depositsDisplay = filtered.map(deposit => ({
+      ...deposit,
+      expand: deposit.depositId,
+      expanded: this.expandedDeposits.has(deposit.depositId),
+      expandClick: (event: Event, item: DepositDisplayList) => {
+        event.stopPropagation();
+        if (this.expandedDeposits.has(item.depositId)) {
+          this.expandedDeposits.delete(item.depositId);
+        } else {
+          this.expandedDeposits.add(item.depositId);
+        }
+        this.applyFilters();
+        this.markViewForCheck();
+      }
+    }));
+
+    this.updateIsAllExpanded();
+  }
+
+  get activeDepositDisplayedColumns(): ColumnSet {
+    return {
+      expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+      ...this.depositDisplayedColumns
+    };
+  }
+
+  getDepositSplitColumnNames(): string[] {
+    return Object.keys(this.depositSplitDisplayedColumns);
+  }
+
+  getDepositSplitColumnWidth(columnName: string): string | null {
+    if (this.isDepositSplitGrowColumn(columnName)) {
+      return null;
+    }
+
+    return this.depositSplitDisplayedColumns[columnName]?.maxWidth ?? null;
+  }
+
+  getDepositSplitColumnMinWidth(columnName: string): string | null {
+    if (this.isDepositSplitGrowColumn(columnName)) {
+      return this.depositSplitDisplayedColumns[columnName]?.maxWidth ?? '38ch';
+    }
+
+    return this.getDepositSplitColumnWidth(columnName);
+  }
+
+  isDepositSplitGrowColumn(columnName: string): boolean {
+    return columnName === 'description';
+  }
+
+  getDepositSplitColumnValue(split: DepositSplit, columnName: string, lineIndex: number): string {
+    switch (columnName) {
+      case 'lineNo':
+        return String(lineIndex + 1);
+      case 'propertyCode':
+        return this.getSplitPropertyCode(split);
+      case 'reservationCode':
+        return (split.reservationCode || '').trim() || '—';
+      case 'contactName':
+        return (split.contactName || '').trim() || '—';
+      case 'account':
+        return (split.chartOfAccountDisplayName || '').trim() || '—';
+      case 'description':
+        return (split.description || '').trim() || '—';
+      case 'amount':
+        return this.formatter.currencyUsd(Number(split.amount) || 0);
+      default:
+        return '—';
+    }
+  }
+
+  getSplitPropertyCode(split: DepositSplit): string {
+    const code = (split.propertyCode || '').trim();
+    if (code.length > 0) {
+      return code;
+    }
+
+    const propertyId = (split.propertyId || '').trim();
+    if (propertyId.length > 0) {
+      return this.propertyCodeLookup.get(propertyId) || '—';
+    }
+
+    return '—';
+  }
+
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    if (expanded) {
+      this.depositsDisplay.forEach(deposit => this.expandedDeposits.add(deposit.depositId));
+    } else {
+      this.expandedDeposits.clear();
+    }
+    this.applyFilters();
+    this.markViewForCheck();
+  }
+
+  updateIsAllExpanded(): void {
+    if (this.depositsDisplay.length === 0) {
+      this.isAllExpanded = false;
+      return;
+    }
+
+    this.isAllExpanded = this.depositsDisplay.every(deposit => this.expandedDeposits.has(deposit.depositId));
   }
 
   formatPropertyCodes(propertyIds: string[] | undefined | null): string {

@@ -28,7 +28,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoicePreviewSelection, InvoiceResponse } from '../models/invoice.model';
+import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -64,6 +64,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
+  @Output() invoiceSelect = new EventEmitter<InvoiceSelection>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -384,6 +385,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.showPaymentForm && !fromEditButton) {
       return;
     }
+
+    if (this.source === 'accounting' && this.embedDocumentPreviewInShell) {
+      const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+      const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+      this.invoiceSelect.emit({
+        invoiceId: event.invoiceId,
+        officeId: officeIdToUse,
+        reservationId: reservationIdToUse,
+        invoice: event
+      });
+      return;
+    }
     
     const params: string[] = [];
 
@@ -404,7 +417,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         params.push(`companyId=${companyIdToUse}`);
       }
       const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationIdToUse]);
-      this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`);
+      this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`, { state: { prefetchedInvoice: event } });
       return;
     }
 
@@ -429,7 +442,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     } else {
       params.push(`returnTo=accounting`);
     }
-    this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
+    this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url, { state: { prefetchedInvoice: event } });
   }
 
   goToReservation(event: InvoiceResponse): void {

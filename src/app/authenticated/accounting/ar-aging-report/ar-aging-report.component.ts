@@ -48,6 +48,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
   activeInvoiceId: string | null = null;
   activeInvoiceOfficeId: number | null = null;
   activeInvoiceReservationId: string | null = null;
+  selectedInvoice: InvoiceResponse | null = null;
 
   companyName = '';
   organizationId = '';
@@ -512,10 +513,11 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const invoice = this.reportResult?.invoiceDetails.find(item => item.invoiceId === row.invoiceId);
+    const prefetchedInvoice = this.allInvoices.find(item => item.invoiceId === row.invoiceId) ?? null;
+    this.selectedInvoice = prefetchedInvoice;
     this.activeInvoiceId = row.invoiceId;
-    this.activeInvoiceOfficeId = invoice?.officeId ?? this.officeId;
-    this.activeInvoiceReservationId = invoice?.reservationId ?? null;
+    this.activeInvoiceOfficeId = prefetchedInvoice?.officeId ?? this.officeId;
+    this.activeInvoiceReservationId = prefetchedInvoice?.reservationId ?? null;
     this.markViewForCheck();
   }
 
@@ -564,6 +566,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     this.activeInvoiceId = null;
     this.activeInvoiceOfficeId = null;
     this.activeInvoiceReservationId = null;
+    this.selectedInvoice = null;
     this.markViewForCheck();
   }
 

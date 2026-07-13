@@ -1,4 +1,4 @@
-@if (!isPageReady && depositId) {
+@if ((!isPageReady || !isDepositContentReady) && depositId) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading deposit...</p>

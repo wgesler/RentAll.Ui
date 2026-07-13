@@ -18,7 +18,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptSelection } from '../models/receipt.model';
+import { ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
@@ -26,7 +26,7 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentGetRequest } from '../../documents/models/document.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { WorkOrderPreviewSelection } from '../models/work-order.model';
+import { WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -82,13 +82,17 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   maintenanceSaveResolver: ((success: boolean) => void) | null = null;
 
   showReceiptDetail = false;
+  receiptDetailMounted = false;
   selectedReceiptId: string | null = null;
+  selectedReceipt: ReceiptResponse | null = null;
   refreshReceiptsTrigger = 0;
   receiptSaveValidationAttempted = false;
   receiptPropertySelectionRequired = true;
 
   showWorkOrderDetail = false;
+  workOrderDetailMounted = false;
   selectedWorkOrderId: string | null = null;
+  selectedWorkOrder: WorkOrderResponse | null = null;
   workOrderDetailInstance = 0;
   showWorkOrderCreate = false;
   workOrderCreateContext: WorkOrderPreviewSelection | null = null;
@@ -729,12 +733,17 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.updateAvailableProperties();
     }
 
+    this.selectedReceipt = selection?.receipt ?? null;
+    this.selectedReceiptId = receiptId;
+    this.receiptDetailMounted = true;
+
     const openReceiptDetail = () => {
       this.selectedTabIndex = this.receiptsTabIndex;
       this.showWorkOrderDetail = false;
       this.selectedWorkOrderId = null;
-      this.showReceiptDetail = true;
-      this.selectedReceiptId = receiptId;
+      queueMicrotask(() => {
+        this.showReceiptDetail = true;
+      });
     };
 
     if (selectedPropertyId && selectedPropertyId !== this.selectedPropertyId) {
@@ -760,6 +769,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
+    this.selectedReceipt = null;
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -798,13 +808,17 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.updateAvailableProperties();
     }
 
+    this.selectedWorkOrder = selection?.workOrder ?? null;
+    this.selectedWorkOrderId = workOrderId;
+    this.workOrderDetailMounted = true;
+
     const openWorkOrderDetail = () => {
       this.selectedTabIndex = this.workOrdersTabIndex;
       this.showReceiptDetail = false;
       this.selectedReceiptId = null;
-      this.workOrderDetailInstance++;
-      this.selectedWorkOrderId = workOrderId;
-      this.showWorkOrderDetail = true;
+      queueMicrotask(() => {
+        this.showWorkOrderDetail = true;
+      });
     };
 
     if (targetPropertyId && targetPropertyId !== this.selectedPropertyId) {
@@ -848,6 +862,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.propertyLoadVersion++;
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
+    this.selectedWorkOrder = null;
     this.workOrderSaveValidationAttempted = false;
     this.titleBarReservationId = null;
     this.selectedPropertyId = null;

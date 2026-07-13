@@ -40,6 +40,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeIdInput: number | null = null;
   @Input() reservationIdInput: string | null = null;
   @Input() companyIdInput: string | null = null;
+  @Input() prefetchedInvoice: InvoiceResponse | null = null;
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
 
   isServiceError: boolean = false;
@@ -93,6 +94,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   private addModeQueryParamsBound = false;
 
   isPageReady = false;
+  isInvoiceContentReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'reservations']));
   destroy$ = new Subject<void>();
 
@@ -169,6 +171,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.initializeInvoiceContext(false);
     }
 
+    if (changes['prefetchedInvoice'] && !changes['prefetchedInvoice'].firstChange
+      && this.prefetchedInvoice && this.prefetchedInvoice.invoiceId === this.invoiceId) {
+      this.applyLoadedInvoice(this.prefetchedInvoice);
+    }
+
     if (this.isAddMode && (
       changes['shellMode'] ||
       changes['invoiceIdInput'] ||
@@ -215,12 +222,19 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.isAddMode = !this.invoiceId || this.invoiceId === 'new';
 
     if (!this.isAddMode) {
-      this.getInvoice();
+      const prefetchedInvoice = this.resolvePrefetchedInvoice(contextInvoiceId);
+      if (prefetchedInvoice) {
+        this.applyLoadedInvoice(prefetchedInvoice);
+      } else {
+        this.isInvoiceContentReady = false;
+        this.getInvoice();
+      }
     } else {
       this.invoice = null as any;
       this.ledgerLines = [];
       this.originalLedgerLines = [];
       this.originalFormSnapshot = null;
+      this.isInvoiceContentReady = true;
       this.handleAddModeQueryParams();
     }
   }
@@ -335,6 +349,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     const loadId = ++this.activeInvoiceLoadId;
     const requestedInvoiceId = this.invoiceId;
+    this.isInvoiceContentReady = false;
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
       })
@@ -343,10 +358,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         if (this.activeInvoiceLoadId !== loadId || this.invoiceId !== requestedInvoiceId) {
           return;
         }
-        this.invoice = response;
-        this.populateForm();
-        this.loadLedgerLines(false);
-
+        this.applyLoadedInvoice(response);
         const addLedgerLineParam = this.route.snapshot.queryParams['addLedgerLine'];
         if (addLedgerLineParam === 'true') {
           this.isPaymentMode = true;
@@ -363,6 +375,26 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     });
+  }
+
+  resolvePrefetchedInvoice(invoiceId: string): InvoiceResponse | null {
+    if (this.prefetchedInvoice?.invoiceId === invoiceId) {
+      return this.prefetchedInvoice;
+    }
+    const stateInvoice = history.state?.prefetchedInvoice as InvoiceResponse | undefined;
+    if (stateInvoice?.invoiceId === invoiceId) {
+      return stateInvoice;
+    }
+    return null;
+  }
+
+  applyLoadedInvoice(response: InvoiceResponse): void {
+    this.invoice = response;
+    this.populateForm();
+    this.loadLedgerLines(false);
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
+    this.isInvoiceContentReady = true;
+    this.cdr.markForCheck();
   }
 
   saveInvoice(): void {

@@ -1459,7 +1459,6 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
 
 :host ::ng-deep .detail-lines-wrapper {
     padding: 12px 0 12px 24px;
-    margin: 0 250px 0 40px;
     overflow-x: auto;
     background-color: #f9f9f9;
     border-left: 2px solid #e0e0e0;
@@ -1470,19 +1469,23 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
     min-width: 800px;
     border-collapse: collapse;
     background-color: white;
+    table-layout: fixed;
     
     thead {
-        background-color: #757575;
-        
         tr {
             height: 16px; // 1/3 of typical 48px row height
+            background-color: transparent;
         }
         
         th {
-            padding: 2px 16px; // Reduced to match 1/3 height
+            padding: 0 10px;
             text-align: left;
             font-weight: 500;
-            border-bottom: 1px solid #666;
+            color: #333;
+            background-color: #d0d0d0;
+            border-bottom: 1px solid #bbb;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
     }
     
@@ -1497,7 +1500,8 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
             }
             
             td {
-                padding: 2px 16px; // Reduced to match 1/3 height
+                padding: 0 10px;
+                box-sizing: border-box;
             }
         }
     }

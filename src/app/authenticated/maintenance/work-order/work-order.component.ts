@@ -46,6 +46,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() property: PropertyResponse | null = null;
   @Input() workOrderId: string | null = null;
+  @Input() prefetchedWorkOrder: WorkOrderResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() initialTitle: string | null = null;
@@ -98,7 +99,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   selectedGlobalOfficeId: number | null = null;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrder']));
+  isWorkOrderContentReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
   
   constructor(
@@ -178,7 +180,20 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.loadCostCodes();
     this.loadVendors();
     this.loadProperty();
-    this.loadWorkOrder();
+    if (this.isAddMode) {
+      this.isWorkOrderContentReady = true;
+      this.clearWorkOrderLoading();
+    } else if (this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
+      this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
+    } else {
+      const prefetchedWorkOrder = this.resolvePrefetchedWorkOrder();
+      if (prefetchedWorkOrder) {
+        this.applyLoadedWorkOrder(prefetchedWorkOrder);
+      } else {
+        this.isWorkOrderContentReady = false;
+        this.loadWorkOrder();
+      }
+    }
     this.loadAccountingOfficeForWorkOrderCode();
     this.loadPropertyReservations();
     this.loadPropertyReceipts();
@@ -208,6 +223,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.onWorkOrderIdChanged();
     }
 
+    if (changes['prefetchedWorkOrder'] && !changes['prefetchedWorkOrder'].firstChange
+      && this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
+      this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
+    }
+
     if (changes['officeId'] && this.embeddedInMaintenance && this.isAddMode && !this.property?.officeId) {
       this.loadAccountingOfficeForWorkOrderCode();
     }
@@ -217,13 +237,26 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private onWorkOrderIdChanged(): void {
+  private   onWorkOrderIdChanged(): void {
     this.isAddMode = this.workOrderId == null;
     this.hasUserEditedWorkOrder = false;
     this.workOrder = null;
     this.workOrderItems = [];
     this.associatedWorkOrderReceiptIds.clear();
-    this.loadWorkOrder();
+    if (this.isAddMode) {
+      this.isWorkOrderContentReady = true;
+      this.clearWorkOrderLoading();
+    } else if (this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
+      this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
+    } else {
+      const prefetchedWorkOrder = this.resolvePrefetchedWorkOrder();
+      if (prefetchedWorkOrder) {
+        this.applyLoadedWorkOrder(prefetchedWorkOrder);
+      } else {
+        this.isWorkOrderContentReady = false;
+        this.loadWorkOrder();
+      }
+    }
     if (this.isAddMode && this.property?.officeId) {
       this.loadAccountingOfficeForWorkOrderCode();
     }
@@ -1378,39 +1411,42 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  resolvePrefetchedWorkOrder(): WorkOrderResponse | null {
+    if (this.prefetchedWorkOrder?.workOrderId === this.workOrderId) {
+      return this.prefetchedWorkOrder;
+    }
+
+    const stateWorkOrder = history.state?.prefetchedWorkOrder as WorkOrderResponse | undefined;
+    if (stateWorkOrder?.workOrderId === this.workOrderId) {
+      return stateWorkOrder;
+    }
+
+    return null;
+  }
+
   loadWorkOrder(): void {
     if (this.isAddMode || this.workOrderId == null) {
       this.associatedWorkOrderReceiptIds.clear();
       this.activeWorkOrderLoadId++;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
+      this.clearWorkOrderLoading();
       return;
     }
 
     const loadId = ++this.activeWorkOrderLoadId;
     const requestedWorkOrderId = this.workOrderId;
+    this.isWorkOrderContentReady = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrder');
 
     this.workOrderService.getWorkOrderById(requestedWorkOrderId).pipe(take(1), finalize(() => {
       if (this.activeWorkOrderLoadId === loadId) {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
-        this.cdr.detectChanges();
+        this.clearWorkOrderLoading();
       }
     })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
         if (this.activeWorkOrderLoadId !== loadId || this.workOrderId !== requestedWorkOrderId) {
           return;
         }
-        this.workOrder = workOrder;
-        this.associatedWorkOrderReceiptIds = new Set(
-          (workOrder.workOrderItems || [])
-            .map(item => String(item.receiptId ?? '').trim())
-            .filter(receiptId => receiptId.length > 0)
-        );
-        this.populateForm(workOrder);
-        this.applyPropertyContextFromWorkOrder(workOrder);
-        this.syncShellLocationFromWorkOrder(workOrder);
-        this.loadAssociatedReceiptsForCurrentWorkOrder();
-        this.cdr.detectChanges();
+        this.applyLoadedWorkOrder(workOrder);
       },
       error: (_err: HttpErrorResponse) => {
         if (this.activeWorkOrderLoadId !== loadId) {
@@ -1420,6 +1456,26 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  applyLoadedWorkOrder(workOrder: WorkOrderResponse): void {
+    this.workOrder = workOrder;
+    this.associatedWorkOrderReceiptIds = new Set(
+      (workOrder.workOrderItems || [])
+        .map(item => String(item.receiptId ?? '').trim())
+        .filter(receiptId => receiptId.length > 0)
+    );
+    this.populateForm(workOrder);
+    this.applyPropertyContextFromWorkOrder(workOrder);
+    this.syncShellLocationFromWorkOrder(workOrder);
+    this.loadAssociatedReceiptsForCurrentWorkOrder();
+    this.isWorkOrderContentReady = true;
+    this.cdr.detectChanges();
+  }
+
+  clearWorkOrderLoading(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
+    this.cdr.detectChanges();
   }
 
   private applyPropertyContextFromWorkOrder(workOrder: WorkOrderResponse): void {

@@ -1,3 +1,45 @@
+<ng-template #depositSplitsTemplate let-deposit>
+  <div class="detail-lines-wrapper detail-lines-align-amount">
+    @if (deposit?.splits?.length) {
+      <table>
+        <thead>
+          <tr>
+            @for (columnName of getDepositSplitColumnNames(); track columnName) {
+              @if (depositSplitDisplayedColumns[columnName]) {
+                <th [style.max-width]="getDepositSplitColumnWidth(columnName)"
+                    [style.width]="getDepositSplitColumnWidth(columnName)"
+                    [style.min-width]="getDepositSplitColumnMinWidth(columnName)"
+                    [style.text-align]="depositSplitDisplayedColumns[columnName].headerAlignment || depositSplitDisplayedColumns[columnName].alignment || 'left'">
+                  {{ depositSplitDisplayedColumns[columnName].displayAs }}
+                </th>
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (split of deposit.splits; track $index; let lineIndex = $index) {
+            <tr>
+              @for (columnName of getDepositSplitColumnNames(); track columnName) {
+                @if (depositSplitDisplayedColumns[columnName]) {
+                  <td [style.max-width]="getDepositSplitColumnWidth(columnName)"
+                      [style.width]="getDepositSplitColumnWidth(columnName)"
+                      [style.min-width]="getDepositSplitColumnMinWidth(columnName)"
+                      [style.text-align]="depositSplitDisplayedColumns[columnName].alignment || 'left'"
+                      [class.no-wrap]="!depositSplitDisplayedColumns[columnName].wrap">
+                    {{ getDepositSplitColumnValue(split, columnName, lineIndex) }}
+                  </td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="no-lines">No split lines found for this deposit.</p>
+    }
+  </div>
+</ng-template>
+
 @if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
@@ -9,12 +51,17 @@
       <app-data-table
         tableName="deposits-list"
         [data]="depositsDisplay"
-        [columns]="depositDisplayedColumns"
+        [columns]="activeDepositDisplayedColumns"
         noDataMessage="No deposits"
         [hasColumnIndex]="true"
         [hasFilter]="true"
         [hasToggleTop]="false"
         [hasButtonTop]="false"
+        [hasDetailRow]="true"
+        [detailRowTemplate]="depositSplitsTemplate"
+        [includeDetailRowHeader]="false"
+        [expandAllCallback]="toggleExpandAll.bind(this)"
+        [isAllExpanded]="isAllExpanded"
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"

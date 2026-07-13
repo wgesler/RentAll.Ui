@@ -602,6 +602,7 @@
                   [shellMode]="true"
                   [embedDocumentPreviewInShell]="true"
                   [invoiceIdInput]="activeInvoiceId"
+                  [prefetchedInvoice]="selectedInvoice"
                   [officeIdInput]="selectedOfficeId"
                   [reservationIdInput]="selectedReservationId"
                   [companyIdInput]="selectedCompanyId"
@@ -623,6 +624,7 @@
               (officeIdChange)="onInvoiceOfficeChange($event)"
               (reservationIdChange)="onInvoiceReservationChange($event)"
               (companyIdChange)="onInvoiceCompanyChange($event)"
+              (invoiceSelect)="onInvoiceSelect($event)"
               (previewEvent)="onInvoicePreviewOpen($event)"
               (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
@@ -666,20 +668,7 @@
                 }
               </div>
               @if (selectedBillsReceiptKind === 'bills') {
-                @if (showBillsReceiptDetail) {
-                  <app-receipt
-                    [property]="billsReceiptProperty"
-                    [receiptId]="selectedBillsReceiptId"
-                    [prefill]="billsReceiptPrefill"
-                    [agreementLineIdOverride]="billsReceiptAgreementLineId"
-                    [agreementLineNotesOverride]="billsReceiptAgreementLineNotes"
-                    [autoBackOnSave]="billsReceiptOrigin !== 'rentRoll'"
-                    [autoSaveAttemptToken]="billsReceiptAutoSaveAttemptToken"
-                    [officeId]="selectedOfficeId"
-                    [shellContext]="'accounting'"
-                    (backEvent)="onBillsReceiptBack()"
-                    (savedEvent)="onBillsReceiptSaved()" />
-                } @else {
+                @if (!showBillsReceiptDetail) {
                   <app-receipts-list
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
@@ -692,17 +681,25 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
+                @if (billsReceiptDetailMounted) {
+                  <div [style.display]="showBillsReceiptDetail ? '' : 'none'">
+                    <app-receipt
+                      [property]="billsReceiptProperty"
+                      [receiptId]="selectedBillsReceiptId"
+                      [prefetchedReceipt]="selectedBillsReceipt"
+                      [prefill]="billsReceiptPrefill"
+                      [agreementLineIdOverride]="billsReceiptAgreementLineId"
+                      [agreementLineNotesOverride]="billsReceiptAgreementLineNotes"
+                      [autoBackOnSave]="billsReceiptOrigin !== 'rentRoll'"
+                      [autoSaveAttemptToken]="billsReceiptAutoSaveAttemptToken"
+                      [officeId]="selectedOfficeId"
+                      [shellContext]="'accounting'"
+                      (backEvent)="onBillsReceiptBack()"
+                      (savedEvent)="onBillsReceiptSaved()" />
+                  </div>
+                }
               } @else if (selectedBillsReceiptKind === 'receipts') {
-                @if (showReceiptsReceiptDetail) {
-                  <app-receipt
-                    [property]="receiptsReceiptProperty"
-                    [receiptId]="selectedReceiptsReceiptId"
-                    [officeId]="selectedOfficeId"
-                    [shellContext]="'accounting'"
-                    [preferReceiptModeOnAdd]="true"
-                    (backEvent)="onReceiptsReceiptBack()"
-                    (savedEvent)="onReceiptsReceiptSaved()" />
-                } @else {
+                @if (!showReceiptsReceiptDetail) {
                   <app-receipts-list
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
@@ -714,6 +711,19 @@
                     (workOrderSelect)="onOwnersWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
+                }
+                @if (receiptsReceiptDetailMounted) {
+                  <div [style.display]="showReceiptsReceiptDetail ? '' : 'none'">
+                    <app-receipt
+                      [property]="receiptsReceiptProperty"
+                      [receiptId]="selectedReceiptsReceiptId"
+                      [prefetchedReceipt]="selectedReceiptsReceipt"
+                      [officeId]="selectedOfficeId"
+                      [shellContext]="'accounting'"
+                      [preferReceiptModeOnAdd]="true"
+                      (backEvent)="onReceiptsReceiptBack()"
+                      (savedEvent)="onReceiptsReceiptSaved()" />
+                  </div>
                 }
               } @else {
                 <app-rent-roll
@@ -778,6 +788,7 @@
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
                     [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    [prefetchedJournalEntry]="selectedJournalEntry"
                     (backEvent)="onGeneralLedgerBack()"
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
@@ -796,6 +807,7 @@
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
                     [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    [prefetchedJournalEntry]="selectedJournalEntry"
                     (backEvent)="onGeneralLedgerBack()"
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
@@ -810,14 +822,7 @@
                   </app-general-ledger-list>
                 }
               } @else if (selectedBankActivityKind === 'deposits') {
-                @if (showDepositsDetail) {
-                  <app-deposit
-                    [property]="depositsProperty"
-                    [depositId]="selectedDepositId"
-                    [officeId]="selectedOfficeId"
-                    (backEvent)="onDepositBack()"
-                    (savedEvent)="onDepositSaved()" />
-                } @else {
+                @if (!showDepositsDetail) {
                   <app-deposits-list
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
@@ -827,15 +832,21 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-deposits-list>
                 }
+                @if (depositDetailMounted) {
+                  <div [style.display]="showDepositsDetail ? '' : 'none'">
+                    <app-deposit
+                      [shellChartOfAccounts]="chartOfAccounts"
+                      [shellPropertyCodes]="glProperties"
+                      [property]="depositsProperty"
+                      [depositId]="selectedDepositId"
+                      [prefetchedDeposit]="selectedDeposit"
+                      [officeId]="selectedOfficeId"
+                      (backEvent)="onDepositBack()"
+                      (savedEvent)="onDepositSaved()" />
+                  </div>
+                }
               } @else if (selectedBankActivityKind === 'transfers') {
-                @if (showTransfersDetail) {
-                  <app-transfer
-                    [property]="transfersProperty"
-                    [transferId]="selectedTransferId"
-                    [officeId]="selectedOfficeId"
-                    (backEvent)="onTransferBack()"
-                    (savedEvent)="onTransferSaved()" />
-                } @else {
+                @if (!showTransfersDetail) {
                   <app-transfers-list
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
@@ -845,11 +856,25 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-transfers-list>
                 }
+                @if (transferDetailMounted) {
+                  <div [style.display]="showTransfersDetail ? '' : 'none'">
+                    <app-transfer
+                      [shellChartOfAccounts]="chartOfAccounts"
+                      [shellPropertyCodes]="glProperties"
+                      [property]="transfersProperty"
+                      [transferId]="selectedTransferId"
+                      [prefetchedTransfer]="selectedTransfer"
+                      [officeId]="selectedOfficeId"
+                      (backEvent)="onTransferBack()"
+                      (savedEvent)="onTransferSaved()" />
+                  </div>
+                }
               } @else if (selectedBankActivityKind === 'transferReport') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
                     [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    [prefetchedJournalEntry]="selectedJournalEntry"
                     (backEvent)="onGeneralLedgerBack()"
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
@@ -867,6 +892,7 @@
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
                     [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    [prefetchedJournalEntry]="selectedJournalEntry"
                     (backEvent)="onGeneralLedgerBack()"
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
@@ -927,15 +953,7 @@
                 </div>
               }
               @if (selectedOwnerKind === 'utilities') {
-                @if (showOwnersUtilityReceiptDetail) {
-                  <app-receipt
-                    [property]="ownersUtilityReceiptProperty"
-                    [receiptId]="selectedOwnersUtilityReceiptId"
-                    [officeId]="selectedOfficeId"
-                    [shellContext]="'accounting'"
-                    (backEvent)="onOwnersUtilityReceiptBack()"
-                    (savedEvent)="onOwnersUtilityReceiptSaved()" />
-                } @else {
+                @if (!showOwnersUtilityReceiptDetail) {
                   <app-receipts-list
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
@@ -948,6 +966,18 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
+                @if (ownersUtilityReceiptDetailMounted) {
+                  <div [style.display]="showOwnersUtilityReceiptDetail ? '' : 'none'">
+                    <app-receipt
+                      [property]="ownersUtilityReceiptProperty"
+                      [receiptId]="selectedOwnersUtilityReceiptId"
+                      [prefetchedReceipt]="selectedOwnersUtilityReceipt"
+                      [officeId]="selectedOfficeId"
+                      [shellContext]="'accounting'"
+                      (backEvent)="onOwnersUtilityReceiptBack()"
+                      (savedEvent)="onOwnersUtilityReceiptSaved()" />
+                  </div>
+                }
               } @else if (selectedOwnerKind === 'workOrders') {
                 @if (showWorkOrderCreate && workOrderCreateContext) {
                   @for (instance of [workOrderCreateInstance]; track instance) {
@@ -959,29 +989,33 @@
                       (backEvent)="onWorkOrderCreateBack()">
                     </app-work-order-create>
                   }
-                } @else if (showOwnersWorkOrderDetail) {
-                  @for (instance of [ownersWorkOrderDetailInstance]; track instance) {
-                    <app-work-order
-                      [property]="ownersWorkOrderProperty"
-                      [workOrderId]="selectedOwnersWorkOrderId"
+                } @else {
+                  @if (!showOwnersWorkOrderDetail) {
+                    <app-work-order-list
                       [officeId]="selectedOfficeId"
+                      [searchRequest]="billsSearchRequest"
                       [embeddedInMaintenance]="true"
                       [embedDocumentPreviewInShell]="true"
-                      [showBackButton]="false"
-                      (previewEvent)="onWorkOrderPreviewOpen($event)"
-                      (backEvent)="onOwnersWorkOrderBack()"
-                      (savedEvent)="onOwnersWorkOrderSaved()" />
+                      [showOwnersOnlyToggle]="true"
+                      [refreshTrigger]="ownersWorkOrdersRefreshTrigger"
+                      (workOrderSelect)="onOwnersWorkOrderSelect($event)"
+                      (previewEvent)="onWorkOrderPreviewOpen($event)" />
                   }
-                } @else {
-                  <app-work-order-list
-                    [officeId]="selectedOfficeId"
-                    [searchRequest]="billsSearchRequest"
-                    [embeddedInMaintenance]="true"
-                    [embedDocumentPreviewInShell]="true"
-                    [showOwnersOnlyToggle]="true"
-                    [refreshTrigger]="ownersWorkOrdersRefreshTrigger"
-                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
-                    (previewEvent)="onWorkOrderPreviewOpen($event)" />
+                  @if (ownersWorkOrderDetailMounted) {
+                    <div [style.display]="showOwnersWorkOrderDetail ? '' : 'none'">
+                      <app-work-order
+                        [property]="ownersWorkOrderProperty"
+                        [workOrderId]="selectedOwnersWorkOrderId"
+                        [prefetchedWorkOrder]="selectedOwnersWorkOrder"
+                        [officeId]="selectedOfficeId"
+                        [embeddedInMaintenance]="true"
+                        [embedDocumentPreviewInShell]="true"
+                        [showBackButton]="false"
+                        (previewEvent)="onWorkOrderPreviewOpen($event)"
+                        (backEvent)="onOwnersWorkOrderBack()"
+                        (savedEvent)="onOwnersWorkOrderSaved()" />
+                    </div>
+                  }
                 }
               } @else if (selectedOwnerKind === 'ownerStatements') {
                 @if (selectedOwnerStatementMonthLine) {
@@ -1002,6 +1036,7 @@
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
                     [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    [prefetchedJournalEntry]="selectedJournalEntry"
                     (backEvent)="onGeneralLedgerBack()"
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
@@ -1119,6 +1154,7 @@
                 <app-general-ledger
                   [journalEntryId]="activeJournalEntryId"
                   [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                  [prefetchedJournalEntry]="selectedJournalEntry"
                   (backEvent)="onGeneralLedgerBack()"
                   (savedEvent)="onJournalEntriesChanged()">
                 </app-general-ledger>

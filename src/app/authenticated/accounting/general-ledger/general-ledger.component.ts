@@ -36,6 +36,7 @@ interface EditableJournalEntryLine {
 export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   @Input() journalEntryId: string | null = null;
   @Input() selectedJournalEntryLineId: string | null = null;
+  @Input() prefetchedJournalEntry: JournalEntryResponse | null = null;
   @Input() isCreateMode = false;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
@@ -96,7 +97,11 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['journalEntryId'] && !changes['journalEntryId'].firstChange && !this.isCreateMode) {
-      this.loadJournalEntry();
+      this.tryApplyPrefetchedJournalEntry() || this.loadJournalEntry();
+    }
+
+    if (changes['prefetchedJournalEntry'] && !changes['prefetchedJournalEntry'].firstChange && !this.isCreateMode) {
+      this.tryApplyPrefetchedJournalEntry();
     }
 
     if ((changes['isCreateMode'] || changes['officeId']) && this.isCreateMode) {
@@ -501,7 +506,49 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    if (this.tryApplyPrefetchedJournalEntry()) {
+      return;
+    }
+
     this.loadJournalEntry();
+  }
+
+  tryApplyPrefetchedJournalEntry(): boolean {
+    const journalEntryId = this.journalEntryId?.trim();
+    const prefetched = this.resolvePrefetchedJournalEntry(journalEntryId);
+    if (!prefetched) {
+      return false;
+    }
+
+    this.applyLoadedJournalEntry(prefetched);
+    return true;
+  }
+
+  resolvePrefetchedJournalEntry(journalEntryId: string | null | undefined): JournalEntryResponse | null {
+    const targetId = (journalEntryId || '').trim();
+    if (!targetId) {
+      return null;
+    }
+
+    if (this.prefetchedJournalEntry?.journalEntryId === targetId) {
+      return this.prefetchedJournalEntry;
+    }
+
+    const stateJournalEntry = history.state?.prefetchedJournalEntry as JournalEntryResponse | undefined;
+    if (stateJournalEntry?.journalEntryId === targetId) {
+      return stateJournalEntry;
+    }
+
+    return null;
+  }
+
+  applyLoadedJournalEntry(journalEntry: JournalEntryResponse): void {
+    this.isServiceError = false;
+    this.journalEntry = journalEntry;
+    this.syncFormFromJournalEntry();
+    this.applyLineDisplay();
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
+    this.markViewForCheck();
   }
 
   initializeCreateForm(): void {
@@ -753,10 +800,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       takeUntil(this.destroy$)
     ).subscribe({
       next: journalEntry => {
-        this.journalEntry = journalEntry;
-        this.syncFormFromJournalEntry();
-        this.applyLineDisplay();
-        this.markViewForCheck();
+        this.applyLoadedJournalEntry(journalEntry);
       },
       error: (error: HttpErrorResponse) => {
         console.error('General Ledger - error loading journal entry:', error);

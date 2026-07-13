@@ -46,6 +46,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: string | null = null;
+  @Input() prefetchedReceipt: ReceiptResponse | null = null;
   @Input() prefill: ReceiptPrefill | null = null;
   @Input() agreementLineIdOverride: number | null = null;
   @Input() agreementLineNotesOverride: string | null = null;
@@ -67,6 +68,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   isAddMode: boolean = true;
   isSubmitting: boolean = false;
   isPageReady = false;
+  isReceiptContentReady = false;
 
   organizationId: string = '';
   selectedPropertyId: string | null = null;
@@ -107,7 +109,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   activeAgreementLineId: number | null = null;
   activeAgreementLineNotes: string | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   constructor(
@@ -171,12 +173,23 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.loadChartOfAccounts();
     this.loadVendors();
     this.loadPropertyCodes();
-    this.loadReceipt();
-    this.emitPropertySelectionRequiredState();
     if (this.isAddMode) {
+      this.isReceiptContentReady = true;
+      this.clearReceiptLoading();
       this.applyShellOfficeToReceipt();
       this.applyPrefillIfNeeded();
+    } else if (this.prefetchedReceipt && this.prefetchedReceipt.receiptId === this.receiptId) {
+      this.applyLoadedReceipt(this.prefetchedReceipt);
+    } else {
+      const prefetchedReceipt = this.resolvePrefetchedReceipt();
+      if (prefetchedReceipt) {
+        this.applyLoadedReceipt(prefetchedReceipt);
+      } else {
+        this.isReceiptContentReady = false;
+        this.loadReceipt();
+      }
     }
+    this.emitPropertySelectionRequiredState();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -210,12 +223,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.activeAgreementLineNotes = null;
       this.receipt = null;
       if (this.isAddMode) {
+        this.isReceiptContentReady = true;
         this.clearReceiptLoading();
         this.applyShellOfficeToReceipt();
         this.applyPrefillIfNeeded();
       } else {
-        this.loadReceipt();
+        this.isReceiptContentReady = false;
+        if (this.prefetchedReceipt && this.prefetchedReceipt.receiptId === this.receiptId) {
+          this.applyLoadedReceipt(this.prefetchedReceipt);
+        } else {
+          const prefetchedReceipt = this.resolvePrefetchedReceipt();
+          if (prefetchedReceipt) {
+            this.applyLoadedReceipt(prefetchedReceipt);
+          } else {
+            this.loadReceipt();
+          }
+        }
       }
+    }
+
+    if (changes['prefetchedReceipt'] && !changes['prefetchedReceipt'].firstChange
+      && this.prefetchedReceipt && this.prefetchedReceipt.receiptId === this.receiptId) {
+      this.applyLoadedReceipt(this.prefetchedReceipt);
     }
 
     if (changes['prefill']) {
@@ -549,31 +578,49 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
+  resolvePrefetchedReceipt(): ReceiptResponse | null {
+    if (this.prefetchedReceipt?.receiptId === this.receiptId) {
+      return this.prefetchedReceipt;
+    }
+
+    const stateReceipt = history.state?.prefetchedReceipt as ReceiptResponse | undefined;
+    if (stateReceipt?.receiptId === this.receiptId) {
+      return stateReceipt;
+    }
+
+    return null;
+  }
+
   loadReceipt(): void {
     if (this.isAddMode || !this.receiptId) {
       this.clearReceiptLoading();
       return;
     }
 
+    this.isReceiptContentReady = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'receipt');
     this.receiptService.getReceipt(this.organizationId, this.receiptId).pipe(take(1), finalize(() => this.clearReceiptLoading())).subscribe({
-      next: (receipt: ReceiptResponse) => {
-        this.receipt = receipt;
-        this.activeAgreementLineId = this.normalizeAgreementLineId(receipt.agreementLineId);
-        this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(receipt.agreementLineNotes);
-        this.applyAgreementLineOverrides();
-        this.receiptOfficeInitialized = true;
-        this.populateForm(receipt);
-        this.syncSelectedPropertyIdFromForm();
-        this.syncBankCardOptionsForCurrentContext();
-        this.loadSplitAccountsForCurrentOffice();
-        this.ensureEditModeBankCardVisible();
-        this.cdr.markForCheck();
-        this.tryAutoSaveValidationAttempt();
-      },
+      next: (receipt: ReceiptResponse) => this.applyLoadedReceipt(receipt),
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to load receipt.', 'Error');
       }
     });
+  }
+
+  applyLoadedReceipt(receipt: ReceiptResponse): void {
+    this.receipt = receipt;
+    this.activeAgreementLineId = this.normalizeAgreementLineId(receipt.agreementLineId);
+    this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(receipt.agreementLineNotes);
+    this.applyAgreementLineOverrides();
+    this.receiptOfficeInitialized = true;
+    this.populateForm(receipt);
+    this.syncSelectedPropertyIdFromForm();
+    this.syncBankCardOptionsForCurrentContext();
+    this.loadSplitAccountsForCurrentOffice();
+    this.ensureEditModeBankCardVisible();
+    this.isReceiptContentReady = true;
+    this.cdr.markForCheck();
+    this.tryAutoSaveValidationAttempt();
   }
 
   loadPropertyCodes(): void {

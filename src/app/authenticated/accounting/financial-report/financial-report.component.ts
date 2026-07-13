@@ -25,7 +25,8 @@ import {
   FinancialReportResult,
   FinancialReportTreeNode
 } from '../models/financial-report.model';
-import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../models/journal-entry.model';
+import { buildJournalEntryFromSearchLines, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryResponse } from '../models/journal-entry.model';
+import { InvoiceResponse } from '../models/invoice.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySourceService } from '../services/journal-entry-source.service';
@@ -72,10 +73,13 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   drillDownView: FinancialReportDrillDownView | null = null;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
+  selectedJournalEntry: JournalEntryResponse | null = null;
   activeInvoiceId: string | null = null;
   activeInvoiceOfficeId: number | null = null;
   activeInvoiceReservationId: string | null = null;
+  selectedInvoice: InvoiceResponse | null = null;
   activeReceiptId: string | null = null;
+  selectedReceipt: ReceiptResponse | null = null;
   drillDownReceiptProperty: PropertyResponse | null = null;
   drillDownReceiptOfficeId: number | null = null;
   drillDownColumns: ColumnSet = {
@@ -436,6 +440,11 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    this.selectedJournalEntry = buildJournalEntryFromSearchLines(
+      row.journalEntryId,
+      this.allLines,
+      this.organizationId
+    );
     this.activeJournalEntryId = row.journalEntryId;
     this.selectedJournalEntryLineId = row.journalEntryLineId;
     this.emitDrillDownChildDetailActive();
@@ -458,7 +467,8 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
           this.openDrillDownInvoice(
             target.invoice.invoiceId,
             target.invoice.officeId ?? row.officeId,
-            target.invoice.reservationId ?? row.reservationId ?? null
+            target.invoice.reservationId ?? row.reservationId ?? null,
+            target.invoice
           );
           return;
         }
@@ -474,7 +484,8 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  openDrillDownInvoice(invoiceId: string, officeId: number, reservationId: string | null): void {
+  openDrillDownInvoice(invoiceId: string, officeId: number, reservationId: string | null, invoice: InvoiceResponse | null = null): void {
+    this.selectedInvoice = invoice;
     this.activeInvoiceId = invoiceId;
     this.activeInvoiceOfficeId = officeId;
     this.activeInvoiceReservationId = reservationId;
@@ -498,6 +509,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     const resolvedPropertyId = (propertyId || receipt.propertyIds?.[0] || '').trim() || null;
 
     const openDetail = (property: PropertyResponse | null) => {
+      this.selectedReceipt = receipt;
       this.activeReceiptId = receipt.receiptId;
       this.drillDownReceiptOfficeId = resolvedOfficeId;
       this.drillDownReceiptProperty = property;
@@ -524,7 +536,9 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     this.activeInvoiceId = null;
     this.activeInvoiceOfficeId = null;
     this.activeInvoiceReservationId = null;
+    this.selectedInvoice = null;
     this.activeReceiptId = null;
+    this.selectedReceipt = null;
     this.drillDownReceiptProperty = null;
     this.drillDownReceiptOfficeId = null;
     this.emitDrillDownChildDetailActive();
@@ -545,6 +559,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+    this.selectedJournalEntry = null;
     this.emitDrillDownChildDetailActive();
     this.markViewForCheck();
   }

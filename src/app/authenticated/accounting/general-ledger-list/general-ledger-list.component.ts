@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -24,7 +24,7 @@ import { AccountType, isJournalEntrySourceNavigable, SourceType, SourceTypeLabel
 import { OwnerStatementActivityLinkSelection } from '../models/owner-statement.model';
 import { JournalEntrySourceService } from '../services/journal-entry-source.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
-import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryResponse, TransferReportRowDisplay } from '../models/journal-entry.model';
+import { buildJournalEntryFromSearchLines, GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryResponse, TransferReportRowDisplay } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../services/check-html.service';
 import { CheckPrintService } from '../services/check-print.service';
@@ -58,7 +58,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
   @Input() dismissCreateJournalEntryTrigger = 0;
-  @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
+  @Output() lineSelectEvent = new EventEmitter<JournalEntryLineSelection>();
   @Output() depositCompletedEvent = new EventEmitter<void>();
   @Output() transferCompletedEvent = new EventEmitter<void>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
@@ -104,7 +104,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   allLines: JournalEntryLineSearchResponse[] = [];
   transferReportRows: TransferReportRowDisplay[] = [];
   linesDisplay: JournalEntryLineListDisplay[] = [];
+  entriesDisplay: GeneralLedgerEntryDisplay[] = [];
+  expandedJournalEntries = new Set<string>();
+  isAllExpanded = false;
   noActivityMessage = 'No general ledger activity for the selected office and date range.';
+
+  @ViewChild('journalEntryLinesTemplate') journalEntryLinesTemplate?: TemplateRef<unknown>;
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
@@ -116,6 +121,18 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '28ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
+    debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    balance: { displayAs: 'Balance', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
+  };
+
+  detailLineDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
+    contactName: { displayAs: 'Contact', maxWidth: '20ch' },
+    account: { displayAs: 'Account', maxWidth: '42ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
     balance: { displayAs: 'Balance', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
@@ -525,22 +542,28 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }
   }
 
-  onLineSelect(row: JournalEntryLineListDisplay): void {
+  onLineSelect(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
     if (this.showDepositForm || this.showTransferForm || this.showCheckPreview || !row?.journalEntryId || row.disabled) {
       return;
     }
+    const journalEntry = buildJournalEntryFromSearchLines(
+      row.journalEntryId,
+      this.allLines,
+      this.organizationId
+    );
     this.lineSelectEvent.emit({
       journalEntryId: row.journalEntryId,
-      journalEntryLineId: row.journalEntryLineId
+      journalEntryLineId: row.journalEntryLineId,
+      journalEntry
     });
   }
 
-  editJournalEntryLine(row: JournalEntryLineListDisplay): void {
+  editJournalEntryLine(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
     this.closeCreateJournalEntry(false);
     this.onLineSelect(row);
   }
 
-  deleteJournalEntryLine(row: JournalEntryLineListDisplay): void {
+  deleteJournalEntryLine(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
     const journalEntryId = (row?.journalEntryId || '').trim();
     if (!journalEntryId) {
       return;
@@ -678,6 +701,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     if (this.transferReportOnly) {
       this.linesDisplay = this.buildTransferReportLinesDisplay(mappedLines);
+      this.entriesDisplay = [];
       return;
     }
 
@@ -689,6 +713,215 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         || (this.showTransferTableSelections && !this.isUntransferredFundsLineSelectable(line))
         || (this.showPrintCheckTableSelections && !this.isPrintCheckLineSelectable(line))
     }));
+
+    if (this.usesGroupedJournalEntryDisplay) {
+      this.entriesDisplay = this.buildJournalEntryGroups(this.linesDisplay);
+      this.updateIsAllExpanded();
+      return;
+    }
+
+    this.entriesDisplay = [];
+  }
+
+  buildJournalEntryGroups(lines: JournalEntryLineListDisplay[]): GeneralLedgerEntryDisplay[] {
+    const groupedLines = new Map<string, JournalEntryLineListDisplay[]>();
+    for (const line of lines) {
+      const journalEntryId = (line.journalEntryId || '').trim();
+      if (!journalEntryId) {
+        continue;
+      }
+
+      const existing = groupedLines.get(journalEntryId) ?? [];
+      existing.push(line);
+      groupedLines.set(journalEntryId, existing);
+    }
+
+    return Array.from(groupedLines.entries()).map(([journalEntryId, entryLines]) => {
+      const firstLine = entryLines[0];
+      const totalDebit = entryLines.reduce((sum, line) => sum + Number(line.debitValue || 0), 0);
+      const totalCredit = entryLines.reduce((sum, line) => sum + Number(line.creditValue || 0), 0);
+      const lastLine = entryLines[entryLines.length - 1];
+
+      return {
+        journalEntryId,
+        journalEntryLineId: firstLine.journalEntryLineId,
+        transactionDate: firstLine.transactionDate,
+        journalEntryCode: firstLine.journalEntryCode,
+        source: firstLine.source,
+        propertyCode: this.summarizeGroupedField(entryLines.map(line => line.propertyCode)),
+        reservationCode: this.summarizeGroupedField(entryLines.map(line => line.reservationCode)),
+        contactName: this.summarizeGroupedField(entryLines.map(line => line.contactName)),
+        account: entryLines.length === 1 ? firstLine.account : `${entryLines.length} lines`,
+        description: entryLines.length === 1 ? firstLine.description : `${entryLines.length} lines`,
+        debit: this.formatGroupedAmount(totalDebit),
+        credit: this.formatGroupedAmount(totalCredit),
+        balance: lastLine.balance,
+        debitValue: totalDebit,
+        creditValue: totalCredit,
+        disabled: entryLines.every(line => line.disabled),
+        journalEntryLines: entryLines,
+        expand: journalEntryId,
+        expanded: this.expandedJournalEntries.has(journalEntryId),
+        expandClick: (event: Event, item: GeneralLedgerEntryDisplay) => {
+          event.stopPropagation();
+          if (this.expandedJournalEntries.has(item.journalEntryId)) {
+            this.expandedJournalEntries.delete(item.journalEntryId);
+          } else {
+            this.expandedJournalEntries.add(item.journalEntryId);
+          }
+          this.applyLinesDisplay();
+        }
+      };
+    });
+  }
+
+  summarizeGroupedField(values: string[]): string {
+    const uniqueValues = [...new Set(
+      values
+        .map(value => (value || '').trim())
+        .filter(value => value.length > 0 && value !== '—')
+    )];
+
+    if (uniqueValues.length === 0) {
+      return '—';
+    }
+
+    if (uniqueValues.length === 1) {
+      return uniqueValues[0];
+    }
+
+    return 'Various';
+  }
+
+  formatGroupedAmount(amount: number): string {
+    const normalized = this.roundCurrencyValue(Number(amount) || 0);
+    if (Math.abs(normalized) < 0.005) {
+      return '';
+    }
+
+    const formatted = this.formatter.currency(Math.abs(normalized));
+    return normalized < 0 ? `-$${formatted}` : `$${formatted}`;
+  }
+
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    if (expanded) {
+      this.entriesDisplay.forEach(entry => this.expandedJournalEntries.add(entry.journalEntryId));
+    } else {
+      this.expandedJournalEntries.clear();
+    }
+    this.applyLinesDisplay();
+  }
+
+  updateIsAllExpanded(): void {
+    if (!this.usesGroupedJournalEntryDisplay || this.entriesDisplay.length === 0) {
+      this.isAllExpanded = false;
+      return;
+    }
+
+    this.isAllExpanded = this.entriesDisplay.every(entry => this.expandedJournalEntries.has(entry.journalEntryId));
+  }
+
+  getDetailLineColumnNames(): string[] {
+    return Object.keys(this.activeDetailLineDisplayedColumns);
+  }
+
+  getDetailLineColumnWidth(columnName: string): string | null {
+    if (this.isDetailLineGrowColumn(columnName)) {
+      return null;
+    }
+
+    return this.activeDetailLineDisplayedColumns[columnName]?.maxWidth ?? null;
+  }
+
+  isDetailLineGrowColumn(columnName: string): boolean {
+    return columnName === 'description';
+  }
+
+  getDetailLineColumnMinWidth(columnName: string): string | null {
+    if (this.isDetailLineGrowColumn(columnName)) {
+      return this.activeDetailLineDisplayedColumns[columnName]?.maxWidth ?? '38ch';
+    }
+
+    return this.getDetailLineColumnWidth(columnName);
+  }
+
+  get activeDetailLineDisplayedColumns(): ColumnSet {
+    const columns = { ...this.detailLineDisplayedColumns };
+
+    if (this.showTableLineSelections) {
+      columns['lineNo'] = {
+        ...columns['lineNo'],
+        maxWidth: '9ch'
+      };
+    }
+
+    return columns;
+  }
+
+  getDetailLineColumnValue(line: JournalEntryLineListDisplay, columnName: string, lineIndex: number): string {
+    switch (columnName) {
+      case 'lineNo':
+        return String(lineIndex + 1);
+      case 'propertyCode':
+        return line.propertyCode || '—';
+      case 'reservationCode':
+        return line.reservationCode || '—';
+      case 'contactName':
+        return line.contactName || '—';
+      case 'account':
+        return line.account || '—';
+      case 'description':
+        return line.description || '—';
+      case 'debit':
+        return line.debit || '';
+      case 'credit':
+        return line.credit || '';
+      case 'balance':
+        return line.balance || '';
+      default:
+        return '—';
+    }
+  }
+
+  isDetailLineSelectable(line: JournalEntryLineListDisplay): boolean {
+    if (this.showDepositTableSelections) {
+      return this.getLineNetAmount(line) > 0;
+    }
+
+    if (this.showTransferTableSelections) {
+      return this.isUntransferredFundsLineSelectable(line);
+    }
+
+    if (this.showPrintCheckTableSelections) {
+      return this.isPrintCheckLineSelectable(line);
+    }
+
+    return false;
+  }
+
+  isDetailLineSelected(line: JournalEntryLineListDisplay): boolean {
+    return this.selectedJournalEntryLineIds.has(line.journalEntryLineId);
+  }
+
+  onDetailLineSelectionChange(line: JournalEntryLineListDisplay, checked: boolean): void {
+    if (checked && !this.isDetailLineSelectable(line)) {
+      return;
+    }
+
+    if (checked) {
+      this.selectedJournalEntryLineIds.add(line.journalEntryLineId);
+    } else {
+      this.selectedJournalEntryLineIds.delete(line.journalEntryLineId);
+    }
+
+    this.applyLinesDisplay();
+
+    if (this.isDepositSelectionMode) {
+      this.syncDepositAmountFromLineSelection();
+    }
+
+    this.markViewForCheck();
   }
 
   applyLineSelectionSet(
@@ -2426,12 +2659,59 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return this.showGeneralLedgerRowActions;
   }
 
-  get showGeneralLedgerRowActions(): boolean {
+  get showGeneralLedgerRowEditAction(): boolean {
+    return this.usesGroupedJournalEntryDisplay;
+  }
+
+  get showGeneralLedgerRowDeleteAction(): boolean {
     return !this.undepositedFundsOnly
       && !this.untransferredFundsOnly
       && !this.transferReportOnly
       && !this.depositsOnly
       && !this.printChecksOnly;
+  }
+
+  get showGeneralLedgerDetailActionsPadding(): boolean {
+    return this.showGeneralLedgerRowEditAction || this.showGeneralLedgerRowDeleteAction;
+  }
+
+  get showGeneralLedgerRowActions(): boolean {
+    return this.showGeneralLedgerRowDeleteAction;
+  }
+
+  get usesGroupedJournalEntryDisplay(): boolean {
+    return !this.transferReportOnly && !this.depositsOnly && !this.printChecksOnly;
+  }
+
+  get tableDisplayData(): Array<JournalEntryLineListDisplay | GeneralLedgerEntryDisplay> {
+    return this.usesGroupedJournalEntryDisplay ? this.entriesDisplay : this.linesDisplay;
+  }
+
+  get tableRowCount(): number {
+    return this.tableDisplayData.length;
+  }
+
+  get activeDisplayedColumns(): ColumnSet {
+    if (!this.usesGroupedJournalEntryDisplay) {
+      return this.displayedColumns;
+    }
+
+    return {
+      expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+      ...this.displayedColumns
+    };
+  }
+
+  get showTableLineSelections(): boolean {
+    return this.showDepositTableSelections || this.showTransferTableSelections || this.showPrintCheckTableSelections;
+  }
+
+  get hasActionsSelectInTable(): boolean {
+    return this.showTableLineSelections && !this.usesGroupedJournalEntryDisplay;
+  }
+
+  get hasButtonSelectAllInTable(): boolean {
+    return this.hasActionsSelectInTable;
   }
   //#endregion
 

@@ -1,3 +1,45 @@
+<ng-template #transferSplitsTemplate let-transfer>
+  <div class="detail-lines-wrapper detail-lines-align-amount">
+    @if (transfer?.splits?.length) {
+      <table>
+        <thead>
+          <tr>
+            @for (columnName of getTransferSplitColumnNames(); track columnName) {
+              @if (transferSplitDisplayedColumns[columnName]) {
+                <th [style.max-width]="getTransferSplitColumnWidth(columnName)"
+                    [style.width]="getTransferSplitColumnWidth(columnName)"
+                    [style.min-width]="getTransferSplitColumnMinWidth(columnName)"
+                    [style.text-align]="transferSplitDisplayedColumns[columnName].headerAlignment || transferSplitDisplayedColumns[columnName].alignment || 'left'">
+                  {{ transferSplitDisplayedColumns[columnName].displayAs }}
+                </th>
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (split of transfer.splits; track $index; let lineIndex = $index) {
+            <tr>
+              @for (columnName of getTransferSplitColumnNames(); track columnName) {
+                @if (transferSplitDisplayedColumns[columnName]) {
+                  <td [style.max-width]="getTransferSplitColumnWidth(columnName)"
+                      [style.width]="getTransferSplitColumnWidth(columnName)"
+                      [style.min-width]="getTransferSplitColumnMinWidth(columnName)"
+                      [style.text-align]="transferSplitDisplayedColumns[columnName].alignment || 'left'"
+                      [class.no-wrap]="true">
+                    {{ getTransferSplitColumnValue(split, columnName, lineIndex) }}
+                  </td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="no-lines">No split lines found for this transfer.</p>
+    }
+  </div>
+</ng-template>
+
 @if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
@@ -9,12 +51,17 @@
       <app-data-table
         tableName="transfers-list"
         [data]="transfersDisplay"
-        [columns]="transferDisplayedColumns"
+        [columns]="activeTransferDisplayedColumns"
         noDataMessage="No transfers"
         [hasColumnIndex]="true"
         [hasFilter]="true"
         [hasToggleTop]="false"
         [hasButtonTop]="false"
+        [hasDetailRow]="true"
+        [detailRowTemplate]="transferSplitsTemplate"
+        [includeDetailRowHeader]="false"
+        [expandAllCallback]="toggleExpandAll.bind(this)"
+        [isAllExpanded]="isAllExpanded"
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"

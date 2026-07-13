@@ -155,6 +155,7 @@ export interface ReceiptSelection {
   agreementLineId?: number | null;
   notes?: string | null;
   autoSaveValidationAttempt?: boolean;
+  receipt?: ReceiptResponse | null;
 }
 
 export interface ReceiptPrefill {

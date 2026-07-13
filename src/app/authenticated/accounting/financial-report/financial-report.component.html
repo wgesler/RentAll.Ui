@@ -5,6 +5,7 @@
         #drillDownInvoiceEditor
         [shellMode]="true"
         [invoiceIdInput]="activeInvoiceId"
+        [prefetchedInvoice]="selectedInvoice"
         [officeIdInput]="activeInvoiceOfficeId"
         [reservationIdInput]="activeInvoiceReservationId">
       </app-invoice>
@@ -13,6 +14,7 @@
         [officeId]="drillDownReceiptOfficeId"
         [property]="drillDownReceiptProperty"
         [receiptId]="activeReceiptId"
+        [prefetchedReceipt]="selectedReceipt"
         [shellContext]="'accounting'"
         (savedEvent)="onDrillDownReceiptSaved()">
       </app-receipt>
@@ -20,6 +22,7 @@
       <app-general-ledger
         [journalEntryId]="activeJournalEntryId"
         [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+        [prefetchedJournalEntry]="selectedJournalEntry"
         (backEvent)="closeJournalEntryDetail()"
         (savedEvent)="onJournalEntrySaved()">
       </app-general-ledger>

@@ -1,4 +1,4 @@
-@if (!isPageReady && receiptId) {
+@if ((!isPageReady || !isReceiptContentReady) && receiptId) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading receipt...</p>

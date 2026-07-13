@@ -1,4 +1,4 @@
-@if (!isPageReady && transferId) {
+@if ((!isPageReady || !isTransferContentReady) && transferId) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading transfer...</p>

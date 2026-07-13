@@ -533,6 +533,7 @@
 }
 
 .detail-lines-wrapper {
+  margin: 0 250px 0 40px;
   padding: 12px 0 12px 24px;
   background-color: #f9f9f9;
   border-left: 2px solid #e0e0e0;
@@ -544,10 +545,11 @@
     
     thead {
       tr {
-        background-color: #d0d0d0;
+        background-color: transparent;
       }
       
       th {
+        background-color: #d0d0d0;
         border-bottom: 1px solid #bbb;
         font-weight: 500;
         color: #333;

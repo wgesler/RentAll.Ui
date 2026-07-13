@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
@@ -14,7 +14,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { TransferDisplayList, TransferResponse, TransferSearchRequest, TransferSelection } from '../models/transfer.model';
+import { TransferDisplayList, TransferResponse, TransferSearchRequest, TransferSelection, TransferSplit } from '../models/transfer.model';
 import { TransferService } from '../services/transfer.service';
 
 @Component({
@@ -26,6 +26,8 @@ import { TransferService } from '../services/transfer.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
+  @ViewChild('transferSplitsTemplate') transferSplitsTemplate?: TemplateRef<unknown>;
+
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() searchRequest?: TransferSearchRequest | null;
@@ -43,6 +45,8 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   transfers: TransferResponse[] = [];
   transfersDisplay: TransferDisplayList[] = [];
   allTransfers: TransferDisplayList[] = [];
+  expandedTransfers = new Set<string>();
+  isAllExpanded = false;
   propertyCodeLookup = new Map<string, string>();
   transfersLoadId = 0;
   lastTransferSearchKey: string | null = null;
@@ -53,7 +57,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     transferDate: { displayAs: 'Transfer Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     transferCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '28ch', sortType: 'natural' },
     contactName: { displayAs: 'Contact', wrap: false, maxWidth: '20ch' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     bankAccountDisplay: { displayAs: 'Bank Account', wrap: true, maxWidth: '25ch' },
@@ -61,6 +65,16 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+  };
+
+  readonly transferSplitDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '28ch', wrap: false },
+    contactName: { displayAs: 'Contact', maxWidth: '24ch', wrap: false },
+    account: { displayAs: 'Account', maxWidth: '42ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '44ch', wrap: false },
+    amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   constructor(
@@ -202,10 +216,12 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     const selectedPropertyId = (event.propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
       .find(propertyId => propertyId.length > 0) || null;
+    const transfer = this.transfers.find(item => item.transferId === event.transferId) ?? null;
     this.transferSelect.emit({
       transferId: event.transferId,
       officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
-      propertyId: selectedPropertyId
+      propertyId: selectedPropertyId,
+      transfer
     });
   }
   //#endregion
@@ -364,9 +380,113 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    this.transfersDisplay = this.showInactive
+    const filtered = this.showInactive
       ? this.allTransfers.filter(row => row.isActive === false)
       : this.allTransfers.filter(row => row.isActive !== false);
+
+    this.transfersDisplay = filtered.map(transfer => ({
+      ...transfer,
+      expand: transfer.transferId,
+      expanded: this.expandedTransfers.has(transfer.transferId),
+      expandClick: (event: Event, item: TransferDisplayList) => {
+        event.stopPropagation();
+        if (this.expandedTransfers.has(item.transferId)) {
+          this.expandedTransfers.delete(item.transferId);
+        } else {
+          this.expandedTransfers.add(item.transferId);
+        }
+        this.applyFilters();
+        this.markViewForCheck();
+      }
+    }));
+
+    this.updateIsAllExpanded();
+  }
+
+  get activeTransferDisplayedColumns(): ColumnSet {
+    return {
+      expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+      ...this.transferDisplayedColumns
+    };
+  }
+
+  getTransferSplitColumnNames(): string[] {
+    return Object.keys(this.transferSplitDisplayedColumns);
+  }
+
+  getTransferSplitColumnWidth(columnName: string): string | null {
+    if (this.isTransferSplitGrowColumn(columnName)) {
+      return null;
+    }
+
+    return this.transferSplitDisplayedColumns[columnName]?.maxWidth ?? null;
+  }
+
+  getTransferSplitColumnMinWidth(columnName: string): string | null {
+    if (this.isTransferSplitGrowColumn(columnName)) {
+      return this.transferSplitDisplayedColumns[columnName]?.maxWidth ?? '44ch';
+    }
+
+    return this.getTransferSplitColumnWidth(columnName);
+  }
+
+  isTransferSplitGrowColumn(columnName: string): boolean {
+    return columnName === 'description';
+  }
+
+  getTransferSplitColumnValue(split: TransferSplit, columnName: string, lineIndex: number): string {
+    switch (columnName) {
+      case 'lineNo':
+        return String(lineIndex + 1);
+      case 'propertyCode':
+        return this.getSplitPropertyCode(split);
+      case 'reservationCode':
+        return (split.reservationCode || '').trim() || '—';
+      case 'contactName':
+        return (split.contactName || '').trim() || '—';
+      case 'account':
+        return (split.chartOfAccountDisplayName || '').trim() || '—';
+      case 'description':
+        return (split.description || '').trim() || '—';
+      case 'amount':
+        return this.formatter.currencyUsd(Number(split.amount) || 0);
+      default:
+        return '—';
+    }
+  }
+
+  getSplitPropertyCode(split: TransferSplit): string {
+    const code = (split.propertyCode || '').trim();
+    if (code.length > 0) {
+      return code;
+    }
+
+    const propertyId = (split.propertyId || '').trim();
+    if (propertyId.length > 0) {
+      return this.propertyCodeLookup.get(propertyId) || '—';
+    }
+
+    return '—';
+  }
+
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    if (expanded) {
+      this.transfersDisplay.forEach(transfer => this.expandedTransfers.add(transfer.transferId));
+    } else {
+      this.expandedTransfers.clear();
+    }
+    this.applyFilters();
+    this.markViewForCheck();
+  }
+
+  updateIsAllExpanded(): void {
+    if (this.transfersDisplay.length === 0) {
+      this.isAllExpanded = false;
+      return;
+    }
+
+    this.isAllExpanded = this.transfersDisplay.every(transfer => this.expandedTransfers.has(transfer.transferId));
   }
 
   formatPropertyCodes(propertyIds: string[] | undefined | null): string {

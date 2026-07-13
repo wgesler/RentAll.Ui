@@ -115,6 +115,95 @@ export interface JournalEntryResponse {
   modifiedBy: string;
 }
 
+export interface JournalEntryLineSelection {
+  journalEntryId: string;
+  journalEntryLineId: string;
+  journalEntry?: JournalEntryResponse | null;
+}
+
+export function isBalancedJournalEntrySearchLines(lines: JournalEntryLineSearchResponse[]): boolean {
+  if (!lines.length) {
+    return false;
+  }
+
+  const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit || 0), 0);
+  const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
+  return Math.abs(totalDebit - totalCredit) < 0.005;
+}
+
+export function buildJournalEntryFromSearchLines(
+  journalEntryId: string,
+  lines: JournalEntryLineSearchResponse[],
+  organizationId: string
+): JournalEntryResponse | null {
+  const entryLines = lines.filter(line => line.journalEntryId === journalEntryId);
+  if (!entryLines.length || !isBalancedJournalEntrySearchLines(entryLines)) {
+    return null;
+  }
+
+  const header = entryLines[0];
+  return {
+    journalEntryId,
+    organizationId,
+    officeId: header.officeId,
+    journalEntryCode: header.journalEntryCode,
+    transactionDate: header.transactionDate,
+    postingDate: header.postingDate,
+    sourceTypeId: header.sourceTypeId ?? null,
+    sourceId: header.sourceId ?? null,
+    sourceCode: header.sourceCode ?? null,
+    memo: header.journalEntryMemo ?? null,
+    isPosted: header.isPosted,
+    isVoided: header.isVoided,
+    createdOn: header.createdOn,
+    createdBy: header.createdBy,
+    modifiedOn: header.modifiedOn,
+    modifiedBy: header.modifiedBy,
+    journalEntryLines: entryLines.map(line => ({
+      journalEntryLineId: line.journalEntryLineId,
+      journalEntryId: line.journalEntryId,
+      chartOfAccountId: line.chartOfAccountId,
+      costCodeId: line.costCodeId ?? null,
+      propertyId: line.propertyId ?? null,
+      propertyCode: line.propertyCode ?? null,
+      reservationId: line.reservationId ?? null,
+      reservationCode: line.reservationCode ?? null,
+      contactId: line.contactId ?? null,
+      contactName: line.contactName ?? null,
+      debit: line.debit,
+      credit: line.credit,
+      memo: line.memo ?? null,
+      createdOn: line.createdOn,
+      createdBy: line.createdBy,
+      modifiedOn: line.modifiedOn,
+      modifiedBy: line.modifiedBy
+    }))
+  };
+}
+
+export interface GeneralLedgerEntryDisplay {
+  journalEntryId: string;
+  journalEntryLineId: string;
+  transactionDate: string;
+  journalEntryCode: string;
+  source: string;
+  propertyCode: string;
+  reservationCode: string;
+  contactName: string;
+  account: string;
+  description: string;
+  debit: string;
+  credit: string;
+  balance: string;
+  debitValue: number;
+  creditValue: number;
+  disabled?: boolean;
+  journalEntryLines: JournalEntryLineListDisplay[];
+  expand: string;
+  expanded: boolean;
+  expandClick: (event: Event, item: GeneralLedgerEntryDisplay) => void;
+}
+
 export interface JournalEntryLineListDisplay {
   journalEntryLineId: string;
   journalEntryId: string;

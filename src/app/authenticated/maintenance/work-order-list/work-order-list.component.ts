@@ -29,6 +29,7 @@ export interface WorkOrderSelection {
   workOrderId: string | null;
   propertyId: string | null;
   officeId?: number | null;
+  workOrder?: WorkOrderResponse | null;
 }
 
 @Component({
@@ -267,12 +268,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     const workOrderId = (event?.workOrderId || '').toString().trim();
     if (!workOrderId) return;
     const resolvedPropertyId = this.resolvePropertyIdForWorkOrder(event);
+    const workOrder = this.workOrders.find(item => item.workOrderId === workOrderId) ?? null;
 
     if (this.embeddedInMaintenance) {
       this.workOrderSelect.emit({
         workOrderId,
         propertyId: resolvedPropertyId,
-        officeId: event.officeId ?? this.officeId ?? this.property?.officeId ?? null
+        officeId: event.officeId ?? this.officeId ?? this.property?.officeId ?? null,
+        workOrder
       });
       return;
     }
@@ -283,7 +286,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [workOrderId]);
     this.router.navigate([url], {
       queryParams: resolvedPropertyId ? { propertyId: resolvedPropertyId } : {},
-      state: { property: this.property }
+      state: { property: this.property, prefetchedWorkOrder: workOrder }
     });
   }
 

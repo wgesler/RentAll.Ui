@@ -32,6 +32,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() depositId: string | null = null;
+  @Input() prefetchedDeposit: DepositResponse | null = null;
+  @Input() shellChartOfAccounts: ChartOfAccountResponse[] | null = null;
+  @Input() shellPropertyCodes: PropertyCodeResponse[] | null = null;
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<DepositResponse>();
@@ -41,6 +44,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   isAddMode = true;
   isSubmitting = false;
   isPageReady = false;
+  isDepositContentReady = false;
   organizationId = '';
   deposit: DepositResponse | null = null;
   chartOfAccounts: ChartOfAccountResponse[] = [];
@@ -57,7 +61,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   saveValidationHighlightActive = false;
   isSyncingInitialSplit = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['deposit']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   readonly requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
@@ -96,17 +100,20 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.buildForm();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
     this.isAddMode = this.depositId == null;
+    this.applyShellReferenceData();
     this.loadOffices();
     this.loadPropertyCodes();
     this.loadAccountingOffices();
     this.loadChartOfAccounts();
     if (this.isAddMode) {
+      this.isDepositContentReady = true;
       this.clearDepositLoading();
-    } else {
-      this.loadDeposit();
-    }
-    if (this.isAddMode) {
       this.applyShellOfficeToDeposit();
+    } else if (this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
+      this.applyLoadedDeposit(this.prefetchedDeposit);
+    } else {
+      this.isDepositContentReady = false;
+      this.loadDeposit();
     }
   }
 
@@ -117,16 +124,32 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['depositId'] && !changes['depositId'].firstChange) {
+      this.isAddMode = this.depositId == null;
+      if (this.isAddMode) {
+        this.resetForAddMode();
+      } else {
+        this.isDepositContentReady = false;
+        if (this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
+          this.applyLoadedDeposit(this.prefetchedDeposit);
+        } else {
+          this.loadDeposit();
+        }
+      }
+    }
+    if (changes['prefetchedDeposit'] && !changes['prefetchedDeposit'].firstChange
+      && this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
+      this.applyLoadedDeposit(this.prefetchedDeposit);
+    }
+    if (changes['shellChartOfAccounts'] || changes['shellPropertyCodes']) {
+      this.applyShellReferenceData();
+    }
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.applyShellOfficeToDeposit();
       this.applyChartOfAccountsForOffice();
     }
     if (changes['property']) {
       this.applyPropertyInputToForm();
-    }
-    if (changes['depositId'] && !changes['depositId'].firstChange) {
-      this.isAddMode = this.depositId == null;
-      this.loadDeposit();
     }
   }
 
@@ -253,48 +276,61 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
 
+    this.isDepositContentReady = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'deposit');
     this.depositService.getDepositById(this.depositId).pipe(take(1), finalize(() => this.clearDepositLoading())).subscribe({
-      next: (deposit: DepositResponse) => {
-        this.deposit = deposit;
-        this.populateForm(deposit);
-        this.applyChartOfAccountsForOffice();
-        this.cdr.markForCheck();
-      },
+      next: (deposit: DepositResponse) => this.applyLoadedDeposit(deposit),
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to load deposit.', 'Error');
       }
     });
   }
 
+  applyLoadedDeposit(deposit: DepositResponse): void {
+    this.deposit = deposit;
+    this.populateForm(deposit);
+    this.applyChartOfAccountsForOffice();
+    this.clearDepositLoading();
+    this.isDepositContentReady = true;
+    this.cdr.markForCheck();
+  }
+
+  applyShellReferenceData(): void {
+    if (this.shellChartOfAccounts?.length) {
+      this.chartOfAccounts = this.shellChartOfAccounts;
+    }
+    if (this.shellPropertyCodes?.length) {
+      this.propertyOptions = this.shellPropertyCodes;
+    }
+    if (this.chartOfAccounts.length > 0) {
+      this.applyChartOfAccountsForOffice();
+    }
+  }
+
+  resetForAddMode(): void {
+    this.deposit = null;
+    this.isDepositContentReady = true;
+    this.clearDepositLoading();
+    this.buildForm();
+    this.applyShellOfficeToDeposit();
+    this.applyPropertyInputToForm();
+  }
+
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
-      next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: (properties) => {
-            this.propertyOptions = properties || [];
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            this.propertyOptions = [];
-            this.cdr.markForCheck();
-          }
-        });
-      }
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe(() => {
+      this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe(properties => {
+        this.propertyOptions = properties || [];
+        this.cdr.markForCheck();
+      });
     });
   }
 
   loadOffices(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'offices');
-    this.officeService.getOffices(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
-      next: (offices) => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.cdr.markForCheck();
-      },
-      error: () => {
-        this.offices = [];
-        this.cdr.markForCheck();
-      }
+      });
     });
   }
 

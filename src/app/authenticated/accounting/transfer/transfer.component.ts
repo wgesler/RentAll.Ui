@@ -31,6 +31,9 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() transferId: string | null = null;
+  @Input() prefetchedTransfer: TransferResponse | null = null;
+  @Input() shellChartOfAccounts: ChartOfAccountResponse[] | null = null;
+  @Input() shellPropertyCodes: PropertyCodeResponse[] | null = null;
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<TransferResponse>();
@@ -40,6 +43,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   isAddMode = true;
   isSubmitting = false;
   isPageReady = false;
+  isTransferContentReady = false;
   organizationId = '';
   transfer: TransferResponse | null = null;
   chartOfAccounts: ChartOfAccountResponse[] = [];
@@ -56,7 +60,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   saveValidationHighlightActive = false;
   isSyncingInitialSplit = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transfer']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   readonly requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
@@ -95,17 +99,20 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     this.buildForm();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
     this.isAddMode = this.transferId == null;
+    this.applyShellReferenceData();
     this.loadOffices();
     this.loadPropertyCodes();
     this.loadAccountingOffices();
     this.loadChartOfAccounts();
     if (this.isAddMode) {
+      this.isTransferContentReady = true;
       this.clearTransferLoading();
-    } else {
-      this.loadTransfer();
-    }
-    if (this.isAddMode) {
       this.applyShellOfficeToTransfer();
+    } else if (this.prefetchedTransfer && this.prefetchedTransfer.transferId === this.transferId) {
+      this.applyLoadedTransfer(this.prefetchedTransfer);
+    } else {
+      this.isTransferContentReady = false;
+      this.loadTransfer();
     }
   }
 
@@ -116,16 +123,32 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['transferId'] && !changes['transferId'].firstChange) {
+      this.isAddMode = this.transferId == null;
+      if (this.isAddMode) {
+        this.resetForAddMode();
+      } else {
+        this.isTransferContentReady = false;
+        if (this.prefetchedTransfer && this.prefetchedTransfer.transferId === this.transferId) {
+          this.applyLoadedTransfer(this.prefetchedTransfer);
+        } else {
+          this.loadTransfer();
+        }
+      }
+    }
+    if (changes['prefetchedTransfer'] && !changes['prefetchedTransfer'].firstChange
+      && this.prefetchedTransfer && this.prefetchedTransfer.transferId === this.transferId) {
+      this.applyLoadedTransfer(this.prefetchedTransfer);
+    }
+    if (changes['shellChartOfAccounts'] || changes['shellPropertyCodes']) {
+      this.applyShellReferenceData();
+    }
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.applyShellOfficeToTransfer();
       this.applyChartOfAccountsForOffice();
     }
     if (changes['property']) {
       this.applyPropertyInputToForm();
-    }
-    if (changes['transferId'] && !changes['transferId'].firstChange) {
-      this.isAddMode = this.transferId == null;
-      this.loadTransfer();
     }
   }
 
@@ -254,34 +277,52 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       return;
     }
 
+    this.isTransferContentReady = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'transfer');
     this.transferService.getTransferById(this.transferId).pipe(take(1), finalize(() => this.clearTransferLoading())).subscribe({
-      next: (transfer: TransferResponse) => {
-        this.transfer = transfer;
-        this.populateForm(transfer);
-        this.applyChartOfAccountsForOffice();
-        this.cdr.markForCheck();
-      },
+      next: (transfer: TransferResponse) => this.applyLoadedTransfer(transfer),
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to load transfer.', 'Error');
       }
     });
   }
 
+  applyLoadedTransfer(transfer: TransferResponse): void {
+    this.transfer = transfer;
+    this.populateForm(transfer);
+    this.applyChartOfAccountsForOffice();
+    this.clearTransferLoading();
+    this.isTransferContentReady = true;
+    this.cdr.markForCheck();
+  }
+
+  applyShellReferenceData(): void {
+    if (this.shellChartOfAccounts?.length) {
+      this.chartOfAccounts = this.shellChartOfAccounts;
+    }
+    if (this.shellPropertyCodes?.length) {
+      this.propertyOptions = this.shellPropertyCodes;
+    }
+    if (this.chartOfAccounts.length > 0) {
+      this.applyChartOfAccountsForOffice();
+    }
+  }
+
+  resetForAddMode(): void {
+    this.transfer = null;
+    this.isTransferContentReady = true;
+    this.clearTransferLoading();
+    this.buildForm();
+    this.applyShellOfficeToTransfer();
+    this.applyPropertyInputToForm();
+  }
+
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
-      next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: (properties) => {
-            this.propertyOptions = properties || [];
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            this.propertyOptions = [];
-            this.cdr.markForCheck();
-          }
-        });
-      }
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe(() => {
+      this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe(properties => {
+        this.propertyOptions = properties || [];
+        this.cdr.markForCheck();
+      });
     });
   }
 

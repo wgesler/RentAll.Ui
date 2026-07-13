@@ -97,4 +97,5 @@ export interface TransferSelection {
   transferId: string | null;
   officeId: number | null;
   propertyId: string | null;
+  transfer?: TransferResponse | null;
 }
