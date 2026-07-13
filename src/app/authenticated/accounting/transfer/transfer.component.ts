@@ -269,8 +269,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   loadPropertyCodes(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: (properties) => {
         this.propertyOptions = properties || [];
         this.cdr.markForCheck();
@@ -283,16 +282,11 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   loadOffices(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'offices');
-    this.officeService.getOffices(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
-      next: (offices) => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.cdr.markForCheck();
-      },
-      error: () => {
-        this.offices = [];
-        this.cdr.markForCheck();
-      }
+      });
     });
   }
 

@@ -67,7 +67,7 @@
           [hasActionsRowClick]="!showDepositForm && !showTransferForm"
           [itemsPerPage]="10"
           (rowClickEvent)="onLineSelect($event)"
-          (sourceClickEvent)="onSourceClick($event)"
+          (sourceClickEvent)="onTransferReportSourceClick($event)"
           (selectionSet)="onTableLineSelectionSet($event)">
           @if (undepositedFundsOnly) {
             <div dataTableFilterActions>

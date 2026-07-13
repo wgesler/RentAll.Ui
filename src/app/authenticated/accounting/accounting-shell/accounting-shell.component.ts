@@ -1819,15 +1819,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (kindChanged) {
-      this.syncBillsSearchRequest();
-      this.refreshActiveBankActivityList();
-      this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: this.buildShellQueryParams({ bankActivity: kind }),
-        queryParamsHandling: 'merge'
-      });
-    }
+    this.syncBillsSearchRequest();
+    this.refreshActiveBankActivityList();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ bankActivity: kind }),
+      queryParamsHandling: 'merge'
+    });
   }
 
   selectOwnerKind(kind: AccountingShellOwnerKind): void {
@@ -1894,16 +1892,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (kindChanged) {
-      if (kind !== 'recap') {
-        this.refreshGeneralLedgerListView();
-      }
-      this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: this.buildShellQueryParams({ glView: kind }),
-        queryParamsHandling: 'merge'
-      });
+    if (kind !== 'recap') {
+      this.refreshGeneralLedgerListView();
     }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ glView: kind }),
+      queryParamsHandling: 'merge'
+    });
   }
 
   selectReport(kind: AccountingShellReportKind): void {
