@@ -145,7 +145,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.officeService.clearOffices();
       this.organizationFeatureService.clearFeatures();
       this.accountingOfficeService.clearAccountingOffices();
-      this.globalSelectionService.setSelectedOfficeId(null);
+      this.globalSelectionService.clearGlobalOfficeSelection();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'features');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
@@ -160,7 +160,7 @@ export class AppComponent implements OnInit, OnDestroy {
           features: this.organizationFeatureService.refreshFeatures(this.organizationId).pipe(take(1))
         }).pipe(
           map(({ features }) => {
-            this.globalSelectionService.syncWithAvailableOffices(activeOffices);
+            this.globalSelectionService.reconcileGlobalOfficeWithAvailableOffices(activeOffices);
             return features || [];
           })
         );

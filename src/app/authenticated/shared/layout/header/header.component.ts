@@ -192,8 +192,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   onGlobalOfficeSelect(officeId: number | null): void {
-    this.selectedGlobalOfficeId = officeId;
-    this.globalSelectionService.setSelectedOfficeId(officeId);
+    this.globalSelectionService.setUserGlobalOfficeSelection(officeId);
   }
 
   stopMenuPropagation(event: Event): void {
@@ -221,7 +220,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.offices = this.globalSelectionService.filterOfficeListForUser(activeOffices);
         if (!this.globalOfficeOptionsInitialized) {
           this.globalOfficeOptionsInitialized = true;
-          this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices);
+          this.globalSelectionService.reconcileGlobalOfficeWithAvailableOffices(this.offices);
+          this.globalSelectionService.initializeUserGlobalOfficeIfUnset(this.offices);
         } else {
           this.reconcileGlobalOfficeSelection();
         }
@@ -232,11 +232,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   /** Keep header in sync when office cache reloads without re-seeding global office from defaults. */
   private reconcileGlobalOfficeSelection(): void {
-    const currentOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    if (currentOfficeId !== null && !this.offices.some(office => office.officeId === currentOfficeId)) {
-      this.globalSelectionService.setSelectedOfficeId(null);
-    }
-    this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.globalSelectionService.reconcileGlobalOfficeWithAvailableOffices(this.offices);
   }
 
   isPinStorageKey(key: string): boolean {

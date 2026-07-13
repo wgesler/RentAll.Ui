@@ -48,12 +48,63 @@ export class GlobalSelectionService {
     return this.selectedOfficeId$.value;
   }
 
-  setSelectedOfficeId(officeId: number | null): void {
-    if (this.selectedOfficeId$.value === officeId) {
+  /** Working Office in the user profile menu — the only intentional user write path. */
+  setUserGlobalOfficeSelection(officeId: number | null): void {
+    this.applyGlobalOfficeSelection(officeId);
+  }
+
+  /** Logout / missing org — drop persisted global office. */
+  clearGlobalOfficeSelection(): void {
+    if (this.selectedOfficeId$.value === null && !localStorage.getItem(this.officeStorageKey)) {
       return;
     }
-    this.selectedOfficeId$.next(officeId);
-    this.writeOfficeIdToStorage(officeId);
+    this.selectedOfficeId$.next(null);
+    localStorage.removeItem(this.officeStorageKey);
+  }
+
+  /**
+   * Validates the current global office against accessible offices.
+   * Clears invalid selections only; never auto-picks default or single office.
+   */
+  reconcileGlobalOfficeWithAvailableOffices(offices: OfficeResponse[]): number | null {
+    const accessibleOffices = this.filterOfficeListForUser(offices || []);
+    if (!accessibleOffices.length) {
+      this.applyGlobalOfficeSelection(null);
+      return null;
+    }
+
+    const currentSelection = this.getSelectedOfficeIdValue();
+    if (currentSelection !== null && accessibleOffices.some(office => office.officeId === currentSelection)) {
+      return currentSelection;
+    }
+
+    if (currentSelection !== null) {
+      this.applyGlobalOfficeSelection(null);
+    }
+    return null;
+  }
+
+  /**
+   * First visit only (no persisted preference): seed from the user's profile default office.
+   * Does not run when the user has explicitly chosen All Offices or a specific office.
+   */
+  initializeUserGlobalOfficeIfUnset(offices: OfficeResponse[]): number | null {
+    if (localStorage.getItem(this.officeStorageKey) !== null) {
+      return this.getSelectedOfficeIdValue();
+    }
+
+    const accessibleOffices = this.filterOfficeListForUser(offices || []);
+    if (!accessibleOffices.length) {
+      return null;
+    }
+
+    const userDefaultOfficeId = this.resolveUserDefaultOfficeId(accessibleOffices);
+    if (userDefaultOfficeId !== null) {
+      this.setUserGlobalOfficeSelection(userDefaultOfficeId);
+      return userDefaultOfficeId;
+    }
+
+    return null;
   }
 
   getFurnishedPropertySelection(): boolean {
@@ -75,36 +126,17 @@ export class GlobalSelectionService {
     localStorage.removeItem(this.furnishedPropertyStorageKey);
   }
 
-  syncWithAvailableOffices(offices: OfficeResponse[]): number | null {
-    const accessibleOffices = this.filterOfficeListForUser(offices || []);
-    if (!accessibleOffices.length) {
-      this.setSelectedOfficeId(null);
-      return null;
-    }
-
-    const currentSelection = this.getSelectedOfficeIdValue();
-    if (currentSelection !== null && accessibleOffices.some(office => office.officeId === currentSelection)) {
-      return currentSelection;
-    }
-
-    const userDefaultOfficeId = this.resolveUserDefaultOfficeId(accessibleOffices);
-    if (userDefaultOfficeId !== null) {
-      this.setSelectedOfficeId(userDefaultOfficeId);
-      return userDefaultOfficeId;
-    }
-
-    if (accessibleOffices.length === 1) {
-      const singleOfficeId = accessibleOffices[0].officeId;
-      this.setSelectedOfficeId(singleOfficeId);
-      return singleOfficeId;
-    }
-
-    this.setSelectedOfficeId(null);
-    return null;
-  }
-
   verifyMainProgramAccess(features?: FeatureResponse[]): boolean {
     return this.authService.hasMainProgramAccess(features);
+  }
+
+  private applyGlobalOfficeSelection(officeId: number | null): void {
+    if (this.selectedOfficeId$.value === officeId) {
+      this.writeOfficeIdToStorage(officeId);
+      return;
+    }
+    this.selectedOfficeId$.next(officeId);
+    this.writeOfficeIdToStorage(officeId);
   }
 
   private resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
@@ -194,9 +226,9 @@ export class GlobalSelectionService {
     return source.filter(office => officeAccessSet.has(Number(office.officeId)));
   }
 
-   readOfficeIdFromStorage(): number | null {
+  readOfficeIdFromStorage(): number | null {
     const rawValue = localStorage.getItem(this.officeStorageKey);
-    if (!rawValue) {
+    if (!rawValue || rawValue === 'all') {
       return null;
     }
 
@@ -207,9 +239,9 @@ export class GlobalSelectionService {
     return parsedValue;
   }
 
-   writeOfficeIdToStorage(officeId: number | null): void {
+  writeOfficeIdToStorage(officeId: number | null): void {
     if (officeId === null) {
-      localStorage.removeItem(this.officeStorageKey);
+      localStorage.setItem(this.officeStorageKey, 'all');
       return;
     }
 

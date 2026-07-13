@@ -367,6 +367,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       });
       this.loadOffices();
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+        if (this.dateRangePinned) {
+          return;
+        }
         this.applyOfficeFromGlobal(officeId);
         this.syncBillsSearchRequest();
         if (this.selectedTabIndex === this.tabBillsReceipts) {
@@ -433,6 +436,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onInvoiceOfficeChange(officeId: number | null): void {
+    if (this.dateRangePinned) {
+      return;
+    }
     if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
       this.selectedCompanyId = null;
@@ -1770,6 +1776,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     if (this.isDropdownTabIndex(event.index)) {
+      if (this.selectedTabIndex !== event.index) {
+        this.onTabChange(event);
+        return;
+      }
       this.openDropdownTabMenu(event.index);
       this.cdr.markForCheck();
       return;
@@ -2069,6 +2079,28 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedBankActivityKind === 'untransferredFunds') {
       this.untransferredFundsRefreshTrigger++;
     }
+  }
+
+  refreshListsForActiveTab(): void {
+    if (this.selectedTabIndex === this.tabBillsReceipts) {
+      this.refreshActiveBillsReceiptList();
+    }
+    if (this.selectedTabIndex === this.tabBankActivities) {
+      this.refreshActiveBankActivityList();
+    }
+    if (this.selectedTabIndex === this.tabOwners) {
+      this.refreshActiveOwnerView();
+    }
+    if (this.usesFinancialReportTitleBarFilters()) {
+      this.financialReportsRefreshTrigger++;
+    }
+    if (this.usesArAgingTitleBarFilters()) {
+      this.financialReportsRefreshTrigger++;
+    }
+    if (this.usesGeneralLedgerTitleBarFilters()) {
+      this.refreshGeneralLedgerListView();
+    }
+    this.cdr.markForCheck();
   }
 
   refreshActiveOwnerView(): void {
@@ -3353,6 +3385,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.dateRangePinned) {
+      return;
+    }
     const previousOfficeId = this.selectedOfficeId;
     const resolvedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: this.dateRangePinned,
@@ -3634,16 +3669,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            this.applyOfficeFromGlobal(
-              this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
-            );
+            if (this.dateRangePinned) {
+              if (this.selectedOfficeId != null && !this.offices.some(office => office.officeId === this.selectedOfficeId)) {
+                this.selectedOfficeId = null;
+              }
+              this.applyPageOfficeScope(this.selectedOfficeId);
+            } else {
+              this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+            }
             this.syncBillsSearchRequest();
-            if (this.selectedTabIndex === this.tabBankActivities && this.selectedBankActivityKind === 'deposits') {
-              this.depositsRefreshTrigger++;
-            }
-            if (this.selectedTabIndex === this.tabBankActivities && this.selectedBankActivityKind === 'transfers') {
-              this.transfersRefreshTrigger++;
-            }
+            this.refreshListsForActiveTab();
           }
         });
       },
