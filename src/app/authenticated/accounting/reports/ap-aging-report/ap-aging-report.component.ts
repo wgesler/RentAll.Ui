@@ -34,6 +34,7 @@ import {
   ApAgingReportResult,
   ApAgingVisibleRow
 } from '../../models/ap-aging-report.model';
+import { ReceiptType } from '../../../maintenance/models/maintenance-enums';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
 
 @Component({
@@ -49,6 +50,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   @Input() officeId: number | null = null;
   @Input() reportFilters: ApAgingReportFilters | null = null;
   @Input() refreshTrigger = 0;
+  @Input() payableAccountMode: 'standard' | 'owner' = 'standard';
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
   formatter = inject(FormatterService);
@@ -66,6 +68,20 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
   isServiceError = false;
   noDataMessage = 'No open payables for the selected filters and as-of date.';
+
+  get isOwnerPayableMode(): boolean {
+    return this.payableAccountMode === 'owner';
+  }
+
+  get reportDisplayTitle(): string {
+    return this.isOwnerPayableMode ? 'Owner A/P Aging Summary' : 'A/P Aging Summary';
+  }
+
+  get emptyPayablesMessage(): string {
+    return this.isOwnerPayableMode
+      ? 'No open owner payables for the selected filters and as-of date.'
+      : 'No open payables for the selected filters and as-of date.';
+  }
   reportResult: ApAgingReportResult | null = null;
   visibleRows: ApAgingVisibleRow[] = [];
   previewIframeHtml = '';
@@ -133,7 +149,8 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const shouldReload =
       (changes['officeId'] && !changes['officeId'].firstChange)
       || reportFiltersChanged
-      || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange);
+      || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
+      || (changes['payableAccountMode'] && !changes['payableAccountMode'].firstChange);
 
     if (shouldReload) {
       this.loadReceipts();
@@ -244,11 +261,23 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         this.allReceipts = [];
         this.isServiceError = true;
         this.reportResult = null;
-        const message = typeof error?.error === 'string' ? error.error : 'Unable to load bills for AP Aging.';
-        this.toastr.error(message, 'AP Aging');
+        const message = typeof error?.error === 'string'
+          ? error.error
+          : `Unable to load bills for ${this.isOwnerPayableMode ? 'Owner A/P Aging' : 'AP Aging'}.`;
+        this.toastr.error(message, this.isOwnerPayableMode ? 'Owner A/P Aging' : 'AP Aging');
         this.markViewForCheck();
       }
     });
+  }
+
+  getSourceReceiptsForReport(): ReceiptResponse[] {
+    if (!this.isOwnerPayableMode) {
+      return this.allReceipts || [];
+    }
+
+    return (this.allReceipts || []).filter(receipt =>
+      (receipt.splits || []).some(split => Number(split.receiptTypeId) === ReceiptType.Owner)
+    );
   }
   //#endregion
 
@@ -256,15 +285,17 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   applyReportDisplay(): void {
     try {
       const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+      this.noDataMessage = this.emptyPayablesMessage;
       this.reportResult = this.mappingService.buildApAgingReport({
-        receipts: this.allReceipts,
+        receipts: this.getSourceReceiptsForReport(),
         propertyCodeByPropertyId: this.propertyCodeByPropertyId,
         asOfDate,
         intervalDays: this.reportFilters?.intervalDays ?? 30,
         throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
         sortBy: this.reportFilters?.sortBy ?? 'default',
         companyName: this.companyName,
-        officeName: this.displayOfficeName
+        officeName: this.displayOfficeName,
+        reportTitle: this.reportDisplayTitle
       });
       this.initializeExpandedVendors();
       this.rebuildVisibleRows();
@@ -582,7 +613,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get shellReportTitle(): string {
-    return this.reportResult?.reportTitle?.trim() || 'AP Aging';
+    return this.reportResult?.reportTitle?.trim() || (this.isOwnerPayableMode ? 'Owner A/P Aging' : 'AP Aging');
   }
 
   get shellReportEntityLine(): string {

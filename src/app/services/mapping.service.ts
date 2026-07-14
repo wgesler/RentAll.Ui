@@ -6051,7 +6051,7 @@ export class MappingService {
 
     const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
     return {
-      reportTitle: 'A/P Aging Summary',
+      reportTitle: (request.reportTitle || '').trim() || 'A/P Aging Summary',
       periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
       entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
       bucketColumns: bucketDefinitions.map(bucket => ({ id: bucket.id, label: bucket.label })),

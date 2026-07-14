@@ -1166,12 +1166,13 @@
                   (drillDownActiveChange)="onArAgingDrillDownActiveChange($event)"
                   (journalEntriesChanged)="onArAgingJournalEntriesChanged()">
                 </app-ar-aging-report>
-              } @else if (selectedReportKind === 'apAging') {
+              } @else if (selectedReportKind === 'apAging' || selectedReportKind === 'ownerApAging') {
                 <app-ap-aging-report
                   #apAgingReport
                   [officeId]="selectedOfficeId"
                   [reportFilters]="apAgingReportFilters"
                   [refreshTrigger]="financialReportsRefreshTrigger"
+                  [payableAccountMode]="selectedReportKind === 'ownerApAging' ? 'owner' : 'standard'"
                   (drillDownActiveChange)="onApAgingDrillDownActiveChange($event)"
                   (journalEntriesChanged)="onApAgingJournalEntriesChanged()">
                 </app-ap-aging-report>

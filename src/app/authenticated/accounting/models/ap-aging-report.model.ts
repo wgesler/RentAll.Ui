@@ -50,6 +50,7 @@ export interface ApAgingReportBuildRequest {
   sortBy?: ApAgingSortBy;
   companyName?: string;
   officeName?: string;
+  reportTitle?: string;
 }
 
 export interface ApAgingBillDetail {

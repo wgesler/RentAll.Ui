@@ -236,6 +236,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'balanceSheet', label: 'Balance Sheet' },
     { kind: 'arAging', label: 'A/R Aging' },
     { kind: 'apAging', label: 'A/P Aging' },
+    { kind: 'ownerApAging', label: 'Owner A/P Aging' },
     { kind: 'reconcileAccountSummary', label: 'Reconcile' }
   ];
   readonly shellGeneralLedgerMenuOptions: { kind: AccountingShellGeneralLedgerKind; label: string }[] = [
@@ -784,7 +785,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get activeFinancialReport(): FinancialReportComponent | undefined {
-    if (this.selectedTabIndex === this.tabReports && this.selectedReportKind !== 'arAging' && this.selectedReportKind !== 'apAging') {
+    if (this.selectedTabIndex === this.tabReports && this.selectedReportKind !== 'arAging' && !this.isApAgingReportKind(this.selectedReportKind)) {
       return this.financialReport;
     }
     return undefined;
@@ -836,7 +837,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   usesArAgingTitleBarFilters(): boolean {
     return this.selectedTabIndex === this.tabReports
-      && (this.selectedReportKind === 'arAging' || this.selectedReportKind === 'apAging');
+      && (this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind));
   }
 
   get usesArAgingSortByOptions(): boolean {
@@ -844,13 +845,17 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get usesApAgingSortByOptions(): boolean {
-    return this.selectedReportKind === 'apAging';
+    return this.isApAgingReportKind(this.selectedReportKind);
   }
 
   get selectedAgingSortByValue(): string {
-    return this.selectedReportKind === 'apAging'
+    return this.isApAgingReportKind(this.selectedReportKind)
       ? this.selectedApAgingSortBy
       : this.selectedArAgingSortBy;
+  }
+
+  isApAgingReportKind(kind: AccountingShellReportKind | null | undefined): boolean {
+    return kind === 'apAging' || kind === 'ownerApAging';
   }
 
   get showArAgingCustomAsOfDate(): boolean {
@@ -2291,7 +2296,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (kind === 'arAging' || kind === 'apAging') {
+    if (kind === 'arAging' || this.isApAgingReportKind(kind)) {
       this.isFinancialReportDrillDownActive = false;
       this.isFinancialReportJournalEntryDetailActive = false;
       this.isArAgingDrillDownActive = false;
@@ -3487,7 +3492,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   usesFinancialReportTitleBarFilters(): boolean {
     return this.selectedTabIndex === this.tabReports
       && this.selectedReportKind !== 'arAging'
-      && this.selectedReportKind !== 'apAging'
+      && !this.isApAgingReportKind(this.selectedReportKind)
       && !this.isReconcileAccountReportActive();
   }
 
@@ -3509,7 +3514,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    return !(this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.selectedReportKind === 'apAging'));
+    return !(this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind)));
   }
 
   get accountingShellEndDateLabel(): string {
@@ -3517,7 +3522,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return 'Statement Date';
     }
 
-    return this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.selectedReportKind === 'apAging')
+    return this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind))
       ? 'As of'
       : 'End Date';
   }
@@ -3784,8 +3789,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (
         report === 'profitLoss'
         || report === 'balanceSheet'
-        || report === 'arAging'
+        ||         report === 'arAging'
         || report === 'apAging'
+        || report === 'ownerApAging'
         || report === 'reconcileAccountSummary'
         || report === 'reconcileAccountDetail'
       ) {
@@ -3826,7 +3832,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.usesArAgingTitleBarFilters() || ('report' in params && (params['report'] === 'arAging' || params['report'] === 'apAging'))) {
+    if (this.usesArAgingTitleBarFilters() || ('report' in params && (params['report'] === 'arAging' || params['report'] === 'apAging' || params['report'] === 'ownerApAging'))) {
       if ('arAgingDate' in params) {
         const datePreset = params['arAgingDate'] as ArAgingDatePreset;
         if (this.shellArAgingDatePresetOptions.some(option => option.value === datePreset)) {
@@ -4117,7 +4123,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       arAgingInterval: this.usesArAgingTitleBarFilters() ? String(this.selectedArAgingIntervalDays) : null,
       arAgingThrough: this.usesArAgingTitleBarFilters() ? String(this.selectedArAgingThroughValue) : null,
       arAgingSort: this.selectedReportKind === 'arAging' ? this.selectedArAgingSortBy : null,
-      apAgingSort: this.selectedReportKind === 'apAging' ? this.selectedApAgingSortBy : null,
+      apAgingSort: this.isApAgingReportKind(this.selectedReportKind) ? this.selectedApAgingSortBy : null,
       chartOfAccountId: (
         this.usesGeneralLedgerTitleBarFilters()
         || this.showReconcileChartOfAccountFilter
