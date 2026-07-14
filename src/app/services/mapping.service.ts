@@ -26,7 +26,7 @@ import { MaintenanceListSearchRequest } from '../authenticated/maintenance/model
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
-import { TransferDisplayList, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
+import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -3635,6 +3635,96 @@ export class MappingService {
       )
     );
     return names.join(', ');
+  }
+
+  mapTransferToFlatReportRows(transfer: TransferResponse, accountIds: TransferFlatReportAccountIds): TransferFlatReportRowDisplay[] {
+    const splits = this.mapTransferSplitsFromApi(transfer.splits).filter(split => Number(split.amount) !== 0);
+    if (splits.length === 0) {
+      return [];
+    }
+
+    const groups = new Map<string, TransferSplit[]>();
+    splits.forEach((split, index) => {
+      const lineId = (split.journalEntryLineId || '').trim();
+      const key = lineId || `split-${split.transferSplitId ?? index}`;
+      const group = groups.get(key) ?? [];
+      group.push(split);
+      groups.set(key, group);
+    });
+
+    const transferDate = this.formatter.formatDateString(transfer.transferDate);
+    const dateRange = this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod) || transferDate;
+    const location = (transfer.officeName || '').trim();
+
+    return Array.from(groups.values()).map(group => {
+      let businessValue = 0;
+      let ownerEscrowValue = 0;
+      let secDepValue = 0;
+      let sdwValue = 0;
+
+      group.forEach(split => {
+        const amount = Number(split.amount) || 0;
+        const accountId = Number(split.chartOfAccountId ?? 0);
+        if (accountId > 0 && accountId === Number(accountIds.businessAccountId ?? 0)) {
+          businessValue = this.roundCurrency(businessValue + amount);
+        } else if (accountId > 0 && accountId === Number(accountIds.ownersAccountId ?? 0)) {
+          ownerEscrowValue = this.roundCurrency(ownerEscrowValue + amount);
+        } else if (accountId > 0 && accountId === Number(accountIds.secDepAccountId ?? 0)) {
+          secDepValue = this.roundCurrency(secDepValue + amount);
+        } else if (accountId > 0 && accountId === Number(accountIds.sdwAccountId ?? 0)) {
+          sdwValue = this.roundCurrency(sdwValue + amount);
+        } else if (accountId > 0 && accountId === Number(accountIds.escrowDepositAccountId ?? 0)) {
+          // Escrow deposit is the source column; ignore destination mis-posts here.
+        } else {
+          businessValue = this.roundCurrency(businessValue + amount);
+        }
+      });
+
+      const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
+      const escrowDepositValue = rowTotalValue;
+      const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
+      const context = group[0];
+      const folio = (context.reservationCode || '').trim()
+        || (transfer.transferCode || '').trim();
+      const propertyCode = (context.propertyCode || '').trim();
+      const contactName = (context.contactName || '').trim();
+      const description = (context.description || transfer.description || '').trim();
+
+      return {
+        transferDate,
+        type: 'Transfer',
+        folio,
+        propertyCode,
+        dateRange: description || dateRange,
+        escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
+        escrowDepositValue,
+        business: this.formatFlatReportAmount(businessValue),
+        businessValue,
+        ownerEscrow: this.formatFlatReportAmount(ownerEscrowValue),
+        ownerEscrowValue,
+        secDep: this.formatFlatReportAmount(secDepValue),
+        secDepValue,
+        sdw: this.formatFlatReportAmount(sdwValue),
+        sdwValue,
+        location,
+        contactName,
+        rowTotal: this.formatFlatReportAmount(rowTotalValue),
+        rowTotalValue,
+        outOfBalance: this.formatFlatReportAmount(outOfBalanceValue),
+        outOfBalanceValue
+      };
+    });
+  }
+
+  private formatFlatReportAmount(value: number): string {
+    if (!Number.isFinite(value) || value === 0) {
+      return '-';
+    }
+    return this.formatter.currencyUsd(value);
+  }
+
+  private roundCurrency(value: number): number {
+    return Math.round((Number(value) || 0) * 100) / 100;
   }
 
   mapTransferUpdateRequest(transfer: TransferResponse, isActive: boolean): TransferRequest {

@@ -613,6 +613,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isTransferReportDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onTransferReportBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isOwnersUtilityReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -925,22 +930,24 @@
                   </div>
                 }
               } @else if (selectedBankActivityKind === 'transferReport') {
-                @if (showGeneralLedgerDetail && activeJournalEntryId) {
-                  <app-general-ledger
-                    [journalEntryId]="activeJournalEntryId"
-                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
-                    [prefetchedJournalEntry]="selectedJournalEntry"
-                    (backEvent)="onGeneralLedgerBack()"
-                    (savedEvent)="onJournalEntriesChanged()">
-                  </app-general-ledger>
-                } @else {
-                  <app-transfer-report
+                @if (!showTransferReportDetail) {
+                  <app-transfers-list
                     [officeId]="selectedOfficeId"
-                    [searchDateRange]="invoiceSearchDateRange"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInAccounting]="true"
                     [refreshTrigger]="transferReportRefreshTrigger"
-                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
-                    (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
-                  </app-transfer-report>
+                    (transferSelect)="onTransferReportSelect($event)">
+                  </app-transfers-list>
+                }
+                @if (transferReportDetailMounted) {
+                  <div [style.display]="showTransferReportDetail ? '' : 'none'">
+                    <app-transfer-report
+                      [officeId]="selectedOfficeId"
+                      [transferId]="selectedTransferReportId"
+                      [prefetchedTransfer]="selectedTransferReport"
+                      [refreshTrigger]="transferReportRefreshTrigger">
+                    </app-transfer-report>
+                  </div>
                 }
               } @else if (selectedBankActivityKind === 'printChecks') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {

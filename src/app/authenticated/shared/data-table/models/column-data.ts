@@ -4,6 +4,7 @@ export interface ColumnData {
     name?: string;
     displayAs?: string;
     headerLine2?: string;
+    headerLine3?: string;
     wrap?: boolean;
     sort?: boolean;
     maxWidth?: string;

@@ -99,3 +99,35 @@ export interface TransferSelection {
   propertyId: string | null;
   transfer?: TransferResponse | null;
 }
+
+export interface TransferFlatReportAccountIds {
+  escrowDepositAccountId?: number | null;
+  businessAccountId?: number | null;
+  ownersAccountId?: number | null;
+  secDepAccountId?: number | null;
+  sdwAccountId?: number | null;
+}
+
+export interface TransferFlatReportRowDisplay {
+  transferDate: string;
+  type: string;
+  folio: string;
+  propertyCode: string;
+  dateRange: string;
+  escrowDeposit: string;
+  escrowDepositValue: number;
+  business: string;
+  businessValue: number;
+  ownerEscrow: string;
+  ownerEscrowValue: number;
+  secDep: string;
+  secDepValue: number;
+  sdw: string;
+  sdwValue: number;
+  location: string;
+  contactName: string;
+  rowTotal: string;
+  rowTotalValue: number;
+  outOfBalance: string;
+  outOfBalanceValue: number;
+}

@@ -273,12 +273,13 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
 
   getColumnMobileLabel(column: ColumnData): string {
     const top = (column.displayAs || '').trim();
-    const bottom = (column.headerLine2 || '').trim();
-    if (!bottom) {
+    const line2 = (column.headerLine2 || '').trim();
+    const line3 = (column.headerLine3 || '').trim();
+    if (!line2) {
       return top;
     }
 
-    return `${top} ${bottom}`.trim();
+    return `${top} ${line2}${line3 ? ` ${line3}` : ''}`.trim();
   }
 
   getFooterAlignment(column: ColumnData): string {

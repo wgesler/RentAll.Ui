@@ -15,3 +15,12 @@
   padding: 1.5rem;
   text-align: center;
 }
+
+.transfer-report-flat {
+  :host ::ng-deep &,
+  ::ng-deep {
+    .mat-mdc-header-cell {
+      font-weight: 700;
+    }
+  }
+}

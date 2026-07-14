@@ -12,7 +12,7 @@
     <p>{{ noActivityMessage }}</p>
   </div>
 } @else {
-  <div class="mat list-layout-standard dbg-band-main">
+  <div class="mat list-layout-standard dbg-band-main transfer-report-flat">
     <div class="tableDiv">
       <app-data-table
         [data]="rowsDisplay"
@@ -22,15 +22,10 @@
         [hasToggleTop]="false"
         [hasButtonTop]="false"
         [hasActionsSelect]="false"
-        [hasActionsRowClick]="true"
-        [hasSourceLink]="true"
-        [hasJournalEntryCodeLink]="true"
-        [itemsPerPage]="10"
+        [hasActionsRowClick]="false"
+        [itemsPerPage]="25"
         [totalsRow]="totalsRow"
-        [totalsRowAlerts]="totalsRowAlerts"
-        (rowClickEvent)="onRowSelect($event)"
-        (sourceClickEvent)="onSourceClick($event)"
-        (journalEntryCodeClickEvent)="onJournalEntryCodeClick($event)">
+        [totalsRowAlerts]="totalsRowAlerts">
       </app-data-table>
     </div>
   </div>

@@ -139,6 +139,9 @@
                   <span class="datatable-header-two-line">
                     <span class="datatable-header-two-line__top">{{ column.displayAs }}</span>
                     <span class="datatable-header-two-line__bottom">{{ column.headerLine2 }}</span>
+                    @if (column.headerLine3) {
+                      <span class="datatable-header-two-line__bottom">{{ column.headerLine3 }}</span>
+                    }
                   </span>
                 } @else {
                   {{column.displayAs}}

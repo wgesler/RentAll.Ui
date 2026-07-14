@@ -302,6 +302,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedTransferId: string | null = null;
   selectedTransfer: TransferResponse | null = null;
   transfersProperty: PropertyResponse | null = null;
+  showTransferReportDetail = false;
+  transferReportDetailMounted = false;
+  selectedTransferReportId: string | null = null;
+  selectedTransferReport: TransferResponse | null = null;
   selectedChartOfAccountId: number | null = null;
   selectedFinancialReportClass: Class = Class.TotalOnly;
   selectedArAgingDatePreset: ArAgingDatePreset = 'today';
@@ -1502,6 +1506,37 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.onJournalEntriesChanged();
   }
 
+  onTransferReportSelect(selection: TransferSelection): void {
+    const transferId = (selection?.transferId || '').trim();
+    if (!transferId) {
+      return;
+    }
+
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.syncBillsSearchRequest();
+    }
+
+    this.selectedTransferReportId = transferId;
+    this.selectedTransferReport = selection?.transfer ?? null;
+    this.selectedTabIndex = this.tabBankActivities;
+    this.selectedBankActivityKind = 'transferReport';
+    this.transferReportDetailMounted = true;
+    queueMicrotask(() => {
+      this.showTransferReportDetail = true;
+    });
+  }
+
+  onTransferReportBack(): void {
+    this.showTransferReportDetail = false;
+    this.selectedTransferReportId = null;
+    this.selectedTransferReport = null;
+  }
+
   buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {
     const resolvedOfficeId = officeId ?? 0;
     const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';
@@ -2025,6 +2060,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onGeneralLedgerBack();
       this.onDepositBack();
       this.onTransferBack();
+      this.onTransferReportBack();
     }
     if (event.index !== this.tabReports) {
       this.isFinancialReportDrillDownActive = false;
@@ -2132,6 +2168,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onGeneralLedgerBack();
       this.onDepositBack();
       this.onTransferBack();
+      this.onTransferReportBack();
     }
 
     this.selectedBankActivityKind = kind;
@@ -3247,6 +3284,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind === 'transfers'
       && this.showTransfersDetail;
+  }
+
+  get isTransferReportDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'transferReport'
+      && this.showTransferReportDetail;
   }
 
   get isOwnersUtilityReceiptDetailActive(): boolean {
