@@ -861,6 +861,19 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     await super.onDownload(downloadConfig);
   }
 
+  exportReportToExcel(): void {
+    if (!this.canUseReportDocuments || !this.reportResult) {
+      this.toastr.warning(this.buildNoPreviewMessage(), 'No Preview');
+      return;
+    }
+
+    const printableDocument = this.mappingService.mapFinancialReportToPrintableDocument(
+      this.reportResult,
+      this.entityLineLabel
+    );
+    this.documentExportService.exportExcelTableDocument(printableDocument, this.buildReportFileName());
+  }
+
   async saveReportDocument(): Promise<void> {
     if (!this.canUseReportDocuments) {
       this.toastr.warning(this.buildNoPreviewMessage(), 'No Preview');

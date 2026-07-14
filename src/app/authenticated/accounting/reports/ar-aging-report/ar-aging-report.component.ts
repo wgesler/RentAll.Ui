@@ -632,6 +632,16 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     await super.onDownload(downloadConfig);
   }
 
+  exportReportToExcel(): void {
+    if (!this.canUseReportDocuments || !this.reportResult) {
+      this.toastr.warning('No AR aging report is available to export.', 'No Preview');
+      return;
+    }
+
+    const printableDocument = this.mappingService.mapArAgingReportToPrintableDocument(this.reportResult);
+    this.documentExportService.exportExcelTableDocument(printableDocument, this.buildReportFileName());
+  }
+
   async saveReportDocument(): Promise<void> {
     if (!this.canUseReportDocuments) {
       this.toastr.warning('No AR aging report is available to save.', 'No Preview');

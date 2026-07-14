@@ -13,6 +13,15 @@
       mat-raised-button
       type="button"
       color="accent"
+      (click)="exportReportToExcel()"
+      [disabled]="!canUseReportDocuments">
+      <mat-icon>table_view</mat-icon>
+      Excel
+    </button>
+    <button
+      mat-raised-button
+      type="button"
+      color="accent"
       (click)="onDownload()"
       [disabled]="!canUseReportDocuments || isDownloading">
       <mat-icon>download</mat-icon>

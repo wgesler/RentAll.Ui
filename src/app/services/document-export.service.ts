@@ -1,6 +1,21 @@
 import { Injectable } from '@angular/core';
 import { utils, write } from 'xlsx';
 
+export interface ExcelExportTableColumn {
+  label: string;
+}
+
+export interface ExcelExportTableRow {
+  cells: string[];
+  indent?: number;
+}
+
+export interface ExcelExportTableDocument {
+  title?: string;
+  columns: ExcelExportTableColumn[];
+  rows: ExcelExportTableRow[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -32,6 +47,22 @@ export class DocumentExportService {
     this.downloadBlob(blob, resolvedFileName);
   }
 
+  exportExcelTableDocument(document: ExcelExportTableDocument, fileName?: string): void {
+    const headers = (document?.columns || []).map(column => column.label || '');
+    const rows = (document?.rows || []).map(row => {
+      const cells = [...(row.cells || [])];
+      while (cells.length < headers.length) {
+        cells.push('');
+      }
+      if ((row.indent || 0) > 0 && cells.length > 0) {
+        cells[0] = `${'  '.repeat(row.indent || 0)}${cells[0] || ''}`;
+      }
+      return cells.slice(0, Math.max(headers.length, cells.length));
+    });
+    const resolvedName = (fileName || document?.title || 'report').trim() || 'report';
+    this.exportExcelTable(resolvedName, headers, rows);
+  }
+
   private buildExcelBlob(headers: string[], rows: string[][]): Blob {
     const worksheet = utils.aoa_to_sheet([headers, ...rows]);
     const workbook = utils.book_new();
@@ -45,14 +76,15 @@ export class DocumentExportService {
   }
 
   private resolveExcelFileName(fileName: string): string {
-    const trimmed = (fileName || 'export').trim();
+    let trimmed = (fileName || 'export').trim();
+    trimmed = trimmed.replace(/\.(pdf|docx?)$/i, '');
     if (/\.xlsx$/i.test(trimmed)) {
       return trimmed;
     }
     if (/\.xls$/i.test(trimmed)) {
       return trimmed.replace(/\.xls$/i, '.xlsx');
     }
-    return `${trimmed}.xlsx`;
+    return `${trimmed || 'export'}.xlsx`;
   }
 
   /**

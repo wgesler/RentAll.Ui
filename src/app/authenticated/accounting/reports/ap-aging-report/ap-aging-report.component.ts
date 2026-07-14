@@ -645,6 +645,16 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     await super.onDownload(downloadConfig);
   }
 
+  exportReportToExcel(): void {
+    if (!this.canUseReportDocuments || !this.reportResult) {
+      this.toastr.warning('No AP aging report is available to export.', 'No Preview');
+      return;
+    }
+
+    const printableDocument = this.mappingService.mapApAgingReportToPrintableDocument(this.reportResult);
+    this.documentExportService.exportExcelTableDocument(printableDocument, this.buildReportFileName());
+  }
+
   async saveReportDocument(): Promise<void> {
     if (!this.canUseReportDocuments) {
       this.toastr.warning('No AP aging report is available to save.', 'No Preview');

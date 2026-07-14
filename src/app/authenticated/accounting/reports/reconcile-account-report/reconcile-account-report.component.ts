@@ -193,6 +193,16 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     await super.onDownload(downloadConfig);
   }
 
+  exportReportToExcel(): void {
+    if (!this.canUseReportDocuments || !this.reportResult) {
+      this.toastr.warning('No reconciliation report is available to export.', 'No Preview');
+      return;
+    }
+
+    const printableDocument = this.mappingService.mapReconcileAccountReportToPrintableDocument(this.reportResult);
+    this.documentExportService.exportExcelTableDocument(printableDocument, this.buildReportFileName());
+  }
+
   async saveReportDocument(): Promise<void> {
     if (!this.canUseReportDocuments) {
       this.toastr.warning('No reconciliation report is available to save.', 'No Preview');
