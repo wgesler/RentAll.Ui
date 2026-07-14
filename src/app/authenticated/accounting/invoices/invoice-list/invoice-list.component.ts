@@ -631,9 +631,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, costCodesForInvoice, this.transactionTypes);
       const totalAmount = invoice.totalAmount || 0;
-      const paidAmount = rawLedgerLines.length > 0
-        ? this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId)
-        : Number(invoice.paidAmount || 0);
+      const paidAmount = this.resolveInvoicePaidAmount(invoice);
       
       // Calculate due amount: Total - Paid
       const dueAmount = totalAmount - paidAmount;
@@ -1373,23 +1371,52 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return this.selectedCompanyContact?.contactId ?? null;
   }
 
+  /**
+   * API ledger lines do not carry transactionTypeId (only costCodeId).
+   * Prefer Invoice.PaidAmount (authoritative after apply-payment); fall back to Payment lines via cost code.
+   */
+  resolveInvoicePaidAmount(invoice: InvoiceResponse): number {
+    const paidFromInvoice = Number(invoice.paidAmount || 0);
+    if (Number.isFinite(paidFromInvoice) && Math.abs(paidFromInvoice) > 0.005) {
+      return paidFromInvoice;
+    }
+
+    const rawLedgerLines = invoice.ledgerLines ?? [];
+    if (rawLedgerLines.length === 0) {
+      return Number.isFinite(paidFromInvoice) ? paidFromInvoice : 0;
+    }
+
+    return this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
+  }
+
   getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
     if (!ledgerLines || ledgerLines.length === 0) {
       return 0;
     }
 
     return ledgerLines.reduce((sum, line) => {
-      const transactionTypeId = line?.transactionTypeId ?? this.getTransactionTypeIdFromCostCode(line?.costCodeId, officeId);
-      const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
-      const isPaymentLine = transactionTypeId === TransactionType.Payment || transactionTypeLabel === 'payment';
-
-      if (isPaymentLine) {
-        const amount = Number(line?.amount || 0);
-        return sum + (isNaN(amount) ? 0 : amount);
+      if (!this.isInvoicePaymentLedgerLine(line, officeId)) {
+        return sum;
       }
 
-      return sum;
+      const amount = Number(line?.amount || 0);
+      return sum + (Number.isFinite(amount) ? amount : 0);
     }, 0);
+  }
+
+  isInvoicePaymentLedgerLine(line: any, officeId: number): boolean {
+    // Prefer cost-code lookup: list payloads omit transactionTypeId and mapping defaults missing to Charge (0).
+    const fromCostCode = this.getTransactionTypeIdFromCostCode(line?.costCodeId, officeId);
+    if (fromCostCode === TransactionType.Payment) {
+      return true;
+    }
+
+    if (Number(line?.transactionTypeId) === TransactionType.Payment) {
+      return true;
+    }
+
+    const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
+    return transactionTypeLabel === 'payment';
   }
 
   invoiceHasAppliedPayments(invoice: InvoiceResponse & { paidAmountValue?: number }): boolean {
@@ -1401,12 +1428,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return Number(invoice.paidAmountValue);
     }
 
-    const rawLedgerLines = invoice.ledgerLines ?? [];
-    if (rawLedgerLines.length > 0) {
-      return this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
-    }
-
-    return Number(invoice.paidAmount || 0);
+    return this.resolveInvoicePaidAmount(invoice);
   }
 
   getTransactionTypeIdFromCostCode(costCodeId: number | null | undefined, officeId: number): number | null {
@@ -1444,11 +1466,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getInvoiceBalanceDue(invoice: InvoiceResponse): number {
     const totalAmount = invoice.totalAmount || 0;
-    const rawLedgerLines = invoice.ledgerLines ?? [];
-    const paidAmount = rawLedgerLines.length > 0
-      ? this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId)
-      : Number(invoice.paidAmount || 0);
-    return totalAmount - paidAmount;
+    return totalAmount - this.resolveInvoicePaidAmount(invoice);
   }
 
   getInvoiceDueAmountValue(invoiceId: string): number {
