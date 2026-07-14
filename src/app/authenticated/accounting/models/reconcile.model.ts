@@ -64,6 +64,21 @@ export interface ReconcileDraftResponse {
   interestAccountId: number | null;
 }
 
+export interface ReconcileResponse {
+  reconcileId: number;
+  accountId: number;
+  organizationId: string;
+  officeId: number;
+  statementDate: string | null;
+  endingBalance: number | null;
+  serviceChargeAmount: number | null;
+  serviceChargeDate: string | null;
+  serviceChargeAccountId: number | null;
+  interestAmount: number | null;
+  interestDate: string | null;
+  interestAccountId: number | null;
+}
+
 export interface SaveReconcileDraftRequest {
   officeId: number;
   accountId: number;

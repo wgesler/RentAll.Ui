@@ -397,11 +397,18 @@
                 (valueChange)="onShellChartOfAccountDropdownChange($event)">
               </app-title-bar-select>
             }
-            @if (showShellDateRange) {
-              <div class="accounting-shell-titlebar-dates">
-                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
-              </div>
-            }
+            <app-title-bar-select
+              [label]="'Statement Date'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedReconcileId"
+              [options]="shellReconcileStatementDateOptions"
+              [nullOptionLabel]="'Select Statement Date'"
+              [noResultsText]="'No reconciliations found'"
+              [showSearchInput]="false"
+              [showInstructionOption]="false"
+              [disabled]="!selectedChartOfAccountId || shellReconcileStatementDateOptions.length === 0"
+              (valueChange)="onShellReconcileStatementDateChange($event)">
+            </app-title-bar-select>
             </div>
           </div>
         } @else if (hasAccountingFullAccess && usesFinancialReportTitleBarFilters()) {

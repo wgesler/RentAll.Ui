@@ -65,9 +65,10 @@ import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, Accou
 import { JournalEntryRecapComponent } from '../general-ledger/journal-entry-recap/journal-entry-recap.component';
 import { ReconcileComponent } from '../bank/reconcile/reconcile.component';
 import { BeginReconciliationDialogComponent } from '../bank/reconcile/begin-reconciliation-dialog.component';
-import { BeginReconciliationDialogResult } from '../models/reconcile.model';
+import { BeginReconciliationDialogResult, ReconcileResponse } from '../models/reconcile.model';
 import { ReconcileAccountReportComponent } from '../reports/reconcile-account-report/reconcile-account-report.component';
 import { ReconcileAccountReportContext } from '../models/reconcile-account-report.model';
+import { ReconcileService } from '../services/reconcile.service';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -212,7 +213,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'balanceSheet', label: 'Balance Sheet' },
     { kind: 'arAging', label: 'A/R Aging' },
     { kind: 'apAging', label: 'A/P Aging' },
-    { kind: 'reconcileAccountSummary', label: 'Summary & Detail' }
+    { kind: 'reconcileAccountSummary', label: 'Reconcile' }
   ];
   readonly shellGeneralLedgerMenuOptions: { kind: AccountingShellGeneralLedgerKind; label: string }[] = [
     { kind: 'ledger', label: 'General Ledger' },
@@ -319,6 +320,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   reconcileAccountReportContext: ReconcileAccountReportContext | null = null;
   private preserveReconcileAccountReportContext = false;
   private reconcileLeaveReportView: 'summary' | 'detail' | null = null;
+  reconcileHistoryRows: ReconcileResponse[] = [];
+  shellReconcileStatementDateOptions: SearchableSelectOption[] = [];
+  selectedReconcileId: number | null = null;
   printChecksRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
@@ -374,6 +378,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private costCodesService: CostCodesService,
     private chartOfAccountsService: ChartOfAccountsService,
     private generalLedgerService: GeneralLedgerService,
+    private reconcileService: ReconcileService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
@@ -432,8 +437,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.clearInvalidChartOfAccountSelection();
             this.refreshGeneralLedgerListView();
           }
-          if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
+          if (this.usesFinancialReportTitleBarFilters()) {
             this.financialReportsRefreshTrigger++;
+          }
+          if (this.isReconcileAccountReportActive()) {
+            this.loadReconcileHistoryForSelectedAccount();
           }
           if (this.usesArAgingTitleBarFilters()) {
             this.financialReportsRefreshTrigger++;
@@ -637,6 +645,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.financialReportsRefreshTrigger++;
     if (this.isReconcileAccountReportActive()) {
       this.reconcileAccountReportContext = null;
+      this.loadReconcileHistoryForSelectedAccount();
     }
     this.refreshGeneralLedgerListView();
     if (this.showReconcileChartOfAccountFilter) {
@@ -648,6 +657,23 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
     this.persistPinnedTopBarIfActive();
+  }
+
+  onShellReconcileStatementDateChange(value: string | number | null): void {
+    const reconcileId = value == null || value === '' ? null : Number(value);
+    if (reconcileId == null || !Number.isFinite(reconcileId) || reconcileId <= 0) {
+      this.selectedReconcileId = null;
+      this.reconcileAccountReportContext = null;
+      this.financialReportsRefreshTrigger++;
+      return;
+    }
+
+    if (this.selectedReconcileId === reconcileId) {
+      return;
+    }
+
+    const selected = this.reconcileHistoryRows.find(row => row.reconcileId === reconcileId) ?? null;
+    this.applyReconcileHistorySelection(selected, true);
   }
 
   onShellGlPropertyDropdownChange(value: string | number | null): void {
@@ -2197,6 +2223,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         queryParamsHandling: 'merge'
       });
       this.persistPinnedTopBarIfActive();
+      if (kind === 'reconcileAccountSummary' || kind === 'reconcileAccountDetail') {
+        this.loadReconcileHistoryForSelectedAccount();
+      }
       return;
     }
 
@@ -2215,7 +2244,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.isArAgingDrillDownActive = false;
       this.isApAgingDrillDownActive = false;
       if (kindChanged) {
-        this.financialReportsRefreshTrigger++;
+        this.loadReconcileHistoryForSelectedAccount();
       }
     } else if (kindChanged) {
       this.financialReportsRefreshTrigger++;
@@ -2469,10 +2498,93 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.openReconcileAccountReport(this.reconcileLeaveReportView ?? 'detail');
     this.reconcileLeaveReportView = null;
+    this.loadReconcileHistoryForSelectedAccount();
   }
 
   onReconcileAccountReportViewChange(view: 'summary' | 'detail'): void {
     this.selectReport(view === 'detail' ? 'reconcileAccountDetail' : 'reconcileAccountSummary');
+  }
+
+  private loadReconcileHistoryForSelectedAccount(): void {
+    if (!this.isReconcileAccountReportActive()) {
+      return;
+    }
+
+    const officeId = this.selectedOfficeId;
+    const accountId = this.selectedChartOfAccountId;
+    if (officeId == null || officeId <= 0 || accountId == null || accountId <= 0) {
+      this.clearReconcileHistorySelection(true);
+      return;
+    }
+
+    this.reconcileService.getReconcilesByAccountId(officeId, accountId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: rows => {
+        const seenStatementDates = new Set<string>();
+        this.reconcileHistoryRows = (rows ?? []).filter(row => {
+          if (!row.statementDate || seenStatementDates.has(row.statementDate)) {
+            return false;
+          }
+          seenStatementDates.add(row.statementDate);
+          return true;
+        });
+        this.shellReconcileStatementDateOptions = this.reconcileHistoryRows.map(row => ({
+          value: row.reconcileId,
+          label: this.formatterService.formatDateString(row.statementDate ?? undefined) || row.statementDate || ''
+        }));
+
+        if (!this.reconcileHistoryRows.length) {
+          this.clearReconcileHistorySelection(true);
+          return;
+        }
+
+        const preferredApiDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+        const preferred = preferredApiDate
+          ? this.reconcileHistoryRows.find(row => row.statementDate === preferredApiDate) ?? null
+          : null;
+        const selected = preferred
+          ?? (this.selectedReconcileId != null
+            ? this.reconcileHistoryRows.find(row => row.reconcileId === this.selectedReconcileId) ?? null
+            : null)
+          ?? this.reconcileHistoryRows[0];
+        this.applyReconcileHistorySelection(selected, true);
+      },
+      error: () => {
+        this.clearReconcileHistorySelection(true);
+        this.toastr.error('Unable to load reconciliation history for the selected account.');
+      }
+    });
+  }
+
+  private applyReconcileHistorySelection(reconcile: ReconcileResponse | null, refreshReport: boolean): void {
+    if (!reconcile) {
+      this.clearReconcileHistorySelection(refreshReport);
+      return;
+    }
+
+    this.selectedReconcileId = reconcile.reconcileId;
+    const statementDate = this.utilityService.parseCalendarDateInput(reconcile.statementDate);
+    if (statementDate) {
+      this.endDate = statementDate;
+      this.syncInvoiceSearchDateRange();
+    }
+    this.reconcileAccountReportContext = {
+      endingBalance: reconcile.endingBalance
+    };
+
+    if (refreshReport) {
+      this.financialReportsRefreshTrigger++;
+    }
+  }
+
+  private clearReconcileHistorySelection(refreshReport: boolean): void {
+    this.reconcileHistoryRows = [];
+    this.shellReconcileStatementDateOptions = [];
+    this.selectedReconcileId = null;
+    this.reconcileAccountReportContext = null;
+
+    if (refreshReport) {
+      this.financialReportsRefreshTrigger++;
+    }
   }
 
   private openReconcileAccountReport(view: 'summary' | 'detail'): void {
@@ -3475,8 +3587,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onOwnersWorkOrderBack();
       this.refreshActiveOwnerView();
     }
-    if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
+    if (this.usesFinancialReportTitleBarFilters()) {
       this.financialReportsRefreshTrigger++;
+    }
+    if (this.isReconcileAccountReportActive()) {
+      this.loadReconcileHistoryForSelectedAccount();
     }
     if (this.usesArAgingTitleBarFilters()) {
       this.financialReportsRefreshTrigger++;
@@ -3708,6 +3823,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.syncGlFiltersFromInvoiceContext();
       this.refreshPropertyOptions();
       this.refreshReservationOptions();
+
+      if (this.isReconcileAccountReportActive()) {
+        this.loadReconcileHistoryForSelectedAccount();
+      }
     }
 
     const startDateParam = getStringQueryParam(params, 'startDate');
