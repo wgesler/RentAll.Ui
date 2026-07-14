@@ -449,11 +449,16 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
 }
 
 .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner {
-  width: 50%;
-  max-width: 50%;
+  width: 100%;
+  max-width: 48rem;
   min-width: 0;
   margin-inline: auto;
   box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner.financial-report-panel-inner--content-sized {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .accounting-shell-subview-title,

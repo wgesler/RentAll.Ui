@@ -124,7 +124,10 @@
         </div>
       </div>
       <div class="financial-report-panel dbg-band-main">
-        <div class="financial-report-panel-inner">
+        <div
+          class="financial-report-panel-inner"
+          [class.financial-report-panel-inner--content-sized]="hasMultipleAmountColumns"
+          [style.max-width]="panelMaxWidthCss">
           @if (isServiceError) {
             <div class="financial-report-empty-state">
               <p>{{ noActivityMessage }}</p>

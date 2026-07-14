@@ -69,7 +69,11 @@
       </div>
     </div>
     <div class="financial-report-panel dbg-band-main">
-      <div class="financial-report-panel-inner" [class.reconcile-account-report-panel-inner--detail]="isDetailView">
+      <div
+        class="financial-report-panel-inner"
+        [class.reconcile-account-report-panel-inner--detail]="isDetailView"
+        [class.financial-report-panel-inner--content-sized]="isDetailView"
+        [style.max-width]="panelMaxWidthCss">
         @if (isServiceError) {
           <div class="financial-report-empty-state">
             <p>{{ noActivityMessage }}</p>

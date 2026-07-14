@@ -755,6 +755,19 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.previewIframeStyles = '';
   }
 
+  get hasMultipleAmountColumns(): boolean {
+    return ((this.reportResult?.bucketColumns.length ?? 0) + 1) > 1;
+  }
+
+  /** Multi-column panels size to content and cap at the viewport. */
+  get panelMaxWidthCss(): string {
+    return this.hasMultipleAmountColumns ? '100%' : '48rem';
+  }
+
+  get detailPanelMaxWidthCss(): string {
+    return '100%';
+  }
+
   get detailColumnNames(): string[] {
     return Object.keys(this.detailDisplayedColumns);
   }

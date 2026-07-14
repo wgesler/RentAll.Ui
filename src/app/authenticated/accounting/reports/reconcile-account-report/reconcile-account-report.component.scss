@@ -54,11 +54,35 @@
 
 .reconcile-account-report-table--detail {
   width: max-content;
-  min-width: 100%;
+  min-width: 0;
 }
 
 .reconcile-account-report-col-type {
+  position: sticky;
+  left: 0;
+  z-index: 3;
   min-width: 10rem;
+  background-color: #fff;
+  box-shadow: 6px 0 8px -4px rgba(15, 23, 42, 0.14);
+}
+
+.reconcile-account-report-table--detail thead th.reconcile-account-report-col-type {
+  z-index: 5;
+  background: rgba(241, 245, 249, 0.98);
+}
+
+.reconcile-account-report-table--detail tbody tr.financial-report-row-section .reconcile-account-report-col-type,
+.reconcile-account-report-table--detail tbody tr.financial-report-row-total .reconcile-account-report-col-type,
+.reconcile-account-report-table--detail tbody tr.financial-report-row-summary .reconcile-account-report-col-type {
+  background-color: #eff6ff;
+}
+
+.reconcile-account-report-table--detail .financial-report-col-label {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background-color: #fff;
+  box-shadow: 6px 0 8px -4px rgba(15, 23, 42, 0.14);
 }
 
 .reconcile-account-report-col-date {

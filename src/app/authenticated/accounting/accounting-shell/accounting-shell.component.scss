@@ -52,6 +52,8 @@
     app-general-ledger,
     app-financial-report,
     app-ar-aging-report,
+    app-ap-aging-report,
+    app-reconcile-account-report,
     app-document-list,
     app-work-order-list,
     app-work-order,
@@ -62,7 +64,10 @@
       box-sizing: border-box;
     }
 
-    .mat-mdc-tab-body-content:has(app-financial-report) {
+    .mat-mdc-tab-body-content:has(app-financial-report),
+    .mat-mdc-tab-body-content:has(app-ar-aging-report),
+    .mat-mdc-tab-body-content:has(app-ap-aging-report),
+    .mat-mdc-tab-body-content:has(app-reconcile-account-report) {
       overflow-x: visible;
     }
 

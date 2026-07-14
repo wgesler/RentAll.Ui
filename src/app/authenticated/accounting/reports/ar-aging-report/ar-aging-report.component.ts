@@ -742,21 +742,16 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.previewIframeStyles = '';
   }
 
-  get panelMaxWidthCss(): string {
-    const count = (this.reportResult?.bucketColumns.length ?? 0) + 1;
-    if (count <= 1) {
-      return '48rem';
-    }
+  get hasMultipleAmountColumns(): boolean {
+    return ((this.reportResult?.bucketColumns.length ?? 0) + 1) > 1;
+  }
 
-    const labelWidthRem = 14;
-    const amountColumnWidthRem = 10;
-    const chromeRem = 3;
-    const calculatedRem = labelWidthRem + (count * amountColumnWidthRem) + chromeRem;
-    return `min(100%, ${Math.ceil(calculatedRem)}rem)`;
+  get panelMaxWidthCss(): string {
+    return this.hasMultipleAmountColumns ? '100%' : '48rem';
   }
 
   get detailPanelMaxWidthCss(): string {
-    return 'min(100%, 88rem)';
+    return '100%';
   }
 
   get detailColumnNames(): string[] {

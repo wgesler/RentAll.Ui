@@ -138,6 +138,14 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     return this.reportView === 'detail';
   }
 
+  /** Panel max-width grows for detail columns and caps at the viewport. */
+  get panelMaxWidthCss(): string {
+    if (this.isDetailView) {
+      return '100%';
+    }
+    return '48rem';
+  }
+
   get canUseReportDocuments(): boolean {
     return !!this.reportResult && !!this.previewIframeHtml && this.resolveOfficeId(this.resolveSelectedAccount()) != null;
   }

@@ -793,18 +793,9 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     return columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID;
   }
 
-  /** Panel max-width grows with column count and caps at the viewport. */
+  /** Multi-column panels size to content and cap at the viewport. */
   get panelMaxWidthCss(): string {
-    const count = this.amountColumnCount;
-    if (count <= 1) {
-      return '48rem';
-    }
-
-    const labelWidthRem = 14;
-    const amountColumnWidthRem = 10;
-    const chromeRem = 3;
-    const calculatedRem = labelWidthRem + (count * amountColumnWidthRem) + chromeRem;
-    return `min(100%, ${Math.ceil(calculatedRem)}rem)`;
+    return this.hasMultipleAmountColumns ? '100%' : '48rem';
   }
 
   get displayOfficeName(): string {
