@@ -50,6 +50,33 @@ export interface CompleteReconcileRequest extends SaveReconcileMarksRequest {
   statementDate: string;
 }
 
+export interface ReconcileDraftResponse {
+  accountId: number;
+  organizationId: string;
+  officeId: number;
+  statementDate: string | null;
+  endingBalance: number | null;
+  serviceChargeAmount: number | null;
+  serviceChargeDate: string | null;
+  serviceChargeAccountId: number | null;
+  interestAmount: number | null;
+  interestDate: string | null;
+  interestAccountId: number | null;
+}
+
+export interface SaveReconcileDraftRequest {
+  officeId: number;
+  accountId: number;
+  statementDate: string | null;
+  endingBalance: number | null;
+  serviceChargeAmount: number | null;
+  serviceChargeDate: string | null;
+  serviceChargeAccountId: number | null;
+  interestAmount: number | null;
+  interestDate: string | null;
+  interestAccountId: number | null;
+}
+
 export interface BeginReconciliationAccountDefault {
   chartOfAccountId: number;
   endingBalance: number | null;

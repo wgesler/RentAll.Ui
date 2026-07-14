@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, catchError, finalize, map, of, Subject, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, finalize, map, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -13,6 +13,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_CONFIGURABLE_COLUMN_ORDER, RECONCILE_DIALOG_COLUMN_ORDER, RECONCILE_FIXED_COLUMN_KEYS, RECONCILE_TABLE_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnPreferencesState, ReconcileColumnsDialogResult, ReconcileJournalEntryLineMark, ReconcileLineDisplay, ReconcileSide, BeginReconciliationDialogResult } from '../models/reconcile.model';
 import { GeneralLedgerService } from '../services/general-ledger.service';
+import { ReconcileDraftService } from '../services/reconcile-draft.service';
 import { ReconcileColumnsDialogComponent } from './reconcile-columns-dialog.component';
 
 interface ReconcileStickyFilterState {
@@ -71,6 +72,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
 
   constructor(
     private generalLedgerService: GeneralLedgerService,
+    private reconcileDraftService: ReconcileDraftService,
     private authService: AuthService,
     private mappingService: MappingService,
     private formatterService: FormatterService,
@@ -289,13 +291,17 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (!this.canSaveReconcileMarks) {
+    if (!this.canSaveReconcileDraft() && !this.canSaveReconcileMarks) {
       this.leaveEvent.emit();
       return;
     }
 
     this.isSavingReconcile = true;
-    this.saveReconcileMarks().pipe(
+    const persist$ = this.canSaveReconcileMarks
+      ? this.saveReconcileMarks().pipe(switchMap(() => this.saveReconcileDraftOrSkip()))
+      : this.saveReconcileDraftOrSkip();
+
+    persist$.pipe(
       finalize(() => {
         this.isSavingReconcile = false;
         this.markViewForCheck();
@@ -306,7 +312,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
         this.leaveEvent.emit();
       },
       error: (error: HttpErrorResponse) => {
-        const message = error.error?.message || error.message || 'Unable to save reconcile marks.';
+        const message = error.error?.message || error.message || 'Unable to save reconcile state.';
         this.toastr.error(message, CommonMessage.Error);
       }
     });
@@ -691,6 +697,19 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     return this.generalLedgerService.saveReconcileMarks(request);
+  }
+
+  private canSaveReconcileDraft(): boolean {
+    return this.setup != null && this.officeId != null && this.officeId > 0;
+  }
+
+  private saveReconcileDraftOrSkip() {
+    if (!this.canSaveReconcileDraft() || !this.setup || this.officeId == null) {
+      return of(void 0);
+    }
+
+    const request = this.reconcileDraftService.buildSaveReconcileDraftRequestFromSetup(this.officeId, this.setup);
+    return this.reconcileDraftService.saveReconcileDraft(request).pipe(map(() => void 0));
   }
 
   private buildSaveReconcileMarksRequest() {

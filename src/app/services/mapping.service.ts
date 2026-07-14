@@ -655,7 +655,7 @@ export class MappingService {
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
-      isCleared: Boolean(raw['isCleared'] ?? raw['IsCleared'] ?? base.isCleared ?? false)
+      isCleared: this.resolveIsClearedFlag(raw['isCleared'] ?? raw['IsCleared'] ?? base.isCleared)
     };
   }
 
@@ -683,7 +683,7 @@ export class MappingService {
         payee: (line.contactName || '').trim(),
         memo: (line.memo || line.journalEntryMemo || '').trim(),
         amountValue,
-        isCleared: !!line.isCleared
+        isCleared: this.resolveJournalEntryLineIsCleared(line)
       };
     });
   }
@@ -2821,6 +2821,28 @@ export class MappingService {
       return 2;
     }
     return 1;
+  }
+
+  resolveJournalEntryLineIsCleared(line: JournalEntryLineSearchResponse): boolean {
+    const raw = line as unknown as Record<string, unknown>;
+    return this.resolveIsClearedFlag(raw['isCleared'] ?? raw['IsCleared'] ?? line.isCleared);
+  }
+
+  resolveIsClearedFlag(value: unknown): boolean {
+    if (value === true || value === 1) {
+      return true;
+    }
+
+    if (value === false || value === 0 || value == null) {
+      return false;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === 'true' || normalized === '1';
+    }
+
+    return false;
   }
 
   parseCurrencyValue(value: string | null | undefined): number {
