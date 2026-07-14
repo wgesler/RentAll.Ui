@@ -37,7 +37,7 @@ this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
 });
 ```
 
-Reference implementation: `accounting/invoice/invoice.component.ts`.
+Reference implementation: `accounting/invoices/invoice/invoice.component.ts`.
 
 ### Formatting (non-negotiable)
 

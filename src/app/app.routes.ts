@@ -1,10 +1,10 @@
 import { Routes } from '@angular/router';
 import { AccountingShellComponent } from './authenticated/accounting/accounting-shell/accounting-shell.component';
-import { CostCodesListComponent } from './authenticated/accounting/cost-codes-list/cost-codes-list.component';
-import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-codes.component';
-import { BillingCreateComponent } from './authenticated/accounting/billing-create/billing-create.component';
-import { InvoiceCreateComponent } from './authenticated/accounting/invoice-create/invoice-create.component';
-import { BillingComponent } from './authenticated/accounting/billing/billing.component';
+import { CostCodesListComponent } from './authenticated/accounting/setup/cost-codes-list/cost-codes-list.component';
+import { CostCodesComponent } from './authenticated/accounting/setup/cost-codes/cost-codes.component';
+import { BillingCreateComponent } from './authenticated/accounting/invoices/billing-create/billing-create.component';
+import { InvoiceCreateComponent } from './authenticated/accounting/invoices/invoice-create/invoice-create.component';
+import { BillingComponent } from './authenticated/accounting/invoices/billing/billing.component';
 import { ContactComponent } from './authenticated/contacts/contact/contact.component';
 import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
 import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';

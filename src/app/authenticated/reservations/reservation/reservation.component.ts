@@ -17,7 +17,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
+import { InvoiceListComponent } from '../../accounting/invoices/invoice-list/invoice-list.component';
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';

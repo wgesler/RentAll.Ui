@@ -6,8 +6,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 
 const LIST_FILES = [
-  ['src/app/authenticated/accounting/cost-codes-list/cost-codes-list.component'],
-  ['src/app/authenticated/accounting/invoice-list/invoice-list.component'],
+  ['src/app/authenticated/accounting/setup/cost-codes-list/cost-codes-list.component'],
+  ['src/app/authenticated/accounting/invoices/invoice-list/invoice-list.component'],
   ['src/app/authenticated/contacts/contact-list/contact-list.component'],
   ['src/app/authenticated/documents/document-list/document-list.component'],
   ['src/app/authenticated/organizations/accounting-office-list/accounting-office-list.component'],
