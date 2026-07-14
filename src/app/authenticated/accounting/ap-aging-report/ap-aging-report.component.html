@@ -29,18 +29,18 @@
       {{ isSubmitting ? 'Saving...' : 'Document' }}
     </button>
   </ng-template>
-  @if (activeInvoiceId) {
-    <app-invoice
-      #drillDownInvoiceEditor
-      [shellMode]="true"
-      [invoiceIdInput]="activeInvoiceId"
-      [prefetchedInvoice]="selectedInvoice"
-      [officeIdInput]="activeInvoiceOfficeId"
-      [reservationIdInput]="activeInvoiceReservationId"
-      (savedEvent)="onInvoiceSaved()">
-    </app-invoice>
+  @if (activeReceiptId) {
+    <app-receipt
+      #drillDownReceiptEditor
+      [officeId]="activeReceiptOfficeId"
+      [property]="drillDownReceiptProperty"
+      [receiptId]="activeReceiptId"
+      [prefetchedReceipt]="selectedReceipt"
+      [shellContext]="'accounting'"
+      (savedEvent)="onReceiptSaved()">
+    </app-receipt>
   } @else if (detailReport && drillDownView) {
-    <div class="mat list-layout-standard financial-report-layout ar-aging-detail-layout">
+    <div class="mat list-layout-standard financial-report-layout ap-aging-detail-layout">
       <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
         <div class="property-tab-actions-band__row financial-report-context-band__row">
           <div class="financial-report-context-band__titles">
@@ -64,7 +64,7 @@
             </div>
           } @else {
             <div class="financial-report-table-wrap">
-            <table class="financial-report-table ar-aging-detail-table">
+            <table class="financial-report-table ap-aging-detail-table">
               <thead>
                 <tr>
                   @for (columnKey of detailColumnNames; track columnKey) {
@@ -83,15 +83,15 @@
                   <tr
                     [class.financial-report-row-section]="row.kind === 'bucketHeader'"
                     [class.financial-report-row-total]="row.kind === 'bucketTotal' || row.kind === 'reportTotal'"
-                    [class.ar-aging-detail-row-transaction]="row.kind === 'transaction'"
-                    [class.ar-aging-detail-row-clickable]="isDetailRowClickable(row)"
+                    [class.ap-aging-detail-row-transaction]="row.kind === 'transaction'"
+                    [class.ap-aging-detail-row-clickable]="isDetailRowClickable(row)"
                     [attr.role]="isDetailRowClickable(row) ? 'button' : null"
                     [attr.tabindex]="isDetailRowClickable(row) ? 0 : null"
                     (click)="onDetailRowClick(row)"
                     (keydown.enter)="onDetailRowClick(row)"
                     (keydown.space)="onDetailRowClick(row); $event.preventDefault()">
                     @if (row.kind === 'bucketHeader' || row.kind === 'bucketTotal' || row.kind === 'reportTotal') {
-                      <td [attr.colspan]="detailColumnNames.length - 1" class="ar-aging-detail-label-cell">
+                      <td [attr.colspan]="detailColumnNames.length - 1" class="ap-aging-detail-label-cell">
                         <span class="financial-report-label">{{ row.label }}</span>
                       </td>
                       <td
@@ -147,7 +147,7 @@
             <div class="financial-report-empty-state">
               <p>{{ noDataMessage }}</p>
             </div>
-          } @else if (!reportResult || (reportResult.customerRows.length === 0 && visibleRows.length === 0)) {
+          } @else if (!reportResult || (reportResult.vendorRows.length === 0 && visibleRows.length === 0)) {
             <div class="financial-report-empty-state">
               <p>{{ noDataMessage }}</p>
             </div>
@@ -167,7 +167,7 @@
                           (click)="toggleExpandAll()">
                           <mat-icon>{{ getExpandAllIcon() }}</mat-icon>
                         </button>
-                        <span>Customer</span>
+                        <span>Vendor</span>
                       </div>
                     </th>
                     @for (column of reportResult.bucketColumns; track column.id) {
@@ -179,10 +179,10 @@
                 <tbody>
                   @for (row of visibleRows; track row.rowId) {
                     <tr
-                      [class.financial-report-row-section]="row.kind === 'customer'"
-                      [class.financial-report-row-expandable]="row.kind === 'customer' || row.kind === 'reservation'"
-                      [class.financial-report-row-account]="row.kind === 'reservation'"
-                      [class.financial-report-row-total]="row.kind === 'customerTotal'">
+                      [class.financial-report-row-section]="row.kind === 'vendor'"
+                      [class.financial-report-row-expandable]="row.kind === 'vendor' || row.kind === 'property'"
+                      [class.financial-report-row-account]="row.kind === 'property'"
+                      [class.financial-report-row-total]="row.kind === 'vendorTotal'">
                       <td class="financial-report-col-label">
                         <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
                           @if (row.expandable) {
@@ -192,7 +192,7 @@
                               class="financial-report-expand-btn financial-report-icon-expand-btn"
                               [attr.aria-expanded]="row.expanded"
                               [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
-                              (click)="toggleCustomerExpansion(row.customerKey)">
+                              (click)="toggleVendorExpansion(row.vendorKey)">
                               <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
                             </button>
                           } @else {

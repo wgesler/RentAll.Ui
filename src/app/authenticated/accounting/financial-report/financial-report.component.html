@@ -1,4 +1,34 @@
 @if (isPageReady) {
+  <ng-template #reportActionButtons>
+    <button
+      mat-raised-button
+      type="button"
+      color="accent"
+      (click)="onPrint()"
+      [disabled]="!canUseReportDocuments">
+      <mat-icon>print</mat-icon>
+      Print
+    </button>
+    <button
+      mat-raised-button
+      type="button"
+      color="accent"
+      (click)="onDownload()"
+      [disabled]="!canUseReportDocuments || isDownloading">
+      <mat-icon>download</mat-icon>
+      {{ isDownloading ? 'Downloading...' : 'Download' }}
+    </button>
+    <button
+      mat-raised-button
+      type="button"
+      color="primary"
+      class="text-nowrap flex-shrink-0"
+      (click)="saveReportDocument()"
+      [disabled]="!canUseReportDocuments || isSubmitting">
+      <mat-icon>save</mat-icon>
+      {{ isSubmitting ? 'Saving...' : 'Document' }}
+    </button>
+  </ng-template>
   @if (drillDownView) {
     @if (activeInvoiceId) {
       <app-invoice
@@ -78,6 +108,9 @@
                 <span class="financial-report-context-btn__period">{{ shellReportPeriodLine }}</span>
               }
             </button>
+          </div>
+          <div class="financial-report-actions-wrap table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <ng-container *ngTemplateOutlet="reportActionButtons"></ng-container>
           </div>
         </div>
       </div>

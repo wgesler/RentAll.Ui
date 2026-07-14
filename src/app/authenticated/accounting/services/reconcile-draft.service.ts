@@ -1,6 +1,6 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
 import { BeginReconciliationDialogResult, ReconcileDraftResponse, SaveReconcileDraftRequest } from '../models/reconcile.model';
@@ -17,9 +17,8 @@ export class ReconcileDraftService {
     private utilityService: UtilityService) {}
 
   getReconcileDraftByAccountId(officeId: number, accountId: number): Observable<ReconcileDraftResponse | null> {
-    return this.http.get<ReconcileDraftResponse>(`${this.controller}reconcile-draft/office/${officeId}/account/${accountId}`).pipe(
-      map(draft => this.mapReconcileDraftResponse(draft as unknown as Record<string, unknown>)),
-      catchError((error: HttpErrorResponse) => error.status === 404 ? of(null) : throwError(() => error))
+    return this.http.get<ReconcileDraftResponse | null>(`${this.controller}reconcile-draft/office/${officeId}/account/${accountId}`).pipe(
+      map(draft => draft == null ? null : this.mapReconcileDraftResponse(draft as unknown as Record<string, unknown>))
     );
   }
 

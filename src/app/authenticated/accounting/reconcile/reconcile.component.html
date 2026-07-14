@@ -114,7 +114,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td class="reconcile-lines-table__empty" [attr.colspan]="getVisibleColumnCount('payments')">No uncleared checks or payments.</td>
+                    <td class="reconcile-lines-table__empty" [attr.colspan]="getVisibleColumnCount('payments')">No checks or payments to reconcile.</td>
                   </tr>
                 }
               </tbody>
@@ -173,7 +173,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td class="reconcile-lines-table__empty" [attr.colspan]="getVisibleColumnCount('deposits')">No uncleared deposits or credits.</td>
+                    <td class="reconcile-lines-table__empty" [attr.colspan]="getVisibleColumnCount('deposits')">No deposits or credits to reconcile.</td>
                   </tr>
                 }
               </tbody>

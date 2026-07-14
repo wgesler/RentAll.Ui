@@ -54,7 +54,9 @@ import { GeneralLedgerComponent } from '../general-ledger/general-ledger.compone
 import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledger-list.component';
 import { FinancialReportComponent } from '../financial-report/financial-report.component';
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
+import { ApAgingReportComponent } from '../ap-aging-report/ap-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
+import { AP_AGING_SORT_BY_OPTIONS, ApAgingReportFilters, ApAgingSortBy, normalizeApAgingThroughDays, resolveApAgingAsOfDate } from '../models/ap-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
 import { OwnerReportComponent } from '../owner-report/owner-report.component';
 import { OwnerStatementCreateComponent } from '../owner-statement-create/owner-statement-create.component';
@@ -64,6 +66,8 @@ import { JournalEntryRecapComponent } from '../journal-entry-recap/journal-entry
 import { ReconcileComponent } from '../reconcile/reconcile.component';
 import { BeginReconciliationDialogComponent } from '../reconcile/begin-reconciliation-dialog.component';
 import { BeginReconciliationDialogResult } from '../models/reconcile.model';
+import { ReconcileAccountReportComponent } from '../reconcile-account-report/reconcile-account-report.component';
+import { ReconcileAccountReportContext } from '../models/reconcile-account-report.model';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -117,6 +121,7 @@ interface AccountingShellPinnedTopBarState {
   arAgingIntervalDays?: number;
   arAgingThroughValue?: number;
   arAgingSortBy?: ArAgingSortBy;
+  apAgingSortBy?: ApAgingSortBy;
   glPropertyId?: string | null;
   glReservationId?: string | null;
 }
@@ -147,6 +152,8 @@ interface AccountingShellPinnedTopBarState {
     GeneralLedgerComponent,
     FinancialReportComponent,
     ArAgingReportComponent,
+    ApAgingReportComponent,
+    ReconcileAccountReportComponent,
     RentRollComponent,
     OwnerReportComponent,
     OwnerStatementCreateComponent,
@@ -163,6 +170,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
   @ViewChild('financialReport') financialReport?: FinancialReportComponent;
   @ViewChild('arAgingReport') arAgingReport?: ArAgingReportComponent;
+  @ViewChild('apAgingReport') apAgingReport?: ApAgingReportComponent;
+  @ViewChild('reconcileAccountReport') reconcileAccountReport?: ReconcileAccountReportComponent;
   @ViewChild('billsReceiptsMenuTrigger') billsReceiptsMenuTrigger?: MatMenuTrigger;
   @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
   @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
@@ -201,7 +210,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
     { kind: 'profitLoss', label: 'Profit & Loss' },
     { kind: 'balanceSheet', label: 'Balance Sheet' },
-    { kind: 'arAging', label: 'AR Aging' }
+    { kind: 'arAging', label: 'A/R Aging' },
+    { kind: 'apAging', label: 'A/P Aging' },
+    { kind: 'reconcileAccountSummary', label: 'Summary & Detail' }
   ];
   readonly shellGeneralLedgerMenuOptions: { kind: AccountingShellGeneralLedgerKind; label: string }[] = [
     { kind: 'ledger', label: 'General Ledger' },
@@ -273,11 +284,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedArAgingIntervalDays = 30;
   selectedArAgingThroughValue = 90;
   selectedArAgingSortBy: ArAgingSortBy = 'default';
+  selectedApAgingSortBy: ApAgingSortBy = 'default';
   arAgingReportFilters: ArAgingReportFilters = this.buildArAgingReportFilters();
+  apAgingReportFilters: ApAgingReportFilters = this.buildApAgingReportFilters();
   readonly shellArAgingDatePresetOptions = AR_AGING_DATE_PRESET_OPTIONS;
   readonly shellArAgingIntervalOptions = AR_AGING_INTERVAL_OPTIONS;
   readonly shellArAgingThroughOptions = AR_AGING_THROUGH_OPTIONS;
   readonly shellArAgingSortByOptions = AR_AGING_SORT_BY_OPTIONS;
+  readonly shellApAgingSortByOptions = AP_AGING_SORT_BY_OPTIONS;
   selectedGlPropertyId: string | null = null;
   selectedGlReservationId: string | null = null;
   selectedBillsPropertyId: string | null = null;
@@ -302,6 +316,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   transferReportRefreshTrigger = 0;
   reconcileRefreshTrigger = 0;
   reconcileSetup: BeginReconciliationDialogResult | null = null;
+  reconcileAccountReportContext: ReconcileAccountReportContext | null = null;
+  private preserveReconcileAccountReportContext = false;
+  private reconcileLeaveReportView: 'summary' | 'detail' | null = null;
   printChecksRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
@@ -344,6 +361,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   isFinancialReportDrillDownActive = false;
   isFinancialReportJournalEntryDetailActive = false;
   isArAgingDrillDownActive = false;
+  isApAgingDrillDownActive = false;
   isOwnerReportsLoading = false;
 
   destroy$ = new Subject<void>();
@@ -414,7 +432,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.clearInvalidChartOfAccountSelection();
             this.refreshGeneralLedgerListView();
           }
-          if (this.usesFinancialReportTitleBarFilters()) {
+          if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
             this.financialReportsRefreshTrigger++;
           }
           if (this.usesArAgingTitleBarFilters()) {
@@ -617,6 +635,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedChartOfAccountId = chartOfAccountId;
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
+    if (this.isReconcileAccountReportActive()) {
+      this.reconcileAccountReportContext = null;
+    }
     this.refreshGeneralLedgerListView();
     if (this.showReconcileChartOfAccountFilter) {
       this.reconcileRefreshTrigger++;
@@ -683,6 +704,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Financial Report Drill-Down
   onFinancialReportDrillDownBack(): void {
+    if (this.isApAgingDrillDownActive) {
+      this.apAgingReport?.drillDownBack();
+      return;
+    }
+
     if (this.isArAgingDrillDownActive) {
       this.arAgingReport?.drillDownBack();
       return;
@@ -708,7 +734,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get activeFinancialReport(): FinancialReportComponent | undefined {
-    if (this.selectedTabIndex === this.tabReports && this.selectedReportKind !== 'arAging') {
+    if (this.selectedTabIndex === this.tabReports && this.selectedReportKind !== 'arAging' && this.selectedReportKind !== 'apAging') {
       return this.financialReport;
     }
     return undefined;
@@ -721,6 +747,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if (this.activeFinancialReport?.activeInvoiceId) {
       return this.activeFinancialReport.drillDownInvoiceEditor;
+    }
+
+    if (this.apAgingReport?.activeReceiptId) {
+      return undefined;
     }
 
     if (this.arAgingReport?.activeInvoiceId) {
@@ -736,6 +766,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region AR Aging Report
+  onApAgingDrillDownActiveChange(active: boolean): void {
+    this.isApAgingDrillDownActive = active;
+    this.cdr.markForCheck();
+  }
+
+  onApAgingJournalEntriesChanged(): void {
+    this.onJournalEntriesChanged();
+  }
+
   onArAgingDrillDownActiveChange(active: boolean): void {
     this.isArAgingDrillDownActive = active;
     this.cdr.markForCheck();
@@ -746,11 +785,43 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   usesArAgingTitleBarFilters(): boolean {
-    return this.selectedTabIndex === this.tabReports && this.selectedReportKind === 'arAging';
+    return this.selectedTabIndex === this.tabReports
+      && (this.selectedReportKind === 'arAging' || this.selectedReportKind === 'apAging');
+  }
+
+  get usesArAgingSortByOptions(): boolean {
+    return this.selectedReportKind === 'arAging';
+  }
+
+  get usesApAgingSortByOptions(): boolean {
+    return this.selectedReportKind === 'apAging';
+  }
+
+  get selectedAgingSortByValue(): string {
+    return this.selectedReportKind === 'apAging'
+      ? this.selectedApAgingSortBy
+      : this.selectedArAgingSortBy;
   }
 
   get showArAgingCustomAsOfDate(): boolean {
     return this.selectedArAgingDatePreset === 'custom';
+  }
+
+  buildApAgingReportFilters(): ApAgingReportFilters {
+    return {
+      datePreset: this.selectedArAgingDatePreset,
+      asOfDate: resolveApAgingAsOfDate(
+        this.selectedArAgingDatePreset,
+        this.utilityService.formatDateOnlyForApi(this.endDate)
+      ),
+      intervalDays: this.selectedArAgingIntervalDays,
+      throughDays: normalizeApAgingThroughDays(this.selectedArAgingThroughValue),
+      sortBy: this.selectedApAgingSortBy
+    };
+  }
+
+  syncApAgingReportFilters(): void {
+    this.apAgingReportFilters = this.buildApAgingReportFilters();
   }
 
   buildArAgingReportFilters(): ArAgingReportFilters {
@@ -768,6 +839,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   syncArAgingReportFilters(): void {
     this.arAgingReportFilters = this.buildArAgingReportFilters();
+    this.syncApAgingReportFilters();
   }
 
   onShellArAgingDatePresetChange(value: string | number | null): void {
@@ -804,6 +876,17 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.persistPinnedTopBarIfActive();
   }
 
+  onShellApAgingSortByChange(value: string | number | null): void {
+    const sortBy = String(value ?? '') as ApAgingSortBy;
+    if (!this.shellApAgingSortByOptions.some(option => option.value === sortBy)) {
+      return;
+    }
+
+    this.selectedApAgingSortBy = sortBy;
+    this.publishApAgingFilterState();
+    this.cdr.markForCheck();
+  }
+
   onShellArAgingSortByChange(value: string | number | null): void {
     const sortBy = String(value ?? '') as ArAgingSortBy;
     if (!this.shellArAgingSortByOptions.some(option => option.value === sortBy)) {
@@ -831,8 +914,20 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.syncArAgingReportFilters();
   }
 
+  publishApAgingFilterState(): void {
+    this.syncArAgingAsOfDateFromFilters();
+    this.syncApAgingReportFilters();
+    this.financialReportsRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+  }
+
   publishArAgingFilterState(): void {
     this.syncArAgingAsOfDateFromFilters();
+    this.syncArAgingReportFilters();
     this.financialReportsRefreshTrigger++;
     this.router.navigate([], {
       relativeTo: this.route,
@@ -1897,9 +1992,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.tabOwners) {
       this.refreshActiveOwnerView();
     }
-    if (this.usesFinancialReportTitleBarFilters()) {
+    if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
       this.financialReportsRefreshTrigger++;
-      queueMicrotask(() => this.syncFinancialReportDrillDownActiveState());
+      if (this.usesFinancialReportTitleBarFilters()) {
+        queueMicrotask(() => this.syncFinancialReportDrillDownActiveState());
+      }
     }
     if (this.selectedTabIndex === this.tabReports && this.selectedReportKind === 'arAging') {
       this.financialReportsRefreshTrigger++;
@@ -2083,18 +2180,40 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.reportsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
     const kindChanged = this.selectedReportKind !== kind;
+    if (
+      kindChanged
+      && (kind === 'reconcileAccountSummary' || kind === 'reconcileAccountDetail')
+      && !this.preserveReconcileAccountReportContext
+    ) {
+      this.reconcileAccountReportContext = null;
+    }
     this.selectedReportKind = kind;
 
     if (previousTab !== this.tabReports) {
       this.onTabChange({ index: this.tabReports });
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ tab: String(this.tabReports), report: kind, bankActivity: null }),
+        queryParamsHandling: 'merge'
+      });
+      this.persistPinnedTopBarIfActive();
       return;
     }
 
-    if (kind === 'arAging') {
+    if (kind === 'arAging' || kind === 'apAging') {
       this.isFinancialReportDrillDownActive = false;
       this.isFinancialReportJournalEntryDetailActive = false;
       this.isArAgingDrillDownActive = false;
+      this.isApAgingDrillDownActive = false;
       this.syncArAgingAsOfDateFromFilters();
+      if (kindChanged) {
+        this.financialReportsRefreshTrigger++;
+      }
+    } else if (kind === 'reconcileAccountSummary' || kind === 'reconcileAccountDetail') {
+      this.isFinancialReportDrillDownActive = false;
+      this.isFinancialReportJournalEntryDetailActive = false;
+      this.isArAgingDrillDownActive = false;
+      this.isApAgingDrillDownActive = false;
       if (kindChanged) {
         this.financialReportsRefreshTrigger++;
       }
@@ -2165,7 +2284,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.tabOwners) {
       this.refreshActiveOwnerView();
     }
-    if (this.usesFinancialReportTitleBarFilters()) {
+    if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
       this.financialReportsRefreshTrigger++;
     }
     if (this.usesArAgingTitleBarFilters()) {
@@ -2333,12 +2452,56 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onReconcileLeave(): void {
+    const setup = this.reconcileSetup;
     this.reconcileSetup = null;
-    this.selectBankActivity('undepositedFunds');
+
+    if (setup) {
+      this.reconcileAccountReportContext = {
+        endingBalance: setup.endingBalance
+      };
+      this.selectedChartOfAccountId = setup.chartOfAccountId;
+      const statementDate = this.utilityService.parseCalendarDateInput(setup.statementDate);
+      if (statementDate) {
+        this.endDate = statementDate;
+        this.syncInvoiceSearchDateRange();
+      }
+    }
+
+    this.openReconcileAccountReport(this.reconcileLeaveReportView ?? 'detail');
+    this.reconcileLeaveReportView = null;
+  }
+
+  onReconcileAccountReportViewChange(view: 'summary' | 'detail'): void {
+    this.selectReport(view === 'detail' ? 'reconcileAccountDetail' : 'reconcileAccountSummary');
+  }
+
+  private openReconcileAccountReport(view: 'summary' | 'detail'): void {
+    const kind = view === 'detail' ? 'reconcileAccountDetail' : 'reconcileAccountSummary';
+    this.preserveReconcileAccountReportContext = true;
+    this.selectedReportKind = kind;
+    this.isFinancialReportDrillDownActive = false;
+    this.isFinancialReportJournalEntryDetailActive = false;
+    this.isArAgingDrillDownActive = false;
+
+    if (this.selectedTabIndex !== this.tabReports) {
+      this.onTabChange({ index: this.tabReports });
+    } else {
+      this.financialReportsRefreshTrigger++;
+    }
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ tab: String(this.tabReports), report: kind, bankActivity: null }),
+      queryParamsHandling: 'merge'
+    });
+    this.preserveReconcileAccountReportContext = false;
+    this.persistPinnedTopBarIfActive();
+    this.cdr.markForCheck();
   }
 
   onReconcileComplete(): void {
     this.chartOfAccountsService.notifyChartOfAccountsChanged();
+    this.reconcileLeaveReportView = 'summary';
   }
 
   private resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {
@@ -2404,7 +2567,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.tabOwners) {
       this.refreshActiveOwnerView();
     }
-    if (this.usesFinancialReportTitleBarFilters()) {
+    if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
       this.financialReportsRefreshTrigger++;
     }
     if (this.usesArAgingTitleBarFilters()) {
@@ -2466,6 +2629,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (stored.arAgingSortBy) {
       this.selectedArAgingSortBy = stored.arAgingSortBy;
+    }
+    if (stored.apAgingSortBy) {
+      this.selectedApAgingSortBy = stored.apAgingSortBy;
     }
     this.selectedGlPropertyId = stored.glPropertyId ?? null;
     this.selectedGlReservationId = stored.glReservationId ?? null;
@@ -2543,6 +2709,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       arAgingIntervalDays: this.selectedArAgingIntervalDays,
       arAgingThroughValue: this.selectedArAgingThroughValue,
       arAgingSortBy: this.selectedArAgingSortBy,
+      apAgingSortBy: this.selectedApAgingSortBy,
       glPropertyId: this.selectedGlPropertyId,
       glReservationId: this.selectedGlReservationId
     };
@@ -2588,6 +2755,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         arAgingIntervalDays: parsed.arAgingIntervalDays,
         arAgingThroughValue: parsed.arAgingThroughValue,
         arAgingSortBy: parsed.arAgingSortBy,
+        apAgingSortBy: parsed.apAgingSortBy,
         glPropertyId: parsed.glPropertyId == null || parsed.glPropertyId === '' ? null : String(parsed.glPropertyId),
         glReservationId: parsed.glReservationId == null || parsed.glReservationId === '' ? null : String(parsed.glReservationId)
       };
@@ -2691,7 +2859,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.isOwnersWorkOrderDetailActive
       && !this.isWorkOrderCreateActive
       && !this.isFinancialReportDrillDownActive
-      && !this.isArAgingDrillDownActive;
+      && !this.isArAgingDrillDownActive
+      && !this.isApAgingDrillDownActive;
   }
 
   resolveOfficeIdsForJournalEntrySync(): number[] {
@@ -3123,24 +3292,52 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
+  get financialReportKind(): FinancialReportKind {
+    return this.selectedReportKind === 'balanceSheet' ? 'balanceSheet' : 'profitLoss';
+  }
+
+  get reconcileAccountReportView(): 'summary' | 'detail' {
+    return this.selectedReportKind === 'reconcileAccountDetail' ? 'detail' : 'summary';
+  }
+
+  get reconcileAccountReportStatementDate(): string | null {
+    return this.utilityService.formatDateOnlyForApi(this.endDate);
+  }
+
   usesFinancialReportTitleBarFilters(): boolean {
-    return this.selectedTabIndex === this.tabReports && this.selectedReportKind !== 'arAging';
+    return this.selectedTabIndex === this.tabReports
+      && this.selectedReportKind !== 'arAging'
+      && this.selectedReportKind !== 'apAging'
+      && !this.isReconcileAccountReportActive();
+  }
+
+  isReconcileAccountReportActive(): boolean {
+    return this.selectedTabIndex === this.tabReports
+      && (this.selectedReportKind === 'reconcileAccountSummary' || this.selectedReportKind === 'reconcileAccountDetail');
+  }
+
+  usesReconcileAccountReportTitleBarFilters(): boolean {
+    return this.isReconcileAccountReportActive();
+  }
+
+  get showReconcileAccountReportChartOfAccountFilter(): boolean {
+    return this.usesReconcileAccountReportTitleBarFilters();
   }
 
   get showAccountingShellStartDate(): boolean {
-    if (this.isReconcileBankActivityActive) {
+    if (this.isReconcileBankActivityActive || this.isReconcileAccountReportActive()) {
       return false;
     }
 
-    return !(this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging'));
+    return !(this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.selectedReportKind === 'apAging'));
   }
 
   get accountingShellEndDateLabel(): string {
-    if (this.isReconcileBankActivityActive) {
+    if (this.isReconcileBankActivityActive || this.isReconcileAccountReportActive()) {
       return 'Statement Date';
     }
 
-    return this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging')
+    return this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.selectedReportKind === 'apAging')
       ? 'As of'
       : 'End Date';
   }
@@ -3197,7 +3394,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   usesReportTitleBarFilters(): boolean {
-    return this.usesFinancialReportTitleBarFilters() || this.usesArAgingTitleBarFilters() || this.usesGeneralLedgerTitleBarFilters();
+    return this.usesFinancialReportTitleBarFilters()
+      || this.usesReconcileAccountReportTitleBarFilters()
+      || this.usesArAgingTitleBarFilters()
+      || this.usesGeneralLedgerTitleBarFilters();
   }
 
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
@@ -3275,7 +3475,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onOwnersWorkOrderBack();
       this.refreshActiveOwnerView();
     }
-    if (this.usesFinancialReportTitleBarFilters()) {
+    if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
       this.financialReportsRefreshTrigger++;
     }
     if (this.usesArAgingTitleBarFilters()) {
@@ -3398,7 +3598,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('report' in params) {
       const report = params['report'];
-      if (report === 'profitLoss' || report === 'balanceSheet' || report === 'arAging') {
+      if (
+        report === 'profitLoss'
+        || report === 'balanceSheet'
+        || report === 'arAging'
+        || report === 'apAging'
+        || report === 'reconcileAccountSummary'
+        || report === 'reconcileAccountDetail'
+      ) {
         this.selectedReportKind = report;
       }
     }
@@ -3436,7 +3643,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.usesArAgingTitleBarFilters() || ('report' in params && params['report'] === 'arAging')) {
+    if (this.usesArAgingTitleBarFilters() || ('report' in params && (params['report'] === 'arAging' || params['report'] === 'apAging'))) {
       if ('arAgingDate' in params) {
         const datePreset = params['arAgingDate'] as ArAgingDatePreset;
         if (this.shellArAgingDatePresetOptions.some(option => option.value === datePreset)) {
@@ -3465,15 +3672,22 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         }
       }
 
+      if ('apAgingSort' in params) {
+        const sortBy = params['apAgingSort'] as ApAgingSortBy;
+        if (this.shellApAgingSortByOptions.some(option => option.value === sortBy)) {
+          this.selectedApAgingSortBy = sortBy;
+        }
+      }
+
       this.syncArAgingAsOfDateFromFilters();
     }
 
     this.syncArAgingReportFilters();
 
-    if (this.usesGeneralLedgerTitleBarFilters()) {
+    if (this.usesGeneralLedgerTitleBarFilters() || this.usesReconcileAccountReportTitleBarFilters()) {
       if ('chartOfAccountId' in params) {
         this.selectedChartOfAccountId = getNumberQueryParam(params, 'chartOfAccountId');
-      } else {
+      } else if (this.usesGeneralLedgerTitleBarFilters()) {
         this.selectedChartOfAccountId = null;
       }
 
@@ -3715,8 +3929,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       arAgingDate: this.usesArAgingTitleBarFilters() ? this.selectedArAgingDatePreset : null,
       arAgingInterval: this.usesArAgingTitleBarFilters() ? String(this.selectedArAgingIntervalDays) : null,
       arAgingThrough: this.usesArAgingTitleBarFilters() ? String(this.selectedArAgingThroughValue) : null,
-      arAgingSort: this.usesArAgingTitleBarFilters() ? this.selectedArAgingSortBy : null,
-      chartOfAccountId: (this.usesGeneralLedgerTitleBarFilters() || this.showReconcileChartOfAccountFilter) && this.selectedChartOfAccountId != null
+      arAgingSort: this.selectedReportKind === 'arAging' ? this.selectedArAgingSortBy : null,
+      apAgingSort: this.selectedReportKind === 'apAging' ? this.selectedApAgingSortBy : null,
+      chartOfAccountId: (
+        this.usesGeneralLedgerTitleBarFilters()
+        || this.showReconcileChartOfAccountFilter
+        || this.usesReconcileAccountReportTitleBarFilters()
+      ) && this.selectedChartOfAccountId != null
         ? String(this.selectedChartOfAccountId)
         : null,
       propertyId: this.usesGeneralLedgerTitleBarFilters() ? this.selectedGlPropertyId : null,
@@ -3730,7 +3949,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const options = this.showReconcileChartOfAccountFilter
+    const options = this.showReconcileChartOfAccountFilter || this.showReconcileAccountReportChartOfAccountFilter
       ? this.shellReconcileChartOfAccountTitleBarOptions
       : this.shellChartOfAccountTitleBarOptions;
     const isValid = options.some(option => option.value === this.selectedChartOfAccountId);

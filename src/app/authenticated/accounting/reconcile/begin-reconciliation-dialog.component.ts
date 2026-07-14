@@ -68,12 +68,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
       }),
       takeUntil(this.destroy$)
     ).subscribe(draft => {
-      if (draft) {
-        this.applyReconcileDraft(draft);
-        return;
-      }
-
-      this.resetDialogFieldsForSelectedAccount();
+      this.applyReconcileDraft(draft);
     });
 
     this.form.valueChanges.pipe(
@@ -239,12 +234,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     this.fetchReconcileDraftForSelectedAccount().pipe(
       takeUntil(this.destroy$)
     ).subscribe(draft => {
-      if (draft) {
-        this.applyReconcileDraft(draft);
-        return;
-      }
-
-      this.resetDialogFieldsForSelectedAccount();
+      this.applyReconcileDraft(draft);
     });
   }
 
@@ -258,43 +248,31 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     return this.reconcileDraftService.getReconcileDraftByAccountId(officeId, chartOfAccountId);
   }
 
-  private resetDialogFieldsForSelectedAccount(): void {
+  private applyReconcileDraft(draft: ReconcileDraftResponse | null): void {
     this.isApplyingDraft = true;
     const accountDefault = this.resolveSelectedAccountDefault();
-    const defaultStatementDate = this.utilityService.parseCalendarDateInput(accountDefault?.statementDate ?? null)
+    const fallbackStatementDate = this.utilityService.parseCalendarDateInput(accountDefault?.statementDate ?? null)
       ?? this.data.defaultStatementDate
       ?? new Date();
+    const defaultStatementDate = draft
+      ? (this.utilityService.parseCalendarDateInput(draft.statementDate) ?? fallbackStatementDate)
+      : fallbackStatementDate;
+    const serviceChargeDate = draft
+      ? (this.utilityService.parseCalendarDateInput(draft.serviceChargeDate) ?? defaultStatementDate)
+      : defaultStatementDate;
+    const interestEarnedDate = draft
+      ? (this.utilityService.parseCalendarDateInput(draft.interestDate) ?? defaultStatementDate)
+      : defaultStatementDate;
 
     this.form.patchValue({
       statementDate: defaultStatementDate,
-      endingBalance: '',
-      serviceCharge: '$0.00',
-      serviceChargeDate: defaultStatementDate,
-      serviceChargeAccountId: null,
-      interestEarned: '$0.00',
-      interestEarnedDate: defaultStatementDate,
-      interestEarnedAccountId: null
-    }, { emitEvent: false });
-    this.isApplyingDraft = false;
-  }
-
-  private applyReconcileDraft(draft: ReconcileDraftResponse): void {
-    this.isApplyingDraft = true;
-    const defaultStatementDate = this.utilityService.parseCalendarDateInput(draft.statementDate)
-      ?? this.data.defaultStatementDate
-      ?? new Date();
-    const serviceChargeDate = this.utilityService.parseCalendarDateInput(draft.serviceChargeDate) ?? defaultStatementDate;
-    const interestEarnedDate = this.utilityService.parseCalendarDateInput(draft.interestDate) ?? defaultStatementDate;
-
-    this.form.patchValue({
-      statementDate: defaultStatementDate,
-      endingBalance: draft.endingBalance == null ? '' : this.formatCurrencyFieldValue(draft.endingBalance, ''),
-      serviceCharge: draft.serviceChargeAmount == null ? '$0.00' : this.formatCurrencyFieldValue(draft.serviceChargeAmount, '$0.00'),
+      endingBalance: draft?.endingBalance == null ? '$0.00' : this.formatCurrencyFieldValue(draft.endingBalance, '$0.00'),
+      serviceCharge: draft?.serviceChargeAmount == null ? '$0.00' : this.formatCurrencyFieldValue(draft.serviceChargeAmount, '$0.00'),
       serviceChargeDate,
-      serviceChargeAccountId: draft.serviceChargeAccountId,
-      interestEarned: draft.interestAmount == null ? '$0.00' : this.formatCurrencyFieldValue(draft.interestAmount, '$0.00'),
+      serviceChargeAccountId: draft?.serviceChargeAccountId ?? null,
+      interestEarned: draft?.interestAmount == null ? '$0.00' : this.formatCurrencyFieldValue(draft.interestAmount, '$0.00'),
       interestEarnedDate,
-      interestEarnedAccountId: draft.interestAccountId
+      interestEarnedAccountId: draft?.interestAccountId ?? null
     }, { emitEvent: false });
     this.isApplyingDraft = false;
   }

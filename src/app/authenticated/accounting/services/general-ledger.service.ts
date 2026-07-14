@@ -57,15 +57,15 @@ export class GeneralLedgerService {
     );
   }
 
-  searchUnclearedJournalEntryLines(officeId: number, chartOfAccountId: number, statementDate?: string | null): Observable<JournalEntryLineSearchResponse[]> {
-    return this.searchJournalEntryLines({
-      officeIds: [officeId],
+  searchReconcileJournalEntryLines(officeId: number, chartOfAccountId: number, statementDate?: string | null): Observable<JournalEntryLineSearchResponse[]> {
+    // IsCleared = 0 and IsCleared = 1 both return. Only ClearedOn excludes a line from this list.
+    return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/reconcile/lines`, {
+      officeId,
       chartOfAccountId,
-      includeVoided: false,
-      includeUnposted: true,
-      unclearedOnly: true,
-      endDate: statementDate || null
-    });
+      statementDate: statementDate || null
+    }).pipe(
+      map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
+    );
   }
 
   getReconcileBeginningBalance(officeId: number, chartOfAccountId: number, statementDate?: string | null): Observable<number> {

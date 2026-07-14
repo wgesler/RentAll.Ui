@@ -1,0 +1,142 @@
+@if (isPageReady) {
+  <ng-template #reportActionButtons>
+    <button
+      mat-raised-button
+      type="button"
+      color="accent"
+      (click)="onPrint()"
+      [disabled]="!canUseReportDocuments">
+      <mat-icon>print</mat-icon>
+      Print
+    </button>
+    <button
+      mat-raised-button
+      type="button"
+      color="accent"
+      (click)="onDownload()"
+      [disabled]="!canUseReportDocuments || isDownloading">
+      <mat-icon>download</mat-icon>
+      {{ isDownloading ? 'Downloading...' : 'Download' }}
+    </button>
+    <button
+      mat-raised-button
+      type="button"
+      color="primary"
+      class="text-nowrap flex-shrink-0"
+      (click)="saveReportDocument()"
+      [disabled]="!canUseReportDocuments || isSubmitting">
+      <mat-icon>save</mat-icon>
+      {{ isSubmitting ? 'Saving...' : 'Document' }}
+    </button>
+  </ng-template>
+
+  <div class="mat list-layout-standard financial-report-layout">
+    <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
+      <div class="property-tab-actions-band__row financial-report-context-band__row">
+        <div class="financial-report-context-band__titles">
+          <p class="financial-report-report-title">{{ shellReportTitle }}</p>
+          <button type="button" class="financial-report-context-btn">
+            @if (shellReportEntityLine) {
+              <span class="financial-report-context-btn__entity">{{ shellReportEntityLine }}</span>
+            }
+            @if (shellReportPeriodLine) {
+              <span class="financial-report-context-btn__period">{{ shellReportPeriodLine }}</span>
+            }
+          </button>
+        </div>
+        <div class="reconcile-account-report-controls-wrap">
+          <div class="reconcile-account-report-detail-toggle-wrap">
+            <mat-slide-toggle
+              [checked]="isDetailView"
+              color="primary"
+              (change)="onDetailToggleChange($event.checked)">
+              Detail
+            </mat-slide-toggle>
+          </div>
+          <div class="reconcile-account-report-actions-wrap table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <ng-container *ngTemplateOutlet="reportActionButtons"></ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="financial-report-panel dbg-band-main">
+      <div class="financial-report-panel-inner" [class.reconcile-account-report-panel-inner--detail]="isDetailView">
+        @if (isServiceError) {
+          <div class="financial-report-empty-state">
+            <p>{{ noActivityMessage }}</p>
+          </div>
+        } @else if (!reportResult || reportResult.rows.length === 0) {
+          <div class="financial-report-empty-state">
+            <p>{{ noActivityMessage }}</p>
+          </div>
+        } @else if (isDetailView) {
+          <div class="financial-report-table-wrap">
+            <table class="financial-report-table financial-report-table--multi-column reconcile-account-report-table--detail">
+              <thead>
+                <tr>
+                  <th class="reconcile-account-report-col-type">Type</th>
+                  <th class="reconcile-account-report-col-date">Date</th>
+                  <th class="reconcile-account-report-col-num">Num</th>
+                  <th class="reconcile-account-report-col-name">Name</th>
+                  <th class="reconcile-account-report-col-clr">Clr</th>
+                  <th class="financial-report-col-amount">Amount</th>
+                  <th class="financial-report-col-amount financial-report-col-total">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of reportResult.rows; track row.rowId) {
+                  @if (row.rowKind !== 'columnHeader') {
+                    <tr
+                      [class.financial-report-row-section]="row.rowKind === 'section' || row.rowKind === 'subsection'"
+                      [class.financial-report-row-total]="isTotalRow(row)"
+                      [class.financial-report-row-summary]="row.rowKind === 'summary' || row.rowKind === 'ending' || row.rowKind === 'beginning'">
+                      <td class="reconcile-account-report-col-type">
+                        @if (row.rowKind === 'line') {
+                          {{ row.type }}
+                        } @else {
+                          <span [style.padding-left.px]="(row.depth || 0) * 12">{{ row.label }}</span>
+                        }
+                      </td>
+                      <td class="reconcile-account-report-col-date">{{ row.date || '' }}</td>
+                      <td class="reconcile-account-report-col-num">{{ row.num || '' }}</td>
+                      <td class="reconcile-account-report-col-name">{{ row.name || '' }}</td>
+                      <td class="reconcile-account-report-col-clr">{{ row.clr || '' }}</td>
+                      <td class="financial-report-col-amount">{{ formatAmount(row.amount) }}</td>
+                      <td class="financial-report-col-amount financial-report-col-total">{{ formatAmount(row.balance) }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="financial-report-table-wrap">
+            <table class="financial-report-table">
+              <tbody>
+                @for (row of reportResult.rows; track row.rowId) {
+                  <tr
+                    [class.financial-report-row-section]="isSectionRow(row)"
+                    [class.financial-report-row-total]="isTotalRow(row)"
+                    [class.financial-report-row-summary]="row.rowKind === 'summary' || row.rowKind === 'ending' || row.rowKind === 'beginning'">
+                    <td class="financial-report-col-label">
+                      <div class="financial-report-label-wrap" [style.padding-left.px]="(row.depth || 0) * 18">
+                        <span class="financial-report-expand-spacer"></span>
+                        <span class="financial-report-label">{{ row.label }}</span>
+                      </div>
+                    </td>
+                    <td class="financial-report-col-amount financial-report-col-total">{{ formatSummaryAmount(row) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading report...</p>
+  </div>
+}

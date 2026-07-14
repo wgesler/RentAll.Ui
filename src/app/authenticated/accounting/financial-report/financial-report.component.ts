@@ -1,16 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, filter, finalize, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, filter, finalize, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { DocumentExportService } from '../../../services/document-export.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { DocumentType } from '../../documents/models/document.enum';
+import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { DocumentService } from '../../documents/services/document.service';
+import { EmailService } from '../../email/services/email.service';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../shared/base-document.component';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -30,6 +37,7 @@ import { InvoiceResponse } from '../models/invoice.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySourceService } from '../services/journal-entry-source.service';
+import { ReportHtmlBuilderService } from '../services/report-html-builder.service';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { InvoiceComponent } from '../invoice/invoice.component';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
@@ -56,7 +64,7 @@ interface FinancialReportVisibleRow {
   styleUrls: ['./financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
+export class FinancialReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reportKind: FinancialReportKind = 'profitLoss';
   @Input() officeId: number | null = null;
   @Input() reportClass: Class = Class.TotalOnly;
@@ -70,6 +78,10 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   reportResult: FinancialReportResult | null = null;
   visibleRows: FinancialReportVisibleRow[] = [];
+  previewIframeHtml = '';
+  previewIframeStyles = '';
+  isDownloading = false;
+  isSubmitting = false;
   drillDownView: FinancialReportDrillDownView | null = null;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
@@ -114,15 +126,20 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     private mappingService: MappingService,
     private officeService: OfficeService,
     private chartOfAccountsService: ChartOfAccountsService,
-    private authService: AuthService,
     private commonService: CommonService,
     private utilityService: UtilityService,
-    private documentExportService: DocumentExportService,
     private journalEntrySourceService: JournalEntrySourceService,
     private propertyService: PropertyService,
-    private toastr: ToastrService,
+    private reportHtmlBuilder: ReportHtmlBuilderService,
+    private documentReloadService: DocumentReloadService,
+    documentService: DocumentService,
+    documentExportService: DocumentExportService,
+    documentHtmlService: DocumentHtmlService,
+    public override toastr: ToastrService,
+    emailService: EmailService,
     private cdr: ChangeDetectorRef
   ) {
+    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
   }
 
   //#region Financial-Report
@@ -691,11 +708,13 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       });
       this.initializeExpandedNodes(this.reportResult.sections);
       this.rebuildVisibleRows();
+      this.refreshPrintableHtml();
     } catch (error) {
       console.error('Financial Report - error building report display:', error);
       this.isServiceError = true;
       this.reportResult = null;
       this.visibleRows = [];
+      this.clearPrintableHtml();
       this.noActivityMessage = 'Unable to build the financial report display.';
     }
   }
@@ -827,6 +846,145 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   get shellReportPeriodLine(): string {
     return this.reportResult?.periodLabel?.trim() || '';
+  }
+
+  get canUseReportDocuments(): boolean {
+    return !!this.reportResult
+      && this.visibleRows.length > 0
+      && !!this.previewIframeHtml
+      && this.resolveDocumentOfficeId() != null;
+  }
+
+  override onPrint(): void {
+    super.onPrint(this.buildNoPreviewMessage());
+  }
+
+  override async onDownload(): Promise<void> {
+    const downloadConfig: DownloadConfig = {
+      fileName: this.buildReportFileName(),
+      documentType: this.resolveReportDocumentType(),
+      noPreviewMessage: this.buildNoPreviewMessage(),
+      noSelectionMessage: 'Organization or office is not available.'
+    };
+    await super.onDownload(downloadConfig);
+  }
+
+  async saveReportDocument(): Promise<void> {
+    if (!this.canUseReportDocuments) {
+      this.toastr.warning(this.buildNoPreviewMessage(), 'No Preview');
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.markViewForCheck();
+    try {
+      const config = this.getDocumentConfig();
+      if (!config.organizationId || !config.selectedOfficeId) {
+        this.toastr.warning('Organization or office is not available.', 'Missing Data');
+        return;
+      }
+
+      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+        config.previewIframeHtml,
+        config.previewIframeStyles
+      );
+
+      const generateDto: GenerateDocumentFromHtmlDto = {
+        htmlContent: htmlWithStyles,
+        organizationId: config.organizationId,
+        officeId: config.selectedOfficeId,
+        officeName: config.selectedOfficeName || '',
+        propertyId: null,
+        reservationId: null,
+        documentTypeId: Number(this.resolveReportDocumentType()),
+        fileName: this.buildReportFileName(),
+        generatePdf: true
+      };
+
+      await firstValueFrom(this.documentService.generate(generateDto).pipe(take(1)));
+      this.toastr.success('Document generated successfully', 'Success');
+      this.documentReloadService.triggerReload();
+    } catch (error) {
+      const detail = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(
+        detail ? `Document generation failed. ${detail}` : 'Document generation failed. Please try again.',
+        'Error'
+      );
+    } finally {
+      this.isSubmitting = false;
+      this.markViewForCheck();
+    }
+  }
+
+  protected getDocumentConfig(): DocumentConfig {
+    return {
+      previewIframeHtml: this.previewIframeHtml,
+      previewIframeStyles: this.previewIframeStyles,
+      organizationId: this.organizationId || null,
+      selectedOfficeId: this.resolveDocumentOfficeId(),
+      selectedOfficeName: this.displayOfficeName,
+      propertyId: null,
+      selectedReservationId: null,
+      isDownloading: this.isDownloading
+    };
+  }
+
+  protected setDownloading(value: boolean): void {
+    this.isDownloading = value;
+    this.markViewForCheck();
+  }
+
+  private buildNoPreviewMessage(): string {
+    return this.reportKind === 'balanceSheet'
+      ? 'No balance sheet is available to print.'
+      : 'No profit and loss report is available to print.';
+  }
+
+  private buildReportFileName(): string {
+    const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
+    const reportSegment = this.reportKind === 'balanceSheet' ? 'BalanceSheet' : 'ProfitLoss';
+    const dateStamp = this.utilityService.sanitizeFileNameSegment(
+      this.reportKind === 'balanceSheet'
+        ? (this.searchDateRange?.endDate || this.utilityService.todayAsCalendarDateString())
+        : `${this.searchDateRange?.startDate || 'Start'}_${this.searchDateRange?.endDate || 'End'}`
+    );
+    return `${officeSegment}_${reportSegment}_${dateStamp}.pdf`;
+  }
+
+  private resolveReportDocumentType(): DocumentType {
+    return this.reportKind === 'balanceSheet'
+      ? DocumentType.BalanceSheet
+      : DocumentType.ProfitLoss;
+  }
+
+  private resolveDocumentOfficeId(): number | null {
+    if (this.officeId != null && this.officeId > 0) {
+      return this.officeId;
+    }
+    if (this.offices.length === 1) {
+      return this.offices[0].officeId;
+    }
+    return null;
+  }
+
+  private refreshPrintableHtml(): void {
+    if (!this.reportResult || this.visibleRows.length === 0) {
+      this.clearPrintableHtml();
+      return;
+    }
+
+    const printableDocument = this.mappingService.mapFinancialReportToPrintableDocument(
+      this.reportResult,
+      this.entityLineLabel
+    );
+    const preview = this.reportHtmlBuilder.buildPreviewContent(printableDocument);
+    this.previewIframeHtml = preview.previewIframeHtml;
+    this.previewIframeStyles = preview.previewIframeStyles;
+  }
+
+  private clearPrintableHtml(): void {
+    this.previewIframeHtml = '';
+    this.previewIframeStyles = '';
   }
 
   getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {

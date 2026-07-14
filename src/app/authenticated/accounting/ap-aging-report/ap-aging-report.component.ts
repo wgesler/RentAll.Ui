@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Subject, catchError, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
@@ -19,55 +19,60 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../shared/base-document.component';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceResponse } from '../models/invoice.model';
-import { ArAgingBucketId, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingDrillDownView, ArAgingInvoiceDetail, ArAgingReportFilters, ArAgingReportResult, ArAgingReservationContext, ArAgingVisibleRow, buildArAgingReservationContext } from '../models/ar-aging-report.model';
-import { CostCodesService } from '../services/cost-codes.service';
-import { InvoiceService } from '../services/invoice.service';
+import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
+import { ReceiptService } from '../../maintenance/services/receipt.service';
+import {
+  ApAgingBillDetail,
+  ApAgingBucketId,
+  ApAgingDetailReportResult,
+  ApAgingDetailRow,
+  ApAgingDrillDownView,
+  ApAgingReportFilters,
+  ApAgingReportResult,
+  ApAgingVisibleRow
+} from '../models/ap-aging-report.model';
 import { ReportHtmlBuilderService } from '../services/report-html-builder.service';
-import { InvoiceComponent } from '../invoice/invoice.component';
-import { ContactService } from '../../contacts/services/contact.service';
-import { ReservationService } from '../../reservations/services/reservation.service';
-import { ReservationResponse } from '../../reservations/models/reservation-model';
 
 @Component({
-  selector: 'app-ar-aging-report',
+  selector: 'app-ap-aging-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, InvoiceComponent],
-  templateUrl: './ar-aging-report.component.html',
-  styleUrls: ['./ar-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
+  imports: [CommonModule, MaterialModule, ReceiptComponent],
+  templateUrl: './ap-aging-report.component.html',
+  styleUrls: ['./ap-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ArAgingReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+export class ApAgingReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
-  @Input() reportFilters: ArAgingReportFilters | null = null;
+  @Input() reportFilters: ApAgingReportFilters | null = null;
   @Input() refreshTrigger = 0;
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
-  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
+  @ViewChild('drillDownReceiptEditor') drillDownReceiptEditor?: ReceiptComponent;
 
   isServiceError = false;
-  noDataMessage = 'No open receivables for the selected filters and as-of date.';
-  reportResult: ArAgingReportResult | null = null;
-  visibleRows: ArAgingVisibleRow[] = [];
+  noDataMessage = 'No open payables for the selected filters and as-of date.';
+  reportResult: ApAgingReportResult | null = null;
+  visibleRows: ApAgingVisibleRow[] = [];
   previewIframeHtml = '';
   previewIframeStyles = '';
   isDownloading = false;
   isSubmitting = false;
-  expandedCustomerKeys = new Set<string>();
-  drillDownView: ArAgingDrillDownView | null = null;
-  detailReport: ArAgingDetailReportResult | null = null;
-  activeInvoiceId: string | null = null;
-  activeInvoiceOfficeId: number | null = null;
-  activeInvoiceReservationId: string | null = null;
-  selectedInvoice: InvoiceResponse | null = null;
+  expandedVendorKeys = new Set<string>();
+  drillDownView: ApAgingDrillDownView | null = null;
+  detailReport: ApAgingDetailReportResult | null = null;
+  activeReceiptId: string | null = null;
+  activeReceiptOfficeId: number | null = null;
+  selectedReceipt: ReceiptResponse | null = null;
+  drillDownReceiptProperty: PropertyResponse | null = null;
 
   companyName = '';
   organizationId = '';
   offices: OfficeResponse[] = [];
-  allInvoices: InvoiceResponse[] = [];
-  allCostCodes: CostCodesResponse[] = [];
-  reservationContextByReservationId = new Map<string, ArAgingReservationContext>();
+  allReceipts: ReceiptResponse[] = [];
+  propertyCodeByPropertyId = new Map<string, string>();
 
   detailDisplayedColumns: ColumnSet = {
     transactionType: { displayAs: 'Type', maxWidth: '10ch', sort: false },
@@ -83,19 +88,17 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'propertyCodes']));
   destroy$ = new Subject<void>();
 
   constructor(
     public formatter: FormatterService,
-    private invoiceService: InvoiceService,
+    private receiptService: ReceiptService,
     private mappingService: MappingService,
     private officeService: OfficeService,
-    private costCodesService: CostCodesService,
     private commonService: CommonService,
     private utilityService: UtilityService,
-    private contactService: ContactService,
-    private reservationService: ReservationService,
+    private propertyService: PropertyService,
     private reportHtmlBuilder: ReportHtmlBuilderService,
     private documentReloadService: DocumentReloadService,
     documentService: DocumentService,
@@ -108,13 +111,12 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
   }
 
-  //#region AR-Aging-Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
       if (!wasReady && this.isPageReady) {
-        this.loadInvoices();
+        this.loadReceipts();
       }
       this.markViewForCheck();
     });
@@ -122,7 +124,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOrganization();
     this.loadOffices();
-    this.loadCostCodes();
+    this.loadPropertyCodes();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -141,7 +143,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange);
 
     if (shouldReload) {
-      this.loadInvoices();
+      this.loadReceipts();
     }
   }
 
@@ -150,9 +152,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
-  //#endregion
 
-  //#region Data Loading Methods
   loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
@@ -169,7 +169,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   loadOffices(): void {
     if (!this.organizationId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.loadInvoices();
+      this.loadReceipts();
       return;
     }
 
@@ -179,13 +179,13 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-            this.loadInvoices();
+            this.loadReceipts();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-            this.loadInvoices();
+            this.loadReceipts();
             this.markViewForCheck();
           }
         });
@@ -193,134 +193,75 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       error: () => {
         this.offices = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.loadInvoices();
+        this.loadReceipts();
         this.markViewForCheck();
       }
     });
   }
 
-  loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+  loadPropertyCodes(): void {
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
       next: () => {
-        this.costCodesService.getAllCostCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: costCodes => {
-            this.allCostCodes = costCodes || [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-            this.applyReportDisplay();
-            this.markViewForCheck();
-          },
-          error: () => {
-            this.allCostCodes = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-            this.applyReportDisplay();
-            this.markViewForCheck();
-          }
-        });
+        this.propertyCodeByPropertyId = new Map(
+          this.propertyService.getAllPropertyCodesValue().map(property => [property.propertyId, property.propertyCode])
+        );
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes');
+        this.applyReportDisplay();
+        this.markViewForCheck();
       },
       error: () => {
-        this.allCostCodes = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        this.propertyCodeByPropertyId.clear();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes');
         this.applyReportDisplay();
         this.markViewForCheck();
       }
     });
   }
 
-  loadInvoices(): void {
+  loadReceipts(): void {
     if (!this.isPageReady) {
       return;
     }
 
     const officeIds = this.resolveOfficeIds();
     if (officeIds.length === 0) {
-      this.allInvoices = [];
-      this.reservationContextByReservationId.clear();
+      this.allReceipts = [];
       this.isServiceError = false;
       this.applyReportDisplay();
       this.markViewForCheck();
       return;
     }
 
-    this.invoiceService.searchInvoices({
+    this.receiptService.searchReceipts({
       officeIds,
       includeInactive: true,
-      includePaid: true,
       startDate: null,
-      endDate: null
+      endDate: null,
+      receiptKind: 1
     }).pipe(take(1)).subscribe({
-      next: invoices => {
-        this.allInvoices = invoices || [];
+      next: receipts => {
+        this.allReceipts = receipts || [];
         this.isServiceError = false;
         this.applyReportDisplay();
-        this.loadReservationContexts();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
-        this.allInvoices = [];
-        this.reservationContextByReservationId.clear();
+        this.allReceipts = [];
         this.isServiceError = true;
         this.reportResult = null;
-        const message = typeof error?.error === 'string' ? error.error : 'Unable to load invoices for AR Aging.';
-        this.toastr.error(message, 'AR Aging');
+        const message = typeof error?.error === 'string' ? error.error : 'Unable to load bills for AP Aging.';
+        this.toastr.error(message, 'AP Aging');
         this.markViewForCheck();
       }
     });
   }
 
-  loadReservationContexts(): void {
-    const reservationIds = [...new Set(
-      this.allInvoices
-        .map(invoice => invoice.reservationId?.trim())
-        .filter((reservationId): reservationId is string => !!reservationId)
-    )];
-
-    if (reservationIds.length === 0) {
-      this.reservationContextByReservationId.clear();
-      if (this.drillDownView) {
-        this.refreshDetailReport();
-      }
-      return;
-    }
-
-    this.contactService.ensureContactsLoaded().pipe(
-      take(1),
-      switchMap(() => {
-        const contactsById = new Map(
-          this.contactService.getAllContactsValue().map(contact => [contact.contactId, contact])
-        );
-        return forkJoin(
-          reservationIds.map(reservationId =>
-            this.reservationService.getReservationByGuid(reservationId).pipe(
-              catchError(() => of(null as ReservationResponse | null))
-            )
-          )
-        ).pipe(map(reservations => ({ contactsById, reservations })));
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe(({ contactsById, reservations }) => {
-      this.reservationContextByReservationId = new Map(
-        reservations
-          .filter((reservation): reservation is ReservationResponse => reservation != null)
-          .map(reservation => [
-            reservation.reservationId,
-            buildArAgingReservationContext(reservation, contactsById)
-          ])
-      );
-      if (this.drillDownView) {
-        this.refreshDetailReport();
-      }
-      this.markViewForCheck();
-    });
-  }
-  //#endregion
-
-  //#region Report Display Methods
   applyReportDisplay(): void {
     try {
       const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
-      this.reportResult = this.mappingService.buildArAgingReport({
-        invoices: this.allInvoices,
-        costCodes: this.allCostCodes,
+      this.reportResult = this.mappingService.buildApAgingReport({
+        receipts: this.allReceipts,
+        propertyCodeByPropertyId: this.propertyCodeByPropertyId,
         asOfDate,
         intervalDays: this.reportFilters?.intervalDays ?? 30,
         throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
@@ -328,7 +269,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         companyName: this.companyName,
         officeName: this.displayOfficeName
       });
-      this.initializeExpandedCustomers();
+      this.initializeExpandedVendors();
       this.rebuildVisibleRows();
       this.isServiceError = false;
       this.refreshPrintableHtml();
@@ -337,7 +278,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         this.refreshDetailReport();
       }
     } catch (error) {
-      console.error('AR Aging - error building report display:', error);
+      console.error('AP Aging - error building report display:', error);
       this.isServiceError = true;
       this.reportResult = null;
       this.visibleRows = [];
@@ -363,35 +304,33 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     return this.formatter.formatDateTimeOffsetAsDateOnly(value) || '';
   }
 
-  hasBucketAmount(source: Record<ArAgingBucketId, number>, bucketId: ArAgingBucketId): boolean {
+  hasBucketAmount(source: Record<ApAgingBucketId, number>, bucketId: ApAgingBucketId): boolean {
     return Number(source[bucketId] || 0) > 0.005;
   }
 
   hasPositiveAmount(amount: number | null | undefined): boolean {
     return Number(amount || 0) > 0.005;
   }
-  //#endregion
 
-  //#region Expand All Methods
-  initializeExpandedCustomers(): void {
-    this.expandedCustomerKeys = new Set((this.reportResult?.customerRows || []).map(row => row.customerKey));
+  initializeExpandedVendors(): void {
+    this.expandedVendorKeys = new Set((this.reportResult?.vendorRows || []).map(row => row.vendorKey));
   }
 
   rebuildVisibleRows(): void {
-    const rows: ArAgingVisibleRow[] = [];
-    (this.reportResult?.customerRows || []).forEach(customerRow => {
-      const reservationRows = customerRow.reservationRows ?? [];
-      const expandable = reservationRows.length > 0;
-      const expanded = expandable && this.expandedCustomerKeys.has(customerRow.customerKey);
+    const rows: ApAgingVisibleRow[] = [];
+    (this.reportResult?.vendorRows || []).forEach(vendorRow => {
+      const propertyRows = vendorRow.propertyRows ?? [];
+      const expandable = propertyRows.length > 0;
+      const expanded = expandable && this.expandedVendorKeys.has(vendorRow.vendorKey);
 
       rows.push({
-        rowId: `customer:${customerRow.customerKey}`,
-        label: customerRow.customerLabel,
-        kind: 'customer',
-        customerKey: customerRow.customerKey,
-        reservationKey: null,
-        bucketAmounts: customerRow.bucketAmounts,
-        total: customerRow.total,
+        rowId: `vendor:${vendorRow.vendorKey}`,
+        label: vendorRow.vendorLabel,
+        kind: 'vendor',
+        vendorKey: vendorRow.vendorKey,
+        propertyKey: null,
+        bucketAmounts: vendorRow.bucketAmounts,
+        total: vendorRow.total,
         depth: 0,
         expandable,
         expanded
@@ -401,15 +340,15 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         return;
       }
 
-      customerRow.reservationRows?.forEach(reservationRow => {
+      vendorRow.propertyRows?.forEach(propertyRow => {
         rows.push({
-          rowId: `reservation:${customerRow.customerKey}:${reservationRow.reservationKey}`,
-          label: reservationRow.reservationLabel,
-          kind: 'reservation',
-          customerKey: customerRow.customerKey,
-          reservationKey: reservationRow.reservationKey,
-          bucketAmounts: reservationRow.bucketAmounts,
-          total: reservationRow.total,
+          rowId: `property:${vendorRow.vendorKey}:${propertyRow.propertyKey}`,
+          label: propertyRow.propertyLabel,
+          kind: 'property',
+          vendorKey: vendorRow.vendorKey,
+          propertyKey: propertyRow.propertyKey,
+          bucketAmounts: propertyRow.bucketAmounts,
+          total: propertyRow.total,
           depth: 1,
           expandable: false,
           expanded: false
@@ -417,13 +356,13 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       });
 
       rows.push({
-        rowId: `customer-total:${customerRow.customerKey}`,
-        label: `Total ${customerRow.customerLabel}`,
-        kind: 'customerTotal',
-        customerKey: customerRow.customerKey,
-        reservationKey: null,
-        bucketAmounts: customerRow.bucketAmounts,
-        total: customerRow.total,
+        rowId: `vendor-total:${vendorRow.vendorKey}`,
+        label: `Total ${vendorRow.vendorLabel}`,
+        kind: 'vendorTotal',
+        vendorKey: vendorRow.vendorKey,
+        propertyKey: null,
+        bucketAmounts: vendorRow.bucketAmounts,
+        total: vendorRow.total,
         depth: 1,
         expandable: false,
         expanded: false
@@ -433,11 +372,11 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.visibleRows = rows;
   }
 
-  toggleCustomerExpansion(customerKey: string): void {
-    if (this.expandedCustomerKeys.has(customerKey)) {
-      this.expandedCustomerKeys.delete(customerKey);
+  toggleVendorExpansion(vendorKey: string): void {
+    if (this.expandedVendorKeys.has(vendorKey)) {
+      this.expandedVendorKeys.delete(vendorKey);
     } else {
-      this.expandedCustomerKeys.add(customerKey);
+      this.expandedVendorKeys.add(vendorKey);
     }
     this.rebuildVisibleRows();
     this.markViewForCheck();
@@ -445,47 +384,45 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
 
   toggleExpandAll(): void {
     if (this.isAllExpanded) {
-      this.expandedCustomerKeys.clear();
+      this.expandedVendorKeys.clear();
     } else {
-      this.initializeExpandedCustomers();
+      this.initializeExpandedVendors();
     }
     this.rebuildVisibleRows();
     this.markViewForCheck();
   }
 
   get isAllExpanded(): boolean {
-    const customerKeys = (this.reportResult?.customerRows || []).map(row => row.customerKey);
-    return customerKeys.length > 0 && customerKeys.every(customerKey => this.expandedCustomerKeys.has(customerKey));
+    const vendorKeys = (this.reportResult?.vendorRows || []).map(row => row.vendorKey);
+    return vendorKeys.length > 0 && vendorKeys.every(vendorKey => this.expandedVendorKeys.has(vendorKey));
   }
 
   getExpandAllIcon(): string {
     return this.isAllExpanded ? 'expand_less' : 'expand_more';
   }
 
-  getRowExpandIcon(row: ArAgingVisibleRow): string {
+  getRowExpandIcon(row: ApAgingVisibleRow): string {
     return row.expanded ? 'expand_less' : 'expand_more';
   }
-  //#endregion
 
-  //#region Drill-Down
-  openDrillDown(customerKey: string | null, bucketId: ArAgingBucketId | null, reservationKey: string | null = null): void {
+  openDrillDown(vendorKey: string | null, bucketId: ApAgingBucketId | null, propertyKey: string | null = null): void {
     if (!this.reportResult) {
       return;
     }
 
-    const invoices = this.filterDrillDownInvoices(customerKey, bucketId, reservationKey);
-    if (invoices.length === 0) {
+    const bills = this.filterDrillDownBills(vendorKey, bucketId, propertyKey);
+    if (bills.length === 0) {
       return;
     }
 
-    const customerRow = customerKey
-      ? this.reportResult.customerRows.find(row => row.customerKey === customerKey)
+    const vendorRow = vendorKey
+      ? this.reportResult.vendorRows.find(row => row.vendorKey === vendorKey)
       : null;
-    const reservationLabel = reservationKey
-      ? customerRow?.reservationRows.find(row => row.reservationKey === reservationKey)?.reservationLabel
+    const propertyLabel = propertyKey
+      ? vendorRow?.propertyRows.find(row => row.propertyKey === propertyKey)?.propertyLabel
       : null;
-    const customerLabel = customerRow?.customerLabel || customerKey || 'All Customers';
-    const title = reservationLabel || customerLabel;
+    const vendorLabel = vendorRow?.vendorLabel || vendorKey || 'All Vendors';
+    const title = propertyLabel || vendorLabel;
     const bucketLabel = bucketId
       ? this.reportResult.bucketColumns.find(column => column.id === bucketId)?.label || bucketId
       : 'All Buckets';
@@ -493,18 +430,18 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.drillDownView = {
       title,
       subtitle: `${bucketLabel} · ${this.reportResult.periodLabel}`,
-      customerKey,
-      reservationKey,
+      vendorKey,
+      propertyKey,
       bucketId,
-      invoices
+      bills
     };
     this.refreshDetailReport();
     this.drillDownActiveChange.emit(true);
     this.markViewForCheck();
   }
 
-  openDrillDownFromRow(row: ArAgingVisibleRow, bucketId: ArAgingBucketId | null): void {
-    this.openDrillDown(row.customerKey, bucketId, row.reservationKey);
+  openDrillDownFromRow(row: ApAgingVisibleRow, bucketId: ApAgingBucketId | null): void {
+    this.openDrillDown(row.vendorKey, bucketId, row.propertyKey);
   }
 
   closeDrillDown(): void {
@@ -512,7 +449,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.closeInvoiceDetail();
+    this.closeReceiptDetail();
     this.drillDownView = null;
     this.detailReport = null;
     this.drillDownActiveChange.emit(false);
@@ -520,40 +457,36 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   drillDownBack(): void {
-    if (this.activeInvoiceId) {
-      this.closeInvoiceDetail();
+    if (this.activeReceiptId) {
+      this.closeReceiptDetail();
       return;
     }
 
     this.closeDrillDown();
   }
 
-  onDetailRowClick(row: ArAgingDetailRow): void {
-    if (row.kind !== 'transaction' || !row.invoiceId) {
+  onDetailRowClick(row: ApAgingDetailRow): void {
+    if (row.kind !== 'transaction' || !row.receiptId) {
       return;
     }
 
-    const prefetchedInvoice = this.allInvoices.find(item => item.invoiceId === row.invoiceId) ?? null;
-    this.selectedInvoice = prefetchedInvoice;
-    this.activeInvoiceId = row.invoiceId;
-    this.activeInvoiceOfficeId = prefetchedInvoice?.officeId ?? this.officeId;
-    this.activeInvoiceReservationId = prefetchedInvoice?.reservationId ?? null;
-    this.markViewForCheck();
+    const prefetchedReceipt = this.allReceipts.find(item => item.receiptId === row.receiptId) ?? null;
+    this.openReceiptDetail(prefetchedReceipt);
   }
 
-  filterDrillDownInvoices(customerKey: string | null, bucketId: ArAgingBucketId | null, reservationKey: string | null = null): ArAgingInvoiceDetail[] {
+  filterDrillDownBills(vendorKey: string | null, bucketId: ApAgingBucketId | null, propertyKey: string | null = null): ApAgingBillDetail[] {
     if (!this.reportResult) {
       return [];
     }
 
-    return this.reportResult.invoiceDetails.filter(invoice => {
-      if (customerKey && invoice.customerKey !== customerKey) {
+    return this.reportResult.billDetails.filter(bill => {
+      if (vendorKey && bill.vendorKey !== vendorKey) {
         return false;
       }
-      if (reservationKey && invoice.reservationKey !== reservationKey) {
+      if (propertyKey && bill.propertyKey !== propertyKey) {
         return false;
       }
-      if (bucketId && invoice.bucketId !== bucketId) {
+      if (bucketId && bill.bucketId !== bucketId) {
         return false;
       }
       return true;
@@ -567,12 +500,10 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     }
 
     const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
-    const invoicesById = new Map(this.allInvoices.map(invoice => [invoice.invoiceId, invoice]));
-    this.detailReport = this.mappingService.buildArAgingDetailReport({
-      invoiceDetails: this.drillDownView.invoices,
-      invoicesById,
-      reservationContextByReservationId: this.reservationContextByReservationId,
-      costCodes: this.allCostCodes,
+    const receiptsById = new Map(this.allReceipts.map(receipt => [receipt.receiptId, receipt]));
+    this.detailReport = this.mappingService.buildApAgingDetailReport({
+      billDetails: this.drillDownView.bills,
+      receiptsById,
       asOfDate,
       bucketColumns: this.reportResult.bucketColumns,
       bucketFilter: this.drillDownView.bucketId,
@@ -582,26 +513,41 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     });
   }
 
-  closeInvoiceDetail(): void {
-    this.activeInvoiceId = null;
-    this.activeInvoiceOfficeId = null;
-    this.activeInvoiceReservationId = null;
-    this.selectedInvoice = null;
+  openReceiptDetail(receipt: ReceiptResponse | null): void {
+    if (!receipt) {
+      return;
+    }
+
+    const propertyId = (receipt.propertyIds?.[0] || '').trim();
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: property => this.setActiveReceipt(receipt, property),
+        error: () => this.setActiveReceipt(receipt, this.buildReceiptPropertyStub(receipt))
+      });
+      return;
+    }
+
+    this.setActiveReceipt(receipt, this.buildReceiptPropertyStub(receipt));
+  }
+
+  closeReceiptDetail(): void {
+    this.activeReceiptId = null;
+    this.activeReceiptOfficeId = null;
+    this.selectedReceipt = null;
+    this.drillDownReceiptProperty = null;
     this.markViewForCheck();
   }
 
-  onInvoiceSaved(): void {
-    this.closeInvoiceDetail();
+  onReceiptSaved(): void {
+    this.closeReceiptDetail();
     this.journalEntriesChanged.emit();
-    this.loadInvoices();
+    this.loadReceipts();
   }
 
-  isDetailRowClickable(row: ArAgingDetailRow): boolean {
-    return row.kind === 'transaction' && !!row.invoiceId;
+  isDetailRowClickable(row: ApAgingDetailRow): boolean {
+    return row.kind === 'transaction' && !!row.receiptId;
   }
-  //#endregion
 
-  //#region Get Methods
   get displayOfficeName(): string {
     if (this.officeId == null) {
       return 'All Offices';
@@ -614,7 +560,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get shellReportTitle(): string {
-    return this.reportResult?.reportTitle?.trim() || 'AR Aging';
+    return this.reportResult?.reportTitle?.trim() || 'AP Aging';
   }
 
   get shellReportEntityLine(): string {
@@ -627,20 +573,20 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
 
   get canUseReportDocuments(): boolean {
     return !!this.reportResult
-      && (this.reportResult.customerRows.length > 0 || this.visibleRows.length > 0)
+      && (this.reportResult.vendorRows.length > 0 || this.visibleRows.length > 0)
       && !!this.previewIframeHtml
       && this.resolveDocumentOfficeId() != null;
   }
 
   override onPrint(): void {
-    super.onPrint('No AR aging report is available to print.');
+    super.onPrint('No AP aging report is available to print.');
   }
 
   override async onDownload(): Promise<void> {
     const downloadConfig: DownloadConfig = {
       fileName: this.buildReportFileName(),
-      documentType: DocumentType.ArAging,
-      noPreviewMessage: 'No AR aging report is available to download.',
+      documentType: DocumentType.ApAging,
+      noPreviewMessage: 'No AP aging report is available to download.',
       noSelectionMessage: 'Organization or office is not available.'
     };
     await super.onDownload(downloadConfig);
@@ -648,7 +594,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
 
   async saveReportDocument(): Promise<void> {
     if (!this.canUseReportDocuments) {
-      this.toastr.warning('No AR aging report is available to save.', 'No Preview');
+      this.toastr.warning('No AP aging report is available to save.', 'No Preview');
       return;
     }
 
@@ -673,7 +619,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         officeName: config.selectedOfficeName || '',
         propertyId: null,
         reservationId: null,
-        documentTypeId: Number(DocumentType.ArAging),
+        documentTypeId: Number(DocumentType.ApAging),
         fileName: this.buildReportFileName(),
         generatePdf: true
       };
@@ -711,58 +657,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
-  private buildReportFileName(): string {
-    const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
-    const dateStamp = this.utilityService.sanitizeFileNameSegment(
-      this.reportFilters?.asOfDate || this.utilityService.todayAsCalendarDateString()
-    );
-    return `${officeSegment}_ArAging_${dateStamp}.pdf`;
-  }
-
-  private resolveDocumentOfficeId(): number | null {
-    if (this.officeId != null && this.officeId > 0) {
-      return this.officeId;
-    }
-    if (this.offices.length === 1) {
-      return this.offices[0].officeId;
-    }
-    return null;
-  }
-
-  private refreshPrintableHtml(): void {
-    if (!this.reportResult || this.reportResult.customerRows.length === 0) {
-      this.clearPrintableHtml();
-      return;
-    }
-
-    const printableDocument = this.mappingService.mapArAgingReportToPrintableDocument(this.reportResult);
-    const preview = this.reportHtmlBuilder.buildPreviewContent(printableDocument);
-    this.previewIframeHtml = preview.previewIframeHtml;
-    this.previewIframeStyles = preview.previewIframeStyles;
-  }
-
-  private clearPrintableHtml(): void {
-    this.previewIframeHtml = '';
-    this.previewIframeStyles = '';
-  }
-
-  get panelMaxWidthCss(): string {
-    const count = (this.reportResult?.bucketColumns.length ?? 0) + 1;
-    if (count <= 1) {
-      return '48rem';
-    }
-
-    const labelWidthRem = 14;
-    const amountColumnWidthRem = 10;
-    const chromeRem = 3;
-    const calculatedRem = labelWidthRem + (count * amountColumnWidthRem) + chromeRem;
-    return `min(100%, ${Math.ceil(calculatedRem)}rem)`;
-  }
-
-  get detailPanelMaxWidthCss(): string {
-    return 'min(100%, 88rem)';
-  }
-
   get detailColumnNames(): string[] {
     return Object.keys(this.detailDisplayedColumns);
   }
@@ -780,7 +674,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     return column?.alignment === 'right' || column?.headerAlignment === 'right';
   }
 
-  getDetailCellDisplay(row: ArAgingDetailRow, columnKey: string): string {
+  getDetailCellDisplay(row: ApAgingDetailRow, columnKey: string): string {
     switch (columnKey) {
       case 'transactionType':
         return row.transactionType || '';
@@ -806,9 +700,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         return '';
     }
   }
-  //#endregion
 
-  //#region Utility Methods
   resolveOfficeIds(): number[] {
     if (this.officeId != null && this.officeId > 0) {
       return [this.officeId];
@@ -817,8 +709,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   hasReportFiltersChanged(change: { previousValue: unknown; currentValue: unknown }): boolean {
-    const previous = change.previousValue as ArAgingReportFilters | null;
-    const current = change.currentValue as ArAgingReportFilters | null;
+    const previous = change.previousValue as ApAgingReportFilters | null;
+    const current = change.currentValue as ApAgingReportFilters | null;
     return previous?.asOfDate !== current?.asOfDate
       || previous?.datePreset !== current?.datePreset
       || previous?.intervalDays !== current?.intervalDays
@@ -829,5 +721,58 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
-  //#endregion
+
+  private buildReportFileName(): string {
+    const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
+    const dateStamp = this.utilityService.sanitizeFileNameSegment(
+      this.reportFilters?.asOfDate || this.utilityService.todayAsCalendarDateString()
+    );
+    return `${officeSegment}_ApAging_${dateStamp}.pdf`;
+  }
+
+  private resolveDocumentOfficeId(): number | null {
+    if (this.officeId != null && this.officeId > 0) {
+      return this.officeId;
+    }
+    if (this.offices.length === 1) {
+      return this.offices[0].officeId;
+    }
+    return null;
+  }
+
+  private refreshPrintableHtml(): void {
+    if (!this.reportResult || this.reportResult.vendorRows.length === 0) {
+      this.clearPrintableHtml();
+      return;
+    }
+
+    const printableDocument = this.mappingService.mapApAgingReportToPrintableDocument(this.reportResult);
+    const preview = this.reportHtmlBuilder.buildPreviewContent(printableDocument);
+    this.previewIframeHtml = preview.previewIframeHtml;
+    this.previewIframeStyles = preview.previewIframeStyles;
+  }
+
+  private clearPrintableHtml(): void {
+    this.previewIframeHtml = '';
+    this.previewIframeStyles = '';
+  }
+
+  private setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
+    this.selectedReceipt = receipt;
+    this.activeReceiptId = receipt.receiptId;
+    this.activeReceiptOfficeId = receipt.officeId;
+    this.drillDownReceiptProperty = property;
+    this.markViewForCheck();
+  }
+
+  private buildReceiptPropertyStub(receipt: ReceiptResponse): PropertyResponse {
+    return {
+      propertyId: receipt.propertyIds?.[0] || '',
+      organizationId: this.organizationId,
+      propertyCode: this.propertyCodeByPropertyId.get(receipt.propertyIds?.[0] || '') || '',
+      officeId: receipt.officeId,
+      officeName: receipt.officeName,
+      isActive: true
+    } as PropertyResponse;
+  }
 }

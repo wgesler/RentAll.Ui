@@ -340,17 +340,64 @@
               [noResultsText]="'No values match your search'"
               (valueChange)="onShellArAgingThroughChange($event)">
             </app-title-bar-select>
-            <app-title-bar-select
-              [label]="'Sort By'"
-              [formFieldClass]="'titlebar-field-ar-aging-sort'"
-              [value]="selectedArAgingSortBy"
-              [options]="shellArAgingSortByOptions"
-              [showSearchInput]="false"
-              [showInstructionOption]="false"
-              [noResultsText]="'No sort options match your search'"
-              (valueChange)="onShellArAgingSortByChange($event)">
-            </app-title-bar-select>
+            @if (usesArAgingSortByOptions) {
+              <app-title-bar-select
+                [label]="'Sort By'"
+                [formFieldClass]="'titlebar-field-ar-aging-sort'"
+                [value]="selectedArAgingSortBy"
+                [options]="shellArAgingSortByOptions"
+                [showSearchInput]="false"
+                [showInstructionOption]="false"
+                [noResultsText]="'No sort options match your search'"
+                (valueChange)="onShellArAgingSortByChange($event)">
+              </app-title-bar-select>
+            } @else if (usesApAgingSortByOptions) {
+              <app-title-bar-select
+                [label]="'Sort By'"
+                [formFieldClass]="'titlebar-field-ar-aging-sort'"
+                [value]="selectedApAgingSortBy"
+                [options]="shellApAgingSortByOptions"
+                [showSearchInput]="false"
+                [showInstructionOption]="false"
+                [noResultsText]="'No sort options match your search'"
+                (valueChange)="onShellApAgingSortByChange($event)">
+              </app-title-bar-select>
+            }
             @if (showShellDateRange && showArAgingCustomAsOfDate) {
+              <div class="accounting-shell-titlebar-dates">
+                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
+              </div>
+            }
+            </div>
+          </div>
+        } @else if (hasAccountingFullAccess && usesReconcileAccountReportTitleBarFilters()) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+            @if (showShellOfficeDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="shellOfficeTitleBarOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onShellOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (showReconcileAccountReportChartOfAccountFilter) {
+              <app-title-bar-select
+                [label]="'Account'"
+                [formFieldClass]="'titlebar-field-chart-of-account'"
+                [value]="selectedChartOfAccountId"
+                [options]="shellReconcileChartOfAccountTitleBarOptions"
+                [nullOptionLabel]="'Select Account'"
+                [noResultsText]="'No accounts match your search'"
+                [showSearchInput]="true"
+                [searchPlaceholder]="'Search accounts...'"
+                (valueChange)="onShellChartOfAccountDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
               </div>
@@ -574,7 +621,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-        } @else if (isFinancialReportDrillDownActive || isArAgingDrillDownActive) {
+        } @else if (isFinancialReportDrillDownActive || isArAgingDrillDownActive || isApAgingDrillDownActive) {
           <button mat-raised-button type="button" color="accent" (click)="onFinancialReportDrillDownBack()">
             <mat-icon>arrow_back</mat-icon>
             Back
@@ -1088,7 +1135,7 @@
                 @for (reportOption of shellReportMenuOptions; track reportOption.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectReport(reportOption.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ reportOption.label }}</span>
-                    @if (selectedTabIndex === tabReports && selectedReportKind === reportOption.kind) {
+                    @if (selectedTabIndex === tabReports && (selectedReportKind === reportOption.kind || (reportOption.kind === 'reconcileAccountSummary' && isReconcileAccountReportActive()))) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
                   </button>
@@ -1105,10 +1152,30 @@
                   (drillDownActiveChange)="onArAgingDrillDownActiveChange($event)"
                   (journalEntriesChanged)="onArAgingJournalEntriesChanged()">
                 </app-ar-aging-report>
+              } @else if (selectedReportKind === 'apAging') {
+                <app-ap-aging-report
+                  #apAgingReport
+                  [officeId]="selectedOfficeId"
+                  [reportFilters]="apAgingReportFilters"
+                  [refreshTrigger]="financialReportsRefreshTrigger"
+                  (drillDownActiveChange)="onApAgingDrillDownActiveChange($event)"
+                  (journalEntriesChanged)="onApAgingJournalEntriesChanged()">
+                </app-ap-aging-report>
+              } @else if (isReconcileAccountReportActive()) {
+                <app-reconcile-account-report
+                  #reconcileAccountReport
+                  [reportView]="reconcileAccountReportView"
+                  [officeId]="selectedOfficeId"
+                  [chartOfAccountId]="selectedChartOfAccountId"
+                  [statementDate]="reconcileAccountReportStatementDate"
+                  [reportContext]="reconcileAccountReportContext"
+                  [refreshTrigger]="financialReportsRefreshTrigger"
+                  (viewChange)="onReconcileAccountReportViewChange($event)">
+                </app-reconcile-account-report>
               } @else {
                 <app-financial-report
                   #financialReport
-                  [reportKind]="selectedReportKind"
+                  [reportKind]="financialReportKind"
                   [officeId]="selectedOfficeId"
                   [reportClass]="selectedFinancialReportClass"
                   [searchDateRange]="invoiceSearchDateRange"

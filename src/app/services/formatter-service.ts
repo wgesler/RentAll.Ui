@@ -14,7 +14,10 @@ export class FormatterService {
     }
 
     currencyUsd(value: number): string {
-        const numeric = Number(value) || 0;
+        let numeric = Number(value) || 0;
+        if (Object.is(numeric, -0)) {
+            numeric = 0;
+        }
         const absoluteDisplay = this.currency(Math.abs(numeric));
         return numeric < 0 ? `-$${absoluteDisplay}` : `$${absoluteDisplay}`;
     }

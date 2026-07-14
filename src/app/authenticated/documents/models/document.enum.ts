@@ -8,7 +8,13 @@ export enum DocumentType {
   WorkOrder = 6,
   OwnerAgreement = 7,
   Quote = 8,
-  OwnerStatement = 9
+  OwnerStatement = 9,
+  ProfitLoss = 10,
+  BalanceSheet = 11,
+  ArAging = 12,
+  ReconcileAccountSummary = 13,
+  ReconcileAccountDetail = 14,
+  ApAging = 15
 }
 
 export function getDocumentType(documentTypeId: number | undefined): string {
@@ -24,7 +30,13 @@ export function getDocumentType(documentTypeId: number | undefined): string {
     [DocumentType.WorkOrder]: 'Work Order',
     [DocumentType.OwnerAgreement]: 'Owner Agreement',
     [DocumentType.Quote]: 'Quote',
-    [DocumentType.OwnerStatement]: 'Owner Statement'
+    [DocumentType.OwnerStatement]: 'Owner Statement',
+    [DocumentType.ProfitLoss]: 'Profit & Loss',
+    [DocumentType.BalanceSheet]: 'Balance Sheet',
+    [DocumentType.ArAging]: 'AR Aging',
+    [DocumentType.ReconcileAccountSummary]: 'Reconciliation Summary',
+    [DocumentType.ReconcileAccountDetail]: 'Reconciliation Detail',
+    [DocumentType.ApAging]: 'AP Aging'
   };
   
   return typeMap[documentTypeId] || '';
@@ -45,6 +57,12 @@ export function getDocumentTypes(): { value: DocumentType, label: string }[] {
     { value: DocumentType.WorkOrder, label: getDocumentType(DocumentType.WorkOrder) },
     { value: DocumentType.OwnerAgreement, label: getDocumentType(DocumentType.OwnerAgreement) },
     { value: DocumentType.Quote, label: getDocumentType(DocumentType.Quote) },
-    { value: DocumentType.OwnerStatement, label: getDocumentType(DocumentType.OwnerStatement) }
+    { value: DocumentType.OwnerStatement, label: getDocumentType(DocumentType.OwnerStatement) },
+    { value: DocumentType.ProfitLoss, label: getDocumentType(DocumentType.ProfitLoss) },
+    { value: DocumentType.BalanceSheet, label: getDocumentType(DocumentType.BalanceSheet) },
+    { value: DocumentType.ArAging, label: getDocumentType(DocumentType.ArAging) },
+    { value: DocumentType.ReconcileAccountSummary, label: getDocumentType(DocumentType.ReconcileAccountSummary) },
+    { value: DocumentType.ReconcileAccountDetail, label: getDocumentType(DocumentType.ReconcileAccountDetail) },
+    { value: DocumentType.ApAging, label: getDocumentType(DocumentType.ApAging) }
   ];
 }

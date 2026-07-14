@@ -1,11 +1,14 @@
 import { Injectable } from '@angular/core';
 import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, buildApAgingBucketDefinitions, buildApAgingVendorSortKey, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse, TransferReportResponse, TransferReportRowDisplay } from '../authenticated/accounting/models/journal-entry.model';
+import { PrintableReportDocument, PrintableReportRow, PrintableReportRowKind } from '../authenticated/accounting/models/printable-report.model';
+import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../authenticated/accounting/models/reconcile-account-report.model';
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
@@ -655,6 +658,7 @@ export class MappingService {
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
+      // IsCleared is the reconcile check mark. Do not derive it from ClearedOn.
       isCleared: this.resolveIsClearedFlag(raw['isCleared'] ?? raw['IsCleared'] ?? base.isCleared)
     };
   }
@@ -683,7 +687,7 @@ export class MappingService {
         payee: (line.contactName || '').trim(),
         memo: (line.memo || line.journalEntryMemo || '').trim(),
         amountValue,
-        isCleared: this.resolveJournalEntryLineIsCleared(line)
+        isCleared: line.isCleared === true
       };
     });
   }
@@ -2821,11 +2825,6 @@ export class MappingService {
       return 2;
     }
     return 1;
-  }
-
-  resolveJournalEntryLineIsCleared(line: JournalEntryLineSearchResponse): boolean {
-    const raw = line as unknown as Record<string, unknown>;
-    return this.resolveIsClearedFlag(raw['isCleared'] ?? raw['IsCleared'] ?? line.isCleared);
   }
 
   resolveIsClearedFlag(value: unknown): boolean {
@@ -5161,9 +5160,9 @@ export class MappingService {
       return '';
     }
 
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
     const day = String(date.getDate());
-    const year = String(date.getFullYear() % 100).padStart(2, '0');
+    const year = String(date.getFullYear());
     return `${month} ${day}, ${year}`;
   }
 
@@ -5904,6 +5903,364 @@ export class MappingService {
   }
   //#endregion
 
+  //#region AP Aging Report Mapping
+  buildApAgingReport(request: ApAgingReportBuildRequest): ApAgingReportResult {
+    const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
+    const bucketDefinitions = buildApAgingBucketDefinitions(
+      request.intervalDays ?? 30,
+      request.throughDays !== undefined ? request.throughDays : 90
+    );
+    const bucketIds = bucketDefinitions.map(bucket => bucket.id);
+    const billDetails = (request.receipts || [])
+      .map(receipt => {
+        try {
+          return this.buildApAgingBillDetail(receipt, asOfDate, request.propertyCodeByPropertyId, bucketDefinitions);
+        } catch {
+          return null;
+        }
+      })
+      .filter((bill): bill is ApAgingBillDetail => bill != null)
+      .sort((a, b) => compareApAgingBillSortKeys(a, b));
+
+    const vendorRows = sortApAgingVendorRows(
+      this.buildApAgingVendorRows(billDetails, bucketIds),
+      request.sortBy ?? 'default'
+    );
+    const totals = createEmptyApAgingBucketAmounts(bucketIds);
+    billDetails.forEach(bill => {
+      totals[bill.bucketId] = this.roundFinancialReportAmount((totals[bill.bucketId] || 0) + bill.balanceDue);
+    });
+    const grandTotal = bucketIds.reduce(
+      (sum, bucketId) => this.roundFinancialReportAmount(sum + (totals[bucketId] || 0)),
+      0
+    );
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: 'A/P Aging Summary',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      bucketColumns: bucketDefinitions.map(bucket => ({ id: bucket.id, label: bucket.label })),
+      vendorRows,
+      totals,
+      grandTotal,
+      billDetails
+    };
+  }
+
+  buildApAgingVendorRows(billDetails: ApAgingBillDetail[], bucketIds: ApAgingBucketId[]): ApAgingVendorRow[] {
+    const rowsByVendor = new Map<string, ApAgingVendorRow>();
+    billDetails.forEach(bill => {
+      let row = rowsByVendor.get(bill.vendorKey);
+      if (!row) {
+        row = {
+          vendorKey: bill.vendorKey,
+          vendorLabel: bill.vendorLabel,
+          vendorSortKey: bill.vendorSortKey,
+          vendorId: bill.vendorId,
+          bucketAmounts: createEmptyApAgingBucketAmounts(bucketIds),
+          total: 0,
+          propertyRows: [],
+          bills: []
+        };
+        rowsByVendor.set(bill.vendorKey, row);
+      }
+      row.bucketAmounts[bill.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[bill.bucketId] || 0) + bill.balanceDue);
+      row.total = this.roundFinancialReportAmount(row.total + bill.balanceDue);
+      row.bills.push(bill);
+    });
+
+    rowsByVendor.forEach(row => {
+      row.propertyRows = this.buildApAgingPropertyRows(row.bills, bucketIds);
+    });
+
+    return Array.from(rowsByVendor.values()).sort((a, b) => compareApAgingVendorSortKeys(a, b));
+  }
+
+  buildApAgingPropertyRows(bills: ApAgingBillDetail[], bucketIds: ApAgingBucketId[]): ApAgingPropertyRow[] {
+    const rowsByProperty = new Map<string, ApAgingPropertyRow>();
+    bills.forEach(bill => {
+      let row = rowsByProperty.get(bill.propertyKey);
+      if (!row) {
+        row = {
+          propertyKey: bill.propertyKey,
+          propertyId: bill.propertyId,
+          propertyLabel: bill.propertyLabel,
+          propertyCode: bill.propertyCode,
+          bucketAmounts: createEmptyApAgingBucketAmounts(bucketIds),
+          total: 0,
+          bills: []
+        };
+        rowsByProperty.set(bill.propertyKey, row);
+      }
+      row.bucketAmounts[bill.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[bill.bucketId] || 0) + bill.balanceDue);
+      row.total = this.roundFinancialReportAmount(row.total + bill.balanceDue);
+      row.bills.push(bill);
+    });
+
+    return Array.from(rowsByProperty.values()).sort((a, b) =>
+      a.propertyLabel.localeCompare(b.propertyLabel, undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }
+
+  buildApAgingBillDetail(
+    receipt: ReceiptResponse,
+    asOfDate: string,
+    propertyCodeByPropertyId: ReadonlyMap<string, string>,
+    bucketDefinitions: ApAgingBucketDefinition[]
+  ): ApAgingBillDetail | null {
+    if (!receipt.isActive) {
+      return null;
+    }
+
+    const receiptDate = this.toDateOnlyJsonString(receipt.receiptDate);
+    if (receiptDate && receiptDate > asOfDate) {
+      return null;
+    }
+
+    const balanceDue = this.getApAgingBillBalanceDue(receipt, asOfDate);
+    if (balanceDue <= 0.005) {
+      return null;
+    }
+
+    const dueDate = this.toDateOnlyJsonString(receipt.dueDate) || receiptDate || asOfDate;
+    const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
+    const vendorSortKey = buildApAgingVendorSortKey(receipt);
+    const vendorId = (receipt.vendorId || '').trim() || null;
+    const vendorLabel = (receipt.vendorName || 'Unknown').trim() || 'Unknown';
+    const vendorKey = `${vendorId || ''}|${vendorSortKey.toLowerCase()}`;
+    const propertyId = (receipt.propertyIds?.[0] || '').trim() || null;
+    const propertyCode = propertyId ? (propertyCodeByPropertyId.get(propertyId) || null) : null;
+    const propertyKey = propertyId || 'no-property';
+    const propertyLabel = propertyCode || propertyId || 'No Property';
+
+    return {
+      receiptId: receipt.receiptId,
+      receiptCode: receipt.receiptCode,
+      vendorKey,
+      vendorLabel,
+      vendorSortKey,
+      vendorId,
+      propertyKey,
+      propertyId,
+      propertyLabel,
+      propertyCode,
+      receiptDate: receiptDate || asOfDate,
+      dueDate,
+      daysPastDue,
+      balanceDue,
+      bucketId: resolveApAgingBucketId(daysPastDue, bucketDefinitions),
+      billNumber: receipt.billNumber?.trim() || null,
+      officeId: receipt.officeId
+    };
+  }
+
+  getApAgingBillBalanceDue(receipt: ReceiptResponse, asOfDate: string): number {
+    const totalAmount = Number(receipt.amount || 0);
+    const paidAmount = Number(receipt.paidAmount || 0);
+    const paidDate = this.toDateOnlyJsonString(receipt.paidDate);
+    const effectivePaidAmount = paidDate && paidDate > asOfDate ? 0 : paidAmount;
+    return this.roundFinancialReportAmount(totalAmount - effectivePaidAmount);
+  }
+
+  buildApAgingDetailReport(request: ApAgingDetailBuildRequest): ApAgingDetailReportResult {
+    const asOfDate = request.asOfDate;
+    const bucketsToShow = request.bucketFilter
+      ? request.bucketColumns.filter(bucket => bucket.id === request.bucketFilter)
+      : request.bucketColumns;
+    const transactionsByBucket = new Map<ApAgingBucketId, ApAgingDetailRow[]>();
+
+    request.billDetails.forEach(detail => {
+      if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
+        return;
+      }
+
+      const sourceReceipt = request.receiptsById.get(detail.receiptId);
+      if (!sourceReceipt) {
+        return;
+      }
+
+      const bucketRows = transactionsByBucket.get(detail.bucketId) ?? [];
+      bucketRows.push({
+        rowId: `bill:${detail.receiptId}`,
+        kind: 'transaction',
+        label: null,
+        bucketId: detail.bucketId,
+        transactionType: 'Bill',
+        transactionDate: detail.receiptDate,
+        num: detail.receiptCode,
+        referenceNo: detail.billNumber,
+        name: detail.vendorLabel,
+        terms: '-',
+        dueDate: detail.dueDate,
+        classLabel: detail.propertyCode?.trim() || null,
+        aging: detail.daysPastDue,
+        openBalance: this.roundFinancialReportAmount(Number(sourceReceipt.amount || 0)),
+        receiptId: detail.receiptId
+      });
+
+      const paidAmount = this.getApAgingBillPaidAmountForDetail(sourceReceipt, asOfDate);
+      if (paidAmount > 0.005) {
+        bucketRows.push({
+          rowId: `payment:${detail.receiptId}`,
+          kind: 'transaction',
+          label: null,
+          bucketId: detail.bucketId,
+          transactionType: 'Payment',
+          transactionDate: this.toDateOnlyJsonString(sourceReceipt.paidDate) || detail.receiptDate,
+          num: detail.receiptCode,
+          referenceNo: detail.billNumber,
+          name: detail.vendorLabel,
+          terms: '-',
+          dueDate: detail.dueDate,
+          classLabel: detail.propertyCode?.trim() || null,
+          aging: detail.daysPastDue,
+          openBalance: this.roundFinancialReportAmount(-paidAmount),
+          receiptId: detail.receiptId
+        });
+      }
+
+      transactionsByBucket.set(detail.bucketId, bucketRows);
+    });
+
+    const rows: ApAgingDetailRow[] = [];
+    let reportTotal = 0;
+    let bucketSectionCount = 0;
+
+    bucketsToShow.forEach(bucket => {
+      const transactionRows = (transactionsByBucket.get(bucket.id) ?? []).sort((a, b) =>
+        (a.transactionDate || '').localeCompare(b.transactionDate || '')
+        || (a.num || '').localeCompare(b.num || '', undefined, { numeric: true, sensitivity: 'base' })
+        || (a.transactionType || '').localeCompare(b.transactionType || '')
+      );
+      if (transactionRows.length === 0) {
+        return;
+      }
+
+      bucketSectionCount++;
+      let bucketTotal = 0;
+      rows.push({
+        rowId: `bucket-header:${bucket.id}`,
+        kind: 'bucketHeader',
+        label: bucket.label,
+        bucketId: bucket.id,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: null,
+        receiptId: null
+      });
+
+      transactionRows.forEach(row => {
+        rows.push(row);
+        bucketTotal = this.roundFinancialReportAmount(bucketTotal + Number(row.openBalance || 0));
+      });
+
+      rows.push({
+        rowId: `bucket-total:${bucket.id}`,
+        kind: 'bucketTotal',
+        label: `Total ${bucket.label}`,
+        bucketId: bucket.id,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: bucketTotal,
+        receiptId: null
+      });
+      reportTotal = this.roundFinancialReportAmount(reportTotal + bucketTotal);
+    });
+
+    if (bucketSectionCount > 1) {
+      rows.push({
+        rowId: 'report-total',
+        kind: 'reportTotal',
+        label: 'Total',
+        bucketId: null,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: reportTotal,
+        receiptId: null
+      });
+    }
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: 'A/P Aging Detail',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      scopeLabel: request.scopeLabel,
+      rows,
+      reportTotal
+    };
+  }
+
+  mapApAgingReportToPrintableDocument(result: ApAgingReportResult): PrintableReportDocument {
+    const bucketIds = (result.bucketColumns || []).map(column => column.id);
+    const columns: PrintableReportDocument['columns'] = [
+      { label: 'Vendor', align: 'left' },
+      ...(result.bucketColumns || []).map(column => ({ label: column.label, align: 'right' as const })),
+      { label: 'Total', align: 'right' }
+    ];
+    const rows: PrintableReportRow[] = (result.vendorRows || []).map(vendor => ({
+      kind: 'line',
+      cells: [
+        vendor.vendorLabel,
+        ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(vendor.bucketAmounts[bucketId])),
+        this.formatter.currencyUsd(vendor.total)
+      ]
+    }));
+
+    rows.push({
+      kind: 'total',
+      cells: [
+        'Total',
+        ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(result.totals[bucketId])),
+        this.formatter.currencyUsd(result.grandTotal)
+      ]
+    });
+
+    return {
+      title: result.reportTitle,
+      subtitleLines: [result.entityLineLabel, result.periodLabel].filter(line => !!line?.trim()),
+      columns,
+      rows
+    };
+  }
+
+  private getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): number {
+    const paidAmount = Number(receipt.paidAmount || 0);
+    if (paidAmount <= 0.005) {
+      return 0;
+    }
+
+    const paidDate = this.toDateOnlyJsonString(receipt.paidDate);
+    if (paidDate && paidDate > asOfDate) {
+      return 0;
+    }
+
+    return paidAmount;
+  }
+  //#endregion
+
   //#region Accounting Rent Roll Mapping
   mapRentRollRowsFromAgreements(
     propertyAgreements: RentRollPropertyAgreement[],
@@ -6192,6 +6549,519 @@ export class MappingService {
 
   sumRentRollTotal(rows: RentRollRow[]): number {
     return (rows || []).reduce((sum, row) => this.roundFinancialReportAmount(sum + Number(row?.totalAmount || 0)), 0);
+  }
+  //#endregion
+
+  //#region Reconcile-Account-Report
+  buildReconcileAccountReport(request: ReconcileAccountReportBuildRequest): ReconcileAccountReportResult {
+    const statementDate = String(request.statementDate || '').trim();
+    const accountNo = String(request.account?.accountNo || '').trim();
+    const accountName = String(request.account?.name || '').trim();
+    const accountLabel = accountNo && accountName ? `${accountNo} · ${accountName}` : accountNo || accountName;
+    const periodEndingLabel = statementDate ? this.formatter.formatDateString(statementDate) : '';
+    const entityLine = [request.companyName?.trim(), request.officeName?.trim()].filter(Boolean).join(' ');
+    const periodLine = periodEndingLabel
+      ? `${accountLabel}, Period Ending ${periodEndingLabel}`
+      : accountLabel;
+    const reportTitle = request.view === 'detail' ? 'Reconciliation Detail' : 'Reconciliation Summary';
+
+    const eligibleLines = (request.lines ?? [])
+      .filter(line => {
+        const transactionDate = String(line.transactionDate || '').trim();
+        return !statementDate || !transactionDate || transactionDate <= statementDate;
+      })
+      .map(line => ({
+        line,
+        amount: this.getReconcileAccountLineAmount(line),
+        isCleared: this.isReconcileReportLineCleared(line)
+      }));
+
+    const compareReconcileLines = (
+      left: { line: JournalEntryLineSearchResponse },
+      right: { line: JournalEntryLineSearchResponse }
+    ): number => {
+      const leftDate = String(left.line.transactionDate || '').trim();
+      const rightDate = String(right.line.transactionDate || '').trim();
+      if (leftDate !== rightDate) {
+        return leftDate.localeCompare(rightDate);
+      }
+
+      return String(left.line.journalEntryCode || '').localeCompare(String(right.line.journalEntryCode || ''));
+    };
+
+    const clearedLines = eligibleLines.filter(item => item.isCleared).sort(compareReconcileLines);
+    const unclearedLines = eligibleLines.filter(item => !item.isCleared).sort(compareReconcileLines);
+
+    const clearedPayments = clearedLines.filter(item => item.amount < 0);
+    const clearedDeposits = clearedLines.filter(item => item.amount > 0);
+    const unclearedPayments = unclearedLines.filter(item => item.amount < 0);
+    const unclearedDeposits = unclearedLines.filter(item => item.amount > 0);
+
+    const sumAmounts = (items: { amount: number }[]): number =>
+      this.roundFinancialReportAmount(items.reduce((sum, item) => sum + Number(item.amount || 0), 0));
+
+    const clearedPaymentsTotal = sumAmounts(clearedPayments);
+    const clearedDepositsTotal = sumAmounts(clearedDeposits);
+    const totalClearedTransactions = this.roundFinancialReportAmount(clearedPaymentsTotal + clearedDepositsTotal);
+    const beginningBalance = this.roundFinancialReportAmount(Number(request.beginningBalance || 0));
+    const clearedBalance = this.roundFinancialReportAmount(beginningBalance + totalClearedTransactions);
+
+    const unclearedPaymentsTotal = sumAmounts(unclearedPayments);
+    const unclearedDepositsTotal = sumAmounts(unclearedDeposits);
+    const totalUnclearedTransactions = this.roundFinancialReportAmount(unclearedPaymentsTotal + unclearedDepositsTotal);
+    const registerBalance = this.roundFinancialReportAmount(clearedBalance + totalUnclearedTransactions);
+    const endingBalance = this.roundFinancialReportAmount(Number(request.endingBalance ?? registerBalance));
+
+    const registerBalanceLabel = periodEndingLabel
+      ? `Register Balance as of ${periodEndingLabel}`
+      : 'Register Balance';
+
+    const rows: ReconcileAccountReportRow[] = [];
+    if (request.view === 'detail') {
+      rows.push({
+        rowId: 'detail-columns',
+        rowKind: 'columnHeader',
+        label: 'Type',
+        type: 'Date',
+        date: 'Num',
+        num: 'Name',
+        name: 'Clr',
+        clr: 'Amount',
+        amount: null,
+        balance: null
+      });
+    }
+
+    rows.push({
+      rowId: 'beginning-balance',
+      rowKind: 'beginning',
+      label: 'Beginning Balance',
+      balance: beginningBalance,
+      amount: request.view === 'detail' ? null : beginningBalance
+    });
+
+    rows.push({
+      rowId: 'section-cleared',
+      rowKind: 'section',
+      label: 'Cleared Transactions',
+      depth: 0
+    });
+
+    this.appendReconcileAccountSubsectionRows(rows, {
+      view: request.view,
+      sectionKey: 'cleared-payments',
+      subsectionLabel: `Checks and Payments - ${clearedPayments.length} items`,
+      lines: clearedPayments,
+      totalLabel: 'Total Checks and Payments',
+      includeRunningBalance: true
+    });
+
+    this.appendReconcileAccountSubsectionRows(rows, {
+      view: request.view,
+      sectionKey: 'cleared-deposits',
+      subsectionLabel: `Deposits and Credits - ${clearedDeposits.length} items`,
+      lines: clearedDeposits,
+      totalLabel: 'Total Deposits and Credits',
+      includeRunningBalance: true
+    });
+
+    rows.push({
+      rowId: 'total-cleared-transactions',
+      rowKind: 'total',
+      label: 'Total Cleared Transactions',
+      amount: totalClearedTransactions,
+      balance: request.view === 'detail' ? totalClearedTransactions : null,
+      depth: 0
+    });
+
+    rows.push({
+      rowId: 'cleared-balance',
+      rowKind: 'summary',
+      label: 'Cleared Balance',
+      amount: request.view === 'detail' ? totalClearedTransactions : clearedBalance,
+      balance: clearedBalance,
+      depth: 0
+    });
+
+    rows.push({
+      rowId: 'section-uncleared',
+      rowKind: 'section',
+      label: 'Uncleared Transactions',
+      depth: 0
+    });
+
+    if (unclearedPayments.length > 0) {
+      this.appendReconcileAccountSubsectionRows(rows, {
+        view: request.view,
+        sectionKey: 'uncleared-payments',
+        subsectionLabel: `Checks and Payments - ${unclearedPayments.length} items`,
+        lines: unclearedPayments,
+        totalLabel: 'Total Checks and Payments',
+        includeRunningBalance: true
+      });
+    }
+
+    if (unclearedDeposits.length > 0) {
+      this.appendReconcileAccountSubsectionRows(rows, {
+        view: request.view,
+        sectionKey: 'uncleared-deposits',
+        subsectionLabel: `Deposits and Credits - ${unclearedDeposits.length} items`,
+        lines: unclearedDeposits,
+        totalLabel: 'Total Deposits and Credits',
+        includeRunningBalance: true
+      });
+    }
+
+    rows.push({
+      rowId: 'total-uncleared-transactions',
+      rowKind: 'total',
+      label: 'Total Uncleared Transactions',
+      amount: totalUnclearedTransactions,
+      balance: request.view === 'detail' ? totalUnclearedTransactions : null,
+      depth: 0
+    });
+
+    rows.push({
+      rowId: 'register-balance',
+      rowKind: 'summary',
+      label: registerBalanceLabel,
+      amount: request.view === 'detail'
+        ? this.roundFinancialReportAmount(totalClearedTransactions + totalUnclearedTransactions)
+        : registerBalance,
+      balance: registerBalance,
+      depth: 0
+    });
+
+    rows.push({
+      rowId: 'ending-balance',
+      rowKind: 'ending',
+      label: 'Ending Balance',
+      amount: request.view === 'detail'
+        ? this.roundFinancialReportAmount(totalClearedTransactions + totalUnclearedTransactions)
+        : endingBalance,
+      balance: endingBalance,
+      depth: 0
+    });
+
+    return {
+      reportTitle,
+      entityLine,
+      periodLine,
+      view: request.view,
+      rows
+    };
+  }
+
+  private appendReconcileAccountSubsectionRows(
+    rows: ReconcileAccountReportRow[],
+    params: {
+      view: ReconcileAccountReportView;
+      sectionKey: string;
+      subsectionLabel: string;
+      lines: { line: JournalEntryLineSearchResponse; amount: number; isCleared: boolean }[];
+      totalLabel: string;
+      includeRunningBalance: boolean;
+    }
+  ): void {
+    if (params.lines.length === 0) {
+      return;
+    }
+
+    const subsectionTotal = this.roundFinancialReportAmount(
+      params.lines.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    );
+
+    if (params.view === 'summary') {
+      rows.push({
+        rowId: `${params.sectionKey}-summary`,
+        rowKind: 'subsection',
+        label: params.subsectionLabel,
+        amount: subsectionTotal,
+        depth: 1
+      });
+      return;
+    }
+
+    rows.push({
+      rowId: `${params.sectionKey}-header`,
+      rowKind: 'subsection',
+      label: params.subsectionLabel,
+      depth: 1
+    });
+
+    let runningBalance = 0;
+    params.lines.forEach((item, index) => {
+      runningBalance = this.roundFinancialReportAmount(runningBalance + item.amount);
+      const line = item.line;
+      rows.push({
+        rowId: `${params.sectionKey}-line-${line.journalEntryLineId || index}`,
+        rowKind: 'line',
+        type: getSourceTypeLabel(line.sourceTypeId, SourceTypeLabels),
+        date: this.formatter.formatDateString(String(line.transactionDate || '')),
+        num: this.resolveJournalEntryLineSourceDisplay(line),
+        name: String(line.contactName || '').trim(),
+        clr: item.isCleared ? 'X' : '',
+        amount: item.amount,
+        balance: params.includeRunningBalance ? runningBalance : null,
+        depth: 2
+      });
+    });
+
+    rows.push({
+      rowId: `${params.sectionKey}-total`,
+      rowKind: 'total',
+      label: params.totalLabel,
+      amount: subsectionTotal,
+      balance: params.includeRunningBalance ? subsectionTotal : null,
+      depth: 1
+    });
+  }
+
+  private getReconcileAccountLineAmount(line: JournalEntryLineSearchResponse): number {
+    const debit = Number(line.debit || 0);
+    const credit = Number(line.credit || 0);
+    if (debit > 0) {
+      return this.roundFinancialReportAmount(debit);
+    }
+    if (credit > 0) {
+      return this.roundFinancialReportAmount(-credit);
+    }
+    return 0;
+  }
+
+  private isReconcileReportLineCleared(line: JournalEntryLineSearchResponse): boolean {
+    if (line.clearedOn) {
+      return true;
+    }
+    return line.isCleared === true;
+  }
+
+  mapReconcileAccountReportToPrintableDocument(result: ReconcileAccountReportResult): PrintableReportDocument {
+    const subtitleLines = [result.entityLine, result.periodLine].filter(line => !!line?.trim());
+    if (result.view === 'detail') {
+      return {
+        title: result.reportTitle,
+        subtitleLines,
+        columns: [
+          { label: 'Type', align: 'left' },
+          { label: 'Date', align: 'left' },
+          { label: 'Num', align: 'left' },
+          { label: 'Name', align: 'left' },
+          { label: 'Clr', align: 'center' },
+          { label: 'Amount', align: 'right' },
+          { label: 'Balance', align: 'right' }
+        ],
+        rows: (result.rows || [])
+          .filter(row => row.rowKind !== 'columnHeader')
+          .map(row => this.mapReconcileAccountDetailPrintableRow(row))
+      };
+    }
+
+    return {
+      title: result.reportTitle,
+      subtitleLines,
+      columns: [
+        { label: '', align: 'left' },
+        { label: 'Amount', align: 'right' }
+      ],
+      rows: (result.rows || []).map(row => this.mapReconcileAccountSummaryPrintableRow(row))
+    };
+  }
+
+  private mapReconcileAccountSummaryPrintableRow(row: ReconcileAccountReportRow): PrintableReportRow {
+    const kind = this.mapReconcileAccountPrintableRowKind(row.rowKind);
+    const amountDisplay = this.formatReconcileAccountSummaryPrintableAmount(row);
+    return {
+      kind,
+      cells: [row.label || '', amountDisplay],
+      indent: row.depth
+    };
+  }
+
+  private mapReconcileAccountDetailPrintableRow(row: ReconcileAccountReportRow): PrintableReportRow {
+    const kind = this.mapReconcileAccountPrintableRowKind(row.rowKind);
+    if (row.rowKind === 'line') {
+      return {
+        kind,
+        cells: [
+          row.type || '',
+          row.date || '',
+          row.num || '',
+          row.name || '',
+          row.clr || '',
+          this.formatReconcileAccountPrintableAmount(row.amount),
+          this.formatReconcileAccountPrintableAmount(row.balance)
+        ]
+      };
+    }
+
+    return {
+      kind,
+      cells: [
+        row.label || '',
+        '',
+        '',
+        '',
+        '',
+        this.formatReconcileAccountPrintableAmount(row.amount),
+        this.formatReconcileAccountPrintableAmount(row.balance)
+      ],
+      indent: row.depth
+    };
+  }
+
+  private mapReconcileAccountPrintableRowKind(
+    rowKind: ReconcileAccountReportRow['rowKind']
+  ): PrintableReportRowKind {
+    if (rowKind === 'section') {
+      return 'section';
+    }
+    if (rowKind === 'subsection') {
+      return 'subsection';
+    }
+    if (rowKind === 'line') {
+      return 'line';
+    }
+    if (rowKind === 'total' || rowKind === 'beginning' || rowKind === 'ending') {
+      return rowKind === 'beginning' ? 'summary' : 'total';
+    }
+    return 'summary';
+  }
+
+  private formatReconcileAccountSummaryPrintableAmount(row: ReconcileAccountReportRow): string {
+    if (row.amount != null && Number.isFinite(row.amount)) {
+      return this.formatter.currencyUsd(row.amount);
+    }
+    if (row.balance != null && Number.isFinite(row.balance)) {
+      return this.formatter.currencyUsd(row.balance);
+    }
+    return '';
+  }
+
+  private formatReconcileAccountPrintableAmount(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) {
+      return '';
+    }
+    return this.formatter.currencyUsd(value);
+  }
+
+  mapFinancialReportToPrintableDocument(result: FinancialReportResult, entityLine: string): PrintableReportDocument {
+    const amountColumnIds = this.getFinancialReportPrintableAmountColumnIds(result);
+    const columns: PrintableReportDocument['columns'] = [
+      { label: '', align: 'left' },
+      ...amountColumnIds.map(columnId => ({
+        label: this.getFinancialReportPrintableColumnLabel(result, columnId),
+        align: 'right' as const
+      }))
+    ];
+    const rows: PrintableReportRow[] = [];
+    (result.sections || []).forEach(section => this.appendFinancialReportPrintableRows(section, amountColumnIds, rows));
+
+    return {
+      title: result.reportTitle,
+      subtitleLines: [entityLine, result.periodLabel].filter(line => !!line?.trim()),
+      columns,
+      rows
+    };
+  }
+
+  mapArAgingReportToPrintableDocument(result: ArAgingReportResult): PrintableReportDocument {
+    const bucketIds = (result.bucketColumns || []).map(column => column.id);
+    const columns: PrintableReportDocument['columns'] = [
+      { label: 'Customer', align: 'left' },
+      ...(result.bucketColumns || []).map(column => ({ label: column.label, align: 'right' as const })),
+      { label: 'Total', align: 'right' }
+    ];
+    const rows: PrintableReportRow[] = (result.customerRows || []).map(customer => ({
+      kind: 'line',
+      cells: [
+        customer.customerLabel,
+        ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(customer.bucketAmounts[bucketId])),
+        this.formatter.currencyUsd(customer.total)
+      ]
+    }));
+
+    rows.push({
+      kind: 'total',
+      cells: [
+        'Total',
+        ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(result.totals[bucketId])),
+        this.formatter.currencyUsd(result.grandTotal)
+      ]
+    });
+
+    return {
+      title: result.reportTitle,
+      subtitleLines: [result.entityLineLabel, result.periodLabel].filter(line => !!line?.trim()),
+      columns,
+      rows
+    };
+  }
+
+  private getFinancialReportPrintableAmountColumnIds(result: FinancialReportResult): string[] {
+    const columnIds = (result.columns || []).map(column => column.columnId);
+    if (result.showTotalColumn) {
+      columnIds.push(FINANCIAL_REPORT_TOTAL_COLUMN_ID);
+    }
+    return columnIds;
+  }
+
+  private getFinancialReportPrintableColumnLabel(result: FinancialReportResult, columnId: string): string {
+    if (columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID) {
+      return 'Total';
+    }
+    return result.columns.find(column => column.columnId === columnId)?.label || columnId;
+  }
+
+  private appendFinancialReportPrintableRows(
+    node: FinancialReportTreeNode,
+    amountColumnIds: string[],
+    rows: PrintableReportRow[]
+  ): void {
+    const hasChildren = node.childNodes.length > 0;
+    const hideSectionAmounts = hasChildren && node.rowKind === 'section';
+    rows.push({
+      kind: this.mapFinancialReportPrintableRowKind(node.rowKind, node.depth),
+      cells: [
+        node.label,
+        ...amountColumnIds.map(columnId => hideSectionAmounts
+          ? ''
+          : this.formatFinancialReportPrintableAmount(node.columnAmounts[columnId]))
+      ],
+      indent: node.depth
+    });
+
+    node.childNodes.forEach(childNode => this.appendFinancialReportPrintableRows(childNode, amountColumnIds, rows));
+  }
+
+  private mapFinancialReportPrintableRowKind(
+    rowKind: FinancialReportTreeNode['rowKind'],
+    depth: number
+  ): PrintableReportRowKind {
+    if (rowKind === 'section') {
+      return depth > 0 ? 'subsection' : 'section';
+    }
+    if (rowKind === 'account') {
+      return 'line';
+    }
+    if (rowKind === 'total') {
+      return 'total';
+    }
+    return 'summary';
+  }
+
+  private formatFinancialReportPrintableAmount(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) {
+      return '';
+    }
+    return this.formatter.currencyUsd(value);
+  }
+
+  private formatArAgingPrintableBucketAmount(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value) || Math.abs(value) <= 0.005) {
+      return '';
+    }
+    return this.formatter.currencyUsd(value);
   }
   //#endregion
 

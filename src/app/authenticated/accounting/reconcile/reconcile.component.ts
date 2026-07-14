@@ -139,7 +139,8 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get difference(): number {
-    return this.endingBalance - this.clearedBalance;
+    const value = this.endingBalance - this.clearedBalance;
+    return Math.abs(value) < 0.005 ? 0 : value;
   }
 
   get isDifferenceZero(): boolean {
@@ -373,7 +374,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
 
-    this.generalLedgerService.searchUnclearedJournalEntryLines(this.officeId, this.chartOfAccountId, statementDate).pipe(
+    this.generalLedgerService.searchReconcileJournalEntryLines(this.officeId, this.chartOfAccountId, statementDate).pipe(
       takeUntil(this.destroy$),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reconcileLines'))
     ).subscribe({
@@ -388,7 +389,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       },
       error: () => {
-        this.placeholderMessage = 'Unable to load uncleared journal entry lines.';
+        this.placeholderMessage = 'Unable to load reconcile journal entry lines.';
         if (!this.filterSticky) {
           this.filterVal = '';
         }

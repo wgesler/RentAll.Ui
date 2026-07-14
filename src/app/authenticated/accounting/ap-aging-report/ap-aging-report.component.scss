@@ -1,0 +1,59 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ap-aging-detail-layout {
+  .financial-report-header {
+    gap: 0.125rem;
+  }
+}
+
+.ap-aging-detail-table {
+  min-width: 100%;
+  table-layout: fixed;
+
+  th,
+  td {
+    white-space: nowrap;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .financial-report-col-amount {
+    width: auto;
+    min-width: 0;
+  }
+
+  th {
+    font-weight: 700;
+    text-align: left;
+    background: rgba(15, 23, 42, 0.04);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  }
+
+  tbody tr:nth-child(even):not(.financial-report-row-section):not(.financial-report-row-total) {
+    background: rgba(15, 23, 42, 0.02);
+  }
+}
+
+.ap-aging-detail-label-cell {
+  font-weight: 600;
+}
+
+.ap-aging-detail-row-clickable {
+  cursor: pointer;
+
+  &:hover td {
+    background: rgba(59, 130, 246, 0.06);
+  }
+}
+
+.ap-aging-detail-row-transaction td.financial-report-col-amount {
+  font-variant-numeric: tabular-nums;
+}
