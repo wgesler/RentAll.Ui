@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
@@ -27,8 +27,14 @@ import { TrackerComponent } from '../tracker/tracker.component';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() selectedOfficeId: number | null = null; // kept for backwards compatibility
   @Input() offices: OfficeResponse[] = [];
+  trackerService = inject(TrackerService);
+  toastr = inject(ToastrService);
+  mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError: boolean = false;
   allTrackers: TrackerDefinitionListDisplay[] = [];
@@ -44,14 +50,6 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['trackers']));
-
-  constructor(
-    public trackerService: TrackerService,
-    public toastr: ToastrService,
-    public mappingService: MappingService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Tracker-List
   ngOnInit(): void {

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { EmailGetRequest, EmailRequest, EmailResponse } from '../models/email.model';
@@ -18,12 +18,10 @@ interface GetEmailsApiDto {
   providedIn: 'root'
 })
 export class EmailService {
-  private readonly controller = this.configService.config().apiUrl + 'email/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService
-  ) {}
+  private readonly controller = this.configService.config().apiUrl + 'email/';
 
   searchEmails(request: EmailGetRequest): Observable<EmailResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);

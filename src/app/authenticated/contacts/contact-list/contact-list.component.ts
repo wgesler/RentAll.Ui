@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { Clipboard } from "@angular/cdk/clipboard";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,7 +33,6 @@ import { OwnersService } from '../../owners/services/owners.service';
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
-  readonly EntityType = EntityType;
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
@@ -43,6 +42,20 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() showInactiveChange = new EventEmitter<boolean>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number; ownerLeadId?: number | null; officeId?: number | null }>();
+  private clipboard = inject(Clipboard);
+  contactService = inject(ContactService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  mappingService = inject(MappingService);
+  private leadsService = inject(LeadsService);
+  private ownersService = inject(OwnersService);
+  private authService = inject(AuthService);
+  private navigationContextService = inject(NavigationContextService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private cdr = inject(ChangeDetectorRef);
+
+  readonly EntityType = EntityType;
 
   allContacts: ContactListDisplay[] = [];
   contactsDisplay: ContactListDisplay[] = [];
@@ -80,21 +93,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private clipboard: Clipboard,
-    public contactService: ContactService,
-    public toastr: ToastrService,
-    public router: Router,
-    public mappingService: MappingService,
-    private leadsService: LeadsService,
-    private ownersService: OwnersService,
-    private authService: AuthService,
-    private navigationContextService: NavigationContextService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Contact-List
   ngOnInit(): void {

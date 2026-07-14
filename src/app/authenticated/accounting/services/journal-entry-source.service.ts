@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, map, of, switchMap } from 'rxjs';
 import { ReceiptResponse } from '../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
@@ -19,11 +19,9 @@ export interface JournalEntrySourceTarget {
   providedIn: 'root'
 })
 export class JournalEntrySourceService {
-  constructor(
-    private invoiceService: InvoiceService,
-    private receiptService: ReceiptService
-  ) {
-  }
+  private invoiceService = inject(InvoiceService);
+  private receiptService = inject(ReceiptService);
+
 
   resolveSource(row: JournalEntryLineListDisplay): Observable<JournalEntrySourceTarget | null> {
     const sourceId = (row.sourceId || '').trim();

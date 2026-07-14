@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe, } from '@angular/common';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { AbstractControl } from '@angular/forms';
 
 @Injectable({
@@ -7,7 +7,9 @@ import { AbstractControl } from '@angular/forms';
 })
 
 export class FormatterService {
-    constructor(private decimalPipe: DecimalPipe, private datePipe: DatePipe) {}
+    private decimalPipe = inject(DecimalPipe);
+    private datePipe = inject(DatePipe);
+
 
     currency(value: number): string {
         return this.decimalPipe.transform(value === null ? 0 : value, '1.2-2');

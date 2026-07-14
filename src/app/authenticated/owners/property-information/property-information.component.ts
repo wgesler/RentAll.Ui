@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -67,8 +67,6 @@ export function buildPropertyInformationPatchFromPropertyInfo(response: Property
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class PropertyInformationComponent implements OnChanges, OnDestroy {
-  readonly OwnerAuthorization = OwnerAuthorization;
-  readonly isOwnerUnauthorized = isOwnerUnauthorized;
 
   @Input() token = '';
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
@@ -84,6 +82,15 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   @Input() shellPropertyZip: string | null = null;
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() propertyContextChanged = new EventEmitter<void>();
+  private fb = inject(FormBuilder);
+  private ownersService = inject(OwnersService);
+  private toastr = inject(ToastrService);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private authService = inject(AuthService);
+
+  readonly OwnerAuthorization = OwnerAuthorization;
+  readonly isOwnerUnauthorized = isOwnerUnauthorized;
 
   ownerForm: FormGroup = this.buildForm();
   isPageReady = false;
@@ -92,15 +99,6 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property-information']));
   hasLoadStateSubscription = false;
   destroy$ = new Subject<void>();
-
-  constructor(
-    private fb: FormBuilder,
-    private ownersService: OwnersService,
-    private toastr: ToastrService,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private authService: AuthService
-  ) {}
 
   //#region Property-Information
   ngOnChanges(changes: SimpleChanges): void {

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { take } from 'rxjs';
@@ -19,16 +19,14 @@ import { OwnersService } from '../services/owners.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnersListComponent {
+
   officeId = input<number | null>(null);
+  private router = inject(Router);
+  private ownersService = inject(OwnersService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
   ownerEntityTypeId = EntityType.Owner;
   showInactiveOwnerContacts = false;
-
-  constructor(
-    private router: Router,
-    private ownersService: OwnersService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

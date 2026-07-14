@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { environment } from '../../../../environments/environment';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -52,6 +52,7 @@ import {
   styleUrl: './owner-agreement-form.component.scss'
 })
 export class OwnerAgreementFormComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() token: string | null = null;
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
@@ -70,6 +71,23 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   /** When true (owner-shell Agreement tab selected), open document preview in view mode — mirrors lease shell behavior. */
   @Input() openInViewOnTabSelect = false;
   @Input() hideEditButtonInViewMode = false;
+  private fb = inject(FormBuilder);
+  private commonService = inject(CommonService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private dynamicFormDraftService = inject(DynamicFormDraftService);
+  private ownerFormPlaceholderService = inject(OwnerFormPlaceholderService);
+  private mappingService = inject(MappingService);
+  private ownersService = inject(OwnersService);
+  private ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
+  private ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+  private ownerDocuSignSignersDialogService = inject(OwnerDocuSignSignersDialogService);
+  private ownerFormViewModeService = inject(OwnerFormViewModeService);
+  private http = inject(HttpClient);
+  override toastr: ToastrService;
 
   form: FormGroup = this.buildForm();
   // Local/dev: load templates straight from local assets for fast iteration (mirrors lease.component).
@@ -114,48 +132,24 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   readonly OwnerAuthorization = OwnerAuthorization;
 
-  constructor(
-    private fb: FormBuilder,
-    private commonService: CommonService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    documentHtmlService: DocumentHtmlService,
-    private sanitizer: DomSanitizer,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    public override toastr: ToastrService,
-    emailService: EmailService,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private dynamicFormDraftService: DynamicFormDraftService,
-    private ownerFormPlaceholderService: OwnerFormPlaceholderService,
-    private mappingService: MappingService,
-    private ownersService: OwnersService,
-    private ownerIncludedOwnersService: OwnerIncludedOwnersService,
-    private ownerDocuSignSignerService: OwnerDocuSignSignerService,
-    private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
-    private ownerFormViewModeService: OwnerFormViewModeService,
-    private http: HttpClient
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
-  }
-
-  //#region Owner-Agreement-Form
-  ngOnInit(): void {
+  constructor() {
+    super();
+    }
+    //#region Owner-Agreement-Form
+    ngOnInit(): void {
     this.organizationId = String(this.authService.getUser()?.organizationId || '').trim();
     const fallbackDocument = this.documentHtmlService.buildHtmlDocument(
-      '<div style="padding:24px;font-family:Arial,sans-serif;font-size:14px;color:#444;">Agreement preview is loading...</div>',
-      '',
-      ''
+    '<div style="padding:24px;font-family:Arial,sans-serif;font-size:14px;color:#444;">Agreement preview is loading...</div>',
+    '',
+    ''
     );
     this.fallbackIframeHtml = this.sanitizer.bypassSecurityTrustHtml(fallbackDocument);
- 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-      if (this.isPageReady && !this.hasAttemptedPreviewRender) {
-        this.hasAttemptedPreviewRender = true;
-        this.generatePreview();
-      }
+    this.isPageReady = items.size === 0;
+    if (this.isPageReady && !this.hasAttemptedPreviewRender) {
+    this.hasAttemptedPreviewRender = true;
+    this.generatePreview();
+  }
     });
 
     this.commonService.loadStates();

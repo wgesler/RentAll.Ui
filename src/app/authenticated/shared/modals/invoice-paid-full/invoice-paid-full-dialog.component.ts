@@ -1,5 +1,5 @@
 
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
 
@@ -15,15 +15,12 @@ export interface InvoicePaidFullDialogData {
     styleUrl: './invoice-paid-full-dialog.component.scss'
 })
 export class InvoicePaidFullDialogComponent implements OnInit {
-  
-  constructor(
-    public dialogRef: MatDialogRef<InvoicePaidFullDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: InvoicePaidFullDialogData
-  ) {}
-  
+  dialogRef = inject(MatDialogRef<InvoicePaidFullDialogComponent>);
+  data = inject<InvoicePaidFullDialogData>(MAT_DIALOG_DATA);
+
   ngOnInit(): void {
   }
-  
+
   close(): void {
     this.dialogRef.close();
   }

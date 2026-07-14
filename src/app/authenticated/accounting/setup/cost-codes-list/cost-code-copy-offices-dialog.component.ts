@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
@@ -16,13 +16,10 @@ export interface CostCodeCopyOfficesDialogData {
   styleUrl: './cost-code-copy-offices-dialog.component.scss'
 })
 export class CostCodeCopyOfficesDialogComponent {
-  selectedOfficeIds: number[] = [];
+  data = inject<CostCodeCopyOfficesDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<CostCodeCopyOfficesDialogComponent, number[] | undefined>>(MatDialogRef);
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: CostCodeCopyOfficesDialogData,
-    private dialogRef: MatDialogRef<CostCodeCopyOfficesDialogComponent, number[] | undefined>
-  ) {
-  }
+  selectedOfficeIds: number[] = [];
 
   get canConfirm(): boolean {
     return this.selectedOfficeIds.length > 0;

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, take, tap } from 'rxjs';
 import { BrandingResponse } from '../authenticated/organizations/models/branding.model';
 import { OrganizationService } from '../authenticated/organizations/services/organization.service';
@@ -9,6 +9,10 @@ import { AuthService } from './auth.service';
   providedIn: 'root'
 })
 export class BrandingService {
+  private document = inject<Document>(DOCUMENT);
+  private organizationService = inject(OrganizationService);
+  private authService = inject(AuthService);
+
   private readonly systemDefaultBranding: BrandingResponse = {
     organizationId: '99999999-9999-9999-9999-999999999999',
     primaryColor: '#3f51b5',
@@ -23,11 +27,7 @@ export class BrandingService {
   private logoUrl$ = new BehaviorSubject<string>(this.systemDefaultBranding.logoPath ?? '');
   private collapsedLogoUrl$ = new BehaviorSubject<string>(this.systemDefaultBranding.collapsedLogoPath ?? '');
 
-  constructor(
-    @Inject(DOCUMENT) private document: Document,
-    private organizationService: OrganizationService,
-    private authService: AuthService
-  ) {
+  constructor() {
     this.applyBranding(this.systemDefaultBranding);
   }
 

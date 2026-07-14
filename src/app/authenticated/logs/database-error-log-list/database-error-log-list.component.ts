@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -18,9 +18,12 @@ import { LogService } from '../services/log.service';
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() reloadToken = 0;
   @Output() openDatabaseErrorLog = new EventEmitter<DatabaseErrorLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+  private logService = inject(LogService);
+  private formatter = inject(FormatterService);
 
   rows: Array<DatabaseErrorLogResponse & { createdOnDate: string }> = [];
   isLoading = false;
@@ -31,8 +34,6 @@ export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestr
     message: { displayAs: 'Message', maxWidth: '50ch' },
     createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
   };
-
-  constructor(private logService: LogService, private formatter: FormatterService) {}
 
   //#region Database-Error-Log-List
   ngOnInit(): void {

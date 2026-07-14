@@ -1,6 +1,6 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -20,11 +20,11 @@ export interface PropertyCalendarUrlDialogData {
   styleUrl: './property-calendar-url-dialog.component.scss'
 })
 export class PropertyCalendarUrlDialogComponent {
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: PropertyCalendarUrlDialogData,
-    private dialogRef: MatDialogRef<PropertyCalendarUrlDialogComponent>,
-    private clipboard: Clipboard,
-    private toastr: ToastrService) {}
+  data = inject<PropertyCalendarUrlDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<PropertyCalendarUrlDialogComponent>>(MatDialogRef);
+  private clipboard = inject(Clipboard);
+  private toastr = inject(ToastrService);
+
 
   get resolvedSubscriptionUrl(): string {
     return this.extractSubscriptionUrl(this.data.subscriptionUrl);

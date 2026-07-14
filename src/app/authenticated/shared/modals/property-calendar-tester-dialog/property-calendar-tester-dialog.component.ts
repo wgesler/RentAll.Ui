@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { finalize, take } from 'rxjs';
@@ -27,6 +27,11 @@ type ParsedCalendarEvent = {
   styleUrl: './property-calendar-tester-dialog.component.scss'
 })
 export class PropertyCalendarTesterDialogComponent implements OnInit {
+  private http = inject(HttpClient);
+  private fb = inject(FormBuilder);
+  private dialogRef = inject<MatDialogRef<PropertyCalendarTesterDialogComponent>>(MatDialogRef);
+  data = inject<PropertyCalendarTesterDialogData>(MAT_DIALOG_DATA);
+
   form: FormGroup;
   isLoading = false;
   fetchUrl = '';
@@ -46,13 +51,6 @@ export class PropertyCalendarTesterDialogComponent implements OnInit {
   get prettyFullHttpResponse(): string {
     return this.prettyPrintText(this.fullHttpResponse, '[no response object]');
   }
-
-  constructor(
-    private http: HttpClient,
-    private fb: FormBuilder,
-    private dialogRef: MatDialogRef<PropertyCalendarTesterDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: PropertyCalendarTesterDialogData
-  ) {}
 
   //#region Calendar-Tester-Dialog
   ngOnInit(): void {

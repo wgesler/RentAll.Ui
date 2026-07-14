@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
@@ -32,22 +32,20 @@ interface ApplianceEditRow {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceApplianceListComponent implements OnChanges {
+
   @Input() appliances: ApplianceResponse[] = [];
   @Input() isLoading = false;
   @Input() isSaving = false;
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: ApplianceRequest[]; deleteIds: number[] }>();
   @Output() deleteExisting = new EventEmitter<number>();
+  private dialog = inject(MatDialog);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
 
   rows: ApplianceEditRow[] = [];
   originalRowsById = new Map<number, { applianceName: string; manufacturer: string; modelNo: string; serialNo: string; decalPath: string | null }>();
   rowCounter = 0;
-
-  constructor(
-    private dialog: MatDialog,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

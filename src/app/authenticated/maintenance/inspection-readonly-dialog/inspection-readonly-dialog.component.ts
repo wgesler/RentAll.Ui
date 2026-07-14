@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 import { InspectionComponent } from '../inspection/inspection.component';
@@ -13,10 +13,8 @@ import { InspectionReadonlyDialogData } from './inspection-readonly-dialog-data'
   styleUrl: './inspection-readonly-dialog.component.scss'
 })
 export class InspectionReadonlyDialogComponent {
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: InspectionReadonlyDialogData,
-    private dialogRef: MatDialogRef<InspectionReadonlyDialogComponent>
-  ) {}
+  data = inject<InspectionReadonlyDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject(MatDialogRef<InspectionReadonlyDialogComponent>);
 
   close(): void {
     this.dialogRef.close();

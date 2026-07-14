@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -30,9 +30,20 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Input() embeddedInSettings = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  chartOfAccountsService = inject(ChartOfAccountsService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  route = inject(ActivatedRoute);
+  mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError = false;
   cachedChartOfAccounts: ChartOfAccountResponse[] = [];
@@ -67,19 +78,6 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccounts']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public chartOfAccountsService: ChartOfAccountsService,
-    public toastr: ToastrService,
-    public router: Router,
-    public route: ActivatedRoute,
-    public mappingService: MappingService,
-    private officeService: OfficeService,
-    private utilityService: UtilityService,
-    private authService: AuthService,
-    private globalSelectionService: GlobalSelectionService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region ChartOfAccounts-List
   ngOnInit(): void {

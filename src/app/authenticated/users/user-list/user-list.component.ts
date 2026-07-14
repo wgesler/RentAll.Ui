@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
@@ -30,10 +30,19 @@ import { UserService } from '../services/user.service';
 })
 
 export class UserListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() tabIndex?: number;
   @Input() officeId: number | null = null;
   @Input() selectedOrganizationId: string | null = null;
   @Output() openUser = new EventEmitter<{ userId: string; tabIndex?: number }>();
+  userService = inject(UserService);
+  private organizationService = inject(OrganizationService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
+  toastr = inject(ToastrService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
   selectedTabIndex: number = 0;
@@ -67,17 +76,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices', 'officeScope']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public userService: UserService,
-    private organizationService: OrganizationService,
-    private officeService: OfficeService,
-    private authService: AuthService,
-    public toastr: ToastrService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region User-List
   ngOnInit(): void {

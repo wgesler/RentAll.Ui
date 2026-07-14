@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
@@ -18,17 +18,14 @@ import {
   providedIn: 'root'
 })
 export class ReservationService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private mixedMappingService = inject(MixedMappingService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
   private readonly reservationSavedSubject = new Subject<{ reservationId: string }>();
   reservationSaved$ = this.reservationSavedSubject.asObservable();
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService,
-    private mixedMappingService: MixedMappingService
-  ) {
-  }
 
   // GET: Get reservation list (summary view)
   getReservationList(): Observable<ReservationListResponse[]> {

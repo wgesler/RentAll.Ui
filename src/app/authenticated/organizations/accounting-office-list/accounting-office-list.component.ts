@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
@@ -28,8 +28,17 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class AccountingOfficeListComponent implements OnInit, OnDestroy {
+
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyAccountingOfficeEvent = new EventEmitter<AccountingOfficeResponse>();
+  accountingOfficeService = inject(AccountingOfficeService);
+  toastr = inject(ToastrService);
+  formatterService = inject(FormatterService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
 
@@ -52,17 +61,6 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public accountingOfficeService: AccountingOfficeService,
-    public toastr: ToastrService,
-    public formatterService: FormatterService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Office-List
   ngOnInit(): void {

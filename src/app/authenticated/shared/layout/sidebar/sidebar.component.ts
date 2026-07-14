@@ -1,6 +1,6 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Observable, Subject, forkJoin, map, shareReplay, take, takeUntil } from 'rxjs';
@@ -25,6 +25,15 @@ import { SidebarStateService } from '../services/sidebar-state.service';
 })
 
 export class SidebarComponent implements OnInit, OnDestroy {
+  router = inject(Router);
+  private authService = inject(AuthService);
+  private breakpointObserver = inject(BreakpointObserver);
+  private sidebarStateService = inject(SidebarStateService);
+  private ticketService = inject(TicketService);
+  private leadsService = inject(LeadsService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+  private cdr = inject(ChangeDetectorRef);
+
   readonly expandedSidebarWidth = 175;
   readonly collapsedSidebarWidth = 64;
   @ViewChild('sideNav') sideNav: MatSidenav;
@@ -40,17 +49,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
   hasAssignedTicketBadge = false;
   hasNewLeadBadge = false;
   destroy$ = new Subject<void>();
-
-  constructor(
-    public router: Router,
-    private authService: AuthService,
-    private breakpointObserver: BreakpointObserver,
-    private sidebarStateService: SidebarStateService,
-    private ticketService: TicketService,
-    private leadsService: LeadsService,
-    private organizationFeatureService: OrganizationFeatureService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

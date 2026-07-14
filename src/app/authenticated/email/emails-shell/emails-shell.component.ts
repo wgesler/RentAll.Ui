@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { skip, Subject, take, takeUntil } from 'rxjs';
@@ -37,6 +37,15 @@ import { AlertResponse } from '../models/alert.model';
   styleUrl: './emails-shell.component.scss'
 })
 export class EmailsShellComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+
   private readonly clearPinsEventName = 'rentall-clear-pins';
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-emails-shell-pinned-dates';
 
@@ -68,16 +77,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   organizationId = '';
   destroy$ = new Subject<void>();
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService
-  ) {
+  constructor() {
     // Before child lists bind @Input date range — ngOnInit is too late (first search can omit dates).
     this.applyPinnedDateRangeFromStorage();
     this.syncEmailSearchDateRange();

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -21,10 +21,15 @@ import { LeadsService } from '../services/leads.service';
   styleUrl: './leads-reports.component.scss'
 })
 export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() startDate: Date | null = null;
   @Input() endDate: Date | null = null;
   @Input() offices: OfficeResponse[] = [];
+  private leadsService = inject(LeadsService);
+  private utilityService = inject(UtilityService);
+  private agentService = inject(AgentService);
+  private mappingService = inject(MappingService);
 
   isPageReady = false;
   closedLeadsColumns: ColumnSet = {
@@ -65,13 +70,6 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-leads', 'owner-leads', 'general-leads', 'agents']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private leadsService: LeadsService,
-    private utilityService: UtilityService,
-    private agentService: AgentService,
-    private mappingService: MappingService
-  ) {}
 
   //#region Leads-Reports
   ngOnInit(): void {

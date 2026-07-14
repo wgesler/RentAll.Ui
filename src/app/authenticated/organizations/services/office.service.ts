@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
@@ -9,16 +9,14 @@ import { OfficeRequest, OfficeResponse } from '../models/office.model';
 })
 
 export class OfficeService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'organization/office/';
   private allOffices$ = new BehaviorSubject<OfficeResponse[]>([]);
   private officesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
    loadAllOffices(organizationId: string): Observable<OfficeResponse[]> {
     const id = organizationId?.trim();

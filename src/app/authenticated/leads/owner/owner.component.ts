@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -37,11 +37,27 @@ export type OwnerLeadFormClosed = { saved: boolean; ownerId?: number };
   imports: [CommonModule, MaterialModule, ReactiveFormsModule]
 })
 export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() shellLeadId: string | null = null;
   @Input() officeId: number | null = null;
   @Output() closed = new EventEmitter<OwnerLeadFormClosed>();
   @Output() officeSelectionRequired = new EventEmitter<void>();
   @Output() officeChange = new EventEmitter<number | null>();
+  private router = inject(Router);
+  private ngZone = inject(NgZone);
+  private fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private leadsService = inject(LeadsService);
+  private contactService = inject(ContactService);
+  private agentService = inject(AgentService);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private propertyService = inject(PropertyService);
+  private officeService = inject(OfficeService);
+  private commonService = inject(CommonService);
+  private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
   isServiceError = false;
@@ -61,23 +77,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private router: Router,
-    private ngZone: NgZone,
-    private fb: FormBuilder,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private leadsService: LeadsService,
-    private contactService: ContactService,
-    private agentService: AgentService,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private propertyService: PropertyService,
-    private officeService: OfficeService,
-    private commonService: CommonService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.form = this.buildForm();
   }
 

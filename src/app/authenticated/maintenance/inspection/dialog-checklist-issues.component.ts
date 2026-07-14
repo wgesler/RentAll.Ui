@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -271,6 +271,12 @@ export type ChecklistIssuesDialogData = {
   `]
 })
 export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
+  data = inject<ChecklistIssuesDialogData>(MAT_DIALOG_DATA);
+  private ticketService = inject(TicketService);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private dialogRef = inject<MatDialogRef<DialogChecklistIssuesComponent>>(MatDialogRef);
+
   isDownloading = false;
   isPreparingEmail = false;
   isCreatingTicket = false;
@@ -282,19 +288,8 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     return this.displayIssues.length < this.initialDisplayIssues.length;
   }
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: ChecklistIssuesDialogData,
-    documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService,
-    documentExportService: DocumentExportService,
-    emailService: EmailService,
-    toastr: ToastrService,
-    private ticketService: TicketService,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private dialogRef: MatDialogRef<DialogChecklistIssuesComponent>
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.displayIssues = (this.data?.issues || []).map(issue => ({
       ...issue,
       _rid: this.nextIssueRid++

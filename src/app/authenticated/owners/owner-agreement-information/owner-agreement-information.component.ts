@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -21,8 +21,14 @@ type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
   styleUrl: './owner-agreement-information.component.scss'
 })
 export class OwnerAgreementInformationComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
+  private fb = inject(FormBuilder);
+  private ownersService = inject(OwnersService);
+  private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
+  private utilityService = inject(UtilityService);
 
   form: FormGroup = this.buildForm();
   isSubmitting = false;
@@ -31,14 +37,6 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerAgreementInformation']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private fb: FormBuilder,
-    private ownersService: OwnersService,
-    private authService: AuthService,
-    private toastr: ToastrService,
-    private utilityService: UtilityService
-  ) {}
 
   //#region Owner-Agreement-Information
   ngOnInit(): void {

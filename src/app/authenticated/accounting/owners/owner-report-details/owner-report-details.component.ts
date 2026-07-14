@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
@@ -16,9 +16,14 @@ import { OwnerReportService } from '../../services/owner-report.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() request: OwnerReportJournalEntryLineSearchRequest | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<OwnerReportJournalEntryLineSelection>();
+  private ownerReportService = inject(OwnerReportService);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
   isServiceError = false;
@@ -27,8 +32,6 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerReportJournalEntryLines']));
   destroy$ = new Subject<void>();
-
-  constructor(private ownerReportService: OwnerReportService, private formatter: FormatterService, private utilityService: UtilityService, private cdr: ChangeDetectorRef) {}
 
   //#region Owner-Report-Details
   ngOnInit(): void {

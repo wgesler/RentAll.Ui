@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -33,6 +33,19 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
 })
 
 export class BillingComponent implements OnInit, OnDestroy {
+  accountingService = inject(InvoiceService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  route = inject(ActivatedRoute);
+  toastr = inject(ToastrService);
+  authService = inject(AuthService);
+  mappingService = inject(MappingService);
+  costCodesService = inject(CostCodesService);
+  formatter = inject(FormatterService);
+  utilityService = inject(UtilityService);
+  dialog = inject(MatDialog);
+  organizationService = inject(OrganizationService);
+
   isServiceError: boolean = false;
   invoiceId: string;
   invoice: InvoiceResponse;
@@ -60,22 +73,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public accountingService: InvoiceService,
-    public router: Router,
-    public fb: FormBuilder,
-    public route: ActivatedRoute,
-    public toastr: ToastrService,
-    public authService: AuthService,
-    public mappingService: MappingService,
-    public costCodesService: CostCodesService,
-    public formatter: FormatterService,
-    public utilityService: UtilityService,
-    public dialog: MatDialog,
-    public organizationService: OrganizationService
-  ) {
-  }
 
   //#region Invoice
   ngOnInit(): void {

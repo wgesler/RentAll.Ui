@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
@@ -22,9 +22,16 @@ type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
     styleUrl: './lease-information.component.scss'
 })
 export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() reservationId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
+  private fb = inject(FormBuilder);
+  private leaseInformationService = inject(LeaseInformationService);
+  private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
+  private leaseReloadService = inject(LeaseReloadService);
+  private utilityService = inject(UtilityService);
   form: FormGroup;
   isSubmitting: boolean = false;
   leaseInformation: LeaseInformationResponse | null = null;
@@ -32,14 +39,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leaseInformation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
-  constructor(
-    private fb: FormBuilder,
-    private leaseInformationService: LeaseInformationService,
-    private authService: AuthService,
-    private toastr: ToastrService,
-    private leaseReloadService: LeaseReloadService,
-    private utilityService: UtilityService
-  ) {
+  constructor() {
     this.form = this.buildForm();
   }
 

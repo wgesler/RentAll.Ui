@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -9,12 +9,11 @@ import { BeginReconciliationDialogResult, ReconcileDraftResponse, SaveReconcileD
   providedIn: 'root'
 })
 export class ReconcileDraftService {
-  private readonly controller = this.configService.config().apiUrl + 'accounting/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private utilityService = inject(UtilityService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService,
-    private utilityService: UtilityService) {}
+  private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
   getReconcileDraftByAccountId(officeId: number, accountId: number): Observable<ReconcileDraftResponse | null> {
     return this.http.get<ReconcileDraftResponse | null>(`${this.controller}reconcile-draft/office/${officeId}/account/${accountId}`).pipe(

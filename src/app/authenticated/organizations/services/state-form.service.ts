@@ -1,5 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { StateFormRequest, StateFormResponse } from '../models/state-form.model';
@@ -8,12 +8,10 @@ import { StateFormRequest, StateFormResponse } from '../models/state-form.model'
     providedIn: 'root'
 })
 export class StateFormService {
-  private readonly controller = this.configService.config().apiUrl + 'organization/stateform';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
+  private readonly controller = this.configService.config().apiUrl + 'organization/stateform';
 
   getStateForms(stateCode: string): Observable<StateFormResponse[]> {
     const params = new HttpParams().set('stateCode', stateCode);

@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -37,6 +37,7 @@ import { ContactService } from "../../contacts/services/contact.service";
 })
 
 export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() propertyId?: string;
   @Input() propertyCode: string | null = null;
   @Input() documentTypeId?: number;
@@ -55,6 +56,19 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
+  documentService = inject(DocumentService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private reservationService = inject(ReservationService);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+  private route = inject(ActivatedRoute);
+  private propertyService = inject(PropertyService);
+  private contactService = inject(ContactService);
+  private cdr = inject(ChangeDetectorRef);
   
   isServiceError: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
@@ -98,22 +112,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-
-  constructor(
-    public documentService: DocumentService,
-    public toastr: ToastrService,
-    public router: Router,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private reservationService: ReservationService,
-    private utilityService: UtilityService,
-    private authService: AuthService,
-    private route: ActivatedRoute,
-    private propertyService: PropertyService,
-    private contactService: ContactService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
@@ -38,9 +38,9 @@ import { MaterialModule } from '../../../material.module';
   `
 })
 export class DialogMissingCountComponent {
-  countControl = new FormControl<number | null>(null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]);
+  dialogRef = inject<MatDialogRef<DialogMissingCountComponent>>(MatDialogRef);
 
-  constructor(public dialogRef: MatDialogRef<DialogMissingCountComponent>) {}
+  countControl = new FormControl<number | null>(null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]);
 
   confirm(): void {
     if (this.countControl.invalid) {

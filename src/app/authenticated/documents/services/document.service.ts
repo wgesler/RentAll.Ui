@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { DocumentGetRequest, DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../models/document.model';
@@ -17,14 +17,11 @@ interface GetDocumentsApiDto {
   providedIn: 'root'
 })
 export class DocumentService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'document/';
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService
-  ) {
-  }
 
   getDocuments(request: DocumentGetRequest): Observable<DocumentResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);

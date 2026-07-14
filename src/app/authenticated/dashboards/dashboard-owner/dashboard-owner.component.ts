@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
@@ -26,6 +26,15 @@ import { UserService } from '../../users/services/user.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardOwnerComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private userService = inject(UserService);
+  private reservationService = inject(ReservationService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private propertyService = inject(PropertyService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
+
   user: JwtUser | null = null;
   ownerContactId: string | null = null;
   profilePictureUrl: string | null = null;
@@ -66,17 +75,6 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     billingType: { displayAs: 'Billing Type', maxWidth: '15ch', alignment: 'center' },
     billingRate: { displayAs: 'Billing Rate', maxWidth: '15ch', alignment: 'center' }
   };
-
-  constructor(
-    private authService: AuthService,
-    private userService: UserService,
-    private reservationService: ReservationService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private propertyService: PropertyService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
 
   //#region Owner Dashboard

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { DocuSignSignerConfig, DocuSignSignerSlot, OwnerDocuSignSignerContext } from '../models/owner-docusign.model';
@@ -8,7 +8,8 @@ import { OwnerIncludedOwnersService } from './owner-included-owners.service';
   providedIn: 'root'
 })
 export class OwnerDocuSignSignerService {
-  constructor(public ownerIncludedOwnersService: OwnerIncludedOwnersService) {}
+  ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
+
 
   //#region Role Parsing
   parseSignerRolesFromHtml(html: string): string[] {

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
 import { getPropertyType } from '../models/property-enums';
 import {
@@ -32,6 +32,7 @@ import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/
   styleUrl: './property-listing.component.scss'
 })
 export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked, AfterViewInit {
+
   @Input() propertyId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
@@ -40,6 +41,15 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   @Input() disablePhotoApiLoad = false;
   @Input() initialPhotos: PropertyPhotoResponse[] | null = null;
   @Input() hideRateCard = false;
+  formatter = inject(FormatterService);
+  propertyPhotoService = inject(PropertyPhotoService);
+  propertyListingShareService = inject(PropertyListingShareService);
+  clipboard = inject(Clipboard);
+  toastr = inject(ToastrService);
+  utilityService = inject(UtilityService);
+  sanitizer = inject(DomSanitizer);
+  dialog = inject(MatDialog);
+  cdr = inject(ChangeDetectorRef);
 
   listingPhotos: ListingPhotoItem[] = [];
   isReorderingPhotos = false;
@@ -62,18 +72,6 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   readonly photoUploadConcurrency = 3;
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
-
-  constructor(
-    public formatter: FormatterService,
-    public propertyPhotoService: PropertyPhotoService,
-    public propertyListingShareService: PropertyListingShareService,
-    public clipboard: Clipboard,
-    public toastr: ToastrService,
-    public utilityService: UtilityService,
-    public sanitizer: DomSanitizer,
-    public dialog: MatDialog,
-    public cdr: ChangeDetectorRef
-  ) {}
 
   //#region Property Listing
   ngOnInit(): void {

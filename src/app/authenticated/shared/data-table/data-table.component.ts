@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, AfterViewInit, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, AfterViewInit, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { MatDateFormats, provideNativeDateAdapter } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
@@ -56,14 +56,6 @@ const DATA_TABLE_DATE_FORMATS: MatDateFormats = {
 })
 
 export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnDestroy {
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  // Expose Math for use in template
-  Math = Math;
-
-  readonly filterActionsSlot = contentChild(DataTableFilterActionsDirective);
-
-  @ViewChild(MatPaginator) paginator: MatPaginator;
-  @ViewChild(MatSort) sort: MatSort;
   @Input() data: PurposefulAny[];
   @Input() columns: ColumnSet;
 
@@ -181,7 +173,6 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() subheaderLabel: string = '';
   /** When true, clicking the subheader label toggles visibility of the table body. */
   @Input() subheaderCollapsible = false;
-  subheaderSectionCollapsed = false;
   /** When true, layout-debug orange band wraps only the table/paginator block (below the purple filter row). */
   @Input() dbgBandMainBelowFilter = false;
 
@@ -233,6 +224,21 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() filterValChangeEvent = new EventEmitter<string>();
 
   @Output() selectionSet = new EventEmitter<PurposefulAny>();
+  private zone = inject(NgZone);
+  private formatter = inject(FormatterService);
+  private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
+  private authService = inject(AuthService);
+
+  private readonly clearPinsEventName = 'rentall-clear-pins';
+  // Expose Math for use in template
+  Math = Math;
+
+  readonly filterActionsSlot = contentChild(DataTableFilterActionsDirective);
+
+  @ViewChild(MatPaginator) paginator: MatPaginator;
+  @ViewChild(MatSort) sort: MatSort;
+  subheaderSectionCollapsed = false;
 
   buttons: ButtonData[] = [];
   dataSource = new MatTableDataSource<TableItem>();
@@ -359,14 +365,6 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   private pendingMultiSelectColumnsByRow = new WeakMap<PurposefulAny, Set<string>>();
   private dateCellModelsByRow = new WeakMap<PurposefulAny, Map<string, Date | null>>();
   private dropdownSearchTextByRow = new WeakMap<PurposefulAny, Map<string, string>>();
-
-  constructor(
-    private zone: NgZone,
-    private formatter: FormatterService,
-    private dialog: MatDialog,
-    private cdr: ChangeDetectorRef,
-    private authService: AuthService
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

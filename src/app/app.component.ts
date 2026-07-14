@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
@@ -29,6 +29,25 @@ import { UtilityService } from './services/utility.service';
 })
 
 export class AppComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private brandingService = inject(BrandingService);
+  private commonService = inject(CommonService);
+  private contactService = inject(ContactService);
+  private organizationListService = inject(OrganizationListService);
+  private organizationService = inject(OrganizationService);
+  private officeService = inject(OfficeService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private costCodesService = inject(CostCodesService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private utilityService = inject(UtilityService);
+  private propertyService = inject(PropertyService);
+  private propertySelectionFilterService = inject(PropertySelectionFilterService);
+  private debugLayoutBandsService = inject(DebugLayoutBandsService);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+
   title = 'RentAll.Ui';
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
@@ -40,27 +59,6 @@ export class AppComponent implements OnInit, OnDestroy {
     { name: 'board', prefixes: ['/auth/boards'] },
     { name: 'property', prefixes: ['/auth/properties'] }
   ];
-
-  constructor(
-    private authService: AuthService,
-    private brandingService: BrandingService,
-    private commonService: CommonService,
-    private contactService: ContactService,
-    private organizationListService: OrganizationListService,
-    private organizationService: OrganizationService,
-    private officeService: OfficeService,
-    private organizationFeatureService: OrganizationFeatureService,
-    private globalSelectionService: GlobalSelectionService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private costCodesService: CostCodesService,
-    private accountingOfficeService: AccountingOfficeService,
-    private utilityService: UtilityService,
-    private propertyService: PropertyService,
-    private propertySelectionFilterService: PropertySelectionFilterService,
-    private debugLayoutBandsService: DebugLayoutBandsService,
-    private router: Router,
-    private toastr: ToastrService
-  ) { }
 
   ngOnInit(): void {
     this.debugLayoutBandsService.setEnabled(false);

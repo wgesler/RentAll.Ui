@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, map, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { FeatureResponse } from '../models/organization-feature.model';
@@ -30,15 +30,13 @@ export interface OfficeUiState {
   providedIn: 'root'
 })
 export class GlobalSelectionService {
+  private authService = inject(AuthService);
+
   private readonly officeStorageKey = 'rentall.globalOfficeId';
   private readonly furnishedPropertyStorageKey = 'rentall.furnishedPropertySelection';
   private selectedOfficeId$ = new BehaviorSubject<number | null>(this.readOfficeIdFromStorage());
   /** false = furnished-only (non-unfurnished); true = unfurnished-only. Reset on login / clear session. */
   private furnishedPropertySelection$ = new BehaviorSubject<boolean>(this.readFurnishedPropertySelectionFromStorage());
-
-  constructor(
-    private authService: AuthService
-  ) {}
 
   getSelectedOfficeId$(): Observable<number | null> {
     return this.selectedOfficeId$.asObservable();

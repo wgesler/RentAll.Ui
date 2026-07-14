@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Subject, catchError, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -39,11 +39,25 @@ import { ReservationResponse } from '../../../reservations/models/reservation-mo
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ArAgingReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Input() reportFilters: ArAgingReportFilters | null = null;
   @Input() refreshTrigger = 0;
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  formatter = inject(FormatterService);
+  private invoiceService = inject(InvoiceService);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private costCodesService = inject(CostCodesService);
+  private commonService = inject(CommonService);
+  private utilityService = inject(UtilityService);
+  private contactService = inject(ContactService);
+  private reservationService = inject(ReservationService);
+  private reportHtmlBuilder = inject(ReportHtmlBuilderService);
+  private documentReloadService = inject(DocumentReloadService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
   @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
 
   isServiceError = false;
@@ -85,28 +99,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public formatter: FormatterService,
-    private invoiceService: InvoiceService,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private costCodesService: CostCodesService,
-    private commonService: CommonService,
-    private utilityService: UtilityService,
-    private contactService: ContactService,
-    private reservationService: ReservationService,
-    private reportHtmlBuilder: ReportHtmlBuilderService,
-    private documentReloadService: DocumentReloadService,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    public override toastr: ToastrService,
-    emailService: EmailService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
-  }
 
   //#region AR-Aging-Report
   ngOnInit(): void {

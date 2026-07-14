@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 
@@ -62,12 +62,14 @@ export interface RentalQuotePropertySelectDialogData {
   `]
 })
 export class RentalQuotePropertySelectDialogComponent {
+  data = inject<RentalQuotePropertySelectDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<RentalQuotePropertySelectDialogComponent, string[]>>(MatDialogRef);
+
   selectedPropertyIds = new Set<string>();
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: RentalQuotePropertySelectDialogData,
-    private dialogRef: MatDialogRef<RentalQuotePropertySelectDialogComponent, string[]>
-  ) {
+  constructor() {
+    const data = this.data;
+
     this.selectedPropertyIds = new Set((data.selectedPropertyIds || []).map(propertyId => String(propertyId || '').trim()).filter(propertyId => propertyId !== ''));
   }
 

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { TicketRequest, TicketResponse } from '../models/ticket-models';
@@ -8,15 +8,12 @@ import { TicketRequest, TicketResponse } from '../models/ticket-models';
   providedIn: 'root'
 })
 export class TicketService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   private readonly controller = this.configService.config().apiUrl + 'ticket/';
   private readonly ticketStateChangedSubject = new Subject<void>();
   ticketStateChanged$ = this.ticketStateChangedSubject.asObservable();
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService
-  ) {
-  }
 
   // GET: Get all tickets
   getTickets(): Observable<TicketResponse[]> {

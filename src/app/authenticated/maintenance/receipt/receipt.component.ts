@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
@@ -43,6 +43,7 @@ const ACCOUNTING_COMPANY_PROPERTY_ID = '__accounting_company__';
   styleUrl: './receipt.component.scss'
 })
 export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: string | null = null;
@@ -60,6 +61,20 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Output() saveValidationAttempted = new EventEmitter<void>();
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
+  private newContactDialogService = inject(NewContactDialogService);
+  private propertyService = inject(PropertyService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private contactService = inject(ContactService);
+  private workOrderService = inject(WorkOrderService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private utilityService = inject(UtilityService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
+  private mappingService = inject(MappingService);
+  formatter = inject(FormatterService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
+  private router = inject(Router);
 
   fb: FormBuilder;
   form: FormGroup;
@@ -112,25 +127,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    fb: FormBuilder,
-    authService: AuthService,
-    receiptService: ReceiptService,
-    private newContactDialogService: NewContactDialogService,
-    private propertyService: PropertyService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private contactService: ContactService,
-    private workOrderService: WorkOrderService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private utilityService: UtilityService,
-    private pdfThumbnailService: PdfThumbnailService,
-    private mappingService: MappingService,
-    public formatter: FormatterService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef,
-    private router: Router
-  ) {
+  constructor() {
+    const fb = inject(FormBuilder);
+    const authService = inject(AuthService);
+    const receiptService = inject(ReceiptService);
+
     this.fb = fb;
     this.authService = authService;
     this.receiptService = receiptService;

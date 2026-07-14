@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { DocuSignSignersDialogComponent, DocuSignSignersDialogData } from '../../shared/modals/docusign-signers-dialog/docusign-signers-dialog.component';
@@ -9,10 +9,9 @@ import { OwnerDocuSignSignerService } from './owner-docusign-signer.service';
   providedIn: 'root'
 })
 export class OwnerDocuSignSignersDialogService {
-  constructor(
-    public dialog: MatDialog,
-    public ownerDocuSignSignerService: OwnerDocuSignSignerService
-  ) {}
+  dialog = inject(MatDialog);
+  ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+
 
   async promptForSigners(input: OwnerDocuSignSignersPromptInput): Promise<DocuSignSignerConfig[] | null> {
     const roles = (input.roles || []).filter(Boolean);

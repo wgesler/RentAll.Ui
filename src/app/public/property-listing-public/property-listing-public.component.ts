@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { finalize, timeout } from 'rxjs';
 import { take } from 'rxjs/operators';
@@ -17,17 +17,15 @@ import { MaterialModule } from '../../material.module';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PropertyListingPublicComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private propertyListingShareService = inject(PropertyListingShareService);
+  private cdr = inject(ChangeDetectorRef);
+
   isLoading = true;
   property: PropertyResponse | null = null;
   photos: PropertyPhotoResponse[] = [];
   errorMessage = '';
   private loadingWatchdog?: ReturnType<typeof setTimeout>;
-
-  constructor(
-    private route: ActivatedRoute,
-    private propertyListingShareService: PropertyListingShareService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { BrandingRequest, BrandingResponse } from '../models/branding.model';
@@ -10,13 +10,11 @@ import { OrganizationRequest, OrganizationResponse } from '../models/organizatio
 })
 
 export class OrganizationService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'organization/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   // GET: Get all organizations
   getOrganizations(): Observable<OrganizationResponse[]> {

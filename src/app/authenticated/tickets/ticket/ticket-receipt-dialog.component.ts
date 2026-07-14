@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, ViewChild } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 import { ReceiptResponse } from '../../maintenance/models/receipt.model';
@@ -25,12 +25,13 @@ export interface TicketReceiptDialogResult {
   styleUrl: './ticket-receipt-dialog.component.scss'
 })
 export class TicketReceiptDialogComponent {
+  private dialogRef = inject<MatDialogRef<TicketReceiptDialogComponent, TicketReceiptDialogResult>>(MatDialogRef);
+
   @ViewChild('receiptDetail') receiptDetail?: ReceiptComponent;
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) data: TicketReceiptDialogData,
-    private dialogRef: MatDialogRef<TicketReceiptDialogComponent, TicketReceiptDialogResult>
-  ) {
+  constructor() {
+    const data = inject<TicketReceiptDialogData>(MAT_DIALOG_DATA);
+
     this.data = data;
   }
 

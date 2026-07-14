@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
@@ -32,10 +32,24 @@ export type RentalLeadFormClosed = { saved: boolean; rentalId?: number };
   imports: [CommonModule, MaterialModule, ReactiveFormsModule]
 })
 export class RentalComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() shellLeadId: string | null = null;
   @Input() officeId: number | null = null;
   @Output() closed = new EventEmitter<RentalLeadFormClosed>();
   @Output() officeSelectionRequired = new EventEmitter<void>();
+  private router = inject(Router);
+  private ngZone = inject(NgZone);
+  private fb = inject(FormBuilder);
+  private dialog = inject(MatDialog);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private leadsService = inject(LeadsService);
+  private agentService = inject(AgentService);
+  private propertyService = inject(PropertyService);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private officeService = inject(OfficeService);
+  private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
   isServiceError = false;
@@ -55,21 +69,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-lead']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private router: Router,
-    private ngZone: NgZone,
-    private fb: FormBuilder,
-    private dialog: MatDialog,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private leadsService: LeadsService,
-    private agentService: AgentService,
-    private propertyService: PropertyService,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private officeService: OfficeService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.form = this.buildForm();
   }
 

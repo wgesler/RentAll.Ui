@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap, throwError } from 'rxjs';
 import { FeatureType, getFeatureTypeCode } from '../models/organization-enum';
 import { ConfigService } from '../../../services/config.service';
@@ -10,16 +10,14 @@ import { FeatureRequest, FeatureResponse } from '../models/organization-feature.
 })
 
 export class OrganizationFeatureService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
 
   private readonly controller = this.configService.config().apiUrl + 'organization/feature/';
   private allFeatures$ = new BehaviorSubject<FeatureResponse[]>([]);
   private featuresLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   loadAllFeatures(organizationId: string): Observable<FeatureResponse[]> {
     const id = organizationId?.trim();

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -37,10 +37,24 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 })
 
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() id: string | number | null = null;
   @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  accountingOfficeService = inject(AccountingOfficeService);
+  private bankCardService = inject(BankCardService);
+  fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private formatterService = inject(FormatterService);
+  private commonService = inject(CommonService);
+  private officeService = inject(OfficeService);
+  private costCodesService = inject(CostCodesService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
@@ -114,22 +128,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public accountingOfficeService: AccountingOfficeService,
-    private bankCardService: BankCardService,
-    public fb: FormBuilder,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private formatterService: FormatterService,    private commonService: CommonService,
-    private officeService: OfficeService,
-    private costCodesService: CostCodesService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {
-  }
 
   //#region Office
   ngOnInit(): void {

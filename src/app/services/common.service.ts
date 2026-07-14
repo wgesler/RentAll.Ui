@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { EmailRequest, EmailResponse } from '../authenticated/email/models/email.model';
 import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
@@ -14,18 +14,16 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class CommonService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private authService = inject(AuthService);
+  private organizationService = inject(OrganizationService);
+
   private dailyQuote$ = new BehaviorSubject<DailyQuote>(null);
   private states$ = new BehaviorSubject<StateResponse[]>([]);
   private validStates$ = new BehaviorSubject<string[]>([]);
   private organization$ = new BehaviorSubject<OrganizationResponse>(null);
   private readonly controller = this.configService.config().apiUrl + 'common/';
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService,
-    private authService: AuthService,
-    private organizationService: OrganizationService) {
-  }
 
   // Daily Quote Methods
   getDailyQuote(): Observable<DailyQuote> {

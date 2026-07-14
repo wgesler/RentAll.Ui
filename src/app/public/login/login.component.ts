@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
+import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -26,6 +26,14 @@ import { LoginRequest } from './models/login-request';
 })
 
 export class LoginComponent implements OnInit, AfterViewInit {
+  private fb = inject(FormBuilder);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+  private storageService = inject(StorageService);
+  private authService = inject(AuthService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+
   readonly headerLogoUrl = '/assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png';
   readonly backdropLogoUrl = '/assets/images/login-backdrop-rentall-exchange.png';
 
@@ -42,14 +50,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
     description: new FormControl('')
   });
 
-  constructor(
-      private fb: FormBuilder,
-      private router: Router,
-      private toastr: ToastrService,
-      private storageService: StorageService,
-      private authService: AuthService,
-      private globalSelectionService: GlobalSelectionService,
-      private organizationFeatureService: OrganizationFeatureService)
+  constructor()
   {
     const username = this.storageService.getItem(StorageKey.Username);
     const password = this.storageService.getItem(StorageKey.Password);

@@ -1,5 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { TrackerConfigurationResponse, TrackerDefinitionOptionRequest, TrackerDefinitionOptionResponse, TrackerDefinitionRequest, TrackerDefinitionResponse } from '../models/tracker.model';
@@ -8,12 +8,10 @@ import { TrackerConfigurationResponse, TrackerDefinitionOptionRequest, TrackerDe
     providedIn: 'root'
 })
 export class TrackerService {
-  private readonly controller = this.configService.config().apiUrl + 'organization/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
+  private readonly controller = this.configService.config().apiUrl + 'organization/';
 
   getTrackerConfiguration(includeInactive: boolean = false): Observable<TrackerConfigurationResponse> {
     let params = new HttpParams().set('includeInactive', includeInactive);

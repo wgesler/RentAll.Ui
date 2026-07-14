@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { catchError, filter, map, switchMap, take } from 'rxjs/operators';
@@ -67,20 +67,19 @@ export type OwnerAgreementContext = {
   providedIn: 'root'
 })
 export class OwnersService {
-  constructor(
-    private http: HttpClient,
-    private leadsService: LeadsService,
-    private contactService: ContactService,
-    private propertyService: PropertyService,
-    private propertyInformationService: PropertyInformationService,
-    private propertyAgreementService: PropertyAgreementService,
-    private officeService: OfficeService,
-    private stateFormService: StateFormService,
-    private accountingOfficeService: AccountingOfficeService,
-    private commonService: CommonService,
-    private documentService: DocumentService,
-    private mappingService: MappingService
-  ) {}
+  private http = inject(HttpClient);
+  private leadsService = inject(LeadsService);
+  private contactService = inject(ContactService);
+  private propertyService = inject(PropertyService);
+  private propertyInformationService = inject(PropertyInformationService);
+  private propertyAgreementService = inject(PropertyAgreementService);
+  private officeService = inject(OfficeService);
+  private stateFormService = inject(StateFormService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private commonService = inject(CommonService);
+  private documentService = inject(DocumentService);
+  private mappingService = inject(MappingService);
+
 
   //#region GET
   getOwnerByContext(token: string | null | undefined, ownerLeadId: number | null | undefined): Observable<LeadOwnerResponse | null> {

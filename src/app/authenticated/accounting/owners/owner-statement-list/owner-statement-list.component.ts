@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -28,10 +28,22 @@ import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBal
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
+  private commonService = inject(CommonService);
+  private ownerStatementService = inject(OwnerStatementService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private propertyAgreementService = inject(PropertyAgreementService);
+  private authService = inject(AuthService);
+  private formatter = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private dialog = inject(MatDialog);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
   isServiceError = false;
@@ -51,20 +63,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   };
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-
-  constructor(
-    private commonService: CommonService,
-    private ownerStatementService: OwnerStatementService,
-    private ownerReportsCacheService: OwnerReportsCacheService,
-    private propertyAgreementService: PropertyAgreementService, 
-    private authService: AuthService, 
-    private formatter: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService, 
-    private dialog: MatDialog, 
-    private toastr: ToastrService, 
-    private cdr: ChangeDetectorRef) 
-    {}
 
   //#region Owner-Statement-List
   ngOnInit(): void {

@@ -1,5 +1,5 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { PropertyListingShareResponse, PublicPropertyListingResponse } from '../models/property-listing-share.model';
@@ -8,15 +8,16 @@ import { PropertyListingShareResponse, PublicPropertyListingResponse } from '../
   providedIn: 'root'
 })
 export class PropertyListingShareService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   private readonly propertyController = this.configService.config().apiUrl + 'property/';
   private readonly commonController = this.configService.config().apiUrl + 'common/';
   private readonly rawHttp: HttpClient;
 
-  constructor(
-    private http: HttpClient,
-    httpBackend: HttpBackend,
-    private configService: ConfigService
-  ) {
+  constructor() {
+    const httpBackend = inject(HttpBackend);
+
     // Bypass interceptors for anonymous public listing calls.
     this.rawHttp = new HttpClient(httpBackend);
   }

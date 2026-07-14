@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -35,9 +35,22 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
+
   officeId = input<number | null>(null);
   requestNewRental = output<void>();
   requestEditRental = output<RentalEditSelection>();
+  private router = inject(Router);
+  private ngZone = inject(NgZone);
+  private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
+  private mappingService = inject(MappingService);
+  private leadsService = inject(LeadsService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
+  private documentService = inject(DocumentService);
+  private propertyService = inject(PropertyService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError = false;
   isPageReady = false;
@@ -63,21 +76,6 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-leads']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private router: Router,
-    private ngZone: NgZone,
-    private toastr: ToastrService,
-    private dialog: MatDialog,
-    private mappingService: MappingService,
-    private leadsService: LeadsService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private authService: AuthService,
-    private documentService: DocumentService,
-    private propertyService: PropertyService,
-    private cdr: ChangeDetectorRef
-  ) { }
 
 
   //#region Rental-List

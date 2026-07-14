@@ -1,4 +1,4 @@
-import { AfterViewInit, Directive, ElementRef, OnDestroy, OnInit } from '@angular/core';
+import { AfterViewInit, Directive, ElementRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Observable, Subscription, fromEvent } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
@@ -7,14 +7,11 @@ import { debounceTime } from 'rxjs/operators';
 	selector: '[matTooltip][appMatTooltipShowIfTruncated]'
 })
 export class MatToolTipShowIfTruncatedDirective implements OnInit, AfterViewInit, OnDestroy {
+	private matTooltip = inject(MatTooltip);
+	private el = inject(ElementRef<HTMLElement>);
+
 	resizeObservable$: Observable<Event> | undefined;
 	resizeSubscription: Subscription | undefined;
-
-	constructor(
-		private matTooltip: MatTooltip,
-		private el: ElementRef<HTMLElement>
-	) {
-	}
 
 	ngOnInit(): void {
 		this.resizeObservable$ = fromEvent(window, 'resize');

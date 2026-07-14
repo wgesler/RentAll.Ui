@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
@@ -21,15 +21,13 @@ export interface ConfirmCheckNumberDialogResult {
   styleUrl: './confirm-check-number-dialog.component.scss'
 })
 export class ConfirmCheckNumberDialogComponent {
+  data = inject<ConfirmCheckNumberDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogResult | undefined>>(MatDialogRef);
+  private fb = inject(FormBuilder);
+
   readonly form = this.fb.group({
     startingCheckNumber: [this.data.startingCheckNumber, [Validators.required, Validators.min(1)]]
   });
-
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: ConfirmCheckNumberDialogData,
-    private dialogRef: MatDialogRef<ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogResult | undefined>,
-    private fb: FormBuilder
-  ) {}
 
   get endingCheckNumber(): number {
     const starting = Number(this.form.get('startingCheckNumber')?.value || 0);

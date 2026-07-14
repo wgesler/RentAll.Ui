@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -34,6 +34,7 @@ interface EditableJournalEntryLine {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() journalEntryId: string | null = null;
   @Input() selectedJournalEntryLineId: string | null = null;
   @Input() prefetchedJournalEntry: JournalEntryResponse | null = null;
@@ -45,6 +46,15 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<JournalEntryResponse | undefined>();
   @Output() officeValidationRequired = new EventEmitter<void>();
+  generalLedgerService = inject(GeneralLedgerService);
+  mappingService = inject(MappingService);
+  formatter = inject(FormatterService);
+  private formBuilder = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError = false;
   isSaving = false;
@@ -70,18 +80,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntry', 'referenceData']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public generalLedgerService: GeneralLedgerService,
-    public mappingService: MappingService,
-    public formatter: FormatterService,
-    private formBuilder: FormBuilder,
-    private authService: AuthService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private utilityService: UtilityService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region General-Ledger
   ngOnInit(): void {

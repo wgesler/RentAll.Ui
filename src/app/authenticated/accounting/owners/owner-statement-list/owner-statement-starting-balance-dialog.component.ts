@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
@@ -27,18 +27,16 @@ export interface OwnerStatementStartingBalanceDialogResult {
   styleUrl: './owner-statement-starting-balance-dialog.component.scss'
 })
 export class OwnerStatementStartingBalanceDialogComponent {
+  data = inject<OwnerStatementStartingBalanceDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult | undefined>>(MatDialogRef);
+  private fb = inject(FormBuilder);
+  private utilityService = inject(UtilityService);
+
   readonly form = this.fb.group({
     transactionDate: [this.data.defaultDate ?? new Date(), Validators.required],
     amount: [this.data.defaultAmount != null ? Number(this.data.defaultAmount).toFixed(2) : '', Validators.required],
     currentPassword: ['']
   });
-
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: OwnerStatementStartingBalanceDialogData,
-    private dialogRef: MatDialogRef<OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult | undefined>,
-    private fb: FormBuilder,
-    private utilityService: UtilityService
-  ) {}
 
   onCancel(): void {
     this.dialogRef.close();

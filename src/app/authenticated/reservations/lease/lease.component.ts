@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -59,8 +59,6 @@ import { OwnerDocuSignSignersDialogService } from '../../owners/services/owner-d
     styleUrl: './lease.component.scss'
 })
 export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
-  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
@@ -69,6 +67,33 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   @Input() openInViewOnTabSelect: boolean = false;
   @Input() hideEditButtonInViewMode: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  private reservationService = inject(ReservationService);
+  private propertyHtmlService = inject(PropertyHtmlService);
+  private propertyService = inject(PropertyService);
+  private contactService = inject(ContactService);
+  private commonService = inject(CommonService);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private leaseInformationService = inject(LeaseInformationService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private buildingService = inject(BuildingService);
+  private fb = inject(FormBuilder);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private sanitizer = inject(DomSanitizer);
+  private leaseReloadService = inject(LeaseReloadService);
+  private mappingService = inject(MappingService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private http = inject(HttpClient);
+  private dynamicFormDraftService = inject(DynamicFormDraftService);
+  ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+  ownerDocuSignSignersDialogService = inject(OwnerDocuSignSignersDialogService);
+  override toastr: ToastrService;
+
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -129,38 +154,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   destroy$ = new Subject<void>();
   logoSourcesLoaded = { offices: false, organization: false };
 
-  constructor(
-    private reservationService: ReservationService,
-    private propertyHtmlService: PropertyHtmlService,
-    private propertyService: PropertyService,
-    private contactService: ContactService,
-    private commonService: CommonService,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private emailHtmlService: EmailHtmlService,
-    private leaseInformationService: LeaseInformationService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private buildingService: BuildingService,
-    private fb: FormBuilder,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private sanitizer: DomSanitizer,
-    private leaseReloadService: LeaseReloadService,
-    private mappingService: MappingService,
-    private globalSelectionService: GlobalSelectionService,
-    private http: HttpClient,
-    private dynamicFormDraftService: DynamicFormDraftService,
-    public ownerDocuSignSignerService: OwnerDocuSignSignerService,
-    public ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
-    public override toastr: ToastrService,
-    documentExportService: DocumentExportService,
-    documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService,
-    emailService: EmailService,
-
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.form = this.buildForm();
   }
 

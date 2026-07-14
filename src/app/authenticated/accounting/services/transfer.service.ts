@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
@@ -10,13 +10,13 @@ import { TransferRequest, TransferResponse, TransferSearchRequest } from '../mod
   providedIn: 'root'
 })
 export class TransferService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private mappingService = inject(MappingService);
+
   readonly controller: string;
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService,
-    private mappingService: MappingService
-  ) {
+  constructor() {
     this.controller = this.configService.config().apiUrl + 'accounting/transfer/';
   }
 

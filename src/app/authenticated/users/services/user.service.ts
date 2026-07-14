@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UserActivityResponse, UserRequest, UserResponse } from '../models/user.model';
@@ -9,12 +9,10 @@ import { UserActivityResponse, UserRequest, UserResponse } from '../models/user.
 })
 
 export class UserService {
-  private readonly controller = this.configService.config().apiUrl + 'auth/user/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
+  private readonly controller = this.configService.config().apiUrl + 'auth/user/';
 
   getUsers(): Observable<UserResponse[]> {
     return this.http.get<UserResponse[]>(this.controller);

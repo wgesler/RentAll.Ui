@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -26,11 +26,21 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
   styleUrl: './chart-of-accounts.component.scss'
 })
 export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() id: string | number | null = null;
   @Input() officeId: number | null = null;
   @Input() source: 'accounting' | 'configuration' = 'accounting';
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  chartOfAccountsService = inject(ChartOfAccountsService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private mappingService = inject(MappingService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
   @ViewChild('officeSelect') officeSelectRef: MatSelect;
   @ViewChild('accountNoInput') accountNoInputRef: ElementRef<HTMLInputElement>;
 
@@ -52,19 +62,6 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccount', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public chartOfAccountsService: ChartOfAccountsService,
-    public router: Router,
-    public fb: FormBuilder,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private mappingService: MappingService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService
-  ) {
-  }
 
   //#region ChartOfAccount
   ngOnInit(): void {

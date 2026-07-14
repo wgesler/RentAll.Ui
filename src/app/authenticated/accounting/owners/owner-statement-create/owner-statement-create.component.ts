@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastrService } from 'ngx-toastr';
@@ -49,9 +49,29 @@ import { environment } from '../../../../../environments/environment';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerStatementCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() line: OwnerStatementMonthLineListDisplay | null = null;
   @Input() shellMode = true;
   @Output() backEvent = new EventEmitter<void>();
+  private http = inject(HttpClient);
+  private fb = inject(FormBuilder);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private commonService = inject(CommonService);
+  private contactService = inject(ContactService);
+  private propertyService = inject(PropertyService);
+  private propertyHtmlService = inject(PropertyHtmlService);
+  private ownerStatementService = inject(OwnerStatementService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private sanitizer = inject(DomSanitizer);
+  private documentReloadService = inject(DocumentReloadService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
   form: FormGroup;
@@ -79,32 +99,8 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'property', 'previewHtml']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private http: HttpClient,
-    private fb: FormBuilder,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private commonService: CommonService,
-    private contactService: ContactService,
-    private propertyService: PropertyService,
-    private propertyHtmlService: PropertyHtmlService,
-    private ownerStatementService: OwnerStatementService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private sanitizer: DomSanitizer,
-    public override toastr: ToastrService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    documentService: DocumentService,
-    emailService: EmailService,
-    private documentReloadService: DocumentReloadService,
-    private emailHtmlService: EmailHtmlService,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private router: Router,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.form = this.buildForm();
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }

@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -12,16 +12,14 @@ import { AppendPropertyCodeToContactsRequest, AppendPropertyCodeToContactsRespon
 })
 
 export class ContactService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private mappingService = inject(MappingService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'contact/';
   private allContacts$ = new BehaviorSubject<ContactResponse[]>([]);
   private contactsLoaded$ = new BehaviorSubject<boolean>(false);
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService,
-      private mappingService: MappingService) {
-  }
 
   loadAllContacts(): Observable<ContactResponse[]> {
     const url = this.controller;

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -33,9 +33,22 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
+
   officeId = input<number | null>(null);
   requestNewOwner = output<void>();
   requestEditOwner = output<OwnerEditSelection>();
+  private clipboard = inject(Clipboard);
+  private router = inject(Router);
+  private ngZone = inject(NgZone);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
+  private formatterService = inject(FormatterService);
+  private leadsService = inject(LeadsService);
+  private contactService = inject(ContactService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError = false;
   isPageReady = false;
@@ -60,21 +73,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-leads']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private clipboard: Clipboard,
-    private router: Router,
-    private ngZone: NgZone,
-    private toastr: ToastrService,
-    private mappingService: MappingService,
-    private formatterService: FormatterService,
-    private leadsService: LeadsService,
-    private contactService: ContactService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private authService: AuthService,
-    private cdr: ChangeDetectorRef
-  ) { }
 
   //#region Owner-List
   ngOnInit(): void {

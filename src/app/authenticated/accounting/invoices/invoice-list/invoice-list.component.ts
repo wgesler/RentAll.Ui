@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -46,8 +46,6 @@ import { QbClassType, QbNameType } from '../../../organizations/models/qb-type-e
 })
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
-  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
-  @ViewChild(DataTableComponent) invoiceDataTable?: DataTableComponent;
   @Input({ required: true }) source: 'reservation' | 'accounting';
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() organizationName: string | null = null; // Selected organization display name for SuperAdmin recipient column
@@ -65,6 +63,26 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   @Output() invoiceSelect = new EventEmitter<InvoiceSelection>();
+  accountingService = inject(InvoiceService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  mappingService = inject(MappingService);
+  private costCodesService = inject(CostCodesService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private officeService = inject(OfficeService);
+  private reservationService = inject(ReservationService);
+  private propertyService = inject(PropertyService);
+  private contactService = inject(ContactService);
+  private authService = inject(AuthService);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private invoiceIifExportService = inject(InvoiceIifExportService);
+  private invoiceDocumentService = inject(InvoiceDocumentService);
+  private zone = inject(NgZone);
+  private cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
+  @ViewChild(DataTableComponent) invoiceDataTable?: DataTableComponent;
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -159,26 +177,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'invoices']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public accountingService: InvoiceService,
-    public toastr: ToastrService,
-    public router: Router,
-    public mappingService: MappingService,
-    private costCodesService: CostCodesService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private officeService: OfficeService,
-    private reservationService: ReservationService,
-    private propertyService: PropertyService,
-    private contactService: ContactService,
-    private authService: AuthService,
-    private formatter: FormatterService,
-    private utilityService: UtilityService,
-    private invoiceIifExportService: InvoiceIifExportService,
-    private invoiceDocumentService: InvoiceDocumentService,
-    private zone: NgZone,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Invoice-List
   ngOnInit(): void {
@@ -386,14 +384,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    if (this.source === 'accounting' && this.embedDocumentPreviewInShell) {
-      const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
-      const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+    const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+
+    // Embedded shells own the editor swap; do not rely on a sibling-route remount / query-only nav.
+    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation')) {
+      // Prefer the cached InvoiceResponse — row click emits a display row whose ledgerLines
+      // are already remapped for the table and must not be treated as API payload.
+      const sourceInvoice = this.allInvoices.find(invoice => invoice.invoiceId === event.invoiceId) ?? event;
       this.invoiceSelect.emit({
         invoiceId: event.invoiceId,
         officeId: officeIdToUse,
-        reservationId: reservationIdToUse,
-        invoice: event
+        reservationId: reservationIdToUse ?? event.reservationId ?? null,
+        invoice: sourceInvoice
       });
       return;
     }
@@ -401,8 +404,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const params: string[] = [];
 
     // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
-    const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
-    const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
     const companyIdToUse = this.selectedCompanyContact?.contactId || null;
     const reservationId = event?.reservationId || null;
 

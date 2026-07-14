@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
@@ -8,13 +8,11 @@ import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lea
     providedIn: 'root'
 })
 export class LeaseInformationService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'reservation/lease-information/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   // GET: Get lease information by scope with fallback
   getLeaseInformationByScope(officeId: number | null = null, propertyId: string | null = null): Observable<LeaseInformationResponse> {

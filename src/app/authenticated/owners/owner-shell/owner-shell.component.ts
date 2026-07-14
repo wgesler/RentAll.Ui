@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { MatTabGroup } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subject, Subscription, catchError, combineLatest, concatMap, defer, from, map, of, shareReplay, skip, switchMap, take, takeUntil, toArray } from 'rxjs';
@@ -50,6 +50,15 @@ import {
   styleUrl: './owner-shell.component.scss'
 })
 export class OwnerShellComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private navigationContextService = inject(NavigationContextService);
+  private ownersService = inject(OwnersService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
+
   readonly newPropertyOptionValue = 'new';
   readonly allStatesCode = 'XX';
   readonly ownerEntityTypeId = EntityType.Owner;
@@ -99,17 +108,6 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   dynamicFormReloadVersion: Record<string, number> = {};
 
   @ViewChild(MatTabGroup) ownerShellTabGroup?: MatTabGroup;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private globalSelectionService: GlobalSelectionService,
-    private navigationContextService: NavigationContextService,
-    private ownersService: OwnersService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Owner-Shell
   ngOnInit(): void {

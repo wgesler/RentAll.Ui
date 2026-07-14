@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Inject, Input, OnDestroy, OnInit, Optional, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -41,8 +41,24 @@ export interface UserDialogData {
 })
 
 export class UserComponent implements OnInit, OnDestroy {
+
   @Input() id: string = 'new';
   @Output() closed = new EventEmitter<{ saved?: boolean; userId?: string }>();
+  userService = inject(UserService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private organizationListService = inject(OrganizationListService);
+  private officeService = inject(OfficeService);
+  private agentService = inject(AgentService);
+  private authService = inject(AuthService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private propertyService = inject(PropertyService);
+  dialogData? = inject<UserDialogData>(MAT_DIALOG_DATA, { optional: true });
+  private dialogRef = inject<MatDialogRef<UserComponent>>(MatDialogRef, { optional: true });
 
   isServiceError: boolean = false;
   userId: string;
@@ -83,23 +99,9 @@ export class UserComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
-  constructor(
-    public userService: UserService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private organizationListService: OrganizationListService,
-    private officeService: OfficeService,
-    private agentService: AgentService,
-    private authService: AuthService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private propertyService: PropertyService,
-    @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: UserDialogData,
-    @Optional() private dialogRef?: MatDialogRef<UserComponent>
-  ) {
+  constructor() {
+    const dialogData = this.dialogData;
+
     // Check if component is opened in a dialog
     this.isDialog = !!dialogData?.isDialog;
     this.selfEdit = !!dialogData?.selfEdit;

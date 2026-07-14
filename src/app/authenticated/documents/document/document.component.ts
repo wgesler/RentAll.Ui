@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -31,6 +31,16 @@ import { DocumentService } from '../services/document.service';
     styleUrls: ['./document.component.scss']
 })
 export class DocumentComponent implements OnInit, OnDestroy {
+  documentService = inject(DocumentService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+
   isServiceError: boolean = false;
   documentId: string;
   document: DocumentResponse;
@@ -50,19 +60,6 @@ export class DocumentComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public documentService: DocumentService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService
-  ) {
-  }
 
   //#region Documents
   ngOnInit(): void {

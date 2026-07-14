@@ -176,6 +176,7 @@
               [invoiceIdInput]="activeInvoiceId"
               [officeIdInput]="displayOfficeId"
               [reservationIdInput]="activeReservationId"
+              [prefetchedInvoice]="selectedInvoice"
               (previewEvent)="onInvoicePreviewOpen($event)">
             </app-invoice>
           } @else {
@@ -184,6 +185,7 @@
               [reservationId]="activeReservationId"
               [source]="'reservation'"
               [embedDocumentPreviewInShell]="true"
+              (invoiceSelect)="onInvoiceSelect($event)"
               (previewEvent)="onInvoicePreviewOpen($event)">
             </app-invoice-list>
           }

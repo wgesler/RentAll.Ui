@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,6 +33,7 @@ import { EmailType, getEmailType } from '../models/email.enum';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() hideHeader: boolean = false;
   @Input() hideFilters: boolean = false;
   @Input() source: 'property' | 'reservation' | 'invoice' | 'emails' | 'maintenance' | null = null;
@@ -51,6 +52,17 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
+  private emailService = inject(EmailService);
+  private router = inject(Router);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private reservationService = inject(ReservationService);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+  private contactService = inject(ContactService);
+  private toastr = inject(ToastrService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private cdr = inject(ChangeDetectorRef);
  
   emails: EmailListDisplay[] = [];
   allEmails: EmailListDisplay[] = [];
@@ -82,20 +94,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     attachmentPath: { displayAs: 'Attachment', maxWidth: '20ch', alignment: 'center' },
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
   };
-
-  constructor(
-    private emailService: EmailService,
-    private router: Router,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private reservationService: ReservationService,
-    private utilityService: UtilityService,
-    private authService: AuthService,
-    private contactService: ContactService,
-    private toastr: ToastrService,
-    private globalSelectionService: GlobalSelectionService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

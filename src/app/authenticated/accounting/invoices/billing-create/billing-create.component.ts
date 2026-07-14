@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -40,8 +40,24 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
     styleUrls: ['./billing-create.component.scss']
 })
 export class BillingCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() organizationId: string | null = null; 
-  @Input() invoiceId: string | null = null; 
+  @Input() invoiceId: string | null = null;
+  private accountingService = inject(InvoiceService);
+  private fb = inject(FormBuilder);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private http = inject(HttpClient);
+  private documentReloadService = inject(DocumentReloadService);
+  private sanitizer = inject(DomSanitizer);
+  private emailHtmlService = inject(EmailHtmlService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private organizationService = inject(OrganizationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  override toastr: ToastrService; 
 
   form: FormGroup;
   organizations: OrganizationResponse[] = [];
@@ -71,28 +87,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   logoSourcesLoaded = { organizations: false, accountingOffice: false };
 
 
-  constructor(
-    private accountingService: InvoiceService,
-    private fb: FormBuilder,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    emailService: EmailService,
-    private http: HttpClient,
-    private documentReloadService: DocumentReloadService,
-    private sanitizer: DomSanitizer,
-    public override toastr: ToastrService,
-    documentExportService: DocumentExportService,
-    documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService,
-    private emailHtmlService: EmailHtmlService,
-    private accountingOfficeService: AccountingOfficeService,
-    private organizationService: OrganizationService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.form = this.buildForm();
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }

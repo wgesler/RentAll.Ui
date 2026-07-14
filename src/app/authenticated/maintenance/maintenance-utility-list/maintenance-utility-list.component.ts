@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -25,20 +25,18 @@ interface UtilityEditRow {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceUtilityListComponent implements OnChanges {
+
   @Input() utilities: UtilityResponse[] = [];
   @Input() isLoading = false;
   @Input() isSaving = false;
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: UtilityRequest[]; deleteIds: number[] }>();
   @Output() deleteExisting = new EventEmitter<number>();
+  private formatterService = inject(FormatterService);
 
   rows: UtilityEditRow[] = [];
   originalRowsById = new Map<number, { utilityName: string; phone: string; accountName: string; accountNumber: string; notes: string }>();
   rowCounter = 0;
-
-  constructor(
-    private formatterService: FormatterService
-  ) {}
 
   //#region Maintenance Utility List
   ngOnChanges(changes: SimpleChanges): void {

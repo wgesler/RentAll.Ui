@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -71,6 +71,47 @@ import {
 })
 
 export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
+  @Input() disableOwnerModeLayout = false;
+  @Input() shellPropertyId: string | null = null;
+  @Input() shellPropertyCode: string | null = null;
+  @Input() shellPropertyAddress1: string | null = null;
+  @Input() shellPropertyCity: string | null = null;
+  @Input() shellPropertyState: string | null = null;
+  @Input() shellPropertyZip: string | null = null;
+  @Input() ownerPrimaryContactId: string | null = null;
+  @Input() shellMode = false;
+  @Input() shellOfficeId: number | null = null;
+  @Input() shellOrganizationId: string | null = null;
+  @Input() publicOwnerToken: string | null = null;
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
+  @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
+  @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
+  @Output() ownerShellContextChanged = new EventEmitter<void>();
+  propertyService = inject(PropertyService);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private commonService = inject(CommonService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private navigationContextService = inject(NavigationContextService);
+  private contactService = inject(ContactService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private regionService = inject(RegionService);
+  private areaService = inject(AreaService);
+  private buildingService = inject(BuildingService);
+  private welcomeLetterReloadService = inject(WelcomeLetterReloadService);
+  private documentReloadService = inject(DocumentReloadService);
+  private utilityService = inject(UtilityService);
+  private propertyInformationService = inject(PropertyInformationService);
+  private reservationService = inject(ReservationService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private dialog = inject(MatDialog);
+  private newContactDialogService = inject(NewContactDialogService);
+  private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private ownersService = inject(OwnersService);
+
   readonly EntityType = EntityType;
   readonly propertyCodeDefaultPrompt = 'Enter Code';
   readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
@@ -95,22 +136,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   isInOwnerMode: boolean = false;
-  @Input() disableOwnerModeLayout = false;
-  @Input() shellPropertyId: string | null = null;
-  @Input() shellPropertyCode: string | null = null;
-  @Input() shellPropertyAddress1: string | null = null;
-  @Input() shellPropertyCity: string | null = null;
-  @Input() shellPropertyState: string | null = null;
-  @Input() shellPropertyZip: string | null = null;
-  @Input() ownerPrimaryContactId: string | null = null;
-  @Input() shellMode = false;
-  @Input() shellOfficeId: number | null = null;
-  @Input() shellOrganizationId: string | null = null;
-  @Input() publicOwnerToken: string | null = null;
-  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
-  @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
-  @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
-  @Output() ownerShellContextChanged = new EventEmitter<void>();
 
   propertyId: string;
   property: PropertyResponse;
@@ -160,34 +185,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'areas', 'buildings', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  
-  constructor(
-    public propertyService: PropertyService,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private commonService: CommonService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private navigationContextService: NavigationContextService,
-    private contactService: ContactService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private regionService: RegionService,
-    private areaService: AreaService,
-    private buildingService: BuildingService,
-    private welcomeLetterReloadService: WelcomeLetterReloadService,
-    private documentReloadService: DocumentReloadService,
-    private utilityService: UtilityService,
-    private propertyInformationService: PropertyInformationService,
-    private reservationService: ReservationService,
-    private globalSelectionService: GlobalSelectionService,
-    private dialog: MatDialog,
-    private newContactDialogService: NewContactDialogService,
-    private unsavedChangesDialogService: UnsavedChangesDialogService,
-    private ownersService: OwnersService
-  ) {
-  }
 
   get isOwnerMode(): boolean {
     return this.isInOwnerMode && !this.disableOwnerModeLayout;

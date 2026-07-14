@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -40,6 +40,7 @@ import { TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult } from './t
   styleUrl: './ticket.component.scss'
 })
 export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
+
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Input() selectedPropertyIdFromShell: string | null = null;
@@ -49,6 +50,21 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   @Output() savedEvent = new EventEmitter<void>();
   @Output() propertySelectionChange = new EventEmitter<{ propertyId: string | null; officeId: number | null; reservationId: string | null }>();
   @Output() officeSelectionInvalidOnSave = new EventEmitter<void>();
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
+  private ticketService = inject(TicketService);
+  private dialog = inject(MatDialog);
+  private agentService = inject(AgentService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private receiptService = inject(ReceiptService);
+  private workOrderService = inject(WorkOrderService);
+  private userService = inject(UserService);
+  private formatterService = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError: boolean = false;
   isSubmitting: boolean = false;
@@ -90,24 +106,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private utilityService: UtilityService,
-    private ticketService: TicketService,
-    private dialog: MatDialog,
-    private agentService: AgentService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private receiptService: ReceiptService,
-    private workOrderService: WorkOrderService,
-    private userService: UserService,
-    private formatterService: FormatterService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Ticket
   ngOnInit(): void {

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, map, Observable, of, tap } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -13,16 +13,14 @@ import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetReques
 })
 
 export class InvoiceService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'accounting/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService,
-      private mappingService: MappingService,
-      private utilityService: UtilityService,
-      private toastr: ToastrService) {
-  }
 
   // GET: Get invoice by ID
   getInvoiceByGuid(invoiceId: string): Observable<InvoiceResponse> {

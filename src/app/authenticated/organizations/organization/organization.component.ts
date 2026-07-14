@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -31,6 +31,17 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationComponent implements OnInit, OnDestroy {
+  organizationService = inject(OrganizationService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private commonService = inject(CommonService);
+  formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
@@ -54,20 +65,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public organizationService: OrganizationService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private commonService: CommonService,
-    public formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private authService: AuthService,
-    private organizationFeatureService: OrganizationFeatureService
-  ) {
-  }
 
   //#region Organization
   ngOnInit(): void {

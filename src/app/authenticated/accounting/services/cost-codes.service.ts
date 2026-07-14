@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
 import { map, filter } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
@@ -10,17 +10,15 @@ import { CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model'
 })
 
 export class CostCodesService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'accounting/cost-code/';
   private allCostCodes$ = new BehaviorSubject<CostCodesResponse[]>([]);
   private costCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private isCostCodesLoading = false;
   private costCodeIdByOfficeAndCode = new Map<string, number>();
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService) {
-  }
 
   // Transform API response: map "Code" property to "costCode"
   transformCostCodeResponse(item: any): CostCodesResponse {

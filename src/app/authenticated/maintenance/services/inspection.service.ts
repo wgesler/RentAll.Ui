@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
@@ -12,10 +12,10 @@ export class InspectionService {
   http: HttpClient;
   configService: ConfigService;
 
-  constructor(
-    http: HttpClient,
-    configService: ConfigService
-  ) {
+  constructor() {
+    const http = inject(HttpClient);
+    const configService = inject(ConfigService);
+
     this.http = http;
     this.configService = configService;
     this.controller = this.configService.config().apiUrl + 'maintenance/inspection/';

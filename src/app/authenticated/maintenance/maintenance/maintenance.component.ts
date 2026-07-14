@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, catchError, concatMap, defaultIfEmpty, finalize, from, map, of, Subject, switchMap, take, takeUntil, toArray } from 'rxjs';
@@ -31,11 +31,21 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
   styleUrl: './maintenance.component.scss'
 })
 export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() property: PropertyResponse | null = null;
   @Input() saveRequestToken = 0;
   @Input() discardRequestToken = 0;
   @Output() unsavedChangesChange = new EventEmitter<boolean>();
   @Output() saveRequestCompleted = new EventEmitter<{ token: number; success: boolean }>();
+  private fb = inject(FormBuilder);
+  private utilityService = inject(UtilityService);
+  private maintenanceService = inject(MaintenanceService);
+  private applianceService = inject(ApplianceService);
+  private maintenanceUtilityService = inject(MaintenanceUtilityService);
+  private maintenanceItemsService = inject(MaintenanceItemsService);
+  private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
+  private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   form: FormGroup;
   isSaving = false;
   isSavingAppliances = false;
@@ -54,17 +64,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   destroy$ = new Subject<void>();
 
 
-  constructor(
-    private fb: FormBuilder,
-    private utilityService: UtilityService,
-    private maintenanceService: MaintenanceService,
-    private applianceService: ApplianceService,
-    private maintenanceUtilityService: MaintenanceUtilityService,
-    private maintenanceItemsService: MaintenanceItemsService,
-    private authService: AuthService,
-    private toastr: ToastrService,
-    private unsavedChangesDialogService: UnsavedChangesDialogService
-  ) {
+  constructor() {
     this.form = this.buildForm();
   }
 

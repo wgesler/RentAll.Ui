@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,6 +33,7 @@ import { AlertService } from '../services/alert.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() hideHeader = false;
   @Input() hideFilters = false;
   @Input() source: 'property' | 'reservation' | 'alerts' | null = null;
@@ -47,6 +48,17 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() reservationIdChange = new EventEmitter<string | null>();
   @Output() alertEdit = new EventEmitter<string>();
   @Output() alertSelected = new EventEmitter<AlertResponse | null>();
+  private alertService = inject(AlertService);
+  private router = inject(Router);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private reservationService = inject(ReservationService);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+  private contactService = inject(ContactService);
+  private toastr = inject(ToastrService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private cdr = inject(ChangeDetectorRef);
 
   alerts: AlertListDisplay[] = [];
   allAlerts: AlertListDisplay[] = [];
@@ -82,19 +94,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  constructor(
-    private alertService: AlertService,
-    private router: Router,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private reservationService: ReservationService,
-    private utilityService: UtilityService,
-    private authService: AuthService,
-    private contactService: ContactService,
-    private toastr: ToastrService,
-    private globalSelectionService: GlobalSelectionService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.initStandaloneAlertDateRange();
   }
 

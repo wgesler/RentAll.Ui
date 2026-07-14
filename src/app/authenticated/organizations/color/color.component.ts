@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -23,9 +23,17 @@ import { ColorService } from '../services/color.service';
 })
 
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  colorService = inject(ColorService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
@@ -46,17 +54,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public colorService: ColorService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private utilityService: UtilityService
-  ) {
-  }
 
   //#region Color
   ngOnInit(): void {

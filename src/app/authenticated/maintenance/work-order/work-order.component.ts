@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectorRef, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -44,6 +44,7 @@ import { WorkOrderService } from '../services/work-order.service';
 })
 export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
+
   @Input() property: PropertyResponse | null = null;
   @Input() workOrderId: string | null = null;
   @Input() prefetchedWorkOrder: WorkOrderResponse | null = null;
@@ -62,6 +63,24 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() shellLocationSync = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private propertyService = inject(PropertyService);
+  private propertyAgreementService = inject(PropertyAgreementService);
+  private invoiceService = inject(InvoiceService);
+  private costCodesService = inject(CostCodesService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private contactService = inject(ContactService);
+  private reservationService = inject(ReservationService);
+  private receiptService = inject(ReceiptService);
+  private workOrderAmountService = inject(WorkOrderAmountService);
+  utilityService = inject(UtilityService);
+  private formatter = inject(FormatterService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
   
   readonly parseInt = parseInt;
   readonly noReceiptOptionValue = 0;
@@ -103,28 +122,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
   
-  constructor(
-    fb: FormBuilder,
-    authService: AuthService,
-    workOrderService: WorkOrderService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private propertyService: PropertyService,
-    private propertyAgreementService: PropertyAgreementService,    private invoiceService: InvoiceService,
-    private costCodesService: CostCodesService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private accountingOfficeService: AccountingOfficeService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private contactService: ContactService,
-    private reservationService: ReservationService,
-    private receiptService: ReceiptService,
-    private workOrderAmountService: WorkOrderAmountService,
-    public utilityService: UtilityService,
-    private formatter: FormatterService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
+    const fb = inject(FormBuilder);
+    const authService = inject(AuthService);
+    const workOrderService = inject(WorkOrderService);
+
     this.fb = fb;
     this.authService = authService;
     this.workOrderService = workOrderService;

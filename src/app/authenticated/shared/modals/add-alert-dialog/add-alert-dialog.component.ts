@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
@@ -50,6 +50,17 @@ type AlertReservationOption = {
   styleUrl: './add-alert-dialog.component.scss'
 })
 export class AddAlertDialogComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private alertService = inject(AlertService);
+  private toastr = inject(ToastrService);
+  private utilityService = inject(UtilityService);
+  private dialogRef = inject<MatDialogRef<AddAlertDialogComponent>>(MatDialogRef);
+  data = inject<AddAlertDialogData>(MAT_DIALOG_DATA);
+
   form: FormGroup = this.buildForm();
   isSubmitting = false;
   isLoading = true;
@@ -68,19 +79,6 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
   get ticketCodeDisplay(): string {
     return String(this.data?.ticketCode || '').trim() || 'N/A';
   }
-
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private alertService: AlertService,
-    private toastr: ToastrService,
-    private utilityService: UtilityService,
-    private dialogRef: MatDialogRef<AddAlertDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: AddAlertDialogData
-  ) {}
 
   //#region Add-Alert-Dialog
   ngOnInit(): void {

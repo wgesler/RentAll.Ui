@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, OnChanges, OnDestroy, OnInit, output, SimpleChanges, inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, concatMap, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -27,9 +27,18 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
+
   officeId = input<number | null>(null);
   requestNewGeneral = output<void>();
   requestEditGeneral = output<number>();
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
+  private formatterService = inject(FormatterService);
+  private leadsService = inject(LeadsService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError = false;
   isPageReady = false;
@@ -54,17 +63,6 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['general-leads']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private toastr: ToastrService,
-    private mappingService: MappingService,
-    private formatterService: FormatterService,
-    private leadsService: LeadsService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private authService: AuthService,
-    private cdr: ChangeDetectorRef
-  ) { }
 
 
 

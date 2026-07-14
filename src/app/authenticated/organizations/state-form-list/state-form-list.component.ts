@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, catchError, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray} from 'rxjs';
@@ -24,8 +24,15 @@ import { StateFormService } from '../services/state-form.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StateFormListComponent implements OnInit, OnDestroy {
-  private readonly allStatesCode = 'XX';
   @Output() stateFormSelected = new EventEmitter<string | number | null>();
+  private stateFormService = inject(StateFormService);
+  private commonService = inject(CommonService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
+
+  private readonly allStatesCode = 'XX';
 
   isServiceError: boolean = false;
   allStateForms: StateFormListDisplay[] = [];
@@ -41,16 +48,6 @@ export class StateFormListComponent implements OnInit, OnDestroy {
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForms']));
-
-  constructor(
-    private stateFormService: StateFormService,
-    private commonService: CommonService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {
-  }
 
   //#region StateForm-List
   ngOnInit(): void {

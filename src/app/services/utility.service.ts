@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 import { ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -29,14 +29,12 @@ type FileDetailsLike = {
   providedIn: 'root'
 })
 export class UtilityService {
+  private formatterService = inject(FormatterService);
+  private commonService = inject(CommonService);
+
   private measurementCanvas: HTMLCanvasElement | null = null;
   readonly defaultImageTargetMinBytes = 150 * 1024;
   readonly defaultImageTargetMaxBytes = 500 * 1024;
-
-  constructor(
-    private formatterService: FormatterService,
-    private commonService: CommonService
-  ) { }
 
   /**
    * Best-effort map of free-text state input ('ca', 'CA', 'California', 'Calif.') to a

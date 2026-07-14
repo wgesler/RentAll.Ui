@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest } from '../models/owner-report.model';
 import { ReportService } from './report.service';
@@ -7,7 +7,8 @@ import { ReportService } from './report.service';
   providedIn: 'root'
 })
 export class OwnerReportService {
-  constructor(private reportService: ReportService) {}
+  private reportService = inject(ReportService);
+
 
   searchOwnerReportJournalEntryLines(request: OwnerReportJournalEntryLineSearchRequest): Observable<OwnerReportJournalEntryLineResponse[]> {
     return this.reportService.searchOwnerReportJournalEntryLines(request);

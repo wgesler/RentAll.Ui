@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { take } from 'rxjs';
@@ -57,6 +57,15 @@ export interface RentRollEditLineDialogResult {
   styleUrl: './rent-roll-edit-line-dialog.component.scss'
 })
 export class RentRollEditLineDialogComponent {
+  data = inject<RentRollEditLineDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<RentRollEditLineDialogComponent, RentRollEditLineDialogResult | undefined>>(MatDialogRef);
+  private fb = inject(FormBuilder);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private contactService = inject(ContactService);
+  private utilityService = inject(UtilityService);
+  private propertyService = inject(PropertyService);
+  private newContactDialogService = inject(NewContactDialogService);
+
   form: FormGroup;
   vendorOptions: SearchableSelectOption<string>[] = [];
   propertyOptions: SearchableSelectOption<string>[] = [];
@@ -64,16 +73,9 @@ export class RentRollEditLineDialogComponent {
   readonly defaultTerms = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
   private vendorById = new Map<string, ContactResponse>();
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: RentRollEditLineDialogData,
-    private dialogRef: MatDialogRef<RentRollEditLineDialogComponent, RentRollEditLineDialogResult | undefined>,
-    private fb: FormBuilder,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private contactService: ContactService,
-    private utilityService: UtilityService,
-    private propertyService: PropertyService,
-    private newContactDialogService: NewContactDialogService
-  ) {
+  constructor() {
+    const data = this.data;
+
     this.form = this.fb.group({
       propertyId: [this.normalizeOptionalText(data.propertyId)],
       vendorId: [(data.vendorId || '').trim()],

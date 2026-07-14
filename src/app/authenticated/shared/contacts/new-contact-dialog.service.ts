@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable, take } from 'rxjs';
 import { ContactComponent } from '../../contacts/contact/contact.component';
@@ -31,7 +31,8 @@ export interface NewContactDialogResult {
   providedIn: 'root'
 })
 export class NewContactDialogService {
-  constructor(private dialog: MatDialog) {}
+  private dialog = inject(MatDialog);
+
 
   getNewContactOptionValue(entityTypeId: number): string {
     if (entityTypeId === EntityType.Owner) {

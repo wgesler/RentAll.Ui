@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RentRollPropertyAgreement } from '../../accounting/models/rent-roll.model';
 import { ConfigService } from '../../../services/config.service';
@@ -9,12 +9,10 @@ import { PropertyAgreementRequest, PropertyAgreementResponse } from '../models/p
   providedIn: 'root'
 })
 export class PropertyAgreementService {
-  private readonly agreementUrl = this.configService.config().apiUrl + 'property/property-agreement';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService) {
-  }
+  private readonly agreementUrl = this.configService.config().apiUrl + 'property/property-agreement';
 
   getPropertyAgreement(propertyId: string): Observable<PropertyAgreementResponse | null> {
     return this.http.get<PropertyAgreementResponse | null>(`${this.agreementUrl}/${propertyId}`);

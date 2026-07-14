@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { SelectionModel } from '@angular/cdk/collections';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -37,12 +37,25 @@ import { CostCodeCopyOfficesDialogComponent } from './cost-code-copy-offices-dia
 })
 
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent. If provided, parent manages controls.
   @Input() embeddedInSettings: boolean = false; // Embedded in settings or accounting shell (office from title bar)
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: number, officeId: number | null }>();
+  costCodesService = inject(CostCodesService);
+  chartOfAccountsService = inject(ChartOfAccountsService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  route = inject(ActivatedRoute);
+  mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
    
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -81,21 +94,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCodes', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public costCodesService: CostCodesService,
-    public chartOfAccountsService: ChartOfAccountsService,
-    public toastr: ToastrService,
-    public router: Router,
-    public route: ActivatedRoute,
-    public mappingService: MappingService,
-    private officeService: OfficeService,
-    private utilityService: UtilityService,
-    private authService: AuthService,
-    private globalSelectionService: GlobalSelectionService,
-    private dialog: MatDialog,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region CostCodes-List
   ngOnInit(): void {

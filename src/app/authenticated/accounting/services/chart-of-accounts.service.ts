@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { ChartOfAccountRequest, ChartOfAccountResponse } from '../models/chart-of-accounts.model';
@@ -8,14 +8,12 @@ import { ChartOfAccountRequest, ChartOfAccountResponse } from '../models/chart-o
   providedIn: 'root'
 })
 export class ChartOfAccountsService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   private readonly controller = this.configService.config().apiUrl + 'accounting/chart-of-account/';
   private allChartOfAccounts$ = new BehaviorSubject<ChartOfAccountResponse[]>([]);
   private chartOfAccountsLoaded$ = new BehaviorSubject<boolean>(false);
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService) {
-  }
 
   getChartOfAccountsForAllOffices(): Observable<ChartOfAccountResponse[]> {
     return this.http.get<ChartOfAccountResponse[]>(this.controller + 'office');

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../app.routes';
@@ -17,9 +17,12 @@ import { AccountingErrorLogResponse } from '../models/log.model';
   imports: [CommonModule, MaterialModule]
 })
 export class AccountingErrorLogComponent implements OnInit, OnDestroy {
+
   @Input() row: AccountingErrorLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
-  constructor(private router: Router, private formatter: FormatterService, private toastr: ToastrService) {}
+  private router = inject(Router);
+  private formatter = inject(FormatterService);
+  private toastr = inject(ToastrService);
 
   //#region Accounting-Error-Log
   ngOnInit(): void {}

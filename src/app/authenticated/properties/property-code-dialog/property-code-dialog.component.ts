@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
@@ -15,9 +15,9 @@ export interface PropertyCodeDialogResult {
   styleUrl: './property-code-dialog.component.scss'
 })
 export class PropertyCodeDialogComponent {
-  code = '';
+  private dialogRef = inject<MatDialogRef<PropertyCodeDialogComponent, PropertyCodeDialogResult | undefined>>(MatDialogRef);
 
-  constructor(private dialogRef: MatDialogRef<PropertyCodeDialogComponent, PropertyCodeDialogResult | undefined>) {}
+  code = '';
 
   get canConfirm(): boolean {
     return this.code.trim().length > 0;

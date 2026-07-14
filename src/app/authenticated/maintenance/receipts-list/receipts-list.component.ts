@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -42,7 +42,6 @@ import { WorkOrderService } from '../services/work-order.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
-  @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
@@ -54,6 +53,22 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  private receiptService = inject(ReceiptService);
+  private mappingService = inject(MappingService);
+  private propertyService = inject(PropertyService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private contactService = inject(ContactService);
+  private newContactDialogService = inject(NewContactDialogService);
+  private workOrderService = inject(WorkOrderService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private authService = inject(AuthService);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
+
+  @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
 
   isPageReady = false;
   isServiceError: boolean = false;
@@ -180,23 +195,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   get showBillsTableSelections(): boolean {
     return this.embeddedInAccounting && this.accountingListMode === 'bills';
   }
-
-  constructor(
-    private receiptService: ReceiptService,
-    private mappingService: MappingService,
-    private propertyService: PropertyService,
-    private accountingOfficeService: AccountingOfficeService,
-    private contactService: ContactService,
-    private newContactDialogService: NewContactDialogService,
-    private workOrderService: WorkOrderService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private authService: AuthService,
-    private formatter: FormatterService,
-    private utilityService: UtilityService,
-    private router: Router,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
 
   //#region Receipts List

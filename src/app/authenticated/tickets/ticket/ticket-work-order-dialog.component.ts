@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, ViewChild } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 import { WorkOrderResponse } from '../../maintenance/models/work-order.model';
@@ -27,12 +27,13 @@ export interface TicketWorkOrderDialogResult {
   styleUrl: './ticket-work-order-dialog.component.scss'
 })
 export class TicketWorkOrderDialogComponent {
+  private dialogRef = inject<MatDialogRef<TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult>>(MatDialogRef);
+
   @ViewChild('workOrderDetail') workOrderDetail?: WorkOrderComponent;
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) data: TicketWorkOrderDialogData,
-    private dialogRef: MatDialogRef<TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult>
-  ) {
+  constructor() {
+    const data = inject<TicketWorkOrderDialogData>(MAT_DIALOG_DATA);
+
     this.data = data;
   }
 

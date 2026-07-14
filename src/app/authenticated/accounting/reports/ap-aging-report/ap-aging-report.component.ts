@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -45,11 +45,23 @@ import { ReportHtmlBuilderService } from '../../services/report-html-builder.ser
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ApAgingReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Input() reportFilters: ApAgingReportFilters | null = null;
   @Input() refreshTrigger = 0;
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  formatter = inject(FormatterService);
+  private receiptService = inject(ReceiptService);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private commonService = inject(CommonService);
+  private utilityService = inject(UtilityService);
+  private propertyService = inject(PropertyService);
+  private reportHtmlBuilder = inject(ReportHtmlBuilderService);
+  private documentReloadService = inject(DocumentReloadService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
   @ViewChild('drillDownReceiptEditor') drillDownReceiptEditor?: ReceiptComponent;
 
   isServiceError = false;
@@ -90,26 +102,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'propertyCodes']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public formatter: FormatterService,
-    private receiptService: ReceiptService,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private commonService: CommonService,
-    private utilityService: UtilityService,
-    private propertyService: PropertyService,
-    private reportHtmlBuilder: ReportHtmlBuilderService,
-    private documentReloadService: DocumentReloadService,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    public override toastr: ToastrService,
-    emailService: EmailService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
-  }
 
   //#region AP-Aging-Report
   ngOnInit(): void {

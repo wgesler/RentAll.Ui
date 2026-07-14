@@ -1,5 +1,5 @@
 
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
 import { SafeHTMLPipe } from '../../pipes/safe-html';
@@ -13,9 +13,9 @@ import { GenericModalData, defaultGenericModalData } from './models/generic-moda
     styleUrl: './generic-modal.component.scss'
 })
 export class GenericModalComponent implements OnInit {
+  dialogRef = inject<MatDialogRef<GenericModalComponent>>(MatDialogRef);
+  data = inject<GenericModalData>(MAT_DIALOG_DATA);
 
-  constructor(public dialogRef: MatDialogRef<GenericModalComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: GenericModalData) { }
 
   ngOnInit(): void {
     this.data = {

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { BankCardRequest, BankCardResponse } from '../models/bank.model';
@@ -8,13 +8,11 @@ import { BankCardRequest, BankCardResponse } from '../models/bank.model';
   providedIn: 'root'
 })
 export class BankCardService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
 
   private accountingOfficeController = this.configService.config().apiUrl + 'organization/accounting-office/';
-
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService) {
-  }
 
   createBankCard(officeId: number, card: BankCardRequest): Observable<BankCardResponse> {
     return this.http.post<BankCardResponse>(this.accountingOfficeController + officeId + '/bank-card', card);

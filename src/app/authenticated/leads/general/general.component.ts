@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -24,10 +24,19 @@ export type GeneralLeadFormClosed = { saved: boolean; generalId?: number };
   imports: [CommonModule, MaterialModule, ReactiveFormsModule]
 })
 export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() shellLeadId: string | null = null;
   @Input() officeId: number | null = null;
   @Output() closed = new EventEmitter<GeneralLeadFormClosed>();
   @Output() officeSelectionRequired = new EventEmitter<void>();
+  private fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private leadsService = inject(LeadsService);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private officeService = inject(OfficeService);
+  private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
   isServiceError = false;
@@ -45,16 +54,7 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['general-lead']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private fb: FormBuilder,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private leadsService: LeadsService,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private officeService: OfficeService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.form = this.buildForm();
   }
 

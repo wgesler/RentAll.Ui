@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
@@ -18,6 +18,11 @@ import { UserService } from '../services/user.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class UserAuditListComponent implements OnInit, OnDestroy {
+  private userService = inject(UserService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
+  private dialogRef = inject<MatDialogRef<UserAuditListComponent>>(MatDialogRef);
+
   isServiceError = false;
   isPageReady = false;
   userActivity: UserActivityResponse[] = [];
@@ -35,13 +40,6 @@ export class UserAuditListComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userActivity']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private userService: UserService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef,
-    private dialogRef: MatDialogRef<UserAuditListComponent>
-  ) {}
 
   //#region Lifecycle
   ngOnInit(): void {

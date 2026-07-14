@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -46,11 +46,31 @@ import { getBillingMethod } from '../../reservations/models/reservation-enum';
   styleUrl: './work-order-create.component.scss'
 })
 export class WorkOrderCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() shellMode = false;
   @Input() workOrderIdInput: string | null = null;
   @Input() propertyIdInput: string | null = null;
   @Input() reservationIdInput: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private workOrderService = inject(WorkOrderService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private receiptService = inject(ReceiptService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private http = inject(HttpClient);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private sanitizer = inject(DomSanitizer);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private documentReloadService = inject(DocumentReloadService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private organizationService = inject(OrganizationService);
+  private formatterService = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
 
   workOrderId: string | null = null;
   propertyId: string | null = null;
@@ -83,32 +103,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['accountingOffices', 'contacts', 'reservation', 'property', 'emailHtml', 'workOrder', 'previewHtml', 'template', 'propertyReceipts', 'organization']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private workOrderService: WorkOrderService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private contactService: ContactService,
-    private receiptService: ReceiptService,
-    private emailHtmlService: EmailHtmlService,
-    private http: HttpClient,
-    private formatter: FormatterService,
-    private utilityService: UtilityService,
-    private sanitizer: DomSanitizer,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private documentReloadService: DocumentReloadService,
-    private accountingOfficeService: AccountingOfficeService,
-    private organizationService: OrganizationService,
-    private formatterService: FormatterService,
-    private cdr: ChangeDetectorRef,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    emailService: EmailService,
-    public override toastr: ToastrService
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }
 

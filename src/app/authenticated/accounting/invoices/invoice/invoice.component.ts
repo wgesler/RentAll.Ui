@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -34,6 +34,7 @@ import { CostCodesService } from '../../services/cost-codes.service';
 })
 
 export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() shellMode: boolean = false;
   @Input() embedDocumentPreviewInShell = false;
   @Input() invoiceIdInput: string | null = null;
@@ -42,6 +43,20 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() companyIdInput: string | null = null;
   @Input() prefetchedInvoice: InvoiceResponse | null = null;
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
+  accountingService = inject(InvoiceService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private officeService = inject(OfficeService);
+  private reservationService = inject(ReservationService);
+  private authService = inject(AuthService);
+  private mappingService = inject(MappingService);
+  private costCodesService = inject(CostCodesService);
+  formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private cdr = inject(ChangeDetectorRef);
 
   isServiceError: boolean = false;
   invoiceId: string;
@@ -98,24 +113,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'reservations']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    public accountingService: InvoiceService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private officeService: OfficeService,
-    private reservationService: ReservationService,
-    private authService: AuthService,
-    private mappingService: MappingService,
-    private costCodesService: CostCodesService,
-    public formatter: FormatterService,
-    private utilityService: UtilityService,
-    private globalSelectionService: GlobalSelectionService,
-    private cdr: ChangeDetectorRef
-  ) {
-  }
-
   //#region Invoice
   ngOnInit(): void {
     this.isPaymentMode = false;
@@ -171,10 +168,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.initializeInvoiceContext(false);
     }
 
-    if (changes['prefetchedInvoice'] && !changes['prefetchedInvoice'].firstChange
-      && this.prefetchedInvoice && this.prefetchedInvoice.invoiceId === this.invoiceId) {
-      this.applyLoadedInvoice(this.prefetchedInvoice);
-    }
 
     if (this.isAddMode && (
       changes['shellMode'] ||
@@ -222,13 +215,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.isAddMode = !this.invoiceId || this.invoiceId === 'new';
 
     if (!this.isAddMode) {
-      const prefetchedInvoice = this.resolvePrefetchedInvoice(contextInvoiceId);
-      if (prefetchedInvoice) {
-        this.applyLoadedInvoice(prefetchedInvoice);
-      } else {
-        this.isInvoiceContentReady = false;
-        this.getInvoice();
-      }
+      // Always GET by id for the editor. List rows / prefetch are summary-shaped and
+      // frequently omit (or already remapped) ledger lines.
+      this.isInvoiceContentReady = false;
+      this.getInvoice();
     } else {
       this.invoice = null as any;
       this.ledgerLines = [];
@@ -377,24 +367,16 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  resolvePrefetchedInvoice(invoiceId: string): InvoiceResponse | null {
-    if (this.prefetchedInvoice?.invoiceId === invoiceId) {
-      return this.prefetchedInvoice;
-    }
-    const stateInvoice = history.state?.prefetchedInvoice as InvoiceResponse | undefined;
-    if (stateInvoice?.invoiceId === invoiceId) {
-      return stateInvoice;
-    }
-    return null;
-  }
-
   applyLoadedInvoice(response: InvoiceResponse): void {
     this.invoice = response;
-    this.populateForm();
-    this.loadLedgerLines(false);
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
-    this.isInvoiceContentReady = true;
-    this.cdr.markForCheck();
+    try {
+      this.populateForm();
+      this.loadLedgerLines(false);
+    } finally {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
+      this.isInvoiceContentReady = true;
+      this.cdr.markForCheck();
+    }
   }
 
   saveInvoice(): void {

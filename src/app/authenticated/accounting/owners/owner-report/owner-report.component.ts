@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
@@ -31,7 +31,6 @@ const ownerReportKindCache = new Map<OwnerReportKind, OwnerReportKindCache>();
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
-  @ViewChild('ownerReportTableWrap') ownerReportTableWrap?: ElementRef<HTMLElement>;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
@@ -41,6 +40,15 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @Output() amountDrillDownSelect = new EventEmitter<OwnerReportAmountDrillDownSelection>();
   @Output() viewStateChange = new EventEmitter<OwnerReportListViewState>();
   @Output() reportKindChange = new EventEmitter<OwnerReportKind>();
+  private ownerReportService = inject(OwnerReportService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private commonService = inject(CommonService);
+  private formatter = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('ownerReportTableWrap') ownerReportTableWrap?: ElementRef<HTMLElement>;
 
   isPageReady = false;
   isServiceError = false;
@@ -57,16 +65,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   dimensionsUpdateScheduled = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-
-  constructor(
-    private ownerReportService: OwnerReportService,
-    private ownerReportsCacheService: OwnerReportsCacheService,
-    private commonService: CommonService,
-    private formatter: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Owner Report List
   ngOnInit(): void {

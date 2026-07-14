@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -25,6 +25,7 @@ import { OwnerAuthorization } from '../models/owner-authorization.model';
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() token = '';
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerEntityTypeId!: number;
@@ -32,6 +33,12 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerContactId: string | null = null;
   @Input() selectedOfficeId: number | null = null;
   @Output() ownerContextChanged = new EventEmitter<void>();
+  private fb = inject(FormBuilder);
+  private formatterService = inject(FormatterService);
+  private contactService = inject(ContactService);
+  private ownersService = inject(OwnersService);
+  private toastr = inject(ToastrService);
+  private utilityService = inject(UtilityService);
 
   ownerForm: FormGroup = this.buildForm();
   isSaving = false;
@@ -46,15 +53,6 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-form', 'owner-lead']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private fb: FormBuilder,
-    private formatterService: FormatterService,
-    private contactService: ContactService,
-    private ownersService: OwnersService,
-    private toastr: ToastrService,
-    private utilityService: UtilityService
-  ) {}
 
   //#region Owner-Information
   ngOnInit(): void {

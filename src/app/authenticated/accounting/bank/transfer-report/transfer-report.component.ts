@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { BehaviorSubject, finalize, merge, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
@@ -22,11 +22,17 @@ import { ReportService } from '../../services/report.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
+  private reportService = inject(ReportService);
+  private journalEntrySourceService = inject(JournalEntrySourceService);
+  private utilityService = inject(UtilityService);
+  private formatter = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
   isServiceError = false;
@@ -53,14 +59,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
   private transferReportLoadId = 0;
   private cancelTransferReportLoad$ = new Subject<void>();
-
-  constructor(
-    private reportService: ReportService,
-    private journalEntrySourceService: JournalEntrySourceService,
-    private utilityService: UtilityService,
-    private formatter: FormatterService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {

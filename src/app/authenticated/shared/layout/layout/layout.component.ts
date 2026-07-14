@@ -1,5 +1,5 @@
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,6 +23,12 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
 })
 
 export class LayoutComponent implements OnInit, OnDestroy {
+  private idle = inject(Idle);
+  private keepalive = inject(Keepalive);
+  private cd = inject(ChangeDetectorRef);
+  private authService = inject(AuthService);
+  private dialog = inject(MatDialog);
+
   readonly timeoutData = { data: { title: 'Session Timed-Out', message: 'Would you like to continue?', no: 'Leave', yes: 'Stay' } };
   static isIdleModalOn = false;
 
@@ -33,12 +39,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
   destroy$ = new Subject<void>();
   dialogRef: MatDialogRef<GenericModalComponent>;
 
-  constructor(
-    private idle: Idle,
-    private keepalive: Keepalive,
-    private cd: ChangeDetectorRef,
-    private authService: AuthService,
-    private dialog: MatDialog) { 
+  constructor() {
+    const idle = this.idle;
+ 
 
     // How long the user can be inactive before considered idle, in seconds
     idle.setIdle(3600); // 1 hour

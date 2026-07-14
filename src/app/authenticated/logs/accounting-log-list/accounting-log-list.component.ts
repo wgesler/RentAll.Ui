@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -22,9 +22,14 @@ import { LogService } from '../services/log.service';
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() reloadToken = 0;
   @Output() openAccountingLog = new EventEmitter<AccountingLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+  private logService = inject(LogService);
+  private propertyService = inject(PropertyService);
+  private invoiceService = inject(InvoiceService);
+  private formatter = inject(FormatterService);
 
   rows: Array<AccountingLogResponse & { propertyCodeDisplay: string; invoiceCodeDisplay: string; createdOnDate: string; firstPeriodDisplay: string; secondPeriodDisplay: string; originalAmountDisplay: string; firstAmountDisplay: string; secondAmountDisplay: string }> = [];
   isLoading = false;
@@ -42,8 +47,6 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
     message: { displayAs: 'Message', maxWidth: '40ch' },
     createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
   };
-
-  constructor(private logService: LogService, private propertyService: PropertyService, private invoiceService: InvoiceService, private formatter: FormatterService) {}
 
   //#region Accounting-Log-List
   ngOnInit(): void {

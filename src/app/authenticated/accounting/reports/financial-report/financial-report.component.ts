@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, filter, finalize, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -65,6 +65,7 @@ interface FinancialReportVisibleRow {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FinancialReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() reportKind: FinancialReportKind = 'profitLoss';
   @Input() officeId: number | null = null;
   @Input() reportClass: Class = Class.TotalOnly;
@@ -74,6 +75,19 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   @Output() journalEntryDetailActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() shellTitleBarRefresh = new EventEmitter<void>();
+  formatter = inject(FormatterService);
+  private generalLedgerService = inject(GeneralLedgerService);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private commonService = inject(CommonService);
+  private utilityService = inject(UtilityService);
+  private journalEntrySourceService = inject(JournalEntrySourceService);
+  private propertyService = inject(PropertyService);
+  private reportHtmlBuilder = inject(ReportHtmlBuilderService);
+  private documentReloadService = inject(DocumentReloadService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
   @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
 
   reportResult: FinancialReportResult | null = null;
@@ -119,28 +133,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public formatter: FormatterService,
-    private generalLedgerService: GeneralLedgerService,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private commonService: CommonService,
-    private utilityService: UtilityService,
-    private journalEntrySourceService: JournalEntrySourceService,
-    private propertyService: PropertyService,
-    private reportHtmlBuilder: ReportHtmlBuilderService,
-    private documentReloadService: DocumentReloadService,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    public override toastr: ToastrService,
-    emailService: EmailService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
-  }
 
   //#region Financial-Report
   ngOnInit(): void {

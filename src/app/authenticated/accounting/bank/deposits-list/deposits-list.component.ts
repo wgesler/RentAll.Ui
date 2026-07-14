@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
@@ -26,7 +26,6 @@ import { DepositService } from '../../services/deposit.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
-  @ViewChild('depositSplitsTemplate') depositSplitsTemplate?: TemplateRef<unknown>;
 
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
@@ -35,6 +34,16 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refreshTrigger = 0;
   @Output() depositSelect = new EventEmitter<DepositSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  private depositService = inject(DepositService);
+  private mappingService = inject(MappingService);
+  private propertyService = inject(PropertyService);
+  private authService = inject(AuthService);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('depositSplitsTemplate') depositSplitsTemplate?: TemplateRef<unknown>;
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['deposits']));
@@ -76,17 +85,6 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
-
-  constructor(
-    private depositService: DepositService,
-    private mappingService: MappingService,
-    private propertyService: PropertyService,
-    private authService: AuthService,
-    private formatter: FormatterService,
-    private utilityService: UtilityService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Deposits List
   ngOnInit(): void {

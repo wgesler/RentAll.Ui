@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell, MaintenanceRequest, MaintenanceResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -24,13 +24,11 @@ import { type CalendarDateString, UtilityService } from './utility.service';
   providedIn: 'root'
 })
 export class MixedMappingService {
-  static readonly maintenanceListNoDepartureSortTime = Number.MAX_SAFE_INTEGER;
+  private formatter = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
 
-  constructor(
-    private formatter: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService
-  ) {}
+  static readonly maintenanceListNoDepartureSortTime = Number.MAX_SAFE_INTEGER;
 
   //#region PropertyMaintenance
   mapPropertyMaintenenace(properties: PropertyListResponse[], maintenanceList: MaintenanceListResponse[]): PropertyMaintenance[] {

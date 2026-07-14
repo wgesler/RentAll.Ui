@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Params, Router } from '@angular/router';
@@ -43,7 +43,25 @@ import { MappingService } from '../../../services/mapping.service';
   styleUrl: './quote-create.component.scss'
 })
 export class QuoteCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() propertyIds: string[] = [];
+  private fb = inject(FormBuilder);
+  private sanitizer = inject(DomSanitizer);
+  private http = inject(HttpClient);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private mappingService = inject(MappingService);
+  private documentReloadService = inject(DocumentReloadService);
+  private propertyService = inject(PropertyService);
+  private propertyListingShareService = inject(PropertyListingShareService);
+  private leadsService = inject(LeadsService);
+  private cdr = inject(ChangeDetectorRef);
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
   readonly quoteSnapshotQueryKeys = { preparedForName: 'qpfn', quoteEmail: 'qem', agentName: 'qag', quoteValidFor: 'qvf'};
@@ -75,31 +93,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'quoteTemplate']));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private fb: FormBuilder,
-    private sanitizer: DomSanitizer,
-    private http: HttpClient,
-    private route: ActivatedRoute,
-    private router: Router,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private mappingService: MappingService,
-    private documentReloadService: DocumentReloadService,
-    private propertyService: PropertyService,
-    private propertyListingShareService: PropertyListingShareService,
-    private leadsService: LeadsService,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    toastr: ToastrService,
-    emailService: EmailService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.form = this.buildForm();
   }
 

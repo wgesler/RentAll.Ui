@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, QueryList, ViewChildren, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { skip, Subject, take, takeUntil } from 'rxjs';
@@ -28,6 +28,14 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./contacts-shell.component.scss']
 })
 export class ContactsShellComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private contactService = inject(ContactService);
+  private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
+
   @ViewChildren(ContactListComponent) contactSections?: QueryList<ContactListComponent>;
 
   EntityType = EntityType;
@@ -47,16 +55,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   formCopyFrom: string | null = null;
   formEntityTypeId: number | null = null;
   formTabIndex: number | null = null;
-
-  constructor(
-    private router: Router,
-    private route: ActivatedRoute,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private contactService: ContactService,
-    private authService: AuthService,
-    private cdr: ChangeDetectorRef
-  ) { }
 
   //#region Contacts
   ngOnInit(): void {

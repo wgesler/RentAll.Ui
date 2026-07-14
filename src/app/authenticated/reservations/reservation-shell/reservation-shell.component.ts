@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
@@ -11,7 +11,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { InvoiceListComponent } from '../../accounting/invoices/invoice-list/invoice-list.component';
 import { InvoiceComponent } from '../../accounting/invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../../accounting/invoices/invoice-create/invoice-create.component';
-import { InvoicePreviewSelection } from '../../accounting/models/invoice.model';
+import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../../accounting/models/invoice.model';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -45,6 +45,15 @@ import { ReservationService } from '../services/reservation.service';
   styleUrl: './reservation-shell.component.scss'
 })
 export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private reservationService = inject(ReservationService);
+  private utilityService = inject(UtilityService);
+  private mappingService = inject(MappingService);
+
   @ViewChild('reservationSection') reservationSection?: ReservationComponent;
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
 
@@ -65,6 +74,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   isAdmin: boolean = false;
   isHandlingTabGuard: boolean = false;
   activeInvoiceId: string | null = null;
+  selectedInvoice: InvoiceResponse | null = null;
   showInvoiceCreate = false;
   invoiceCreateContext: InvoicePreviewSelection | null = null;
   invoiceCreateInstance = 0;
@@ -77,16 +87,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   destroy$ = new Subject<void>();
 
   readonly DocumentType = DocumentType;
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private reservationService: ReservationService,
-    private utilityService: UtilityService,
-    private mappingService: MappingService
-  ) {}
 
   //#region Reservation-Shell
   ngOnInit(): void {
@@ -100,14 +100,14 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       this.selectedTabIndex = this.getTabIndexFromQueryParam(queryParams['tab']);
-      this.activeInvoiceId = queryParams['invoiceId'] ? String(queryParams['invoiceId']) : null;
+      this.applyInvoiceIdFromQuery(queryParams['invoiceId']);
       if (this.activeInvoiceId) {
         this.selectedTabIndex = this.getInvoicesTabIndex();
       }
     });
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
-      this.activeInvoiceId = queryParams['invoiceId'] ? String(queryParams['invoiceId']) : null;
+      this.applyInvoiceIdFromQuery(queryParams['invoiceId']);
       if (this.activeInvoiceId && this.selectedTabIndex !== this.getInvoicesTabIndex()) {
         this.selectedTabIndex = this.getInvoicesTabIndex();
       }
@@ -160,6 +160,8 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       const queryParams: Record<string, string | null> = { tab: tabParam };
       if (requestedTabIndex !== this.getInvoicesTabIndex()) {
         queryParams['invoiceId'] = null;
+        this.activeInvoiceId = null;
+        this.selectedInvoice = null;
       }
 
       this.router.navigate([], {
@@ -688,11 +690,50 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   closeEmbeddedInvoiceEditor(): void {
     this.activeInvoiceId = null;
+    this.selectedInvoice = null;
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { invoiceId: null, tab: 'invoices' },
       queryParamsHandling: 'merge'
     });
+  }
+
+  onInvoiceSelect(selection: InvoiceSelection): void {
+    const invoiceId = (selection?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return;
+    }
+
+    // In-memory open first so a query-param race / canDeactivate dialog cannot wipe the editor.
+    this.selectedInvoice = selection.invoice ?? null;
+    this.activeInvoiceId = invoiceId;
+    this.showInvoiceCreate = false;
+    if (this.selectedTabIndex !== this.getInvoicesTabIndex()) {
+      this.selectedTabIndex = this.getInvoicesTabIndex();
+    }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { invoiceId, tab: 'invoices' },
+      queryParamsHandling: 'merge',
+      state: selection.invoice ? { prefetchedInvoice: selection.invoice } : undefined
+    });
+  }
+
+  private applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
+    const invoiceId = invoiceIdParam ? String(invoiceIdParam).trim() : '';
+    // Never clear from an empty query emission — open/close/tab-leave own clearing.
+    // Empty emissions were racing list→editor opens and snapping back to the list.
+    if (!invoiceId) {
+      return;
+    }
+
+    this.activeInvoiceId = invoiceId;
+    const stateInvoice = history.state?.['prefetchedInvoice'] as InvoiceResponse | undefined;
+    if (stateInvoice?.invoiceId === this.activeInvoiceId) {
+      this.selectedInvoice = stateInvoice;
+    } else if (this.selectedInvoice?.invoiceId !== this.activeInvoiceId) {
+      this.selectedInvoice = null;
+    }
   }
 
   onInvoicePreviewOpen(selection: InvoicePreviewSelection): void {

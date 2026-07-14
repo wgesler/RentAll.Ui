@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { map, Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -12,15 +12,13 @@ import { ReportService } from './report.service';
   providedIn: 'root'
 })
 export class OwnerStatementService {
-  private readonly controller = this.configService.config().apiUrl + 'accounting/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private reportService = inject(ReportService);
+  private mappingService = inject(MappingService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService,
-    private reportService: ReportService,
-    private mappingService: MappingService,
-    private ownerReportsCacheService: OwnerReportsCacheService
-  ) {}
+  private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
   searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);

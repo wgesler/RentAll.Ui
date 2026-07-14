@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, catchError, concatMap, filter, finalize, firstValueFrom, from, map, of, take, takeUntil, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -41,6 +41,14 @@ import { PropertyLeaseType } from '../../properties/models/property-enums';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardMainComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
+  private userService = inject(UserService);
+  private router = inject(Router);
+  private agentService = inject(AgentService);
+  private formatterService = inject(FormatterService);
+  private toastr = inject(ToastrService);
+  private trackerService = inject(TrackerService);
+  private cdr = inject(ChangeDetectorRef);
+
   profilePictureUrl: string | null = null;
   todayDate = '';
   isAdmin: boolean = false;
@@ -146,27 +154,6 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     'daysRented': { displayAs: 'Days Rented', maxWidth: '18ch', alignment: 'center' },
     'commissionDisplay': { displayAs: 'Comm', maxWidth: '20ch', alignment: 'center' },
   };
-
-  constructor(
-    authService: AuthService,
-    private userService: UserService,
-    reservationService: ReservationService,
-    mixedMappingService: MixedMappingService,
-    mappingService: MappingService,
-    private router: Router,
-    propertyService: PropertyService,
-    maintenanceService: MaintenanceService,
-    private agentService: AgentService,
-    utilityService: UtilityService,
-    officeService: OfficeService,
-    globalSelectionService: GlobalSelectionService,
-    private formatterService: FormatterService,
-    private toastr: ToastrService,
-    private trackerService: TrackerService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
-  }
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

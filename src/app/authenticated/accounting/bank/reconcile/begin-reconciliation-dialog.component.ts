@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
@@ -22,6 +22,16 @@ import { ReconcileDraftService } from '../../services/reconcile-draft.service';
   styleUrl: './begin-reconciliation-dialog.component.scss'
 })
 export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
+  data = inject<BeginReconciliationDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<BeginReconciliationDialogComponent, BeginReconciliationDialogResult | undefined>>(MatDialogRef);
+  private fb = inject(FormBuilder);
+  private mappingService = inject(MappingService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+  private reconcileAdjustmentService = inject(ReconcileAdjustmentService);
+  private reconcileDraftService = inject(ReconcileDraftService);
+
   beginningBalance = 0;
   lastReconciledDate: string | null = null;
   isSaving = false;
@@ -39,18 +49,6 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     interestEarnedDate: [this.data.defaultStatementDate ?? new Date()],
     interestEarnedAccountId: [null as number | null]
   });
-
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: BeginReconciliationDialogData,
-    private dialogRef: MatDialogRef<BeginReconciliationDialogComponent, BeginReconciliationDialogResult | undefined>,
-    private fb: FormBuilder,
-    private mappingService: MappingService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private toastr: ToastrService,
-    private reconcileAdjustmentService: ReconcileAdjustmentService,
-    private reconcileDraftService: ReconcileDraftService
-  ) {}
 
   //#region Begin Reconciliation Dialog
   ngOnInit(): void {

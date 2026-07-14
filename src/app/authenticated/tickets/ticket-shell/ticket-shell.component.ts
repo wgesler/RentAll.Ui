@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -33,6 +33,19 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
   styleUrl: './ticket-shell.component.scss'
 })
 export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private userService = inject(UserService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
+
   @ViewChild('myTicketListSection') set myTicketListSection(value: TicketListComponent | undefined) {
     this.myTicketListSectionRef = value;
     if (value) {
@@ -85,21 +98,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isApplyingTicketSelectionContext = false;
   destroy$ = new Subject<void>();
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private dialog: MatDialog,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private contactService: ContactService,
-    private globalSelectionService: GlobalSelectionService,
-    private userService: UserService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Ticket-Shell
   ngOnInit(): void {

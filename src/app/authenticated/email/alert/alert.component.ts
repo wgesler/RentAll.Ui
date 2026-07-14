@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -30,7 +30,6 @@ import { ReservationService } from '../../reservations/services/reservation.serv
   styleUrl: './alert.component.scss'
 })
 export class AlertComponent implements OnInit, OnChanges, OnDestroy {
-  readonly defaultFromName = 'The RentAll Exchange';
 
   @Input() alertId: string | null = null;
   @Input() alertResponse: AlertResponse | null = null;
@@ -42,6 +41,19 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ticketId: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private alertService = inject(AlertService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+
+  readonly defaultFromName = 'The RentAll Exchange';
 
   currentAlertId = 'new';
   alert: AlertResponse | null = null;
@@ -57,20 +69,6 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   propertyOptions: { value: string; officeId: number; label: string }[] = [];
   reservationOptions: { value: string; officeId: number; propertyId: string; label: string }[] = [];
   destroy$ = new Subject<void>();
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private fb: FormBuilder,
-    private alertService: AlertService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private formatter: FormatterService,
-    private utilityService: UtilityService,
-    private toastr: ToastrService
-  ) {}
 
   //#region Alert
   ngOnInit(): void {

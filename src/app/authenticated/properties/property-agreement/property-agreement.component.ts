@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -34,6 +34,7 @@ import { NewContactDialogService } from '../../shared/contacts/new-contact-dialo
   styleUrl: './property-agreement.component.scss'
 })
 export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input({ required: true }) propertyId!: string;
   @Input({ required: true }) isAddMode!: boolean;
   @Input({ required: true }) canManageAgreement!: boolean;
@@ -42,6 +43,20 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input() bedrooms: number | null = null;
   @Input() propertyLeaseTypeId: number | null = null;
   @Input() vendorContactId: string | null = null;
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private propertyAgreementService = inject(PropertyAgreementService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
+  private contactService = inject(ContactService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private newContactDialogService = inject(NewContactDialogService);
 
   readonly ManagementFeeType = ManagementFeeType;
   agreementForm: FormGroup | null = null;
@@ -101,23 +116,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'propertyAgreement']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
-    private toastr: ToastrService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private propertyAgreementService: PropertyAgreementService,
-    private pdfThumbnailService: PdfThumbnailService,
-    private contactService: ContactService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private newContactDialogService: NewContactDialogService
-  ) {}
 
   //#region Property Agreement
   ngOnInit(): void {

@@ -33,7 +33,16 @@ alwaysApply: true
 - This visibility rule applies to `RentAll.Ui` only. It does NOT apply to `RentAll.Api` or `RentAll.Db`.
 - For new variables and methods inside Angular components, do NOT add explicit `public`/`private` modifiers.
 - Let class members use default visibility unless there is an explicit exception requested.
-- Constructor-injected dependencies SHOULD use access modifiers (`public`/`private`) directly in the constructor signature to avoid redundant define/assign boilerplate.
+- Prefer Angular `inject()` for dependency injection over constructor parameter injection (`private readonly foo = inject(FooService)`).
+- Do not add constructor-only boilerplate for DI; use a constructor only when it has real construction logic.
+- When touching a file that still uses constructor DI, migrate that file's DI to `inject()` as part of the change when practical.
+- Preferred class member order in components:
+  1. `@Input` / `@Output` / `input()` / `output()`
+  2. `inject()` dependencies
+  3. Other fields/state (including fields whose initializers use injected services)
+  4. Constructor only when it has real construction logic (after `super()` if extending)
+  5. Lifecycle and methods (existing region rules below)
+- Field initializers run top-to-bottom: never reference an `inject()` dependency above where it is declared.
 
 # File Organization and Regions
 

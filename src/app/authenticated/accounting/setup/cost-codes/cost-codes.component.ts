@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -26,12 +26,22 @@ import { CostCodesService } from '../../services/cost-codes.service';
 })
 
 export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() id: string | number | null = null; // Input to accept id from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() copyFrom: CostCodesListDisplay | null = null;
   @Input() source: 'accounting' | 'configuration' = 'accounting'; // Track where component came from
   @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked
-  @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful
+  @Output() savedEvent = new EventEmitter<void>();
+  costCodesService = inject(CostCodesService);
+  router = inject(Router);
+  private route = inject(ActivatedRoute);
+  fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService); // Emit when save is successful
   @ViewChild('firstInput') firstInputRef: MatSelect;
   @ViewChild('costCodeInput') costCodeInputRef: ElementRef<HTMLInputElement>;
   
@@ -54,18 +64,6 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCode', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public costCodesService: CostCodesService,
-    public router: Router,
-    private route: ActivatedRoute,
-    public fb: FormBuilder,    private toastr: ToastrService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService
-  ) {
-  }
 
   //#region CostCode
   ngOnInit(): void {

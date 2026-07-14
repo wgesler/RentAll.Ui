@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
@@ -8,12 +8,10 @@ import { PropertyInformationRequest, PropertyInformationResponse } from '../mode
     providedIn: 'root'
 })
 export class PropertyInformationService {
-  private readonly controller = this.configService.config().apiUrl + 'property/property-information/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
+  private readonly controller = this.configService.config().apiUrl + 'property/property-information/';
 
   getPropertyInformationByGuid(propertyId: string): Observable<PropertyInformationResponse> {
     return this.http.get<PropertyInformationResponse>(this.controller + propertyId);

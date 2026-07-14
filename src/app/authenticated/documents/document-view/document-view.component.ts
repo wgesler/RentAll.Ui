@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -21,6 +21,14 @@ import { DocumentService } from '../services/document.service';
     styleUrls: ['./document-view.component.scss']
 })
 export class DocumentViewComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private documentService = inject(DocumentService);
+  private toastr = inject(ToastrService);
+  private sanitizer = inject(DomSanitizer);
+  private utilityService = inject(UtilityService);
+  private authService = inject(AuthService);
+
   @ViewChild('documentIframe', { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>;
   
   documentId: string;
@@ -44,17 +52,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private documentService: DocumentService,
-    private toastr: ToastrService,
-    private sanitizer: DomSanitizer,
-    private utilityService: UtilityService,
-    private authService: AuthService
-  ) {
-  }
 
   //#region Document-View
   ngOnInit(): void {

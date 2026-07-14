@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -24,10 +24,18 @@ import { StateFormService } from '../services/state-form.service';
     styleUrl: './state-form.component.scss'
 })
 export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
-  private readonly allStatesCode = 'XX';
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  private fb = inject(FormBuilder);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+  private commonService = inject(CommonService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
+  private utilityService = inject(UtilityService);
+  private stateFormService = inject(StateFormService);
+
+  private readonly allStatesCode = 'XX';
 
   form: FormGroup;
   stateCodes: string[] = [];
@@ -47,17 +55,6 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForm', 'states']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private fb: FormBuilder,
-    private router: Router,
-    private toastr: ToastrService,
-    private commonService: CommonService,
-    private pdfThumbnailService: PdfThumbnailService,
-    private utilityService: UtilityService,
-    private stateFormService: StateFormService
-  ) {
-  }
 
   //#region StateForm
   ngOnInit(): void {

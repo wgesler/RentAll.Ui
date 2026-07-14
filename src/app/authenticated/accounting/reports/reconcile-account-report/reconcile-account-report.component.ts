@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, finalize, firstValueFrom, forkJoin, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -43,6 +43,7 @@ import { ReportHtmlBuilderService } from '../../services/report-html-builder.ser
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReconcileAccountReportComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() reportView: ReconcileAccountReportView = 'summary';
   @Input() officeId: number | null = null;
   @Input() chartOfAccountId: number | null = null;
@@ -50,6 +51,17 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   @Input() reportContext: ReconcileAccountReportContext | null = null;
   @Input() refreshTrigger = 0;
   @Output() viewChange = new EventEmitter<ReconcileAccountReportView>();
+  formatter = inject(FormatterService);
+  private generalLedgerService = inject(GeneralLedgerService);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private commonService = inject(CommonService);
+  private utilityService = inject(UtilityService);
+  private reportHtmlBuilder = inject(ReportHtmlBuilderService);
+  private documentReloadService = inject(DocumentReloadService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
 
   reportResult: ReconcileAccountReportResult | null = null;
   previewIframeHtml = '';
@@ -69,26 +81,6 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public formatter: FormatterService,
-    private generalLedgerService: GeneralLedgerService,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private commonService: CommonService,
-    private utilityService: UtilityService,
-    private reportHtmlBuilder: ReportHtmlBuilderService,
-    private documentReloadService: DocumentReloadService,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    documentHtmlService: DocumentHtmlService,
-    emailService: EmailService,
-    public override toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
-  }
 
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {

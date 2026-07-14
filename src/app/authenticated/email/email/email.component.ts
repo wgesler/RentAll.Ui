@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -18,19 +18,17 @@ import { hasInspectorRole } from '../../shared/access/role-access';
   styleUrl: './email.component.scss'
 })
 export class EmailComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private emailService = inject(EmailService);
+  private formatter = inject(FormatterService);
+  private authService = inject(AuthService);
+
   emailId = '';
   email: EmailResponse | null = null;
   isLoading = false;
   isServiceError = false;
   destroy$ = new Subject<void>();
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private emailService: EmailService,
-    private formatter: FormatterService,
-    private authService: AuthService
-  ) {}
 
 
   //#region Email

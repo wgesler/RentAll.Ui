@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MaterialModule } from '../../../../material.module';
@@ -14,6 +14,10 @@ import { ImageViewDialogData } from './image-view-dialog-data';
   styleUrl: './image-view-dialog.component.scss'
 })
 export class ImageViewDialogComponent implements OnInit, OnDestroy {
+  data = inject<ImageViewDialogData>(MAT_DIALOG_DATA);
+  private sanitizer = inject(DomSanitizer);
+  private dialogRef = inject<MatDialogRef<ImageViewDialogComponent>>(MatDialogRef);
+
   zoomScale = 1;
   readonly minZoom = 0.5;
   readonly maxZoom = 4;
@@ -22,12 +26,6 @@ export class ImageViewDialogComponent implements OnInit, OnDestroy {
   gallerySources: string[] = [];
   currentIndex = 0;
   private pdfObjectUrl: string | null = null;
-
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: ImageViewDialogData,
-    private sanitizer: DomSanitizer,
-    private dialogRef: MatDialogRef<ImageViewDialogComponent>
-  ) {}
 
   ngOnInit(): void {
     this.gallerySources = (this.data?.imageSources || []).filter(source => !!source);

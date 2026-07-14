@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
@@ -26,11 +26,22 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
     styleUrls: ['./property-information.component.scss']
 })
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyInformationResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
   @Input() hideOfficeAndPropertyCode: boolean = false;
+  private propertyInformationService = inject(PropertyInformationService);
+  private propertyService = inject(PropertyService);
+  private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
+  private fb = inject(FormBuilder);
+  private formatterService = inject(FormatterService);
+  private welcomeLetterReloadService = inject(WelcomeLetterReloadService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private utilityService = inject(UtilityService);
 
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -44,18 +55,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private propertyInformationService: PropertyInformationService,
-    private propertyService: PropertyService,
-    private authService: AuthService,
-    private toastr: ToastrService,
-    private fb: FormBuilder,
-    private formatterService: FormatterService,
-    private welcomeLetterReloadService: WelcomeLetterReloadService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private utilityService: UtilityService
-  ) {
+  constructor() {
     this.form = this.buildForm();
   }
 

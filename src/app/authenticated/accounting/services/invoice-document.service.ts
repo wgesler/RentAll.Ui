@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin, map, of, switchMap, take, throwError, catchError } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
@@ -51,24 +51,23 @@ interface InvoiceDownloadData extends InvoiceDownloadBaseData {
   providedIn: 'root'
 })
 export class InvoiceDocumentService {
-  constructor(
-    private authService: AuthService,
-    private http: HttpClient,
-    private invoiceService: InvoiceService,
-    private reservationService: ReservationService,
-    private propertyService: PropertyService,
-    private propertyHtmlService: PropertyHtmlService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private commonService: CommonService,
-    private contactService: ContactService,
-    private costCodesService: CostCodesService,
-    private invoiceHtmlBuilder: InvoiceHtmlBuilderService,
-    private documentService: DocumentService,
-    private documentHtmlService: DocumentHtmlService,
-    private documentExportService: DocumentExportService,
-    private utilityService: UtilityService
-  ) {}
+  private authService = inject(AuthService);
+  private http = inject(HttpClient);
+  private invoiceService = inject(InvoiceService);
+  private reservationService = inject(ReservationService);
+  private propertyService = inject(PropertyService);
+  private propertyHtmlService = inject(PropertyHtmlService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private commonService = inject(CommonService);
+  private contactService = inject(ContactService);
+  private costCodesService = inject(CostCodesService);
+  private invoiceHtmlBuilder = inject(InvoiceHtmlBuilderService);
+  private documentService = inject(DocumentService);
+  private documentHtmlService = inject(DocumentHtmlService);
+  private documentExportService = inject(DocumentExportService);
+  private utilityService = inject(UtilityService);
+
 
   downloadInvoicePdf(invoiceSummary: InvoiceResponse): Observable<void> {
     const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';

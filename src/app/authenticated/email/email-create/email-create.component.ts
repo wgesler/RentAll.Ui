@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -21,22 +21,20 @@ import { sendDocumentEmail, splitEmailList } from '../utils/send-document-email'
   styleUrl: './email-create.component.scss'
 })
 export class EmailCreateComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+  private draftService = inject(EmailCreateDraftService);
+  private documentService = inject(DocumentService);
+  private documentHtmlService = inject(DocumentHtmlService);
+  private emailService = inject(EmailService);
+  private cdr = inject(ChangeDetectorRef);
+
   draft: EmailCreateDraft | null = null;
   form: FormGroup = this.buildForm();
   isSending = false;
   isMissingDraft = false;
   private initialPlainTextContent = '';
-
-  constructor(
-    private fb: FormBuilder,
-    private router: Router,
-    private toastr: ToastrService,
-    private draftService: EmailCreateDraftService,
-    private documentService: DocumentService,
-    private documentHtmlService: DocumentHtmlService,
-    private emailService: EmailService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   ngOnInit(): void {
     const draft = this.draftService.getDraft();

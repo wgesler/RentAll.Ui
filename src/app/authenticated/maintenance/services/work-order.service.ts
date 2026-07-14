@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
@@ -13,10 +13,10 @@ export class WorkOrderService {
   http: HttpClient;
   configService: ConfigService;
 
-  constructor(
-    http: HttpClient,
-    configService: ConfigService
-  ) {
+  constructor() {
+    const http = inject(HttpClient);
+    const configService = inject(ConfigService);
+
     this.http = http;
     this.configService = configService;
     this.controller = this.configService.config().apiUrl + 'maintenance/work-order/';

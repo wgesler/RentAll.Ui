@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, QueryList, ViewChildren, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, skip, startWith, takeUntil } from 'rxjs';
@@ -18,6 +18,10 @@ import { UserListComponent } from '../user-list/user-list.component';
   imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, UserListComponent, UserComponent]
 })
 export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private globalSelectionService = inject(GlobalSelectionService);
+
   @ViewChildren(UserListComponent) userSections?: QueryList<UserListComponent>;
 
   selectedTabIndex = 0;
@@ -29,12 +33,6 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedOfficeId: number | null = null;
   selectedOrganizationId: string | null = null;
   destroy$ = new Subject<void>();
-
-  constructor(
-    private router: Router,
-    private route: ActivatedRoute,
-    private globalSelectionService: GlobalSelectionService
-  ) {}
 
   ngOnInit(): void {
     const tabIndex = getNumberQueryParam(this.route.snapshot.queryParams, 'tab', 0, 4);

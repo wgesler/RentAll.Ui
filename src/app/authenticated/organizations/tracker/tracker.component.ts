@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray } from 'rxjs';
@@ -31,6 +31,7 @@ interface TrackerOptionEditorRow {
     styleUrl: './tracker.component.scss'
 })
 export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() id: string | null = null;
   @Input() selectedOfficeId: number | null = null;
   @Input() selectedTrackerContextId: TrackerContextType | null = null;
@@ -38,6 +39,13 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   @Input() trackerData: TrackerDefinitionListDisplay | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  trackerService = inject(TrackerService);
+  fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private mappingService = inject(MappingService);
+  private toastr = inject(ToastrService);
+  private utilityService = inject(UtilityService);
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
 
   isServiceError: boolean = false;
@@ -57,17 +65,6 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public trackerService: TrackerService,
-    public fb: FormBuilder,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private mappingService: MappingService,
-    private toastr: ToastrService,
-    private utilityService: UtilityService
-  ) {
-  }
 
   //#region Tracker
   ngOnInit(): void {

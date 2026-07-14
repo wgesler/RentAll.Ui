@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
@@ -22,7 +22,13 @@ import { ColorService } from '../services/color.service';
 })
 
 export class ColorListComponent implements OnInit, OnDestroy {
+
   @Output() colorSelected = new EventEmitter<string | number | null>();
+  colorService = inject(ColorService);
+  toastr = inject(ToastrService);
+  mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   allColors: ColorListDisplay[] = [];
   colorsDisplay: ColorListDisplay[] = [];
@@ -35,14 +41,6 @@ export class ColorListComponent implements OnInit, OnDestroy {
   isPageReady = false;
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors']));
-
-  constructor(
-    public colorService: ColorService,
-    public toastr: ToastrService,
-    public mappingService: MappingService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Color-List
   ngOnInit(): void {

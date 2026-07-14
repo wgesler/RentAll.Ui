@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, buildApAgingBucketDefinitions, buildApAgingVendorSortKey, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
@@ -65,11 +65,10 @@ import { UtilityService } from './utility.service';
 })
 
 export class MappingService {
-  constructor(
-    private formatter: FormatterService,
-    private utility: UtilityService,
-    private workOrderAmountService: WorkOrderAmountService
-  ) { }
+  private formatter = inject(FormatterService);
+  private utility = inject(UtilityService);
+  private workOrderAmountService = inject(WorkOrderAmountService);
+
   
   //#region Organization Mapping
   mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
@@ -1052,6 +1051,10 @@ export class MappingService {
       base.endDate
     );
 
+    const rawLedgerLines = raw['ledgerLines'] ?? raw['LedgerLines'] ?? base.ledgerLines;
+    const ledgerLines = (Array.isArray(rawLedgerLines) ? rawLedgerLines : [])
+      .map(line => this.normalizeLedgerLineResponse(line));
+
     return {
       ...base,
       invoiceDate,
@@ -1062,7 +1065,26 @@ export class MappingService {
       endDate,
       createdOn,
       modifiedOn,
-      ledgerLines: base.ledgerLines ?? []
+      ledgerLines
+    };
+  }
+
+  private normalizeLedgerLineResponse(line: unknown): LedgerLineResponse {
+    const raw = (line ?? {}) as Record<string, unknown>;
+    const costCodeId = Number(raw['costCodeId'] ?? raw['CostCodeId'] ?? 0);
+    const transactionTypeId = Number(raw['transactionTypeId'] ?? raw['TransactionTypeId'] ?? 0);
+    return {
+      ledgerLineId: String(raw['ledgerLineId'] ?? raw['LedgerLineId'] ?? ''),
+      invoiceId: String(raw['invoiceId'] ?? raw['InvoiceId'] ?? ''),
+      lineNumber: Number(raw['lineNumber'] ?? raw['LineNumber'] ?? 0),
+      reservationId: (raw['reservationId'] ?? raw['ReservationId'] ?? null) as string | null,
+      costCodeId: Number.isFinite(costCodeId) ? costCodeId : 0,
+      transactionTypeId: Number.isFinite(transactionTypeId) ? transactionTypeId : 0,
+      amount: Number(raw['amount'] ?? raw['Amount'] ?? 0),
+      description: String(raw['description'] ?? raw['Description'] ?? ''),
+      ledgerLineDate: this.utility.coerceCalendarDateStringFromApi(
+        raw['ledgerLineDate'] ?? raw['LedgerLineDate']
+      ) ?? String(raw['ledgerLineDate'] ?? raw['LedgerLineDate'] ?? '')
     };
   }
 

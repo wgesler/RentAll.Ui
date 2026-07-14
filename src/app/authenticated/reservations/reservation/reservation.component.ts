@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, HostListener, Input, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -64,8 +64,33 @@ import { UserService } from '../../users/services/user.service';
 })
 
 export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+
   @Input() shellMode: boolean = false;
   @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
+  reservationService = inject(ReservationService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private contactService = inject(ContactService);
+  private propertyService = inject(PropertyService);
+  private agentService = inject(AgentService);
+  private officeService = inject(OfficeService);
+  private emailService = inject(EmailService);
+  private commonService = inject(CommonService);
+  private authService = inject(AuthService);
+  formatterService = inject(FormatterService);
+  private dialog = inject(MatDialog);
+  private newContactDialogService = inject(NewContactDialogService);
+  private leaseReloadService = inject(LeaseReloadService);
+  private mappingService = inject(MappingService);
+  private mixedMappingService = inject(MixedMappingService);
+  private utilityService = inject(UtilityService);
+  private costCodesService = inject(CostCodesService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private userService = inject(UserService);
+  private invoiceService = inject(InvoiceService);
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
@@ -126,34 +151,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'contacts', 'cleaners']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public reservationService: ReservationService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private contactService: ContactService,
-    private propertyService: PropertyService,
-    private agentService: AgentService,
-    private officeService: OfficeService,
-    private emailService: EmailService,
-    private commonService: CommonService,
-    private authService: AuthService,
-    public formatterService: FormatterService,
-    private dialog: MatDialog,
-    private newContactDialogService: NewContactDialogService,
-    private leaseReloadService: LeaseReloadService,
-    private mappingService: MappingService,
-    private mixedMappingService: MixedMappingService,
-    private utilityService: UtilityService,
-    private costCodesService: CostCodesService,
-    private globalSelectionService: GlobalSelectionService,
-    private unsavedChangesDialogService: UnsavedChangesDialogService,
-    private userService: UserService,
-    private invoiceService: InvoiceService
-  ) {
-  }
 
   //#region Reservation
   ngOnInit(): void {

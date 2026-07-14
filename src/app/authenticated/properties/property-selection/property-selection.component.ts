@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,6 +33,20 @@ import { PropertyService } from '../services/property.service';
     styleUrl: './property-selection.component.scss'
 })
 export class PropertySelectionComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private propertyService = inject(PropertyService);
+  private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
+  private commonService = inject(CommonService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private regionService = inject(RegionService);
+  private areaService = inject(AreaService);
+  private buildingService = inject(BuildingService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private propertySelectionFilterService = inject(PropertySelectionFilterService);
+
   private readonly clearPinsEventName = 'rentall-clear-pins';
   form: FormGroup;
   isSubmitting: boolean = false;
@@ -57,23 +71,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private router: Router,
-    private fb: FormBuilder,
-    private propertyService: PropertyService,
-    private authService: AuthService,
-    private toastr: ToastrService,
-    private commonService: CommonService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private regionService: RegionService,
-    private areaService: AreaService,
-    private buildingService: BuildingService,
-    private globalSelectionService: GlobalSelectionService,
-    private propertySelectionFilterService: PropertySelectionFilterService
-  ) {
-  }
 
   //#region Property-Selection
   ngOnInit(): void {

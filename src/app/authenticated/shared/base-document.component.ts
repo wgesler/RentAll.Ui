@@ -69,6 +69,11 @@ export interface DocuSignConfig {
 }
 
 export abstract class BaseDocumentComponent {
+  public documentService = inject(DocumentService);
+  public documentExportService = inject(DocumentExportService);
+  public documentHtmlService = inject(DocumentHtmlService);
+  public toastr = inject(ToastrService);
+  protected emailService = inject(EmailService);
   protected authService = inject(AuthService);
   protected docuSignService = inject(DocuSignService);
   private readonly docuSignGlobalSelectionService = inject(GlobalSelectionService);
@@ -81,14 +86,6 @@ export abstract class BaseDocumentComponent {
 
   protected abstract getDocumentConfig(): DocumentConfig;
   protected abstract setDownloading(value: boolean): void;
-
-  constructor(
-    public documentService: DocumentService,
-    public documentExportService: DocumentExportService,
-    public documentHtmlService: DocumentHtmlService,
-    public toastr: ToastrService,
-    protected emailService: EmailService
-  ) {}
 
 
   async onDownload(downloadConfig: DownloadConfig): Promise<void> {

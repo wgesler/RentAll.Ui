@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -39,12 +39,27 @@ import { ReservationService } from '../services/reservation.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
-  private readonly clearPinsEventName = 'rentall-clear-pins';
   @Input() ownerUserId: string | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() readOnly: boolean = false;
   @Input() readOnlyOwnerLayout: boolean = false;
   @Input() showReservationNames: boolean = true;
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private colorService = inject(ColorService);
+  private commonService = inject(CommonService);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private officeService = inject(OfficeService);
+  private propertySelectionFilterService = inject(PropertySelectionFilterService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
+
+  private readonly clearPinsEventName = 'rentall-clear-pins';
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
 
   readonly boardAddressMaxChars = 23;
@@ -98,23 +113,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private contactService: ContactService,
-    private colorService: ColorService,
-    private commonService: CommonService,
-    private router: Router,
-    private authService: AuthService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private globalSelectionService: GlobalSelectionService,
-    private officeService: OfficeService,
-    private propertySelectionFilterService: PropertySelectionFilterService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) { }
 
   //#region Reservation-Board
   ngOnInit(): void {

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -34,12 +34,24 @@ import { RentRollEditLineDialogComponent, RentRollEditLineDialogData, RentRollEd
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   @Input() refreshTrigger = 0;
   @Output() createBill = new EventEmitter<RentRollCreateBillRequest>();
   @Output() createBills = new EventEmitter<RentRollCreateBillRequest[]>();
   @Output() openBill = new EventEmitter<ReceiptSelection>();
+  private authService = inject(AuthService);
+  private propertyAgreementService = inject(PropertyAgreementService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private formatter = inject(FormatterService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private receiptService = inject(ReceiptService);
+  private dialog = inject(MatDialog);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
   isAdmin = false;
 
   readonly rentRollDisplayedColumns: ColumnSet = {
@@ -71,20 +83,6 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   existingBillByAgreementLinePeriodKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
 
   loadSequence = 0;
-
-  constructor(
-    private authService: AuthService,
-    private propertyAgreementService: PropertyAgreementService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private formatter: FormatterService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private receiptService: ReceiptService,
-    private dialog: MatDialog,
-    private toastr: ToastrService,
-    private router: Router,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Rent Roll
   ngOnInit(): void {

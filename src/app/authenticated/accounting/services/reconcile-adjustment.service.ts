@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of, switchMap, throwError } from 'rxjs';
 import { SourceType } from '../models/accounting-enum';
 import { JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../models/journal-entry.model';
@@ -25,7 +25,8 @@ interface SyncAdjustmentParams {
   providedIn: 'root'
 })
 export class ReconcileAdjustmentService {
-  constructor(private generalLedgerService: GeneralLedgerService) {}
+  private generalLedgerService = inject(GeneralLedgerService);
+
 
   syncReconcileAdjustments(
     organizationId: string,

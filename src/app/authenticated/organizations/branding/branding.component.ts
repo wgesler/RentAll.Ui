@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
@@ -22,9 +22,16 @@ import { OrganizationService } from '../services/organization.service';
   styleUrl: './branding.component.scss'
 })
 export class BrandingComponent implements OnInit, OnDestroy {
-  @Input() organizationId: string | null = null;
 
-  form: FormGroup;
+  @Input() organizationId: string | null = null;
+  private fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private organizationService = inject(OrganizationService);
+  private brandingService = inject(BrandingService);
+  private utilityService = inject(UtilityService);
+
+  form!: FormGroup;
   fileName: string | null = null;
   fileDetails: FileDetails | null = null;
   logoPath: string | null = null;
@@ -50,15 +57,6 @@ export class BrandingComponent implements OnInit, OnDestroy {
       logoPath: null,
       collapsedLogoPath: null
   };
-
-  constructor(
-    private fb: FormBuilder,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private organizationService: OrganizationService,
-    private brandingService: BrandingService,
-    private utilityService: UtilityService
-  ) {}
 
   //#region Branding
   ngOnInit(): void {

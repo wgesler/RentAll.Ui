@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { FORM_TOKEN_PROVIDERS, FormTokenProvider, FormTokenProviderInputs } from './form-token-provider';
 
@@ -6,7 +6,8 @@ import { FORM_TOKEN_PROVIDERS, FormTokenProvider, FormTokenProviderInputs } from
 export class FormTokenProviderRegistryService {
   private readonly providerMap = new Map<string, FormTokenProvider>();
 
-  constructor(@Optional() @Inject(FORM_TOKEN_PROVIDERS) providers: FormTokenProvider[] | null) {
+  constructor() {
+    const providers = inject(FORM_TOKEN_PROVIDERS, { optional: true });
     (providers || []).forEach(provider => {
       const key = String(provider.contextType || '').trim().toLowerCase();
       if (!key) {

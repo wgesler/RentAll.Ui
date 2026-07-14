@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, skip, Subject, take, takeUntil } from 'rxjs';
@@ -33,6 +33,14 @@ import { DocumentListComponent } from '../document-list/document-list.component'
   styleUrl: './documents-shell.component.scss'
 })
 export class DocumentsShellComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+
   private readonly clearPinsEventName = 'rentall-clear-pins';
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-documents-shell-pinned-dates';
 
@@ -59,15 +67,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
   private initialOfficeScopeApplied = false;
   destroy$ = new Subject<void>();
 
-  constructor(
-    private router: Router,
-    private authService: AuthService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService
-  ) {
+  constructor() {
     this.applyPinnedDateRangeFromStorage();
     this.syncDocumentRequest();
   }

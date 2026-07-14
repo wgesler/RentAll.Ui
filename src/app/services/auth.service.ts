@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injector, Injectable } from '@angular/core';
+import { Injector, Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
@@ -29,6 +29,13 @@ import { StorageService } from './storage.service';
 })
 
 export class AuthService {
+    private http = inject(HttpClient);
+    private router = inject(Router);
+    private dialog = inject(MatDialog);
+    private storageService = inject(StorageService);
+    private configService = inject(ConfigService);
+    private injector = inject(Injector);
+
     public jwtChanged$ = new BehaviorSubject<boolean>(false);
     private authData$ = new BehaviorSubject<AuthResponse>(new AuthResponse());
     private jwtContainer$ = new BehaviorSubject<JwtContainer | undefined>(undefined);
@@ -38,13 +45,7 @@ export class AuthService {
 
     private readonly controller = this.configService.config().apiUrl + 'auth/';
 
-    constructor(
-        private http: HttpClient,
-        private router: Router,
-        private dialog: MatDialog,
-        private storageService: StorageService,
-        private configService: ConfigService,
-        private injector: Injector)
+    constructor()
     {
         const authData = this.storageService.getItem(StorageKey.AuthData);
         const storageAuthData = authData !== null ? JSON.parse(authData) as AuthResponse : null;

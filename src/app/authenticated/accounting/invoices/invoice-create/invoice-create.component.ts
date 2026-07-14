@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -56,12 +56,37 @@ import { InvoiceService } from '../../services/invoice.service';
     styleUrls: ['./invoice-create.component.scss']
 })
 export class InvoiceCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
+
   @Input() shellMode = false;
   @Input() invoiceIdInput: string | null = null;
   @Input() officeIdInput: number | null = null;
   @Input() reservationIdInput: string | null = null;
   @Input() companyIdInput: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
+  private propertyHtmlService = inject(PropertyHtmlService);
+  private accountingService = inject(InvoiceService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private officeService = inject(OfficeService);
+  private fb = inject(FormBuilder);
+  private utilityService = inject(UtilityService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private costCodesService = inject(CostCodesService);
+  private commonService = inject(CommonService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private contactService = inject(ContactService);
+  private http = inject(HttpClient);
+  private documentReloadService = inject(DocumentReloadService);
+  private sanitizer = inject(DomSanitizer);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private debugLayoutBandsService = inject(DebugLayoutBandsService);
+  private invoiceHtmlBuilder = inject(InvoiceHtmlBuilderService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
 
   officeId: number | null = null;
   reservationId: string | null = null;
@@ -119,37 +144,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'reservation', 'property', 'emailHtml', 'invoice', 'previewHtml']));
     destroy$ = new Subject<void>();
 
-  constructor(
-    private propertyHtmlService: PropertyHtmlService,
-    private accountingService: InvoiceService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private officeService: OfficeService,
-    private fb: FormBuilder,
-    private utilityService: UtilityService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private costCodesService: CostCodesService,
-    private commonService: CommonService,
-    emailService: EmailService,
-    private emailHtmlService: EmailHtmlService,
-    private contactService: ContactService,
-    private http: HttpClient,
-    private documentReloadService: DocumentReloadService,
-    private sanitizer: DomSanitizer,
-    public override toastr: ToastrService,
-    documentExportService: DocumentExportService,
-    documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService,
-    private accountingOfficeService: AccountingOfficeService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private debugLayoutBandsService: DebugLayoutBandsService,
-    private invoiceHtmlBuilder: InvoiceHtmlBuilderService,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.form = this.buildForm();
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }

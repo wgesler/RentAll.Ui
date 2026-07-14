@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AccountingOfficeRequest, AccountingOfficeResponse, AccountingOfficeCheckNumberUpdateRequest, AccountingOfficeCheckNumberUpdateResponse, AccountingOfficeWorkOrderNoUpdateRequest, AccountingOfficeWorkOrderNoUpdateResponse } from '../models/accounting-office.model';
@@ -9,15 +9,13 @@ import { AccountingOfficeRequest, AccountingOfficeResponse, AccountingOfficeChec
 })
 
 export class AccountingOfficeService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
 
   private allAccountingOffices$ = new BehaviorSubject<AccountingOfficeResponse[]>([]);
   private accountingOfficesLoaded$ = new BehaviorSubject<boolean>(false);
   private readonly controller = this.configService.config().apiUrl + 'organization/accounting-office/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   /** GET api/organization/accounting-office; API scope is user/org aware server-side. */
   loadAllAccountingOffices(): Observable<AccountingOfficeResponse[]> {

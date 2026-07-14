@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model';
@@ -8,12 +8,10 @@ import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model'
   providedIn: 'root'
 })
 export class InspectionPhotoService {
-  private readonly controller = this.configService.config().apiUrl + 'maintenance/inspection/photo/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService
-  ) {}
+  private readonly controller = this.configService.config().apiUrl + 'maintenance/inspection/photo/';
 
   getPhotoByGuid(photoId: string): Observable<PhotoResponse> {
     return this.http.get<PhotoResponse>(this.controller + photoId);

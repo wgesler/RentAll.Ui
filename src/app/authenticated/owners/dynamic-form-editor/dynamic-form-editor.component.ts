@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, Output, EventEmitter, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, Output, EventEmitter, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -24,6 +24,7 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
 })
 export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy {
 
+
   @Input() formName = '';
   @Input() formKey = '';
   @Input() token: string | null = null;
@@ -39,6 +40,14 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   @Input() reloadVersion = 0;
   @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
   @Output() viewRequested = new EventEmitter<string>();
+  private sanitizer = inject(DomSanitizer);
+  private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
+  private documentHtmlService = inject(DocumentHtmlService);
+  private dynamicFormDraftService = inject(DynamicFormDraftService);
+  private ownerFormTokenProviderService = inject(OwnerFormTokenProviderService);
+  private ownerFormViewModeService = inject(OwnerFormViewModeService);
+  private changeDetectorRef = inject(ChangeDetectorRef);
   @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
 
   isLoading = false;
@@ -50,17 +59,6 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   private ownerAgreementContext: OwnerAgreementContext | null = null;
 
   destroy$ = new Subject<void>();
-
-  constructor(
-    private sanitizer: DomSanitizer,
-    private authService: AuthService,
-    private toastr: ToastrService,
-    private documentHtmlService: DocumentHtmlService,
-    private dynamicFormDraftService: DynamicFormDraftService,
-    private ownerFormTokenProviderService: OwnerFormTokenProviderService,
-    private ownerFormViewModeService: OwnerFormViewModeService,
-    private changeDetectorRef: ChangeDetectorRef
-  ) {}
 
   //#region Dynamic-Form-Editor
   ngOnInit(): void {

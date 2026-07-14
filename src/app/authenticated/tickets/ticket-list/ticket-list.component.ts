@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
@@ -32,6 +32,7 @@ import { TicketService } from '../services/ticket.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() embeddedInSettings: boolean = false;
   @Input() assigneeFilterMode: 'assignedToMe' | 'allOthers' | 'closed' = 'assignedToMe';
   @Input() currentUserId: string | null = null;
@@ -42,6 +43,15 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() shellReservationId: string | null = null;
   @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
+  private ticketService = inject(TicketService);
+  private reservationService = inject(ReservationService);
+  private userService = inject(UserService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
 
   showInactive = false;
   isPageReady: boolean = false;
@@ -73,18 +83,6 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
-
-  constructor(
-    private router: Router,
-    private dialog: MatDialog,
-    private toastr: ToastrService,
-    private mappingService: MappingService,
-    private ticketService: TicketService,
-    private reservationService: ReservationService,
-    private userService: UserService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Ticket-List
   ngOnChanges(changes: SimpleChanges): void {

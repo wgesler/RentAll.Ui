@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -38,6 +38,7 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
   styleUrl: './dynamic-form-create.component.scss'
 })
 export class DynamicFormCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() formName = '';
   @Input() formKey = '';
   @Input() token: string | null = null;
@@ -49,6 +50,17 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
   @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
+  private ownersService = inject(OwnersService);
+  private ownerFormTokenProviderService = inject(OwnerFormTokenProviderService);
+  private ownerFormViewModeService = inject(OwnerFormViewModeService);
+  private ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+  private ownerDocuSignSignersDialogService = inject(OwnerDocuSignSignersDialogService);
+  private utilityService = inject(UtilityService);
+  private sanitizer = inject(DomSanitizer);
+  private changeDetectorRef = inject(ChangeDetectorRef);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  override toastr: ToastrService;
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
   isPageReady = true;
@@ -75,31 +87,14 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     return isOwnerAuthorizedAdmin(this.ownerAuthorization) && this.hasDocuSignAccess;
   }
 
-  constructor(
-    private ownersService: OwnersService,
-    private ownerFormTokenProviderService: OwnerFormTokenProviderService,
-    private ownerFormViewModeService: OwnerFormViewModeService,
-    private ownerDocuSignSignerService: OwnerDocuSignSignerService,
-    private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
-    private utilityService: UtilityService,
-    documentHtmlService: DocumentHtmlService,
-    private sanitizer: DomSanitizer,
-    private changeDetectorRef: ChangeDetectorRef,
-    documentService: DocumentService,
-    documentExportService: DocumentExportService,
-    public override toastr: ToastrService,
-    emailService: EmailService,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService
-  ) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
-  }
-
-  //#region Dynamic-Form-Create
-  ngOnInit(): void {
+  constructor() {
+    super();
+    }
+    //#region Dynamic-Form-Create
+    ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
+    this.isPageReady = items.size === 0;
+  });
 
     if (this.sharedContext$) {
       this.loadFromSharedContext(this.sharedContext$);

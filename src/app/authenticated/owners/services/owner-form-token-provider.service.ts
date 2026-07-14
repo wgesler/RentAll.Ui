@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { catchError, filter, forkJoin, map, Observable, of, take } from 'rxjs';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -18,16 +18,14 @@ import { OwnerIncludedOwnersService } from './owner-included-owners.service';
   providedIn: 'root'
 })
 export class OwnerFormTokenProviderService implements FormTokenProvider {
-  readonly contextType = 'owner';
+  private commonService = inject(CommonService);
+  private ownersService = inject(OwnersService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private ownerFormPlaceholderService = inject(OwnerFormPlaceholderService);
+  private ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
 
-  constructor(
-    private commonService: CommonService,
-    private ownersService: OwnersService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private ownerFormPlaceholderService: OwnerFormPlaceholderService,
-    private ownerIncludedOwnersService: OwnerIncludedOwnersService
-  ) {}
+  readonly contextType = 'owner';
 
   applyTokens(templateHtml: string, inputs: FormTokenProviderInputs): Observable<string> {
     const organizationId = String(this.commonService.getOrganizationValue()?.organizationId || '').trim();

@@ -1,5 +1,5 @@
 import { HttpBackend, HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, Subject, switchMap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -45,18 +45,19 @@ import { OwnerHtmlResponse } from '../../owners/models/owner-html.model';
   providedIn: 'root'
 })
 export class LeadsService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private mappingService = inject(MappingService);
+
   readonly controller: string;
   readonly commonController: string;
   private readonly rawHttp: HttpClient;
   private readonly leadStateChangedSubject = new Subject<void>();
   leadStateChanged$ = this.leadStateChangedSubject.asObservable();
 
-  constructor(
-    private http: HttpClient,
-    httpBackend: HttpBackend,
-    private configService: ConfigService,
-    private mappingService: MappingService
-  ) {
+  constructor() {
+    const httpBackend = inject(HttpBackend);
+
     this.controller = this.configService.config().apiUrl + 'leads/';
     this.commonController = this.configService.config().apiUrl + 'common/';
     // Bypass interceptors for anonymous public owner-form calls.

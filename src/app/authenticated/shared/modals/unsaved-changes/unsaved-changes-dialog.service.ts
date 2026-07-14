@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { GenericModalComponent } from '../generic/generic-modal.component';
@@ -8,7 +8,8 @@ import { GenericModalData } from '../generic/models/generic-modal-data';
   providedIn: 'root'
 })
 export class UnsavedChangesDialogService {
-  constructor(private dialog: MatDialog) {}
+  private dialog = inject(MatDialog);
+
 
   async confirmLeaveOrSave(message: string = 'You have unsaved changes. What would you like to do?'): Promise<'discard' | 'save'> {
     const dialogData: GenericModalData = {

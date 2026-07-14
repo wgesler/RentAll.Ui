@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, Inject, OnChanges, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnChanges, OnDestroy, OnInit, Input, Output, EventEmitter, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -40,6 +40,7 @@ import { PublicOwnerContactUpsertRequest } from '../../leads/models/owner-form-s
 })
 
 export class ContactComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() id: string = 'new';
   /** When embedded with prefill, update this existing contact on save without loading by id. */
   @Input() linkedContactId: string | null = null;
@@ -55,6 +56,32 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @Input() publicOwnerToken: string | null = null;
   @Input() publicReadOnlyContactCode: string | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
+  contactService = inject(ContactService);
+  router = inject(Router);
+  fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private commonService = inject(CommonService);
+  private formatterService = inject(FormatterService);
+  private authService = inject(AuthService);
+  private leadsService = inject(LeadsService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private mappingService = inject(MappingService);
+  private navigationContextService = inject(NavigationContextService);
+  private utilityService = inject(UtilityService);
+  private propertyService = inject(PropertyService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
+  private userService = inject(UserService);
+  private cdr = inject(ChangeDetectorRef);
+  dialogData? = inject<{
+    preloadedContact?: ContactResponse;
+    entityTypeId?: number;
+    compactDialogMode?: boolean;
+    showDialogCancelButton?: boolean;
+    preselectPropertyCodes?: string[];
+    preselectPropertyOfficeId?: number;
+}>(MAT_DIALOG_DATA, { optional: true });
 
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   EntityType = EntityType;
@@ -106,36 +133,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public contactService: ContactService,
-    public router: Router,
-    public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private commonService: CommonService,
-    private formatterService: FormatterService,
-    private authService: AuthService,
-    private leadsService: LeadsService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private mappingService: MappingService,
-    private navigationContextService: NavigationContextService,
-    private utilityService: UtilityService,
-    private propertyService: PropertyService,
-    private pdfThumbnailService: PdfThumbnailService,
-    private userService: UserService,
-    private cdr: ChangeDetectorRef,
-    @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: {
-      preloadedContact?: ContactResponse;
-      entityTypeId?: number;
-      compactDialogMode?: boolean;
-      showDialogCancelButton?: boolean;
-      preselectPropertyCodes?: string[];
-      preselectPropertyOfficeId?: number;
-    }
-  ) {
-  }
 
   //#region Contacts
   ngOnInit(): void {

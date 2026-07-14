@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -28,6 +28,7 @@ import { AccountingOfficeService } from '../../../organizations/services/account
   styleUrl: './transfer.component.scss'
 })
 export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
+
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() transferId: string | null = null;
@@ -37,6 +38,17 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<TransferResponse>();
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private transferService = inject(TransferService);
+  private propertyService = inject(PropertyService);
+  private officeService = inject(OfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private utilityService = inject(UtilityService);
+  formatter = inject(FormatterService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
   @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
 
   form: FormGroup;
@@ -77,19 +89,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     return Number.isFinite(accountId) && accountId > 0 ? null : { required: true };
   };
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private transferService: TransferService,
-    private propertyService: PropertyService,
-    private officeService: OfficeService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private accountingOfficeService: AccountingOfficeService,
-    private utilityService: UtilityService,
-    public formatter: FormatterService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.form = this.fb.group({});
   }
 

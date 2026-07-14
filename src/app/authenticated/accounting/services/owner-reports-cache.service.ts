@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
@@ -17,15 +17,13 @@ interface OwnerReportsCacheCriteria {
   providedIn: 'root'
 })
 export class OwnerReportsCacheService {
+  private reportService = inject(ReportService);
+  private mappingService = inject(MappingService);
+
   private cashReport: OwnerCashReportResponse | null = null;
   private accrualReport: OwnerAccrualReportResponse | null = null;
   private recapReport: RecapReportResponse | null = null;
   private cacheCriteria: OwnerReportsCacheCriteria | null = null;
-
-  constructor(
-    private reportService: ReportService,
-    private mappingService: MappingService
-  ) {}
 
   load(searchRequest?: MaintenanceListSearchRequest | null): Observable<OwnerReportsBundleResponse> {
     const request = this.mappingService.mapOwnerReportSearchRequest(searchRequest);

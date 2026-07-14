@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
@@ -54,8 +54,25 @@ type PropertyListDisplayRow = PropertyListDisplay & {
 })
 
 export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  private clipboard = inject(Clipboard);
+  propertyService = inject(PropertyService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  mappingService = inject(MappingService);
+  private authService = inject(AuthService);
+  private contactService = inject(ContactService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private route = inject(ActivatedRoute);
+  private utilityService = inject(UtilityService);
+  private dialog = inject(MatDialog);
+  private ngZone = inject(NgZone);
+  private propertySelectionFilterService = inject(PropertySelectionFilterService);
+  private propertyListingShareService = inject(PropertyListingShareService);
+  private cdr = inject(ChangeDetectorRef);
   @ViewChild('propertyListContextMenuTrigger') propertyListContextMenuTrigger?: MatMenuTrigger;
   
   panelOpenState: boolean = true;
@@ -109,25 +126,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope']));
-
-  constructor(
-    private clipboard: Clipboard,
-    public propertyService: PropertyService,
-    public toastr: ToastrService,
-    public router: Router,
-    public mappingService: MappingService,
-    private authService: AuthService,
-    private contactService: ContactService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private route: ActivatedRoute,
-    private utilityService: UtilityService,
-    private dialog: MatDialog,
-    private ngZone: NgZone,
-    private propertySelectionFilterService: PropertySelectionFilterService,
-    private propertyListingShareService: PropertyListingShareService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Property-List
   ngOnInit(): void {

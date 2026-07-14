@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
@@ -12,6 +12,8 @@ import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_
   styleUrl: './reconcile-columns-dialog.component.scss'
 })
 export class ReconcileColumnsDialogComponent {
+  private dialogRef = inject<MatDialogRef<ReconcileColumnsDialogComponent, ReconcileColumnsDialogResult | undefined>>(MatDialogRef);
+
   readonly columnOptions = RECONCILE_DIALOG_COLUMN_ORDER.map(key => ({
     key,
     label: RECONCILE_COLUMN_HEADERS[key]
@@ -20,9 +22,9 @@ export class ReconcileColumnsDialogComponent {
   paymentsSelected = new Set<ReconcileColumnKey>(DEFAULT_RECONCILE_VISIBLE_COLUMNS);
   depositsSelected = new Set<ReconcileColumnKey>(DEFAULT_RECONCILE_VISIBLE_COLUMNS);
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) data: ReconcileColumnsDialogData,
-    private dialogRef: MatDialogRef<ReconcileColumnsDialogComponent, ReconcileColumnsDialogResult | undefined>) {
+  constructor() {
+    const data = inject<ReconcileColumnsDialogData>(MAT_DIALOG_DATA);
+
     this.paymentsSelected = new Set(this.normalizeSelectedColumns(data.paymentsVisibleColumns));
     this.depositsSelected = new Set(this.normalizeSelectedColumns(data.depositsVisibleColumns));
   }

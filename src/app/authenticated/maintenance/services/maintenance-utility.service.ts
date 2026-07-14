@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityRequest, UtilityResponse } from '../models/utility.model';
@@ -8,12 +8,12 @@ import { UtilityRequest, UtilityResponse } from '../models/utility.model';
   providedIn: 'root'
 })
 export class MaintenanceUtilityService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   readonly controller: string;
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService
-  ) {
+  constructor() {
     this.controller = this.configService.config().apiUrl + 'maintenance/utility/';
   }
 

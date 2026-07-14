@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, switchMap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { CheckHtmlResponse } from '../models/check-html.model';
@@ -8,12 +8,10 @@ import { CheckHtmlResponse } from '../models/check-html.model';
   providedIn: 'root'
 })
 export class CheckHtmlService {
-  private readonly controller = this.configService.config().apiUrl + 'accounting/check-html';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService
-  ) { }
+  private readonly controller = this.configService.config().apiUrl + 'accounting/check-html';
 
   getCheckHtmlByScope(officeId?: number | null): Observable<string> {
     const params = officeId != null && officeId > 0 ? `?officeId=${officeId}` : '';

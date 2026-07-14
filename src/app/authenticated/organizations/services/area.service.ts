@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AreaRequest, AreaResponse } from '../models/area.model';
@@ -9,13 +9,11 @@ import { AreaRequest, AreaResponse } from '../models/area.model';
 })
 
 export class AreaService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'organization/area/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   // GET: Get all areas
   getAreas(): Observable<AreaResponse[]> {

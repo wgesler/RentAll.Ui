@@ -1,6 +1,6 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable, Subject, Subscription, map, shareReplay, take, takeUntil } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
@@ -31,6 +31,18 @@ import { SidebarStateService } from '../services/sidebar-state.service';
 })
 
 export class HeaderComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private brandingService = inject(BrandingService);
+  private commonService = inject(CommonService);
+  private breakpointObserver = inject(BreakpointObserver);
+  private dialog = inject(MatDialog);
+  private userService = inject(UserService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private sidebarStateService = inject(SidebarStateService);
+  private debugLayoutBandsService = inject(DebugLayoutBandsService);
+  private cdr = inject(ChangeDetectorRef);
+
   private readonly clearPinsEventName = 'rentall-clear-pins';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   brandingLogoUrl$: Observable<string> = this.brandingService.getLogoUrl$();
@@ -52,20 +64,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   profilePictureUrl: string | null = null;
   destroy$ = new Subject<void>();
   private userSubscription?: Subscription;
-
-  constructor(
-    private authService: AuthService,
-    private brandingService: BrandingService,
-    private commonService: CommonService,
-    private breakpointObserver: BreakpointObserver,
-    private dialog: MatDialog,
-    private userService: UserService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private sidebarStateService: SidebarStateService,
-    private debugLayoutBandsService: DebugLayoutBandsService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

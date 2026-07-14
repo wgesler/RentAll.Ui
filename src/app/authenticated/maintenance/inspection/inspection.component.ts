@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Subject, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
@@ -45,6 +45,7 @@ export type ChecklistType = 'inspection';
   styleUrl: './inspection.component.scss'
 })
 export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
+
   @Input() property: PropertyResponse | null = null;
   @Input() templateJson: string | null = null;
   @Input() answersJson: string | null = null;
@@ -65,6 +66,19 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   @Output() titleBarReservationUiChange = new EventEmitter<{ required: boolean; showError: boolean }>();
   @Output() unsavedChangesChange = new EventEmitter<boolean>();
   @Output() saveRequestCompleted = new EventEmitter<{ token: number; success: boolean }>();
+  fb = inject(FormBuilder);
+  authService = inject(AuthService);
+  documentService = inject(DocumentService);
+  utilityService = inject(UtilityService);
+  inspectionPhotoService = inject(InspectionPhotoService);
+  toastr = inject(ToastrService);
+  dialog = inject(MatDialog);
+  maintenanceService = inject(MaintenanceService);
+  inspectionService = inject(InspectionService);
+  mappingService = inject(MappingService);
+  private configService = inject(ConfigService);
+  private cdr = inject(ChangeDetectorRef);
+  private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
 
   readonly inspectionTypeOptions = getInspectionTypes();
   inspectionTypeIdControl = new FormControl<number>(InspectionType.Online, { nonNullable: true });
@@ -103,23 +117,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     { value: 'exactlyOne', label: 'Exactly One' },
     { value: 'atLeastOne', label: 'At Least One' }
   ];
-
-  constructor(
-    public fb: FormBuilder,
-    public authService: AuthService,
-    public documentService: DocumentService,
-    public utilityService: UtilityService,
-    public inspectionPhotoService: InspectionPhotoService,
-    public toastr: ToastrService,
-    public dialog: MatDialog,
-    public maintenanceService: MaintenanceService,
-    public inspectionService: InspectionService,
-    public mappingService: MappingService,
-    private configService: ConfigService,
-    private cdr: ChangeDetectorRef,
-    private unsavedChangesDialogService: UnsavedChangesDialogService
-  ) {
-  }
 
   //#region Checklist
   ngOnInit(): void {

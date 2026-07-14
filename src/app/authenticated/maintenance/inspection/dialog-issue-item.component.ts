@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
@@ -75,14 +75,14 @@ export type DialogIssueItemResult = {
   `
 })
 export class DialogIssueItemComponent {
+  dialogRef = inject<MatDialogRef<DialogIssueItemComponent, DialogIssueItemResult | null>>(MatDialogRef);
+
   @ViewChild('photoInput') photoInput?: ElementRef<HTMLInputElement>;
   issueControl = new FormControl<string>('', [Validators.required]);
   photoFile: File | null = null;
   selectedPhotoName = '';
   photoPreviewUrl = '';
   photoTouched = false;
-
-  constructor(public dialogRef: MatDialogRef<DialogIssueItemComponent, DialogIssueItemResult | null>) {}
 
   get canConfirm(): boolean {
     const issueText = (this.issueControl.value || '').trim();

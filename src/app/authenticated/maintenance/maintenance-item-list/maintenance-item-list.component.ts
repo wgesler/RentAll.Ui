@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { UtilityService } from '../../../services/utility.service';
@@ -24,9 +24,7 @@ interface MaintenanceItemEditRow {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceItemListComponent implements OnChanges {
-  constructor(
-    private utilityService: UtilityService
-  ) {}
+
 
   @Input() maintenanceItems: MaintenanceItemResponse[] = [];
   @Input() isLoading = false;
@@ -34,6 +32,7 @@ export class MaintenanceItemListComponent implements OnChanges {
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: MaintenanceItemRequest[]; deleteIds: number[] }>();
   @Output() deleteExisting = new EventEmitter<number>();
+  private utilityService = inject(UtilityService);
 
   rows: MaintenanceItemEditRow[] = [];
   originalRowsById = new Map<number, { name: string; notes: string; monthsBetweenService: number; lastServicedOn: string | null }>();

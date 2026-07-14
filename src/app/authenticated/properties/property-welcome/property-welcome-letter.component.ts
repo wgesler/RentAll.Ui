@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -54,6 +54,7 @@ import { environment } from '../../../../environments/environment';
     styleUrls: ['./property-welcome-letter.component.scss']
 })
 export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() propertyId: string;
   @Input() isAddMode: boolean = false;
   @Input() titleBarReservationId: string | null = null;
@@ -63,6 +64,28 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   @Input() showReservationOnly: boolean = false;
   @Input() reservations: ReservationListResponse[] = [];
   @Output() reservationSelected = new EventEmitter<string | null>();
+  private propertyHtmlService = inject(PropertyHtmlService);
+  private propertyInformationService = inject(PropertyInformationService);
+  private propertyService = inject(PropertyService);
+  private commonService = inject(CommonService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private fb = inject(FormBuilder);
+  private sanitizer = inject(DomSanitizer);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private buildingService = inject(BuildingService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private welcomeLetterReloadService = inject(WelcomeLetterReloadService);
+  private documentReloadService = inject(DocumentReloadService);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
 
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -96,35 +119,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   logoSourcesLoaded = { accountingOffices: false, organization: false };
   destroy$ = new Subject<void>();
 
-  constructor(
-    private propertyHtmlService: PropertyHtmlService,
-    private propertyInformationService: PropertyInformationService,
-    private propertyService: PropertyService,
-    private commonService: CommonService,
-    private emailHtmlService: EmailHtmlService,
-    private reservationService: ReservationService,
-    private contactService: ContactService,
-    private fb: FormBuilder,
-    private sanitizer: DomSanitizer,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private buildingService: BuildingService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private welcomeLetterReloadService: WelcomeLetterReloadService,
-    private documentReloadService: DocumentReloadService,
-    private http: HttpClient,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService,
-    private cdr: ChangeDetectorRef,
-    public override toastr: ToastrService,
-    documentExportService: DocumentExportService,
-    documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService,
-    emailService: EmailService,
-) {
-    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  constructor() {
+    super();
     this.form = this.buildForm();
   }
 

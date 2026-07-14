@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 
 import { Observable, of } from 'rxjs';
 
@@ -23,6 +23,8 @@ import { BillPaymentRequest, BillPaymentResponse, ReceiptRequest, ReceiptRespons
 })
 
 export class ReceiptService {
+  private mappingService = inject(MappingService);
+
 
   readonly controller: string;
 
@@ -32,15 +34,10 @@ export class ReceiptService {
 
 
 
-  constructor(
+  constructor() {
+    const http = inject(HttpClient);
+    const configService = inject(ConfigService);
 
-    http: HttpClient,
-
-    configService: ConfigService,
-
-    private mappingService: MappingService
-
-  ) {
 
     this.http = http;
 

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ChangeDetectorRef, inject } from '@angular/core';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
@@ -166,6 +166,29 @@ interface AccountingShellPinnedTopBarState {
     styleUrls: ['./accounting-shell.component.scss']
 })
 export class AccountingShellComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private authService = inject(AuthService);
+  private organizationService = inject(OrganizationService);
+  private costCodesService = inject(CostCodesService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private generalLedgerService = inject(GeneralLedgerService);
+  private reconcileService = inject(ReconcileService);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private receiptService = inject(ReceiptService);
+  private workOrderService = inject(WorkOrderService);
+  private invoiceService = inject(InvoiceService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
+
   private readonly clearPinsEventName = 'rentall-clear-pins';
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
@@ -370,30 +393,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   destroy$ = new Subject<void>();
 
-  constructor(
-    private router: Router,
-    private route: ActivatedRoute,
-    private authService: AuthService,
-    private organizationService: OrganizationService,
-    private costCodesService: CostCodesService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private generalLedgerService: GeneralLedgerService,
-    private reconcileService: ReconcileService,
-    private formatterService: FormatterService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private receiptService: ReceiptService,
-    private workOrderService: WorkOrderService,
-    private invoiceService: InvoiceService,
-    private ownerReportsCacheService: OwnerReportsCacheService,
-    private toastr: ToastrService,
-    private dialog: MatDialog,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.syncInvoiceSearchDateRange();
     this.syncBillsSearchRequest();
   }
@@ -458,10 +458,26 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const invoiceId = paramMap.get('id');
       this.activeInvoiceId = invoiceId;
+      this.hydrateSelectedInvoiceForActiveId();
       if (invoiceId && this.selectedTabIndex !== 0) {
         this.selectedTabIndex = 0;
       }
     });
+  }
+
+  /** List→detail remounts this shell (accounting vs accounting/:id); restore prefetch from router state. */
+  private hydrateSelectedInvoiceForActiveId(): void {
+    if (!this.activeInvoiceId) {
+      this.selectedInvoice = null;
+      return;
+    }
+
+    if (this.selectedInvoice?.invoiceId === this.activeInvoiceId) {
+      return;
+    }
+
+    const stateInvoice = history.state?.['prefetchedInvoice'] as InvoiceResponse | undefined;
+    this.selectedInvoice = stateInvoice?.invoiceId === this.activeInvoiceId ? stateInvoice : null;
   }
 
   initializeSuperAdminFilters(): void {
@@ -625,10 +641,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedReservationId = selection.reservationId;
     }
 
+    // Keep the current shell instance. Navigating accounting → accounting/:id remounts
+    // this component and mat-tab teardown was bouncing back to the list.
     this.selectedInvoice = selection.invoice ?? null;
     this.activeInvoiceId = invoiceId;
     this.selectedTabIndex = 0;
-    this.router.navigate([RouterUrl.replaceTokens(RouterUrl.Accounting, [invoiceId])], {
+    this.cdr.markForCheck();
+    this.router.navigate([], {
+      relativeTo: this.route,
       queryParams: this.buildShellQueryParams({ tab: '0' }),
       queryParamsHandling: 'merge',
       state: selection.invoice ? { prefetchedInvoice: selection.invoice } : undefined
@@ -1973,6 +1993,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.skipNextDropdownTabMenuOpen = true;
     if (!this.hasAccountingFullAccess && event.index > this.tabMaxIndexLimited) {
       this.selectedTabIndex = 0;
+      return;
+    }
+
+    // Ignore re-emits for the already-selected tab (mat-tab can fire these during content swaps).
+    if (event.index === this.selectedTabIndex && !!this.activeInvoiceId) {
       return;
     }
 
@@ -4111,6 +4136,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private clearInvoiceShellDetailState(): void {
     this.activeInvoiceId = null;
+    this.selectedInvoice = null;
     this.showInvoiceCreate = false;
     this.invoiceCreateContext = null;
     this.invoiceCreateReturnToEditor = false;
@@ -4154,48 +4180,21 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.activeInvoiceId = null;
     this.selectedInvoice = null;
+    this.selectedTabIndex = 0;
+    this.cdr.markForCheck();
 
-    const currentQueryParams = this.route.snapshot.queryParams || {};
-    const editorFormValue = this.accountingInvoiceEditor?.form?.getRawValue?.() || {};
-    const officeIdFromEditor = editorFormValue?.officeId;
-    const reservationIdFromEditor = editorFormValue?.reservationId;
-    const reservationIdFromEditorSelection = this.accountingInvoiceEditor?.selectedReservation?.reservationId ?? null;
-
-    const officeIdToUse = this.selectedOfficeId
-      ?? getNumberQueryParam(currentQueryParams, 'officeId')
-      ?? (officeIdFromEditor != null && officeIdFromEditor !== '' ? Number(officeIdFromEditor) : null);
-    const reservationIdToUse = (reservationIdFromEditor ? String(reservationIdFromEditor) : null)
-      ?? (reservationIdFromEditorSelection ? String(reservationIdFromEditorSelection) : null)
-      ?? this.selectedReservationId
-      ?? (currentQueryParams['reservationId'] ? String(currentQueryParams['reservationId']) : null);
-    const companyIdToUse = this.selectedCompanyId
-      ?? (currentQueryParams['companyId'] ? String(currentQueryParams['companyId']) : null);
-    const organizationIdToUse = this.selectedOrganizationId
-      ?? (currentQueryParams['organizationId'] ? String(currentQueryParams['organizationId']) : null);
-
-    this.selectedOfficeId = officeIdToUse;
-    this.selectedReservationId = reservationIdToUse;
-    this.selectedCompanyId = companyIdToUse;
-    this.selectedOrganizationId = organizationIdToUse;
-
-    const params: string[] = ['tab=0'];
-    if (officeIdToUse !== null && officeIdToUse !== undefined) {
-      params.push(`officeId=${officeIdToUse}`);
-    }
-    if (reservationIdToUse) {
-      params.push(`reservationId=${reservationIdToUse}`);
-    }
-    if (companyIdToUse) {
-      params.push(`companyId=${companyIdToUse}`);
-    }
-    if (organizationIdToUse) {
-      params.push(`organizationId=${organizationIdToUse}`);
+    // Deep-link detail route (accounting/:id) → return to list URL.
+    // In-shell opens already live on AccountingList, so only refresh query params.
+    if (this.route.snapshot.paramMap.get('id')) {
+      this.navigateAccountingShellListUrl(this.buildShellQueryParams({ tab: '0' }));
+      return;
     }
 
-    const url = params.length > 0
-      ? `${RouterUrl.AccountingList}?${params.join('&')}`
-      : RouterUrl.AccountingList;
-    this.router.navigateByUrl(url);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ tab: '0' }),
+      queryParamsHandling: 'merge'
+    });
   }
   //#endregion
 

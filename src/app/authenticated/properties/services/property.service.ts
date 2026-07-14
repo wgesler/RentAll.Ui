@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, firstValueFrom, of, switchMap, take, tap } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
@@ -24,19 +24,17 @@ import {
 })
 
 export class PropertyService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private authService = inject(AuthService);
+  private mappingService = inject(MappingService);
+  private mixedMappingService = inject(MixedMappingService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'property/';
   private allPropertyCodes$ = new BehaviorSubject<PropertyCodeResponse[]>([]);
   private propertyCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService,
-      private authService: AuthService,
-      private mappingService: MappingService,
-      private mixedMappingService: MixedMappingService) {
-  }
 
   private getOrganizationId(): string {
     return this.authService.getUser()?.organizationId?.trim() ?? '';

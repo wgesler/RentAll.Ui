@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { FormatterService } from '../../../services/formatter-service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { JournalEntryLineListDisplay } from '../models/journal-entry.model';
@@ -23,7 +23,8 @@ export interface CheckPrintMergeContext {
   providedIn: 'root'
 })
 export class CheckPrintService {
-  constructor(private formatter: FormatterService) { }
+  private formatter = inject(FormatterService);
+
 
   mergeCheckTemplate(template: string, context: CheckPrintMergeContext): string {
     let result = template;

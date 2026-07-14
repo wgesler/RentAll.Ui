@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AgentRequest, AgentResponse } from '../models/agent.model';
@@ -9,13 +9,11 @@ import { AgentRequest, AgentResponse } from '../models/agent.model';
 })
 
 export class AgentService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'organization/agent/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   // GET: Get all agents
   getAgents(): Observable<AgentResponse[]> {

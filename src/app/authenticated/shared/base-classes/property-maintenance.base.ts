@@ -1,4 +1,4 @@
-import { Directive, OnDestroy, OnInit } from '@angular/core';
+import { Directive, OnDestroy, OnInit, inject } from '@angular/core';
 import { BehaviorSubject, Subject, Subscription, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
@@ -20,6 +20,16 @@ import { PropertyMaintenance, PropertyVacancyDisplay, ReservationPropertyMainten
 import { ServiceType, getServiceType } from '../models/mixed-enums';
 @Directive()
 export class PropertyMaintenanceBase implements OnInit, OnDestroy {
+  protected authService = inject(AuthService);
+  protected reservationService = inject(ReservationService);
+  protected mixedMappingService = inject(MixedMappingService);
+  protected mappingService = inject(MappingService);
+  protected propertyService = inject(PropertyService);
+  protected maintenanceService = inject(MaintenanceService);
+  protected utilityService = inject(UtilityService);
+  protected officeService = inject(OfficeService);
+  protected globalSelectionService = inject(GlobalSelectionService);
+
   protected itemsToLoad$!: BehaviorSubject<Set<string>>;
 
   user: JwtUser | null = null;
@@ -66,18 +76,6 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   rentedCount = 0;
   vacantCount = 0;
   propertiesByVacancy: PropertyVacancyDisplay[] = [];
-
-  constructor(
-    protected authService: AuthService,
-    protected reservationService: ReservationService,
-    protected mixedMappingService: MixedMappingService,
-    protected mappingService: MappingService,
-    protected propertyService: PropertyService,
-    protected maintenanceService: MaintenanceService,
-    protected utilityService: UtilityService,
-    protected officeService: OfficeService,
-    protected globalSelectionService: GlobalSelectionService
-  ) { }
 
   //#region Property-Maintenance Base
   ngOnInit(): void {

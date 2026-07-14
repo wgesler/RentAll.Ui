@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { finalize, forkJoin, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -37,6 +37,8 @@ import { LogService } from '../services/log.service';
   ]
 })
 export class LogsShellComponent implements OnInit, OnDestroy {
+  private logService = inject(LogService);
+
   selectedTabIndex = 0;
   reloadToken = 0;
   isDeletingAll = false;
@@ -47,8 +49,6 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   selectedApplicationLog: ApplicationLogResponse | null = null;
   selectedDatabaseError: DatabaseErrorLogResponse | null = null;
   selectedGeneralError: GeneralErrorLogResponse | null = null;
-
-  constructor(private logService: LogService) {}
 
   //#region Logs-Shell
   ngOnInit(): void {}

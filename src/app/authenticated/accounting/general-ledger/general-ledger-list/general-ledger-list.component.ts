@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -48,6 +48,7 @@ import { GeneralLedgerComponent } from '../general-ledger/general-ledger.compone
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() reservationId: string | null = null;
@@ -69,6 +70,26 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Output() createJournalEntryClosedEvent = new EventEmitter<void>();
   @Output() journalEntryCreatedEvent = new EventEmitter<JournalEntryResponse | undefined>();
   @Output() officeValidationRequiredEvent = new EventEmitter<void>();
+  generalLedgerService = inject(GeneralLedgerService);
+  mappingService = inject(MappingService);
+  formatter = inject(FormatterService);
+  private officeService = inject(OfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private checkHtmlService = inject(CheckHtmlService);
+  private checkPrintService = inject(CheckPrintService);
+  private checkPrintApiService = inject(CheckPrintApiService);
+  private dialog = inject(MatDialog);
+  private documentHtmlService = inject(DocumentHtmlService);
+  private sanitizer = inject(DomSanitizer);
+  private authService = inject(AuthService);
+  private depositService = inject(DepositService);
+  private transferService = inject(TransferService);
+  private reportService = inject(ReportService);
+  private journalEntrySourceService = inject(JournalEntrySourceService);
+  private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
 
   selectedJournalEntryLineIds = new Set<string>();
   selectedJournalEntryIds = new Set<string>();
@@ -148,29 +169,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   destroy$ = new Subject<void>();
   private journalEntryLinesLoadId = 0;
   private cancelJournalEntryLinesLoad$ = new Subject<void>();
-
-  constructor(
-    public generalLedgerService: GeneralLedgerService,
-    public mappingService: MappingService,
-    public formatter: FormatterService,
-    private officeService: OfficeService,
-    private chartOfAccountsService: ChartOfAccountsService,
-    private accountingOfficeService: AccountingOfficeService,
-    private checkHtmlService: CheckHtmlService,
-    private checkPrintService: CheckPrintService,
-    private checkPrintApiService: CheckPrintApiService,
-    private dialog: MatDialog,
-    private documentHtmlService: DocumentHtmlService,
-    private sanitizer: DomSanitizer,
-    private authService: AuthService,
-    private depositService: DepositService,
-    private transferService: TransferService,
-    private reportService: ReportService,
-    private journalEntrySourceService: JournalEntrySourceService,
-    private utilityService: UtilityService,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region General-Ledger-List
   ngOnInit(): void {

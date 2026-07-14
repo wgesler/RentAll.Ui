@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, firstValueFrom, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -26,9 +26,16 @@ import { LogService } from '../services/log.service';
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() reloadToken = 0;
   @Output() openGeneralErrorLog = new EventEmitter<GeneralErrorLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+  private logService = inject(LogService);
+  private formatter = inject(FormatterService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private invoiceService = inject(InvoiceService);
+  private receiptService = inject(ReceiptService);
 
   rows: Array<GeneralErrorLogResponse & { reservationCodeDisplay: string; propertyCodeDisplay: string; invoiceCodeDisplay: string; receiptCodeDisplay: string; createdOnDate: string }> = [];
   isLoading = false;
@@ -42,8 +49,6 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
     message: { displayAs: 'Message', maxWidth: '45ch' },
     createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
   };
-
-  constructor(private logService: LogService, private formatter: FormatterService, private propertyService: PropertyService, private reservationService: ReservationService, private invoiceService: InvoiceService, private receiptService: ReceiptService) {}
 
   //#region General-Error-Log-List
   ngOnInit(): void {

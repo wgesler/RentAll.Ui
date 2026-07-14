@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -42,6 +42,13 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
   styleUrl: './property-shell.component.scss'
 })
 export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+
   readonly DocumentType = DocumentType;
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
@@ -63,15 +70,6 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   titleBarPropertyCode = '';
   isAdminUser = false;
   destroy$ = new Subject<void>();
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private dialog: MatDialog,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService
-  ) {}
 
   //#region Property-Shell
   ngOnInit(): void {

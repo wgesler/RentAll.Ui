@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -44,8 +44,18 @@ import { ServiceType } from '../../shared/models/mixed-enums';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceListComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  formatterService = inject(FormatterService);
+  route = inject(ActivatedRoute);
+  ngZone = inject(NgZone);
+  maintenanceItemsService = inject(MaintenanceItemsService);
+  userService = inject(UserService);
+  private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
   
   panelOpenState: boolean = true;
   allDisplayedProperties: MaintenanceListDisplay[] = [];
@@ -130,29 +140,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices','activeReservations','propertyMaintenanceList','cleaners','carpetUsers','inspectors']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-
-  constructor(
-    authService: AuthService,
-    reservationService: ReservationService,
-    mixedMappingService: MixedMappingService,
-    mappingService: MappingService,
-    propertyService: PropertyService,
-    maintenanceService: MaintenanceService,
-    utilityService: UtilityService,
-    officeService: OfficeService,
-    globalSelectionService: GlobalSelectionService,
-    public toastr: ToastrService,
-    public router: Router,
-    public formatterService: FormatterService,
-    public route: ActivatedRoute,
-    public ngZone: NgZone,
-    public maintenanceItemsService: MaintenanceItemsService,
-    public userService: UserService,
-    private dialog: MatDialog,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
-  }
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

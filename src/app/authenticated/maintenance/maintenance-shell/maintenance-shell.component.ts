@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -54,6 +54,16 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
   styleUrl: './maintenance-shell.component.scss'
 })
 export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+
   readonly DocumentType = DocumentType;
 
   property: PropertyResponse | null = null;
@@ -123,17 +133,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private authService: AuthService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private unsavedChangesDialogService: UnsavedChangesDialogService
-  ) {
+  constructor() {
     this.setDefaultDateRange();
     this.syncMaintenanceSearchRequests();
   }

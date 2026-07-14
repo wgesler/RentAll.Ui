@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -25,6 +25,13 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationListComponent implements OnInit, OnDestroy {
+  organizationService = inject(OrganizationService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
+
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allOrganizations: OrganizationListDisplay[] = [];
@@ -44,15 +51,6 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   isPageReady = false;
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
-
-  constructor(
-    public organizationService: OrganizationService,
-    public toastr: ToastrService,
-    public router: Router,
-    private mappingService: MappingService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Organization-List
   ngOnInit(): void {

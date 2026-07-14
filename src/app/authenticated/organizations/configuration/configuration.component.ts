@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { skip, Subject, take, takeUntil } from 'rxjs';
@@ -68,6 +68,13 @@ import { StateFormComponent } from '../state-form/state-form.component';
     styleUrls: ['./configuration.component.scss']
 })
 export class ConfigurationComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private navigationContext = inject(NavigationContextService);
+  private organizationService = inject(OrganizationService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
+  private globalSelectionService = inject(GlobalSelectionService);
+
   @ViewChild(OfficeListComponent) officeListComponent?: OfficeListComponent;
   @ViewChild(AgentListComponent) agentListComponent?: AgentListComponent;
   @ViewChild(RegionListComponent) regionListComponent?: RegionListComponent;
@@ -120,16 +127,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   settingsOfficesInitialized = false;
 
   destroy$ = new Subject<void>();
-
-  constructor(
-    private router: Router,
-    private navigationContext: NavigationContextService,
-    private organizationService: OrganizationService,
-    private officeService: OfficeService,
-    private authService: AuthService,
-    private globalSelectionService: GlobalSelectionService
-  ) {
-  }
 
   //#region Configuration
   ngOnInit(): void {

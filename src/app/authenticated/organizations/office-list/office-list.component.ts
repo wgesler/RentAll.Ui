@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
@@ -30,9 +30,16 @@ export interface OfficeCopyPayload {
 })
 
 export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyOfficeEvent = new EventEmitter<OfficeCopyPayload>();
+  officeService = inject(OfficeService);
+  toastr = inject(ToastrService);
+  mappingService = inject(MappingService);
+  private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allOffices: OfficeListDisplay[] = [];
@@ -51,16 +58,6 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   isPageReady = false;
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
-
-  constructor(
-    public officeService: OfficeService,
-    public toastr: ToastrService,
-    public mappingService: MappingService,
-    private authService: AuthService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {
-  }
 
   //#region Office-List
   ngOnInit(): void {

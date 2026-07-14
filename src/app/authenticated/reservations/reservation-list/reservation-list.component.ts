@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -45,8 +45,25 @@ import { ReservationService } from '../services/reservation.service';
 })
 
 export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
+
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  reservationService = inject(ReservationService);
+  toastr = inject(ToastrService);
+  router = inject(Router);
+  route = inject(ActivatedRoute);
+  mappingService = inject(MappingService);
+  private formatterService = inject(FormatterService);
+  private propertyService = inject(PropertyService);
+  private emailService = inject(EmailService);
+  private utilityService = inject(UtilityService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private authService = inject(AuthService);
+  private dialog = inject(MatDialog);
+  private propertySelectionFilterService = inject(PropertySelectionFilterService);
+  private invoiceService = inject(InvoiceService);
+  private cdr = inject(ChangeDetectorRef);
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -98,25 +115,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'properties', 'officeScope']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public reservationService: ReservationService,
-    public toastr: ToastrService,
-    public router: Router,
-    public route: ActivatedRoute,
-    public mappingService: MappingService,
-    private formatterService: FormatterService,
-    private propertyService: PropertyService,
-    private emailService: EmailService,
-    private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private authService: AuthService,
-    private dialog: MatDialog,
-    private propertySelectionFilterService: PropertySelectionFilterService,
-    private invoiceService: InvoiceService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Reservation List
   ngOnInit(): void {

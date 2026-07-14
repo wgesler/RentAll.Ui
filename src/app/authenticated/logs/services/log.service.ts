@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse } from '../models/log.model';
@@ -8,9 +8,10 @@ import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogRespon
   providedIn: 'root'
 })
 export class LogService {
-  private readonly controller = this.configService.config().apiUrl + 'log/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
 
-  constructor(private http: HttpClient, private configService: ConfigService) {}
+  private readonly controller = this.configService.config().apiUrl + 'log/';
 
   //#region Accounting Error Methods
   getAllAccountingError(): Observable<AccountingErrorLogResponse[]> {

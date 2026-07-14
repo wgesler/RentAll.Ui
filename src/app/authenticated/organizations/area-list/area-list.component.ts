@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
@@ -27,8 +27,16 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Output() areaSelected = new EventEmitter<string | number | null>();
+  areaService = inject(AreaService);
+  toastr = inject(ToastrService);
+  mappingService = inject(MappingService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allAreas: AreaListDisplay[] = [];
@@ -50,16 +58,6 @@ export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'areas', 'officeScope']));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public areaService: AreaService,
-    public toastr: ToastrService,
-    public mappingService: MappingService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Area-List
   ngOnInit(): void {

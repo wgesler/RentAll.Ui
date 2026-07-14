@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
@@ -31,6 +31,11 @@ import { RouterUrl } from '../../../app.routes';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardServiceComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
+  private userService = inject(UserService);
+  private formatterService = inject(FormatterService);
+  private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
+
   todayDate = '';
   tomorrowDate = '';
   userId?: string | null;
@@ -107,24 +112,6 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     'bed4Text': { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
-
-  constructor(
-    authService: AuthService,
-    private userService: UserService,
-    reservationService: ReservationService,
-    mixedMappingService: MixedMappingService,
-    mappingService: MappingService,
-    propertyService: PropertyService,
-    maintenanceService: MaintenanceService,
-    utilityService: UtilityService,
-    officeService: OfficeService,
-    globalSelectionService: GlobalSelectionService,
-    private formatterService: FormatterService,
-    private router: Router,
-    private cdr: ChangeDetectorRef
-  ) {
-    super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
-  }
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();

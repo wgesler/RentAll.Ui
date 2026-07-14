@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
@@ -13,11 +13,10 @@ import { InvoicePrintContext } from '../models/invoice-print-context.model';
   providedIn: 'root'
 })
 export class InvoiceHtmlBuilderService {
-  constructor(
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private documentHtmlService: DocumentHtmlService
-  ) {}
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private documentHtmlService = inject(DocumentHtmlService);
+
 
   private readonly chargesTableLayoutStyles = `
     .charges-table {

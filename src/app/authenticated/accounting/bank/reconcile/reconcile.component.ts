@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
@@ -38,6 +38,7 @@ interface ReconcileSortState {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() organizationId = '';
   @Input() chartOfAccountId: number | null = null;
@@ -47,6 +48,15 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   @Output() leaveEvent = new EventEmitter<void>();
   @Output() reconcileCompleteEvent = new EventEmitter<void>();
   @Output() modifyEvent = new EventEmitter<void>();
+  private generalLedgerService = inject(GeneralLedgerService);
+  private reconcileDraftService = inject(ReconcileDraftService);
+  private authService = inject(AuthService);
+  private mappingService = inject(MappingService);
+  private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private dialog = inject(MatDialog);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
 
   readonly tableColumnOrder = RECONCILE_TABLE_COLUMN_ORDER;
   readonly tableName = 'reconcile-list';
@@ -69,17 +79,6 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
   private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
   private readonly columnPreferencesStorageKeyPrefix = 'rentall-reconcile-columns';
-
-  constructor(
-    private generalLedgerService: GeneralLedgerService,
-    private reconcileDraftService: ReconcileDraftService,
-    private authService: AuthService,
-    private mappingService: MappingService,
-    private formatterService: FormatterService,
-    private utilityService: UtilityService,
-    private dialog: MatDialog,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef) {}
 
   //#region Reconcile
   ngOnInit(): void {

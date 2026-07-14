@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
 import { ContactResponse } from '../../../contacts/models/contact.model';
@@ -22,13 +22,15 @@ export interface DocuSignSignersDialogData {
   styleUrl: './docusign-signers-dialog.component.scss'
 })
 export class DocuSignSignersDialogComponent {
+  data = inject<DocuSignSignersDialogData>(MAT_DIALOG_DATA);
+  dialogRef = inject<MatDialogRef<DocuSignSignersDialogComponent, DocuSignSignerConfig[] | undefined>>(MatDialogRef);
+  ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+
   slots: DocuSignSignerSlot[];
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: DocuSignSignersDialogData,
-    public dialogRef: MatDialogRef<DocuSignSignersDialogComponent, DocuSignSignerConfig[] | undefined>,
-    public ownerDocuSignSignerService: OwnerDocuSignSignerService
-  ) {
+  constructor() {
+    const data = this.data;
+
     this.slots = (data.slots || []).map(slot => ({ ...slot }));
   }
 

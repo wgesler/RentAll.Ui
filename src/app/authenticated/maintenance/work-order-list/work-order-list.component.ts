@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, takeUntil, toArray } from 'rxjs';
@@ -41,6 +41,7 @@ export interface WorkOrderSelection {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
@@ -55,6 +56,17 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() showOwnersOnlyToggle = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
+  private authService = inject(AuthService);
+  private workOrderService = inject(WorkOrderService);
+  private receiptService = inject(ReceiptService);
+  private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private contactService = inject(ContactService);
+  private utilityService = inject(UtilityService);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
   isServiceError: boolean = false;
@@ -89,20 +101,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     enteredInQb: { displayAs: 'QB', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
-
-  constructor(
-    private authService: AuthService,
-    private workOrderService: WorkOrderService,
-    private receiptService: ReceiptService,
-    private mappingService: MappingService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private contactService: ContactService,
-    private utilityService: UtilityService,
-    private router: Router,
-    private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
 
   //#region Work-Order List

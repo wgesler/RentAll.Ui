@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { UtilityService } from '../../../../services/utility.service';
@@ -20,6 +20,7 @@ import { JournalEntrySourceService } from '../../services/journal-entry-source.s
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() reservationId: string | null = null;
@@ -28,6 +29,10 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   @Input() isLoading = false;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private journalEntrySourceService = inject(JournalEntrySourceService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
   isServiceError = false;
@@ -58,13 +63,6 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-
-  constructor(
-    private ownerReportsCacheService: OwnerReportsCacheService,
-    private journalEntrySourceService: JournalEntrySourceService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   //#region Journal Entry Recap
   ngOnInit(): void {

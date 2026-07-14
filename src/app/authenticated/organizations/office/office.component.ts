@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil } from 'rxjs';
@@ -30,11 +30,21 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewInit {
+
   @Input() id: string | number | null = null;
   @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
   @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  officeService = inject(OfficeService);
+  fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private formatterService = inject(FormatterService);
+  private commonService = inject(CommonService);
+  private costCodesService = inject(CostCodesService);
+  private userService = inject(UserService);
+  private utilityService = inject(UtilityService);
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {this.quotePrefaceEditor = value; this.syncQuoteTextEditorFromForm('quotePreface'); }
   @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteSuffixEditor = value; this.syncQuoteTextEditorFromForm('quoteSuffix'); }
@@ -74,19 +84,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-
-  constructor(
-    public officeService: OfficeService,
-    public fb: FormBuilder,
-    private toastr: ToastrService,
-    private authService: AuthService,
-    private formatterService: FormatterService,
-    private commonService: CommonService,
-    private costCodesService: CostCodesService,
-    private userService: UserService,
-    private utilityService: UtilityService
-  ) {
-  }
 
   //#region Office
   ngOnInit(): void {

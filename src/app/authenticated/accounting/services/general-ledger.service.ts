@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -12,14 +12,12 @@ import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
   providedIn: 'root'
 })
 export class GeneralLedgerService {
-  private readonly controller = this.configService.config().apiUrl + 'accounting/';
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
 
-  constructor(
-    private http: HttpClient,
-    private configService: ConfigService,
-    private mappingService: MappingService,
-    private utilityService: UtilityService) {
-  }
+  private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
   searchJournalEntryLines(request: JournalEntryLineSearchRequest): Observable<JournalEntryLineSearchResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);

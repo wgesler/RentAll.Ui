@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { BuildingRequest, BuildingResponse } from '../models/building.model';
@@ -9,13 +9,11 @@ import { BuildingRequest, BuildingResponse } from '../models/building.model';
 })
 
 export class BuildingService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
+
   
   private readonly controller = this.configService.config().apiUrl + 'organization/building/';
-
-  constructor(
-      private http: HttpClient,
-      private configService: ConfigService) {
-  }
 
   // GET: Get all buildings
   getBuildings(): Observable<BuildingResponse[]> {

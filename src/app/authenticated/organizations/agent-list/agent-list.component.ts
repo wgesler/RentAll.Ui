@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, skip, take, Subject, takeUntil} from 'rxjs';
@@ -28,10 +28,19 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() officeId: number | null = null;
   /** When true (default), filter by the header office selector. Settings embed sets this false and passes officeId. */
   @Input() useGlobalOfficeSelection = true;
   @Output() agentSelected = new EventEmitter<string | number | null>();
+  agentService = inject(AgentService);
+  toastr = inject(ToastrService);
+  mappingService = inject(MappingService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allAgents: AgentListDisplay[] = [];
@@ -52,17 +61,6 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
   isPageReady = false;
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'agents', 'officeScope']));
-
-  constructor(
-    public agentService: AgentService,
-    public toastr: ToastrService,
-    public mappingService: MappingService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef) {
-  }
 
   //#region Agent-List
   ngOnInit(): void {
