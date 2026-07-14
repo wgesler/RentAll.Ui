@@ -109,7 +109,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   activeAgreementLineId: number | null = null;
   activeAgreementLineNotes: string | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -178,16 +178,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.clearReceiptLoading();
       this.applyShellOfficeToReceipt();
       this.applyPrefillIfNeeded();
-    } else if (this.prefetchedReceipt && this.prefetchedReceipt.receiptId === this.receiptId) {
-      this.applyLoadedReceipt(this.prefetchedReceipt);
     } else {
-      const prefetchedReceipt = this.resolvePrefetchedReceipt();
-      if (prefetchedReceipt) {
-        this.applyLoadedReceipt(prefetchedReceipt);
-      } else {
-        this.isReceiptContentReady = false;
-        this.loadReceipt();
-      }
+      this.isReceiptContentReady = false;
+      this.loadReceipt();
     }
     this.emitPropertySelectionRequiredState();
   }
@@ -229,22 +222,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.applyPrefillIfNeeded();
       } else {
         this.isReceiptContentReady = false;
-        if (this.prefetchedReceipt && this.prefetchedReceipt.receiptId === this.receiptId) {
-          this.applyLoadedReceipt(this.prefetchedReceipt);
-        } else {
-          const prefetchedReceipt = this.resolvePrefetchedReceipt();
-          if (prefetchedReceipt) {
-            this.applyLoadedReceipt(prefetchedReceipt);
-          } else {
-            this.loadReceipt();
-          }
-        }
+        this.loadReceipt();
       }
-    }
-
-    if (changes['prefetchedReceipt'] && !changes['prefetchedReceipt'].firstChange
-      && this.prefetchedReceipt && this.prefetchedReceipt.receiptId === this.receiptId) {
-      this.applyLoadedReceipt(this.prefetchedReceipt);
     }
 
     if (changes['prefill']) {
@@ -578,19 +557,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
-  resolvePrefetchedReceipt(): ReceiptResponse | null {
-    if (this.prefetchedReceipt?.receiptId === this.receiptId) {
-      return this.prefetchedReceipt;
-    }
-
-    const stateReceipt = history.state?.prefetchedReceipt as ReceiptResponse | undefined;
-    if (stateReceipt?.receiptId === this.receiptId) {
-      return stateReceipt;
-    }
-
-    return null;
-  }
-
   loadReceipt(): void {
     if (this.isAddMode || !this.receiptId) {
       this.clearReceiptLoading();

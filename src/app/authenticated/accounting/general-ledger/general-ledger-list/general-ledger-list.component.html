@@ -319,6 +319,17 @@
                   <mat-icon>visibility</mat-icon>
                   View
                 </button>
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="accent"
+                  id="print-checks-button"
+                  class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                  (click)="printSelectedChecks()"
+                  [disabled]="!isPrintChecksFormValid || isLoadingCheckPreview">
+                  <mat-icon>print</mat-icon>
+                  Print
+                </button>
               </div>
             </div>
           }

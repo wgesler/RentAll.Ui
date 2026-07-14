@@ -45,23 +45,23 @@ export class CheckPrintService {
   buildMergeContext(line: JournalEntryLineListDisplay, accountingOffice: AccountingOfficeResponse | null): CheckPrintMergeContext {
     const amount = Number(line.creditValue || 0);
     const checkDate = (line.transactionDate || '').trim();
-    const checkNumber = this.resolveCheckNumber(line);
+    const checkNumber = (line.checkNumber || '').trim() || this.resolveCheckNumber(line);
     const payeeName = (line.contactName || '').trim() || 'Payee';
     const memo = this.buildMemo(line);
     const detailRow = this.buildStubDetailRow(line, amount);
 
     return {
-      companyBlock: this.buildCompanyBlock(accountingOffice),
-      bankBlock: this.buildBankBlock(accountingOffice),
+      companyBlock: '',
+      bankBlock: '',
       checkNumber,
       checkDate,
       payeeName,
       checkAmountFormatted: `$${this.formatter.currency(amount)}`,
       checkAmountPlain: this.formatter.currency(amount),
       amountInWords: this.amountToWords(amount),
-      payeeAddressBlock: payeeName,
+      payeeAddressBlock: '',
       memo,
-      micrLine: this.buildMicrLine(checkNumber, accountingOffice),
+      micrLine: '',
       vendorStubDetailRows: detailRow,
       companyStubDetailRows: this.buildCompanyStubDetailRow(line, amount)
     };

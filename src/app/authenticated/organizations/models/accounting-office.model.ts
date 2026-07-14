@@ -44,6 +44,9 @@ export interface AccountingOfficeRequest {
   defaultPrePayAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
+  checkStockPath?: string;
+  checkStockFileDetails?: FileDetails;
+  currentCheckNumber: number;
   isActive: boolean;
 }
 
@@ -91,6 +94,9 @@ export interface AccountingOfficeResponse {
   defaultPrePayAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
+  checkStockPath?: string;
+  checkStockFileDetails?: FileDetails;
+  currentCheckNumber: number;
   isActive: boolean;
 }
 
@@ -113,4 +119,29 @@ export interface AccountingOfficeWorkOrderNoUpdateRequest {
 export interface AccountingOfficeWorkOrderNoUpdateResponse {
   officeId: number;
   workOrderNo: number;
+}
+
+export interface AccountingOfficeCheckNumberUpdateRequest {
+  currentCheckNumber: number;
+}
+
+export interface AccountingOfficeCheckNumberUpdateResponse {
+  officeId: number;
+  currentCheckNumber: number;
+}
+
+export interface AssignCheckNumbersRequest {
+  officeId: number;
+  startingCheckNumber: number;
+  journalEntryIds: string[];
+}
+
+export interface CheckPrintAssignment {
+  journalEntryId: string;
+  checkNumber: string;
+}
+
+export interface AssignCheckNumbersResponse {
+  assignments: CheckPrintAssignment[];
+  nextCheckNumber: number;
 }

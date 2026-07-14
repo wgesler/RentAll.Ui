@@ -32,7 +32,7 @@ export class CheckHtmlService {
   }
 
   private resolveTemplate(template: string): Observable<string> {
-    if (template.includes('{{companyBlock}}')) {
+    if (template.includes('{{payeeName}}') || template.includes('{{checkDate}}')) {
       return of(template);
     }
     return this.loadAssetCheckHtml();

@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Even
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, throwError, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -28,6 +29,8 @@ import { buildJournalEntryFromSearchLines, GeneralLedgerEntryDisplay, JournalEnt
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../../services/check-html.service';
 import { CheckPrintService } from '../../services/check-print.service';
+import { CheckPrintApiService } from '../../services/check-print-api.service';
+import { ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult } from '../../bank/confirm-check-number-dialog/confirm-check-number-dialog.component';
 import { DepositRequest, DepositResponse, DepositSplit } from '../../models/deposit.model';
 import { DepositService } from '../../services/deposit.service';
 import { TransferRequest, TransferResponse, TransferSplit } from '../../models/transfer.model';
@@ -155,6 +158,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     private accountingOfficeService: AccountingOfficeService,
     private checkHtmlService: CheckHtmlService,
     private checkPrintService: CheckPrintService,
+    private checkPrintApiService: CheckPrintApiService,
+    private dialog: MatDialog,
     private documentHtmlService: DocumentHtmlService,
     private sanitizer: DomSanitizer,
     private authService: AuthService,
@@ -766,7 +771,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       resolvedLines = resolvedLines.filter(line =>
         Number(line.sourceTypeId) === SourceType.BillPayment
         && bankAccountIdSet.has(line.chartOfAccountId)
-        && Number(line.credit || 0) > 0);
+        && Number(line.credit || 0) > 0
+        && !(line.checkNumber || '').trim());
     }
     if (this.depositsOnly) {
       const bankAccountIdSet = new Set(filteredAccountIds);
@@ -2597,14 +2603,83 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   viewSelectedChecks(): void {
+    this.previewSelectedChecks(this.resolveSelectedCheckLines(), null);
+  }
+
+  printSelectedChecks(): void {
+    const selectedLines = this.resolveSelectedCheckLines();
+    if (!selectedLines) {
+      return;
+    }
+
+    const accountingOffice = this.accountingOffices.find(office => office.officeId === this.officeId) ?? null;
+    const startingCheckNumber = accountingOffice?.currentCheckNumber ?? 1;
+    const dialogRef = this.dialog.open<ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult | undefined>(
+      ConfirmCheckNumberDialogComponent,
+      {
+        width: '28rem',
+        data: {
+          startingCheckNumber,
+          checkCount: selectedLines.length
+        }
+      }
+    );
+
+    dialogRef.afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe(result => {
+      if (!result) {
+        return;
+      }
+
+      const journalEntryIds = [...new Set(selectedLines.map(line => line.journalEntryId))];
+      this.isLoadingCheckPreview = true;
+      this.checkPrintApiService.assignCheckNumbers({
+        officeId: this.officeId!,
+        startingCheckNumber: result.startingCheckNumber,
+        journalEntryIds
+      }).pipe(
+        switchMap(assignResult => {
+          const checkNumberByJournalEntryId = new Map(
+            assignResult.assignments.map(assignment => [assignment.journalEntryId, assignment.checkNumber])
+          );
+          const office = this.accountingOffices.find(item => item.officeId === this.officeId);
+          if (office) {
+            office.currentCheckNumber = assignResult.nextCheckNumber;
+          }
+
+          return forkJoin({
+            template: this.checkHtmlService.getCheckHtmlByScope(this.officeId),
+            accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId!).pipe(catchError(() => of(null))),
+            checkNumberByJournalEntryId: of(checkNumberByJournalEntryId)
+          });
+        }),
+        finalize(() => {
+          this.isLoadingCheckPreview = false;
+          this.markViewForCheck();
+        }),
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: ({ template, accountingOffice, checkNumberByJournalEntryId }) => {
+          const linesWithNumbers = this.applyCheckNumbersToLines(selectedLines, checkNumberByJournalEntryId, result.startingCheckNumber);
+          this.renderCheckPreview(template, accountingOffice, linesWithNumbers, true);
+          this.clearPrintCheckLineSelection();
+          this.loadJournalEntryLines();
+        },
+        error: () => {
+          this.toastr.error('Unable to assign check numbers.', CommonMessage.Error);
+        }
+      });
+    });
+  }
+
+  private resolveSelectedCheckLines(): JournalEntryLineListDisplay[] | null {
     if (!this.isPrintChecksFormValid) {
       this.toastr.warning('Select one or more checks to view.');
-      return;
+      return null;
     }
 
     if (!this.officeId) {
       this.toastr.warning('Please select an office first');
-      return;
+      return null;
     }
 
     const selectedLines = this.linesDisplay.filter(line =>
@@ -2612,13 +2687,51 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     );
     if (selectedLines.length === 0) {
       this.toastr.warning('Select one or more checks to view.');
+      return null;
+    }
+
+    return selectedLines;
+  }
+
+  private applyCheckNumbersToLines(
+    selectedLines: JournalEntryLineListDisplay[],
+    checkNumberByJournalEntryId: Map<string, string> | null,
+    startingCheckNumber: number
+  ): JournalEntryLineListDisplay[] {
+    let nextNumber = startingCheckNumber;
+    const assignedByJournalEntryId = new Map<string, string>();
+
+    return selectedLines.map(line => {
+      let checkNumber = checkNumberByJournalEntryId?.get(line.journalEntryId) || assignedByJournalEntryId.get(line.journalEntryId);
+      if (!checkNumber) {
+        checkNumber = String(nextNumber);
+        assignedByJournalEntryId.set(line.journalEntryId, checkNumber);
+        nextNumber += 1;
+      }
+
+      return {
+        ...line,
+        checkNumber
+      };
+    });
+  }
+
+  private previewSelectedChecks(
+    selectedLines: JournalEntryLineListDisplay[] | null,
+    startingCheckNumber: number | null
+  ): void {
+    if (!selectedLines) {
       return;
     }
+
+    const draftStartingNumber = startingCheckNumber
+      ?? this.accountingOffices.find(office => office.officeId === this.officeId)?.currentCheckNumber
+      ?? 1;
 
     this.isLoadingCheckPreview = true;
     forkJoin({
       template: this.checkHtmlService.getCheckHtmlByScope(this.officeId),
-      accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId).pipe(catchError(() => of(null)))
+      accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId!).pipe(catchError(() => of(null)))
     }).pipe(
       finalize(() => {
         this.isLoadingCheckPreview = false;
@@ -2626,27 +2739,53 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }),
       takeUntil(this.destroy$)
     ).subscribe(({ template, accountingOffice }) => {
-      if (!template) {
-        this.toastr.error('Check HTML template was not found.', CommonMessage.Error);
-        return;
-      }
-
-      const mergedHtml = this.checkPrintService.buildMergedChecksHtml(template, selectedLines, accountingOffice);
-      const processed = this.documentHtmlService.processHtml(mergedHtml, true);
-      const bodyContent = this.documentHtmlService.extractBodyContent(processed.processedHtml);
-      const styles = processed.extractedStyles;
-      const srcdoc = styles.trim()
-        ? `<!DOCTYPE html><html><head><meta charset="UTF-8"><style data-dynamic-styles="true">${styles}</style></head><body>${bodyContent}</body></html>`
-        : mergedHtml;
-
-      this.safeCheckPreviewHtml = this.sanitizer.bypassSecurityTrustHtml(srcdoc);
-      this.checkPreviewTitle = selectedLines.length === 1
-        ? `Check ${(selectedLines[0].journalEntryCode || '').trim()}`.trim()
-        : `${selectedLines.length} Checks`;
-      this.checkPreviewIframeKey++;
-      this.showCheckPreview = true;
-      this.markViewForCheck();
+      const linesWithNumbers = this.applyCheckNumbersToLines(selectedLines, null, draftStartingNumber);
+      this.renderCheckPreview(template, accountingOffice, linesWithNumbers, false);
     });
+  }
+
+  private renderCheckPreview(
+    template: string,
+    accountingOffice: AccountingOfficeResponse | null,
+    linesWithNumbers: JournalEntryLineListDisplay[],
+    printAfterPreview: boolean
+  ): void {
+    if (!template) {
+      this.toastr.error('Check HTML template was not found.', CommonMessage.Error);
+      return;
+    }
+
+    const mergedHtml = this.checkPrintService.buildMergedChecksHtml(template, linesWithNumbers, accountingOffice);
+    const processed = this.documentHtmlService.processHtml(mergedHtml, true);
+    const bodyContent = this.documentHtmlService.extractBodyContent(processed.processedHtml);
+    const styles = processed.extractedStyles;
+    const srcdoc = styles.trim()
+      ? `<!DOCTYPE html><html><head><meta charset="UTF-8"><style data-dynamic-styles="true">${styles}</style></head><body>${bodyContent}</body></html>`
+      : mergedHtml;
+
+    this.safeCheckPreviewHtml = this.sanitizer.bypassSecurityTrustHtml(srcdoc);
+    this.checkPreviewTitle = linesWithNumbers.length === 1
+      ? `Check ${(linesWithNumbers[0].checkNumber || '').trim()}`.trim()
+      : `${linesWithNumbers.length} Checks`;
+    this.checkPreviewIframeKey++;
+    this.showCheckPreview = true;
+    this.markViewForCheck();
+
+    if (printAfterPreview) {
+      setTimeout(() => this.triggerCheckPrint(), 250);
+    }
+  }
+
+  private triggerCheckPrint(): void {
+    const iframe = this.checkPreviewIframe?.nativeElement;
+    const printWindow = iframe?.contentWindow;
+    if (!printWindow) {
+      this.toastr.warning('Check preview is not ready to print yet.');
+      return;
+    }
+
+    printWindow.focus();
+    printWindow.print();
   }
 
   closeCheckPreview(): void {

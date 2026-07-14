@@ -1,0 +1,31 @@
+<h2 mat-dialog-title>Confirm Check Number</h2>
+
+<mat-dialog-content>
+  <p class="confirm-check-number-dialog__summary">
+    You are about to print {{ data.checkCount }} check{{ data.checkCount === 1 ? '' : 's' }}.
+  </p>
+
+  <form [formGroup]="form" class="confirm-check-number-dialog__form">
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Starting check number</mat-label>
+      <input matInput type="number" min="1" formControlName="startingCheckNumber" inputmode="numeric">
+      @if (form.get('startingCheckNumber')?.hasError('required') && form.get('startingCheckNumber')?.touched) {
+        <mat-error>Check number is required</mat-error>
+      }
+      @if (form.get('startingCheckNumber')?.hasError('min') && form.get('startingCheckNumber')?.touched) {
+        <mat-error>Check number must be at least 1</mat-error>
+      }
+    </mat-form-field>
+
+    @if (data.checkCount > 1) {
+      <p class="confirm-check-number-dialog__range">
+        Check numbers {{ form.get('startingCheckNumber')?.value }} through {{ endingCheckNumber }} will be assigned.
+      </p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="onCancel()">Cancel</button>
+  <button mat-raised-button type="button" color="primary" (click)="onConfirm()">Print</button>
+</mat-dialog-actions>

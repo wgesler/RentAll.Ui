@@ -39,6 +39,7 @@ export interface JournalEntryLineSearchResponse {
   sourceTypeId?: number | null;
   sourceId?: string | null;
   sourceCode?: string | null;
+  checkNumber?: string | null;
   journalEntryMemo?: string | null;
   isPosted: boolean;
   isVoided: boolean;
@@ -212,6 +213,7 @@ export interface JournalEntryLineListDisplay {
   officeId: number;
   transactionDate: string;
   journalEntryCode: string;
+  checkNumber?: string;
   source: string;
   sourceTypeId?: number | null;
   sourceId?: string | null;

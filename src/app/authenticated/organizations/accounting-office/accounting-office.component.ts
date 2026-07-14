@@ -49,6 +49,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
   logoPath: string = null;
+  checkStockFileName: string = null;
+  checkStockFileDetails: FileDetails = null;
+  hasNewCheckStockUpload: boolean = false;
+  checkStockPath: string = null;
+  isUploadingCheckStock: boolean = false;
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
@@ -234,6 +239,21 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         if (response.logoPath) {
           this.logoPath = response.logoPath;
         }
+        if (response.checkStockFileDetails && response.checkStockFileDetails.file) {
+          this.checkStockFileDetails = response.checkStockFileDetails;
+          if (!this.checkStockFileDetails.dataUrl || this.checkStockFileDetails.dataUrl.trim() === '') {
+            const contentType = this.checkStockFileDetails.contentType || 'application/pdf';
+            if (this.checkStockFileDetails.file.startsWith('data:')) {
+              this.checkStockFileDetails.dataUrl = this.checkStockFileDetails.file;
+            } else {
+              this.checkStockFileDetails.dataUrl = `data:${contentType};base64,${this.checkStockFileDetails.file}`;
+            }
+          }
+          this.hasNewCheckStockUpload = false;
+        }
+        if (response.checkStockPath) {
+          this.checkStockPath = response.checkStockPath;
+        }
         this.buildForm();
         this.loadChartOfAccountsForOffice(response?.officeId, () => {
           this.populateForm();
@@ -302,6 +322,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAddress: formValue.bankAddress || '',
       bankPhone: bankPhoneDigits,
       workOrderNo: Number(formValue.workOrderNo) || 0,
+      currentCheckNumber: Number(formValue.currentCheckNumber) || 1,
       defaultTenantIncAccountId: this.parseOptionalAccountId(formValue.defaultTenantIncAccountId),
       defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
       defaultOwnerIncAccountId: this.parseOptionalAccountId(formValue.defaultOwnerIncAccountId),
@@ -326,6 +347,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       website: formValue.website || '',
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
+      checkStockFileDetails: this.hasNewCheckStockUpload ? this.checkStockFileDetails : undefined,
+      checkStockPath: this.hasNewCheckStockUpload ? undefined : this.checkStockPath,
       isActive: formValue.isActive
     };
 
@@ -407,6 +430,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAddress: new FormControl('', [Validators.required]),
       bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
+      currentCheckNumber: new FormControl(1, [Validators.required, Validators.min(1)]),
       defaultTenantIncAccountId: new FormControl<number | null>(null),
       defaultTenantExpAccountId: new FormControl<number | null>(null),
       defaultOwnerIncAccountId: new FormControl<number | null>(null),
@@ -428,6 +452,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultOwnActPayableAccountId: new FormControl<number | null>(null),
       defaultPrePayAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
+      checkStockUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['pdf'], ['application/pdf'], 10000000, true)] }),
       isActive: new FormControl(true)
     });
   }
@@ -454,6 +479,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
         workOrderNo: this.accountingOffice.workOrderNo ?? 0,
+        currentCheckNumber: this.accountingOffice.currentCheckNumber ?? 1,
         defaultTenantIncAccountId: this.accountingOffice.defaultTenantIncAccountId ?? null,
         defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
         defaultOwnerIncAccountId: this.accountingOffice.defaultOwnerIncAccountId ?? null,
@@ -643,6 +669,36 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.hasNewFileUpload = false; // Reset flag when logo is removed
     this.form.patchValue({ fileUpload: null });
     this.form.get('fileUpload').updateValueAndValidity();
+  }
+
+  async uploadCheckStock(event: Event): Promise<void> {
+    this.isUploadingCheckStock = true;
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      this.isUploadingCheckStock = false;
+      return;
+    }
+
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      this.checkStockFileName = payload.fileDetails.fileName;
+      this.form.patchValue({ checkStockUpload: payload.uploadFile });
+      this.form.get('checkStockUpload')?.updateValueAndValidity();
+      this.checkStockPath = null;
+      this.hasNewCheckStockUpload = true;
+      this.checkStockFileDetails = payload.fileDetails;
+    } finally {
+      this.isUploadingCheckStock = false;
+    }
+  }
+
+  removeCheckStock(): void {
+    this.checkStockPath = null;
+    this.checkStockFileName = null;
+    this.checkStockFileDetails = null;
+    this.hasNewCheckStockUpload = false;
+    this.form.patchValue({ checkStockUpload: null });
+    this.form.get('checkStockUpload')?.updateValueAndValidity();
   }
   //#endregion
 

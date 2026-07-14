@@ -348,6 +348,42 @@
                 </div>
               </mat-expansion-panel>
 
+              <mat-expansion-panel [expanded]="true" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Check Printing</mat-panel-title>
+                </mat-expansion-panel-header>
+
+                <div class="grid grid-cols-4 form-standard-grid">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-label>Current Check Number</mat-label>
+                    <input matInput type="number" min="1" formControlName="currentCheckNumber" inputmode="numeric">
+                    @if (form.get('currentCheckNumber')?.hasError('required') && form.get('currentCheckNumber')?.touched) {
+                      <mat-error>Current check number is required</mat-error>
+                    }
+                    @if (form.get('currentCheckNumber')?.hasError('min') && form.get('currentCheckNumber')?.touched) {
+                      <mat-error>Current check number must be at least 1</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <div class="col-span-3">
+                    <p class="mb-2">Upload a PDF of your pre-printed check stock for alignment reference.</p>
+                    @if (checkStockFileDetails?.fileName) {
+                      <p class="mb-2"><strong>{{ checkStockFileDetails.fileName }}</strong></p>
+                    }
+                    <div class="flex gap-2 items-center flex-wrap">
+                      <button mat-raised-button type="button" color="primary" (click)="checkStockUploadInput.click()" [disabled]="isUploadingCheckStock">
+                        <mat-icon>upload_file</mat-icon>
+                        Upload Check PDF
+                      </button>
+                      @if (checkStockFileDetails?.file || checkStockPath) {
+                        <button mat-button type="button" color="accent" (click)="removeCheckStock()">Remove</button>
+                      }
+                    </div>
+                    <input type="file" #checkStockUploadInput accept="application/pdf,.pdf" (change)="uploadCheckStock($event)" style="display: none;" />
+                  </div>
+                </div>
+              </mat-expansion-panel>
+
               <!-- Default Chart of Accounts -->
               <mat-expansion-panel [expanded]="true" class="mb-4">
                 <mat-expansion-panel-header>
