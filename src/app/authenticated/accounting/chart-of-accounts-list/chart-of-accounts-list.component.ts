@@ -53,14 +53,16 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   accountTypes = AccountTypeLabels.map(({ value, label }) => ({ value, label }));
 
   chartOfAccountsDisplayedColumns: ColumnSet = {
-    officeName: { displayAs: 'Office', maxWidth: '20ch' },
-    accountNo: { displayAs: 'Account No', maxWidth: '15ch', sortType: 'natural' },
-    accountType: { displayAs: 'Type', maxWidth: '25ch' },
+    officeName: { displayAs: 'Office', maxWidth: '15ch' },
+    accountNo: { displayAs: 'Account', maxWidth: '10ch', sortType: 'natural' },
+    accountType: { displayAs: 'Type', maxWidth: '20ch' },
     name: { displayAs: 'Name', maxWidth: '35ch' },
     description: { displayAs: 'Description', maxWidth: '35ch' },
-    parentAccountDropdown: { displayAs: 'Parent Account', maxWidth: '30ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter accounts...' },
-    isSubaccountDisplay: { displayAs: 'Subaccount', maxWidth: '12ch', alignment: 'center' }
-  };
+    endingBalanceDisplay: { displayAs: 'Ending Balance', maxWidth: '18ch' },
+    statementDateDisplay: { displayAs: 'Statement Date', maxWidth: '18ch' },
+    isSubaccountDisplay: { displayAs: 'Subaccount', maxWidth: '12ch', alignment: 'center' },
+    parentAccountDropdown: { displayAs: 'Parent Account', maxWidth: '30ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter accounts...' }
+   };
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccounts']));

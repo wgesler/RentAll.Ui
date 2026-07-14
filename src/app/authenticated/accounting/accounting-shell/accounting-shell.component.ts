@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { MatMenuTrigger } from '@angular/material/menu';
+import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -61,6 +62,8 @@ import { OwnerStatementListComponent } from '../owner-statement-list/owner-state
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../journal-entry-recap/journal-entry-recap.component';
 import { ReconcileComponent } from '../reconcile/reconcile.component';
+import { BeginReconciliationDialogComponent } from '../reconcile/begin-reconciliation-dialog.component';
+import { BeginReconciliationDialogResult } from '../models/reconcile.model';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -298,6 +301,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   transfersRefreshTrigger = 0;
   transferReportRefreshTrigger = 0;
   reconcileRefreshTrigger = 0;
+  reconcileSetup: BeginReconciliationDialogResult | null = null;
   printChecksRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
@@ -364,6 +368,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private invoiceService: InvoiceService,
     private ownerReportsCacheService: OwnerReportsCacheService,
     private toastr: ToastrService,
+    private dialog: MatDialog,
     private cdr: ChangeDetectorRef
   ) {
     this.syncInvoiceSearchDateRange();
@@ -1962,6 +1967,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   selectBankActivity(kind: AccountingShellBankActivityKind): void {
     this.bankActivitiesMenuTrigger?.closeMenu();
+    if (kind === 'reconcile') {
+      this.activateBankActivity('reconcile');
+      this.openBeginReconciliationDialog();
+      return;
+    }
+
+    this.activateBankActivity(kind);
+  }
+
+  private activateBankActivity(kind: AccountingShellBankActivityKind): void {
     const previousTab = this.selectedTabIndex;
     const kindChanged = this.selectedBankActivityKind !== kind;
 
@@ -2266,8 +2281,82 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Reconcile
+  openBeginReconciliationDialog(): void {
+    if (this.selectedOfficeId == null || this.selectedOfficeId <= 0) {
+      this.toastr.warning('Select an office before reconciling.');
+      return;
+    }
+
+    const selectedAccount = this.resolveSelectedReconcileChartOfAccount();
+
+    this.dialog.open(BeginReconciliationDialogComponent, {
+      width: '95vw',
+      maxWidth: '56rem',
+      maxHeight: '95vh',
+      data: {
+        organizationId: this.organizationId,
+        officeId: this.selectedOfficeId,
+        accountOptions: this.shellReconcileChartOfAccountTitleBarOptions,
+        adjustmentAccountOptions: this.shellChartOfAccountTitleBarOptions,
+        accountReconcileDefaults: this.buildReconcileAccountDefaults(),
+        defaultChartOfAccountId: this.selectedChartOfAccountId,
+        defaultStatementDate: this.endDate ?? this.utilityService.parseCalendarDateInput(selectedAccount?.statementDate ?? null),
+        existingSetup: this.reconcileSetup
+      }
+    }).afterClosed().pipe(take(1)).subscribe((result?: BeginReconciliationDialogResult) => {
+      if (!result) {
+        return;
+      }
+
+      this.applyBeginReconciliationResult(result);
+    });
+  }
+
+  private applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
+    this.reconcileSetup = result;
+    this.selectedChartOfAccountId = result.chartOfAccountId;
+    const statementDate = this.utilityService.parseCalendarDateInput(result.statementDate);
+    if (statementDate) {
+      this.endDate = statementDate;
+    }
+
+    this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest();
+    this.reconcileRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+    this.persistPinnedTopBarIfActive();
+    this.cdr.markForCheck();
+  }
+
   onReconcileLeave(): void {
+    this.reconcileSetup = null;
     this.selectBankActivity('undepositedFunds');
+  }
+
+  onReconcileComplete(): void {
+    this.chartOfAccountsService.notifyChartOfAccountsChanged();
+  }
+
+  private resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {
+    if (this.selectedChartOfAccountId == null) {
+      return null;
+    }
+
+    return this.chartOfAccounts.find(account => account.accountId === this.selectedChartOfAccountId) ?? null;
+  }
+
+  private buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: number | null; statementDate: string | null }[] {
+    return (this.chartOfAccounts || [])
+      .filter(account => this.selectedOfficeId == null || account.officeId === this.selectedOfficeId)
+      .map(account => ({
+        chartOfAccountId: account.accountId,
+        endingBalance: account.endingBalance ?? null,
+        statementDate: account.statementDate ?? null
+      }));
   }
   //#endregion
 

@@ -8,6 +8,8 @@ export interface ChartOfAccountRequest {
   isSubaccount: boolean;
   subAccountId?: number | null;
   description?: string | null;
+  endingBalance?: number | null;
+  statementDate?: string | null;
   note?: string | null;
 }
 
@@ -21,6 +23,8 @@ export interface ChartOfAccountResponse {
   isSubaccount: boolean;
   subAccountId?: number | null;
   description?: string | null;
+  endingBalance?: number | null;
+  statementDate?: string | null;
   note?: string | null;
 }
 
@@ -37,6 +41,8 @@ export interface ChartOfAccountListDisplay {
   isSubaccountDisplay: string;
   subAccountId?: number | null;
   description: string;
+  endingBalanceDisplay: string;
+  statementDateDisplay: string;
   note: string;
   parentAccountDropdown?: {
     value: string;

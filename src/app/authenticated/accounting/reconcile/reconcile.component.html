@@ -44,7 +44,7 @@
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
               <button mat-raised-button type="button" color="primary" (click)="markAll()">Mark All</button>
               <button mat-raised-button type="button" color="primary" (click)="unmarkAll()">Unmark All</button>
-              <button mat-raised-button type="button" color="primary" (click)="openColumnsDialog()">Columns</button>
+              <button mat-raised-button type="button" color="accent" (click)="openColumnsDialog()">Columns</button>
             </div>
           </div>
         </div>
@@ -71,7 +71,21 @@
                   <th class="reconcile-lines-table__clr">Clr</th>
                   @for (columnKey of tableColumnOrder; track columnKey) {
                     @if (isColumnVisible('payments', columnKey)) {
-                      <th [class]="'reconcile-lines-table__' + columnKey">{{ getColumnHeader(columnKey) }}</th>
+                      <th
+                        scope="col"
+                        [class]="'reconcile-lines-table__' + columnKey + ' reconcile-lines-table__sortable'"
+                        [class.reconcile-lines-table__sortable--active]="isSortActive('payments', columnKey)"
+                        [attr.aria-sort]="getSortDirection('payments', columnKey) === 'asc' ? 'ascending' : (getSortDirection('payments', columnKey) === 'desc' ? 'descending' : 'none')"
+                        (click)="onSortColumn('payments', columnKey)">
+                        <span class="reconcile-lines-table__header-content">
+                          <span>{{ getColumnHeader(columnKey) }}</span>
+                          @if (getSortDirection('payments', columnKey) === 'asc') {
+                            <mat-icon class="reconcile-lines-table__sort-icon" aria-hidden="true">arrow_upward</mat-icon>
+                          } @else if (getSortDirection('payments', columnKey) === 'desc') {
+                            <mat-icon class="reconcile-lines-table__sort-icon" aria-hidden="true">arrow_downward</mat-icon>
+                          }
+                        </span>
+                      </th>
                     }
                   }
                 </tr>
@@ -116,7 +130,21 @@
                   <th class="reconcile-lines-table__clr">Clr</th>
                   @for (columnKey of tableColumnOrder; track columnKey) {
                     @if (isColumnVisible('deposits', columnKey)) {
-                      <th [class]="'reconcile-lines-table__' + columnKey">{{ getColumnHeader(columnKey) }}</th>
+                      <th
+                        scope="col"
+                        [class]="'reconcile-lines-table__' + columnKey + ' reconcile-lines-table__sortable'"
+                        [class.reconcile-lines-table__sortable--active]="isSortActive('deposits', columnKey)"
+                        [attr.aria-sort]="getSortDirection('deposits', columnKey) === 'asc' ? 'ascending' : (getSortDirection('deposits', columnKey) === 'desc' ? 'descending' : 'none')"
+                        (click)="onSortColumn('deposits', columnKey)">
+                        <span class="reconcile-lines-table__header-content">
+                          <span>{{ getColumnHeader(columnKey) }}</span>
+                          @if (getSortDirection('deposits', columnKey) === 'asc') {
+                            <mat-icon class="reconcile-lines-table__sort-icon" aria-hidden="true">arrow_upward</mat-icon>
+                          } @else if (getSortDirection('deposits', columnKey) === 'desc') {
+                            <mat-icon class="reconcile-lines-table__sort-icon" aria-hidden="true">arrow_downward</mat-icon>
+                          }
+                        </span>
+                      </th>
                     }
                   }
                 </tr>
@@ -173,54 +201,19 @@
         </div>
       </div>
       <div class="reconcile-summary__right">
-        <button mat-stroked-button type="button" class="reconcile-modify-btn" (click)="toggleAdjustments()">Modify</button>
+        <button mat-raised-button type="button" color="accent" class="reconcile-modify-btn" (click)="onModify()">Modify</button>
         <div class="reconcile-summary__right-fields">
-          @if (showAdjustments) {
-            <div class="reconcile-summary__row">
-              <span class="reconcile-summary__label">Service Charge:</span>
-              <input
-                class="reconcile-summary__input"
-                type="text"
-                inputmode="decimal"
-                autocomplete="off"
-                [ngModel]="serviceChargeInput"
-                (ngModelChange)="onServiceChargeInputChange($event)"
-                (focus)="onServiceChargeFocus($event)"
-                (blur)="onServiceChargeBlur()" />
-            </div>
-            <div class="reconcile-summary__row">
-              <span class="reconcile-summary__label">Interest Earned:</span>
-              <input
-                class="reconcile-summary__input"
-                type="text"
-                inputmode="decimal"
-                autocomplete="off"
-                [ngModel]="interestEarnedInput"
-                (ngModelChange)="onInterestEarnedInputChange($event)"
-                (focus)="onInterestEarnedFocus($event)"
-                (blur)="onInterestEarnedBlur()" />
-            </div>
-          } @else {
-            <div class="reconcile-summary__row">
-              <span class="reconcile-summary__label">Service Charge:</span>
-              <span class="reconcile-summary__value">{{ formatCurrency(serviceCharge) }}</span>
-            </div>
-            <div class="reconcile-summary__row">
-              <span class="reconcile-summary__label">Interest Earned:</span>
-              <span class="reconcile-summary__value">{{ formatCurrency(interestEarned) }}</span>
-            </div>
-          }
+          <div class="reconcile-summary__row">
+            <span class="reconcile-summary__label">Service Charge:</span>
+            <span class="reconcile-summary__value">{{ formatCurrency(serviceCharge) }}</span>
+          </div>
+          <div class="reconcile-summary__row">
+            <span class="reconcile-summary__label">Interest Earned:</span>
+            <span class="reconcile-summary__value">{{ formatCurrency(interestEarned) }}</span>
+          </div>
           <div class="reconcile-summary__row">
             <span class="reconcile-summary__label">Ending Balance:</span>
-            <input
-              class="reconcile-summary__input reconcile-summary__input--ending"
-              type="text"
-              inputmode="decimal"
-              autocomplete="off"
-              [ngModel]="endingBalanceInput"
-              (ngModelChange)="onEndingBalanceInputChange($event)"
-              (focus)="onEndingBalanceFocus($event)"
-              (blur)="onEndingBalanceBlur()" />
+            <span class="reconcile-summary__value reconcile-summary__value--emphasis">{{ formatCurrency(endingBalance) }}</span>
           </div>
           <div class="reconcile-summary__row">
             <span class="reconcile-summary__label">Cleared Balance:</span>
@@ -245,11 +238,11 @@
         color="primary"
         class="reconcile-now-btn"
         [disabled]="!canReconcileNow"
-        [matTooltip]="canReconcileNow ? 'Save reconciliation (coming soon)' : 'Cleared balance must match ending balance'"
+        [matTooltip]="canReconcileNow ? 'Complete reconciliation' : 'Cleared balance must match ending balance'"
         (click)="onReconcileNow()">
         Reconcile Now
       </button>
-      <button mat-stroked-button type="button" class="reconcile-leave-btn" (click)="onLeave()">Leave</button>
+      <button mat-raised-button type="button" color="accent" class="reconcile-leave-btn" [disabled]="isSavingReconcile" (click)="onLeave()">Leave</button>
     </div>
   }
 </div>

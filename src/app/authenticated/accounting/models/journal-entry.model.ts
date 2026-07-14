@@ -31,6 +31,7 @@ export interface JournalEntryLineSearchResponse {
   debit: number;
   credit: number;
   memo?: string | null;
+  isCleared?: boolean;
   clearedOn?: string | null;
   officeId: number;
   transactionDate: CalendarDateString;

@@ -10,6 +10,7 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -60,6 +61,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private officeService: OfficeService,
     private mappingService: MappingService,
+    private formatterService: FormatterService,
     private utilityService: UtilityService
   ) {
   }
@@ -177,6 +179,12 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
       isSubaccount,
       subAccountId: isSubaccount ? parsedSubAccountId : null,
       description: this.utilityService.trimOrNull(formValue.description),
+      endingBalance: this.showBankReconcileFields
+        ? (this.isEndingBalanceReadonly ? this.chartOfAccount?.endingBalance ?? null : this.parseEndingBalance(formValue.endingBalance))
+        : null,
+      statementDate: this.showBankReconcileFields
+        ? (this.isStatementDateReadonly ? this.chartOfAccount?.statementDate ?? null : this.utilityService.toDateOnlyJsonString(formValue.statementDate))
+        : null,
       note: this.utilityService.trimOrNull(formValue.note)
     };
 
@@ -241,11 +249,22 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
       isSubaccount: new FormControl(false),
       subAccountId: new FormControl(''),
       description: new FormControl(''),
+      endingBalance: new FormControl(''),
+      statementDate: new FormControl<Date | null>(null),
       note: new FormControl('')
     });
 
     this.form.get('isSubaccount')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isSubaccount => {
       this.applySubaccountValidators(isSubaccount === true);
+    });
+
+    this.form.get('accountNo')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (!this.isBankAccountNumber(this.form.get('accountNo')?.value)) {
+        this.form.patchValue({
+          endingBalance: '',
+          statementDate: null
+        }, { emitEvent: false });
+      }
     });
   }
 
@@ -262,6 +281,8 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
       isSubaccount: this.chartOfAccount.isSubaccount === true,
       subAccountId: this.chartOfAccount.subAccountId?.toString() || '',
       description: this.chartOfAccount.description || '',
+      endingBalance: this.formatEndingBalanceInput(this.chartOfAccount.endingBalance),
+      statementDate: this.utilityService.parseCalendarDateInput(this.chartOfAccount.statementDate),
       note: this.chartOfAccount.note || ''
     });
     this.applySubaccountValidators(this.chartOfAccount.isSubaccount === true);
@@ -388,9 +409,79 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   get showSubaccountFields(): boolean {
     return this.form?.get('isSubaccount')?.value === true;
   }
+
+  get showBankReconcileFields(): boolean {
+    return this.isBankAccountNumber(this.form?.get('accountNo')?.value);
+  }
+
+  get isEndingBalanceReadonly(): boolean {
+    return !this.isAddMode && this.chartOfAccount?.endingBalance != null;
+  }
+
+  get isStatementDateReadonly(): boolean {
+    return !this.isAddMode && String(this.chartOfAccount?.statementDate || '').trim().length > 0;
+  }
+
+  get endingBalanceReadonlyDisplay(): string {
+    if (this.chartOfAccount?.endingBalance == null) {
+      return '';
+    }
+
+    return this.formatterService.currencyUsd(this.chartOfAccount.endingBalance);
+  }
+
+  get statementDateReadonlyDisplay(): string {
+    const statementDate = String(this.chartOfAccount?.statementDate || '').trim();
+    if (!statementDate) {
+      return '';
+    }
+
+    return this.formatterService.formatDateString(statementDate);
+  }
+
+  onEndingBalanceFocus(event: FocusEvent): void {
+    this.formatterService.clearCurrencyOnFocus(event, this.form.get('endingBalance'));
+  }
+
+  onEndingBalanceBlur(): void {
+    this.formatterService.formatCurrencyControl(this.form.get('endingBalance'), null);
+  }
   //#endregion
 
   //#region Utility Methods
+  parseEndingBalance(value: unknown): number | null {
+    const input = String(value || '').trim();
+    if (!input) {
+      return null;
+    }
+
+    const parsed = this.mappingService.parseCurrencyValue(input);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  formatEndingBalanceInput(value: number | null | undefined): string {
+    if (value == null || value === 0) {
+      return '';
+    }
+
+    return this.formatterService.currencyUsd(value);
+  }
+
+  isBankAccountNumber(accountNo: unknown): boolean {
+    const accountNumber = this.parseChartOfAccountNumber(accountNo);
+    return accountNumber !== null && accountNumber < 4000;
+  }
+
+  parseChartOfAccountNumber(accountNo: unknown): number | null {
+    const match = String(accountNo ?? '').trim().match(/^(\d+)/);
+    if (!match) {
+      return null;
+    }
+
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   back(): void {
     this.backEvent.emit();
   }

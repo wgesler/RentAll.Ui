@@ -211,6 +211,39 @@
   padding-block: 4px;
 }
 
+.reconcile-lines-table__sortable {
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background: #eceff3;
+  }
+}
+
+.reconcile-lines-table__sortable--active {
+  background: #e8edf3;
+}
+
+.reconcile-lines-table__header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  max-width: 100%;
+}
+
+.reconcile-lines-table__sort-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  font-size: 0.875rem;
+  line-height: 0.875rem;
+  color: rgba(15, 23, 42, 0.72);
+  flex-shrink: 0;
+}
+
+.reconcile-lines-table__amount.reconcile-lines-table__sortable .reconcile-lines-table__header-content {
+  width: 100%;
+}
+
 .reconcile-lines-table__row--alt td {
   background: #f8fbff;
 }
@@ -273,6 +306,11 @@
   width: 7.5rem;
 }
 
+.reconcile-lines-table__amount {
+  width: 6.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .reconcile-lines-table__payee,
 .reconcile-lines-table__memo {
   overflow: hidden;
@@ -314,7 +352,6 @@
   min-height: 28px;
   line-height: 28px;
   font-size: 0.75rem;
-  background: #fff;
 }
 
 .reconcile-summary__right-fields {
@@ -392,7 +429,6 @@
 
 .reconcile-leave-btn {
   min-width: 5.5rem;
-  background: #fff;
 }
 
 @media (max-width: 960px) {

@@ -909,10 +909,14 @@
               } @else {
                 <app-reconcile
                   [officeId]="selectedOfficeId"
+                  [organizationId]="organizationId"
                   [chartOfAccountId]="selectedChartOfAccountId"
                   [searchDateRange]="invoiceSearchDateRange"
                   [refreshTrigger]="reconcileRefreshTrigger"
-                  (leaveEvent)="onReconcileLeave()">
+                  [setup]="reconcileSetup"
+                  (leaveEvent)="onReconcileLeave()"
+                  (reconcileCompleteEvent)="onReconcileComplete()"
+                  (modifyEvent)="openBeginReconciliationDialog()">
                 </app-reconcile>
               }
             }

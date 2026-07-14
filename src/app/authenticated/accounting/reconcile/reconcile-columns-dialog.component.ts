@@ -2,7 +2,7 @@ import { Component, Inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
-import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_DIALOG_COLUMN_ORDER, RECONCILE_TABLE_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnsDialogData, ReconcileColumnsDialogResult } from '../models/reconcile.model';
+import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_CONFIGURABLE_COLUMN_ORDER, RECONCILE_DIALOG_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnsDialogData, ReconcileColumnsDialogResult } from '../models/reconcile.model';
 
 @Component({
   standalone: true,
@@ -23,15 +23,15 @@ export class ReconcileColumnsDialogComponent {
   constructor(
     @Inject(MAT_DIALOG_DATA) data: ReconcileColumnsDialogData,
     private dialogRef: MatDialogRef<ReconcileColumnsDialogComponent, ReconcileColumnsDialogResult | undefined>) {
-    this.paymentsSelected = new Set(data.paymentsVisibleColumns);
-    this.depositsSelected = new Set(data.depositsVisibleColumns);
+    this.paymentsSelected = new Set(this.normalizeSelectedColumns(data.paymentsVisibleColumns));
+    this.depositsSelected = new Set(this.normalizeSelectedColumns(data.depositsVisibleColumns));
   }
 
   //#region Reconcile Columns Dialog
   onConfirm(): void {
     this.dialogRef.close({
-      paymentsVisibleColumns: RECONCILE_TABLE_COLUMN_ORDER.filter(key => this.paymentsSelected.has(key)),
-      depositsVisibleColumns: RECONCILE_TABLE_COLUMN_ORDER.filter(key => this.depositsSelected.has(key))
+      paymentsVisibleColumns: RECONCILE_CONFIGURABLE_COLUMN_ORDER.filter(key => this.paymentsSelected.has(key)),
+      depositsVisibleColumns: RECONCILE_CONFIGURABLE_COLUMN_ORDER.filter(key => this.depositsSelected.has(key))
     });
   }
 
@@ -63,6 +63,11 @@ export class ReconcileColumnsDialogComponent {
     } else {
       this.depositsSelected.delete(key);
     }
+  }
+
+  private normalizeSelectedColumns(columns: ReconcileColumnKey[]): ReconcileColumnKey[] {
+    const validColumns = RECONCILE_CONFIGURABLE_COLUMN_ORDER.filter(key => columns.includes(key));
+    return validColumns.length > 0 ? validColumns : [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
   }
   //#endregion
 }

@@ -2,13 +2,16 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
+import { ToastrService } from 'ngx-toastr';
+import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, catchError, finalize, map, of, Subject, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_TABLE_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnPreferencesState, ReconcileColumnsDialogResult, ReconcileLineDisplay, ReconcileSide } from '../models/reconcile.model';
+import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_CONFIGURABLE_COLUMN_ORDER, RECONCILE_DIALOG_COLUMN_ORDER, RECONCILE_FIXED_COLUMN_KEYS, RECONCILE_TABLE_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnPreferencesState, ReconcileColumnsDialogResult, ReconcileJournalEntryLineMark, ReconcileLineDisplay, ReconcileSide, BeginReconciliationDialogResult } from '../models/reconcile.model';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { ReconcileColumnsDialogComponent } from './reconcile-columns-dialog.component';
 
@@ -16,6 +19,13 @@ interface ReconcileStickyFilterState {
   enabled: boolean;
   tableName: string;
   filterText: string;
+}
+
+type ReconcileSortDirection = 'asc' | 'desc';
+
+interface ReconcileSortState {
+  column: ReconcileColumnKey | null;
+  direction: ReconcileSortDirection;
 }
 
 @Component({
@@ -28,10 +38,14 @@ interface ReconcileStickyFilterState {
 })
 export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
+  @Input() organizationId = '';
   @Input() chartOfAccountId: number | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
+  @Input() setup: BeginReconciliationDialogResult | null = null;
   @Output() leaveEvent = new EventEmitter<void>();
+  @Output() reconcileCompleteEvent = new EventEmitter<void>();
+  @Output() modifyEvent = new EventEmitter<void>();
 
   readonly tableColumnOrder = RECONCILE_TABLE_COLUMN_ORDER;
   readonly tableName = 'reconcile-list';
@@ -42,11 +56,13 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   depositsLines: ReconcileLineDisplay[] = [];
   paymentsVisibleColumns: ReconcileColumnKey[] = [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
   depositsVisibleColumns: ReconcileColumnKey[] = [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
+  paymentsSort: ReconcileSortState = { column: null, direction: 'asc' };
+  depositsSort: ReconcileSortState = { column: null, direction: 'asc' };
   beginningBalance = 0;
   endingBalanceInput = '';
   serviceChargeInput = '';
   interestEarnedInput = '';
-  showAdjustments = false;
+  isSavingReconcile = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isLoading$ = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
@@ -60,6 +76,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
+    private toastr: ToastrService,
     private cdr: ChangeDetectorRef) {}
 
   //#region Reconcile
@@ -128,7 +145,16 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get canReconcileNow(): boolean {
-    return this.isDifferenceZero && (this.endingBalanceInput.trim().length > 0 || this.clearedDepositsCount + this.clearedPaymentsCount > 0);
+    return this.isDifferenceZero && this.setup != null && !this.isSavingReconcile;
+  }
+
+  get canSaveReconcileMarks(): boolean {
+    return this.setup != null
+      && this.officeId != null
+      && this.officeId > 0
+      && this.chartOfAccountId != null
+      && this.chartOfAccountId > 0
+      && (this.paymentsLines.length > 0 || this.depositsLines.length > 0);
   }
 
   get isReconcileSelectPrompt(): boolean {
@@ -137,11 +163,32 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get filteredPaymentsLines(): ReconcileLineDisplay[] {
-    return this.filterLines(this.paymentsLines);
+    return this.sortLines(this.filterLines(this.paymentsLines), 'payments');
   }
 
   get filteredDepositsLines(): ReconcileLineDisplay[] {
-    return this.filterLines(this.depositsLines);
+    return this.sortLines(this.filterLines(this.depositsLines), 'deposits');
+  }
+
+  onSortColumn(side: ReconcileSide, columnKey: ReconcileColumnKey): void {
+    const sortState = this.getSortState(side);
+    if (sortState.column === columnKey) {
+      sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.column = columnKey;
+      sortState.direction = 'asc';
+    }
+
+    this.markViewForCheck();
+  }
+
+  getSortDirection(side: ReconcileSide, columnKey: ReconcileColumnKey): ReconcileSortDirection | null {
+    const sortState = this.getSortState(side);
+    return sortState.column === columnKey ? sortState.direction : null;
+  }
+
+  isSortActive(side: ReconcileSide, columnKey: ReconcileColumnKey): boolean {
+    return this.getSortState(side).column === columnKey;
   }
 
   getColumnHeader(columnKey: ReconcileColumnKey): string {
@@ -149,13 +196,17 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isColumnVisible(side: ReconcileSide, columnKey: ReconcileColumnKey): boolean {
+    if (RECONCILE_FIXED_COLUMN_KEYS.includes(columnKey)) {
+      return true;
+    }
+
     const visibleColumns = side === 'payments' ? this.paymentsVisibleColumns : this.depositsVisibleColumns;
     return visibleColumns.includes(columnKey);
   }
 
   getVisibleColumnCount(side: ReconcileSide): number {
     const visibleColumns = side === 'payments' ? this.paymentsVisibleColumns : this.depositsVisibleColumns;
-    return visibleColumns.length + 1;
+    return visibleColumns.length + RECONCILE_FIXED_COLUMN_KEYS.length + 1;
   }
 
   getLineCellValue(line: ReconcileLineDisplay, columnKey: ReconcileColumnKey): string {
@@ -166,6 +217,8 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
         return line.type;
       case 'checkRef':
         return line.checkRef;
+      case 'amount':
+        return this.formatCurrency(line.amountValue);
       case 'payee':
         return line.payee;
       case 'memo':
@@ -196,80 +249,80 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  toggleAdjustments(): void {
-    this.showAdjustments = !this.showAdjustments;
-    this.markViewForCheck();
-  }
-
-  onEndingBalanceInputChange(value: string): void {
-    this.endingBalanceInput = value;
-    this.markViewForCheck();
-  }
-
-  onEndingBalanceFocus(event: FocusEvent): void {
-    const input = event.target as HTMLInputElement | null;
-    if (!input) {
-      return;
-    }
-
-    const parsed = this.mappingService.parseCurrencyValue(this.endingBalanceInput);
-    input.value = parsed === 0 ? '' : String(parsed);
-    this.endingBalanceInput = input.value;
-  }
-
-  onEndingBalanceBlur(): void {
-    this.endingBalanceInput = this.formatCurrencyInput(this.endingBalanceInput);
-    this.markViewForCheck();
-  }
-
-  onServiceChargeInputChange(value: string): void {
-    this.serviceChargeInput = value;
-    this.markViewForCheck();
-  }
-
-  onServiceChargeFocus(event: FocusEvent): void {
-    this.onCurrencyFieldFocus(event, this.serviceChargeInput);
-  }
-
-  onServiceChargeBlur(): void {
-    this.serviceChargeInput = this.formatCurrencyInput(this.serviceChargeInput);
-    this.markViewForCheck();
-  }
-
-  onInterestEarnedInputChange(value: string): void {
-    this.interestEarnedInput = value;
-    this.markViewForCheck();
-  }
-
-  onInterestEarnedFocus(event: FocusEvent): void {
-    this.onCurrencyFieldFocus(event, this.interestEarnedInput);
-  }
-
-  onInterestEarnedBlur(): void {
-    this.interestEarnedInput = this.formatCurrencyInput(this.interestEarnedInput);
-    this.markViewForCheck();
-  }
-
   formatCurrency(value: number): string {
     return this.formatterService.currencyUsd(value);
   }
 
   onReconcileNow(): void {
-    if (!this.canReconcileNow) {
+    if (!this.canReconcileNow || this.isSavingReconcile) {
       return;
     }
-    // Save cleared lines when backend support is added.
+
+    const request = this.buildCompleteReconcileRequest();
+    if (!request) {
+      this.toastr.error('Reconcile setup is incomplete.', CommonMessage.Error);
+      return;
+    }
+
+    this.isSavingReconcile = true;
+    this.generalLedgerService.completeReconcile(request).pipe(
+      finalize(() => {
+        this.isSavingReconcile = false;
+        this.markViewForCheck();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Reconciliation completed.', 'Success');
+        this.reconcileCompleteEvent.emit();
+        this.leaveEvent.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        const message = error.error?.message || error.message || 'Unable to complete reconciliation.';
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
   }
 
   onLeave(): void {
-    this.leaveEvent.emit();
+    if (this.isSavingReconcile) {
+      return;
+    }
+
+    if (!this.canSaveReconcileMarks) {
+      this.leaveEvent.emit();
+      return;
+    }
+
+    this.isSavingReconcile = true;
+    this.saveReconcileMarks().pipe(
+      finalize(() => {
+        this.isSavingReconcile = false;
+        this.markViewForCheck();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.leaveEvent.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        const message = error.error?.message || error.message || 'Unable to save reconcile marks.';
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
+  }
+
+  onModify(): void {
+    this.modifyEvent.emit();
   }
   //#endregion
 
   //#region Reconcile Columns Dialog Methods
   openColumnsDialog(): void {
     this.dialog.open(ReconcileColumnsDialogComponent, {
-      width: '720px',
+      width: '95vw',
+      maxWidth: '56rem',
+      maxHeight: '95vh',
       data: {
         paymentsVisibleColumns: [...this.paymentsVisibleColumns],
         depositsVisibleColumns: [...this.depositsVisibleColumns]
@@ -305,7 +358,6 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.endingBalanceInput = '';
     this.serviceChargeInput = '';
     this.interestEarnedInput = '';
-    this.showAdjustments = false;
 
     this.generalLedgerService.getReconcileBeginningBalance(this.officeId, this.chartOfAccountId, statementDate).pipe(
       takeUntil(this.destroy$),
@@ -326,6 +378,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.paymentsLines = this.mappingService.mapReconcileLineDisplays(lines, 'credit');
         this.depositsLines = this.mappingService.mapReconcileLineDisplays(lines, 'debit');
+        this.applySetupValues();
         this.markViewForCheck();
       },
       error: () => {
@@ -382,6 +435,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       line.transactionDate,
       line.type,
       line.checkRef,
+      this.formatCurrency(line.amountValue),
       line.payee,
       line.memo
     ].join(' ').toLowerCase();
@@ -537,20 +591,41 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       return [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
     }
 
-    const validColumns = RECONCILE_TABLE_COLUMN_ORDER.filter(key => columns.includes(key));
+    const validColumns = RECONCILE_CONFIGURABLE_COLUMN_ORDER.filter(key => columns.includes(key));
     return validColumns.length > 0 ? validColumns : [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
   }
   //#endregion
 
   //#region Utility Methods
+  private applySetupValues(): void {
+    if (!this.setup) {
+      return;
+    }
+
+    if (this.setup.chartOfAccountId !== this.chartOfAccountId) {
+      return;
+    }
+
+    const statementDate = (this.searchDateRange?.endDate || '').trim();
+    if (this.setup.statementDate !== statementDate) {
+      return;
+    }
+
+    this.beginningBalance = this.setup.beginningBalance;
+    this.endingBalanceInput = this.setup.endingBalance === 0 ? '' : this.formatCurrencyInput(String(this.setup.endingBalance));
+    this.serviceChargeInput = Math.abs(this.setup.serviceCharge) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.serviceCharge));
+    this.interestEarnedInput = Math.abs(this.setup.interestEarned) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.interestEarned));
+  }
+
   private resetViewState(placeholderMessage = 'Select an Account to Reconcile.'): void {
     this.placeholderMessage = placeholderMessage;
     this.filterVal = '';
+    this.paymentsSort = { column: null, direction: 'asc' };
+    this.depositsSort = { column: null, direction: 'asc' };
     this.beginningBalance = 0;
     this.endingBalanceInput = '';
     this.serviceChargeInput = '';
     this.interestEarnedInput = '';
-    this.showAdjustments = false;
     this.paymentsLines = [];
     this.depositsLines = [];
     this.markViewForCheck();
@@ -562,19 +637,96 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       .reduce((total, line) => total + line.amountValue, 0);
   }
 
+  private sortLines(lines: ReconcileLineDisplay[], side: ReconcileSide): ReconcileLineDisplay[] {
+    const sortState = this.getSortState(side);
+    if (!sortState.column) {
+      return lines;
+    }
+
+    const directionMultiplier = sortState.direction === 'asc' ? 1 : -1;
+    return [...lines].sort((left, right) => {
+      const comparison = this.compareLinesByColumn(left, right, sortState.column!);
+      if (comparison !== 0) {
+        return comparison * directionMultiplier;
+      }
+
+      return left.journalEntryLineId.localeCompare(right.journalEntryLineId);
+    });
+  }
+
+  private compareLinesByColumn(left: ReconcileLineDisplay, right: ReconcileLineDisplay, columnKey: ReconcileColumnKey): number {
+    switch (columnKey) {
+      case 'date':
+        return (left.transactionDateSortValue || '').localeCompare(right.transactionDateSortValue || '');
+      case 'amount':
+        return left.amountValue - right.amountValue;
+      case 'type':
+        return (left.type || '').localeCompare(right.type || '', undefined, { sensitivity: 'base' });
+      case 'checkRef':
+        return (left.checkRef || '').localeCompare(right.checkRef || '', undefined, { sensitivity: 'base' });
+      case 'payee':
+        return (left.payee || '').localeCompare(right.payee || '', undefined, { sensitivity: 'base' });
+      case 'memo':
+        return (left.memo || '').localeCompare(right.memo || '', undefined, { sensitivity: 'base' });
+      default:
+        return 0;
+    }
+  }
+
+  private getSortState(side: ReconcileSide): ReconcileSortState {
+    return side === 'payments' ? this.paymentsSort : this.depositsSort;
+  }
+
+  private buildReconcileLineMarks(): ReconcileJournalEntryLineMark[] {
+    return [...this.paymentsLines, ...this.depositsLines].map(line => ({
+      journalEntryLineId: line.journalEntryLineId,
+      isCleared: line.isCleared
+    }));
+  }
+
+  private saveReconcileMarks() {
+    const request = this.buildSaveReconcileMarksRequest();
+    if (!request) {
+      return of(void 0);
+    }
+
+    return this.generalLedgerService.saveReconcileMarks(request);
+  }
+
+  private buildSaveReconcileMarksRequest() {
+    if (!this.canSaveReconcileMarks || this.officeId == null || this.chartOfAccountId == null) {
+      return null;
+    }
+
+    return {
+      officeId: this.officeId,
+      chartOfAccountId: this.chartOfAccountId,
+      lines: this.buildReconcileLineMarks()
+    };
+  }
+
+  private buildCompleteReconcileRequest() {
+    if (!this.setup || this.officeId == null || this.chartOfAccountId == null) {
+      return null;
+    }
+
+    const statementDate = (this.setup.statementDate || '').trim();
+    if (!statementDate) {
+      return null;
+    }
+
+    return {
+      officeId: this.officeId,
+      chartOfAccountId: this.chartOfAccountId,
+      lines: this.buildReconcileLineMarks(),
+      endingBalance: this.setup.endingBalance,
+      statementDate
+    };
+  }
+
   private formatCurrencyInput(value: string): string {
     const parsed = this.mappingService.parseCurrencyValue(value);
     return parsed === 0 && !value.trim() ? '' : this.formatterService.currencyUsd(parsed);
-  }
-
-  private onCurrencyFieldFocus(event: FocusEvent, currentValue: string): void {
-    const input = event.target as HTMLInputElement | null;
-    if (!input) {
-      return;
-    }
-
-    const parsed = this.mappingService.parseCurrencyValue(currentValue);
-    input.value = parsed === 0 ? '' : String(parsed);
   }
 
   markViewForCheck(): void {

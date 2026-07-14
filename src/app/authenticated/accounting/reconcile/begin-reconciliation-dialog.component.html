@@ -1,0 +1,107 @@
+<div class="begin-reconciliation-dialog-wrap">
+  <div class="begin-reconciliation-dialog-header">
+    <span class="begin-reconciliation-dialog-title">
+      <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Begin Reconciliation</span>
+    </span>
+  </div>
+
+  <mat-dialog-content class="begin-reconciliation-dialog-content">
+    <p class="begin-reconciliation-dialog__intro">
+      Select an account to reconcile, and then enter the ending balance from your account statement.
+    </p>
+
+    <form [formGroup]="form" class="begin-reconciliation-dialog__form form-hide-error-text">
+      <div class="begin-reconciliation-dialog__fields">
+        <div class="begin-reconciliation-dialog__account-row">
+          <mat-form-field appearance="outline" class="begin-reconciliation-dialog__account-field">
+            <mat-label>Account</mat-label>
+            <mat-select formControlName="chartOfAccountId">
+              @for (option of data.accountOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <div class="begin-reconciliation-dialog__last-reconciled-wrap">
+            <span class="begin-reconciliation-dialog__last-reconciled">Last reconciled on: {{ lastReconciledDateDisplay }}</span>
+          </div>
+        </div>
+
+        <mat-form-field appearance="outline" class="begin-reconciliation-dialog__balance-field">
+          <mat-label>Statement Date</mat-label>
+          <input matInput [matDatepicker]="statementDatePicker" formControlName="statementDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="statementDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #statementDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="begin-reconciliation-dialog__balance-field">
+          <mat-label>Beginning Balance</mat-label>
+          <input matInput type="text" readonly disabled class="readonly-field" [value]="beginningBalanceDisplay" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="begin-reconciliation-dialog__balance-field">
+          <mat-label>Ending Balance</mat-label>
+          <input matInput type="text" inputmode="decimal" formControlName="endingBalance" (focus)="onCurrencyFocus($event, 'endingBalance')" (blur)="onCurrencyBlur('endingBalance')" />
+        </mat-form-field>
+      </div>
+
+      <fieldset class="begin-reconciliation-dialog__adjustments">
+        <legend class="begin-reconciliation-dialog__adjustments-legend">Enter any service charge or interest earned.</legend>
+
+        <div class="begin-reconciliation-dialog__adjustments-rows">
+          <div class="begin-reconciliation-dialog__adjustments-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Service Charge</mat-label>
+              <input matInput type="text" inputmode="decimal" formControlName="serviceCharge" (focus)="onCurrencyFocus($event, 'serviceCharge')" (blur)="onCurrencyBlur('serviceCharge')" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Date</mat-label>
+              <input matInput [matDatepicker]="serviceChargeDatePicker" formControlName="serviceChargeDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="serviceChargeDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #serviceChargeDatePicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Account</mat-label>
+              <mat-select formControlName="serviceChargeAccountId">
+                <mat-option [value]="null"></mat-option>
+                @for (option of data.adjustmentAccountOptions; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="begin-reconciliation-dialog__adjustments-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Interest Earned</mat-label>
+              <input matInput type="text" inputmode="decimal" formControlName="interestEarned" (focus)="onCurrencyFocus($event, 'interestEarned')" (blur)="onCurrencyBlur('interestEarned')" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Date</mat-label>
+              <input matInput [matDatepicker]="interestEarnedDatePicker" formControlName="interestEarnedDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="interestEarnedDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #interestEarnedDatePicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Account</mat-label>
+              <mat-select formControlName="interestEarnedAccountId">
+                <mat-option [value]="null"></mat-option>
+                @for (option of data.adjustmentAccountOptions; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </fieldset>
+    </form>
+
+    <div class="begin-reconciliation-dialog-actions">
+      <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!canUndoLastReconciliation" (click)="onUndoLastReconciliation()">Undo Last Reconciliation</button>
+      <div class="begin-reconciliation-dialog-actions-right">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isSaving" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSaving" (click)="onContinue()">Continue</button>
+      </div>
+    </div>
+  </mat-dialog-content>
+</div>

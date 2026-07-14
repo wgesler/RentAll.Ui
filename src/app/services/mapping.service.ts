@@ -568,6 +568,16 @@ export class MappingService {
       .toLowerCase();
   }
 
+  private isBankAccountNumber(accountNo: string | null | undefined): boolean {
+    const match = String(accountNo ?? '').trim().match(/^(\d+)/);
+    if (!match) {
+      return false;
+    }
+
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) && parsed < 4000;
+  }
+
   formatChartOfAccountListLabel(account: ChartOfAccountResponse): string {
     return `${account.accountNo} - ${account.name}`;
   }
@@ -596,6 +606,8 @@ export class MappingService {
       isSubaccount,
       subAccountId: isSubaccount ? parentAccountId : null,
       description: account.description ?? null,
+      endingBalance: this.isBankAccountNumber(account.accountNo) ? account.endingBalance ?? null : null,
+      statementDate: this.isBankAccountNumber(account.accountNo) ? account.statementDate ?? null : null,
       note: account.note ?? null
     };
   }
@@ -620,6 +632,12 @@ export class MappingService {
         isSubaccountDisplay: account.isSubaccount ? 'Yes' : 'No',
         subAccountId: account.subAccountId ?? null,
         description: account.description || '',
+        endingBalanceDisplay: this.isBankAccountNumber(account.accountNo) && account.endingBalance != null
+          ? this.formatter.currencyUsd(account.endingBalance)
+          : '',
+        statementDateDisplay: this.isBankAccountNumber(account.accountNo) && account.statementDate
+          ? this.formatter.formatDateString(account.statementDate)
+          : '',
         note: account.note || ''
       };
     });
@@ -636,7 +654,8 @@ export class MappingService {
       contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
-      clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null
+      clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
+      isCleared: Boolean(raw['isCleared'] ?? raw['IsCleared'] ?? base.isCleared ?? false)
     };
   }
 
@@ -654,15 +673,17 @@ export class MappingService {
 
     return sortedLines.map(line => {
       const amountValue = side === 'debit' ? Number(line.debit || 0) : Number(line.credit || 0);
+      const transactionDateSortValue = String(line.transactionDate || '').trim();
       return {
         journalEntryLineId: line.journalEntryLineId,
-        transactionDate: this.formatter.formatDateString(line.transactionDate || ''),
+        transactionDate: this.formatter.formatDateString(transactionDateSortValue),
+        transactionDateSortValue,
         type: getSourceTypeLabel(line.sourceTypeId, SourceTypeLabels),
         checkRef: this.resolveJournalEntryLineSourceDisplay(line),
         payee: (line.contactName || '').trim(),
         memo: (line.memo || line.journalEntryMemo || '').trim(),
         amountValue,
-        isCleared: !!line.clearedOn
+        isCleared: !!line.isCleared
       };
     });
   }

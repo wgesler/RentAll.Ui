@@ -95,10 +95,39 @@
               </mat-form-field>
             }
 
-            <mat-form-field appearance="outline" class="col-span-4">
-              <mat-label>Description</mat-label>
-              <input matInput formControlName="description">
-            </mat-form-field>
+            @if (showBankReconcileFields) {
+              <div class="col-span-4 grid grid-cols-3 form-standard-grid">
+                <mat-form-field appearance="outline" class="col-span-1 w-full">
+                  <mat-label>Description</mat-label>
+                  <input matInput formControlName="description">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1 w-full">
+                  <mat-label>Ending Balance</mat-label>
+                  @if (isEndingBalanceReadonly) {
+                    <input matInput type="text" readonly disabled class="readonly-field" [value]="endingBalanceReadonlyDisplay" />
+                  } @else {
+                    <input matInput type="text" inputmode="decimal" formControlName="endingBalance" (focus)="onEndingBalanceFocus($event)" (blur)="onEndingBalanceBlur()" />
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1 w-full">
+                  <mat-label>Statement Date</mat-label>
+                  @if (isStatementDateReadonly) {
+                    <input matInput type="text" readonly disabled class="readonly-field" [value]="statementDateReadonlyDisplay" />
+                  } @else {
+                    <input matInput [matDatepicker]="statementDatePicker" formControlName="statementDate" />
+                    <mat-datepicker-toggle matIconSuffix [for]="statementDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #statementDatePicker></mat-datepicker>
+                  }
+                </mat-form-field>
+              </div>
+            } @else {
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Description</mat-label>
+                <input matInput formControlName="description">
+              </mat-form-field>
+            }
 
             <mat-form-field appearance="outline" class="col-span-4">
               <mat-label>Note</mat-label>

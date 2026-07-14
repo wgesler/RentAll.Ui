@@ -1,16 +1,19 @@
-<div class="reconcile-columns-dialog">
-  <div class="reconcile-columns-dialog__header">
-    <span class="reconcile-columns-dialog__title">Customize Columns</span>
-    <button mat-mini-fab mat-dialog-close type="button" color="none" class="reconcile-columns-dialog__close">
-      <mat-icon>close</mat-icon>
-    </button>
+<div class="begin-reconciliation-dialog-wrap">
+  <div class="begin-reconciliation-dialog-header">
+    <span class="begin-reconciliation-dialog-title">
+      <mat-icon class="flex-shrink-0">view_column</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Customize Columns</span>
+    </span>
   </div>
 
-  <mat-dialog-content class="reconcile-columns-dialog__content">
-    <p class="reconcile-columns-dialog__intro">Select the fields you would like to have displayed when reconciling.</p>
+  <mat-dialog-content class="begin-reconciliation-dialog-content">
+    <p class="begin-reconciliation-dialog__intro">
+      Select the fields you would like to have displayed when reconciling. Amount is always shown.
+    </p>
+
     <div class="reconcile-columns-dialog__panels">
-      <section class="reconcile-columns-dialog__panel">
-        <h3 class="reconcile-columns-dialog__panel-title">Checks &amp; Payments</h3>
+      <fieldset class="begin-reconciliation-dialog__adjustments reconcile-columns-dialog__panel">
+        <legend class="begin-reconciliation-dialog__adjustments-legend">Checks &amp; Payments</legend>
         <div class="reconcile-columns-dialog__options">
           @for (option of columnOptions; track option.key) {
             <mat-checkbox
@@ -21,9 +24,10 @@
             </mat-checkbox>
           }
         </div>
-      </section>
-      <section class="reconcile-columns-dialog__panel">
-        <h3 class="reconcile-columns-dialog__panel-title">Deposits and Other Credits</h3>
+      </fieldset>
+
+      <fieldset class="begin-reconciliation-dialog__adjustments reconcile-columns-dialog__panel">
+        <legend class="begin-reconciliation-dialog__adjustments-legend">Deposits and Other Credits</legend>
         <div class="reconcile-columns-dialog__options">
           @for (option of columnOptions; track option.key) {
             <mat-checkbox
@@ -34,13 +38,15 @@
             </mat-checkbox>
           }
         </div>
-      </section>
+      </fieldset>
+    </div>
+
+    <div class="begin-reconciliation-dialog-actions">
+      <span></span>
+      <div class="begin-reconciliation-dialog-actions-right">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" (click)="onConfirm()">OK</button>
+      </div>
     </div>
   </mat-dialog-content>
-
-  <mat-divider></mat-divider>
-  <div class="reconcile-columns-dialog__actions">
-    <button mat-raised-button type="button" color="accent" (click)="onCancel()">Cancel</button>
-    <button mat-raised-button type="button" color="primary" (click)="onConfirm()">OK</button>
-  </div>
 </div>

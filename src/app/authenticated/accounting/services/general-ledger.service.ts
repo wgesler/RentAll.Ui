@@ -5,6 +5,8 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
+import { CompleteReconcileRequest, SaveReconcileMarksRequest } from '../models/reconcile.model';
+import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
 @Injectable({
   providedIn: 'root'
@@ -77,6 +79,14 @@ export class GeneralLedgerService {
     ).pipe(
       map(response => Number(response?.beginningBalance ?? response?.BeginningBalance ?? 0))
     );
+  }
+
+  saveReconcileMarks(request: SaveReconcileMarksRequest): Observable<void> {
+    return this.http.put<void>(`${this.controller}journal-entry-line/reconcile/marks`, request);
+  }
+
+  completeReconcile(request: CompleteReconcileRequest): Observable<ChartOfAccountResponse> {
+    return this.http.put<ChartOfAccountResponse>(`${this.controller}journal-entry-line/reconcile/complete`, request);
   }
 
   getJournalEntryById(journalEntryId: string): Observable<JournalEntryResponse> {
