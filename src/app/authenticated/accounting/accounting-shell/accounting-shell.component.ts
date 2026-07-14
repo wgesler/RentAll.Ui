@@ -564,11 +564,18 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region General Ledger
   onGeneralLedgerLineSelect(event: JournalEntryLineSelection): void {
+    const journalEntryId = (event?.journalEntryId || '').trim();
+    if (!journalEntryId) {
+      return;
+    }
+
     this.showGeneralLedgerCreate = false;
-    this.activeJournalEntryId = event.journalEntryId;
-    this.selectedJournalEntryLineId = event.journalEntryLineId;
+    this.showGeneralLedgerOfficeValidationError = false;
+    this.activeJournalEntryId = journalEntryId;
+    this.selectedJournalEntryLineId = (event.journalEntryLineId || '').trim() || null;
     this.selectedJournalEntry = event.journalEntry ?? null;
     this.showGeneralLedgerDetail = true;
+    this.cdr.markForCheck();
   }
 
   onCreateJournalEntry(): void {

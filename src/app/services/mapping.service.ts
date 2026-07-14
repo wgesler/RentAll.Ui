@@ -695,12 +695,14 @@ export class MappingService {
   mapJournalEntryResponse(raw: Record<string, unknown>): JournalEntryResponse {
     const base = raw as unknown as JournalEntryResponse;
     const rawLines = (raw['journalEntryLines'] ?? raw['JournalEntryLines'] ?? base.journalEntryLines ?? []) as Record<string, unknown>[];
+    const rawIsCashOnly = raw['isCashOnly'] ?? raw['IsCashOnly'] ?? base.isCashOnly;
     return {
       ...base,
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
       sourceCode: String(raw['sourceCode'] ?? raw['SourceCode'] ?? base.sourceCode ?? '').trim() || null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
+      isCashOnly: rawIsCashOnly === true || rawIsCashOnly === 1 || rawIsCashOnly === '1',
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
     };
   }

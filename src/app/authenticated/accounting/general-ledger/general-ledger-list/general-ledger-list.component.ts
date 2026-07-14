@@ -678,6 +678,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
+    this.closeCreateJournalEntry(false);
+    // Prefetch is optional; editor always reloads the full JE by id for accurate edit.
     const journalEntry = buildJournalEntryFromSearchLines(
       resolvedJournalEntryId,
       this.allLines,
@@ -685,7 +687,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     );
     this.lineSelectEvent.emit({
       journalEntryId: resolvedJournalEntryId,
-      journalEntryLineId,
+      journalEntryLineId: (journalEntryLineId || '').trim(),
       journalEntry
     });
   }

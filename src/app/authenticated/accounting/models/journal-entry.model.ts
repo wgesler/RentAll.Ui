@@ -74,6 +74,7 @@ export interface JournalEntryRequest {
   memo?: string | null;
   isPosted: boolean;
   isVoided: boolean;
+  isCashOnly: boolean;
   journalEntryLines: JournalEntryLineRequest[];
 }
 
@@ -110,6 +111,7 @@ export interface JournalEntryResponse {
   memo?: string | null;
   isPosted: boolean;
   isVoided: boolean;
+  isCashOnly: boolean;
   journalEntryLines: JournalEntryLineResponse[];
   createdOn: string;
   createdBy: string;
@@ -157,6 +159,7 @@ export function buildJournalEntryFromSearchLines(
     memo: header.journalEntryMemo ?? null,
     isPosted: header.isPosted,
     isVoided: header.isVoided,
+    isCashOnly: false,
     createdOn: header.createdOn,
     createdBy: header.createdBy,
     modifiedOn: header.modifiedOn,

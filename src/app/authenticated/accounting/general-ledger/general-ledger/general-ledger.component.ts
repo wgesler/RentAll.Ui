@@ -19,10 +19,15 @@ import { GeneralLedgerService } from '../../services/general-ledger.service';
 
 interface EditableJournalEntryLine {
   lineKey: string;
+  journalEntryLineId?: string;
   chartOfAccountId: number | null;
   debit: number;
   credit: number;
   memo: string;
+  costCodeId?: number | null;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  contactId?: string | null;
 }
 
 @Component({
@@ -95,11 +100,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['journalEntryId'] && !changes['journalEntryId'].firstChange && !this.isCreateMode) {
-      this.tryApplyPrefetchedJournalEntry() || this.loadJournalEntry();
-    }
-
-    if (changes['prefetchedJournalEntry'] && !changes['prefetchedJournalEntry'].firstChange && !this.isCreateMode) {
-      this.tryApplyPrefetchedJournalEntry();
+      this.loadJournalEntry();
     }
 
     if ((changes['isCreateMode'] || changes['officeId']) && this.isCreateMode) {
@@ -108,7 +109,12 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get canEdit(): boolean {
-    return !!this.journalEntry && !this.journalEntry.isVoided;
+    return this.isCreateMode || (!!this.journalEntry && !this.journalEntry.isVoided);
+  }
+
+  /** Create and non-voided edit both use the editable lines grid. */
+  get canEditLines(): boolean {
+    return this.canEdit;
   }
 
   get chartOfAccountOptions(): { value: number; label: string }[] {
@@ -142,7 +148,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getTotalDebitDisplay(): string {
-    if (this.isCreateMode) {
+    if (this.canEditLines) {
       return this.formatter.currency(this.getEditableTotalDebit());
     }
 
@@ -151,7 +157,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getTotalCreditDisplay(): string {
-    if (this.isCreateMode) {
+    if (this.canEditLines) {
       return this.formatter.currency(this.getEditableTotalCredit());
     }
 
@@ -232,7 +238,56 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return this.validateCreateForm();
     }
 
+    if (this.canEditLines) {
+      return this.validateEditableEditForm();
+    }
+
     return this.validateEditForm();
+  }
+
+  validateEditableEditForm(): boolean {
+    if (!this.journalEntry || !this.canEdit) {
+      return false;
+    }
+
+    let isValid = true;
+    this.form.get('transactionDate')?.setValidators(Validators.required);
+    this.form.get('memo')?.setValidators(Validators.required);
+    this.applyPostingDateValidators();
+    this.form.updateValueAndValidity({ emitEvent: false });
+
+    if (this.shouldShowControlError(this.form.get('transactionDate'))) {
+      isValid = false;
+    }
+
+    if (this.shouldShowControlError(this.form.get('postingDate'))) {
+      isValid = false;
+    }
+
+    if (this.shouldShowHeaderMemoError()) {
+      isValid = false;
+    }
+
+    const activeLines = this.getActiveEditableLines();
+    if (activeLines.length === 0) {
+      isValid = false;
+    }
+
+    if (this.editableLines.some(line =>
+      this.shouldShowLineAccountError(line)
+      || this.shouldShowLineAmountError(line)
+      || this.shouldShowLineDebitCreditConflict(line)
+      || this.shouldShowLineMemoError(line))) {
+      isValid = false;
+    }
+
+    if (activeLines.length > 0
+      && Math.abs(this.getEditableTotalDebit() - this.getEditableTotalCredit()) > 0.005) {
+      this.linesBalanceValidationError = true;
+      isValid = false;
+    }
+
+    return isValid;
   }
 
   validateCreateForm(): boolean {
@@ -317,7 +372,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   shouldShowHeaderMemoError(): boolean {
-    if (!this.isCreateMode || !this.saveValidationHighlightActive) {
+    if (!this.canEditLines || !this.saveValidationHighlightActive) {
       return false;
     }
 
@@ -427,32 +482,50 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return null;
     }
 
+    const transactionDate = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().transactionDate)
+      ?? this.journalEntry.transactionDate;
     const postingDate = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().postingDate)
       ?? this.journalEntry.postingDate;
+
+    const journalEntryLines: JournalEntryLineRequest[] = this.canEditLines
+      ? this.getActiveEditableLines().map(line => ({
+          journalEntryLineId: line.journalEntryLineId,
+          journalEntryId: this.journalEntry!.journalEntryId,
+          chartOfAccountId: Number(line.chartOfAccountId),
+          costCodeId: line.costCodeId ?? null,
+          propertyId: line.propertyId ?? null,
+          reservationId: line.reservationId ?? null,
+          contactId: line.contactId ?? null,
+          debit: this.roundCurrencyValue(line.debit),
+          credit: this.roundCurrencyValue(line.credit),
+          memo: line.memo.trim() || null
+        }))
+      : (this.journalEntry.journalEntryLines ?? []).map(line => ({
+          journalEntryLineId: line.journalEntryLineId,
+          journalEntryId: line.journalEntryId,
+          chartOfAccountId: line.chartOfAccountId,
+          costCodeId: line.costCodeId ?? null,
+          propertyId: line.propertyId ?? null,
+          reservationId: line.reservationId ?? null,
+          contactId: line.contactId ?? null,
+          debit: line.debit,
+          credit: line.credit,
+          memo: line.memo ?? null
+        }));
 
     return {
       journalEntryId: this.journalEntry.journalEntryId,
       organizationId: this.journalEntry.organizationId,
       officeId: this.journalEntry.officeId,
-      transactionDate: this.journalEntry.transactionDate,
+      transactionDate,
       postingDate,
       sourceTypeId: this.journalEntry.sourceTypeId ?? null,
       sourceId: this.journalEntry.sourceId ?? null,
       memo: this.form.getRawValue().memo?.trim() || null,
       isPosted: this.journalEntry.isPosted,
       isVoided: this.journalEntry.isVoided,
-      journalEntryLines: (this.journalEntry.journalEntryLines ?? []).map(line => ({
-        journalEntryLineId: line.journalEntryLineId,
-        journalEntryId: line.journalEntryId,
-        chartOfAccountId: line.chartOfAccountId,
-        costCodeId: line.costCodeId ?? null,
-        propertyId: line.propertyId ?? null,
-        reservationId: line.reservationId ?? null,
-        contactId: line.contactId ?? null,
-        debit: line.debit,
-        credit: line.credit,
-        memo: line.memo ?? null
-      }))
+      isCashOnly: this.journalEntry.isCashOnly,
+      journalEntryLines
     };
   }
 
@@ -492,6 +565,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       memo: this.form.getRawValue().memo?.trim() || null,
       isPosted: false,
       isVoided: false,
+      isCashOnly: false,
       journalEntryLines
     };
   }
@@ -504,10 +578,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    if (this.tryApplyPrefetchedJournalEntry()) {
-      return;
-    }
-
+    // Always load by id for edit so account-filtered list prefetches (partial JE) cannot open incomplete/uneditable state.
     this.loadJournalEntry();
   }
 
@@ -544,9 +615,32 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.isServiceError = false;
     this.journalEntry = journalEntry;
     this.syncFormFromJournalEntry();
+    this.populateEditableLinesFromJournalEntry(journalEntry);
     this.applyLineDisplay();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
     this.markViewForCheck();
+  }
+
+  populateEditableLinesFromJournalEntry(journalEntry: JournalEntryResponse): void {
+    this.editableLineKeyCounter = 0;
+    const lines = journalEntry.journalEntryLines ?? [];
+    if (lines.length === 0) {
+      this.editableLines = [this.createEditableLine(), this.createEditableLine()];
+      return;
+    }
+
+    this.editableLines = lines.map(line => ({
+      lineKey: `line-${++this.editableLineKeyCounter}`,
+      journalEntryLineId: line.journalEntryLineId,
+      chartOfAccountId: Number(line.chartOfAccountId) || null,
+      debit: this.roundCurrencyValue(Number(line.debit || 0)),
+      credit: this.roundCurrencyValue(Number(line.credit || 0)),
+      memo: (line.memo || '').toString(),
+      costCodeId: line.costCodeId ?? null,
+      propertyId: line.propertyId ?? null,
+      reservationId: line.reservationId ?? null,
+      contactId: line.contactId ?? null
+    }));
   }
 
   initializeCreateForm(): void {

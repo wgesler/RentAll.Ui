@@ -150,6 +150,7 @@ export class ReconcileAdjustmentService {
       memo: params.memo,
       isPosted: false,
       isVoided: false,
+      isCashOnly: false,
       journalEntryLines
     };
 

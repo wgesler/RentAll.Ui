@@ -251,6 +251,9 @@ export class GeneralLedgerService {
       memo: journalEntry.memo?.trim() || null,
       sourceTypeId: journalEntry.sourceTypeId ?? null,
       sourceId: journalEntry.sourceId || null,
+      isPosted: journalEntry.isPosted === true,
+      isVoided: journalEntry.isVoided === true,
+      isCashOnly: journalEntry.isCashOnly === true,
       journalEntryLines
     };
   }
