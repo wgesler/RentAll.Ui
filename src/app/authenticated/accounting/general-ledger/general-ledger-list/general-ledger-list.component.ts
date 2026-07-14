@@ -2047,6 +2047,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     line: JournalEntryLineListDisplay,
     rows: TransferReportRowDisplay[]
   ): TransferReportRowDisplay | null {
+    const journalEntryId = (line.journalEntryId || '').trim();
+    if (journalEntryId) {
+      const byJournalEntryId = rows.find(row => (row.journalEntryId || '').trim() === journalEntryId);
+      if (byJournalEntryId) {
+        return byJournalEntryId;
+      }
+    }
+
     const byInvoiceSource = this.findTransferReportRowByInvoiceSource(
       rows,
       this.extractTransferInvoiceSourceCode(line.description, line.source, line.journalEntryCode)
