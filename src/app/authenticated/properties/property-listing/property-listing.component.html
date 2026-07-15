@@ -83,25 +83,22 @@
         <div class="listing-details-grid">
           <div class="listing-details-col">
             @if (listingPhotos.length > 0) {
-              <div class="listing-photo-grid" cdkDropList [cdkDropListData]="listingPhotos" [cdkDropListDisabled]="isReadOnly || isReorderingPhotos" [cdkDropListSortingDisabled]="true" (cdkDropListDropped)="onPhotoDrop($event)">
+              <div class="listing-photo-grid" cdkDropList [cdkDropListData]="listingPhotos" [cdkDropListDisabled]="isReadOnly" (cdkDropListDropped)="onPhotoDrop($event)">
                 @for (photo of listingPhotos; track photo.id) {
                   <div class="listing-photo-card"
                     [class.listing-photo-card--pending]="photo.isPending"
                     cdkDrag
                     [cdkDragData]="photo"
-                    [cdkDragDisabled]="isReadOnly || isReorderingPhotos"
-                    [class.drop-indicator-left]="hasDropIndicator(photo.id, 'left')"
-                    [class.drop-indicator-right]="hasDropIndicator(photo.id, 'right')"
+                    [cdkDragDisabled]="isReadOnly"
                     [class.photo-is-dragging]="isPhotoBeingDragged(photo.id)"
                     [attr.data-photo-id]="photo.id"
                     (cdkDragStarted)="onPhotoDragStarted(photo.id)"
-                    (cdkDragMoved)="onPhotoDragMoved($event)"
                     (cdkDragEnded)="onPhotoDragEnded()">
                     @if (!isReadOnly) {
                       <button
                         type="button"
                         class="listing-photo-card__remove-btn"
-                        (click)="removePhoto(photo.id)"
+                        (click)="removePhoto(photo.id); $event.stopPropagation()"
                         aria-label="Remove photo">
                         <mat-icon>close</mat-icon>
                       </button>
@@ -110,6 +107,8 @@
                       [src]="getPhotoDisplayUrl(photo)"
                       [alt]="photo.fileDetails?.fileName || 'Property photo'"
                       class="listing-photo-card__img"
+                      draggable="false"
+                      (dragstart)="$event.preventDefault()"
                       (click)="openPhotoDialog(photo.id)" />
                     @if (photo.isPending) {
                       <div class="listing-photo-card__pending-overlay">

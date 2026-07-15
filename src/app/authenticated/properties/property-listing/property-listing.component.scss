@@ -318,6 +318,8 @@
   overflow: hidden;
   background: #fff;
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .listing-photo-card.cdk-drag-disabled {
@@ -333,32 +335,13 @@
 }
 
 .listing-photo-card.cdk-drag-placeholder {
-  opacity: 0;
+  opacity: 0.35;
+  border: 1px dashed rgba(15, 79, 168, 0.55);
 }
 
 .listing-photo-card.cdk-drag-preview {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(15, 79, 168, 0.55);
-}
-
-.listing-photo-card.drop-indicator-left::before,
-.listing-photo-card.drop-indicator-right::after {
-  content: '';
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--global-primary, #0f4fa8);
-  z-index: 3;
-}
-
-.listing-photo-card.drop-indicator-left::before {
-  left: 2px;
-}
-
-.listing-photo-card.drop-indicator-right::after {
-  right: 2px;
 }
 
 .listing-photo-card__img {
@@ -367,6 +350,8 @@
   object-fit: cover;
   display: block;
   cursor: zoom-in;
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 
 .listing-photo-card__remove-btn {

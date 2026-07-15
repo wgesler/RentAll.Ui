@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
-import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { getPropertyType } from '../models/property-enums';
 import {
   ListingAmenityIconItem,
@@ -55,8 +55,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   isReorderingPhotos = false;
   isDraggingPhoto = false;
   draggingPhotoId: string | null = null;
-  dropIndicatorPhotoId: string | null = null;
-  dropIndicatorSide: 'left' | 'right' | null = null;
+  suppressNextPhotoClick = false;
   listingDescriptionExpanded = false;
   descriptionHasOverflow = false;
   listingDescriptionHtmlValue = '';
@@ -571,58 +570,26 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   async onPhotoDrop(event: CdkDragDrop<ListingPhotoItem[]>): Promise<void> {
-    const indicatorPhotoId = this.dropIndicatorPhotoId;
-    const indicatorSide = this.dropIndicatorSide;
-    this.clearDropIndicator();
     if (this.isReadOnly || this.isReorderingPhotos) {
       return;
     }
-    const draggedPhotoId = event.item?.data?.id ? String(event.item.data.id) : null;
-    if (!draggedPhotoId) {
-      return;
-    }
 
-    const sourceIndex = this.listingPhotos.findIndex(photo => photo.id === draggedPhotoId);
-    if (sourceIndex < 0) {
+    if (event.previousIndex === event.currentIndex) {
       return;
     }
 
     const previousOrder = this.listingPhotos.map(photo => ({ ...photo }));
-    const nextPhotos = this.listingPhotos.map(photo => ({ ...photo }));
-    const [movedPhotoItem] = nextPhotos.splice(sourceIndex, 1);
-
-    if (!indicatorPhotoId || !indicatorSide) {
-      return;
-    }
-    const hoveredIndexInReduced = nextPhotos.findIndex(photo => photo.id === indicatorPhotoId);
-    if (hoveredIndexInReduced < 0) {
-      return;
-    }
-    let insertionIndex = hoveredIndexInReduced + (indicatorSide === 'right' ? 1 : 0);
-
-    insertionIndex = Math.max(0, Math.min(insertionIndex, nextPhotos.length));
-    nextPhotos.splice(insertionIndex, 0, movedPhotoItem);
-
-    if (nextPhotos.length !== this.listingPhotos.length) {
-      this.toastr.error('Unable to reorder photos.', CommonMessage.Error);
-      return;
-    }
-
-    if (sourceIndex === insertionIndex) {
-      return;
-    }
-
-    this.listingPhotos = nextPhotos;
+    moveItemInArray(this.listingPhotos, event.previousIndex, event.currentIndex);
     this.normalizeInMemoryPhotoOrder();
+    this.markViewForCheck();
 
-    const movedPhoto = this.listingPhotos.find(photo => photo.id === draggedPhotoId);
+    const startIndex = Math.min(event.previousIndex, event.currentIndex);
+    const endIndex = Math.max(event.previousIndex, event.currentIndex);
+    const movedPhoto = this.listingPhotos[event.currentIndex];
     const movedPhotoId = this.parsePersistedPhotoId(movedPhoto?.id);
-    if (movedPhotoId === null) {
+    if (movedPhotoId === null || !movedPhoto) {
       return;
     }
-
-    const startIndex = Math.min(sourceIndex, insertionIndex);
-    const endIndex = Math.max(sourceIndex, insertionIndex);
 
     this.isReorderingPhotos = true;
     try {
@@ -632,7 +599,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
         order: tempOrder
       }));
 
-      if (sourceIndex < insertionIndex) {
+      if (event.previousIndex < event.currentIndex) {
         for (let index = startIndex; index <= endIndex; index++) {
           const photo = this.listingPhotos[index];
           if (!photo || photo.id === movedPhoto.id) {
@@ -674,58 +641,28 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
       this.toastr.error('Unable to reorder photos.', CommonMessage.Error);
     } finally {
       this.isReorderingPhotos = false;
+      this.markViewForCheck();
     }
-  }
-
-  onPhotoDragMoved(event: CdkDragMove<ListingPhotoItem>): void {
-    if (this.isReadOnly || this.isReorderingPhotos) {
-      this.clearDropIndicator();
-      return;
-    }
-
-    const pointer = event.pointerPosition;
-    const target = document.elementFromPoint(pointer.x, pointer.y) as HTMLElement | null;
-    const targetCard = target?.closest('.listing-photo-card') as HTMLElement | null;
-    const targetPhotoId = targetCard?.getAttribute('data-photo-id');
-    if (!targetCard || !targetPhotoId) {
-      this.clearDropIndicator();
-      return;
-    }
-
-    const draggingPhotoId = event.source.data?.id ? String(event.source.data.id) : null;
-    if (draggingPhotoId && targetPhotoId === draggingPhotoId) {
-      this.clearDropIndicator();
-      return;
-    }
-
-    const rect = targetCard.getBoundingClientRect();
-    const midpoint = rect.left + (rect.width / 2);
-    const side: 'left' | 'right' = pointer.x >= midpoint ? 'right' : 'left';
-    this.dropIndicatorPhotoId = targetPhotoId;
-    this.dropIndicatorSide = side;
-  }
-
-  clearDropIndicator(): void {
-    this.dropIndicatorPhotoId = null;
-    this.dropIndicatorSide = null;
   }
 
   onPhotoDragStarted(photoId: string): void {
     this.isDraggingPhoto = true;
     this.draggingPhotoId = photoId;
+    this.suppressNextPhotoClick = false;
   }
 
   onPhotoDragEnded(): void {
+    this.suppressNextPhotoClick = true;
     this.isDraggingPhoto = false;
     this.draggingPhotoId = null;
+    // Click fires after pointerup; keep suppress long enough to swallow the post-drag click.
+    setTimeout(() => {
+      this.suppressNextPhotoClick = false;
+    }, 200);
   }
 
   isPhotoBeingDragged(photoId: string): boolean {
     return this.isDraggingPhoto && this.draggingPhotoId === photoId;
-  }
-
-  hasDropIndicator(photoId: string, side: 'left' | 'right'): boolean {
-    return this.dropIndicatorPhotoId === photoId && this.dropIndicatorSide === side;
   }
 
   async copyListingLink(): Promise<void> {
@@ -761,6 +698,10 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   openPhotoDialog(selectedPhotoId: string): void {
+    if (this.suppressNextPhotoClick || this.isDraggingPhoto) {
+      return;
+    }
+
     const activePhotos = this.listingPhotos
       .map(photo => ({ id: photo.id, source: this.getPhotoDisplayUrl(photo) }))
       .filter(photo => !!photo.source);
