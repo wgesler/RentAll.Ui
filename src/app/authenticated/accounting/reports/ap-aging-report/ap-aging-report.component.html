@@ -4,8 +4,7 @@
       mat-raised-button
       type="button"
       color="accent"
-      (click)="onPrint()"
-      [disabled]="!canUseReportDocuments">
+      (click)="onPrint()">
       <mat-icon>print</mat-icon>
       Print
     </button>
@@ -13,8 +12,7 @@
       mat-raised-button
       type="button"
       color="accent"
-      (click)="exportReportToExcel()"
-      [disabled]="!canUseReportDocuments">
+      (click)="exportReportToExcel()">
       <mat-icon>table_view</mat-icon>
       Excel
     </button>
@@ -23,9 +21,9 @@
       type="button"
       color="accent"
       (click)="onDownload()"
-      [disabled]="!canUseReportDocuments || isDownloading">
-      <mat-icon>download</mat-icon>
-      {{ isDownloading ? 'Downloading...' : 'Download' }}
+      [disabled]="isDownloading">
+      <mat-icon>picture_as_pdf</mat-icon>
+      {{ isDownloading ? 'Pdf...' : 'Pdf' }}
     </button>
     <button
       mat-raised-button
@@ -33,7 +31,7 @@
       color="primary"
       class="text-nowrap flex-shrink-0"
       (click)="saveReportDocument()"
-      [disabled]="!canUseReportDocuments || isSubmitting">
+      [disabled]="isSubmitting">
       <mat-icon>save</mat-icon>
       {{ isSubmitting ? 'Saving...' : 'Document' }}
     </button>
@@ -59,6 +57,16 @@
       [reservationIdInput]="activeInvoiceReservationId"
       (savedEvent)="onInvoiceSaved()">
     </app-invoice>
+  } @else if (activeWorkOrderId) {
+    <app-work-order
+      [property]="drillDownWorkOrderProperty"
+      [workOrderId]="activeWorkOrderId"
+      [prefetchedWorkOrder]="selectedWorkOrder"
+      [officeId]="selectedWorkOrder?.officeId ?? officeId"
+      [embedDocumentPreviewInShell]="true"
+      (backEvent)="drillDownBack()"
+      (savedEvent)="onWorkOrderSaved()">
+    </app-work-order>
   } @else if (detailReport && drillDownView) {
     <div class="mat list-layout-standard financial-report-layout ap-aging-detail-layout">
       <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">

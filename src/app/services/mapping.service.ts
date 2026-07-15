@@ -6131,10 +6131,55 @@ export class MappingService {
         const memo = (line.journalEntryMemo || line.memo || '').trim() || null;
 
         if (amount > 0.005) {
+          let credit = amount;
+          while (credit > 0.005 && lots.length > 0 && lots[0].remaining < -0.005) {
+            const lot = lots[0];
+            const take = Math.min(-lot.remaining, credit);
+            lot.remaining = this.roundFinancialReportAmount(lot.remaining + take);
+            credit = this.roundFinancialReportAmount(credit - take);
+            if (Math.abs(lot.remaining) <= 0.005) {
+              lots.shift();
+            }
+          }
+
+          if (credit > 0.005) {
+            lots.push({
+              journalEntryLineId: line.journalEntryLineId,
+              transactionDate,
+              remaining: credit,
+              contactId,
+              contactName,
+              propertyId,
+              propertyCode,
+              sourceCode,
+              sourceTypeId: Number.isFinite(sourceTypeId) && sourceTypeId > 0 ? sourceTypeId : null,
+              sourceId,
+              reservationId,
+              journalEntryCode,
+              officeId: Number(line.officeId) || 0,
+              memo
+            });
+          }
+          return;
+        }
+
+        let apply = this.roundFinancialReportAmount(-amount);
+        while (apply > 0.005 && lots.length > 0 && lots[0].remaining > 0.005) {
+          const lot = lots[0];
+          const take = Math.min(lot.remaining, apply);
+          lot.remaining = this.roundFinancialReportAmount(lot.remaining - take);
+          apply = this.roundFinancialReportAmount(apply - take);
+          if (lot.remaining <= 0.005) {
+            lots.shift();
+          }
+        }
+
+        // Unmatched debit (overpayment / prepaid) remains as an open negative A/P balance.
+        if (apply > 0.005) {
           lots.push({
             journalEntryLineId: line.journalEntryLineId,
             transactionDate,
-            remaining: amount,
+            remaining: this.roundFinancialReportAmount(-apply),
             contactId,
             contactName,
             propertyId,
@@ -6147,23 +6192,11 @@ export class MappingService {
             officeId: Number(line.officeId) || 0,
             memo
           });
-          return;
-        }
-
-        let apply = this.roundFinancialReportAmount(-amount);
-        while (apply > 0.005 && lots.length > 0) {
-          const lot = lots[0];
-          const take = Math.min(lot.remaining, apply);
-          lot.remaining = this.roundFinancialReportAmount(lot.remaining - take);
-          apply = this.roundFinancialReportAmount(apply - take);
-          if (lot.remaining <= 0.005) {
-            lots.shift();
-          }
         }
       });
 
       lots.forEach(lot => {
-        if (lot.remaining <= 0.005) {
+        if (Math.abs(lot.remaining) <= 0.005) {
           return;
         }
 

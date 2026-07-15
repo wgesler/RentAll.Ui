@@ -786,6 +786,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return !!(
       this.activeApAgingReport?.activeReceiptId
       || this.activeApAgingReport?.activeInvoiceId
+      || this.activeApAgingReport?.activeWorkOrderId
       || this.activeApAgingReport?.drillDownView
       || this.arAgingReport?.activeInvoiceId
       || this.arAgingReport?.drillDownView
@@ -800,6 +801,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (
       apAgingReport?.activeReceiptId
       || apAgingReport?.activeInvoiceId
+      || apAgingReport?.activeWorkOrderId
       || apAgingReport?.drillDownView
       || this.isApAgingDrillDownActive
     ) {

@@ -14,11 +14,11 @@ When changing layout, styles, columns, Ref No link behavior, back navigation, or
 
 ## Intentional Owner AP differences
 
-- Data source: Owner A/P JE lines (`IsCashOnly = 0`), not vendor receipts / customer invoices.
+- Data source: all JE lines that hit **Default Owner A/P** (`DefaultOwnActPayableAccountId`) and/or chart account **No 2001**, including **credits and debits**, and including `IsCashOnly` entries (Owner Actual). GL / P&L / BS continue to omit cash-only via `JournalEntryLine_GetByCriteria` default.
 - Ref No opens the JE supporting document via `sourceTypeId`/`sourceId` (and `RC*` / `R-*` code fallback), not only `receiptId`.
 - Detail report title/scope copy may say Owner instead of Vendor.
 
 ## Ref No links
 
-- Standard AP → receipt; AR → invoice; Owner AP → receipt and/or invoice from JE source (same blue underline affordance).
-- Shell back must close embedded receipt/invoice before leaving aging detail.
+- Standard AP → receipt; AR → invoice; Owner AP → receipt, invoice, and **work order** (`WO*`) from JE source (same blue underline affordance).
+- Shell back must close embedded receipt/invoice/work order before leaving aging detail.

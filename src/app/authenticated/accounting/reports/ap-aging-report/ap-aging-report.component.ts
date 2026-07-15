@@ -36,7 +36,7 @@ import {
   ApAgingReportResult,
   ApAgingVisibleRow
 } from '../../models/ap-aging-report.model';
-import { AccountType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
+import { AccountType, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
 import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
@@ -45,11 +45,14 @@ import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { InvoiceService } from '../../services/invoice.service';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
+import { WorkOrderComponent } from '../../../maintenance/work-order/work-order.component';
+import { WorkOrderResponse } from '../../../maintenance/models/work-order.model';
+import { WorkOrderService } from '../../../maintenance/services/work-order.service';
 
 @Component({
   selector: 'app-ap-aging-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, ReceiptComponent, InvoiceComponent],
+  imports: [CommonModule, MaterialModule, ReceiptComponent, InvoiceComponent, WorkOrderComponent],
   templateUrl: './ap-aging-report.component.html',
   styleUrls: ['./ap-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -65,6 +68,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   formatter = inject(FormatterService);
   private receiptService = inject(ReceiptService);
   private invoiceService = inject(InvoiceService);
+  private workOrderService = inject(WorkOrderService);
   private journalEntrySourceService = inject(JournalEntrySourceService);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
@@ -115,6 +119,9 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   activeInvoiceOfficeId: number | null = null;
   activeInvoiceReservationId: string | null = null;
   selectedInvoice: InvoiceResponse | null = null;
+  activeWorkOrderId: string | null = null;
+  selectedWorkOrder: WorkOrderResponse | null = null;
+  drillDownWorkOrderProperty: PropertyResponse | null = null;
 
   companyName = '';
   organizationId = '';
@@ -344,31 +351,41 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
             .filter((entry): entry is [string, number | null] => !!entry[0])
         );
 
-        const accountByOffice = new Map<number, number>();
+        const accountRequests: Array<{ officeId: number; chartOfAccountId: number }> = [];
         officeIds.forEach(officeId => {
-          const accountId = this.resolveOwnerApAccountId(officeId);
-          if (accountId != null && accountId > 0) {
-            accountByOffice.set(officeId, accountId);
-          }
+          this.resolveOwnerApAccountIds(officeId).forEach(chartOfAccountId => {
+            accountRequests.push({ officeId, chartOfAccountId });
+          });
         });
 
-        if (accountByOffice.size === 0) {
+        if (accountRequests.length === 0) {
           return of([] as JournalEntryLineSearchResponse[]);
         }
 
-        const requests = [...accountByOffice.entries()].map(([officeId, chartOfAccountId]) =>
+        const requests = accountRequests.map(({ officeId, chartOfAccountId }) =>
           this.generalLedgerService.searchJournalEntryLines({
             officeIds: [officeId],
             chartOfAccountId,
             includeVoided: false,
             includeUnposted: true,
+            includeCashOnly: true,
             startDate: null,
             endDate: asOfDate
           }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])))
         );
 
         return forkJoin(requests).pipe(
-          map(results => results.flatMap(lines => lines || []))
+          map(results => {
+            const seen = new Set<string>();
+            return results.flatMap(lines => lines || []).filter(line => {
+              const lineId = String(line.journalEntryLineId || '').trim();
+              if (!lineId || seen.has(lineId)) {
+                return false;
+              }
+              seen.add(lineId);
+              return true;
+            });
+          })
         );
       }),
       take(1)
@@ -394,20 +411,46 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     });
   }
 
-  resolveOwnerApAccountId(officeId: number): number | null {
+  /** Default Owner A/P (accounting office) plus chart account No 2001 when present. */
+  resolveOwnerApAccountIds(officeId: number): number[] {
+    const accountIds = new Set<number>();
+
     const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
       .find(office => Number(office.officeId) === officeId);
     const configuredAccountId = Number(accountingOffice?.defaultOwnActPayableAccountId ?? 0);
     if (configuredAccountId > 0) {
-      return configuredAccountId;
+      accountIds.add(configuredAccountId);
     }
 
-    const ownerApAccount = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId).find(account =>
-      Number(account.accountTypeId) === AccountType.AccountsPayable
-      && /owner/i.test((account.name || account.accountNo || '').trim())
-    );
-    const fallbackAccountId = Number(ownerApAccount?.accountId ?? 0);
-    return fallbackAccountId > 0 ? fallbackAccountId : null;
+    const officeAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId);
+    officeAccounts.forEach(account => {
+      const accountId = Number(account.accountId ?? 0);
+      if (accountId <= 0) {
+        return;
+      }
+
+      const accountNo = String(account.accountNo || '').trim().replace(/^0+/, '');
+      if (accountNo === '2001') {
+        accountIds.add(accountId);
+      }
+    });
+
+    if (accountIds.size === 0) {
+      const ownerApAccount = officeAccounts.find(account =>
+        Number(account.accountTypeId) === AccountType.AccountsPayable
+        && /owner/i.test((account.name || account.accountNo || '').trim())
+      );
+      const fallbackAccountId = Number(ownerApAccount?.accountId ?? 0);
+      if (fallbackAccountId > 0) {
+        accountIds.add(fallbackAccountId);
+      }
+    }
+
+    return [...accountIds];
+  }
+
+  resolveOwnerApAccountId(officeId: number): number | null {
+    return this.resolveOwnerApAccountIds(officeId)[0] ?? null;
   }
   //#endregion
 
@@ -613,6 +656,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   closeDrillDown(): void {
     this.closeReceiptDetail();
     this.closeInvoiceDetail();
+    this.closeWorkOrderDetail();
     this.drillDownView = null;
     this.detailReport = null;
     this.drillDownActiveChange.emit(false);
@@ -628,6 +672,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
     if (this.activeInvoiceId) {
       this.closeInvoiceDetail();
+      this.markViewForCheck();
+      return;
+    }
+
+    if (this.activeWorkOrderId) {
+      this.closeWorkOrderDetail();
       this.markViewForCheck();
       return;
     }
@@ -738,6 +788,13 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
+  closeWorkOrderDetail(): void {
+    this.activeWorkOrderId = null;
+    this.selectedWorkOrder = null;
+    this.drillDownWorkOrderProperty = null;
+    this.markViewForCheck();
+  }
+
   onReceiptSaved(): void {
     this.closeReceiptDetail();
     this.journalEntriesChanged.emit();
@@ -750,6 +807,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.loadReportSourceData();
   }
 
+  onWorkOrderSaved(): void {
+    this.closeWorkOrderDetail();
+    this.journalEntriesChanged.emit();
+    this.loadReportSourceData();
+  }
+
   isDetailRowClickable(row: ApAgingDetailRow): boolean {
     if (row.kind !== 'transaction' || !(row.referenceNo || '').trim()) {
       return false;
@@ -757,6 +820,8 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
     if (this.isOwnerPayableMode) {
       return isJournalEntrySourceNavigable(row.sourceTypeId)
+        || row.sourceTypeId === SourceType.WorkOrder
+        || /^WO/i.test(row.referenceNo || '')
         || /^RC/i.test(row.referenceNo || '')
         || /^R-\d+/i.test(row.referenceNo || '');
     }
@@ -776,6 +841,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   openOwnerSourceDocument(row: ApAgingDetailRow): void {
     const referenceNo = (row.referenceNo || '').trim();
     if (!referenceNo) {
+      return;
+    }
+
+    if (row.sourceTypeId === SourceType.WorkOrder && (row.sourceId || '').trim()) {
+      this.openWorkOrderById(row.sourceId!.trim(), row);
       return;
     }
 
@@ -837,6 +907,33 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const officeId = Number(row.officeId) || 0;
     const officeIds = officeId > 0 ? [officeId] : this.resolveOfficeIds();
 
+    if (/^WO/i.test(referenceNo)) {
+      if (officeIds.length === 0) {
+        this.toastr.error('Unable to resolve work order office scope.', 'Owner AP Aging');
+        return;
+      }
+
+      this.workOrderService.searchWorkOrders({
+        officeIds,
+        isActive: null,
+        startDate: null,
+        endDate: null
+      }).pipe(take(1)).subscribe({
+        next: workOrders => {
+          const matched = (workOrders || []).find(workOrder =>
+            (workOrder.workOrderCode || '').trim().toLowerCase() === referenceNo.toLowerCase()
+          );
+          if (!matched?.workOrderId) {
+            this.toastr.error('Unable to locate work order by Ref No.', 'Owner AP Aging');
+            return;
+          }
+          this.openWorkOrderDetail(matched);
+        },
+        error: () => this.toastr.error('Unable to locate work order by Ref No.', 'Owner AP Aging')
+      });
+      return;
+    }
+
     if (/^RC/i.test(referenceNo)) {
       this.receiptService.searchReceipts({
         officeIds,
@@ -883,8 +980,35 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.toastr.error('Unable to open supporting document for this Ref No.', 'Owner AP Aging');
   }
 
+  openWorkOrderById(workOrderId: string, row: ApAgingDetailRow): void {
+    this.workOrderService.getWorkOrderById(workOrderId).pipe(take(1)).subscribe({
+      next: workOrder => {
+        if (!workOrder?.workOrderId) {
+          this.resolveOwnerSourceByCode(row);
+          return;
+        }
+        this.openWorkOrderDetail(workOrder);
+      },
+      error: () => this.resolveOwnerSourceByCode(row)
+    });
+  }
+
+  openWorkOrderDetail(workOrder: WorkOrderResponse): void {
+    this.closeReceiptDetail();
+    this.closeInvoiceDetail();
+    this.selectedWorkOrder = workOrder;
+    this.activeWorkOrderId = workOrder.workOrderId;
+    const propertyId = (workOrder.propertyId || '').trim();
+    this.drillDownWorkOrderProperty = propertyId
+      ? this.buildWorkOrderPropertyStub(workOrder)
+      : null;
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
+  }
+
   openInvoiceDetail(invoice: InvoiceResponse): void {
     this.closeReceiptDetail();
+    this.closeWorkOrderDetail();
     this.selectedInvoice = invoice;
     this.activeInvoiceId = invoice.invoiceId;
     this.activeInvoiceOfficeId = invoice.officeId ?? null;
@@ -895,6 +1019,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
   private setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
     this.closeInvoiceDetail();
+    this.closeWorkOrderDetail();
     this.selectedReceipt = receipt;
     this.activeReceiptId = receipt.receiptId;
     this.activeReceiptOfficeId = receipt.officeId;
@@ -910,6 +1035,17 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       propertyCode: this.propertyCodeByPropertyId.get(receipt.propertyIds?.[0] || '') || '',
       officeId: receipt.officeId,
       officeName: receipt.officeName,
+      isActive: true
+    } as PropertyResponse;
+  }
+
+  private buildWorkOrderPropertyStub(workOrder: WorkOrderResponse): PropertyResponse {
+    const propertyId = (workOrder.propertyId || '').trim();
+    return {
+      propertyId,
+      organizationId: this.organizationId,
+      propertyCode: this.propertyCodeByPropertyId.get(propertyId) || '',
+      officeId: workOrder.officeId,
       isActive: true
     } as PropertyResponse;
   }
@@ -940,10 +1076,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get canUseReportDocuments(): boolean {
-    return !!this.reportResult
-      && (this.reportResult.vendorRows.length > 0 || this.visibleRows.length > 0)
-      && !!this.previewIframeHtml
-      && this.resolveDocumentOfficeId() != null;
+    return true;
   }
 
   override onPrint(): void {

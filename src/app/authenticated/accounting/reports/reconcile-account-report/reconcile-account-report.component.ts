@@ -147,7 +147,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   }
 
   get canUseReportDocuments(): boolean {
-    return !!this.reportResult && !!this.previewIframeHtml && this.resolveOfficeId(this.resolveSelectedAccount()) != null;
+    return true;
   }
 
   get shellReportTitle(): string {

@@ -50,6 +50,10 @@ export class GeneralLedgerService {
       body['unclearedOnly'] = true;
     }
 
+    if (request.includeCashOnly) {
+      body['includeCashOnly'] = true;
+    }
+
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/search`, body).pipe(
       map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
     );

@@ -43,6 +43,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   @Input() journalEntryId: string | null = null;
   @Input() selectedJournalEntryLineId: string | null = null;
   @Input() prefetchedJournalEntry: JournalEntryResponse | null = null;
+  /** When create mode opens, seed form/lines from this entry (JE#/ids omitted). */
+  @Input() copyFromJournalEntry: JournalEntryResponse | null = null;
   @Input() isCreateMode = false;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
@@ -103,7 +105,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       this.loadJournalEntry();
     }
 
-    if ((changes['isCreateMode'] || changes['officeId']) && this.isCreateMode) {
+    if ((changes['isCreateMode'] || changes['officeId'] || changes['copyFromJournalEntry']) && this.isCreateMode) {
       this.initializeCreateForm();
     }
   }
@@ -549,10 +551,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       debit: this.roundCurrencyValue(line.debit),
       credit: this.roundCurrencyValue(line.credit),
       memo: line.memo.trim() || null,
-      costCodeId: null,
-      propertyId: lineContext.propertyId,
-      reservationId: lineContext.reservationId,
-      contactId: lineContext.contactId
+      costCodeId: line.costCodeId ?? null,
+      propertyId: (line.propertyId || '').trim() || lineContext.propertyId,
+      reservationId: (line.reservationId || '').trim() || lineContext.reservationId,
+      contactId: (line.contactId || '').trim() || lineContext.contactId
     }));
 
     return {
@@ -648,14 +650,52 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.journalEntry = null;
     this.lineRows = [];
     this.editableLineKeyCounter = 0;
-    this.editableLines = [this.createEditableLine(), this.createEditableLine()];
     this.saveValidationHighlightActive = false;
     this.linesBalanceValidationError = false;
+
+    if (this.copyFromJournalEntry) {
+      this.applyCreateFormFromCopy(this.copyFromJournalEntry);
+      return;
+    }
+
+    this.editableLines = [this.createEditableLine(), this.createEditableLine()];
     const today = new Date();
     this.form.reset({
       transactionDate: today,
       postingDate: null,
       memo: '',
+      isPosted: false
+    });
+    this.form.get('transactionDate')?.setValidators(Validators.required);
+    this.form.get('memo')?.clearValidators();
+    this.applyPostingDateValidators();
+    this.form.updateValueAndValidity({ emitEvent: false });
+    this.form.enable();
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
+    this.markViewForCheck();
+  }
+
+  /** Seed a new (unsaved) journal entry from an existing one — no JE# / line ids. */
+  applyCreateFormFromCopy(source: JournalEntryResponse): void {
+    const lines = source.journalEntryLines ?? [];
+    this.editableLines = lines.length > 0
+      ? lines.map(line => ({
+          lineKey: `line-${++this.editableLineKeyCounter}`,
+          chartOfAccountId: Number(line.chartOfAccountId) || null,
+          debit: this.roundCurrencyValue(Number(line.debit || 0)),
+          credit: this.roundCurrencyValue(Number(line.credit || 0)),
+          memo: (line.memo || '').toString(),
+          costCodeId: line.costCodeId ?? null,
+          propertyId: line.propertyId ?? null,
+          reservationId: line.reservationId ?? null,
+          contactId: line.contactId ?? null
+        }))
+      : [this.createEditableLine(), this.createEditableLine()];
+
+    this.form.reset({
+      transactionDate: this.utilityService.parseDateOnlyStringToDate(source.transactionDate) ?? new Date(),
+      postingDate: null,
+      memo: source.memo ?? '',
       isPosted: false
     });
     this.form.get('transactionDate')?.setValidators(Validators.required);

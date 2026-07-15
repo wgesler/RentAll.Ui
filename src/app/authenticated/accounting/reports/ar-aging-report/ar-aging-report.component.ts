@@ -615,10 +615,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get canUseReportDocuments(): boolean {
-    return !!this.reportResult
-      && (this.reportResult.customerRows.length > 0 || this.visibleRows.length > 0)
-      && !!this.previewIframeHtml
-      && this.resolveDocumentOfficeId() != null;
+    return true;
   }
 
   override onPrint(): void {

@@ -96,6 +96,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   selectedJournalEntryLineIds = new Set<string>();
   selectedJournalEntryIds = new Set<string>();
   showCreateJournalEntry = false;
+  copyFromJournalEntry: JournalEntryResponse | null = null;
   sortByCreated = false;
   isPostingJournalEntries = false;
   showDepositSelections = false;
@@ -699,6 +700,35 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.onLineSelect(row);
   }
 
+  copyJournalEntry(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
+    const journalEntryId = (row?.journalEntryId || '').trim();
+    if (!journalEntryId) {
+      return;
+    }
+
+    if (!this.officeId) {
+      this.officeValidationRequiredEvent.emit();
+      return;
+    }
+
+    this.generalLedgerService.getJournalEntryById(journalEntryId).pipe(take(1)).subscribe({
+      next: journalEntry => {
+        if (!journalEntry?.journalEntryId) {
+          this.toastr.error('Unable to copy journal entry.', 'Error');
+          this.markViewForCheck();
+          return;
+        }
+
+        this.copyFromJournalEntry = journalEntry;
+        this.openCreateJournalEntry();
+      },
+      error: () => {
+        this.toastr.error('Unable to copy journal entry.', 'Error');
+        this.markViewForCheck();
+      }
+    });
+  }
+
   deleteJournalEntryLine(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
     const journalEntryId = (row?.journalEntryId || '').trim();
     if (!journalEntryId) {
@@ -719,6 +749,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
+  openBlankCreateJournalEntry(): void {
+    this.copyFromJournalEntry = null;
+    this.openCreateJournalEntry();
+  }
+
   openCreateJournalEntry(): void {
     this.showCreateJournalEntry = true;
     this.createJournalEntryEvent.emit();
@@ -727,10 +762,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   closeCreateJournalEntry(emitClosedEvent = true): void {
     if (!this.showCreateJournalEntry) {
+      this.copyFromJournalEntry = null;
       return;
     }
 
     this.showCreateJournalEntry = false;
+    this.copyFromJournalEntry = null;
     if (emitClosedEvent) {
       this.createJournalEntryClosedEvent.emit();
     }
@@ -2990,6 +3027,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return this.usesGroupedJournalEntryDisplay;
   }
 
+  get showGeneralLedgerRowCopyAction(): boolean {
+    return this.showGeneralLedgerRowEditAction;
+  }
+
   get showGeneralLedgerRowDeleteAction(): boolean {
     return !this.undepositedFundsOnly
       && !this.untransferredFundsOnly
@@ -2999,7 +3040,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   get showGeneralLedgerDetailActionsPadding(): boolean {
-    return this.showGeneralLedgerRowEditAction || this.showGeneralLedgerRowDeleteAction;
+    return this.showGeneralLedgerRowEditAction
+      || this.showGeneralLedgerRowCopyAction
+      || this.showGeneralLedgerRowDeleteAction;
   }
 
   get showGeneralLedgerRowActions(): boolean {

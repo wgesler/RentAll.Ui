@@ -832,10 +832,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   }
 
   get canUseReportDocuments(): boolean {
-    return !!this.reportResult
-      && this.visibleRows.length > 0
-      && !!this.previewIframeHtml
-      && this.resolveDocumentOfficeId() != null;
+    return true;
   }
 
   override onPrint(): void {

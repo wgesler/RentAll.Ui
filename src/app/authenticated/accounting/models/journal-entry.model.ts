@@ -12,6 +12,8 @@ export interface JournalEntryLineSearchRequest {
   includeVoided: boolean;
   includeUnposted: boolean;
   unclearedOnly?: boolean;
+  /** When true, include IsCashOnly journal entries (Owner AP Aging). Default false for GL / financial reports. */
+  includeCashOnly?: boolean;
   startDate?: string | null;
   endDate?: string | null;
 }
