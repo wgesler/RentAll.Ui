@@ -920,12 +920,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   buildApAgingReportFilters(): ApAgingReportFilters {
+    const endDateApi = this.utilityService.formatDateOnlyForApi(this.endDate);
+    // Owners → AP Aging always shows an editable "As of" (endDate). Use that date directly;
+    // preset resolution (e.g. "today") would ignore picker changes.
+    const asOfDate = this.isOwnerApAgingViewActive
+      ? (endDateApi || this.utilityService.todayAsCalendarDateString())
+      : resolveApAgingAsOfDate(this.selectedArAgingDatePreset, endDateApi);
+
     return {
-      datePreset: this.selectedArAgingDatePreset,
-      asOfDate: resolveApAgingAsOfDate(
-        this.selectedArAgingDatePreset,
-        this.utilityService.formatDateOnlyForApi(this.endDate)
-      ),
+      datePreset: this.isOwnerApAgingViewActive ? 'custom' : this.selectedArAgingDatePreset,
+      asOfDate,
       intervalDays: this.selectedArAgingIntervalDays,
       throughDays: normalizeApAgingThroughDays(this.selectedArAgingThroughValue),
       sortBy: this.selectedApAgingSortBy
@@ -2471,6 +2475,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
     if (this.selectedOwnerKind === 'apAging') {
+      this.syncApAgingReportFilters();
       this.financialReportsRefreshTrigger++;
       return;
     }
