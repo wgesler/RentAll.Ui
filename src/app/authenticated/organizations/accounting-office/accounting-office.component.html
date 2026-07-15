@@ -353,34 +353,71 @@
                   <mat-panel-title>Check Printing</mat-panel-title>
                 </mat-expansion-panel-header>
 
-                <div class="grid grid-cols-4 form-standard-grid">
-                  <mat-form-field appearance="outline" class="col-span-1 w-full">
-                    <mat-label>Current Check Number</mat-label>
-                    <input matInput type="number" min="1" formControlName="currentCheckNumber" inputmode="numeric">
-                    @if (form.get('currentCheckNumber')?.hasError('required') && form.get('currentCheckNumber')?.touched) {
-                      <mat-error>Current check number is required</mat-error>
-                    }
-                    @if (form.get('currentCheckNumber')?.hasError('min') && form.get('currentCheckNumber')?.touched) {
-                      <mat-error>Current check number must be at least 1</mat-error>
-                    }
-                  </mat-form-field>
+                <p class="mb-3">Enter the next check number to be printed:</p>
 
-                  <div class="col-span-3">
-                    <p class="mb-2">Upload a PDF of your pre-printed check stock for alignment reference.</p>
-                    @if (checkStockFileDetails?.fileName) {
-                      <p class="mb-2"><strong>{{ checkStockFileDetails.fileName }}</strong></p>
-                    }
-                    <div class="flex gap-2 items-center flex-wrap">
-                      <button mat-raised-button type="button" color="primary" (click)="checkStockUploadInput.click()" [disabled]="isUploadingCheckStock">
-                        <mat-icon>upload_file</mat-icon>
-                        Upload Check PDF
-                      </button>
-                      @if (checkStockFileDetails?.file || checkStockPath) {
-                        <button mat-button type="button" color="accent" (click)="removeCheckStock()">Remove</button>
+                <mat-form-field appearance="outline" class="check-printing-check-number mb-4">
+                  <mat-label>Current Check Number</mat-label>
+                  <input matInput type="number" min="1" formControlName="currentCheckNumber" inputmode="numeric">
+                  @if (form.get('currentCheckNumber')?.hasError('required') && form.get('currentCheckNumber')?.touched) {
+                    <mat-error>Current check number is required</mat-error>
+                  }
+                  @if (form.get('currentCheckNumber')?.hasError('min') && form.get('currentCheckNumber')?.touched) {
+                    <mat-error>Current check number must be at least 1</mat-error>
+                  }
+                </mat-form-field>
+
+                <div class="check-printing-section-rule" aria-hidden="true"></div>
+
+                <p class="mb-3">Upload a PDF of your pre-printed check stock for alignment reference:</p>
+
+                <div class="flex justify-start image-input items-center">
+                  @if (checkStockFileDetails?.file || checkStockPath) {
+                    <div class="check-stock-thumb">
+                      @if (checkStockPdfThumbnailUrl) {
+                        <img
+                          class="object-contain max-w-xs max-h-44"
+                          alt="Check stock"
+                          title="Check stock"
+                          [src]="checkStockPdfThumbnailUrl" />
+                      } @else {
+                        <mat-icon class="check-stock-thumb__icon">picture_as_pdf</mat-icon>
                       }
                     </div>
-                    <input type="file" #checkStockUploadInput accept="application/pdf,.pdf" (change)="uploadCheckStock($event)" style="display: none;" />
-                  </div>
+                    <div class="flex flex-col gap-2 ml-4">
+                      <button
+                        class="myfilebrowser"
+                        type="button"
+                        color="primary"
+                        mat-raised-button
+                        (click)="checkStockUploadInput.click()"
+                        [disabled]="isUploadingCheckStock">
+                        Upload Check
+                      </button>
+                      <button
+                        type="button"
+                        color="accent"
+                        mat-raised-button
+                        (click)="removeCheckStock()">
+                        Remove Check
+                      </button>
+                    </div>
+                  } @else {
+                    <button
+                      class="myfilebrowser mb-3 mr-2"
+                      type="button"
+                      color="primary"
+                      mat-raised-button
+                      (click)="checkStockUploadInput.click()"
+                      [disabled]="isUploadingCheckStock">
+                      Upload Check
+                    </button>
+                  }
+                  <input
+                    type="file"
+                    #checkStockUploadInput
+                    accept="application/pdf,.pdf"
+                    (change)="uploadCheckStock($event)"
+                    class="file-input-hidden" />
                 </div>
               </mat-expansion-panel>
 

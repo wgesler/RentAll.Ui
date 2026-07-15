@@ -11,9 +11,15 @@
   }
 }
 
+.ap-aging-detail-panel {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .ap-aging-detail-table {
-  min-width: 100%;
-  table-layout: fixed;
+  table-layout: auto;
+  width: max-content;
+  min-width: 78rem;
 
   th,
   td {
@@ -21,8 +27,8 @@
     padding: 0.45rem 0.65rem;
     font-size: 0.8125rem;
     vertical-align: middle;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .financial-report-col-amount {
@@ -40,6 +46,10 @@
   tbody tr:nth-child(even):not(.financial-report-row-section):not(.financial-report-row-total) {
     background: rgba(15, 23, 42, 0.02);
   }
+
+  tbody tr.financial-report-row-total:first-child td {
+    border-top: none;
+  }
 }
 
 .ap-aging-detail-label-cell {
@@ -52,6 +62,19 @@
   &:hover td {
     background: rgba(59, 130, 246, 0.06);
   }
+}
+
+.aging-detail-ref-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .ap-aging-detail-row-transaction td.financial-report-col-amount {

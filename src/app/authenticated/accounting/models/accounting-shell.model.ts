@@ -1,6 +1,6 @@
 import { FinancialReportKind } from './financial-report.model';
 
-export type AccountingShellReportKind = FinancialReportKind | 'arAging' | 'apAging' | 'ownerApAging' | 'reconcileAccountSummary' | 'reconcileAccountDetail';
+export type AccountingShellReportKind = FinancialReportKind | 'arAging' | 'apAging' | 'reconcileAccountSummary' | 'reconcileAccountDetail';
 
 export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'rentRoll';
 
@@ -10,6 +10,7 @@ export type AccountingShellOwnerKind =
   | 'utilities'
   | 'workOrders'
   | 'statements'
-  | 'ownerStatements';
+  | 'ownerStatements'
+  | 'apAging';
 
 export type AccountingShellGeneralLedgerKind = 'ledger' | 'recap';

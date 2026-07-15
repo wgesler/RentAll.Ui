@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
-import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, buildApAgingBucketDefinitions, buildApAgingVendorSortKey, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
+import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
@@ -13,7 +13,7 @@ import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconci
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
-import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
+import { EntityType, getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
@@ -5585,10 +5585,11 @@ export class MappingService {
       request.throughDays !== undefined ? request.throughDays : 90
     );
     const bucketIds = bucketDefinitions.map(bucket => bucket.id);
+    const contactNameByContactId = request.contactNameByContactId || new Map<string, string>();
     const invoiceDetails = (request.invoices || [])
       .map(invoice => {
         try {
-          return this.buildArAgingInvoiceDetail(invoice, asOfDate, request.costCodes || [], bucketDefinitions);
+          return this.buildArAgingInvoiceDetail(invoice, asOfDate, request.costCodes || [], bucketDefinitions, contactNameByContactId);
         } catch {
           return null;
         }
@@ -5731,7 +5732,8 @@ export class MappingService {
     invoice: InvoiceResponse,
     asOfDate: string,
     costCodes: CostCodesResponse[],
-    bucketDefinitions: ArAgingBucketDefinition[]
+    bucketDefinitions: ArAgingBucketDefinition[],
+    contactNameByContactId: ReadonlyMap<string, string> = new Map<string, string>()
   ): ArAgingInvoiceDetail | null {
     if (!invoice.isActive) {
       return null;
@@ -5752,7 +5754,11 @@ export class MappingService {
     const companySortKey = buildArAgingCompanySortKey(invoice);
     const contactSortKey = buildArAgingContactSortKey(invoice);
     const contactId = (invoice.contactId || '').trim() || null;
-    const customerLabel = (invoice.responsibleParty || invoice.contactName || 'Unknown').trim() || 'Unknown';
+    const customerLabel = (invoice.responsibleParty || '').trim()
+      || (invoice.contactName || '').trim()
+      || (invoice.companyName || '').trim()
+      || (contactId ? (contactNameByContactId.get(contactId) || '').trim() : '')
+      || 'Unknown Customer';
     const customerKey = `${contactId || ''}|${companySortKey.toLowerCase()}|${contactSortKey.toLowerCase()}`;
 
     return {
@@ -5844,10 +5850,7 @@ export class MappingService {
 
   buildArAgingDetailReport(request: ArAgingDetailBuildRequest): ArAgingDetailReportResult {
     const asOfDate = request.asOfDate;
-    const bucketsToShow = request.bucketFilter
-      ? request.bucketColumns.filter(bucket => bucket.id === request.bucketFilter)
-      : request.bucketColumns;
-    const transactionsByBucket = new Map<ArAgingBucketId, ArAgingDetailRow[]>();
+    const transactionRows: ArAgingDetailRow[] = [];
 
     request.invoiceDetails.forEach(detail => {
       if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
@@ -5862,23 +5865,27 @@ export class MappingService {
       const reservationContext = sourceInvoice.reservationId
         ? request.reservationContextByReservationId.get(sourceInvoice.reservationId.trim())
         : undefined;
-      const referenceNo = reservationContext?.referenceNo ?? null;
-      const terms = reservationContext?.termsLabel ?? null;
+      const terms = reservationContext?.termsLabel || 'Due on receipt';
+      const customerName = (detail.customerLabel || '').trim() || 'Unknown Customer';
+      const referenceNo = (detail.invoiceCode || '').trim() || null;
+      const propertyId = (sourceInvoice.propertyId || '').trim() || null;
+      const propertyLabel = propertyId
+        ? ((detail.propertyCode || '').trim() || propertyId)
+        : 'Company';
 
-      const bucketRows = transactionsByBucket.get(detail.bucketId) ?? [];
-      bucketRows.push({
+      transactionRows.push({
         rowId: `invoice:${detail.invoiceId}`,
         kind: 'transaction',
         label: null,
         bucketId: detail.bucketId,
         transactionType: 'Invoice',
         transactionDate: detail.invoiceDate,
-        num: detail.invoiceCode,
+        num: null,
         referenceNo,
-        name: detail.customerLabel,
+        name: customerName,
         terms,
         dueDate: detail.dueDate,
-        classLabel: detail.propertyCode?.trim() || null,
+        classLabel: propertyLabel,
         aging: detail.daysPastDue,
         openBalance: this.roundFinancialReportAmount(Number(sourceInvoice.totalAmount || 0)),
         invoiceId: detail.invoiceId
@@ -5898,93 +5905,43 @@ export class MappingService {
           return;
         }
 
-        bucketRows.push({
+        transactionRows.push({
           rowId: `payment:${line.ledgerLineId}`,
           kind: 'transaction',
           label: null,
           bucketId: detail.bucketId,
           transactionType: 'Payment',
           transactionDate: lineDate || detail.invoiceDate,
-          num: detail.invoiceCode,
+          num: null,
           referenceNo,
-          name: detail.customerLabel,
+          name: customerName,
           terms,
           dueDate: detail.dueDate,
-          classLabel: detail.propertyCode?.trim() || null,
+          classLabel: propertyLabel,
           aging: detail.daysPastDue,
           openBalance: this.roundFinancialReportAmount(-amount),
           invoiceId: detail.invoiceId
         });
       });
-
-      transactionsByBucket.set(detail.bucketId, bucketRows);
     });
 
+    transactionRows.sort((a, b) =>
+      (a.transactionDate || '').localeCompare(b.transactionDate || '')
+      || (a.referenceNo || '').localeCompare(b.referenceNo || '', undefined, { numeric: true, sensitivity: 'base' })
+      || (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+
+    const reportTotal = transactionRows.reduce(
+      (sum, row) => this.roundFinancialReportAmount(sum + Number(row.openBalance || 0)),
+      0
+    );
     const rows: ArAgingDetailRow[] = [];
-    let reportTotal = 0;
-    let bucketSectionCount = 0;
-
-    bucketsToShow.forEach(bucket => {
-      const transactionRows = (transactionsByBucket.get(bucket.id) ?? []).sort((a, b) =>
-        (a.transactionDate || '').localeCompare(b.transactionDate || '')
-        || (a.num || '').localeCompare(b.num || '', undefined, { numeric: true, sensitivity: 'base' })
-        || (a.transactionType || '').localeCompare(b.transactionType || '')
-      );
-      if (transactionRows.length === 0) {
-        return;
-      }
-
-      bucketSectionCount++;
-      let bucketTotal = 0;
+    if (transactionRows.length > 0) {
       rows.push({
-        rowId: `bucket-header:${bucket.id}`,
-        kind: 'bucketHeader',
-        label: bucket.label,
-        bucketId: bucket.id,
-        transactionType: null,
-        transactionDate: null,
-        num: null,
-        referenceNo: null,
-        name: null,
-        terms: null,
-        dueDate: null,
-        classLabel: null,
-        aging: null,
-        openBalance: null,
-        invoiceId: null
-      });
-
-      transactionRows.forEach(row => {
-        rows.push(row);
-        bucketTotal = this.roundFinancialReportAmount(bucketTotal + Number(row.openBalance || 0));
-      });
-
-      rows.push({
-        rowId: `bucket-total:${bucket.id}`,
+        rowId: 'ar-aging-total',
         kind: 'bucketTotal',
-        label: `Total ${bucket.label}`,
-        bucketId: bucket.id,
-        transactionType: null,
-        transactionDate: null,
-        num: null,
-        referenceNo: null,
-        name: null,
-        terms: null,
-        dueDate: null,
-        classLabel: null,
-        aging: null,
-        openBalance: bucketTotal,
-        invoiceId: null
-      });
-      reportTotal = this.roundFinancialReportAmount(reportTotal + bucketTotal);
-    });
-
-    if (bucketSectionCount > 1) {
-      rows.push({
-        rowId: 'report-total',
-        kind: 'reportTotal',
-        label: 'Total',
-        bucketId: null,
+        label: (request.scopeLabel || '').trim() || 'Customer',
+        bucketId: request.bucketFilter,
         transactionType: null,
         transactionDate: null,
         num: null,
@@ -5997,6 +5954,7 @@ export class MappingService {
         openBalance: reportTotal,
         invoiceId: null
       });
+      rows.push(...transactionRows);
     }
 
     const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
@@ -6020,6 +5978,335 @@ export class MappingService {
   //#endregion
 
   //#region AP Aging Report Mapping
+  getContactDisplayName(contact: Pick<ContactResponse, 'companyName' | 'fullName' | 'displayName' | 'firstName' | 'lastName'> | null | undefined): string {
+    if (!contact) {
+      return '';
+    }
+
+    const companyName = (contact.companyName || '').trim();
+    if (companyName) {
+      return companyName;
+    }
+
+    const fullName = (contact.fullName || contact.displayName || '').trim();
+    if (fullName) {
+      return fullName;
+    }
+
+    return `${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim();
+  }
+
+  buildContactDisplayNameById(contacts: ContactResponse[] | null | undefined): Map<string, string> {
+    const namesById = new Map<string, string>();
+    (contacts || []).forEach(contact => {
+      const contactId = String(contact.contactId || '').trim();
+      const displayName = this.getContactDisplayName(contact);
+      if (contactId && displayName) {
+        namesById.set(contactId, displayName);
+      }
+    });
+    return namesById;
+  }
+
+  buildOwnerApAgingReport(request: OwnerApAgingReportBuildRequest): ApAgingReportResult {
+    const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
+    const bucketDefinitions = buildApAgingBucketDefinitions(
+      request.intervalDays ?? 30,
+      request.throughDays !== undefined ? request.throughDays : 90
+    );
+    const bucketIds = bucketDefinitions.map(bucket => bucket.id);
+    const billDetails = this.buildOwnerApAgingBillDetails(
+      request.lines || [],
+      asOfDate,
+      request.propertyCodeByPropertyId,
+      request.paymentTermsByContactId || new Map<string, number | null>(),
+      request.contactNameByContactId || new Map<string, string>(),
+      bucketDefinitions
+    ).sort((a, b) => compareApAgingBillSortKeys(a, b));
+
+    const vendorRows = sortApAgingVendorRows(
+      this.buildApAgingVendorRows(billDetails, bucketIds),
+      request.sortBy ?? 'default'
+    );
+    const totals = createEmptyApAgingBucketAmounts(bucketIds);
+    billDetails.forEach(bill => {
+      totals[bill.bucketId] = this.roundFinancialReportAmount((totals[bill.bucketId] || 0) + bill.balanceDue);
+    });
+    const grandTotal = bucketIds.reduce(
+      (sum, bucketId) => this.roundFinancialReportAmount(sum + (totals[bucketId] || 0)),
+      0
+    );
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: (request.reportTitle || '').trim() || 'Owner A/P Aging Summary',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      bucketColumns: bucketDefinitions.map(bucket => ({ id: bucket.id, label: bucket.label })),
+      vendorRows,
+      totals,
+      grandTotal,
+      billDetails
+    };
+  }
+
+  buildOwnerApAgingBillDetails(
+    lines: JournalEntryLineSearchResponse[],
+    asOfDate: string,
+    propertyCodeByPropertyId: ReadonlyMap<string, string>,
+    paymentTermsByContactId: ReadonlyMap<string, number | null>,
+    contactNameByContactId: ReadonlyMap<string, string>,
+    bucketDefinitions: ApAgingBucketDefinition[]
+  ): ApAgingBillDetail[] {
+    type OwnerApLot = {
+      journalEntryLineId: string;
+      transactionDate: string;
+      remaining: number;
+      contactId: string | null;
+      contactName: string;
+      propertyId: string | null;
+      propertyCode: string | null;
+      sourceCode: string | null;
+      sourceTypeId: number | null;
+      sourceId: string | null;
+      reservationId: string | null;
+      journalEntryCode: string;
+      officeId: number;
+      memo: string | null;
+    };
+
+    const linesByProperty = new Map<string, JournalEntryLineSearchResponse[]>();
+    (lines || []).forEach(line => {
+      const transactionDate = this.toDateOnlyJsonString(line.transactionDate);
+      if (!transactionDate || transactionDate > asOfDate) {
+        return;
+      }
+
+      const propertyId = (line.propertyId || '').trim() || null;
+      const propertyKey = propertyId || 'no-property';
+      const bucket = linesByProperty.get(propertyKey) ?? [];
+      bucket.push(line);
+      linesByProperty.set(propertyKey, bucket);
+    });
+
+    const billDetails: ApAgingBillDetail[] = [];
+    linesByProperty.forEach((propertyLines, propertyKey) => {
+      const sortedLines = propertyLines.slice().sort((left, right) => {
+        const leftDate = this.toDateOnlyJsonString(left.transactionDate) || '';
+        const rightDate = this.toDateOnlyJsonString(right.transactionDate) || '';
+        const dateCompare = leftDate.localeCompare(rightDate);
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+
+        const codeCompare = (left.journalEntryCode || '').localeCompare(right.journalEntryCode || '', undefined, { numeric: true, sensitivity: 'base' });
+        if (codeCompare !== 0) {
+          return codeCompare;
+        }
+
+        return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '', undefined, { sensitivity: 'base' });
+      });
+
+      const lots: OwnerApLot[] = [];
+      sortedLines.forEach(line => {
+        const transactionDate = this.toDateOnlyJsonString(line.transactionDate) || asOfDate;
+        const amount = this.roundFinancialReportAmount(Number(line.credit || 0) - Number(line.debit || 0));
+        if (Math.abs(amount) <= 0.005) {
+          return;
+        }
+
+        const propertyId = (line.propertyId || '').trim() || null;
+        const propertyCode = propertyId
+          ? (propertyCodeByPropertyId.get(propertyId) || line.propertyCode || null)
+          : (line.propertyCode || null);
+        const contactId = (line.contactId || '').trim() || null;
+        const contactName = (line.contactName || '').trim()
+          || (contactId ? (contactNameByContactId.get(contactId) || '').trim() : '')
+          || 'Unknown Owner';
+        const sourceCode = (line.sourceCode || '').trim() || null;
+        const sourceTypeId = Number(line.sourceTypeId);
+        const sourceId = (line.sourceId || '').trim() || null;
+        const reservationId = (line.reservationId || '').trim() || null;
+        const journalEntryCode = (line.journalEntryCode || '').trim() || sourceCode || line.journalEntryLineId;
+        const memo = (line.journalEntryMemo || line.memo || '').trim() || null;
+
+        if (amount > 0.005) {
+          lots.push({
+            journalEntryLineId: line.journalEntryLineId,
+            transactionDate,
+            remaining: amount,
+            contactId,
+            contactName,
+            propertyId,
+            propertyCode,
+            sourceCode,
+            sourceTypeId: Number.isFinite(sourceTypeId) && sourceTypeId > 0 ? sourceTypeId : null,
+            sourceId,
+            reservationId,
+            journalEntryCode,
+            officeId: Number(line.officeId) || 0,
+            memo
+          });
+          return;
+        }
+
+        let apply = this.roundFinancialReportAmount(-amount);
+        while (apply > 0.005 && lots.length > 0) {
+          const lot = lots[0];
+          const take = Math.min(lot.remaining, apply);
+          lot.remaining = this.roundFinancialReportAmount(lot.remaining - take);
+          apply = this.roundFinancialReportAmount(apply - take);
+          if (lot.remaining <= 0.005) {
+            lots.shift();
+          }
+        }
+      });
+
+      lots.forEach(lot => {
+        if (lot.remaining <= 0.005) {
+          return;
+        }
+
+        const vendorId = lot.contactId;
+        const vendorLabel = (lot.contactName || '').trim()
+          || (vendorId ? (contactNameByContactId.get(vendorId) || '').trim() : '')
+          || 'Unknown Owner';
+        const vendorSortKey = vendorLabel;
+        const vendorKey = `${vendorId || ''}|${vendorSortKey.toLowerCase()}`;
+        const propertyId = lot.propertyId;
+        const propertyCode = lot.propertyCode;
+        const propertyLabel = propertyId ? (propertyCode || propertyId) : 'Company';
+        const paymentTermsId = vendorId ? (paymentTermsByContactId.get(vendorId) ?? null) : null;
+        const termsLabel = getTermType(paymentTermsId) || 'Due on receipt';
+        const dueDate = this.addOwnerApAgingTermsToDate(lot.transactionDate, paymentTermsId);
+        const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
+
+        billDetails.push({
+          receiptId: lot.journalEntryLineId,
+          receiptCode: lot.sourceCode || lot.journalEntryCode,
+          vendorKey,
+          vendorLabel,
+          vendorSortKey,
+          vendorId,
+          propertyKey,
+          propertyId,
+          propertyLabel,
+          propertyCode,
+          receiptDate: lot.transactionDate,
+          dueDate,
+          daysPastDue,
+          balanceDue: lot.remaining,
+          bucketId: resolveApAgingBucketId(daysPastDue, bucketDefinitions),
+          billNumber: lot.memo,
+          termsLabel,
+          officeId: lot.officeId,
+          sourceTypeId: lot.sourceTypeId,
+          sourceId: lot.sourceId,
+          reservationId: lot.reservationId
+        });
+      });
+    });
+
+    return billDetails;
+  }
+
+  addOwnerApAgingTermsToDate(transactionDate: string, paymentTermsId: number | null | undefined): string {
+    const termDays = getPaymentTermDays(paymentTermsId);
+    if (termDays <= 0) {
+      return transactionDate;
+    }
+
+    const [year, month, day] = transactionDate.split('-').map(Number);
+    if (!year || !month || !day) {
+      return transactionDate;
+    }
+
+    const parsed = new Date(year, month - 1, day);
+    if (isNaN(parsed.getTime())) {
+      return transactionDate;
+    }
+
+    const due = this.utility.addCalendarDaysToDate(parsed, termDays);
+    return this.toDateOnlyJsonString(due) || transactionDate;
+  }
+
+  buildOwnerApAgingDetailReport(request: Omit<ApAgingDetailBuildRequest, 'receiptsById'>): ApAgingDetailReportResult {
+    const transactionRows: ApAgingDetailRow[] = [];
+
+    request.billDetails.forEach(detail => {
+      if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
+        return;
+      }
+
+      transactionRows.push({
+        rowId: `owner-ap:${detail.receiptId}`,
+        kind: 'transaction',
+        label: null,
+        bucketId: detail.bucketId,
+        transactionType: null,
+        transactionDate: detail.receiptDate,
+        num: null,
+        referenceNo: detail.receiptCode,
+        name: detail.vendorLabel,
+        terms: detail.termsLabel || 'Due on receipt',
+        dueDate: detail.dueDate,
+        classLabel: detail.propertyId
+          ? ((detail.propertyCode || '').trim() || detail.propertyId)
+          : 'Company',
+        aging: detail.daysPastDue,
+        openBalance: this.roundFinancialReportAmount(detail.balanceDue),
+        receiptId: null,
+        invoiceId: null,
+        officeId: detail.officeId,
+        sourceTypeId: detail.sourceTypeId ?? null,
+        sourceId: detail.sourceId ?? null,
+        reservationId: detail.reservationId ?? null
+      });
+    });
+
+    transactionRows.sort((a, b) =>
+      (a.transactionDate || '').localeCompare(b.transactionDate || '')
+      || (a.referenceNo || '').localeCompare(b.referenceNo || '', undefined, { numeric: true, sensitivity: 'base' })
+      || (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+
+    const reportTotal = transactionRows.reduce(
+      (sum, row) => this.roundFinancialReportAmount(sum + Number(row.openBalance || 0)),
+      0
+    );
+    const rows: ApAgingDetailRow[] = [];
+    if (transactionRows.length > 0) {
+      rows.push({
+        rowId: 'owner-ap-total',
+        kind: 'bucketTotal',
+        label: (request.scopeLabel || '').trim() || 'Owner',
+        bucketId: request.bucketFilter,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: reportTotal,
+        receiptId: null
+      });
+      rows.push(...transactionRows);
+    }
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: 'Owner AP Aging Detail',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(request.asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      scopeLabel: request.scopeLabel,
+      rows,
+      reportTotal
+    };
+  }
+
   buildApAgingReport(request: ApAgingReportBuildRequest): ApAgingReportResult {
     const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
     const bucketDefinitions = buildApAgingBucketDefinitions(
@@ -6027,10 +6314,19 @@ export class MappingService {
       request.throughDays !== undefined ? request.throughDays : 90
     );
     const bucketIds = bucketDefinitions.map(bucket => bucket.id);
+    const contactNameByContactId = request.contactNameByContactId || new Map<string, string>();
+    const paymentTermsByContactId = request.paymentTermsByContactId || new Map<string, number | null>();
     const billDetails = (request.receipts || [])
       .map(receipt => {
         try {
-          return this.buildApAgingBillDetail(receipt, asOfDate, request.propertyCodeByPropertyId, bucketDefinitions);
+          return this.buildApAgingBillDetail(
+            receipt,
+            asOfDate,
+            request.propertyCodeByPropertyId,
+            bucketDefinitions,
+            contactNameByContactId,
+            paymentTermsByContactId
+          );
         } catch {
           return null;
         }
@@ -6123,7 +6419,9 @@ export class MappingService {
     receipt: ReceiptResponse,
     asOfDate: string,
     propertyCodeByPropertyId: ReadonlyMap<string, string>,
-    bucketDefinitions: ApAgingBucketDefinition[]
+    bucketDefinitions: ApAgingBucketDefinition[],
+    contactNameByContactId: ReadonlyMap<string, string> = new Map<string, string>(),
+    paymentTermsByContactId: ReadonlyMap<string, number | null> = new Map<string, number | null>()
   ): ApAgingBillDetail | null {
     if (!receipt.isActive) {
       return null;
@@ -6139,16 +6437,21 @@ export class MappingService {
       return null;
     }
 
-    const dueDate = this.toDateOnlyJsonString(receipt.dueDate) || receiptDate || asOfDate;
-    const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
-    const vendorSortKey = buildApAgingVendorSortKey(receipt);
     const vendorId = (receipt.vendorId || '').trim() || null;
-    const vendorLabel = (receipt.vendorName || 'Unknown').trim() || 'Unknown';
+    const vendorLabel = (receipt.vendorName || '').trim()
+      || (vendorId ? (contactNameByContactId.get(vendorId) || '').trim() : '')
+      || 'Unknown Vendor';
+    const vendorSortKey = vendorLabel;
     const vendorKey = `${vendorId || ''}|${vendorSortKey.toLowerCase()}`;
     const propertyId = (receipt.propertyIds?.[0] || '').trim() || null;
     const propertyCode = propertyId ? (propertyCodeByPropertyId.get(propertyId) || null) : null;
     const propertyKey = propertyId || 'no-property';
-    const propertyLabel = propertyCode || propertyId || 'No Property';
+    const propertyLabel = propertyId ? (propertyCode || propertyId) : 'Company';
+    const paymentTermsId = vendorId ? (paymentTermsByContactId.get(vendorId) ?? null) : null;
+    const termsLabel = getTermType(paymentTermsId) || 'Due on receipt';
+    const dueDate = this.toDateOnlyJsonString(receipt.dueDate)
+      || this.addOwnerApAgingTermsToDate(receiptDate || asOfDate, paymentTermsId);
+    const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
 
     return {
       receiptId: receipt.receiptId,
@@ -6167,6 +6470,7 @@ export class MappingService {
       balanceDue,
       bucketId: resolveApAgingBucketId(daysPastDue, bucketDefinitions),
       billNumber: receipt.billNumber?.trim() || null,
+      termsLabel,
       officeId: receipt.officeId
     };
   }
@@ -6181,10 +6485,7 @@ export class MappingService {
 
   buildApAgingDetailReport(request: ApAgingDetailBuildRequest): ApAgingDetailReportResult {
     const asOfDate = request.asOfDate;
-    const bucketsToShow = request.bucketFilter
-      ? request.bucketColumns.filter(bucket => bucket.id === request.bucketFilter)
-      : request.bucketColumns;
-    const transactionsByBucket = new Map<ApAgingBucketId, ApAgingDetailRow[]>();
+    const transactionRows: ApAgingDetailRow[] = [];
 
     request.billDetails.forEach(detail => {
       if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
@@ -6196,20 +6497,25 @@ export class MappingService {
         return;
       }
 
-      const bucketRows = transactionsByBucket.get(detail.bucketId) ?? [];
-      bucketRows.push({
+      const vendorName = (detail.vendorLabel || '').trim() || 'Unknown Vendor';
+      const termsLabel = detail.termsLabel || 'Due on receipt';
+      const referenceNo = (detail.receiptCode || '').trim() || null;
+      const propertyLabel = detail.propertyId
+        ? ((detail.propertyCode || '').trim() || detail.propertyId)
+        : 'Company';
+      transactionRows.push({
         rowId: `bill:${detail.receiptId}`,
         kind: 'transaction',
         label: null,
         bucketId: detail.bucketId,
         transactionType: 'Bill',
         transactionDate: detail.receiptDate,
-        num: detail.receiptCode,
-        referenceNo: detail.billNumber,
-        name: detail.vendorLabel,
-        terms: '-',
+        num: null,
+        referenceNo,
+        name: vendorName,
+        terms: termsLabel,
         dueDate: detail.dueDate,
-        classLabel: detail.propertyCode?.trim() || null,
+        classLabel: propertyLabel,
         aging: detail.daysPastDue,
         openBalance: this.roundFinancialReportAmount(Number(sourceReceipt.amount || 0)),
         receiptId: detail.receiptId
@@ -6217,93 +6523,43 @@ export class MappingService {
 
       const paidAmount = this.getApAgingBillPaidAmountForDetail(sourceReceipt, asOfDate);
       if (paidAmount > 0.005) {
-        bucketRows.push({
+        transactionRows.push({
           rowId: `payment:${detail.receiptId}`,
           kind: 'transaction',
           label: null,
           bucketId: detail.bucketId,
           transactionType: 'Payment',
           transactionDate: this.toDateOnlyJsonString(sourceReceipt.paidDate) || detail.receiptDate,
-          num: detail.receiptCode,
-          referenceNo: detail.billNumber,
-          name: detail.vendorLabel,
-          terms: '-',
+          num: null,
+          referenceNo,
+          name: vendorName,
+          terms: termsLabel,
           dueDate: detail.dueDate,
-          classLabel: detail.propertyCode?.trim() || null,
+          classLabel: propertyLabel,
           aging: detail.daysPastDue,
           openBalance: this.roundFinancialReportAmount(-paidAmount),
           receiptId: detail.receiptId
         });
       }
-
-      transactionsByBucket.set(detail.bucketId, bucketRows);
     });
 
+    transactionRows.sort((a, b) =>
+      (a.transactionDate || '').localeCompare(b.transactionDate || '')
+      || (a.referenceNo || '').localeCompare(b.referenceNo || '', undefined, { numeric: true, sensitivity: 'base' })
+      || (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+
+    const reportTotal = transactionRows.reduce(
+      (sum, row) => this.roundFinancialReportAmount(sum + Number(row.openBalance || 0)),
+      0
+    );
     const rows: ApAgingDetailRow[] = [];
-    let reportTotal = 0;
-    let bucketSectionCount = 0;
-
-    bucketsToShow.forEach(bucket => {
-      const transactionRows = (transactionsByBucket.get(bucket.id) ?? []).sort((a, b) =>
-        (a.transactionDate || '').localeCompare(b.transactionDate || '')
-        || (a.num || '').localeCompare(b.num || '', undefined, { numeric: true, sensitivity: 'base' })
-        || (a.transactionType || '').localeCompare(b.transactionType || '')
-      );
-      if (transactionRows.length === 0) {
-        return;
-      }
-
-      bucketSectionCount++;
-      let bucketTotal = 0;
+    if (transactionRows.length > 0) {
       rows.push({
-        rowId: `bucket-header:${bucket.id}`,
-        kind: 'bucketHeader',
-        label: bucket.label,
-        bucketId: bucket.id,
-        transactionType: null,
-        transactionDate: null,
-        num: null,
-        referenceNo: null,
-        name: null,
-        terms: null,
-        dueDate: null,
-        classLabel: null,
-        aging: null,
-        openBalance: null,
-        receiptId: null
-      });
-
-      transactionRows.forEach(row => {
-        rows.push(row);
-        bucketTotal = this.roundFinancialReportAmount(bucketTotal + Number(row.openBalance || 0));
-      });
-
-      rows.push({
-        rowId: `bucket-total:${bucket.id}`,
+        rowId: 'ap-aging-total',
         kind: 'bucketTotal',
-        label: `Total ${bucket.label}`,
-        bucketId: bucket.id,
-        transactionType: null,
-        transactionDate: null,
-        num: null,
-        referenceNo: null,
-        name: null,
-        terms: null,
-        dueDate: null,
-        classLabel: null,
-        aging: null,
-        openBalance: bucketTotal,
-        receiptId: null
-      });
-      reportTotal = this.roundFinancialReportAmount(reportTotal + bucketTotal);
-    });
-
-    if (bucketSectionCount > 1) {
-      rows.push({
-        rowId: 'report-total',
-        kind: 'reportTotal',
-        label: 'Total',
-        bucketId: null,
+        label: (request.scopeLabel || '').trim() || 'Vendor',
+        bucketId: request.bucketFilter,
         transactionType: null,
         transactionDate: null,
         num: null,
@@ -6316,6 +6572,7 @@ export class MappingService {
         openBalance: reportTotal,
         receiptId: null
       });
+      rows.push(...transactionRows);
     }
 
     const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);

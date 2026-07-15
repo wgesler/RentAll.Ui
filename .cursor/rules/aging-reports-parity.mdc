@@ -1,0 +1,24 @@
+---
+description: Keep Owner AP Aging in sync with AP/AR Aging report UI patterns
+globs: RentAll.Ui/**/ap-aging-report/**,RentAll.Ui/**/ar-aging-report/**,RentAll.Ui/**/ap-aging-report.model.ts,RentAll.Ui/**/ar-aging-report.model.ts,RentAll.Ui/**/mapping.service.ts,RentAll.Ui/**/accounting-shell/**
+alwaysApply: false
+---
+
+# Aging reports parity (AP / AR / Owner AP)
+
+Reports → **AP Aging**, Reports → **AR Aging**, and Owners → **AP Aging** (Owner AP) share the same UI patterns: columns, styles, Ref No links, totals, null property → **Company**, and drill-back through detail → summary.
+
+## Mandatory sync
+
+When changing layout, styles, columns, Ref No link behavior, back navigation, or detail/summary totaling on **AP Aging** or **AR Aging**, apply the same change to **Owner AP Aging** (same `ApAgingReportComponent` with owner mode, plus `buildOwnerApAging*` mapping helpers) unless the difference is intentional and documented here.
+
+## Intentional Owner AP differences
+
+- Data source: Owner A/P JE lines (`IsCashOnly = 0`), not vendor receipts / customer invoices.
+- Ref No opens the JE supporting document via `sourceTypeId`/`sourceId` (and `RC*` / `R-*` code fallback), not only `receiptId`.
+- Detail report title/scope copy may say Owner instead of Vendor.
+
+## Ref No links
+
+- Standard AP → receipt; AR → invoice; Owner AP → receipt and/or invoice from JE source (same blue underline affordance).
+- Shell back must close embedded receipt/invoice before leaving aging detail.

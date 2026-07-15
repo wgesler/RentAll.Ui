@@ -633,7 +633,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-        } @else if (isFinancialReportDrillDownActive || isArAgingDrillDownActive || isApAgingDrillDownActive) {
+        } @else if (isAgingOrFinancialDrillBackActive) {
           <button mat-raised-button type="button" color="accent" (click)="onFinancialReportDrillDownBack()">
             <mat-icon>arrow_back</mat-icon>
             Back
@@ -1098,6 +1098,16 @@
                     (viewStatement)="onOwnerStatementMonthLineView($event)">
                   </app-owner-statement-list>
                 }
+              } @else if (selectedOwnerKind === 'apAging') {
+                <app-ap-aging-report
+                  #ownerApAgingReport
+                  [officeId]="selectedOfficeId"
+                  [reportFilters]="apAgingReportFilters"
+                  [refreshTrigger]="financialReportsRefreshTrigger"
+                  [payableAccountMode]="'owner'"
+                  (drillDownActiveChange)="onApAgingDrillDownActiveChange($event)"
+                  (journalEntriesChanged)="onApAgingJournalEntriesChanged()">
+                </app-ap-aging-report>
               } @else if (isOwnerReportViewActive) {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger
@@ -1166,13 +1176,13 @@
                   (drillDownActiveChange)="onArAgingDrillDownActiveChange($event)"
                   (journalEntriesChanged)="onArAgingJournalEntriesChanged()">
                 </app-ar-aging-report>
-              } @else if (selectedReportKind === 'apAging' || selectedReportKind === 'ownerApAging') {
+              } @else if (selectedReportKind === 'apAging') {
                 <app-ap-aging-report
-                  #apAgingReport
+                  #reportsApAgingReport
                   [officeId]="selectedOfficeId"
                   [reportFilters]="apAgingReportFilters"
                   [refreshTrigger]="financialReportsRefreshTrigger"
-                  [payableAccountMode]="selectedReportKind === 'ownerApAging' ? 'owner' : 'standard'"
+                  [payableAccountMode]="'standard'"
                   (drillDownActiveChange)="onApAgingDrillDownActiveChange($event)"
                   (journalEntriesChanged)="onApAgingJournalEntriesChanged()">
                 </app-ap-aging-report>

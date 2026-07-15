@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, firstValueFrom, forkJoin, map, of, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
@@ -19,6 +19,8 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { ContactService } from '../../../contacts/services/contact.service';
 import { PropertyResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
@@ -34,13 +36,20 @@ import {
   ApAgingReportResult,
   ApAgingVisibleRow
 } from '../../models/ap-aging-report.model';
-import { ReceiptType } from '../../../maintenance/models/maintenance-enums';
+import { AccountType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
+import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
+import { InvoiceResponse } from '../../models/invoice.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
+import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
+import { GeneralLedgerService } from '../../services/general-ledger.service';
+import { InvoiceService } from '../../services/invoice.service';
+import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
 
 @Component({
   selector: 'app-ap-aging-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, ReceiptComponent],
+  imports: [CommonModule, MaterialModule, ReceiptComponent, InvoiceComponent],
   templateUrl: './ap-aging-report.component.html',
   styleUrls: ['./ap-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -55,8 +64,14 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   @Output() journalEntriesChanged = new EventEmitter<void>();
   formatter = inject(FormatterService);
   private receiptService = inject(ReceiptService);
+  private invoiceService = inject(InvoiceService);
+  private journalEntrySourceService = inject(JournalEntrySourceService);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private generalLedgerService = inject(GeneralLedgerService);
+  private contactService = inject(ContactService);
   private commonService = inject(CommonService);
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
@@ -65,6 +80,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   private cdr = inject(ChangeDetectorRef);
   override toastr: ToastrService;
   @ViewChild('drillDownReceiptEditor') drillDownReceiptEditor?: ReceiptComponent;
+  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
 
   isServiceError = false;
   noDataMessage = 'No open payables for the selected filters and as-of date.';
@@ -74,12 +90,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get reportDisplayTitle(): string {
-    return this.isOwnerPayableMode ? 'Owner A/P Aging Summary' : 'A/P Aging Summary';
+    return this.isOwnerPayableMode ? 'Owner AP Aging Summary' : 'A/P Aging Summary';
   }
 
   get emptyPayablesMessage(): string {
     return this.isOwnerPayableMode
-      ? 'No open owner payables for the selected filters and as-of date.'
+      ? 'No open owner AP balances for the selected filters and as-of date.'
       : 'No open payables for the selected filters and as-of date.';
   }
   reportResult: ApAgingReportResult | null = null;
@@ -95,24 +111,29 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   activeReceiptOfficeId: number | null = null;
   selectedReceipt: ReceiptResponse | null = null;
   drillDownReceiptProperty: PropertyResponse | null = null;
+  activeInvoiceId: string | null = null;
+  activeInvoiceOfficeId: number | null = null;
+  activeInvoiceReservationId: string | null = null;
+  selectedInvoice: InvoiceResponse | null = null;
 
   companyName = '';
   organizationId = '';
   offices: OfficeResponse[] = [];
   allReceipts: ReceiptResponse[] = [];
+  allOwnerApLines: JournalEntryLineSearchResponse[] = [];
+  paymentTermsByContactId = new Map<string, number | null>();
+  contactNameByContactId = new Map<string, string>();
   propertyCodeByPropertyId = new Map<string, string>();
 
-  detailDisplayedColumns: ColumnSet = {
-    transactionType: { displayAs: 'Type', maxWidth: '10ch', sort: false },
-    transactionDate: { displayAs: 'Date', maxWidth: '12ch', sort: false },
-    num: { displayAs: 'Num', maxWidth: '14ch', sort: false, sortType: 'natural' },
-    referenceNo: { displayAs: 'Ref No', maxWidth: '14ch', sort: false },
+  readonly detailDisplayedColumns: ColumnSet = {
     name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
-    terms: { displayAs: 'Terms', maxWidth: '10ch', sort: false },
-    dueDate: { displayAs: 'Due Date', maxWidth: '12ch', sort: false },
-    classLabel: { displayAs: 'Class', maxWidth: '14ch', sort: false },
-    aging: { displayAs: 'Aging', maxWidth: '8ch', alignment: 'right', headerAlignment: 'center', sort: false },
-    openBalance: { displayAs: 'Open Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    classLabel: { displayAs: 'Property', maxWidth: '12ch', sort: false },
+    referenceNo: { displayAs: 'Ref No', maxWidth: '16ch', sort: false, sortType: 'natural' },
+    transactionDate: { displayAs: 'Date', maxWidth: '15ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    terms: { displayAs: 'Terms', maxWidth: '12ch', sort: false },
+    dueDate: { displayAs: 'Due Date', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    aging: { displayAs: 'Aging', maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    openBalance: { displayAs: 'Balance Due', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   isPageReady = false;
@@ -125,7 +146,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
       if (!wasReady && this.isPageReady) {
-        this.loadReceipts();
+        this.loadReportSourceData();
       }
       this.markViewForCheck();
     });
@@ -141,7 +162,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       && !changes['reportFilters'].firstChange
       && this.hasReportFiltersChanged(changes['reportFilters']);
 
-    if (reportFiltersChanged) {
+    if (reportFiltersChanged && !this.isOwnerPayableMode) {
       this.applyReportDisplay();
       this.markViewForCheck();
     }
@@ -153,7 +174,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       || (changes['payableAccountMode'] && !changes['payableAccountMode'].firstChange);
 
     if (shouldReload) {
-      this.loadReceipts();
+      this.loadReportSourceData();
     }
   }
 
@@ -181,7 +202,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   loadOffices(): void {
     if (!this.organizationId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.loadReceipts();
+      this.loadReportSourceData();
       return;
     }
 
@@ -191,13 +212,13 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-            this.loadReceipts();
+            this.loadReportSourceData();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-            this.loadReceipts();
+            this.loadReportSourceData();
             this.markViewForCheck();
           }
         });
@@ -205,7 +226,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       error: () => {
         this.offices = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.loadReceipts();
+        this.loadReportSourceData();
         this.markViewForCheck();
       }
     });
@@ -230,6 +251,15 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  loadReportSourceData(): void {
+    if (this.isOwnerPayableMode) {
+      this.loadOwnerApLines();
+      return;
+    }
+
+    this.loadReceipts();
+  }
+
   loadReceipts(): void {
     if (!this.isPageReady) {
       return;
@@ -238,46 +268,146 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const officeIds = this.resolveOfficeIds();
     if (officeIds.length === 0) {
       this.allReceipts = [];
+      this.allOwnerApLines = [];
       this.isServiceError = false;
       this.applyReportDisplay();
       this.markViewForCheck();
       return;
     }
 
-    this.receiptService.searchReceipts({
-      officeIds,
-      includeInactive: true,
-      startDate: null,
-      endDate: null,
-      receiptKind: 1
-    }).pipe(take(1)).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(
+      take(1),
+      switchMap(() => {
+        const contacts = this.contactService.getAllContactsValue();
+        this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
+        this.paymentTermsByContactId = new Map<string, number | null>(
+          contacts
+            .map((contact): [string, number | null] => [String(contact.contactId || '').trim(), contact.paymentTermsId ?? null])
+            .filter((entry): entry is [string, number | null] => !!entry[0])
+        );
+        return this.receiptService.searchReceipts({
+          officeIds,
+          includeInactive: true,
+          startDate: null,
+          endDate: null,
+          receiptKind: 1
+        });
+      }),
+      take(1)
+    ).subscribe({
       next: receipts => {
         this.allReceipts = receipts || [];
+        this.allOwnerApLines = [];
         this.isServiceError = false;
         this.applyReportDisplay();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.allReceipts = [];
+        this.allOwnerApLines = [];
+        this.contactNameByContactId = new Map();
         this.isServiceError = true;
         this.reportResult = null;
-        const message = typeof error?.error === 'string'
-          ? error.error
-          : `Unable to load bills for ${this.isOwnerPayableMode ? 'Owner A/P Aging' : 'AP Aging'}.`;
-        this.toastr.error(message, this.isOwnerPayableMode ? 'Owner A/P Aging' : 'AP Aging');
+        const message = typeof error?.error === 'string' ? error.error : 'Unable to load bills for AP Aging.';
+        this.toastr.error(message, 'AP Aging');
         this.markViewForCheck();
       }
     });
   }
 
-  getSourceReceiptsForReport(): ReceiptResponse[] {
-    if (!this.isOwnerPayableMode) {
-      return this.allReceipts || [];
+  loadOwnerApLines(): void {
+    if (!this.isPageReady) {
+      return;
     }
 
-    return (this.allReceipts || []).filter(receipt =>
-      (receipt.splits || []).some(split => Number(split.receiptTypeId) === ReceiptType.Owner)
+    const officeIds = this.resolveOfficeIds();
+    const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+    if (officeIds.length === 0) {
+      this.allOwnerApLines = [];
+      this.allReceipts = [];
+      this.isServiceError = false;
+      this.applyReportDisplay();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+      take(1),
+      switchMap(() => this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))),
+      switchMap(() => this.contactService.ensureContactsLoaded().pipe(take(1))),
+      switchMap(() => {
+        const contacts = this.contactService.getAllContactsValue();
+        this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
+        this.paymentTermsByContactId = new Map<string, number | null>(
+          contacts
+            .map((contact): [string, number | null] => [String(contact.contactId || '').trim(), contact.paymentTermsId ?? null])
+            .filter((entry): entry is [string, number | null] => !!entry[0])
+        );
+
+        const accountByOffice = new Map<number, number>();
+        officeIds.forEach(officeId => {
+          const accountId = this.resolveOwnerApAccountId(officeId);
+          if (accountId != null && accountId > 0) {
+            accountByOffice.set(officeId, accountId);
+          }
+        });
+
+        if (accountByOffice.size === 0) {
+          return of([] as JournalEntryLineSearchResponse[]);
+        }
+
+        const requests = [...accountByOffice.entries()].map(([officeId, chartOfAccountId]) =>
+          this.generalLedgerService.searchJournalEntryLines({
+            officeIds: [officeId],
+            chartOfAccountId,
+            includeVoided: false,
+            includeUnposted: true,
+            startDate: null,
+            endDate: asOfDate
+          }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])))
+        );
+
+        return forkJoin(requests).pipe(
+          map(results => results.flatMap(lines => lines || []))
+        );
+      }),
+      take(1)
+    ).subscribe({
+      next: lines => {
+        this.allOwnerApLines = lines || [];
+        this.allReceipts = [];
+        this.isServiceError = false;
+        this.applyReportDisplay();
+        this.markViewForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.allOwnerApLines = [];
+        this.allReceipts = [];
+        this.paymentTermsByContactId = new Map();
+        this.contactNameByContactId = new Map();
+        this.isServiceError = true;
+        this.reportResult = null;
+        const message = typeof error?.error === 'string' ? error.error : 'Unable to load Owner AP journal lines.';
+        this.toastr.error(message, 'Owner AP Aging');
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  resolveOwnerApAccountId(officeId: number): number | null {
+    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
+      .find(office => Number(office.officeId) === officeId);
+    const configuredAccountId = Number(accountingOffice?.defaultOwnActPayableAccountId ?? 0);
+    if (configuredAccountId > 0) {
+      return configuredAccountId;
+    }
+
+    const ownerApAccount = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId).find(account =>
+      Number(account.accountTypeId) === AccountType.AccountsPayable
+      && /owner/i.test((account.name || account.accountNo || '').trim())
     );
+    const fallbackAccountId = Number(ownerApAccount?.accountId ?? 0);
+    return fallbackAccountId > 0 ? fallbackAccountId : null;
   }
   //#endregion
 
@@ -286,17 +416,33 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     try {
       const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
       this.noDataMessage = this.emptyPayablesMessage;
-      this.reportResult = this.mappingService.buildApAgingReport({
-        receipts: this.getSourceReceiptsForReport(),
-        propertyCodeByPropertyId: this.propertyCodeByPropertyId,
-        asOfDate,
-        intervalDays: this.reportFilters?.intervalDays ?? 30,
-        throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
-        sortBy: this.reportFilters?.sortBy ?? 'default',
-        companyName: this.companyName,
-        officeName: this.displayOfficeName,
-        reportTitle: this.reportDisplayTitle
-      });
+      this.reportResult = this.isOwnerPayableMode
+        ? this.mappingService.buildOwnerApAgingReport({
+          lines: this.allOwnerApLines,
+          propertyCodeByPropertyId: this.propertyCodeByPropertyId,
+          paymentTermsByContactId: this.paymentTermsByContactId,
+          contactNameByContactId: this.contactNameByContactId,
+          asOfDate,
+          intervalDays: this.reportFilters?.intervalDays ?? 30,
+          throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
+          sortBy: this.reportFilters?.sortBy ?? 'default',
+          companyName: this.companyName,
+          officeName: this.displayOfficeName,
+          reportTitle: this.reportDisplayTitle
+        })
+        : this.mappingService.buildApAgingReport({
+          receipts: this.allReceipts || [],
+          propertyCodeByPropertyId: this.propertyCodeByPropertyId,
+          contactNameByContactId: this.contactNameByContactId,
+          paymentTermsByContactId: this.paymentTermsByContactId,
+          asOfDate,
+          intervalDays: this.reportFilters?.intervalDays ?? 30,
+          throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
+          sortBy: this.reportFilters?.sortBy ?? 'default',
+          companyName: this.companyName,
+          officeName: this.displayOfficeName,
+          reportTitle: this.reportDisplayTitle
+        });
       this.initializeExpandedVendors();
       this.rebuildVisibleRows();
       this.isServiceError = false;
@@ -385,18 +531,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         });
       });
 
-      rows.push({
-        rowId: `vendor-total:${vendorRow.vendorKey}`,
-        label: `Total ${vendorRow.vendorLabel}`,
-        kind: 'vendorTotal',
-        vendorKey: vendorRow.vendorKey,
-        propertyKey: null,
-        bucketAmounts: vendorRow.bucketAmounts,
-        total: vendorRow.total,
-        depth: 1,
-        expandable: false,
-        expanded: false
-      });
     });
 
     this.visibleRows = rows;
@@ -453,7 +587,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const propertyLabel = propertyKey
       ? vendorRow?.propertyRows.find(row => row.propertyKey === propertyKey)?.propertyLabel
       : null;
-    const vendorLabel = vendorRow?.vendorLabel || vendorKey || 'All Vendors';
+    const vendorLabel = vendorRow?.vendorLabel || vendorKey || (this.isOwnerPayableMode ? 'All Owners' : 'All Vendors');
     const title = propertyLabel || vendorLabel;
     const bucketLabel = bucketId
       ? this.reportResult.bucketColumns.find(column => column.id === bucketId)?.label || bucketId
@@ -477,11 +611,8 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   closeDrillDown(): void {
-    if (!this.drillDownView) {
-      return;
-    }
-
     this.closeReceiptDetail();
+    this.closeInvoiceDetail();
     this.drillDownView = null;
     this.detailReport = null;
     this.drillDownActiveChange.emit(false);
@@ -491,6 +622,13 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   drillDownBack(): void {
     if (this.activeReceiptId) {
       this.closeReceiptDetail();
+      this.markViewForCheck();
+      return;
+    }
+
+    if (this.activeInvoiceId) {
+      this.closeInvoiceDetail();
+      this.markViewForCheck();
       return;
     }
 
@@ -498,7 +636,16 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   onDetailRowClick(row: ApAgingDetailRow): void {
-    if (row.kind !== 'transaction' || !row.receiptId) {
+    if (row.kind !== 'transaction') {
+      return;
+    }
+
+    if (this.isOwnerPayableMode) {
+      this.openOwnerSourceDocument(row);
+      return;
+    }
+
+    if (!row.receiptId) {
       return;
     }
 
@@ -532,6 +679,19 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     }
 
     const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+    if (this.isOwnerPayableMode) {
+      this.detailReport = this.mappingService.buildOwnerApAgingDetailReport({
+        billDetails: this.drillDownView.bills,
+        asOfDate,
+        bucketColumns: this.reportResult.bucketColumns,
+        bucketFilter: this.drillDownView.bucketId,
+        scopeLabel: this.drillDownView.title,
+        companyName: this.companyName,
+        officeName: this.displayOfficeName
+      });
+      return;
+    }
+
     const receiptsById = new Map(this.allReceipts.map(receipt => [receipt.receiptId, receipt]));
     this.detailReport = this.mappingService.buildApAgingDetailReport({
       billDetails: this.drillDownView.bills,
@@ -570,21 +730,176 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
+  closeInvoiceDetail(): void {
+    this.activeInvoiceId = null;
+    this.activeInvoiceOfficeId = null;
+    this.activeInvoiceReservationId = null;
+    this.selectedInvoice = null;
+    this.markViewForCheck();
+  }
+
   onReceiptSaved(): void {
     this.closeReceiptDetail();
     this.journalEntriesChanged.emit();
-    this.loadReceipts();
+    this.loadReportSourceData();
+  }
+
+  onInvoiceSaved(): void {
+    this.closeInvoiceDetail();
+    this.journalEntriesChanged.emit();
+    this.loadReportSourceData();
   }
 
   isDetailRowClickable(row: ApAgingDetailRow): boolean {
-    return row.kind === 'transaction' && !!row.receiptId;
+    if (row.kind !== 'transaction' || !(row.referenceNo || '').trim()) {
+      return false;
+    }
+
+    if (this.isOwnerPayableMode) {
+      return isJournalEntrySourceNavigable(row.sourceTypeId)
+        || /^RC/i.test(row.referenceNo || '')
+        || /^R-\d+/i.test(row.referenceNo || '');
+    }
+
+    return !!row.receiptId;
+  }
+
+  isDetailRefNoLinkable(row: ApAgingDetailRow): boolean {
+    return this.isDetailRowClickable(row);
+  }
+
+  onDetailRefNoClick(row: ApAgingDetailRow, event: Event): void {
+    event.stopPropagation();
+    this.onDetailRowClick(row);
+  }
+
+  openOwnerSourceDocument(row: ApAgingDetailRow): void {
+    const referenceNo = (row.referenceNo || '').trim();
+    if (!referenceNo) {
+      return;
+    }
+
+    if (isJournalEntrySourceNavigable(row.sourceTypeId) && (row.sourceId || '').trim()) {
+      const sourceRow: JournalEntryLineListDisplay = {
+        journalEntryLineId: '',
+        journalEntryId: '',
+        officeId: Number(row.officeId) || 0,
+        transactionDate: row.transactionDate || '',
+        journalEntryCode: '',
+        source: '',
+        sourceTypeId: row.sourceTypeId,
+        sourceId: row.sourceId,
+        sourceLinkable: true,
+        propertyId: null,
+        propertyCode: '',
+        reservationId: row.reservationId ?? null,
+        reservationCode: '',
+        contactId: null,
+        contactName: '',
+        account: '',
+        description: '',
+        journalEntryMemo: '',
+        debit: '',
+        credit: '',
+        balance: '',
+        debitValue: 0,
+        creditValue: 0,
+        balanceValue: 0,
+        isPosted: true,
+        isVoided: false,
+        sortDateValue: 0
+      };
+
+      this.journalEntrySourceService.resolveSource(sourceRow).pipe(take(1)).subscribe({
+        next: target => {
+          if (target?.kind === 'invoice' && target.invoice?.invoiceId) {
+            this.openInvoiceDetail(target.invoice);
+            return;
+          }
+
+          if (target?.kind === 'receipt' && target.receipt?.receiptId) {
+            this.openReceiptDetail(target.receipt);
+            return;
+          }
+
+          this.resolveOwnerSourceByCode(row);
+        },
+        error: () => this.resolveOwnerSourceByCode(row)
+      });
+      return;
+    }
+
+    this.resolveOwnerSourceByCode(row);
+  }
+
+  resolveOwnerSourceByCode(row: ApAgingDetailRow): void {
+    const referenceNo = (row.referenceNo || '').trim();
+    const officeId = Number(row.officeId) || 0;
+    const officeIds = officeId > 0 ? [officeId] : this.resolveOfficeIds();
+
+    if (/^RC/i.test(referenceNo)) {
+      this.receiptService.searchReceipts({
+        officeIds,
+        includeInactive: true,
+        startDate: null,
+        endDate: null,
+        receiptKind: 1
+      }).pipe(take(1)).subscribe({
+        next: receipts => {
+          const matched = (receipts || []).find(receipt =>
+            (receipt.receiptCode || '').trim().toLowerCase() === referenceNo.toLowerCase()
+            || (receipt.billNumber || '').trim().toLowerCase() === referenceNo.toLowerCase()
+          );
+          if (!matched?.receiptId) {
+            this.toastr.error('Unable to locate receipt by Ref No.', 'Owner AP Aging');
+            return;
+          }
+          this.openReceiptDetail(matched);
+        },
+        error: () => this.toastr.error('Unable to locate receipt by Ref No.', 'Owner AP Aging')
+      });
+      return;
+    }
+
+    if (/^R-\d+/i.test(referenceNo)) {
+      if (officeIds.length === 0) {
+        this.toastr.error('Unable to resolve invoice office scope.', 'Owner AP Aging');
+        return;
+      }
+
+      this.invoiceService.getInvoiceByCode(referenceNo, officeIds).pipe(take(1)).subscribe({
+        next: invoice => {
+          if (!invoice?.invoiceId) {
+            this.toastr.error('Unable to locate invoice by Ref No.', 'Owner AP Aging');
+            return;
+          }
+          this.openInvoiceDetail(invoice);
+        },
+        error: () => this.toastr.error('Unable to locate invoice by Ref No.', 'Owner AP Aging')
+      });
+      return;
+    }
+
+    this.toastr.error('Unable to open supporting document for this Ref No.', 'Owner AP Aging');
+  }
+
+  openInvoiceDetail(invoice: InvoiceResponse): void {
+    this.closeReceiptDetail();
+    this.selectedInvoice = invoice;
+    this.activeInvoiceId = invoice.invoiceId;
+    this.activeInvoiceOfficeId = invoice.officeId ?? null;
+    this.activeInvoiceReservationId = invoice.reservationId ?? null;
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
   }
 
   private setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
+    this.closeInvoiceDetail();
     this.selectedReceipt = receipt;
     this.activeReceiptId = receipt.receiptId;
     this.activeReceiptOfficeId = receipt.officeId;
     this.drillDownReceiptProperty = property;
+    this.drillDownActiveChange.emit(true);
     this.markViewForCheck();
   }
 
@@ -765,24 +1080,35 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get detailPanelMaxWidthCss(): string {
-    return '100%';
+    return 'min(100%, 96rem)';
   }
 
   get detailColumnNames(): string[] {
     return Object.keys(this.detailDisplayedColumns);
   }
 
-  getDetailColumnStyle(columnKey: string): { width: string; minWidth: string; maxWidth: string } | null {
+  getDetailColumnStyle(columnKey: string): { width?: string; minWidth?: string; maxWidth?: string } | null {
     const maxWidth = this.detailDisplayedColumns[columnKey]?.maxWidth;
     if (!maxWidth || maxWidth === 'auto') {
       return null;
     }
-    return { width: maxWidth, minWidth: maxWidth, maxWidth };
+
+    // Floor only so headers/values can grow without clipping titles.
+    return { minWidth: maxWidth };
   }
 
   isDetailAmountColumn(columnKey: string): boolean {
     const column = this.detailDisplayedColumns[columnKey];
     return column?.alignment === 'right' || column?.headerAlignment === 'right';
+  }
+
+  getDetailHeaderAlign(columnKey: string): string | null {
+    const column = this.detailDisplayedColumns[columnKey];
+    return column?.headerAlignment || column?.alignment || null;
+  }
+
+  getDetailCellAlign(columnKey: string): string | null {
+    return this.detailDisplayedColumns[columnKey]?.alignment || null;
   }
 
   getDetailCellDisplay(row: ApAgingDetailRow, columnKey: string): string {

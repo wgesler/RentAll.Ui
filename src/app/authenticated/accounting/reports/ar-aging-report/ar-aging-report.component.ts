@@ -81,19 +81,18 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   offices: OfficeResponse[] = [];
   allInvoices: InvoiceResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
+  contactNameByContactId = new Map<string, string>();
   reservationContextByReservationId = new Map<string, ArAgingReservationContext>();
 
   detailDisplayedColumns: ColumnSet = {
-    transactionType: { displayAs: 'Type', maxWidth: '10ch', sort: false },
-    transactionDate: { displayAs: 'Date', maxWidth: '12ch', sort: false },
-    num: { displayAs: 'Num', maxWidth: '14ch', sort: false, sortType: 'natural' },
-    referenceNo: { displayAs: 'Ref No', maxWidth: '14ch', sort: false },
     name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
-    terms: { displayAs: 'Terms', maxWidth: '10ch', sort: false },
-    dueDate: { displayAs: 'Due Date', maxWidth: '12ch', sort: false },
-    classLabel: { displayAs: 'Class', maxWidth: '14ch', sort: false },
-    aging: { displayAs: 'Aging', maxWidth: '8ch', alignment: 'right', headerAlignment: 'center', sort: false },
-    openBalance: { displayAs: 'Open Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    classLabel: { displayAs: 'Property', maxWidth: '12ch', sort: false },
+    referenceNo: { displayAs: 'Ref No', maxWidth: '16ch', sort: false, sortType: 'natural' },
+    transactionDate: { displayAs: 'Date', maxWidth: '15ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    terms: { displayAs: 'Terms', maxWidth: '12ch', sort: false },
+    dueDate: { displayAs: 'Due Date', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    aging: { displayAs: 'Aging', maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    openBalance: { displayAs: 'Balance Owned', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   isPageReady = false;
@@ -227,13 +226,20 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.invoiceService.searchInvoices({
-      officeIds,
-      includeInactive: true,
-      includePaid: true,
-      startDate: null,
-      endDate: null
-    }).pipe(take(1)).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(
+      take(1),
+      switchMap(() => {
+        this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(this.contactService.getAllContactsValue());
+        return this.invoiceService.searchInvoices({
+          officeIds,
+          includeInactive: true,
+          includePaid: true,
+          startDate: null,
+          endDate: null
+        });
+      }),
+      take(1)
+    ).subscribe({
       next: invoices => {
         this.allInvoices = invoices || [];
         this.isServiceError = false;
@@ -243,6 +249,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       },
       error: (error: HttpErrorResponse) => {
         this.allInvoices = [];
+        this.contactNameByContactId = new Map();
         this.reservationContextByReservationId.clear();
         this.isServiceError = true;
         this.reportResult = null;
@@ -307,6 +314,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       this.reportResult = this.mappingService.buildArAgingReport({
         invoices: this.allInvoices,
         costCodes: this.allCostCodes,
+        contactNameByContactId: this.contactNameByContactId,
         asOfDate,
         intervalDays: this.reportFilters?.intervalDays ?? 30,
         throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
@@ -402,18 +410,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         });
       });
 
-      rows.push({
-        rowId: `customer-total:${customerRow.customerKey}`,
-        label: `Total ${customerRow.customerLabel}`,
-        kind: 'customerTotal',
-        customerKey: customerRow.customerKey,
-        reservationKey: null,
-        bucketAmounts: customerRow.bucketAmounts,
-        total: customerRow.total,
-        depth: 1,
-        expandable: false,
-        expanded: false
-      });
     });
 
     this.visibleRows = rows;
@@ -494,10 +490,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   closeDrillDown(): void {
-    if (!this.drillDownView) {
-      return;
-    }
-
     this.closeInvoiceDetail();
     this.drillDownView = null;
     this.detailReport = null;
@@ -508,6 +500,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   drillDownBack(): void {
     if (this.activeInvoiceId) {
       this.closeInvoiceDetail();
+      this.markViewForCheck();
       return;
     }
 
@@ -524,6 +517,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.activeInvoiceId = row.invoiceId;
     this.activeInvoiceOfficeId = prefetchedInvoice?.officeId ?? this.officeId;
     this.activeInvoiceReservationId = prefetchedInvoice?.reservationId ?? null;
+    this.drillDownActiveChange.emit(true);
     this.markViewForCheck();
   }
 
@@ -584,6 +578,15 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
 
   isDetailRowClickable(row: ArAgingDetailRow): boolean {
     return row.kind === 'transaction' && !!row.invoiceId;
+  }
+
+  isDetailRefNoLinkable(row: ArAgingDetailRow): boolean {
+    return this.isDetailRowClickable(row) && !!(row.referenceNo || '').trim();
+  }
+
+  onDetailRefNoClick(row: ArAgingDetailRow, event: Event): void {
+    event.stopPropagation();
+    this.onDetailRowClick(row);
   }
   //#endregion
 
@@ -751,24 +754,33 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get detailPanelMaxWidthCss(): string {
-    return '100%';
+    return 'min(100%, 96rem)';
   }
 
   get detailColumnNames(): string[] {
     return Object.keys(this.detailDisplayedColumns);
   }
 
-  getDetailColumnStyle(columnKey: string): { width: string; minWidth: string; maxWidth: string } | null {
+  getDetailColumnStyle(columnKey: string): { width?: string; minWidth?: string; maxWidth?: string } | null {
     const maxWidth = this.detailDisplayedColumns[columnKey]?.maxWidth;
     if (!maxWidth || maxWidth === 'auto') {
       return null;
     }
-    return { width: maxWidth, minWidth: maxWidth, maxWidth };
+    return { minWidth: maxWidth };
   }
 
   isDetailAmountColumn(columnKey: string): boolean {
     const column = this.detailDisplayedColumns[columnKey];
     return column?.alignment === 'right' || column?.headerAlignment === 'right';
+  }
+
+  getDetailHeaderAlign(columnKey: string): string | null {
+    const column = this.detailDisplayedColumns[columnKey];
+    return column?.headerAlignment || column?.alignment || null;
+  }
+
+  getDetailCellAlign(columnKey: string): string | null {
+    return this.detailDisplayedColumns[columnKey]?.alignment || null;
   }
 
   getDetailCellDisplay(row: ArAgingDetailRow, columnKey: string): string {

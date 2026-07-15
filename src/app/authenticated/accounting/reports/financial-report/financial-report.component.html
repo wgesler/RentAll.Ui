@@ -55,6 +55,7 @@
         [receiptId]="activeReceiptId"
         [prefetchedReceipt]="selectedReceipt"
         [shellContext]="'accounting'"
+        (backEvent)="drillDownBack()"
         (savedEvent)="onDrillDownReceiptSaved()">
       </app-receipt>
     } @else if (activeJournalEntryId) {

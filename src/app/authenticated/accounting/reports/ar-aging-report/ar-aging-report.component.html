@@ -67,7 +67,7 @@
       </div>
       <div class="financial-report-panel dbg-band-main">
         <div
-          class="financial-report-panel-inner financial-report-panel-inner--content-sized"
+          class="financial-report-panel-inner financial-report-panel-inner--content-sized ar-aging-detail-panel"
           [style.max-width]="detailPanelMaxWidthCss">
           @if (detailReport.rows.length === 0) {
             <div class="financial-report-empty-state">
@@ -83,7 +83,8 @@
                       [class.financial-report-col-amount]="isDetailAmountColumn(columnKey)"
                       [style.width]="getDetailColumnStyle(columnKey)?.width"
                       [style.min-width]="getDetailColumnStyle(columnKey)?.minWidth"
-                      [style.max-width]="getDetailColumnStyle(columnKey)?.maxWidth">
+                      [style.max-width]="getDetailColumnStyle(columnKey)?.maxWidth"
+                      [style.text-align]="getDetailHeaderAlign(columnKey)">
                       {{ detailDisplayedColumns[columnKey].displayAs }}
                     </th>
                   }
@@ -118,8 +119,18 @@
                           [class.financial-report-col-amount]="isDetailAmountColumn(columnKey)"
                           [style.width]="getDetailColumnStyle(columnKey)?.width"
                           [style.min-width]="getDetailColumnStyle(columnKey)?.minWidth"
-                          [style.max-width]="getDetailColumnStyle(columnKey)?.maxWidth">
-                          {{ getDetailCellDisplay(row, columnKey) }}
+                          [style.max-width]="getDetailColumnStyle(columnKey)?.maxWidth"
+                          [style.text-align]="getDetailCellAlign(columnKey)">
+                          @if (columnKey === 'referenceNo' && isDetailRefNoLinkable(row)) {
+                            <button
+                              type="button"
+                              class="aging-detail-ref-link"
+                              (click)="onDetailRefNoClick(row, $event)">
+                              {{ getDetailCellDisplay(row, columnKey) }}
+                            </button>
+                          } @else {
+                            {{ getDetailCellDisplay(row, columnKey) }}
+                          }
                         </td>
                       }
                     }
@@ -193,10 +204,9 @@
                 <tbody>
                   @for (row of visibleRows; track row.rowId) {
                     <tr
-                      [class.financial-report-row-section]="row.kind === 'customer'"
                       [class.financial-report-row-expandable]="row.kind === 'customer' || row.kind === 'reservation'"
                       [class.financial-report-row-account]="row.kind === 'reservation'"
-                      [class.financial-report-row-total]="row.kind === 'customerTotal'">
+                      [class.financial-report-row-total]="row.kind === 'customer' || row.kind === 'customerTotal'">
                       <td class="financial-report-col-label">
                         <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
                           @if (row.expandable) {

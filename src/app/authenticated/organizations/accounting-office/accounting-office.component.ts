@@ -27,6 +27,7 @@ import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 
 @Component({
     standalone: true,
@@ -54,6 +55,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
@@ -67,6 +69,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   checkStockFileDetails: FileDetails = null;
   hasNewCheckStockUpload: boolean = false;
   checkStockPath: string = null;
+  checkStockPdfThumbnailUrl: string = null;
   isUploadingCheckStock: boolean = false;
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
@@ -247,11 +250,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
               this.checkStockFileDetails.dataUrl = `data:${contentType};base64,${this.checkStockFileDetails.file}`;
             }
           }
+          this.checkStockFileName = this.checkStockFileDetails.fileName || this.checkStockFileName;
           this.hasNewCheckStockUpload = false;
         }
         if (response.checkStockPath) {
           this.checkStockPath = response.checkStockPath;
         }
+        this.refreshCheckStockThumbnail();
         this.buildForm();
         this.loadChartOfAccountsForOffice(response?.officeId, () => {
           this.populateForm();
@@ -685,8 +690,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.checkStockPath = null;
       this.hasNewCheckStockUpload = true;
       this.checkStockFileDetails = payload.fileDetails;
+      this.refreshCheckStockThumbnail();
     } finally {
       this.isUploadingCheckStock = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -694,9 +701,31 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.checkStockPath = null;
     this.checkStockFileName = null;
     this.checkStockFileDetails = null;
+    this.checkStockPdfThumbnailUrl = null;
     this.hasNewCheckStockUpload = false;
     this.form.patchValue({ checkStockUpload: null });
     this.form.get('checkStockUpload')?.updateValueAndValidity();
+    this.cdr.markForCheck();
+  }
+
+  refreshCheckStockThumbnail(): void {
+    const dataUrl = this.checkStockFileDetails?.dataUrl
+      || (this.checkStockFileDetails?.file
+        ? (this.checkStockFileDetails.file.startsWith('data:')
+          ? this.checkStockFileDetails.file
+          : `data:${this.checkStockFileDetails.contentType || 'application/pdf'};base64,${this.checkStockFileDetails.file}`)
+        : null);
+
+    this.checkStockPdfThumbnailUrl = null;
+    if (!dataUrl) {
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
+      this.checkStockPdfThumbnailUrl = url;
+      this.cdr.markForCheck();
+    });
   }
   //#endregion
 

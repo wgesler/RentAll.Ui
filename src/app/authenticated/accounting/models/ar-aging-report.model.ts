@@ -1,7 +1,8 @@
 import { InvoiceResponse } from './invoice.model';
 import { CostCodesResponse } from './cost-codes.model';
 import { ContactResponse } from '../../contacts/models/contact.model';
-import { getTermType } from '../../contacts/models/contact-enum';
+import { TermType, getTermType } from '../../contacts/models/contact-enum';
+import { ReservationType } from '../../reservations/models/reservation-enum';
 import { ReservationResponse } from '../../reservations/models/reservation-model';
 
 //#region Types
@@ -98,6 +99,7 @@ export interface ArAgingReportFilters {
 export interface ArAgingReportBuildRequest {
   invoices: InvoiceResponse[];
   costCodes: CostCodesResponse[];
+  contactNameByContactId?: ReadonlyMap<string, string>;
   asOfDate: string | null;
   intervalDays?: number;
   throughDays?: number | null;
@@ -173,7 +175,7 @@ export type ArAgingDetailRowKind = 'bucketHeader' | 'transaction' | 'bucketTotal
 export interface ArAgingReservationContext {
   reservationId: string;
   referenceNo: string | null;
-  termsLabel: string | null;
+  termsLabel: string;
 }
 
 export interface ArAgingDetailBuildRequest {
@@ -242,33 +244,29 @@ export function normalizeArAgingReferenceNo(value: string | null | undefined): s
 }
 
 export function resolveArAgingTermsLabel(
-  reservation: Pick<ReservationResponse, 'companyId' | 'contactIds'>,
+  reservation: Pick<ReservationResponse, 'companyId' | 'reservationTypeId'>,
   contactsById: ReadonlyMap<string, ContactResponse>
-): string | null {
+): string {
+  const dueOnReceipt = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
+  const reservationTypeId = Number(reservation.reservationTypeId);
+  const usesCompanyTerms =
+    reservationTypeId === ReservationType.Corporate
+    || reservationTypeId === ReservationType.Platform;
+
+  if (!usesCompanyTerms) {
+    return dueOnReceipt;
+  }
+
   const companyId = reservation.companyId?.trim();
-  if (companyId) {
-    const label = getTermType(contactsById.get(companyId)?.paymentTermsId);
-    if (label) {
-      return label;
-    }
+  if (!companyId) {
+    return dueOnReceipt;
   }
 
-  for (const contactId of reservation.contactIds || []) {
-    const trimmed = String(contactId ?? '').trim();
-    if (!trimmed) {
-      continue;
-    }
-    const label = getTermType(contactsById.get(trimmed)?.paymentTermsId);
-    if (label) {
-      return label;
-    }
-  }
-
-  return null;
+  return getTermType(contactsById.get(companyId)?.paymentTermsId) || dueOnReceipt;
 }
 
 export function buildArAgingReservationContext(
-  reservation: Pick<ReservationResponse, 'reservationId' | 'referenceNo' | 'companyId' | 'contactIds'>,
+  reservation: Pick<ReservationResponse, 'reservationId' | 'referenceNo' | 'companyId' | 'reservationTypeId'>,
   contactsById: ReadonlyMap<string, ContactResponse>
 ): ArAgingReservationContext {
   return {

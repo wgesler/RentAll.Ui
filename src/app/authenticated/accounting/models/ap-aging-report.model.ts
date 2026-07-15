@@ -1,4 +1,5 @@
 import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { JournalEntryLineSearchResponse } from './journal-entry.model';
 import {
   AR_AGING_DATE_PRESET_OPTIONS,
   AR_AGING_INTERVAL_OPTIONS,
@@ -44,6 +45,22 @@ export interface ApAgingReportFilters {
 export interface ApAgingReportBuildRequest {
   receipts: ReceiptResponse[];
   propertyCodeByPropertyId: ReadonlyMap<string, string>;
+  contactNameByContactId?: ReadonlyMap<string, string>;
+  paymentTermsByContactId?: ReadonlyMap<string, number | null>;
+  asOfDate: string | null;
+  intervalDays?: number;
+  throughDays?: number | null;
+  sortBy?: ApAgingSortBy;
+  companyName?: string;
+  officeName?: string;
+  reportTitle?: string;
+}
+
+export interface OwnerApAgingReportBuildRequest {
+  lines: JournalEntryLineSearchResponse[];
+  propertyCodeByPropertyId: ReadonlyMap<string, string>;
+  paymentTermsByContactId?: ReadonlyMap<string, number | null>;
+  contactNameByContactId?: ReadonlyMap<string, string>;
   asOfDate: string | null;
   intervalDays?: number;
   throughDays?: number | null;
@@ -70,7 +87,11 @@ export interface ApAgingBillDetail {
   balanceDue: number;
   bucketId: ApAgingBucketId;
   billNumber: string | null;
+  termsLabel?: string | null;
   officeId: number;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  reservationId?: string | null;
 }
 
 export interface ApAgingPropertyRow {
@@ -143,6 +164,11 @@ export interface ApAgingDetailRow {
   aging: number | null;
   openBalance: number | null;
   receiptId: string | null;
+  invoiceId?: string | null;
+  officeId?: number | null;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  reservationId?: string | null;
 }
 
 export interface ApAgingDetailReportResult {
