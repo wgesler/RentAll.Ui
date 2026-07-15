@@ -25,9 +25,10 @@ export class PdfThumbnailService {
    * Renders the first page of the PDF as a JPEG data URL.
    * @param pdfDataUrl - Full data URL (e.g. data:application/pdf;base64,...) or raw base64 string
    * @param maxSize - Max width/height in pixels for the thumbnail (default 400)
+   * @param maxScale - Cap on pdf.js scale (default 2; raise for print-preview overlays)
    * @returns Promise of a data URL (image/jpeg) or null on error
    */
-  async getFirstPageDataUrl(pdfDataUrl: string | null, maxSize = 400): Promise<string | null> {
+  async getFirstPageDataUrl(pdfDataUrl: string | null, maxSize = 400, maxScale = 2): Promise<string | null> {
     if (!pdfDataUrl) return null;
     let data: Uint8Array;
     try {
@@ -51,7 +52,7 @@ export class PdfThumbnailService {
       const pdf: PDFDocumentProxy = await loadingTask.promise;
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(maxSize / viewport.width, maxSize / viewport.height, 2);
+      const scale = Math.min(maxSize / viewport.width, maxSize / viewport.height, maxScale);
       const scaledViewport = page.getViewport({ scale });
 
       const canvas = document.createElement('canvas');

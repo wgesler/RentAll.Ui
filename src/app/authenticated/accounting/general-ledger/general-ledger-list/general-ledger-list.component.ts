@@ -14,6 +14,7 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { DocumentHtmlService } from '../../../../services/document-html.service';
+import { PdfThumbnailService } from '../../../../services/pdf-thumbnail.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
@@ -79,6 +80,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   private checkHtmlService = inject(CheckHtmlService);
   private checkPrintService = inject(CheckPrintService);
   private checkPrintApiService = inject(CheckPrintApiService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
   private dialog = inject(MatDialog);
   private documentHtmlService = inject(DocumentHtmlService);
   private sanitizer = inject(DomSanitizer);
@@ -2626,6 +2628,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       ConfirmCheckNumberDialogComponent,
       {
         width: '28rem',
+        panelClass: 'accounting-form-dialog-panel',
         data: {
           startingCheckNumber,
           checkCount: selectedLines.length
@@ -2668,7 +2671,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       ).subscribe({
         next: ({ template, accountingOffice, checkNumberByJournalEntryId }) => {
           const linesWithNumbers = this.applyCheckNumbersToLines(selectedLines, checkNumberByJournalEntryId, result.startingCheckNumber);
-          this.renderCheckPreview(template, accountingOffice, linesWithNumbers, true);
+          this.renderCheckPreview(template, accountingOffice, linesWithNumbers, true, null);
           this.clearPrintCheckLineSelection();
           this.loadJournalEntryLines();
         },
@@ -2739,31 +2742,71 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.isLoadingCheckPreview = true;
     forkJoin({
       template: this.checkHtmlService.getCheckHtmlByScope(this.officeId),
+      checkHtml: this.checkHtmlService.getCheckHtmlResponseByScope(this.officeId).pipe(catchError(() => of(null))),
       accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId!).pipe(catchError(() => of(null)))
     }).pipe(
+      switchMap(({ template, checkHtml, accountingOffice }) => {
+        const officeOwnedStock = checkHtml && Number(checkHtml.officeId) === Number(this.officeId)
+          ? checkHtml.checkStockFileDetails
+          : null;
+        const pdfDataUrl = this.resolveCheckStockPdfDataUrl(officeOwnedStock);
+        if (!pdfDataUrl) {
+          return of({ template, accountingOffice, stockImageUrl: null as string | null });
+        }
+
+        return from(this.pdfThumbnailService.getFirstPageDataUrl(pdfDataUrl, 2550, 3)).pipe(
+          map(stockImageUrl => ({ template, accountingOffice, stockImageUrl })),
+          catchError(() => of({ template, accountingOffice, stockImageUrl: null as string | null }))
+        );
+      }),
       finalize(() => {
         this.isLoadingCheckPreview = false;
         this.markViewForCheck();
       }),
       takeUntil(this.destroy$)
-    ).subscribe(({ template, accountingOffice }) => {
+    ).subscribe(({ template, accountingOffice, stockImageUrl }) => {
       const linesWithNumbers = this.applyCheckNumbersToLines(selectedLines, null, draftStartingNumber);
-      this.renderCheckPreview(template, accountingOffice, linesWithNumbers, false);
+      this.renderCheckPreview(template, accountingOffice, linesWithNumbers, false, stockImageUrl);
     });
+  }
+
+  private resolveCheckStockPdfDataUrl(fileDetails: { file?: string; dataUrl?: string; contentType?: string } | null | undefined): string | null {
+    if (!fileDetails?.file && !fileDetails?.dataUrl) {
+      return null;
+    }
+
+    if (fileDetails.dataUrl?.trim()) {
+      return fileDetails.dataUrl;
+    }
+
+    if (!fileDetails.file) {
+      return null;
+    }
+
+    if (fileDetails.file.startsWith('data:')) {
+      return fileDetails.file;
+    }
+
+    return `data:${fileDetails.contentType || 'application/pdf'};base64,${fileDetails.file}`;
   }
 
   private renderCheckPreview(
     template: string,
     accountingOffice: AccountingOfficeResponse | null,
     linesWithNumbers: JournalEntryLineListDisplay[],
-    printAfterPreview: boolean
+    printAfterPreview: boolean,
+    stockImageUrl: string | null
   ): void {
     if (!template) {
       this.toastr.error('Check HTML template was not found.', CommonMessage.Error);
       return;
     }
 
-    const mergedHtml = this.checkPrintService.buildMergedChecksHtml(template, linesWithNumbers, accountingOffice);
+    let mergedHtml = this.checkPrintService.buildMergedChecksHtml(template, linesWithNumbers, accountingOffice);
+    if (stockImageUrl && !printAfterPreview) {
+      mergedHtml = this.checkPrintService.applyCheckStockBackground(mergedHtml, stockImageUrl);
+    }
+
     const processed = this.documentHtmlService.processHtml(mergedHtml, true);
     const bodyContent = this.documentHtmlService.extractBodyContent(processed.processedHtml);
     const styles = processed.extractedStyles;

@@ -43,6 +43,29 @@ export class CheckPrintService {
     return this.wrapPages(pages, template);
   }
 
+  applyCheckStockBackground(html: string, imageDataUrl: string): string {
+    if (!html || !imageDataUrl) {
+      return html;
+    }
+
+    const stockCss = `
+.page {
+  background-image: url("${imageDataUrl}");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: top left;
+}
+@media print {
+  .page { background-image: none !important; }
+}`;
+
+    if (/<\/style>/i.test(html)) {
+      return html.replace(/<\/style>/i, `${stockCss}\n</style>`);
+    }
+
+    return `<style>${stockCss}</style>${html}`;
+  }
+
   buildMergeContext(line: JournalEntryLineListDisplay, accountingOffice: AccountingOfficeResponse | null): CheckPrintMergeContext {
     const amount = Number(line.creditValue || 0);
     const checkDate = (line.transactionDate || '').trim();

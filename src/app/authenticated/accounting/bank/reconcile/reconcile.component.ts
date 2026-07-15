@@ -329,6 +329,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       width: '95vw',
       maxWidth: '56rem',
       maxHeight: '95vh',
+      panelClass: 'accounting-form-dialog-panel',
       data: {
         paymentsVisibleColumns: [...this.paymentsVisibleColumns],
         depositsVisibleColumns: [...this.depositsVisibleColumns]

@@ -2,9 +2,10 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
+import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, throwError } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -28,6 +29,9 @@ import { ChartOfAccountsService } from '../../accounting/services/chart-of-accou
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
+import { CheckHtmlService } from '../../accounting/services/check-html.service';
+import { CheckHtmlResponse } from '../../accounting/models/check-html.model';
+import { CheckLayoutEditorDialogComponent, CheckLayoutEditorDialogData } from './check-layout-editor-dialog/check-layout-editor-dialog.component';
 
 @Component({
     standalone: true,
@@ -56,6 +60,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private pdfThumbnailService = inject(PdfThumbnailService);
+  private checkHtmlService = inject(CheckHtmlService);
+  private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
@@ -67,10 +73,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   logoPath: string = null;
   checkStockFileName: string = null;
   checkStockFileDetails: FileDetails = null;
-  hasNewCheckStockUpload: boolean = false;
   checkStockPath: string = null;
+  checkStockPreviewDataUrl: string = null;
   checkStockPdfThumbnailUrl: string = null;
+  hasNewCheckStockUpload: boolean = false;
+  checkStockRemoved: boolean = false;
   isUploadingCheckStock: boolean = false;
+  isSavingCheckPrinting: boolean = false;
+  officeCheckHtml: CheckHtmlResponse | null = null;
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
@@ -240,29 +250,15 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         if (response.logoPath) {
           this.logoPath = response.logoPath;
         }
-        if (response.checkStockFileDetails && response.checkStockFileDetails.file) {
-          this.checkStockFileDetails = response.checkStockFileDetails;
-          if (!this.checkStockFileDetails.dataUrl || this.checkStockFileDetails.dataUrl.trim() === '') {
-            const contentType = this.checkStockFileDetails.contentType || 'application/pdf';
-            if (this.checkStockFileDetails.file.startsWith('data:')) {
-              this.checkStockFileDetails.dataUrl = this.checkStockFileDetails.file;
-            } else {
-              this.checkStockFileDetails.dataUrl = `data:${contentType};base64,${this.checkStockFileDetails.file}`;
-            }
-          }
-          this.checkStockFileName = this.checkStockFileDetails.fileName || this.checkStockFileName;
-          this.hasNewCheckStockUpload = false;
-        }
-        if (response.checkStockPath) {
-          this.checkStockPath = response.checkStockPath;
-        }
-        this.refreshCheckStockThumbnail();
+        // Check stock: load like logo (AccountingOffice owns the PDF path for reopen).
+        this.applyAccountingOfficeCheckStock(response);
         this.buildForm();
         this.loadChartOfAccountsForOffice(response?.officeId, () => {
           this.populateForm();
           this.applyBankCardsFromSource(response?.bankCards);
           this.cdr.markForCheck();
         });
+        this.loadOfficeCheckHtml(response?.officeId);
       },
       error: () => {
         this.isServiceError = true;
@@ -350,8 +346,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       website: formValue.website || '',
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
-      checkStockFileDetails: this.hasNewCheckStockUpload ? this.checkStockFileDetails : undefined,
-      checkStockPath: this.hasNewCheckStockUpload ? undefined : this.checkStockPath,
       isActive: formValue.isActive
     };
 
@@ -675,7 +669,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   async uploadCheckStock(event: Event): Promise<void> {
+    const officeId = this.parseOfficeId(this.isAddMode ? this.form?.get('officeId')?.value : this.id);
+    if (officeId == null) {
+      this.toastr.warning('Save or select an office before uploading check stock.');
+      return;
+    }
+
     this.isUploadingCheckStock = true;
+    const input = event.target as HTMLInputElement | null;
     const file = this.utilityService.getFirstSelectedFile(event);
     if (!file) {
       this.isUploadingCheckStock = false;
@@ -683,49 +684,385 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     try {
+      // Show preview/thumbnail immediately from the selected file first (same as receipts).
+      const immediatePreviewDataUrl = await this.readSelectedFilePreviewDataUrl(file);
+      if (immediatePreviewDataUrl) {
+        this.checkStockFileName = file.name;
+        this.checkStockPreviewDataUrl = immediatePreviewDataUrl;
+        this.checkStockFileDetails = {
+          contentType: file.type || 'application/pdf',
+          fileName: file.name,
+          file: immediatePreviewDataUrl.split(',')[1] ?? '',
+          dataUrl: immediatePreviewDataUrl
+        };
+        this.checkStockPath = null;
+        this.hasNewCheckStockUpload = true;
+        this.checkStockRemoved = false;
+        this.setCheckStockPdfThumbnail(immediatePreviewDataUrl, file.type || 'application/pdf');
+        this.cdr.detectChanges();
+      }
+
+      // Reduce/optimize before save (same utility path as receipts/logos).
       const payload = await this.utilityService.buildOptimizedUploadPayload(file);
       this.checkStockFileName = payload.fileDetails.fileName;
-      this.form.patchValue({ checkStockUpload: payload.uploadFile });
-      this.form.get('checkStockUpload')?.updateValueAndValidity();
+      this.checkStockFileDetails = payload.fileDetails;
+      this.checkStockPreviewDataUrl = payload.fileDetails.dataUrl || this.checkStockPreviewDataUrl;
       this.checkStockPath = null;
       this.hasNewCheckStockUpload = true;
-      this.checkStockFileDetails = payload.fileDetails;
-      this.refreshCheckStockThumbnail();
+      this.checkStockRemoved = false;
+      this.form.patchValue({ checkStockUpload: payload.uploadFile });
+      this.form.get('checkStockUpload')?.updateValueAndValidity();
+      this.setCheckStockPdfThumbnail(this.checkStockPreviewDataUrl, payload.fileDetails.contentType || file.type || 'application/pdf');
+      this.cdr.detectChanges();
+    } catch {
+      this.toastr.error('Unable to prepare check stock.', CommonMessage.Error);
     } finally {
       this.isUploadingCheckStock = false;
-      this.cdr.markForCheck();
+      this.cdr.detectChanges();
+      if (input) {
+        input.value = '';
+      }
     }
+  }
+
+  private readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
+    return new Promise(resolve => {
+      try {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      } catch {
+        resolve(null);
+      }
+    });
   }
 
   removeCheckStock(): void {
-    this.checkStockPath = null;
-    this.checkStockFileName = null;
-    this.checkStockFileDetails = null;
-    this.checkStockPdfThumbnailUrl = null;
+    const hadPersistedStock = !!(this.officeCheckHtml?.checkStockPath || this.checkStockPath);
+    this.clearCheckStockLocal();
     this.hasNewCheckStockUpload = false;
-    this.form.patchValue({ checkStockUpload: null });
-    this.form.get('checkStockUpload')?.updateValueAndValidity();
-    this.cdr.markForCheck();
+    this.checkStockRemoved = hadPersistedStock;
+    this.cdr.detectChanges();
   }
 
-  refreshCheckStockThumbnail(): void {
-    const dataUrl = this.checkStockFileDetails?.dataUrl
-      || (this.checkStockFileDetails?.file
-        ? (this.checkStockFileDetails.file.startsWith('data:')
-          ? this.checkStockFileDetails.file
-          : `data:${this.checkStockFileDetails.contentType || 'application/pdf'};base64,${this.checkStockFileDetails.file}`)
-        : null);
-
-    this.checkStockPdfThumbnailUrl = null;
+  setCheckStockPdfThumbnail(dataUrl: string | null, contentType: string | null): void {
     if (!dataUrl) {
-      this.cdr.markForCheck();
+      this.checkStockPdfThumbnailUrl = null;
       return;
     }
 
+    const normalizedType = (contentType || this.utilityService.getContentTypeFromDataUrl(dataUrl) || '').toLowerCase();
+    const looksLikePdf = normalizedType.includes('pdf') || dataUrl.toLowerCase().includes('application/pdf');
+    if (!looksLikePdf) {
+      this.checkStockPdfThumbnailUrl = null;
+      return;
+    }
+
+    this.checkStockPdfThumbnailUrl = null;
     this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
       this.checkStockPdfThumbnailUrl = url;
-      this.cdr.markForCheck();
+      this.cdr.detectChanges();
     });
+  }
+
+  isCheckStockPreviewPdf(): boolean {
+    const contentType = (this.checkStockFileDetails?.contentType
+      || this.utilityService.getContentTypeFromDataUrl(this.checkStockPreviewDataUrl)
+      || '').toLowerCase();
+    return contentType.includes('pdf');
+  }
+
+  saveCheckPrinting(): void {
+    if (this.isAddMode) {
+      this.toastr.warning('Save the accounting office first, then save check printing.');
+      return;
+    }
+
+    const officeId = this.parseOfficeId(this.id);
+    if (officeId == null) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    const checkNumberControl = this.form.get('currentCheckNumber');
+    if (checkNumberControl?.invalid) {
+      checkNumberControl.markAsTouched();
+      this.toastr.warning('Enter a valid current check number.');
+      return;
+    }
+
+    const currentCheckNumber = Number(checkNumberControl?.value) || 1;
+    this.isSavingCheckPrinting = true;
+    this.cdr.detectChanges();
+
+    this.accountingOfficeService.updateAccountingOfficeCheckNumber(officeId, currentCheckNumber).pipe(
+      switchMap(() => {
+        if (this.accountingOffice) {
+          this.accountingOffice.currentCheckNumber = currentCheckNumber;
+        }
+        return this.persistAccountingOfficeCheckStockIfNeeded(officeId);
+      }),
+      switchMap(() => this.persistCheckPrintingIfNeeded(officeId)),
+      take(1),
+      finalize(() => {
+        this.isSavingCheckPrinting = false;
+        this.cdr.detectChanges();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.hasNewCheckStockUpload = false;
+        this.checkStockRemoved = false;
+        this.accountingOfficeService.notifyAccountingOfficesChanged();
+        this.toastr.success('Check printing saved.', CommonMessage.Success);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.toastr.error('Unable to save check printing.', CommonMessage.Error);
+      }
+    });
+  }
+
+  openCheckLayoutEditor(): void {
+    const officeId = this.parseOfficeId(this.isAddMode ? this.form?.get('officeId')?.value : this.id);
+    if (officeId == null) {
+      this.toastr.warning('Save or select an office before aligning check layout.');
+      return;
+    }
+
+    if (this.hasNewCheckStockUpload || this.checkStockRemoved) {
+      this.toastr.warning('Save check printing first to store check stock changes, then align layout.');
+      return;
+    }
+
+    const data: CheckLayoutEditorDialogData = {
+      officeId,
+      checkStockFileDetails: this.checkStockFileDetails,
+      checkStockPreviewDataUrl: this.checkStockPreviewDataUrl,
+      checkStockPdfThumbnailUrl: this.checkStockPdfThumbnailUrl
+    };
+    this.dialog.open(CheckLayoutEditorDialogComponent, {
+      width: '960px',
+      maxWidth: '98vw',
+      maxHeight: '94vh',
+      disableClose: true,
+      panelClass: 'accounting-form-dialog-panel',
+      data
+    }).afterClosed().pipe(take(1)).subscribe(saved => {
+      if (saved) {
+        this.loadOfficeCheckHtml(officeId);
+      }
+    });
+  }
+
+  private loadOfficeCheckHtml(officeId?: number | null): void {
+    if (!officeId || officeId <= 0) {
+      this.clearCheckStockLocal();
+      this.officeCheckHtml = null;
+      this.hasNewCheckStockUpload = false;
+      this.checkStockRemoved = false;
+      return;
+    }
+
+    this.checkHtmlService.getCheckHtmlResponseByScope(officeId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: response => {
+        // Never clobber an in-progress local upload/remove (late GET races used to wipe the upload before Save).
+        if (this.hasNewCheckStockUpload || this.checkStockRemoved) {
+          return;
+        }
+
+        const officeOwned = !!response && Number(response.officeId) === Number(officeId);
+        if (officeOwned) {
+          this.officeCheckHtml = response;
+          // AccountingOffice owns reopen display; only fill from CheckHtml when AO has no stock yet.
+          if (!this.checkStockPath && !this.checkStockPreviewDataUrl) {
+            this.applyCheckHtmlStock(response);
+          }
+        } else {
+          this.officeCheckHtml = null;
+          // Do not clear AO-loaded stock when GetByScope returns the system/org template.
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        if (this.hasNewCheckStockUpload || this.checkStockRemoved) {
+          return;
+        }
+        this.officeCheckHtml = null;
+      }
+    });
+  }
+
+  private persistAccountingOfficeCheckStockIfNeeded(officeId: number): Observable<unknown> {
+    if (!this.hasNewCheckStockUpload && !this.checkStockRemoved) {
+      return of(null);
+    }
+
+    const clearStock = this.checkStockRemoved && !this.hasNewCheckStockUpload;
+    const body = {
+      checkStockFileDetails: clearStock ? undefined : (this.hasNewCheckStockUpload ? this.checkStockFileDetails : undefined),
+      // Empty string keeps existing path (ResolveImagePath treats null as clear).
+      checkStockPath: clearStock ? null : (this.hasNewCheckStockUpload ? null : (this.checkStockPath || ''))
+    };
+
+    return this.accountingOfficeService.updateAccountingOfficeCheckStock(officeId, body).pipe(
+      map(saved => {
+        if (clearStock) {
+          this.clearCheckStockLocal();
+        } else {
+          this.applyCheckStockFromSaved(saved.checkStockPath, saved.checkStockFileDetails, this.checkStockFileDetails);
+        }
+        if (this.accountingOffice) {
+          this.accountingOffice.checkStockPath = saved.checkStockPath || null;
+          this.accountingOffice.checkStockFileDetails = saved.checkStockFileDetails || null;
+        }
+        return saved;
+      })
+    );
+  }
+
+  private applyAccountingOfficeCheckStock(response: AccountingOfficeResponse): void {
+    this.applyCheckStockFromSaved(response?.checkStockPath, response?.checkStockFileDetails || null, null);
+  }
+
+  private applyCheckStockFromSaved(
+    path: string | null | undefined,
+    fileDetails: FileDetails | null | undefined,
+    fallbackFileDetails?: FileDetails | null
+  ): void {
+    const trimmedPath = (path || '').trim();
+    this.checkStockPath = trimmedPath || null;
+    this.checkStockFileDetails = fileDetails || fallbackFileDetails || null;
+
+    // Logo/receipt style: build dataUrl from file bytes when the API did not include dataUrl.
+    if (this.checkStockFileDetails?.file && (!this.checkStockFileDetails.dataUrl || !this.checkStockFileDetails.dataUrl.trim())) {
+      const contentType = this.checkStockFileDetails.contentType || 'application/pdf';
+      if (this.checkStockFileDetails.file.startsWith('data:')) {
+        this.checkStockFileDetails.dataUrl = this.checkStockFileDetails.file;
+      } else {
+        this.checkStockFileDetails.dataUrl = `data:${contentType};base64,${this.checkStockFileDetails.file}`;
+      }
+    }
+
+    this.checkStockPreviewDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.checkStockFileDetails, this.checkStockPath)
+      || this.checkStockFileDetails?.dataUrl
+      || null;
+    this.checkStockFileName = this.checkStockFileDetails?.fileName
+      || this.extractCheckStockFileName(this.checkStockPath)
+      || this.checkStockFileName;
+    this.setCheckStockPdfThumbnail(
+      this.checkStockPreviewDataUrl,
+      this.checkStockFileDetails?.contentType || this.utilityService.getContentTypeFromDataUrl(this.checkStockPreviewDataUrl) || 'application/pdf'
+    );
+    this.cdr.detectChanges();
+  }
+
+  private persistCheckPrintingIfNeeded(officeId: number): Observable<CheckHtmlResponse | null> {
+    if (!this.hasNewCheckStockUpload && !this.checkStockRemoved) {
+      return of(null);
+    }
+
+    const organizationId = this.authService.getUser()?.organizationId?.trim() || this.accountingOffice?.organizationId;
+    if (!organizationId) {
+      this.toastr.error('Organization ID is missing', CommonMessage.Error);
+      return throwError(() => new Error('Organization ID is missing'));
+    }
+
+    const existing = this.officeCheckHtml && Number(this.officeCheckHtml.officeId) === Number(officeId)
+      ? this.officeCheckHtml
+      : null;
+    const clearStock = this.checkStockRemoved && !this.hasNewCheckStockUpload;
+    const fileDetails = this.hasNewCheckStockUpload ? this.checkStockFileDetails : null;
+
+    const templateSource$ = existing?.check && this.checkHtmlService.hasMergeTokens(existing.check)
+      ? of(existing.check)
+      : this.checkHtmlService.getCheckHtmlByScope(officeId);
+
+    return templateSource$.pipe(
+      switchMap(check => {
+        if (existing) {
+          return this.checkHtmlService.updateCheckHtml({
+            checkHtmlId: existing.checkHtmlId,
+            organizationId,
+            officeId,
+            check,
+            checkStockFileDetails: clearStock ? undefined : (fileDetails ?? undefined),
+            // Empty string = keep existing (ResolveImagePath treats null as explicit clear; omitted JSON also binds as null).
+            checkStockPath: clearStock ? null : (existing.checkStockPath || '')
+          });
+        }
+
+        if (clearStock) {
+          return of(null);
+        }
+
+        return this.checkHtmlService.createCheckHtml({
+          organizationId,
+          officeId,
+          check,
+          checkStockFileDetails: fileDetails
+        });
+      }),
+      map(response => {
+        if (response) {
+          this.officeCheckHtml = response;
+          if (clearStock) {
+            this.clearCheckStockLocal();
+          } else {
+            this.applyCheckHtmlStock(response, fileDetails);
+          }
+        } else if (clearStock) {
+          this.officeCheckHtml = existing ? { ...existing, checkStockPath: null, checkStockFileDetails: null } : null;
+          this.clearCheckStockLocal();
+        }
+        return response;
+      }),
+      catchError(err => throwError(() => err))
+    );
+  }
+
+  private applyCheckHtmlStock(response: CheckHtmlResponse, fallbackFileDetails?: FileDetails | null): void {
+    const path = (response.checkStockPath || '').trim();
+    this.checkStockPath = path || null;
+    this.checkStockFileDetails = response.checkStockFileDetails || fallbackFileDetails || null;
+    this.checkStockPreviewDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.checkStockFileDetails, this.checkStockPath);
+    if (this.checkStockFileDetails && this.checkStockPreviewDataUrl && (!this.checkStockFileDetails.dataUrl || !this.checkStockFileDetails.dataUrl.trim())) {
+      this.checkStockFileDetails.dataUrl = this.checkStockPreviewDataUrl;
+    }
+    this.checkStockFileName = this.checkStockFileDetails?.fileName
+      || this.extractCheckStockFileName(this.checkStockPath)
+      || this.checkStockFileName;
+    this.setCheckStockPdfThumbnail(
+      this.checkStockPreviewDataUrl,
+      this.checkStockFileDetails?.contentType || this.utilityService.getContentTypeFromDataUrl(this.checkStockPreviewDataUrl) || 'application/pdf'
+    );
+    this.cdr.detectChanges();
+  }
+
+  private extractCheckStockFileName(path: string | null | undefined): string | null {
+    const value = (path || '').trim();
+    if (!value) {
+      return null;
+    }
+    try {
+      const withoutQuery = value.split('?')[0].split('#')[0];
+      const segments = withoutQuery.split('/').filter(Boolean);
+      return segments.length ? decodeURIComponent(segments[segments.length - 1]) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private clearCheckStockLocal(): void {
+    this.checkStockPath = null;
+    this.checkStockFileName = null;
+    this.checkStockFileDetails = null;
+    this.checkStockPreviewDataUrl = null;
+    this.checkStockPdfThumbnailUrl = null;
+    this.form?.patchValue({ checkStockUpload: null });
+    this.form?.get('checkStockUpload')?.updateValueAndValidity();
+    this.cdr.detectChanges();
   }
   //#endregion
 

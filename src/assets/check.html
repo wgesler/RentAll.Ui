@@ -7,12 +7,19 @@
   @page { size: 8.5in 11in; margin: 0; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; }
-  .page { width: 8.5in; height: 11in; position: relative; }
+  .page {
+    width: 8.5in;
+    height: 11in;
+    position: relative;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: top left;
+  }
   .field { position: absolute; white-space: nowrap; overflow: hidden; }
   .field-date { top: 0.72in; left: 6.15in; width: 1.35in; font-size: 11px; text-align: center; }
-  .field-payee { top: 1.22in; left: 1.05in; width: 4.15in; font-size: 11px; }
+  .field-payee { top: 1.42in; left: 1.05in; width: 4.15in; font-size: 11px; }
   .field-amount { top: 1.18in; left: 6.45in; width: 1.05in; font-size: 12px; text-align: right; font-weight: bold; }
-  .field-words { top: 1.66in; left: 0.15in; width: 6.55in; font-size: 11px; }
+  .field-words { top: 1.86in; left: 0.55in; width: 6.15in; font-size: 11px; }
   .field-memo { top: 2.72in; left: 0.15in; width: 3.0in; font-size: 10px; }
   .stub-payee-vendor { top: 3.95in; left: 0.45in; width: 4.5in; font-size: 10px; }
   .stub-date-vendor { top: 3.95in; left: 5.95in; width: 1.2in; font-size: 10px; text-align: right; }
@@ -24,7 +31,10 @@
   td { padding: 2px 3px; height: 18px; vertical-align: bottom; }
   .num { text-align: right; }
   .total-row td { font-weight: bold; padding-top: 6px; }
-  @media print { body { background: #fff; } .page { margin: 0; } }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; background-image: none !important; }
+  }
 </style>
 </head>
 <body>

@@ -1,13 +1,85 @@
-.confirm-check-number-dialog__summary {
+.confirm-check-number-dialog-wrap {
+  background: #fff;
+  font-family: "Poppins", "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+  min-width: min(100%, 28rem);
+}
+
+.confirm-check-number-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  background-color: #cbd5e1;
+  padding: 0 1rem;
+  min-height: 62px;
+  height: 62px;
+  box-sizing: border-box;
+}
+
+.confirm-check-number-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.confirm-check-number-dialog-content {
+  width: 100%;
+  max-width: none;
+  max-height: 78vh;
+  overflow: auto;
+  padding: 0.75rem 1.75rem 1.25rem;
+}
+
+:host ::ng-deep .confirm-check-number-dialog-content.mat-mdc-dialog-content {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.confirm-check-number-dialog__intro {
   margin: 0 0 1rem;
 }
 
 .confirm-check-number-dialog__form {
-  min-width: 18rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.confirm-check-number-dialog__field {
+  width: 100%;
 }
 
 .confirm-check-number-dialog__range {
   margin: 0;
-  color: rgba(0, 0, 0, 0.7);
-  font-size: 0.9rem;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.confirm-check-number-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--global-form-field-gap-x, 0.75rem);
+  margin-top: 1rem;
+  padding-bottom: 0;
+}
+
+.confirm-check-number-dialog-actions-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--global-form-field-gap-x, 0.75rem);
+}
+
+.confirm-check-number-dialog-actions > button,
+.confirm-check-number-dialog-actions-right > button {
+  margin: 0 !important;
 }

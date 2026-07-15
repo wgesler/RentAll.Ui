@@ -2044,6 +2044,14 @@ mat-form-field input,
   }
 }
 
+/* Accounting form dialogs: edge-to-edge slate header, rounded white shell (Begin Reconciliation pattern). */
+.accounting-form-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
+  padding: 0 !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  background: #fff;
+}
+
 /* Add Alert dialog chrome: edge-to-edge header, rounded white shell, no inner scroll frame. */
 .add-alert-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
   padding: 0 !important;

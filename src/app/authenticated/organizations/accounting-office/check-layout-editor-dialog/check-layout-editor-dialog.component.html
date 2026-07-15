@@ -1,0 +1,75 @@
+<div class="check-layout-editor-dialog-wrap">
+  <div class="check-layout-editor-dialog-header">
+    <span class="check-layout-editor-dialog-title">
+      <mat-icon class="flex-shrink-0">straighten</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Align Check Layout</span>
+    </span>
+  </div>
+
+  <mat-dialog-content class="check-layout-editor-dialog-content">
+    <p class="check-layout-editor-dialog__intro">
+      Drag the highlighted fields onto your check stock. Stub rows stay fixed. Save stores this layout for the office.
+    </p>
+
+    @if (isLoading) {
+      <div class="check-layout-editor-loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p class="m-0">Loading check layout…</p>
+      </div>
+    } @else {
+      @if (!stockImageUrl) {
+        <p class="check-layout-editor-dialog__warning">
+          No check stock PDF loaded — upload one on Accounting Office for alignment, or drag against the blank page.
+        </p>
+      }
+
+      <div class="check-layout-editor-viewport">
+        <div
+          class="check-layout-page"
+          [style.width.px]="pageWidthPx"
+          [style.height.px]="pageHeightPx"
+          [style.background-image]="stockImageUrl ? 'url(\'' + stockImageUrl + '\')' : 'none'">
+          @for (field of fields; track field.className) {
+            <div
+              class="check-layout-field"
+              [class.check-layout-field--editable]="field.editable"
+              [class.check-layout-field--locked]="!field.editable"
+              cdkDrag
+              [cdkDragDisabled]="!field.editable || isSaving"
+              [cdkDragBoundary]="'.check-layout-page'"
+              [style.top.px]="fieldTopPx(field)"
+              [style.left.px]="fieldLeftPx(field)"
+              [style.width.px]="fieldWidthPx(field)"
+              [style.font-size.px]="fieldFontSizePx(field)"
+              [style.text-align]="field.textAlign"
+              [style.font-weight]="field.fontWeight"
+              (cdkDragEnded)="onFieldDragEnded(field, $event)"
+              [attr.title]="field.editable ? ('Drag to position: ' + field.label) : ('Fixed: ' + field.label)">
+              {{ field.sampleText }}
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="check-layout-editor-dialog-actions">
+      <span></span>
+      <div class="check-layout-editor-dialog-actions-right">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isSaving" (click)="onCancel()">Cancel</button>
+        <button
+          mat-raised-button
+          color="primary"
+          type="button"
+          class="text-nowrap flex-shrink-0"
+          (click)="onSave()"
+          [disabled]="isLoading || isSaving || !templateHtml">
+          @if (isSaving) {
+            Saving…
+          } @else {
+            Save Layout
+          }
+        </button>
+      </div>
+    </div>
+  </mat-dialog-content>
+</div>

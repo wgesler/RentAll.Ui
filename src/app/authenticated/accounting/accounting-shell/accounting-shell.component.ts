@@ -2581,6 +2581,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       width: '95vw',
       maxWidth: '56rem',
       maxHeight: '95vh',
+      panelClass: 'accounting-form-dialog-panel',
       data: {
         organizationId: this.organizationId,
         officeId: this.selectedOfficeId,
