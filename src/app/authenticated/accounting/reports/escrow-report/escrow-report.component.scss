@@ -1,0 +1,98 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.escrow-report-panel {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.escrow-report-table {
+  table-layout: auto;
+  width: max-content;
+  min-width: 56rem;
+
+  th,
+  td {
+    white-space: nowrap;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    vertical-align: middle;
+  }
+
+  th {
+    font-weight: 700;
+    background: rgba(15, 23, 42, 0.04);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  }
+
+  tbody tr:nth-child(even):not(.financial-report-row-total) {
+    background: rgba(15, 23, 42, 0.02);
+  }
+
+  .financial-report-col-amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.escrow-report-summary {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 42rem;
+}
+
+.escrow-report-summary-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) 9rem auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.escrow-report-summary-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.escrow-report-summary-row--transfer .escrow-report-summary-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.escrow-report-summary-input,
+.escrow-report-summary-value {
+  width: 9rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-sizing: border-box;
+}
+
+.escrow-report-summary-input--cushion {
+  background: #dbeafe;
+}
+
+.escrow-report-summary-value--bank {
+  background: #fef08a;
+  border-color: #eab308;
+}
+
+.escrow-report-summary-value--transfer {
+  background: #fbcfe8;
+  border-color: #f472b6;
+  font-weight: 700;
+}
+
+.escrow-report-summary-hint {
+  font-size: 0.75rem;
+  color: rgba(15, 23, 42, 0.65);
+  font-style: italic;
+}

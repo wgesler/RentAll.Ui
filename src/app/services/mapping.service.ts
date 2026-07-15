@@ -12,6 +12,7 @@ import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, Recon
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
+import { EscrowReportBuildRequest, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -5365,6 +5366,129 @@ export class MappingService {
       return 0;
     }
     return Math.round(amount * 100) / 100;
+  }
+
+  buildEscrowReport(request: EscrowReportBuildRequest): EscrowReportResult {
+    const selectedPropertyId = (request.propertyId || '').trim() || null;
+    const lastRecapByProperty = this.buildEscrowLastRecapAmountsByProperty(request.recapRows || []);
+    const rows: EscrowReportRow[] = (request.accrualRows || [])
+      .filter(row => {
+        const propertyId = String(row.propertyId || '').trim();
+        return !selectedPropertyId || propertyId === selectedPropertyId;
+      })
+      .map(row => {
+        const propertyId = String(row.propertyId || '').trim();
+        const recapAmounts = lastRecapByProperty.get(propertyId);
+        const arBalance = this.roundFinancialReportAmount(Number(row.unpaidIncome) || 0);
+        const prepaids = this.roundFinancialReportAmount(
+          recapAmounts?.prepaids ?? (Number(row.prepaidIncome) || 0)
+        );
+        const notCollected = this.roundFinancialReportAmount(recapAmounts?.notCollected ?? 0);
+        const total = this.roundFinancialReportAmount(arBalance - prepaids - notCollected);
+        const e2 = total < 0 ? 0 : total;
+        return {
+          rowId: `${row.officeId}-${propertyId || row.propertyCode}`,
+          ownerName: (row.ownerNames || row.ownerNameLine || row.companyName || '').trim() || '—',
+          propertyId,
+          propertyCode: (row.propertyCode || '').trim() || '—',
+          officeId: row.officeId,
+          arBalance,
+          prepaids,
+          notCollected,
+          total,
+          e2
+        };
+      })
+      .filter(row =>
+        Math.abs(row.arBalance) > 0.005
+        || Math.abs(row.prepaids) > 0.005
+        || Math.abs(row.notCollected) > 0.005
+        || Math.abs(row.total) > 0.005
+      )
+      .sort((left, right) =>
+        left.ownerName.localeCompare(right.ownerName, undefined, { sensitivity: 'base' })
+        || left.propertyCode.localeCompare(right.propertyCode, undefined, { sensitivity: 'base' })
+      );
+
+    const totals = rows.reduce(
+      (acc, row) => ({
+        arBalance: this.roundFinancialReportAmount(acc.arBalance + row.arBalance),
+        prepaids: this.roundFinancialReportAmount(acc.prepaids + row.prepaids),
+        notCollected: this.roundFinancialReportAmount(acc.notCollected + row.notCollected),
+        total: this.roundFinancialReportAmount(acc.total + row.total),
+        e2: this.roundFinancialReportAmount(acc.e2 + row.e2)
+      }),
+      { arBalance: 0, prepaids: 0, notCollected: 0, total: 0, e2: 0 }
+    );
+
+    const cushion = this.roundFinancialReportAmount(Number(request.cushion) || 0);
+    const escrowBankBalance = this.roundFinancialReportAmount(Number(request.escrowBankBalance) || 0);
+    const officeName = (request.officeName || '').trim();
+
+    return {
+      reportTitle: 'Escrow Report',
+      periodLabel: `As of ${request.asOfDateLabel}`,
+      entityLineLabel: officeName || null,
+      rows,
+      totals,
+      cushion,
+      escrowBankBalance,
+      escrowBankAccountLabel: (request.escrowBankAccountLabel || '').trim() || 'Escrow Bank Balance',
+      transfer: this.roundFinancialReportAmount(escrowBankBalance + totals.total - cushion)
+    };
+  }
+
+  recalculateEscrowTransfer(result: EscrowReportResult, cushion: number): EscrowReportResult {
+    const nextCushion = this.roundFinancialReportAmount(Number(cushion) || 0);
+    return {
+      ...result,
+      cushion: nextCushion,
+      transfer: this.roundFinancialReportAmount(result.escrowBankBalance + result.totals.total - nextCushion)
+    };
+  }
+
+  sumEscrowAssetAccountBalance(lines: JournalEntryLineSearchResponse[]): number {
+    return this.roundFinancialReportAmount(
+      (lines || []).reduce((sum, line) => sum + (Number(line.debit) || 0) - (Number(line.credit) || 0), 0)
+    );
+  }
+
+  private buildEscrowLastRecapAmountsByProperty(
+    recapRows: JournalEntryRecapRowDisplay[]
+  ): Map<string, { prepaids: number; notCollected: number }> {
+    const byPropertyReservation = new Map<string, JournalEntryRecapRowDisplay>();
+    (recapRows || []).forEach(row => {
+      const propertyId = String(row.propertyId || '').trim();
+      if (!propertyId) {
+        return;
+      }
+
+      const reservationKey = String(row.reservationCode || row.reservationId || '').trim() || 'no-reservation';
+      const key = `${propertyId}|${reservationKey}`;
+      const existing = byPropertyReservation.get(key);
+      if (!existing) {
+        byPropertyReservation.set(key, row);
+        return;
+      }
+
+      const existingPeriod = String(existing.accountingPeriod || '');
+      const nextPeriod = String(row.accountingPeriod || '');
+      const periodCompare = nextPeriod.localeCompare(existingPeriod, undefined, { sensitivity: 'base' });
+      if (periodCompare > 0 || (periodCompare === 0 && (row.sortDateValue || 0) >= (existing.sortDateValue || 0))) {
+        byPropertyReservation.set(key, row);
+      }
+    });
+
+    const totals = new Map<string, { prepaids: number; notCollected: number }>();
+    byPropertyReservation.forEach(row => {
+      const propertyId = String(row.propertyId || '').trim();
+      const existing = totals.get(propertyId) || { prepaids: 0, notCollected: 0 };
+      totals.set(propertyId, {
+        prepaids: this.roundFinancialReportAmount(existing.prepaids + (Number(row.prePaymentValue) || 0)),
+        notCollected: this.roundFinancialReportAmount(existing.notCollected + (Number(row.unPaidValue) || 0))
+      });
+    });
+    return totals;
   }
 
   //#region Drill-Down

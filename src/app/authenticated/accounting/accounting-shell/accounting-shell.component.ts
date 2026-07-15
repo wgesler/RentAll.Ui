@@ -55,6 +55,7 @@ import { GeneralLedgerListComponent } from '../general-ledger/general-ledger-lis
 import { FinancialReportComponent } from '../reports/financial-report/financial-report.component';
 import { ArAgingReportComponent } from '../reports/ar-aging-report/ar-aging-report.component';
 import { ApAgingReportComponent } from '../reports/ap-aging-report/ap-aging-report.component';
+import { EscrowReportComponent } from '../reports/escrow-report/escrow-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { AP_AGING_SORT_BY_OPTIONS, ApAgingReportFilters, ApAgingSortBy, normalizeApAgingThroughDays, resolveApAgingAsOfDate } from '../models/ap-aging-report.model';
 import { RentRollComponent } from '../vendors/rent-roll/rent-roll.component';
@@ -154,6 +155,7 @@ interface AccountingShellPinnedTopBarState {
     FinancialReportComponent,
     ArAgingReportComponent,
     ApAgingReportComponent,
+    EscrowReportComponent,
     ReconcileAccountReportComponent,
     RentRollComponent,
     OwnerReportComponent,
@@ -231,6 +233,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'utilities', label: 'Utilities & Bills' },
     { kind: 'statements', label: 'Accrual & Cash' },
     { kind: 'apAging', label: 'AP Aging' },
+    { kind: 'escrow', label: 'Escrow' },
     { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -2481,6 +2484,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.financialReportsRefreshTrigger++;
       return;
     }
+    if (this.selectedOwnerKind === 'escrow') {
+      return;
+    }
     if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements') {
       return;
     }
@@ -3463,7 +3469,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     if (this.selectedTabIndex === this.tabOwners
-      && (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements')) {
+      && (this.isOwnerReportView(this.selectedOwnerKind)
+        || this.selectedOwnerKind === 'ownerStatements'
+        || this.selectedOwnerKind === 'escrow')) {
       return true;
     }
 
@@ -3851,6 +3859,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         || ownerKind === 'statements'
         || ownerKind === 'ownerStatements'
         || ownerKind === 'apAging'
+        || ownerKind === 'escrow'
       ) {
         this.selectedOwnerKind = ownerKind;
         if (ownerKind === 'statements') {

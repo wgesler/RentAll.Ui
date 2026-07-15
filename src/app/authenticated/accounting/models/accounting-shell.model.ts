@@ -11,6 +11,7 @@ export type AccountingShellOwnerKind =
   | 'workOrders'
   | 'statements'
   | 'ownerStatements'
-  | 'apAging';
+  | 'apAging'
+  | 'escrow';
 
 export type AccountingShellGeneralLedgerKind = 'ledger' | 'recap';

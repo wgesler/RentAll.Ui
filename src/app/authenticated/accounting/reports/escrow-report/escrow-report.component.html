@@ -1,0 +1,105 @@
+@if (isPageReady) {
+  <div class="mat list-layout-standard financial-report-layout escrow-report-layout">
+    <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
+      <div class="property-tab-actions-band__row financial-report-context-band__row">
+        <div class="financial-report-context-band__titles">
+          <p class="financial-report-report-title">{{ reportResult?.reportTitle || 'Escrow Report' }}</p>
+          <button type="button" class="financial-report-context-btn">
+            @if (reportResult?.entityLineLabel) {
+              <span class="financial-report-context-btn__entity">{{ reportResult.entityLineLabel }}</span>
+            }
+            @if (reportResult?.periodLabel) {
+              <span class="financial-report-context-btn__period">{{ reportResult.periodLabel }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="financial-report-panel dbg-band-main">
+      <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
+        @if (isLoading || itemsToLoad$.value.has('escrowReport')) {
+          <div class="financial-report-empty-state">
+            <mat-spinner diameter="36"></mat-spinner>
+            <p>Loading Escrow report…</p>
+          </div>
+        } @else if (isServiceError) {
+          <div class="financial-report-empty-state">
+            <p>Unable to load Escrow report.</p>
+          </div>
+        } @else if (!reportResult || reportResult.rows.length === 0) {
+          <div class="financial-report-empty-state">
+            <p>{{ noDataMessage }}</p>
+          </div>
+        } @else {
+          <div class="financial-report-table-wrap">
+            <table class="financial-report-table escrow-report-table">
+              <thead>
+                <tr>
+                  <th>Owner</th>
+                  <th>Property</th>
+                  <th class="financial-report-col-amount">AR Balance</th>
+                  <th class="financial-report-col-amount">Prepaids</th>
+                  <th class="financial-report-col-amount">Not Collected</th>
+                  <th class="financial-report-col-amount">Total</th>
+                  <th class="financial-report-col-amount">E2</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of reportResult.rows; track row.rowId) {
+                  <tr>
+                    <td>{{ row.ownerName }}</td>
+                    <td>{{ row.propertyCode }}</td>
+                    <td class="financial-report-col-amount">{{ formatAmount(row.arBalance) }}</td>
+                    <td class="financial-report-col-amount">{{ formatAmount(row.prepaids) }}</td>
+                    <td class="financial-report-col-amount">{{ formatAmount(row.notCollected) }}</td>
+                    <td class="financial-report-col-amount">{{ formatAmount(row.total) }}</td>
+                    <td class="financial-report-col-amount">{{ formatAmount(row.e2) }}</td>
+                  </tr>
+                }
+                <tr class="financial-report-row-total">
+                  <td colspan="2">Totals</td>
+                  <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.arBalance) }}</td>
+                  <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.prepaids) }}</td>
+                  <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.notCollected) }}</td>
+                  <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.total) }}</td>
+                  <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.e2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="escrow-report-summary">
+            <div class="escrow-report-summary-row">
+              <span class="escrow-report-summary-label">Cushion</span>
+              <input
+                class="escrow-report-summary-input escrow-report-summary-input--cushion"
+                type="number"
+                step="0.01"
+                [ngModel]="cushionInput"
+                (ngModelChange)="onCushionChange($event)">
+            </div>
+            <div class="escrow-report-summary-row">
+              <span class="escrow-report-summary-label">{{ reportResult.escrowBankAccountLabel }}</span>
+              <span class="escrow-report-summary-value escrow-report-summary-value--bank">
+                {{ formatAmount(reportResult.escrowBankBalance) }}
+              </span>
+            </div>
+            <div class="escrow-report-summary-row escrow-report-summary-row--transfer">
+              <span class="escrow-report-summary-label">Transfer</span>
+              <span class="escrow-report-summary-value escrow-report-summary-value--transfer">
+                {{ formatAmount(reportResult.transfer) }}
+              </span>
+              <span class="escrow-report-summary-hint">*pos number = transfer OUT, neg number = needs transferred IN</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="financial-report-empty-state">
+    <mat-spinner diameter="36"></mat-spinner>
+    <p>Loading…</p>
+  </div>
+}
