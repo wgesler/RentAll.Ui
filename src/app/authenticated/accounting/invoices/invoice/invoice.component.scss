@@ -45,6 +45,72 @@
     max-width: 190px;
   }
 
+  /* Plain control — avoids global mat-form-field min-height: 42px */
+  .ledger-date-control {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    box-sizing: border-box;
+    border: 1px solid var(--invoice-ledger-input-border);
+    border-radius: 4px;
+    background-color: var(--mat-sys-surface, #fff);
+    overflow: hidden;
+
+    &:focus-within {
+      border-color: var(--invoice-ledger-input-focus);
+    }
+
+    &.invoice-line-invalid {
+      border-color: #dc2626;
+    }
+
+    .ledger-date-input {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: auto !important;
+      height: 28px !important;
+      line-height: 28px !important;
+      padding: 0 6px !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      box-sizing: border-box;
+      font-size: 14px !important;
+      outline: none;
+
+      &:focus {
+        outline: none;
+        border: none !important;
+      }
+    }
+
+    ::ng-deep {
+      .mat-datepicker-toggle {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .mat-mdc-icon-button.mat-mdc-button-base {
+        width: 24px !important;
+        height: 24px !important;
+        padding: 0 !important;
+      }
+
+      .mat-datepicker-toggle-default-icon {
+        width: 16px !important;
+        height: 16px !important;
+        font-size: 16px !important;
+      }
+    }
+  }
+
   .ledger-col-cost-center {
     width: 350px;
     min-width: 350px;

@@ -200,10 +200,19 @@
                                 readonly>
                             </td>
                             <td class="ledger-col-date">
-                              <input type="date" class="w-full editable-input"
-                                [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'ledgerLineDate')"
-                                [value]="line.ledgerLineDate || ''"
-                                (input)="updateLedgerLineField(i, 'ledgerLineDate', $any($event.target).value || '')">
+                              <div class="ledger-date-control"
+                                [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'ledgerLineDate')">
+                                <input
+                                  class="ledger-date-input"
+                                  [matDatepicker]="ledgerDatePicker"
+                                  [ngModel]="getLedgerLineDateValue(line)"
+                                  [ngModelOptions]="{standalone: true}"
+                                  (dateInput)="onLedgerLineDateChange(i, $event.value)"
+                                  (dateChange)="onLedgerLineDateChange(i, $event.value)"
+                                  (focus)="selectLedgerDateOnFocus($event)">
+                                <mat-datepicker-toggle [for]="ledgerDatePicker"></mat-datepicker-toggle>
+                                <mat-datepicker #ledgerDatePicker></mat-datepicker>
+                              </div>
                             </td>
                             <td class="cost-center-cell ledger-col-cost-center">
                               <div class="ledger-field-box" [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'costCodeId')">

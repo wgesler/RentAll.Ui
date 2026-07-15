@@ -159,9 +159,18 @@
                               readonly>
                           </td>
                           <td style="width: 190px;">
-                            <input type="date" class="w-full editable-input"
-                              [value]="line.ledgerLineDate || ''"
-                              (input)="updateLedgerLineField(i, 'ledgerLineDate', $any($event.target).value || '')">
+                            <div class="ledger-date-control">
+                              <input
+                                class="ledger-date-input"
+                                [matDatepicker]="ledgerDatePicker"
+                                [ngModel]="getLedgerLineDateValue(line)"
+                                [ngModelOptions]="{standalone: true}"
+                                (dateInput)="onLedgerLineDateChange(i, $event.value)"
+                                (dateChange)="onLedgerLineDateChange(i, $event.value)"
+                                (focus)="selectLedgerDateOnFocus($event)">
+                              <mat-datepicker-toggle [for]="ledgerDatePicker"></mat-datepicker-toggle>
+                              <mat-datepicker #ledgerDatePicker></mat-datepicker>
+                            </div>
                           </td>
                           <td class="cost-center-cell" style="width: 350px;">
                             <div class="ledger-field-box">

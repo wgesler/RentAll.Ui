@@ -688,6 +688,43 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
   }
 
+  private readonly ledgerDateCache = new WeakMap<object, { key: string; date: Date | null }>();
+
+  getLedgerLineDateValue(line: LedgerLineListDisplay): Date | null {
+    const key = String(line?.ledgerLineDate || '');
+    const cached = this.ledgerDateCache.get(line);
+    if (cached && cached.key === key) {
+      return cached.date;
+    }
+
+    const date = this.utilityService.parseCalendarDateInput(line?.ledgerLineDate);
+    this.ledgerDateCache.set(line, { key, date });
+    return date;
+  }
+
+  onLedgerLineDateChange(index: number, value: Date | string | null): void {
+    const line = this.ledgerLines[index];
+    if (!line) {
+      return;
+    }
+
+    const next = this.utilityService.toDateOnlyJsonString(value) ?? '';
+    if ((line.ledgerLineDate || '') === next) {
+      return;
+    }
+
+    const stableDate = value instanceof Date && !isNaN(value.getTime())
+      ? new Date(value.getFullYear(), value.getMonth(), value.getDate())
+      : this.utilityService.parseCalendarDateInput(next);
+    this.ledgerDateCache.set(line, { key: next, date: stableDate });
+    this.updateLedgerLineField(index, 'ledgerLineDate', next);
+  }
+
+  selectLedgerDateOnFocus(event: FocusEvent): void {
+    const input = event.target as HTMLInputElement | null;
+    queueMicrotask(() => input?.select());
+  }
+
   onTransactionTypeChange(index: number, transactionTypeId: number | null): void {
     if (transactionTypeId === null || transactionTypeId === undefined) {     // Clear the transaction type
       this.updateLedgerLineField(index, 'transactionType', '');
