@@ -7,10 +7,11 @@ import { DocumentService } from '../../documents/services/document.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactService } from '../../contacts/services/contact.service';
-import { LeadOwnerResponse, LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
+import { LeadOwnerRequest, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
 import { PublicOwnerFormResponse, PublicOwnerFormSubmitRequest } from '../../leads/models/owner-form-share.model';
 import { OwnerInventoryInformationRequest, OwnerInventoryInformationResponse } from '../../leads/models/owner-inventory-information.model';
 import { LeadsService } from '../../leads/services/leads.service';
+import { LeadStateType } from '../../leads/models/lead-enums';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -324,7 +325,7 @@ export class OwnersService {
     );
   }
 
-  private getOwnerHtmlByContextWithFallback(
+getOwnerHtmlByContextWithFallback(
     token: string | null | undefined,
     propertyId: string | null | undefined,
     propertyCode?: string | null
@@ -369,7 +370,7 @@ export class OwnersService {
 
   createOwnerLeadFromContactByContext(contactId: string | null | undefined): Observable<OwnerLeadFromContactContextResult | null> {
     const normalizedContactId = String(contactId || '').trim();
-    if (!normalizedContactId) {
+    if (!normalizedContactId || normalizedContactId === 'new') {
       return of(null);
     }
 
@@ -390,6 +391,46 @@ export class OwnersService {
         );
       })
     );
+  }
+
+  createEmptyOwnerLead(officeId: number): Observable<LeadOwnerResponse> {
+    const body: LeadOwnerRequest = {
+      officeId,
+      leadStateId: LeadStateType.New,
+      agentId: null,
+      firstName: null,
+      lastName: null,
+      email: null,
+      phone: null,
+      locationOfProperty: null,
+      programInterest: null,
+      whatIsPromptingContact: null,
+      timeFrame: null,
+      targetRentReadyDate: null,
+      propertyGoals: null,
+      tellUsMoreAboutYourGoals: null,
+      yearsOfExperienceWithRentals: null,
+      tellUsMoreAboutProperty: null,
+      address: null,
+      city: null,
+      state: null,
+      zip: null,
+      numberOfBeds: null,
+      numberOfBaths: null,
+      approxSqFootage: null,
+      propertyTypeId: null,
+      propertyCode: null,
+      propertyOffice: null,
+      tellUsWhatYouLikeMostAboutYourProperty: null,
+      tellUsAnyDrawbacks: null,
+      preferredContactMethod: null,
+      timeDateForContact: null,
+      notes: null,
+      emailPhoneConsent: false,
+      smsConsent: false,
+      isActive: false
+    };
+    return this.leadsService.createOwnerLead(body);
   }
 
   createAgreementInformationByContext(body: OwnerAgreementInformationRequest): Observable<OwnerAgreementInformationResponse | null> {
@@ -451,12 +492,12 @@ export class OwnersService {
     return String(token || '').trim();
   }
 
-  private loadTemplateAssetHtml(path: string): Observable<string> {
+loadTemplateAssetHtml(path: string): Observable<string> {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     return this.http.get(normalizedPath, { responseType: 'text' }).pipe(catchError(() => of('')));
   }
 
-  private createOwnerHtmlFallbackModel(
+createOwnerHtmlFallbackModel(
     ownerAgreementHtml: string,
     directDepositHtml: string,
     propertyId: string | null | undefined
@@ -474,7 +515,7 @@ export class OwnersService {
     };
   }
 
-  private resolveOwnerAgreementTemplate(apiTemplate: string, assetTemplate: string): string {
+resolveOwnerAgreementTemplate(apiTemplate: string, assetTemplate: string): string {
     const normalizedApiTemplate = String(apiTemplate || '').trim();
     if (!normalizedApiTemplate) {
       return String(assetTemplate || '');
@@ -489,7 +530,7 @@ export class OwnersService {
     return String(assetTemplate || normalizedApiTemplate);
   }
 
-  private resolveDirectDepositTemplate(apiTemplate: string, assetTemplate: string): string {
+resolveDirectDepositTemplate(apiTemplate: string, assetTemplate: string): string {
     const normalizedApiTemplate = String(apiTemplate || '').trim();
     if (!normalizedApiTemplate) {
       return String(assetTemplate || '');

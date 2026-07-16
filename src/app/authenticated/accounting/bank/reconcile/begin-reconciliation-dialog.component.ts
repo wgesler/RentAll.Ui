@@ -222,13 +222,13 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  private applySelectedAccountDefaults(): void {
+applySelectedAccountDefaults(): void {
     const accountDefault = this.resolveSelectedAccountDefault();
     this.lastReconciledDate = accountDefault?.statementDate ?? null;
     this.beginningBalance = accountDefault?.endingBalance ?? 0;
   }
 
-  private loadReconcileDraftForSelectedAccount(): void {
+loadReconcileDraftForSelectedAccount(): void {
     this.fetchReconcileDraftForSelectedAccount().pipe(
       takeUntil(this.destroy$)
     ).subscribe(draft => {
@@ -236,7 +236,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  private fetchReconcileDraftForSelectedAccount() {
+fetchReconcileDraftForSelectedAccount() {
     const officeId = this.data.officeId;
     const chartOfAccountId = Number(this.form.get('chartOfAccountId')?.value);
     if (!officeId || officeId <= 0 || !chartOfAccountId) {
@@ -246,7 +246,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     return this.reconcileDraftService.getReconcileDraftByAccountId(officeId, chartOfAccountId);
   }
 
-  private applyReconcileDraft(draft: ReconcileDraftResponse | null): void {
+applyReconcileDraft(draft: ReconcileDraftResponse | null): void {
     this.isApplyingDraft = true;
     const accountDefault = this.resolveSelectedAccountDefault();
     const fallbackStatementDate = this.utilityService.parseCalendarDateInput(accountDefault?.statementDate ?? null)
@@ -275,7 +275,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     this.isApplyingDraft = false;
   }
 
-  private buildSaveReconcileDraftRequestFromForm() {
+buildSaveReconcileDraftRequestFromForm() {
     const chartOfAccountId = Number(this.form.get('chartOfAccountId')?.value);
     return this.buildSaveReconcileDraftRequest(
       chartOfAccountId,
@@ -290,7 +290,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     );
   }
 
-  private canAutoSaveReconcileDraft(): boolean {
+canAutoSaveReconcileDraft(): boolean {
     const officeId = this.data.officeId;
     const chartOfAccountId = Number(this.form.get('chartOfAccountId')?.value);
     const statementDate = this.utilityService.toDateOnlyJsonString(this.form.get('statementDate')?.value);
@@ -305,7 +305,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
       && Number.isFinite(endingBalance);
   }
 
-  private buildSaveReconcileDraftRequest(chartOfAccountId: number, statementDate: string | null, endingBalance: number, serviceCharge: number, serviceChargeDate: string | null, serviceChargeAccountId: number | null, interestEarned: number, interestEarnedDate: string | null, interestEarnedAccountId: number | null) {
+buildSaveReconcileDraftRequest(chartOfAccountId: number, statementDate: string | null, endingBalance: number, serviceCharge: number, serviceChargeDate: string | null, serviceChargeAccountId: number | null, interestEarned: number, interestEarnedDate: string | null, interestEarnedAccountId: number | null) {
     return {
       officeId: this.data.officeId!,
       accountId: chartOfAccountId,
@@ -320,7 +320,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     };
   }
 
-  private resolveSelectedAccountDefault() {
+resolveSelectedAccountDefault() {
     const chartOfAccountId = Number(this.form.get('chartOfAccountId')?.value);
     if (!chartOfAccountId) {
       return null;
@@ -329,7 +329,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     return this.data.accountReconcileDefaults.find(account => account.chartOfAccountId === chartOfAccountId) ?? null;
   }
 
-  private applyExistingSetup(): void {
+applyExistingSetup(): void {
     const setup = this.data.existingSetup;
     if (!setup) {
       return;
@@ -352,7 +352,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     this.isApplyingDraft = false;
   }
 
-  private formatCurrencyFieldValue(value: number, defaultWhenZero: string): string {
+formatCurrencyFieldValue(value: number, defaultWhenZero: string): string {
     if (value === 0) {
       return defaultWhenZero;
     }
@@ -360,7 +360,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     return this.formatterService.currencyUsd(value);
   }
 
-  private parseOptionalDate(value: string | null): Date | null {
+parseOptionalDate(value: string | null): Date | null {
     if (!value) {
       return null;
     }
@@ -368,16 +368,16 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     return this.utilityService.parseCalendarDateInput(value);
   }
 
-  private parseCurrencyField(controlName: 'endingBalance' | 'serviceCharge' | 'interestEarned'): number {
+parseCurrencyField(controlName: 'endingBalance' | 'serviceCharge' | 'interestEarned'): number {
     return this.mappingService.parseCurrencyValue(String(this.form.get(controlName)?.value || ''));
   }
 
-  private toNullableNumber(value: unknown): number | null {
+toNullableNumber(value: unknown): number | null {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
-  private isNonZeroAmount(amount: number): boolean {
+isNonZeroAmount(amount: number): boolean {
     return Math.abs(amount) >= 0.005;
   }
 

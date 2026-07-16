@@ -95,7 +95,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
   };
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

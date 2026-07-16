@@ -33,7 +33,7 @@ export class DocumentService {
     return this.http.post<DocumentResponse[]>(`${this.controller}search`, body);
   }
 
-  private toGetDocumentsApiDto(request: DocumentGetRequest, officeIds: number[]): GetDocumentsApiDto {
+toGetDocumentsApiDto(request: DocumentGetRequest, officeIds: number[]): GetDocumentsApiDto {
     let documentTypeIds: string | null = null;
     if (request.documentTypeIds != null && request.documentTypeIds !== undefined) {
       documentTypeIds = Array.isArray(request.documentTypeIds)

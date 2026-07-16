@@ -64,7 +64,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     // Use the input agentId
     if (this.agentId) {
-      this.isAddMode = this.agentId === 'new' || this.agentId === 'new';
+      this.isAddMode = this.agentId === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
@@ -97,7 +97,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
 
   getAgent(id?: string | number): void {
     const idToUse = id || this.agentId || this.routeAgentId;
-    if (!idToUse || idToUse === 'new') {
+    if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
       return;
     }
     const agentIdStr = idToUse.toString();

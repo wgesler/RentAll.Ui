@@ -82,12 +82,19 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getGeneralLead(idParam: string | null): void {
-    const raw = String(idParam || '').trim().toLowerCase();
-    if (raw === 'new') {
+    if (idParam === 'new') {
       this.isAddMode = true;
       this.isServiceError = false;
       this.lead = null;
       this.resetForm();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead');
+      return;
+    }
+
+    if (idParam == null || String(idParam).trim() === '') {
+      this.isAddMode = false;
+      this.lead = null;
+      this.isServiceError = true;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead');
       return;
     }

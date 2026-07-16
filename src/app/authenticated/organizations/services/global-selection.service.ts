@@ -128,7 +128,7 @@ export class GlobalSelectionService {
     return this.authService.hasMainProgramAccess(features);
   }
 
-  private applyGlobalOfficeSelection(officeId: number | null): void {
+applyGlobalOfficeSelection(officeId: number | null): void {
     if (this.selectedOfficeId$.value === officeId) {
       this.writeOfficeIdToStorage(officeId);
       return;
@@ -137,7 +137,7 @@ export class GlobalSelectionService {
     this.writeOfficeIdToStorage(officeId);
   }
 
-  private resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
+resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
     const rawDefaultOfficeId = this.authService.getUser()?.defaultOfficeId;
     if (rawDefaultOfficeId === null || rawDefaultOfficeId === undefined) {
       return null;

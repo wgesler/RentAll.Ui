@@ -445,7 +445,7 @@ export class AuthService {
         this.setAuthData(response);
   }
 
-    private seedOrganizationFeaturesFromJwt(user: JwtUser | null | undefined): void {
+seedOrganizationFeaturesFromJwt(user: JwtUser | null | undefined): void {
         if (!user || user.enabledFeatureTypeIds === undefined) {
             return;
         }

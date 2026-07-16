@@ -154,7 +154,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     this.syncSelectedOfficeFromLoadedOffices(context?.offices || []);
   }
 
-  private loadDisplayHtml(): void {
+loadDisplayHtml(): void {
     const templateHtml = this.getTokenSourceHtml();
     if (!templateHtml) {
       this.processAndSetHtml('');
@@ -163,7 +163,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     this.applyDisplayTokens(templateHtml);
   }
 
-  private applyDisplayTokens(templateHtml: string): void {
+applyDisplayTokens(templateHtml: string): void {
     if (!this.htmlNeedsTokenReplacement(templateHtml)) {
       this.processAndSetHtml(templateHtml);
       return;
@@ -187,7 +187,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     });
   }
 
-  private getTokenProviderInputs(): FormTokenProviderInputs {
+getTokenProviderInputs(): FormTokenProviderInputs {
     return {
       formName: this.formName,
       formKey: this.formKey,
@@ -198,11 +198,11 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     };
   }
 
-  private getTokenSourceHtml(): string {
+getTokenSourceHtml(): string {
     return String(this.sourceTemplateHtml || '').trim();
   }
 
-  private htmlNeedsTokenReplacement(html: string): boolean {
+htmlNeedsTokenReplacement(html: string): boolean {
     return /\{\{[^}]+\}\}/.test(String(html || ''));
   }
 

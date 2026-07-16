@@ -71,7 +71,8 @@
                 [ownerLeadId]="leadOwnerId"
                 [ownerContactId]="selectedOwnerContactId"
                 [selectedOfficeId]="selectedOfficeId"
-                (ownerContextChanged)="onOwnerAgreementContextRefresh()">
+                (ownerContextChanged)="onOwnerAgreementContextRefresh()"
+                (ownerLeadCreated)="onOwnerLeadCreated($event)">
               </app-owner-information>
             </mat-tab>
 

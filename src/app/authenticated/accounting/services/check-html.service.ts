@@ -47,7 +47,7 @@ export class CheckHtmlService {
     return template.includes('{{payeeName}}') || template.includes('{{checkDate}}');
   }
 
-  private resolveTemplate(template: string): Observable<string> {
+resolveTemplate(template: string): Observable<string> {
     if (this.hasMergeTokens(template)) {
       return of(template);
     }

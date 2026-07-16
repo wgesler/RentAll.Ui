@@ -350,7 +350,7 @@ export class LeadsService {
       .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
   }
 
-  private buildPublicOwnerPropertyCodeParams(propertyCode?: string | null): HttpParams | undefined {
+buildPublicOwnerPropertyCodeParams(propertyCode?: string | null): HttpParams | undefined {
     const normalizedPropertyCode = String(propertyCode || '').trim();
     if (!normalizedPropertyCode) {
       return undefined;

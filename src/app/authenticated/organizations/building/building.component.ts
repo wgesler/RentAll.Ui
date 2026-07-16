@@ -65,7 +65,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     // Check for returnTo query parameter
     // Use the input id
     if (this.id) {
-      this.isAddMode = this.id === 'new' || this.id === 'new';
+      this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'building');
         this.buildForm();
@@ -93,7 +93,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
 
   getBuilding(id?: string | number): void {
     const idToUse = id || this.id || this.routeBuildingId;
-    if (!idToUse || idToUse === 'new') {
+    if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
       return;
     }
     const buildingIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse.toString(), 10);

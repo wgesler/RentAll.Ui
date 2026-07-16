@@ -50,14 +50,12 @@
                 <mat-panel-title>Offices</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingOffice && officeId">
+                @if (!(isEditingOffice && officeId)) {
                   <app-office-list [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
-                  </div>
-                  @if (isEditingOffice && officeId) {
-                    <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (savedEvent)="onOfficeSaved()" (backEvent)="onOfficeBack()"></app-office>
-                  }
-                </div>
+                }
+                @if (isEditingOffice && officeId) {
+                  <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (savedEvent)="onOfficeSaved()" (backEvent)="onOfficeBack()"></app-office>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -72,14 +70,12 @@
                 <mat-panel-title>Accounting</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingAccountingOffice && accountingOfficeId">
+                @if (!(isEditingAccountingOffice && accountingOfficeId)) {
                   <app-accounting-office-list (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
-                  </div>
-                  @if (isEditingAccountingOffice && accountingOfficeId) {
-                    <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (savedEvent)="onAccountingOfficeSaved()" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
-                  }
-                </div>
+                }
+                @if (isEditingAccountingOffice && accountingOfficeId) {
+                  <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (savedEvent)="onAccountingOfficeSaved()" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -94,14 +90,12 @@
                 <mat-panel-title>Agents</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingAgent && agentId">
+                @if (!(isEditingAgent && agentId)) {
                   <app-agent-list [officeId]="selectedCostCodesOfficeId" [useGlobalOfficeSelection]="false" (agentSelected)="onAgentSelected($event)"></app-agent-list>
-                  </div>
-                  @if (isEditingAgent && agentId) {
-                    <app-agent [agentId]="agentId" [officeId]="selectedCostCodesOfficeId" (savedEvent)="onAgentSaved()" (backEvent)="onAgentBack()"></app-agent>
-                  }
-                </div>
+                }
+                @if (isEditingAgent && agentId) {
+                  <app-agent [agentId]="agentId" [officeId]="selectedCostCodesOfficeId" (savedEvent)="onAgentSaved()" (backEvent)="onAgentBack()"></app-agent>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -134,14 +128,12 @@
                 <mat-panel-title>State Forms</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingStateForm && stateFormId">
-                    <app-state-form-list (stateFormSelected)="onStateFormSelected($event)"></app-state-form-list>
-                  </div>
-                  @if (isEditingStateForm && stateFormId) {
-                    <app-state-form [id]="stateFormId" (savedEvent)="onStateFormSaved()" (backEvent)="onStateFormBack()"></app-state-form>
-                  }
-                </div>
+                @if (!(isEditingStateForm && stateFormId)) {
+                  <app-state-form-list (stateFormSelected)="onStateFormSelected($event)"></app-state-form-list>
+                }
+                @if (isEditingStateForm && stateFormId) {
+                  <app-state-form [id]="stateFormId" (savedEvent)="onStateFormSaved()" (backEvent)="onStateFormBack()"></app-state-form>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -156,14 +148,12 @@
                 <mat-panel-title>Regions</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingRegion && regionId">
+                @if (!(isEditingRegion && regionId)) {
                   <app-region-list [officeId]="selectedCostCodesOfficeId" (regionSelected)="onRegionSelected($event)"></app-region-list>
-                  </div>
-                  @if (isEditingRegion && regionId) {
-                    <app-region [id]="regionId" (savedEvent)="onRegionSaved()" (backEvent)="onRegionBack()"></app-region>
-                  }
-                </div>
+                }
+                @if (isEditingRegion && regionId) {
+                  <app-region [id]="regionId" (savedEvent)="onRegionSaved()" (backEvent)="onRegionBack()"></app-region>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -178,14 +168,12 @@
                 <mat-panel-title>Areas</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingArea && areaId">
+                @if (!(isEditingArea && areaId)) {
                   <app-area-list [officeId]="selectedCostCodesOfficeId" (areaSelected)="onAreaSelected($event)"></app-area-list>
-                  </div>
-                  @if (isEditingArea && areaId) {
-                    <app-area [id]="areaId" (savedEvent)="onAreaSaved()" (backEvent)="onAreaBack()"></app-area>
-                  }
-                </div>
+                }
+                @if (isEditingArea && areaId) {
+                  <app-area [id]="areaId" (savedEvent)="onAreaSaved()" (backEvent)="onAreaBack()"></app-area>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -200,14 +188,12 @@
                 <mat-panel-title>Buildings</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingBuilding && buildingId">
+                @if (!(isEditingBuilding && buildingId)) {
                   <app-building-list [officeId]="selectedCostCodesOfficeId" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
-                  </div>
-                  @if (isEditingBuilding && buildingId) {
-                    <app-building [id]="buildingId" (savedEvent)="onBuildingSaved()" (backEvent)="onBuildingBack()"></app-building>
-                  }
-                </div>
+                }
+                @if (isEditingBuilding && buildingId) {
+                  <app-building [id]="buildingId" (savedEvent)="onBuildingSaved()" (backEvent)="onBuildingBack()"></app-building>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -256,14 +242,12 @@
                 <mat-panel-title>Colors</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <div class="settings-section-stack">
-                  <div [class.settings-section-hidden]="isEditingColor && colorId">
+                @if (!(isEditingColor && colorId)) {
                   <app-color-list (colorSelected)="onColorSelected($event)"></app-color-list>
-                  </div>
-                  @if (isEditingColor && colorId) {
-                    <app-color [id]="colorId" (savedEvent)="onColorSaved()" (backEvent)="onColorBack()"></app-color>
-                  }
-                </div>
+                }
+                @if (isEditingColor && colorId) {
+                  <app-color [id]="colorId" (savedEvent)="onColorSaved()" (backEvent)="onColorBack()"></app-color>
+                }
               </div>
             </mat-expansion-panel>
           }
@@ -273,4 +257,3 @@
     </mat-card>
   </section>
 </div>
-

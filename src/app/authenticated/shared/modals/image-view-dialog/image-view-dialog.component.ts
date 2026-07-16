@@ -111,7 +111,7 @@ export class ImageViewDialogComponent implements OnInit, OnDestroy {
       : null;
   }
 
-  private getPdfRenderableSource(src: string): string {
+getPdfRenderableSource(src: string): string {
     const base = String(src || '').trim();
     if (!base) {
       return '';
@@ -125,7 +125,7 @@ export class ImageViewDialogComponent implements OnInit, OnDestroy {
     return this.pdfObjectUrl;
   }
 
-  private dataUrlToBlob(dataUrl: string): Blob {
+dataUrlToBlob(dataUrl: string): Blob {
     const [header, base64 = ''] = dataUrl.split(',');
     const mime = header?.match(/data:([^;]+)/)?.[1] ?? 'application/pdf';
     const binary = atob(base64);
@@ -136,14 +136,14 @@ export class ImageViewDialogComponent implements OnInit, OnDestroy {
     return new Blob([bytes], { type: mime });
   }
 
-  private releasePdfObjectUrl(): void {
+releasePdfObjectUrl(): void {
     if (this.pdfObjectUrl) {
       URL.revokeObjectURL(this.pdfObjectUrl);
       this.pdfObjectUrl = null;
     }
   }
 
-  private withPdfZoom(src: string, zoomPercent: number): string {
+withPdfZoom(src: string, zoomPercent: number): string {
     const base = String(src || '').trim();
     if (!base) {
       return '';

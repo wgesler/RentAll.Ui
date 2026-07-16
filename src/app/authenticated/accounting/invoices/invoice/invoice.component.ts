@@ -121,7 +121,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.routeInvoiceId = this.route.snapshot.paramMap.get('id');
     const initialInvoiceId = this.resolveInvoiceContextId();
-    this.isAddMode = !initialInvoiceId || initialInvoiceId === 'new';
+    this.isAddMode = initialInvoiceId === 'new';
     if (initialInvoiceId) {
       this.invoiceId = initialInvoiceId;
     }
@@ -214,7 +214,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.lastContextKey = contextKey;
     this.invoiceId = contextInvoiceId;
-    this.isAddMode = !this.invoiceId || this.invoiceId === 'new';
+    this.isAddMode = this.invoiceId === 'new';
 
     if (!this.isAddMode) {
       // Always GET by id for the editor. List rows / prefetch are summary-shaped and
@@ -750,7 +750,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       ledgerLines: ledgerLines
     };
 
-    const isCreating = !this.invoiceId || this.invoiceId === 'new' || this.invoiceId === '';
+    const isCreating = this.isAddMode;
     
     if (!isCreating) {
       invoiceRequest.invoiceId = this.invoiceId;
@@ -1774,7 +1774,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  private recomputeLedgerLineNumbers(): void {
+recomputeLedgerLineNumbers(): void {
     this.ledgerLines.forEach((line, index) => {
       line.lineNumber = index + 1;
     });

@@ -397,7 +397,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private showPropertyCalendarUrlDialog(
+showPropertyCalendarUrlDialog(
     propertyCode: string,
     subscriptionUrl: string,
     calendarLinkResponse: Record<string, unknown>

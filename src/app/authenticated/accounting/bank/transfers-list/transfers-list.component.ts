@@ -186,7 +186,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
 
   addTransfer(): void {
     this.transferSelect.emit({
-      transferId: null,
+      transferId: 'new',
       officeId: this.officeId ?? null,
       propertyId: (this.property?.propertyId || '').trim() || null
     });

@@ -103,7 +103,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     return { outOfBalance: this.roundCurrency(escrowDeposit - destinations) !== 0 };
   }
 
-  private loadAccountingOffices(): void {
+loadAccountingOffices(): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
@@ -119,7 +119,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private loadChartOfAccounts(): void {
+loadChartOfAccounts(): void {
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
@@ -135,7 +135,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private loadTransferReport(): void {
+loadTransferReport(): void {
     const transferId = (this.transferId || '').trim();
     if (!transferId) {
       this.rowsDisplay = [];
@@ -187,7 +187,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private applyTransfer(transfer: TransferResponse): void {
+applyTransfer(transfer: TransferResponse): void {
     this.currentTransfer = transfer;
     this.applyColumnHeaders(transfer);
     const accountIds = this.resolveAccountIds(transfer);
@@ -197,7 +197,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  private resolveAccountIds(transfer?: TransferResponse | null): TransferFlatReportAccountIds {
+resolveAccountIds(transfer?: TransferResponse | null): TransferFlatReportAccountIds {
     const officeId = transfer?.officeId ?? this.officeId ?? 0;
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     return {
@@ -211,7 +211,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private applyColumnHeaders(transfer?: TransferResponse | null): void {
+applyColumnHeaders(transfer?: TransferResponse | null): void {
     const accountIds = this.resolveAccountIds(transfer ?? this.currentTransfer);
     const columns = this.buildDefaultColumns();
     this.applyAccountColumnHeader(columns, 'escrowDeposit', accountIds.escrowDepositAccountId, 'Escrow Deposits');
@@ -222,7 +222,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     this.displayedColumns = columns;
   }
 
-  private applyAccountColumnHeader(columns: ColumnSet, columnName: string, accountId: number | null | undefined, defaultLabel: string): void {
+applyAccountColumnHeader(columns: ColumnSet, columnName: string, accountId: number | null | undefined, defaultLabel: string): void {
     const resolved = this.resolveAccountHeader(accountId, defaultLabel);
     const nameLines = this.splitAccountNameForHeader(resolved.accountName);
     columns[columnName].displayAs = resolved.accountNo;
@@ -230,7 +230,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     columns[columnName].headerLine3 = nameLines.line3;
   }
 
-  private resolveAccountHeader(accountId: number | null | undefined, defaultLabel: string): { accountNo: string; accountName: string } {
+resolveAccountHeader(accountId: number | null | undefined, defaultLabel: string): { accountNo: string; accountName: string } {
     const id = Number(accountId ?? 0);
     if (!(id > 0)) {
       return { accountNo: defaultLabel, accountName: '' };
@@ -244,7 +244,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     return { accountNo, accountName };
   }
 
-  private splitAccountNameForHeader(name: string): { line2: string; line3: string } {
+splitAccountNameForHeader(name: string): { line2: string; line3: string } {
     const words = this.tokenizeAccountNameForHeader(name);
     if (words.length === 0) {
       return { line2: '', line3: '' };
@@ -274,7 +274,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private tokenizeAccountNameForHeader(name: string): string[] {
+tokenizeAccountNameForHeader(name: string): string[] {
     const rawWords = (name || '').trim().split(/\s+/).filter(word => word.length > 0);
     const words: string[] = [];
     for (const word of rawWords) {
@@ -291,7 +291,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     return words;
   }
 
-  private buildDefaultColumns(): ColumnSet {
+buildDefaultColumns(): ColumnSet {
     return {
       transferDate: { displayAs: 'Date', maxWidth: '12ch', wrap: false },
       propertyCode: { displayAs: 'Property', maxWidth: '14ch', wrap: false },
@@ -307,15 +307,15 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private sumColumn(columnName: keyof TransferFlatReportRowDisplay): number {
+sumColumn(columnName: keyof TransferFlatReportRowDisplay): number {
     return this.roundCurrency(this.rowsDisplay.reduce((sum, row) => sum + Number(row[columnName] || 0), 0));
   }
 
-  private roundCurrency(value: number): number {
+roundCurrency(value: number): number {
     return Math.round((Number(value) || 0) * 100) / 100;
   }
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

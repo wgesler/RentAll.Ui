@@ -186,7 +186,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
 
   addDeposit(): void {
     this.depositSelect.emit({
-      depositId: null,
+      depositId: 'new',
       officeId: this.officeId ?? null,
       propertyId: (this.property?.propertyId || '').trim() || null
     });

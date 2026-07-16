@@ -88,7 +88,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     });
   }
 
-  private applyOwnerTokens(
+applyOwnerTokens(
     html: string,
     inputs: FormTokenProviderInputs,
     data: {
@@ -191,7 +191,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     });
   }
 
-  private getAgreementStartDate(availableFrom: string | null | undefined): string {
+getAgreementStartDate(availableFrom: string | null | undefined): string {
     const normalized = String(availableFrom || '').trim();
     if (!normalized) {
       return '';
@@ -199,7 +199,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return this.formatterService.formatDateStringLong(normalized) || '';
   }
 
-  private resolveSelectedOffice(offices: OfficeResponse[], officeId: number | null): OfficeResponse | null {
+resolveSelectedOffice(offices: OfficeResponse[], officeId: number | null): OfficeResponse | null {
     const requestedOfficeId = Number(officeId);
     if (Number.isFinite(requestedOfficeId) && requestedOfficeId > 0) {
       return offices.find(office => office.officeId === requestedOfficeId) || null;
@@ -207,7 +207,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return offices.length === 1 ? offices[0] : null;
   }
 
-  private lookupStateName(code: string | null | undefined): string {
+lookupStateName(code: string | null | undefined): string {
     const normalized = String(code || '').trim();
     if (!normalized) {
       return '';
@@ -218,7 +218,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return String(stateMatch?.name || normalized).trim();
   }
 
-  private getCompanyAddress1(selectedOffice: OfficeResponse | null, organization: OrganizationResponse | null): string {
+getCompanyAddress1(selectedOffice: OfficeResponse | null, organization: OrganizationResponse | null): string {
     const address1 = String(selectedOffice?.address1 || organization?.address1 || '').trim();
     const suiteRaw = String(selectedOffice?.suite || organization?.suite || '').trim();
     if (!address1) {
@@ -230,14 +230,14 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return `${address1}, ${this.normalizeSuiteForDisplay(suiteRaw)}`;
   }
 
-  private getCompanyAddress2(selectedOffice: OfficeResponse | null, organization: OrganizationResponse | null, companyState: string): string {
+getCompanyAddress2(selectedOffice: OfficeResponse | null, organization: OrganizationResponse | null, companyState: string): string {
     const city = String(selectedOffice?.city || organization?.city || '').trim();
     const zip = String(selectedOffice?.zip || organization?.zip || '').trim();
     const cityState = [city, companyState].filter(part => part.length > 0).join(', ');
     return [cityState, zip].filter(part => part.length > 0).join(' ');
   }
 
-  private normalizeSuiteForDisplay(suiteRaw: string | null | undefined): string {
+normalizeSuiteForDisplay(suiteRaw: string | null | undefined): string {
     const value = String(suiteRaw || '').trim();
     if (!value) {
       return '';
@@ -277,7 +277,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return [city, stateZip].filter(part => part.length > 0).join(', ');
   }
 
-  private composeAddress(source: {
+composeAddress(source: {
     address1?: string | null;
     address2?: string | null;
     city?: string | null;
@@ -296,7 +296,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     ].filter(part => part.length > 0).join(', ');
   }
 
-  private getMonthlyRent(property: PropertyResponse | null, _leadOwner: LeadOwnerResponse | null): string {
+getMonthlyRent(property: PropertyResponse | null, _leadOwner: LeadOwnerResponse | null): string {
     const monthlyRate = Number(property?.monthlyRate);
     if (!Number.isFinite(monthlyRate) || monthlyRate <= 0) {
       return '';
@@ -310,7 +310,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return `${lowFormatted} - ${highFormatted}`;
   }
 
-  private formatCurrencyRaw(value: number | string | null | undefined): string {
+formatCurrencyRaw(value: number | string | null | undefined): string {
     if (value == null || value === '') {
       return '';
     }
@@ -321,7 +321,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     return '$' + parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  private getPropertyOwnerName(contacts: ContactResponse[], contactId: string | null | undefined): string {
+getPropertyOwnerName(contacts: ContactResponse[], contactId: string | null | undefined): string {
     const normalizedContactId = String(contactId || '').trim().toLowerCase();
     if (!normalizedContactId) {
       return '';

@@ -42,10 +42,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() journalEntryId: string | null = null;
   @Input() selectedJournalEntryLineId: string | null = null;
-  @Input() prefetchedJournalEntry: JournalEntryResponse | null = null;
   /** When create mode opens, seed form/lines from this entry (JE#/ids omitted). */
   @Input() copyFromJournalEntry: JournalEntryResponse | null = null;
-  @Input() isCreateMode = false;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() reservationId: string | null = null;
@@ -88,6 +86,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntry', 'referenceData']));
   destroy$ = new Subject<void>();
 
+  get isAddMode(): boolean {
+    return this.journalEntryId === 'new';
+  }
+
   //#region General-Ledger
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -101,17 +103,22 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['journalEntryId'] && !changes['journalEntryId'].firstChange && !this.isCreateMode) {
-      this.loadJournalEntry();
+    if (changes['journalEntryId'] && !changes['journalEntryId'].firstChange) {
+      if (this.isAddMode) {
+        this.resetForm();
+      } else {
+        this.loadJournalEntry();
+      }
     }
 
-    if ((changes['isCreateMode'] || changes['officeId'] || changes['copyFromJournalEntry']) && this.isCreateMode) {
-      this.initializeCreateForm();
+    if ((changes['officeId'] || changes['copyFromJournalEntry']) && this.isAddMode
+      && !changes['journalEntryId']?.firstChange) {
+      this.resetForm();
     }
   }
 
   get canEdit(): boolean {
-    return this.isCreateMode
+    return this.isAddMode
       || (
         !!this.journalEntry
         && !isJournalEntrySoftClosed(this.journalEntry.postingStatusId)
@@ -142,7 +149,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Get Methods
   getSourceTypeLabel(): string {
-    if (this.isCreateMode) {
+    if (this.isAddMode) {
       return getSourceTypeLabel(SourceType.Journal, SourceTypeLabels);
     }
 
@@ -192,7 +199,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.saveValidationHighlightActive = false;
     this.linesBalanceValidationError = false;
 
-    if (this.isCreateMode) {
+    if (this.isAddMode) {
       this.createJournalEntry();
       return;
     }
@@ -242,7 +249,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   validateBeforeSave(): boolean {
-    if (this.isCreateMode) {
+    if (this.isAddMode) {
       return this.validateCreateForm();
     }
 
@@ -578,44 +585,15 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Create Methods
+  //#region Build Form
   initializeView(): void {
-    if (this.isCreateMode) {
-      this.initializeCreateForm();
+    if (this.isAddMode) {
+      this.resetForm();
       return;
     }
 
     // Always load by id for edit so account-filtered list prefetches (partial JE) cannot open incomplete/uneditable state.
     this.loadJournalEntry();
-  }
-
-  tryApplyPrefetchedJournalEntry(): boolean {
-    const journalEntryId = this.journalEntryId?.trim();
-    const prefetched = this.resolvePrefetchedJournalEntry(journalEntryId);
-    if (!prefetched) {
-      return false;
-    }
-
-    this.applyLoadedJournalEntry(prefetched);
-    return true;
-  }
-
-  resolvePrefetchedJournalEntry(journalEntryId: string | null | undefined): JournalEntryResponse | null {
-    const targetId = (journalEntryId || '').trim();
-    if (!targetId) {
-      return null;
-    }
-
-    if (this.prefetchedJournalEntry?.journalEntryId === targetId) {
-      return this.prefetchedJournalEntry;
-    }
-
-    const stateJournalEntry = history.state?.prefetchedJournalEntry as JournalEntryResponse | undefined;
-    if (stateJournalEntry?.journalEntryId === targetId) {
-      return stateJournalEntry;
-    }
-
-    return null;
   }
 
   applyLoadedJournalEntry(journalEntry: JournalEntryResponse): void {
@@ -650,7 +628,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
 
-  initializeCreateForm(): void {
+  resetForm(): void {
     this.isServiceError = false;
     this.journalEntry = null;
     this.lineRows = [];
@@ -724,7 +702,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     this.form.get('memo')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(memo => {
-      if (!this.isCreateMode) {
+      if (!this.isAddMode) {
         return;
       }
 
@@ -920,6 +898,14 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadJournalEntry(): void {
+    if (this.isAddMode) {
+      this.journalEntry = null;
+      this.lineRows = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
+      this.markViewForCheck();
+      return;
+    }
+
     const journalEntryId = this.journalEntryId?.trim();
     if (!journalEntryId) {
       this.journalEntry = null;

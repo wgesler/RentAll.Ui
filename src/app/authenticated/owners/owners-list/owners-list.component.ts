@@ -28,7 +28,7 @@ export class OwnersListComponent {
   ownerEntityTypeId = EntityType.Owner;
   showInactiveOwnerContacts = false;
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 
@@ -39,15 +39,21 @@ export class OwnersListComponent {
 
   onOpenOwnerContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; ownerLeadId?: number | null; officeId?: number | null }): void {
     const ownerLeadId = Number(event?.ownerLeadId);
-    const officeId = Number(event?.officeId);
+    const eventOfficeId = Number(event?.officeId);
     const contactId = String(event?.contactId || '').trim();
+    const copyFromContactId = String(event?.copyFrom || '').trim();
 
     if (Number.isFinite(ownerLeadId) && ownerLeadId > 0) {
-      if (Number.isFinite(officeId) && officeId > 0) {
-        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}&officeId=${officeId}`);
+      this.navigateToOwnerShell(ownerLeadId, eventOfficeId);
+      return;
+    }
+
+    if (contactId === 'new') {
+      if (copyFromContactId) {
+        this.createOwnerLeadFromContactAndOpen(copyFromContactId);
         return;
       }
-      void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}`);
+      this.openNewOwnerShell();
       return;
     }
 
@@ -56,6 +62,20 @@ export class OwnersListComponent {
       return;
     }
 
+    this.createOwnerLeadFromContactAndOpen(contactId);
+  }
+
+  openNewOwnerShell(): void {
+    const resolvedOfficeId = this.resolveOfficeIdForNewOwner();
+    if (resolvedOfficeId == null) {
+      this.toastr.warning('Please select a specific office before adding an owner.', 'Office required');
+      return;
+    }
+
+    void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?newOwner=1&officeId=${resolvedOfficeId}`);
+  }
+
+  createOwnerLeadFromContactAndOpen(contactId: string): void {
     this.ownersService.createOwnerLeadFromContactByContext(contactId).pipe(take(1)).subscribe({
       next: result => {
         if (!result) {
@@ -63,11 +83,7 @@ export class OwnersListComponent {
           return;
         }
         const contactOfficeId = Number(result.contact.officeId);
-        if (Number.isFinite(contactOfficeId) && contactOfficeId > 0) {
-          void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${result.createdLead.ownerId}&officeId=${contactOfficeId}`);
-          return;
-        }
-        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${result.createdLead.ownerId}`);
+        this.navigateToOwnerShell(result.createdLead.ownerId, contactOfficeId);
         this.markViewForCheck();
       },
       error: () => {
@@ -76,6 +92,23 @@ export class OwnersListComponent {
         this.markViewForCheck();
       }
     });
+  }
+
+  resolveOfficeIdForNewOwner(): number | null {
+    const scopedOfficeId = Number(this.officeId());
+    if (Number.isFinite(scopedOfficeId) && scopedOfficeId > 0) {
+      return scopedOfficeId;
+    }
+    return null;
+  }
+
+  navigateToOwnerShell(ownerLeadId: number, officeId?: number): void {
+    const resolvedOfficeId = Number(officeId);
+    if (Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0) {
+      void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}&officeId=${resolvedOfficeId}`);
+      return;
+    }
+    void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}`);
   }
   //#endregion
 }

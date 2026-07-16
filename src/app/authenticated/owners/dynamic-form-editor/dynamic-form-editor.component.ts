@@ -183,7 +183,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     });
   }
 
-  private getTokenProviderInputs(): FormTokenProviderInputs {
+getTokenProviderInputs(): FormTokenProviderInputs {
     return {
       formName: this.formName,
       formKey: this.formKey,
@@ -194,7 +194,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     };
   }
 
-  private applyTokensToTemplate(templateHtml: string): Observable<string> {
+applyTokensToTemplate(templateHtml: string): Observable<string> {
     const inputs = this.getTokenProviderInputs();
     if (this.ownerAgreementContext) {
       return of(this.ownerFormTokenProviderService.applyTokensFromOwnerAgreementContext(
@@ -216,7 +216,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     this.setEditorHtml(htmlToRender);
   }
 
-  private htmlNeedsTokenReplacement(html: string): boolean {
+htmlNeedsTokenReplacement(html: string): boolean {
     return /\{\{[^}]+\}\}/.test(String(html || ''));
   }
 
@@ -556,7 +556,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     return this.documentHtmlService.buildHtmlDocument(bodyContent, '', templateStyles);
   }
 
-  private collectTemplateDocumentStyles(doc: Document): string {
+collectTemplateDocumentStyles(doc: Document): string {
     const styleTags = Array.from(doc.querySelectorAll('style'));
     return styleTags
       .filter(tag => !this.ownerFormViewModeService.isRuntimeStyleId(tag.id || ''))

@@ -66,7 +66,7 @@ export class JournalEntryService {
     return false;
   }
 
-  private hasAnyRole(userGroups: UserGroupInput, roles: UserGroups[]): boolean {
+hasAnyRole(userGroups: UserGroupInput, roles: UserGroups[]): boolean {
     const groupNumbers = getUserGroupNumbers(userGroups);
     return roles.some(role => groupNumbers.includes(role));
   }

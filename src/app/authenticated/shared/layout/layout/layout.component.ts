@@ -126,7 +126,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   /** Stops ng-idle and closes the timeout dialog without logging out (used when auth already cleared). */
-  private stopIdleMonitoring(): void {
+stopIdleMonitoring(): void {
     if (!this.idleMonitor) {
       return;
     }

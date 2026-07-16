@@ -220,7 +220,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.reloadActiveTabList();
   }
 
-  private persistPinnedTopBarIfActive(): void {
+persistPinnedTopBarIfActive(): void {
     if (this.dateRangePinned) {
       this.persistPinnedDateRange();
     }

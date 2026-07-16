@@ -131,7 +131,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     navigate(row.sourceId || null);
   }
 
-  private toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLineListDisplay {
+toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLineListDisplay {
     return {
       journalEntryLineId: row.journalEntryLineId || '',
       journalEntryId: row.journalEntryId || '',
@@ -219,7 +219,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     this.markViewForCheck();
   }
 
-  private applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowDisplay[] {
+applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowDisplay[] {
     let filtered = rows;
 
     if (this.officeId != null && this.officeId > 0) {

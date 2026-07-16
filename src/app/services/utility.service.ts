@@ -411,16 +411,7 @@ export class UtilityService {
       return apiMessage;
     }
 
-    const payload = (error as HttpErrorResponse).error as Record<string, unknown>;
-    const closedStatus = Number(payload['closedStatus'] ?? payload['ClosedStatus']);
-    if (closedStatus === PostingStatus.HardClosed) {
-      return 'This accounting period has been hard closed.';
-    }
-    if (closedStatus === PostingStatus.SoftClosed) {
-      return 'This accounting period has been soft closed.';
-    }
-
-    return 'This accounting period has been closed.';
+    return 'The accounting period has been closed.';
   }
 
   extractApiErrorMessage(error: unknown): string {

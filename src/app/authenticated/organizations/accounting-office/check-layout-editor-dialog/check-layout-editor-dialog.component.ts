@@ -172,7 +172,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadEditor(): void {
+loadEditor(): void {
     this.isLoading = true;
     this.cdr.markForCheck();
 
@@ -210,7 +210,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadStockBackground(fileDetails?: FileDetails | null, previewDataUrl?: string | null) {
+loadStockBackground(fileDetails?: FileDetails | null, previewDataUrl?: string | null) {
     const pdfDataUrl = this.resolveCheckStockPdfDataUrl(fileDetails, previewDataUrl);
     const parentThumbnail = (this.data.checkStockPdfThumbnailUrl || '').trim() || null;
 
@@ -239,7 +239,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     );
   }
 
-  private resolveCheckStockPdfDataUrl(fileDetails?: FileDetails | null, previewDataUrl?: string | null): string | null {
+resolveCheckStockPdfDataUrl(fileDetails?: FileDetails | null, previewDataUrl?: string | null): string | null {
     const directPreview = (previewDataUrl || '').trim();
     if (directPreview) {
       return directPreview;
@@ -264,7 +264,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     return `data:${fileDetails.contentType || 'application/pdf'};base64,${fileDetails.file}`;
   }
 
-  private parseFields(template: string): LayoutField[] {
+parseFields(template: string): LayoutField[] {
     const classNames = [
       'field-date', 'field-payee', 'field-amount', 'field-words', 'field-memo',
       'stub-payee-vendor', 'stub-date-vendor', 'stub-payee-company', 'stub-date-company'
@@ -287,7 +287,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  private buildUpdatedTemplateHtml(): string {
+buildUpdatedTemplateHtml(): string {
     let html = this.templateHtml;
     this.fields.filter(field => field.editable).forEach(field => {
       html = this.replaceCssPosition(html, field.className, field.topIn, field.leftIn);
@@ -295,7 +295,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     return html;
   }
 
-  private replaceCssPosition(html: string, className: string, topIn: number, leftIn: number): string {
+replaceCssPosition(html: string, className: string, topIn: number, leftIn: number): string {
     const pattern = new RegExp(`(\\.${this.escapeRegExp(className)}\\s*\\{)([^}]*)(\\})`, 'i');
     if (!pattern.test(html)) {
       return html;
@@ -314,27 +314,27 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  private extractCssRuleBody(html: string, className: string): string | null {
+extractCssRuleBody(html: string, className: string): string | null {
     const match = html.match(new RegExp(`\\.${this.escapeRegExp(className)}\\s*\\{([^}]*)\\}`, 'i'));
     return match?.[1] ?? null;
   }
 
-  private parseCssInch(body: string, prop: string): number | null {
+parseCssInch(body: string, prop: string): number | null {
     const match = body.match(new RegExp(`${prop}\\s*:\\s*([\\d.]+)in`, 'i'));
     return match ? Number(match[1]) : null;
   }
 
-  private parseCssPx(body: string, prop: string): number | null {
+parseCssPx(body: string, prop: string): number | null {
     const match = body.match(new RegExp(`${prop}\\s*:\\s*([\\d.]+)px`, 'i'));
     return match ? Number(match[1]) : null;
   }
 
-  private parseCssValue(body: string, prop: string): string | null {
+parseCssValue(body: string, prop: string): string | null {
     const match = body.match(new RegExp(`${prop}\\s*:\\s*([^;]+)`, 'i'));
     return match?.[1]?.trim() || null;
   }
 
-  private escapeRegExp(value: string): string {
+escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

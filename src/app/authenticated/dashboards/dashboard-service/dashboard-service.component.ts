@@ -113,7 +113,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

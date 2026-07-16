@@ -97,7 +97,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Page-level office follows global header; does not write global. */
-  private applyOfficeFromGlobal(officeId: number | null): void {
+applyOfficeFromGlobal(officeId: number | null): void {
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,

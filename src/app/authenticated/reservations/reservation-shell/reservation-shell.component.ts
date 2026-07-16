@@ -78,6 +78,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   showInvoiceCreate = false;
   invoiceCreateContext: InvoicePreviewSelection | null = null;
   invoiceCreateInstance = 0;
+  invoiceDetailInstance = 0;
   invoiceCreateReturnToEditor = false;
   activeOfficeId: number | null = null;
   activePropertyId: string | null = null;
@@ -115,7 +116,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
     this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
       const id = paramMap.get('id');
-      this.isAddMode = !id || id === 'new';
+      this.isAddMode = id === 'new';
       this.routeReservationId = this.isAddMode ? null : id;
       this.selectedHeaderReservationId = this.routeReservationId;
       this.loadOffices();
@@ -705,8 +706,13 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     }
 
     // In-memory open first so a query-param race / canDeactivate dialog cannot wipe the editor.
-    this.selectedInvoice = selection.invoice ?? null;
+    const reopeningInvoiceAdd = invoiceId === 'new'
+      && this.activeInvoiceId === 'new';
+    this.selectedInvoice = invoiceId === 'new' ? null : (selection.invoice ?? null);
     this.activeInvoiceId = invoiceId;
+    if (reopeningInvoiceAdd) {
+      this.invoiceDetailInstance++;
+    }
     this.showInvoiceCreate = false;
     if (this.selectedTabIndex !== this.getInvoicesTabIndex()) {
       this.selectedTabIndex = this.getInvoicesTabIndex();
@@ -719,7 +725,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     });
   }
 
-  private applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
+applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
     const invoiceId = invoiceIdParam ? String(invoiceIdParam).trim() : '';
     // Never clear from an empty query emission — open/close/tab-leave own clearing.
     // Empty emissions were racing list→editor opens and snapping back to the list.

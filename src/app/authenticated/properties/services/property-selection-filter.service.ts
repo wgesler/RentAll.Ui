@@ -126,7 +126,7 @@ export class PropertySelectionFilterService {
     localStorage.removeItem(this.getStickySelectionStorageKey(userKey));
   }
 
-  private readStickySelectionFromStorage(userId: string | null | undefined): { enabled: boolean } | null {
+readStickySelectionFromStorage(userId: string | null | undefined): { enabled: boolean } | null {
     if (typeof localStorage === 'undefined') {
       return null;
     }
@@ -152,7 +152,7 @@ export class PropertySelectionFilterService {
     }
   }
 
-  private getStickySelectionStorageKey(userId: string): string {
+getStickySelectionStorageKey(userId: string): string {
     return `${this.stickySelectionStorageKeyPrefix}-${userId}`;
   }
 }

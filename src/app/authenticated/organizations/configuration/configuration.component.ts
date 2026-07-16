@@ -204,18 +204,18 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   /** Resolve title-bar office from global seed and loaded offices without mutating global selection. */
-  private initializeSettingsOfficeScope(): void {
+initializeSettingsOfficeScope(): void {
     this.normalizeSettingsOfficeScope();
   }
 
   /** Settings title-bar office follows global header; does not write global. */
-  private applySettingsOfficeFromGlobal(officeId: number | null): void {
+applySettingsOfficeFromGlobal(officeId: number | null): void {
     this.selectedCostCodesOfficeId = officeId;
     this.normalizeSettingsOfficeScope();
     queueMicrotask(() => this.refreshSettingsOfficeScopedLists());
   }
 
-  private normalizeSettingsOfficeScope(): void {
+normalizeSettingsOfficeScope(): void {
     if (this.offices.length === 1) {
       this.selectedCostCodesOfficeId = this.offices[0].officeId;
       return;
@@ -233,7 +233,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.selectedCostCodesOfficeId = null;
   }
 
-  private refreshSettingsOfficeScopedLists(): void {
+refreshSettingsOfficeScopedLists(): void {
     const officeId = this.selectedCostCodesOfficeId;
     if (this.regionListComponent?.offices?.length) {
       this.regionListComponent.resolveOfficeScope(officeId);

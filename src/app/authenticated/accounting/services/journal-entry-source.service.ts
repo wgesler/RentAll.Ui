@@ -84,7 +84,7 @@ export class JournalEntrySourceService {
     );
   }
 
-  private findInvoiceForJournalEntrySource(sourceId: string, row: JournalEntryLineListDisplay): Observable<InvoiceResponse | null> {
+findInvoiceForJournalEntrySource(sourceId: string, row: JournalEntryLineListDisplay): Observable<InvoiceResponse | null> {
     return this.getInvoiceByLedgerLineId(sourceId, row).pipe(
       switchMap(invoice => {
         if (invoice?.invoiceId) {

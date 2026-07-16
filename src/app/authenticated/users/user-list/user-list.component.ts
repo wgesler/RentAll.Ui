@@ -238,7 +238,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  private applyOrganizationFromInput(): void {
+applyOrganizationFromInput(): void {
     this.selectedOrganization = this.selectedOrganizationId
       ? this.organizations.find(organization => organization.organizationId === this.selectedOrganizationId) || null
       : null;

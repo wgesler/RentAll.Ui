@@ -47,7 +47,7 @@ export class MaintenanceApplianceListComponent implements OnChanges {
   originalRowsById = new Map<number, { applianceName: string; manufacturer: string; modelNo: string; serialNo: string; decalPath: string | null }>();
   rowCounter = 0;
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

@@ -70,7 +70,11 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   handleIdChange(id: string | number | null): void {
-    if (!id || id === 'new') {
+    if (id == null || id === '') {
+      return;
+    }
+
+    if (id === 'new') {
       this.isAddMode = true;
       this.stateForm = null;
       this.clearDocument();

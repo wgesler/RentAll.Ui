@@ -486,7 +486,7 @@ export class MappingService {
     return `${'*'.repeat(starCount)}${finalLastFour}`;
   }
 
-  private formatBankCardNumberForDisplay(cardNumber?: string | null, lastFour?: string | null, isPersisted: boolean = true): string {
+formatBankCardNumberForDisplay(cardNumber?: string | null, lastFour?: string | null, isPersisted: boolean = true): string {
     const raw = (cardNumber || '').replace(/\s+/g, '');
     if (!raw) {
       return '';
@@ -517,7 +517,7 @@ export class MappingService {
     return this.groupCardNumber(masked);
   }
 
-  private groupCardNumber(value: string): string {
+groupCardNumber(value: string): string {
     return (value.match(/.{1,4}/g) || []).join(' ');
   }
   
@@ -550,7 +550,7 @@ export class MappingService {
     });
   }
 
-  private buildChartOfAccountLookupByOfficeAndAccountNo(chartOfAccounts?: ChartOfAccountResponse[]): Map<string, ChartOfAccountResponse> {
+buildChartOfAccountLookupByOfficeAndAccountNo(chartOfAccounts?: ChartOfAccountResponse[]): Map<string, ChartOfAccountResponse> {
     const lookup = new Map<string, ChartOfAccountResponse>();
     for (const account of chartOfAccounts ?? []) {
       const normalizedAccountNo = this.normalizeAccountCodeForMatch(account.accountNo);
@@ -562,7 +562,7 @@ export class MappingService {
     return lookup;
   }
 
-  private normalizeAccountCodeForMatch(value: string | null | undefined): string {
+normalizeAccountCodeForMatch(value: string | null | undefined): string {
     return String(value ?? '')
       .split(/\s+/)
       .filter(part => part.length > 0)
@@ -571,7 +571,7 @@ export class MappingService {
       .toLowerCase();
   }
 
-  private isBankAccountNumber(accountNo: string | null | undefined): boolean {
+isBankAccountNumber(accountNo: string | null | undefined): boolean {
     const match = String(accountNo ?? '').trim().match(/^(\d+)/);
     if (!match) {
       return false;
@@ -848,7 +848,7 @@ export class MappingService {
     };
   }
 
-  private resolveJournalEntryLineSourceDisplay(
+resolveJournalEntryLineSourceDisplay(
     line: JournalEntryLineSearchResponse,
     sourceTypes?: { value: number; label: string }[]
   ): string {
@@ -941,7 +941,7 @@ export class MappingService {
       .filter((line): line is JournalEntryLineListDisplay => !!line);
   }
 
-  private buildJournalEntryCreatedOnLookup(lines: JournalEntryLineSearchResponse[]): Map<string, string> {
+buildJournalEntryCreatedOnLookup(lines: JournalEntryLineSearchResponse[]): Map<string, string> {
     const journalEntryCreatedOn = new Map<string, string>();
 
     lines.forEach(line => {
@@ -960,7 +960,7 @@ export class MappingService {
     return journalEntryCreatedOn;
   }
 
-  private compareJournalEntryLinesForListDisplay(
+compareJournalEntryLinesForListDisplay(
     left: JournalEntryLineSearchResponse,
     right: JournalEntryLineSearchResponse,
     newestFirst: boolean,
@@ -1079,7 +1079,7 @@ export class MappingService {
     };
   }
 
-  private normalizeLedgerLineResponse(line: unknown): LedgerLineResponse {
+normalizeLedgerLineResponse(line: unknown): LedgerLineResponse {
     const raw = (line ?? {}) as Record<string, unknown>;
     const costCodeId = Number(raw['costCodeId'] ?? raw['CostCodeId'] ?? 0);
     const transactionTypeId = Number(raw['transactionTypeId'] ?? raw['TransactionTypeId'] ?? 0);
@@ -1099,7 +1099,7 @@ export class MappingService {
   }
 
   /** First calendar day of the month for `YYYY-MM-DD` (or `YYYY-MM` prefix). */
-  private firstDayOfMonthCalendarDate(calendarDate: string): string {
+firstDayOfMonthCalendarDate(calendarDate: string): string {
     const match = /^(\d{4})-(\d{2})/.exec(calendarDate.trim());
     if (!match) {
       return calendarDate;
@@ -1107,7 +1107,7 @@ export class MappingService {
     return `${match[1]}-${match[2]}-01`;
   }
 
-  private mapOptionalJournalEntryId(raw: Record<string, unknown>, base?: string | null): string | null {
+mapOptionalJournalEntryId(raw: Record<string, unknown>, base?: string | null): string | null {
     const rawVal = raw['journalEntryId'] ?? raw['JournalEntryId'] ?? base;
     if (rawVal == null || String(rawVal).trim().length === 0) {
       return null;
@@ -1115,7 +1115,7 @@ export class MappingService {
     return String(rawVal).trim();
   }
 
-  private mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): number | null {
+mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): number | null {
     const rawVal = raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base;
     if (rawVal === null || rawVal === undefined || String(rawVal).trim() === '') {
       return null;
@@ -2179,7 +2179,7 @@ export class MappingService {
     );
   }
 
-  private resolveWorkOrderTitle(
+resolveWorkOrderTitle(
     sourceWorkOrder: WorkOrderResponse,
     cachedWorkOrder?: WorkOrderResponse | null,
     displayRow?: WorkOrderDisplayList | null
@@ -2790,14 +2790,14 @@ export class MappingService {
       .sort((a, b) => this.compareOwnerReportPropertyActivityLines(a, b, 'accrual'));
   }
 
-  private sortOwnerReportPropertyActivityLines(
+sortOwnerReportPropertyActivityLines(
     lines: OwnerStatementPropertyActivityLineResponse[],
     reportKind: 'accrual' | 'cash'
   ): OwnerStatementPropertyActivityLineResponse[] {
     return [...(lines || [])].sort((a, b) => this.compareOwnerReportPropertyActivityLines(a, b, reportKind));
   }
 
-  private compareOwnerReportPropertyActivityLines(
+compareOwnerReportPropertyActivityLines(
     a: OwnerStatementPropertyActivityLineResponse,
     b: OwnerStatementPropertyActivityLineResponse,
     reportKind: 'accrual' | 'cash'
@@ -2832,7 +2832,7 @@ export class MappingService {
     return (a.documentCode || '').localeCompare(b.documentCode || '', undefined, { sensitivity: 'base' });
   }
 
-  private compareOwnerReportAccountingPeriods(
+compareOwnerReportAccountingPeriods(
     a: string | null | undefined,
     b: string | null | undefined
   ): number {
@@ -2868,7 +2868,7 @@ export class MappingService {
     return left - right;
   }
 
-  private getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResponse): number {
+getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResponse): number {
     const expectedIncome = Number(line.expectedIncome) || 0;
     const receivedIncome = Number(line.receivedIncome) || 0;
     const prepaidIncome = Number(line.prepaidIncome) || 0;
@@ -3274,7 +3274,7 @@ export class MappingService {
     };
   }
 
-  private normalizeDepositPropertyIds(value: unknown): string[] {
+normalizeDepositPropertyIds(value: unknown): string[] {
     if (!Array.isArray(value)) {
       return [];
     }
@@ -3283,7 +3283,7 @@ export class MappingService {
       .filter(propertyId => propertyId.length > 0);
   }
 
-  private resolveDepositPropertyIds(
+resolveDepositPropertyIds(
     splits: DepositSplit[] | undefined | null,
     existing: string[] | undefined | null,
     headerPropertyId?: string | null
@@ -3383,7 +3383,7 @@ export class MappingService {
     });
   }
 
-  private buildDepositPropertyCodesDisplay(propertyIds: string[], splits: DepositSplit[]): string {
+buildDepositPropertyCodesDisplay(propertyIds: string[], splits: DepositSplit[]): string {
     const codes = new Set<string>();
     (propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
@@ -3398,7 +3398,7 @@ export class MappingService {
     return Array.from(codes).join(', ');
   }
 
-  private buildDepositReservationCodesDisplay(splits: DepositSplit[]): string {
+buildDepositReservationCodesDisplay(splits: DepositSplit[]): string {
     const codes = Array.from(
       new Set(
         (splits || [])
@@ -3409,7 +3409,7 @@ export class MappingService {
     return codes.join(', ');
   }
 
-  private buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
+buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     const names = Array.from(
       new Set(
         (splits || [])
@@ -3533,7 +3533,7 @@ export class MappingService {
     };
   }
 
-  private normalizeTransferPropertyIds(value: unknown): string[] {
+normalizeTransferPropertyIds(value: unknown): string[] {
     if (!Array.isArray(value)) {
       return [];
     }
@@ -3542,7 +3542,7 @@ export class MappingService {
       .filter(propertyId => propertyId.length > 0);
   }
 
-  private resolveTransferPropertyIds(
+resolveTransferPropertyIds(
     splits: TransferSplit[] | undefined | null,
     existing: string[] | undefined | null,
     headerPropertyId?: string | null
@@ -3642,7 +3642,7 @@ export class MappingService {
     });
   }
 
-  private buildTransferPropertyCodesDisplay(propertyIds: string[], splits: TransferSplit[]): string {
+buildTransferPropertyCodesDisplay(propertyIds: string[], splits: TransferSplit[]): string {
     const codes = new Set<string>();
     (propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
@@ -3657,7 +3657,7 @@ export class MappingService {
     return Array.from(codes).join(', ');
   }
 
-  private buildTransferReservationCodesDisplay(splits: TransferSplit[]): string {
+buildTransferReservationCodesDisplay(splits: TransferSplit[]): string {
     const codes = Array.from(
       new Set(
         (splits || [])
@@ -3668,7 +3668,7 @@ export class MappingService {
     return codes.join(', ');
   }
 
-  private buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
+buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
     const names = Array.from(
       new Set(
         (splits || [])
@@ -3758,14 +3758,14 @@ export class MappingService {
     });
   }
 
-  private formatFlatReportAmount(value: number): string {
+formatFlatReportAmount(value: number): string {
     if (!Number.isFinite(value) || value === 0) {
       return '-';
     }
     return this.formatter.currencyUsd(value);
   }
 
-  private roundCurrency(value: number): number {
+roundCurrency(value: number): number {
     return Math.round((Number(value) || 0) * 100) / 100;
   }
 
@@ -5492,7 +5492,7 @@ export class MappingService {
     );
   }
 
-  private buildEscrowLastRecapAmountsByProperty(
+buildEscrowLastRecapAmountsByProperty(
     recapRows: JournalEntryRecapRowDisplay[]
   ): Map<string, { prepaids: number; notCollected: number }> {
     const byPropertyReservation = new Map<string, JournalEntryRecapRowDisplay>();
@@ -6815,7 +6815,7 @@ export class MappingService {
     };
   }
 
-  private getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): number {
+getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): number {
     const paidAmount = Number(receipt.paidAmount || 0);
     if (paidAmount <= 0.005) {
       return 0;
@@ -7321,7 +7321,7 @@ export class MappingService {
     };
   }
 
-  private appendReconcileAccountSubsectionRows(
+appendReconcileAccountSubsectionRows(
     rows: ReconcileAccountReportRow[],
     params: {
       view: ReconcileAccountReportView;
@@ -7386,7 +7386,7 @@ export class MappingService {
     });
   }
 
-  private getReconcileAccountLineAmount(line: JournalEntryLineSearchResponse): number {
+getReconcileAccountLineAmount(line: JournalEntryLineSearchResponse): number {
     const debit = Number(line.debit || 0);
     const credit = Number(line.credit || 0);
     if (debit > 0) {
@@ -7398,7 +7398,7 @@ export class MappingService {
     return 0;
   }
 
-  private isReconcileReportLineCleared(line: JournalEntryLineSearchResponse): boolean {
+isReconcileReportLineCleared(line: JournalEntryLineSearchResponse): boolean {
     if (line.clearedOn) {
       return true;
     }
@@ -7437,7 +7437,7 @@ export class MappingService {
     };
   }
 
-  private mapReconcileAccountSummaryPrintableRow(row: ReconcileAccountReportRow): PrintableReportRow {
+mapReconcileAccountSummaryPrintableRow(row: ReconcileAccountReportRow): PrintableReportRow {
     const kind = this.mapReconcileAccountPrintableRowKind(row.rowKind);
     const amountDisplay = this.formatReconcileAccountSummaryPrintableAmount(row);
     return {
@@ -7447,7 +7447,7 @@ export class MappingService {
     };
   }
 
-  private mapReconcileAccountDetailPrintableRow(row: ReconcileAccountReportRow): PrintableReportRow {
+mapReconcileAccountDetailPrintableRow(row: ReconcileAccountReportRow): PrintableReportRow {
     const kind = this.mapReconcileAccountPrintableRowKind(row.rowKind);
     if (row.rowKind === 'line') {
       return {
@@ -7479,7 +7479,7 @@ export class MappingService {
     };
   }
 
-  private mapReconcileAccountPrintableRowKind(
+mapReconcileAccountPrintableRowKind(
     rowKind: ReconcileAccountReportRow['rowKind']
   ): PrintableReportRowKind {
     if (rowKind === 'section') {
@@ -7497,7 +7497,7 @@ export class MappingService {
     return 'summary';
   }
 
-  private formatReconcileAccountSummaryPrintableAmount(row: ReconcileAccountReportRow): string {
+formatReconcileAccountSummaryPrintableAmount(row: ReconcileAccountReportRow): string {
     if (row.amount != null && Number.isFinite(row.amount)) {
       return this.formatter.currencyUsd(row.amount);
     }
@@ -7507,7 +7507,7 @@ export class MappingService {
     return '';
   }
 
-  private formatReconcileAccountPrintableAmount(value: number | null | undefined): string {
+formatReconcileAccountPrintableAmount(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(value)) {
       return '';
     }
@@ -7567,7 +7567,7 @@ export class MappingService {
     };
   }
 
-  private getFinancialReportPrintableAmountColumnIds(result: FinancialReportResult): string[] {
+getFinancialReportPrintableAmountColumnIds(result: FinancialReportResult): string[] {
     const columnIds = (result.columns || []).map(column => column.columnId);
     if (result.showTotalColumn) {
       columnIds.push(FINANCIAL_REPORT_TOTAL_COLUMN_ID);
@@ -7575,14 +7575,14 @@ export class MappingService {
     return columnIds;
   }
 
-  private getFinancialReportPrintableColumnLabel(result: FinancialReportResult, columnId: string): string {
+getFinancialReportPrintableColumnLabel(result: FinancialReportResult, columnId: string): string {
     if (columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID) {
       return 'Total';
     }
     return result.columns.find(column => column.columnId === columnId)?.label || columnId;
   }
 
-  private appendFinancialReportPrintableRows(
+appendFinancialReportPrintableRows(
     node: FinancialReportTreeNode,
     amountColumnIds: string[],
     rows: PrintableReportRow[]
@@ -7603,7 +7603,7 @@ export class MappingService {
     node.childNodes.forEach(childNode => this.appendFinancialReportPrintableRows(childNode, amountColumnIds, rows));
   }
 
-  private mapFinancialReportPrintableRowKind(
+mapFinancialReportPrintableRowKind(
     rowKind: FinancialReportTreeNode['rowKind'],
     depth: number
   ): PrintableReportRowKind {
@@ -7619,14 +7619,14 @@ export class MappingService {
     return 'summary';
   }
 
-  private formatFinancialReportPrintableAmount(value: number | null | undefined): string {
+formatFinancialReportPrintableAmount(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(value)) {
       return '';
     }
     return this.formatter.currencyUsd(value);
   }
 
-  private formatArAgingPrintableBucketAmount(value: number | null | undefined): string {
+formatArAgingPrintableBucketAmount(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(value) || Math.abs(value) <= 0.005) {
       return '';
     }

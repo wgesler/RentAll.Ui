@@ -595,7 +595,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     });
   }
 
-  private tryLoadPropertyByLeadOwnerCode(): void {
+tryLoadPropertyByLeadOwnerCode(): void {
     if (this.isOwnerLinkTokenMode()) {
       return;
     }
@@ -1588,7 +1588,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   /** Template CSS for view/export; excludes runtime edit-only style blocks injected into the iframe. */
-  private getViewTemplateStyles(editDoc?: Document | null): string {
+getViewTemplateStyles(editDoc?: Document | null): string {
     if (editDoc) {
       const collected = this.collectTemplateDocumentStyles(editDoc);
       if (collected.trim()) {
@@ -1598,7 +1598,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return (this.editorStyles || this.previewIframeStyles || '').trim();
   }
 
-  private ensureHtmlHasTemplateStyles(html: string, styleSourceHtml: string): string {
+ensureHtmlHasTemplateStyles(html: string, styleSourceHtml: string): string {
     const draftStyles = this.documentHtmlService.processHtml(html, false).extractedStyles.trim();
     if (draftStyles) {
       return html;
@@ -1611,7 +1611,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return this.documentHtmlService.buildHtmlDocument(bodyContent, '', templateStyles);
   }
 
-  private collectTemplateDocumentStyles(doc: Document): string {
+collectTemplateDocumentStyles(doc: Document): string {
     const styleTags = Array.from(doc.querySelectorAll('style'));
     return styleTags
       .filter(tag => !this.ownerFormViewModeService.isRuntimeStyleId(tag.id || ''))
@@ -1851,7 +1851,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     );
   }
 
-  private normalizeTemplateAssetPath(assetPath: string): string {
+normalizeTemplateAssetPath(assetPath: string): string {
     const normalized = String(assetPath || '').trim() || 'assets/owner-agreement.html';
     return normalized.startsWith('/') ? normalized : `/${normalized}`;
   }

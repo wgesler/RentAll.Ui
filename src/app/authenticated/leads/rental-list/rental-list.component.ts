@@ -466,7 +466,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     return leadStateId === LeadStateType.New ? '●' : '';
   }
 
-  private resolveDocumentOfficeIds(): number[] {
+resolveDocumentOfficeIds(): number[] {
     const scopeOfficeId = this.scopeOfficeIdForListFilter();
     if (scopeOfficeId != null) {
       return [scopeOfficeId];

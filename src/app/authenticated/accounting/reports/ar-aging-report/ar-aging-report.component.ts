@@ -707,7 +707,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
-  private buildReportFileName(): string {
+buildReportFileName(): string {
     const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
     const dateStamp = this.utilityService.sanitizeFileNameSegment(
       this.reportFilters?.asOfDate || this.utilityService.todayAsCalendarDateString()
@@ -715,7 +715,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     return `${officeSegment}_ArAging_${dateStamp}.pdf`;
   }
 
-  private resolveDocumentOfficeId(): number | null {
+resolveDocumentOfficeId(): number | null {
     if (this.officeId != null && this.officeId > 0) {
       return this.officeId;
     }
@@ -725,7 +725,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     return null;
   }
 
-  private refreshPrintableHtml(): void {
+refreshPrintableHtml(): void {
     if (!this.reportResult || this.reportResult.customerRows.length === 0) {
       this.clearPrintableHtml();
       return;
@@ -737,7 +737,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.previewIframeStyles = preview.previewIframeStyles;
   }
 
-  private clearPrintableHtml(): void {
+clearPrintableHtml(): void {
     this.previewIframeHtml = '';
     this.previewIframeStyles = '';
   }

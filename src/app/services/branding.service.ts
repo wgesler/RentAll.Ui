@@ -63,7 +63,7 @@ export class BrandingService {
     this.applyBranding(this.systemDefaultBranding);
   }
 
-  private applyBranding(branding: BrandingResponse): void {
+applyBranding(branding: BrandingResponse): void {
     const normalizedBranding: BrandingResponse = {
       ...branding,
       primaryColor: this.normalizeHexColor(branding.primaryColor, this.systemDefaultBranding.primaryColor),
@@ -90,7 +90,7 @@ export class BrandingService {
     this.collapsedLogoUrl$.next(collapsedLogoFromBytes ?? normalizedBranding.collapsedLogoPath ?? '');
   }
 
-  private normalizeHexColor(value: string, fallback: string): string {
+normalizeHexColor(value: string, fallback: string): string {
     if (!value) {
       return fallback;
     }

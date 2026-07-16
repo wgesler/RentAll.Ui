@@ -61,7 +61,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     // Check for returnTo query parameter use the input id
     if (this.id) {
-      this.isAddMode = this.id === 'new' || this.id === 'new';
+      this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'area');
         this.buildForm();
@@ -89,7 +89,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
 
   getArea(id?: string | number): void {
     const idToUse = id || this.id || this.routeAreaId;
-    if (!idToUse || idToUse === 'new') {
+    if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
       return;
     }
     const areaIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse.toString(), 10);

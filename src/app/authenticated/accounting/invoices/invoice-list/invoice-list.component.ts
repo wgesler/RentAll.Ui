@@ -290,6 +290,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const officeIdToUse = reservationToUse?.officeId ?? this.selectedOffice?.officeId ?? this.officeId ?? null;
     const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompanyContact?.contactId || null);
 
+    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation')) {
+      this.invoiceSelect.emit({
+        invoiceId: 'new',
+        officeId: officeIdToUse,
+        reservationId: reservationIdToUse,
+        invoice: null
+      });
+      return;
+    }
+
     if (this.source === 'reservation' && reservationIdToUse) {
       params.push('tab=invoices');
       params.push('invoiceId=new');

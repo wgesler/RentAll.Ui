@@ -54,7 +54,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
 
   form: FormGroup;
-  isAddMode = true;
+  isAddMode = false;
   isSubmitting = false;
   isPageReady = false;
   isTransferContentReady = false;
@@ -100,7 +100,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
-    this.isAddMode = this.transferId == null;
+    this.isAddMode = this.transferId === 'new';
     this.applyShellReferenceData();
     this.loadOffices();
     this.loadPropertyCodes();
@@ -126,9 +126,9 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['transferId'] && !changes['transferId'].firstChange) {
-      this.isAddMode = this.transferId == null;
+      this.isAddMode = this.transferId === 'new';
       if (this.isAddMode) {
-        this.resetForAddMode();
+        this.resetForm();
       } else {
         this.isTransferContentReady = false;
         if (this.prefetchedTransfer && this.prefetchedTransfer.transferId === this.transferId) {
@@ -280,7 +280,16 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     });
     this.replaceSplitLines(transfer.splits || []);
     this.splitTotalValidationError = false;
-  }  
+  }
+
+  resetForm(): void {
+    this.transfer = null;
+    this.isTransferContentReady = true;
+    this.clearTransferLoading();
+    this.buildForm();
+    this.applyShellOfficeToTransfer();
+    this.applyPropertyInputToForm();
+  }
   //#endregion
 
   //#region Data Load Methods
@@ -319,15 +328,6 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     if (this.chartOfAccounts.length > 0) {
       this.applyChartOfAccountsForOffice();
     }
-  }
-
-  resetForAddMode(): void {
-    this.transfer = null;
-    this.isTransferContentReady = true;
-    this.clearTransferLoading();
-    this.buildForm();
-    this.applyShellOfficeToTransfer();
-    this.applyPropertyInputToForm();
   }
 
   loadPropertyCodes(): void {

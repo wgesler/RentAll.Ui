@@ -597,12 +597,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
   }
 
-  private isEmbeddedInOwnerShell(): boolean {
+isEmbeddedInOwnerShell(): boolean {
     return String(this.shellPropertyId ?? '').trim().length > 0 ||
       String(this.publicOwnerToken ?? '').trim().length > 0;
   }
 
-  private notifyOwnerShellContextChangedIfEmbedded(): void {
+notifyOwnerShellContextChangedIfEmbedded(): void {
     if (!this.isEmbeddedInOwnerShell()) {
       return;
     }

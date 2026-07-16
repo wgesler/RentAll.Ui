@@ -182,14 +182,14 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     this.initializeInvoicePreview();
   }
 
-  private applyShellInputs(): void {
+applyShellInputs(): void {
     this.invoiceId = (this.invoiceIdInput || '').trim() || null;
     this.reservationId = (this.reservationIdInput || '').trim() || null;
     this.officeId = this.officeIdInput ?? null;
     this.companyId = (this.companyIdInput || '').trim() || null;
   }
 
-  private initializeInvoicePreview(): void {
+initializeInvoicePreview(): void {
     if (this.officeId == null || !this.reservationId?.trim() || !this.invoiceId?.trim()) {
       this.toastr.error('officeId, reservationId, and invoiceId are required.', 'Missing Parameters');
       this.itemsToLoad$.next(new Set());

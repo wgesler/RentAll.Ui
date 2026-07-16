@@ -65,7 +65,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   destroy$ = new Subject<void>();
   private userSubscription?: Subscription;
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
   
@@ -229,7 +229,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   /** Keep header in sync when office cache reloads without re-seeding global office from defaults. */
-  private reconcileGlobalOfficeSelection(): void {
+reconcileGlobalOfficeSelection(): void {
     this.globalSelectionService.reconcileGlobalOfficeWithAvailableOffices(this.offices);
   }
 

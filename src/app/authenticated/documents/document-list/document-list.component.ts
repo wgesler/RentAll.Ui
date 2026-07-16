@@ -113,7 +113,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 
@@ -411,7 +411,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private buildDocumentRequest(): DocumentGetRequest {
+buildDocumentRequest(): DocumentGetRequest {
     const officeIds = this.resolveOfficeIdsForRequest();
     const request: DocumentGetRequest = (this.source === 'documents' || this.source === 'invoice' || this.source === 'maintenance') && this.documentRequest
       ? { ...this.documentRequest, officeIds }
@@ -432,11 +432,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     return request;
   }
 
-  private hasFixedDocumentTypeFilter(): boolean {
+hasFixedDocumentTypeFilter(): boolean {
     return this.resolveDocumentTypeIdsForRequest().length > 0;
   }
 
-  private resolveDocumentTypeIdsForRequest(): number[] {
+resolveDocumentTypeIdsForRequest(): number[] {
     if (this.source === 'documents') {
       return this.selectedDocumentTypeId != null ? [this.selectedDocumentTypeId] : [];
     }
@@ -449,7 +449,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     return [];
   }
 
-  private hadDocumentTypeFilterChange(changes: SimpleChanges, previousOnly: boolean): boolean {
+hadDocumentTypeFilterChange(changes: SimpleChanges, previousOnly: boolean): boolean {
     const docTypeIdsChange = changes['documentTypeIds'];
     const docTypeIdChange = changes['documentTypeId'];
     if (previousOnly) {
@@ -466,19 +466,19 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     return false;
   }
 
-  private canLoadDocumentsFromApi(): boolean {
+canLoadDocumentsFromApi(): boolean {
     return this.resolveOfficeIdsForRequest().length > 0;
   }
 
-  private usesShellDocumentSearch(): boolean {
+usesShellDocumentSearch(): boolean {
     return (this.source === 'documents' || this.source === 'invoice' || this.source === 'maintenance') && this.documentRequest != null;
   }
 
-  private hasShellDocumentSearchDates(): boolean {
+hasShellDocumentSearchDates(): boolean {
     return !!(this.documentRequest?.startDate && this.documentRequest?.endDate);
   }
 
-  private resolveOfficeIdsForRequest(): number[] {
+resolveOfficeIdsForRequest(): number[] {
     if ((this.source === 'documents' || this.source === 'maintenance') && this.documentRequest?.officeIds?.length) {
       return this.documentRequest.officeIds.filter(id => id > 0);
     }
@@ -1060,7 +1060,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /** Documents shell parent office: page filter only; does not write global. */
-  private applyDocumentsListOfficeScope(): void {
+applyDocumentsListOfficeScope(): void {
     this.showOfficeDropdown = false;
     let officeIdToUse = this.officeId ?? this.selectedOfficeId;
     if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
@@ -1072,7 +1072,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.resolveOfficeScope(officeIdToUse, false);
   }
 
-  private usesShellTitleBarScope(): boolean {
+usesShellTitleBarScope(): boolean {
     return (this.source === 'documents' || this.source === 'maintenance') && this.hideHeader && this.hideFilters;
   }
 

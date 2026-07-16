@@ -62,7 +62,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     // Check for returnTo query parameter
     // Use the input id
     if (this.id) {
-      this.isAddMode = this.id === 'new' || this.id === 'new';
+      this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'region');
         this.buildForm();
@@ -90,7 +90,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
 
   getRegion(id?: string | number): void {
     const idToUse = id || this.id || this.routeRegionId;
-    if (!idToUse || idToUse === 'new') {
+    if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
       return;
     }
     const regionIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse.toString(), 10);

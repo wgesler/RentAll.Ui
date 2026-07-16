@@ -402,7 +402,7 @@ export class UserComponent implements OnInit, OnDestroy {
     }
   }
 
-  private syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRequest: UserRequest): void {
+syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRequest: UserRequest): void {
     const currentUser = this.authService.getUser();
     const currentUserId = (currentUser?.userId || '').trim().toLowerCase();
     const targetUserId = (response?.userId || this.userId || '').trim().toLowerCase();

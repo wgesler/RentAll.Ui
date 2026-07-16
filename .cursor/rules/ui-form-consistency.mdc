@@ -31,7 +31,7 @@ alwaysApply: true
 # Component Member Style (Angular/TypeScript UI only)
 
 - This visibility rule applies to `RentAll.Ui` only. It does NOT apply to `RentAll.Api` or `RentAll.Db`.
-- For new variables and methods inside Angular components, do NOT add explicit `public`/`private` modifiers.
+- For new variables and methods inside Angular components, do NOT add explicit `public`/`private` modifiers on **methods**. Remove `private` from methods when touching a file.
 - Let class members use default visibility unless there is an explicit exception requested.
 - Prefer Angular `inject()` for dependency injection over constructor parameter injection (`private readonly foo = inject(FooService)`).
 - Do not add constructor-only boilerplate for DI; use a constructor only when it has real construction logic.
@@ -52,8 +52,8 @@ alwaysApply: true
   - `ngOnInit`, `ngOnChanges`
   - core `get/add/update/save` methods
 - Keep a dedicated `//#region Data Loading Methods` for external API/data-loading methods (examples: `loadProperties`, `loadOffices`, `loadReservations`).
-- Keep a dedicated `//#region Form Methods` for form construction and form-population logic:
-  - `buildForm`, `populateForm`
+- Keep a dedicated `//#region Build Form` for form construction and form-population logic:
+  - `buildForm`, `populateForm`, `resetForm`
   - helper/support functions used for form building and form value mapping
 - Keep `//#region Utility Methods` at the bottom of the component file.
   - Place `ngOnDestroy` and `back` methods there.
@@ -120,6 +120,152 @@ alwaysApply: true
 - In Add mode, use clear prompt defaults for required fields when requested (e.g., `Enter Code`) and enforce replacement via validation.
 - For office selection in Add mode: if global office is specific, preselect it; if global office is "All Offices"/null, require explicit office selection.
 - Keep owner choices office-consistent: owner dropdown options are filtered by selected office.
+
+# Add/Edit CRUD Standard
+
+Applies to list → form entity screens (Invoice, Receipt, Contact, Deposit, Reservation, Property, settings sub-forms, etc.). **Inline** (list row add) and **Dialog** flows are separate patterns and are not replaced by this standard.
+
+## Entity id contract (all hosting modes)
+
+Same semantics everywhere — **shell-embedded**, **route-hosted**, and **settings-embedded**:
+
+- **Add:** `entityId === 'new'` (literal string). Do **not** use `null` for add.
+- **Edit:** `entityId === <guid>` (or numeric id where the entity uses numbers).
+- **Form and shell:** `isAddMode = entityId === 'new'`.
+- **Route-hosted pages** use the same contract: route param `'new'` or guid. Route navigation is **hosting only**; it is not different add semantics.
+- **Nothing open:** `selectedEntityId = null` (list visible only).
+
+### Route-hosted vs shell-embedded
+
+| Hosting | How add opens | Id source |
+|---------|---------------|-----------|
+| Shell-embedded | List emits / shell sets `'new'`, `@if` shows form | `@Input()` (`receiptId`, `id`, etc.) |
+| Route-hosted | List navigates to `/…/new` | `ActivatedRoute` param `:id` |
+| Settings (configuration) | List sets `entityId = 'new'`, `@if` shows form | `@Input()` from parent |
+
+Both paths must pass or read `'new'` explicitly. A form component that supports standalone routes must resolve id from **route param first**, then `@Input` (see cost-codes / contact patterns).
+
+### Forbidden add-mode detection
+
+Do **not** infer add mode from any of the following:
+
+- `!id`, `!entityId`, missing route param, or empty string → add
+- `!id \|\| id === 'new'` or `id == null \|\| id === 'new'` for **`isAddMode`**
+- `toLowerCase()`, `trim()`, or other normalization before comparing to `'new'`
+- `paramMap.get('id') \|\| 'new'` or `id \|\| 'new'` as a default when param/input is missing
+- `isAddMode = true` as a field default before id is resolved (default **`false`**)
+- Duplicate save checks: `!invoiceId \|\| invoiceId === 'new' \|\| invoiceId === ''` — use **`this.isAddMode`**
+- Redundant load guards: `isAddMode \|\| !receiptId \|\| receiptId === 'new'` — use **`if (this.isAddMode) return`** only
+
+Missing or empty id when the form is shown means **wait, error, or return** — not add. Exception: embedded contact may coalesce empty `@Input` to `'new'` only when the shell always opens add with an explicit `'new'` selection.
+
+### Dual-entity shell exception (maintenance only)
+
+When **one shell** hosts **two entity types** on the same tab area (receipt vs work order), shell-level title-bar getters may use **`isReceiptAddMode`** / **`isWorkOrderAddMode`** derived from `selectedReceiptId === 'new'` and `selectedWorkOrderId === 'new'`. Form components still use plain **`isAddMode = entityId === 'new'`**. Do not introduce other entity-prefixed add-mode names elsewhere.
+
+## List / shell vs form responsibilities
+
+**List or shell owns:**
+
+- `selectedEntityId: 'new' | string | null` when nothing is open (`null` = list visible only).
+- Add → set `'new'`, show form (emit to shell or navigate to `/…/new`).
+- Edit → set guid, show form.
+- Back / close → hide form, clear selection (`selectedEntityId = null`).
+
+**Form component owns:**
+
+- Load/save API calls and validation.
+- `buildForm`, `populateForm`, `resetForm` (see below).
+- Deriving `isAddMode` from `entityId === 'new'` (shells: true when the active detail’s id is `'new'`).
+- Save/create: `const isCreating = this.isAddMode` (or equivalent) — do not re-derive from id strings.
+
+Pass the id into the form with a domain-named `@Input()` when one already exists (`receiptId`, `contactId`, `journalEntryId`, etc.). New work may use a consistent `entityId` input name when introducing new screens.
+
+**GET/load guards** (e.g. `loadReceipt`, `loadJournalEntry`): early-return on `this.isAddMode`; do not treat null/empty id as add.
+
+## Lifecycle: `@if` destroy (default for tabbed shells and settings)
+
+For tabbed shells (accounting, maintenance, contacts, settings/configuration, emails) and settings sub-sections:
+
+- List and form are **not** shown at the same time.
+- Use `@if (showForm && selectedEntityId)` (or equivalent) to swap list ↔ form.
+- **Close destroys** the form component. Do **not** keep the form mounted with `display: none`, `settings-section-hidden`, or `*DetailMounted` + CSS hide unless there is an approved, documented reason.
+- Do **not** use `addAttemptToken` or similar remount hacks when `@if` destroy is in place.
+
+**Re-open Add** (`'new'` twice without leaving the shell): increment a `*DetailInstance` counter when `entityId === 'new'` is selected again while add detail is already open, and wrap the form in `@for (instance of [detailInstance]; track instance)` so Angular destroys and recreates the form.
+
+```html
+@if (showContactForm) {
+  <app-contact [id]="formContactId ?? 'new'" (closed)="onContactClosed($event)" />
+} @else {
+  <app-contact-list (openContact)="onOpenContact($event)" />
+}
+```
+
+Settings (configuration) — prefer `@if (!(isEditing && entityId)) { list }` / `@if (isEditing && entityId) { form }`, not hiding the list with CSS while keeping it mounted.
+
+## Form methods (`//#region Build Form`)
+
+Every CRUD form component should define these three methods with consistent roles:
+
+### `buildForm()`
+
+- Create the `FormGroup`: controls, validators, empty `FormArray`s.
+- Do **not** load API entity data here.
+- Run once per component instance (typically from `ngOnInit`).
+
+### `populateForm()`
+
+- **Edit only:** map loaded entity state (`this.contact`, `this.receipt`, etc.) → form (`patchValue`, rebuild `FormArray`s).
+- Call after GET succeeds.
+- Guard: `if (!this.form || !this.entity) return`.
+- May call `mappingService` / `formatterService` / `utilityService` for shared normalization and display formatting.
+- Do **not** put `patchValue` logic in `mappingService`.
+
+### `resetForm()`
+
+- **Add / re-add:** return the form to add defaults and clear non-form state (upload previews, split lines, validation flags, cached entity).
+- Call when `entityId` becomes `'new'` and the **same component instance** is reused (including after save-and-add-another on the same screen).
+- When the shell **destroys** the form on close, a new instance runs `buildForm()` in `ngOnInit` instead; `resetForm()` may still exist for `ngOnChanges` or can delegate to `buildForm()` + add defaults.
+
+**Call sequence:**
+
+| Flow | Calls |
+|------|--------|
+| First open Add (new instance) | `buildForm()` → add defaults |
+| Open Edit | `buildForm()` if needed → GET → `populateForm()` |
+| Re-open Add (reused instance) | `resetForm()` |
+| Re-open Add (`@if` destroy) | New instance → `ngOnInit` → `buildForm()` |
+
+Do **not** introduce alternate names (`resetForAddMode`, `resetFormForNewEntry`, `initializeCreateForm`) in new or touched code; use `resetForm()`.
+
+## Mapping vs populate
+
+| Layer | Owner | Responsibility |
+|-------|--------|----------------|
+| **Map** | `mappingService` | API JSON ↔ `*Response` / `*Request`, list display rows, shared normalization |
+| **Populate** | Component `populateForm()` | `*Response` → this screen's `FormGroup` (dates for pickers, formatted phone, form arrays) |
+
+Mapping is reusable and form-agnostic. Populate is UI-specific and belongs on the component.
+
+## Out of scope (different pattern)
+
+- **Child tab guards** (lease, property-agreement, owner tabs): `!propertyId \|\| propertyId === 'new'` means “no persisted parent yet” — not `isAddMode` derivation.
+- **Inline row add** and **dialog** CRUD — separate patterns.
+
+## Migration (incremental)
+
+When touching an entity form:
+
+1. Add uses `'new'`, not `null`.
+2. `isAddMode = entityId === 'new'` only; remove loose/null/trim/toLowerCase add detection.
+3. Default `isAddMode = false`; set from id in `ngOnInit` / `ngOnChanges` / route param subscription.
+4. Shell/settings use `@if` list ↔ form destroy (replace `display: none`, `settings-section-hidden`, `*DetailMounted` when practical).
+5. Implement or rename to `buildForm` / `populateForm` / `resetForm`.
+6. Save and load paths use `this.isAddMode`, not duplicated id string checks.
+7. Standalone route forms: resolve `:id` from `ActivatedRoute` when `@Input` is absent.
+
+New entities must follow this standard. Existing entities are migrated when changed or when fixing add/edit bugs.
 
 # Practical Example
 

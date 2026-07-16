@@ -267,6 +267,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedReservationId: string | null = null;
   activeInvoiceId: string | null = null;
   selectedInvoice: InvoiceResponse | null = null;
+  invoiceDetailInstance = 0;
   userId = '';
   startDate: Date | null = null;
   endDate: Date | null = null;
@@ -277,14 +278,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   receiptsRefreshTrigger = 0;
   rentRollRefreshTrigger = 0;
   showBillsReceiptDetail = false;
-  billsReceiptDetailMounted = false;
   selectedBillsReceiptId: string | null = null;
-  selectedBillsReceipt: ReceiptResponse | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
   billsReceiptPrefill: ReceiptPrefill | null = null;
   billsReceiptAgreementLineId: number | null = null;
   billsReceiptAgreementLineNotes: string | null = null;
   billsReceiptAutoSaveAttemptToken = 0;
+  billsReceiptDetailInstance = 0;
   rentRollCreateQueue: RentRollCreateBillRequest[] = [];
   rentRollCreateQueueIndex = -1;
   rentRollCreateQueueSavedCount = 0;
@@ -293,24 +293,23 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   rentRollTransitionUnlockTimer: ReturnType<typeof setTimeout> | null = null;
   billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
   showReceiptsReceiptDetail = false;
-  receiptsReceiptDetailMounted = false;
   selectedReceiptsReceiptId: string | null = null;
-  selectedReceiptsReceipt: ReceiptResponse | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
+  receiptsReceiptDetailInstance = 0;
   showDepositsDetail = false;
-  depositDetailMounted = false;
   selectedDepositId: string | null = null;
   selectedDeposit: DepositResponse | null = null;
   depositsProperty: PropertyResponse | null = null;
+  depositDetailInstance = 0;
   showTransfersDetail = false;
-  transferDetailMounted = false;
   selectedTransferId: string | null = null;
   selectedTransfer: TransferResponse | null = null;
   transfersProperty: PropertyResponse | null = null;
+  transferDetailInstance = 0;
   showTransferReportDetail = false;
-  transferReportDetailMounted = false;
   selectedTransferReportId: string | null = null;
   selectedTransferReport: TransferResponse | null = null;
+  transferReportDetailInstance = 0;
   selectedChartOfAccountId: number | null = null;
   selectedFinancialReportClass: Class = Class.TotalOnly;
   selectedArAgingDatePreset: ArAgingDatePreset = 'today';
@@ -342,12 +341,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   availableGlProperties: SearchableSelectOption[] = [];
   availableGlReservations: SearchableSelectOption[] = [];
   showGeneralLedgerDetail = false;
-  showGeneralLedgerCreate = false;
   showGeneralLedgerOfficeValidationError = false;
-  generalLedgerCreateDismissTrigger = 0;
+  generalLedgerDetailInstance = 0;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
-  selectedJournalEntry: JournalEntryResponse | null = null;
+  copyFromJournalEntry: JournalEntryResponse | null = null;
   generalLedgerRefreshTrigger = 0;
   financialReportsRefreshTrigger = 0;
   undepositedFundsRefreshTrigger = 0;
@@ -383,12 +381,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   invoiceCreateInstance = 0;
   invoiceCreateReturnToEditor = false;
   showOwnersUtilityReceiptDetail = false;
-  ownersUtilityReceiptDetailMounted = false;
   selectedOwnersUtilityReceiptId: string | null = null;
-  selectedOwnersUtilityReceipt: ReceiptResponse | null = null;
   ownersUtilityReceiptProperty: PropertyResponse | null = null;
+  ownersUtilityReceiptDetailInstance = 0;
   showOwnersWorkOrderDetail = false;
-  ownersWorkOrderDetailMounted = false;
   selectedOwnersWorkOrderId: string | null = null;
   selectedOwnersWorkOrder: WorkOrderResponse | null = null;
   ownersWorkOrderProperty: PropertyResponse | null = null;
@@ -483,7 +479,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   /** List→detail remounts this shell (accounting vs accounting/:id); restore prefetch from router state. */
-  private hydrateSelectedInvoiceForActiveId(): void {
+hydrateSelectedInvoiceForActiveId(): void {
     if (!this.activeInvoiceId) {
       this.selectedInvoice = null;
       return;
@@ -581,24 +577,26 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.showGeneralLedgerCreate = false;
     this.showGeneralLedgerOfficeValidationError = false;
+    this.copyFromJournalEntry = null;
     this.activeJournalEntryId = journalEntryId;
     this.selectedJournalEntryLineId = (event.journalEntryLineId || '').trim() || null;
-    this.selectedJournalEntry = event.journalEntry ?? null;
     this.showGeneralLedgerDetail = true;
     this.cdr.markForCheck();
   }
 
-  onCreateJournalEntry(): void {
+  onCreateJournalEntry(copyFrom: JournalEntryResponse | null = null): void {
     this.showGeneralLedgerOfficeValidationError = false;
     this.selectedGlPropertyId = null;
     this.selectedGlReservationId = null;
-    this.showGeneralLedgerDetail = false;
-    this.activeJournalEntryId = null;
+    this.copyFromJournalEntry = copyFrom;
     this.selectedJournalEntryLineId = null;
-    this.selectedJournalEntry = null;
-    this.showGeneralLedgerCreate = true;
+    if (this.activeJournalEntryId === 'new' && this.showGeneralLedgerDetail) {
+      this.generalLedgerDetailInstance++;
+    }
+    this.activeJournalEntryId = 'new';
+    this.showGeneralLedgerDetail = true;
+    this.cdr.markForCheck();
   }
 
   onGeneralLedgerOfficeValidationRequired(): void {
@@ -610,26 +608,23 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines;
     this.showGeneralLedgerOfficeValidationError = false;
-    if (this.showGeneralLedgerCreate) {
-      this.generalLedgerCreateDismissTrigger++;
-    }
     this.showGeneralLedgerDetail = false;
-    this.showGeneralLedgerCreate = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
-    this.selectedJournalEntry = null;
+    this.copyFromJournalEntry = null;
     if (shouldRefreshOwnerStatements) {
       this.ownersStatementsRefreshTrigger++;
     }
   }
 
-  onCreateJournalEntryClosed(): void {
-    this.showGeneralLedgerCreate = false;
-  }
-
   onGeneralLedgerCreated(created?: JournalEntryResponse): void {
-    this.showGeneralLedgerCreate = false;
     this.showGeneralLedgerOfficeValidationError = false;
+    if (created) {
+      this.copyFromJournalEntry = null;
+      this.showGeneralLedgerDetail = false;
+      this.activeJournalEntryId = null;
+      this.selectedJournalEntryLineId = null;
+    }
     if (created?.transactionDate) {
       this.ensureDateRangeIncludesTransactionDate(created.transactionDate);
     }
@@ -643,10 +638,18 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.refreshGeneralLedgerListView();
   }
 
+  onGeneralLedgerShellSaved(created?: JournalEntryResponse): void {
+    if (this.activeJournalEntryId === 'new') {
+      this.onGeneralLedgerCreated(created);
+      return;
+    }
+
+    this.onJournalEntriesChanged();
+  }
+
   onOwnerStatementJournalEntryLineSelect(event: JournalEntryLineSelection): void {
     this.activeJournalEntryId = event.journalEntryId;
     this.selectedJournalEntryLineId = event.journalEntryLineId;
-    this.selectedJournalEntry = event.journalEntry ?? null;
     this.showGeneralLedgerDetail = true;
   }
 
@@ -665,10 +668,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedReservationId = selection.reservationId;
     }
 
-    // Keep the current shell instance. Navigating accounting → accounting/:id remounts
-    // this component and mat-tab teardown was bouncing back to the list.
-    this.selectedInvoice = selection.invoice ?? null;
+    const reopeningInvoiceAdd = invoiceId === 'new'
+      && this.activeInvoiceId === 'new';
+    this.selectedInvoice = invoiceId === 'new' ? null : (selection.invoice ?? null);
     this.activeInvoiceId = invoiceId;
+    if (reopeningInvoiceAdd) {
+      this.invoiceDetailInstance++;
+    }
     this.selectedTabIndex = 0;
     this.cdr.markForCheck();
     this.router.navigate([], {
@@ -1074,8 +1080,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
 
-    this.selectedBillsReceipt = selection?.receipt ?? null;
-
     const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
       propertyStub.propertyId = propertyId;
@@ -1092,12 +1096,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
     this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
     this.billsReceiptAutoSaveAttemptToken = selection?.autoSaveValidationAttempt ? Date.now() : 0;
+    const reopeningBillsReceiptAdd = receiptId === 'new'
+      && this.showBillsReceiptDetail
+      && this.selectedBillsReceiptId === 'new';
     this.selectedBillsReceiptId = receiptId;
+    if (reopeningBillsReceiptAdd) {
+      this.billsReceiptDetailInstance++;
+    }
     this.billsReceiptPrefill = null;
-    this.billsReceiptDetailMounted = true;
-    queueMicrotask(() => {
-      this.showBillsReceiptDetail = true;
-    });
+    this.showBillsReceiptDetail = true;
   }
 
   onBillsReceiptBack(): void {
@@ -1112,7 +1119,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.showBillsReceiptDetail = false;
     this.selectedBillsReceiptId = null;
-    this.selectedBillsReceipt = null;
     this.billsReceiptProperty = null;
     this.billsReceiptPrefill = null;
     this.billsReceiptAgreementLineId = null;
@@ -1168,7 +1174,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedTabIndex = this.tabBillsReceipts;
       this.selectedBillsReceiptKind = 'bills';
       this.billsReceiptOrigin = 'rentRoll';
-      this.selectedBillsReceiptId = null;
+      this.selectedBillsReceiptId = 'new';
       this.billsReceiptProperty = property;
       this.billsReceiptPrefill = {
         key: editorPrefillKey,
@@ -1450,8 +1456,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
 
-    this.selectedReceiptsReceipt = selection?.receipt ?? null;
-
     const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
       propertyStub.propertyId = propertyId;
@@ -1464,17 +1468,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedTabIndex = this.tabBillsReceipts;
     this.selectedBillsReceiptKind = 'receipts';
     this.receiptsReceiptProperty = propertyStub;
+    const reopeningReceiptsReceiptAdd = receiptId === 'new'
+      && this.showReceiptsReceiptDetail
+      && this.selectedReceiptsReceiptId === 'new';
     this.selectedReceiptsReceiptId = receiptId;
-    this.receiptsReceiptDetailMounted = true;
-    queueMicrotask(() => {
-      this.showReceiptsReceiptDetail = true;
-    });
+    if (reopeningReceiptsReceiptAdd) {
+      this.receiptsReceiptDetailInstance++;
+    }
+    this.showReceiptsReceiptDetail = true;
   }
 
   onReceiptsReceiptBack(): void {
     this.showReceiptsReceiptDetail = false;
     this.selectedReceiptsReceiptId = null;
-    this.selectedReceiptsReceipt = null;
     this.receiptsReceiptProperty = null;
   }
 
@@ -1510,11 +1516,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedTabIndex = this.tabBankActivities;
     this.selectedBankActivityKind = 'deposits';
     this.depositsProperty = propertyStub;
+    const reopeningDepositAdd = depositId === 'new'
+      && this.showDepositsDetail
+      && this.selectedDepositId === 'new';
     this.selectedDepositId = depositId;
-    this.depositDetailMounted = true;
-    queueMicrotask(() => {
-      this.showDepositsDetail = true;
-    });
+    if (reopeningDepositAdd) {
+      this.depositDetailInstance++;
+    }
+    this.showDepositsDetail = true;
   }
 
   onDepositBack(): void {
@@ -1557,11 +1566,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedTabIndex = this.tabBankActivities;
     this.selectedBankActivityKind = 'transfers';
     this.transfersProperty = propertyStub;
+    const reopeningTransferAdd = transferId === 'new'
+      && this.showTransfersDetail
+      && this.selectedTransferId === 'new';
     this.selectedTransferId = transferId;
-    this.transferDetailMounted = true;
-    queueMicrotask(() => {
-      this.showTransfersDetail = true;
-    });
+    if (reopeningTransferAdd) {
+      this.transferDetailInstance++;
+    }
+    this.showTransfersDetail = true;
   }
 
   onTransferBack(): void {
@@ -1596,10 +1608,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedTransferReport = selection?.transfer ?? null;
     this.selectedTabIndex = this.tabBankActivities;
     this.selectedBankActivityKind = 'transferReport';
-    this.transferReportDetailMounted = true;
-    queueMicrotask(() => {
-      this.showTransferReportDetail = true;
-    });
+    this.showTransferReportDetail = true;
   }
 
   onTransferReportBack(): void {
@@ -1634,8 +1643,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.syncBillsSearchRequest();
     }
 
-    this.selectedOwnersUtilityReceipt = selection?.receipt ?? null;
-
     const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
     if (propertyId) {
       propertyStub.propertyId = propertyId;
@@ -1648,17 +1655,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedTabIndex = this.tabOwners;
     this.selectedOwnerKind = 'utilities';
     this.ownersUtilityReceiptProperty = propertyStub;
+    const reopeningOwnersUtilityReceiptAdd = receiptId === 'new'
+      && this.showOwnersUtilityReceiptDetail
+      && this.selectedOwnersUtilityReceiptId === 'new';
     this.selectedOwnersUtilityReceiptId = receiptId;
-    this.ownersUtilityReceiptDetailMounted = true;
-    queueMicrotask(() => {
-      this.showOwnersUtilityReceiptDetail = true;
-    });
+    if (reopeningOwnersUtilityReceiptAdd) {
+      this.ownersUtilityReceiptDetailInstance++;
+    }
+    this.showOwnersUtilityReceiptDetail = true;
   }
 
   onOwnersUtilityReceiptBack(): void {
     this.showOwnersUtilityReceiptDetail = false;
     this.selectedOwnersUtilityReceiptId = null;
-    this.selectedOwnersUtilityReceipt = null;
     this.ownersUtilityReceiptProperty = null;
 
     if (this.ownerStatementReturnAfterUtilityDetail) {
@@ -1700,12 +1709,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.selectedTabIndex = this.tabOwners;
     this.selectedOwnerKind = 'workOrders';
+    const reopeningOwnersWorkOrderAdd = workOrderId === 'new'
+      && this.showOwnersWorkOrderDetail
+      && this.selectedOwnersWorkOrderId === 'new';
     this.selectedOwnersWorkOrderId = workOrderId;
-    this.ownersWorkOrderDetailMounted = true;
-    queueMicrotask(() => {
-      this.showOwnersWorkOrderDetail = true;
-      this.cdr.detectChanges();
-    });
+    if (reopeningOwnersWorkOrderAdd) {
+      this.ownersWorkOrderDetailInstance++;
+    }
+    this.showOwnersWorkOrderDetail = true;
+    this.cdr.detectChanges();
   }
 
   buildOwnersWorkOrderPropertyStub(officeId: number | null, propertyId: string): PropertyResponse {
@@ -1787,7 +1799,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  private clearWorkOrderCreateState(): void {
+clearWorkOrderCreateState(): void {
     this.showWorkOrderCreate = false;
     this.workOrderCreateContext = null;
     this.workOrderCreateReturnToDetail = false;
@@ -1839,7 +1851,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  private openOwnerStatementJournalEntryByCode(journalEntryCode: string, journalEntryLineId: string | null): void {
+openOwnerStatementJournalEntryByCode(journalEntryCode: string, journalEntryLineId: string | null): void {
     this.generalLedgerService.getJournalEntryByCode(journalEntryCode).pipe(take(1)).subscribe({
       next: journalEntry => {
         if (!journalEntry?.journalEntryId) {
@@ -1924,7 +1936,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
-    this.selectedJournalEntry = null;
     this.ownerStatementJournalEntryLinesRefreshTrigger++;
   }
 
@@ -1935,10 +1946,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
-    this.selectedJournalEntry = null;
   }
 
-  private openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null, invoice?: InvoiceResponse | null): void {
+openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null, invoice?: InvoiceResponse | null): void {
     const openInvoice = (invoiceId: string, prefetchedInvoice: InvoiceResponse | null = null) => {
       this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterInvoiceDetail = true;
@@ -1973,7 +1983,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  private openOwnerStatementReceipt(activityId: string, receiptCode: string, officeId: number | null, propertyId: string | null): void {
+openOwnerStatementReceipt(activityId: string, receiptCode: string, officeId: number | null, propertyId: string | null): void {
     if (activityId) {
       this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterUtilityDetail = true;
@@ -2005,7 +2015,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  private openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyId: string | null): void {
+openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyId: string | null): void {
     if (activityId) {
       this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterWorkOrderDetail = true;
@@ -2238,7 +2248,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.activateBankActivity(kind);
   }
 
-  private activateBankActivity(kind: AccountingShellBankActivityKind): void {
+activateBankActivity(kind: AccountingShellBankActivityKind): void {
     const previousTab = this.selectedTabIndex;
     const kindChanged = this.selectedBankActivityKind !== kind;
 
@@ -2544,14 +2554,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     };
   }
 
-  private refreshGeneralLedgerListView(): void {
+refreshGeneralLedgerListView(): void {
     if (this.selectedTabIndex !== this.tabGeneralLedger || this.selectedGeneralLedgerKind !== 'ledger') {
       return;
     }
     this.generalLedgerRefreshTrigger++;
   }
 
-  private ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
+ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
     const date = this.utilityService.parseDateOnlyStringToDate(transactionDate);
     if (!date) {
       return;
@@ -2614,7 +2624,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  private applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
+applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
     this.reconcileSetup = result;
     this.selectedChartOfAccountId = result.chartOfAccountId;
     const statementDate = this.utilityService.parseCalendarDateInput(result.statementDate);
@@ -2659,7 +2669,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectReport(view === 'detail' ? 'reconcileAccountDetail' : 'reconcileAccountSummary');
   }
 
-  private loadReconcileHistoryForSelectedAccount(): void {
+loadReconcileHistoryForSelectedAccount(): void {
     if (!this.isReconcileAccountReportActive()) {
       return;
     }
@@ -2709,7 +2719,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  private applyReconcileHistorySelection(reconcile: ReconcileResponse | null, refreshReport: boolean): void {
+applyReconcileHistorySelection(reconcile: ReconcileResponse | null, refreshReport: boolean): void {
     if (!reconcile) {
       this.clearReconcileHistorySelection(refreshReport);
       return;
@@ -2730,7 +2740,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  private clearReconcileHistorySelection(refreshReport: boolean): void {
+clearReconcileHistorySelection(refreshReport: boolean): void {
     this.reconcileHistoryRows = [];
     this.shellReconcileStatementDateOptions = [];
     this.selectedReconcileId = null;
@@ -2741,7 +2751,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  private openReconcileAccountReport(view: 'summary' | 'detail'): void {
+openReconcileAccountReport(view: 'summary' | 'detail'): void {
     const kind = view === 'detail' ? 'reconcileAccountDetail' : 'reconcileAccountSummary';
     this.preserveReconcileAccountReportContext = true;
     this.selectedReportKind = kind;
@@ -2770,7 +2780,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.reconcileLeaveReportView = 'summary';
   }
 
-  private resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {
+resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {
     if (this.selectedChartOfAccountId == null) {
       return null;
     }
@@ -2778,7 +2788,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.chartOfAccounts.find(account => account.accountId === this.selectedChartOfAccountId) ?? null;
   }
 
-  private buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: number | null; statementDate: string | null }[] {
+buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: number | null; statementDate: string | null }[] {
     return (this.chartOfAccounts || [])
       .filter(account => this.selectedOfficeId == null || account.officeId === this.selectedOfficeId)
       .map(account => ({
@@ -2852,13 +2862,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Pinned Date Range
-  private persistPinnedTopBarIfActive(): void {
+persistPinnedTopBarIfActive(): void {
     if (this.dateRangePinned) {
       this.persistPinnedDateRange();
     }
   }
 
-  private applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
+applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
     this.selectedTabIndex = stored.selectedTabIndex ?? this.selectedTabIndex;
     if (stored.selectedBillsReceiptKind) {
       this.selectedBillsReceiptKind = stored.selectedBillsReceiptKind;
@@ -3206,12 +3216,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  private beginJournalEntrySyncTools(): void {
+beginJournalEntrySyncTools(): void {
     this.isJournalEntrySyncInProgress = true;
     this.cdr.detectChanges();
   }
 
-  private finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
+finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     this.isJournalEntrySyncInProgress = false;
     if (markSyncProgressComplete) {
       this.isSyncProgressComplete = true;
@@ -3439,7 +3449,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && this.selectedBankActivityKind !== 'reconcile'
       || this.selectedTabIndex === this.tabGeneralLedger
       || this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines)
-      && (this.showGeneralLedgerDetail || this.showGeneralLedgerCreate);
+      && this.showGeneralLedgerDetail;
   }
 
   get isOwnerStatementJournalEntryLineListActive(): boolean {
@@ -3559,7 +3569,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return kind === 'statements';
   }
 
-  private captureOwnerStatementReturnContext(): void {
+captureOwnerStatementReturnContext(): void {
     if (this.isOwnerReportView(this.selectedOwnerKind)) {
       this.ownerStatementReturnOwnerKind = this.selectedOwnerKind;
       this.ownerStatementReturnReportKind = this.selectedOwnerStatementReportKind;
@@ -3649,7 +3659,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showGeneralLedgerOfficeRequired(): boolean {
-    return this.showGeneralLedgerCreate;
+    return this.activeJournalEntryId === 'new';
   }
 
   get generalLedgerShellOfficeFieldClass(): string {
@@ -4250,7 +4260,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  private buildShellChartOfAccountTitleBarOptions(options?: {
+buildShellChartOfAccountTitleBarOptions(options?: {
     maxAccountNumberExclusive?: number;
   }): { value: number; label: string }[] {
     const maxAccountNumberExclusive = options?.maxAccountNumberExclusive ?? null;
@@ -4272,7 +4282,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }));
   }
 
-  private parseChartOfAccountNumber(accountNo: string | null | undefined): number | null {
+parseChartOfAccountNumber(accountNo: string | null | undefined): number | null {
     const match = String(accountNo ?? '').trim().match(/^(\d+)/);
     if (!match) {
       return null;
@@ -4282,7 +4292,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  private clearInvoiceShellDetailState(): void {
+clearInvoiceShellDetailState(): void {
     this.activeInvoiceId = null;
     this.selectedInvoice = null;
     this.showInvoiceCreate = false;
@@ -4292,7 +4302,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  private navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}): void {
+navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}): void {
     const params = Object.entries(queryParams)
       .filter(([, value]) => value != null && value !== '')
       .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`);

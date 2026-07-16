@@ -92,7 +92,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   form: FormGroup;
   authService: AuthService;
   workOrderService: WorkOrderService;
-  isAddMode: boolean = true;
+  isAddMode: boolean = false;
   isSubmitting: boolean = false;
 
   organizationId: string = '';
@@ -139,15 +139,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
     this.selectedPropertyId = this.property?.propertyId ?? null;
-    this.isAddMode = this.workOrderId == null;
+    this.isAddMode = this.workOrderId === 'new';
 
     if (!this.embeddedInMaintenance) {
       const workOrderIdParam = this.route.snapshot.paramMap.get('id');
       if (workOrderIdParam !== null) {
-        this.workOrderId = workOrderIdParam === 'new' ? null : workOrderIdParam;
+        this.workOrderId = workOrderIdParam;
       }
       this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
-      this.isAddMode = this.workOrderId == null;
+      this.isAddMode = this.workOrderId === 'new';
 
       this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -241,16 +241,19 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private   onWorkOrderIdChanged(): void {
-    this.isAddMode = this.workOrderId == null;
+onWorkOrderIdChanged(): void {
+    this.isAddMode = this.workOrderId === 'new';
+    if (this.isAddMode) {
+      this.resetForm();
+      this.applyInitialWorkOrderPrefill();
+      return;
+    }
+
     this.hasUserEditedWorkOrder = false;
     this.workOrder = null;
     this.workOrderItems = [];
     this.associatedWorkOrderReceiptIds.clear();
-    if (this.isAddMode) {
-      this.isWorkOrderContentReady = true;
-      this.clearWorkOrderLoading();
-    } else if (this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
+    if (this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
       this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
     } else {
       const prefetchedWorkOrder = this.resolvePrefetchedWorkOrder();
@@ -260,9 +263,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.isWorkOrderContentReady = false;
         this.loadWorkOrder();
       }
-    }
-    if (this.isAddMode && this.property?.officeId) {
-      this.loadAccountingOfficeForWorkOrderCode();
     }
   }
 
@@ -555,7 +555,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Form Methods
+  //#region Build Form
   buildForm(): void {
     this.form = this.fb.group({
       workOrderCode: new FormControl(''),
@@ -572,30 +572,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       isActive: new FormControl(true)
     });
     this.lastMarkupFactor = this.getMarkupFactor();
-  }
-
-  applyInitialWorkOrderPrefill(): void {
-    if (!this.isAddMode) {
-      return;
-    }
-
-    const title = (this.initialTitle || '').trim();
-    const description = (this.initialDescription || '').trim();
-    if (!title && !description) {
-      return;
-    }
-
-    const patch: { title?: string; description?: string } = {};
-    if (title && !(this.form.get('title')?.value ?? '').toString().trim()) {
-      patch.title = title.slice(0, 1000);
-    }
-    if (description && !(this.form.get('description')?.value ?? '').toString().trim()) {
-      patch.description = description.slice(0, 2048);
-    }
-
-    if (Object.keys(patch).length > 0) {
-      this.form.patchValue(patch, { emitEvent: false });
-    }
   }
 
   populateForm(workOrder: WorkOrderResponse): void {
@@ -643,6 +619,79 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.hasUserEditedWorkOrder = false;
     this.captureInitialWorkOrderItemsSnapshot();
     this.syncUseDepartureFeeFromItems();
+  }
+
+  resetForm(): void {
+    if (!this.form) {
+      return;
+    }
+
+    this.isAddMode = this.workOrderId === 'new';
+    this.isSubmitting = false;
+    this.workOrder = null;
+    this.workOrderItems = [];
+    this.associatedWorkOrderReceiptIds.clear();
+    this.hasUserEditedWorkOrder = false;
+    this.initialWorkOrderItemsSnapshot = [];
+    this.focusedCurrencyField = null;
+    this.generatedWorkOrderCode = null;
+    this.nextWorkOrderNo = null;
+    this.activeWorkOrderLoadId++;
+    this.isWorkOrderContentReady = true;
+    this.clearWorkOrderLoading();
+
+    this.form.reset({
+      workOrderCode: '',
+      workOrderDate: this.getWorkOrderDateControlValue(this.getTodayWorkOrderDate()),
+      officeName: this.property?.officeName || '',
+      propertyCode: this.property?.propertyCode || '',
+      workOrderTypeId: null,
+      applyMarkup: false,
+      reservationId: null,
+      useDepartureFee: false,
+      enteredInQb: false,
+      title: '',
+      description: '',
+      isActive: true
+    }, { emitEvent: false });
+    this.lastMarkupFactor = this.getMarkupFactor();
+    this.onWorkOrderTypeChanged(null);
+
+    this.selectedPropertyId = this.property?.propertyId ?? null;
+    this.loadAccountingOfficeForWorkOrderCode();
+    if (this.property || this.selectedPropertyId) {
+      this.loadPropertyReservations();
+      this.loadPropertyReceipts();
+      this.loadPropertyAgreement();
+    }
+    this.emitPropertySelectionRequiredState();
+    this.cdr.markForCheck();
+  }
+  //#endregion
+
+  //#region Form Methods
+  applyInitialWorkOrderPrefill(): void {
+    if (!this.isAddMode) {
+      return;
+    }
+
+    const title = (this.initialTitle || '').trim();
+    const description = (this.initialDescription || '').trim();
+    if (!title && !description) {
+      return;
+    }
+
+    const patch: { title?: string; description?: string } = {};
+    if (title && !(this.form.get('title')?.value ?? '').toString().trim()) {
+      patch.title = title.slice(0, 1000);
+    }
+    if (description && !(this.form.get('description')?.value ?? '').toString().trim()) {
+      patch.description = description.slice(0, 2048);
+    }
+
+    if (Object.keys(patch).length > 0) {
+      this.form.patchValue(patch, { emitEvent: false });
+    }
   }
 
   isInventoryItemSelected(item: WorkOrderItemEditable): boolean {
@@ -1438,7 +1487,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadWorkOrder(): void {
-    if (this.isAddMode || this.workOrderId == null) {
+    if (this.isAddMode) {
       this.associatedWorkOrderReceiptIds.clear();
       this.activeWorkOrderLoadId++;
       this.clearWorkOrderLoading();
@@ -1491,7 +1540,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private applyPropertyContextFromWorkOrder(workOrder: WorkOrderResponse): void {
+applyPropertyContextFromWorkOrder(workOrder: WorkOrderResponse): void {
     const propertyId = (workOrder.propertyId || '').trim();
     if (!propertyId) {
       return;
@@ -1523,7 +1572,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
+syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
     if (!this.embeddedInMaintenance) {
       return;
     }
@@ -2099,7 +2148,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
-  private isValidReceiptId(receiptId: string | null | undefined): boolean {
+isValidReceiptId(receiptId: string | null | undefined): boolean {
     return !!(receiptId && String(receiptId).trim());
   }
   //#endregion

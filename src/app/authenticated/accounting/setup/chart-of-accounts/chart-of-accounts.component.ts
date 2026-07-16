@@ -97,11 +97,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
 
   initializeFromId(): void {
     this.syncSelectedOfficeFromInput();
-    if (!this.id) {
-      this.isAddMode = true;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccount');
-      this.refreshParentAccountOptions();
-      this.scheduleFocusFirstField();
+    if (this.id == null || String(this.id).trim() === '') {
       return;
     }
 
@@ -220,7 +216,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
         );
         this.chartOfAccountsService.notifyChartOfAccountsChanged();
         if (this.isAddMode) {
-          this.resetFormForNewEntry();
+          this.resetForm();
         } else {
           this.back();
         }
@@ -299,7 +295,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
     subAccountControl.updateValueAndValidity({ emitEvent: false });
   }
 
-  resetFormForNewEntry(): void {
+  resetForm(): void {
     this.form.reset();
     const user = this.authService.getUser();
     this.form.patchValue({

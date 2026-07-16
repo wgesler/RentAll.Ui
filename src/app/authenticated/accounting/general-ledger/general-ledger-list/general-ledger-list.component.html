@@ -101,18 +101,6 @@
           }
         </div>
       </div>
-    } @else if (showCreateJournalEntry) {
-      <app-general-ledger
-        [isCreateMode]="true"
-        [officeId]="officeId"
-        [propertyId]="propertyId"
-        [reservationId]="reservationId"
-        [reservationContactId]="reservationContactId"
-        [copyFromJournalEntry]="copyFromJournalEntry"
-        (backEvent)="closeCreateJournalEntry()"
-        (savedEvent)="onCreateJournalEntrySaved($event)"
-        (officeValidationRequired)="officeValidationRequiredEvent.emit()">
-      </app-general-ledger>
     } @else if (isServiceError) {
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>

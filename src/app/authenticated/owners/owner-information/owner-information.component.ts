@@ -33,6 +33,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerContactId: string | null = null;
   @Input() selectedOfficeId: number | null = null;
   @Output() ownerContextChanged = new EventEmitter<void>();
+  @Output() ownerLeadCreated = new EventEmitter<number>();
   private fb = inject(FormBuilder);
   private formatterService = inject(FormatterService);
   private contactService = inject(ContactService);
@@ -111,6 +112,12 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOwnerLead(): void {
+    const ownerLeadId = Number(this.ownerLeadId);
+    if (!String(this.token || '').trim() && (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0)) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-lead');
+      return;
+    }
+
     this.ownersService.getOwnerByContext(this.token, this.ownerLeadId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-lead'); })).subscribe({
       next: (ownerLead) => {
         if (!ownerLead) {
@@ -338,11 +345,34 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     const contactId = String(event.contactId || '').trim();
-    if (contactId) {
-      this.primaryOwnerContactId = contactId;
-      this.syncCurrentContactFromList();
+    if (!contactId) {
+      return;
     }
-    this.ownerContextChanged.emit();
+
+    this.primaryOwnerContactId = contactId;
+    this.syncCurrentContactFromList();
+
+    const ownerLeadId = Number(this.ownerLeadId);
+    if (Number.isFinite(ownerLeadId) && ownerLeadId > 0) {
+      this.ownerContextChanged.emit();
+      return;
+    }
+
+    this.ownersService.createOwnerLeadFromContactByContext(contactId).pipe(take(1)).subscribe({
+      next: result => {
+        if (!result) {
+          this.toastr.error('Unable to create owner lead from contact.', CommonMessage.Error);
+          return;
+        }
+        this.leadOwnerSnapshot = result.createdLead;
+        this.applyOwnerLeadPrefill(result.createdLead);
+        this.ownerLeadCreated.emit(result.createdLead.ownerId);
+        this.ownerContextChanged.emit();
+      },
+      error: () => {
+        this.toastr.error('Unable to create owner lead from contact.', CommonMessage.Error);
+      }
+    });
   }
 
   onSaveRequested(): void {

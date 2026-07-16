@@ -271,7 +271,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     };
 
     // Determine if this is add or edit mode based on invoiceId
-    const isCreating = !this.invoiceId || this.invoiceId === 'new' || this.invoiceId === '';
+    const isCreating = this.isAddMode;
     
     if (!isCreating) {
       invoiceRequest.invoiceId = this.invoiceId;
@@ -1147,7 +1147,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
   }
 
-  private recomputeLedgerLineNumbers(): void {
+recomputeLedgerLineNumbers(): void {
     this.ledgerLines.forEach((line, index) => {
       line.lineNumber = index + 1;
     });

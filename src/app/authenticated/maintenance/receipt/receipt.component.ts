@@ -48,7 +48,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: string | null = null;
-  @Input() prefetchedReceipt: ReceiptResponse | null = null;
   @Input() prefill: ReceiptPrefill | null = null;
   @Input() agreementLineIdOverride: number | null = null;
   @Input() agreementLineNotesOverride: string | null = null;
@@ -82,7 +81,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   form: FormGroup;
   authService: AuthService;
   receiptService: ReceiptService;
-  isAddMode: boolean = true;
+  isAddMode: boolean = false;
   isSubmitting: boolean = false;
   isPageReady = false;
   isReceiptContentReady = false;
@@ -154,7 +153,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
-    this.isAddMode = this.receiptId == null;
+    this.isAddMode = this.receiptId === 'new';
     this.syncSelectedPropertyIdFromForm();
 
     this.form.get('propertyIds')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((value) => {
@@ -209,21 +208,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (changes['receiptId'] && !changes['receiptId'].firstChange) {
-      this.clearManualSplitAccountOverrides();
-      this.isAddMode = this.receiptId == null;
-      this.addModeBankCardPreferenceApplied = false;
-      this.receiptOfficeInitialized = false;
-      this.lastAppliedShellOfficeId = undefined;
-      this.appliedPrefillKey = null;
-      this.activeAgreementLineId = null;
-      this.activeAgreementLineNotes = null;
-      this.receipt = null;
+      this.isAddMode = this.receiptId === 'new';
       if (this.isAddMode) {
-        this.isReceiptContentReady = true;
-        this.clearReceiptLoading();
-        this.applyShellOfficeToReceipt();
+        this.resetForm();
         this.applyPrefillIfNeeded();
       } else {
+        this.clearManualSplitAccountOverrides();
+        this.addModeBankCardPreferenceApplied = false;
+        this.receiptOfficeInitialized = false;
+        this.lastAppliedShellOfficeId = undefined;
+        this.appliedPrefillKey = null;
+        this.activeAgreementLineId = null;
+        this.activeAgreementLineNotes = null;
+        this.receipt = null;
         this.isReceiptContentReady = false;
         this.loadReceipt();
       }
@@ -489,7 +486,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Form Methods
+  //#region Form Validators
   readonly requireNonEmptyArray = (control: AbstractControl): ValidationErrors | null => {
     const value = control.value;
     if (!Array.isArray(value) || value.filter(entry => entry != null && String(entry).trim().length > 0).length === 0) {
@@ -502,7 +499,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const value = (control.value || '').toString().trim();
     return value ? null : { required: true };
   };
+  //#endregion
 
+  //#region Build Form
   buildForm(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -566,11 +565,76 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.receiptFileName = this.extractFileName(receipt.receiptPath || '');
     }
   }
+
+  resetForm(): void {
+    if (!this.form) {
+      return;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    this.isAddMode = this.receiptId === 'new';
+    this.clearManualSplitAccountOverrides();
+    this.addModeBankCardPreferenceApplied = false;
+    this.receiptOfficeInitialized = false;
+    this.lastAppliedShellOfficeId = undefined;
+    this.receipt = null;
+    this.isSubmitting = false;
+    this.isReceiptContentReady = true;
+    this.clearReceiptLoading();
+    this.selectedPropertyId = null;
+    this.activeAgreementLineId = null;
+    this.activeAgreementLineNotes = null;
+    this.appliedPrefillKey = null;
+    this.saveValidationHighlightActive = false;
+    this.receiptFileValidationError = false;
+    this.splitTotalValidationError = false;
+    this.pendingAutoSaveAttempt = false;
+    this.receiptPreviewDataUrl = null;
+    this.receiptPdfThumbnailUrl = null;
+    this.receiptFileName = null;
+    this.receiptFileDetails = null;
+    this.hasNewReceiptUpload = false;
+    this.originalReceiptPath = null;
+    this.amountFocused = false;
+    this.amountEditValue = '';
+    this.focusedSplitAmountIndex = null;
+    this.splitAmountEditValue = '';
+    this.form.reset({
+      officeName: '',
+      receiptDate: new Date(today.getTime()),
+      dueDate: new Date(today.getTime()),
+      accountingPeriod: new Date(today.getTime()),
+      propertyCode: '',
+      propertyIds: [],
+      amount: '0.00',
+      description: '',
+      bankCardId: 0,
+      vendorId: null,
+      vendorName: null,
+      billNumber: null,
+      receiptPath: '',
+      isUtility: false,
+      isActive: true
+    }, { emitEvent: false });
+    this.splitsFormArray.clear();
+    this.ensureAtLeastOneSplit();
+    this.updateSplitLineAccountValidators();
+    this.updateAccountingBillFieldValidators();
+    this.updateVendorFieldValidators();
+    this.applyShellOfficeToReceipt();
+    this.applyPropertyInputToForm();
+    this.applyDefaultSplitAccountsForAddMode();
+    this.applyPreferredAddModeBankCardOnce();
+    this.lastPropertyIdsValue = this.getFormPropertyIds();
+    this.syncSelectedPropertyIdFromForm();
+    this.emitPropertySelectionRequiredState();
+    this.cdr.markForCheck();
+  }
   //#endregion
 
   //#region Data Load Methods
   loadReceipt(): void {
-    if (this.isAddMode || !this.receiptId) {
+    if (this.isAddMode) {
       this.clearReceiptLoading();
       return;
     }
@@ -2502,66 +2566,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!prefillKey || prefillKey === this.appliedPrefillKey) {
       return;
     }
-    if (!this.isAddMode && this.isEmbeddedInShell && !this.receiptId) {
-      this.resetForNextEmbeddedPrefill();
+    if (!this.isAddMode && this.isEmbeddedInShell && this.receiptId === 'new') {
+      this.resetForm();
     }
     this.applyPrefillIfNeeded();
   }
 
   resetForNextEmbeddedPrefill(): void {
-    if (!this.form) {
-      return;
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    this.clearManualSplitAccountOverrides();
-    this.receipt = null;
-    this.isAddMode = true;
-    this.isSubmitting = false;
-    this.selectedPropertyId = null;
-    this.activeAgreementLineId = null;
-    this.activeAgreementLineNotes = null;
-    this.appliedPrefillKey = null;
-    this.saveValidationHighlightActive = false;
-    this.receiptFileValidationError = false;
-    this.splitTotalValidationError = false;
-    this.pendingAutoSaveAttempt = false;
-    this.receiptPreviewDataUrl = null;
-    this.receiptPdfThumbnailUrl = null;
-    this.receiptFileName = null;
-    this.receiptFileDetails = null;
-    this.hasNewReceiptUpload = false;
-    this.originalReceiptPath = null;
-    this.amountFocused = false;
-    this.amountEditValue = '';
-    this.focusedSplitAmountIndex = null;
-    this.splitAmountEditValue = '';
-    this.form.reset({
-      officeName: '',
-      receiptDate: new Date(today.getTime()),
-      dueDate: new Date(today.getTime()),
-      accountingPeriod: new Date(today.getTime()),
-      propertyCode: '',
-      propertyIds: [],
-      amount: '0.00',
-      description: '',
-      bankCardId: 0,
-      vendorId: null,
-      vendorName: null,
-      billNumber: null,
-      receiptPath: '',
-      isUtility: false,
-      isActive: true
-    }, { emitEvent: false });
-    this.splitsFormArray.clear();
-    this.ensureAtLeastOneSplit();
-    this.updateSplitLineAccountValidators();
-    this.updateAccountingBillFieldValidators();
-    this.updateVendorFieldValidators();
-    this.applyShellOfficeToReceipt();
-    this.lastPropertyIdsValue = this.getFormPropertyIds();
-    this.syncSelectedPropertyIdFromForm();
-    this.emitPropertySelectionRequiredState();
+    this.resetForm();
   }
 
   applyAgreementLineOverrides(): void {

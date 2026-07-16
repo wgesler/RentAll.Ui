@@ -312,7 +312,7 @@ export abstract class BaseDocumentComponent {
     }
   }
 
-  private resolveDocuSignOfficeCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
+resolveDocuSignOfficeCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
     const resolvedOfficeId = officeId ?? this.docuSignGlobalSelectionService.getSelectedOfficeIdValue();
     if (!resolvedOfficeId) {
       return { userId: null, apiAccountId: null };
@@ -325,7 +325,7 @@ export abstract class BaseDocumentComponent {
     };
   }
 
-  private buildDocuSignReturnUrl(): string {
+buildDocuSignReturnUrl(): string {
     if (typeof window === 'undefined') {
       return '';
     }
@@ -333,7 +333,7 @@ export abstract class BaseDocumentComponent {
     return new URL('assets/docusign-return.html', window.location.origin + '/').href;
   }
 
-  private resolveDocuSignSenderViewUrl(
+resolveDocuSignSenderViewUrl(
     response: { senderViewUrl?: string; SenderViewUrl?: string } | null | undefined
   ): string {
     return String(response?.senderViewUrl || response?.SenderViewUrl || '').trim();
@@ -344,7 +344,7 @@ export abstract class BaseDocumentComponent {
     this.documentHtmlService.injectStylesIntoIframe(config.previewIframeStyles);
   }
 
-  private getDocuSignErrorMessage(error: unknown, fallbackMsg: string): string {
+getDocuSignErrorMessage(error: unknown, fallbackMsg: string): string {
     if (!(error instanceof HttpErrorResponse)) {
       return fallbackMsg;
     }

@@ -170,15 +170,17 @@
               </app-invoice-create>
             }
           } @else if (activeInvoiceId) {
-            <app-invoice
-              [shellMode]="true"
-              [embedDocumentPreviewInShell]="true"
-              [invoiceIdInput]="activeInvoiceId"
-              [officeIdInput]="displayOfficeId"
-              [reservationIdInput]="activeReservationId"
-              [prefetchedInvoice]="selectedInvoice"
-              (previewEvent)="onInvoicePreviewOpen($event)">
-            </app-invoice>
+            @for (instance of [invoiceDetailInstance]; track instance) {
+              <app-invoice
+                [shellMode]="true"
+                [embedDocumentPreviewInShell]="true"
+                [invoiceIdInput]="activeInvoiceId"
+                [officeIdInput]="displayOfficeId"
+                [reservationIdInput]="activeReservationId"
+                [prefetchedInvoice]="selectedInvoice"
+                (previewEvent)="onInvoicePreviewOpen($event)">
+              </app-invoice>
+            }
           } @else {
             <app-invoice-list
               [officeId]="displayOfficeId"

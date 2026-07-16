@@ -126,12 +126,12 @@ export class CostCodesService {
     return this.costCodeIdByOfficeAndCode.get(`${officeId}|${code}`) ?? null;
   }
 
-  private setAllCostCodes(costCodes: CostCodesResponse[]): void {
+setAllCostCodes(costCodes: CostCodesResponse[]): void {
     this.allCostCodes$.next(costCodes);
     this.rebuildCostCodeLookup(costCodes);
   }
 
-  private rebuildCostCodeLookup(costCodes: CostCodesResponse[]): void {
+rebuildCostCodeLookup(costCodes: CostCodesResponse[]): void {
     this.costCodeIdByOfficeAndCode.clear();
     for (const costCode of costCodes) {
       if (!costCode.isActive) {
@@ -144,7 +144,7 @@ export class CostCodesService {
     }
   }
 
-  private normalizeAccountCode(value: string | null | undefined): string {
+normalizeAccountCode(value: string | null | undefined): string {
     return String(value ?? '')
       .split(/\s+/)
       .filter(part => part.length > 0)

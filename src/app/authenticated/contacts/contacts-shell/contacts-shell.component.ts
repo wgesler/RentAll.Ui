@@ -211,7 +211,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   }
 
   /** Page-level office follows global header; does not write global. */
-  private applyOfficeFromGlobal(officeId: number | null): void {
+applyOfficeFromGlobal(officeId: number | null): void {
     this.resolveOfficeScope(this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,
@@ -223,7 +223,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     this.propagateOfficeToContactLists();
   }
 
-  private propagateOfficeToContactLists(): void {
+propagateOfficeToContactLists(): void {
     queueMicrotask(() => {
       const scopeOfficeId = this.selectedOfficeId;
       this.contactSections?.forEach(section => {

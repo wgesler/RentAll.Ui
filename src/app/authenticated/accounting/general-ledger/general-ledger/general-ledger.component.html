@@ -1,5 +1,5 @@
 @if (isPageReady) {
-  @if (!isCreateMode && (isServiceError || !journalEntry)) {
+  @if (!isAddMode && (isServiceError || !journalEntry)) {
     <div class="general-ledger-empty-state">
       <p>Unable to load journal entry details.</p>
     </div>
@@ -26,7 +26,7 @@
       <div class="general-ledger-header-row">
         <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-entry w-full">
           <mat-label>Entry No</mat-label>
-          <input matInput [value]="isCreateMode ? 'New' : (journalEntry?.journalEntryCode || '')" readonly disabled class="readonly-field">
+          <input matInput [value]="isAddMode ? 'New' : (journalEntry?.journalEntryCode || '')" readonly disabled class="readonly-field">
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-source w-full">

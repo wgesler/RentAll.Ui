@@ -50,7 +50,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   hasNewLeadBadge = false;
   destroy$ = new Subject<void>();
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

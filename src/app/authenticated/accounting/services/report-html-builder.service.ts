@@ -101,7 +101,7 @@ export class ReportHtmlBuilderService {
     `.trim();
   }
 
-  private buildHeaderCell(column: PrintableReportColumn): string {
+buildHeaderCell(column: PrintableReportColumn): string {
     const alignClass = column.align === 'right'
       ? ' report__th--right'
       : column.align === 'center'
@@ -110,7 +110,7 @@ export class ReportHtmlBuilderService {
     return `<th class="report__th${alignClass}">${this.escapeHtml(column.label)}</th>`;
   }
 
-  private buildRowHtml(row: PrintableReportRow, columnCount: number): string {
+buildRowHtml(row: PrintableReportRow, columnCount: number): string {
     const rowClass = `report__row report__row--${row.kind}`;
     if (row.kind === 'section' || row.kind === 'subsection') {
       const label = row.cells[0] || '';
@@ -133,7 +133,7 @@ export class ReportHtmlBuilderService {
     return `<tr class="${rowClass}">${cellHtml}</tr>`;
   }
 
-  private resolveCellAlign(cellIndex: number, columnCount: number, row: PrintableReportRow): 'left' | 'right' | 'center' {
+resolveCellAlign(cellIndex: number, columnCount: number, row: PrintableReportRow): 'left' | 'right' | 'center' {
     if (row.kind === 'line' && columnCount >= 7 && cellIndex >= 5) {
       return 'right';
     }
@@ -149,7 +149,7 @@ export class ReportHtmlBuilderService {
     return 'left';
   }
 
-  private normalizeCells(cells: string[], columnCount: number): string[] {
+normalizeCells(cells: string[], columnCount: number): string[] {
     const normalized = [...(cells || [])];
     while (normalized.length < columnCount) {
       normalized.push('');
@@ -157,7 +157,7 @@ export class ReportHtmlBuilderService {
     return normalized.slice(0, columnCount);
   }
 
-  private escapeHtml(value: string): string {
+escapeHtml(value: string): string {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')

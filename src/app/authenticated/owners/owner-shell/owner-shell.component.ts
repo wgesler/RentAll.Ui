@@ -68,6 +68,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
   ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   isOwnerListMode = false;
+  isOwnerAddMode = false;
   selectedTabIndex = 0;
   token = '';
   leadOwnerId: number | null = null;
@@ -123,11 +124,12 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       const officeId = Number(String(queryParamMap.get('officeId') || '').trim());
       const propertyCode = String(queryParamMap.get('propertyCode') || '').trim();
       const propertyOffice = String(queryParamMap.get('propertyOffice') || '').trim();
-      this.syncOwnerShellFromRoute(token, leadOwnerId, officeId, propertyCode, propertyOffice);
+      const isNewOwner = String(queryParamMap.get('newOwner') || '').trim() === '1';
+      this.syncOwnerShellFromRoute(token, leadOwnerId, officeId, propertyCode, propertyOffice, isNewOwner);
     });
   }
 
-  syncOwnerShellFromRoute(token: string, leadOwnerId: number, officeId: number, propertyCode: string, propertyOffice: string): void {
+  syncOwnerShellFromRoute(token: string, leadOwnerId: number, officeId: number, propertyCode: string, propertyOffice: string, isNewOwner = false): void {
     this.token = token;
     this.tokenPropertyOffice = String(propertyOffice || '').trim();
     this.loadOffices();
@@ -141,6 +143,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
     if (token) {
       this.isOwnerListMode = false;
+      this.isOwnerAddMode = false;
       this.leadOwnerId = null;
       this.navigationContextService.setIsInOwnerMode(true);
       this.tokenRouteHadPropertyCode = String(propertyCode || '').trim().length > 0;
@@ -158,6 +161,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
     if (Number.isFinite(leadOwnerId) && leadOwnerId > 0) {
       this.isOwnerListMode = false;
+      this.isOwnerAddMode = false;
       this.selectedTabIndex = 0;
       this.leadOwnerId = leadOwnerId;
       this.navigationContextService.setIsInOwnerMode(true);
@@ -170,7 +174,22 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (isNewOwner) {
+      this.isOwnerListMode = false;
+      this.isOwnerAddMode = true;
+      this.selectedTabIndex = 0;
+      this.leadOwnerId = null;
+      this.selectedOwnerContactId = null;
+      this.navigationContextService.setIsInOwnerMode(true);
+      if (Number.isFinite(officeId) && officeId > 0) {
+        this.applyPageOfficeScope(officeId);
+      }
+      this.loadPropertyCodeOptions();
+      return;
+    }
+
     this.isOwnerListMode = true;
+    this.isOwnerAddMode = false;
     this.leadOwnerId = null;
     this.navigationContextService.setIsInOwnerMode(false);
   }
@@ -581,7 +600,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.reloadStateFormsForSelectedProperty();
   }
 
-  private applyOwnerLeadAddressSeedFromPublicForm(token: string): void {
+applyOwnerLeadAddressSeedFromPublicForm(token: string): void {
     this.ownersService.getOwnerFormByContext(token).pipe(take(1), catchError(() => of(null))).subscribe(ownerForm => {
       const ownerLead = ownerForm?.form;
       this.ownerLeadPropertyCode = String(ownerLead?.propertyCode || '').trim().toUpperCase();
@@ -792,6 +811,34 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   onBackToOwnerList(): void {
     this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     void this.router.navigateByUrl(RouterUrl.OwnerShell);
+  }
+
+  onOwnerLeadCreated(ownerLeadId: number): void {
+    const resolvedOwnerLeadId = Number(ownerLeadId);
+    if (!Number.isFinite(resolvedOwnerLeadId) || resolvedOwnerLeadId <= 0) {
+      return;
+    }
+
+    this.isOwnerAddMode = false;
+    this.leadOwnerId = resolvedOwnerLeadId;
+    const resolvedOfficeId = Number(this.selectedOfficeId);
+    const queryParams: Record<string, number | null> = {
+      leadOwnerId: resolvedOwnerLeadId,
+      newOwner: null
+    };
+    if (Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0) {
+      queryParams['officeId'] = resolvedOfficeId;
+    }
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+    this.refreshOwnerContactIdForContext();
+    this.rebuildOwnerAgreementContext();
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

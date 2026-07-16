@@ -27,7 +27,7 @@ export class PropertyListingPublicComponent implements OnInit {
   errorMessage = '';
   private loadingWatchdog?: ReturnType<typeof setTimeout>;
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

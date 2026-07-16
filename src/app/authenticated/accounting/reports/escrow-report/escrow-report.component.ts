@@ -265,7 +265,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
   }
 
-  private resolveEscrowBankAccountId(officeId: number): number | null {
+resolveEscrowBankAccountId(officeId: number): number | null {
     const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
       .find(office => Number(office.officeId) === officeId);
     const configuredAccountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
@@ -281,7 +281,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     return fallbackId > 0 ? fallbackId : null;
   }
 
-  private resolveEscrowBankAccountLabel(officeId: number, accountId: number | null): string {
+resolveEscrowBankAccountLabel(officeId: number, accountId: number | null): string {
     if (accountId == null) {
       return '';
     }
@@ -295,7 +295,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     return this.utilityService.getChartOfAccountDropdownLabel(account);
   }
 
-  private formatAsOfLabel(asOfDate: string): string {
+formatAsOfLabel(asOfDate: string): string {
     return this.formatter.formatDateString(asOfDate) || asOfDate;
   }
 

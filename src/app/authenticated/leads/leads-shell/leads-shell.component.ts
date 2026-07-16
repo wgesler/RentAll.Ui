@@ -356,7 +356,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   /** Page-level office follows global header; does not write global. */
-  private applyOfficeFromGlobal(officeId: number | null): void {
+applyOfficeFromGlobal(officeId: number | null): void {
     const resolvedId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,
@@ -376,7 +376,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   /** Title-bar office change on this page only (never updates global selection). */
-  private applyPageOfficeScope(officeId: number | null): void {
+applyPageOfficeScope(officeId: number | null): void {
     if (this.offices.length > 0) {
       this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
       this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
@@ -396,7 +396,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
   }
 
-  private propagateOfficeToLeadLists(): void {
+propagateOfficeToLeadLists(): void {
     const scopeOfficeId = this.selectedOfficeId;
     queueMicrotask(() => {
       this.rentalLists?.forEach(section => {
@@ -420,7 +420,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  private clearOfficeTitleBarErrorIfValid(): void {
+clearOfficeTitleBarErrorIfValid(): void {
     if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
       this.officeTitleBarShowError = false;
     }

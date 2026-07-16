@@ -91,7 +91,7 @@ export class CheckPrintService {
     };
   }
 
-  private wrapPages(pages: string[], template: string): string {
+wrapPages(pages: string[], template: string): string {
     if (pages.length === 0) {
       return template;
     }
@@ -105,12 +105,12 @@ export class CheckPrintService {
     return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" />${styles}</head><body>${combinedBody}</body></html>`;
   }
 
-  private extractStyles(template: string): string {
+extractStyles(template: string): string {
     const match = template.match(/<style[\s\S]*?<\/style>/i);
     return match?.[0] ?? '';
   }
 
-  private extractPageContent(html: string): string {
+extractPageContent(html: string): string {
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch?.[1]) {
       return bodyMatch[1].trim();
@@ -118,7 +118,7 @@ export class CheckPrintService {
     return html.trim();
   }
 
-  private buildCompanyBlock(accountingOffice: AccountingOfficeResponse | null): string {
+buildCompanyBlock(accountingOffice: AccountingOfficeResponse | null): string {
     if (!accountingOffice) {
       return 'RentAll Exchange';
     }
@@ -132,7 +132,7 @@ export class CheckPrintService {
     return lines.join('<br>');
   }
 
-  private buildBankBlock(accountingOffice: AccountingOfficeResponse | null): string {
+buildBankBlock(accountingOffice: AccountingOfficeResponse | null): string {
     if (!accountingOffice?.bankName) {
       return 'Bank';
     }
@@ -140,7 +140,7 @@ export class CheckPrintService {
     return [accountingOffice.bankName, accountingOffice.bankAddress].filter(part => (part || '').trim()).join('<br>');
   }
 
-  private buildMicrLine(checkNumber: string, accountingOffice: AccountingOfficeResponse | null): string {
+buildMicrLine(checkNumber: string, accountingOffice: AccountingOfficeResponse | null): string {
     const routing = (accountingOffice?.bankRouting || '').replace(/\D/g, '');
     const account = (accountingOffice?.bankAccount || '').replace(/\D/g, '');
     const checkNo = checkNumber.replace(/\D/g, '') || checkNumber;
@@ -150,7 +150,7 @@ export class CheckPrintService {
     return `⑆${checkNo}⑆ ⑈${routing || '000000000'}⑈ ${account || '0000000000'}⑉`;
   }
 
-  private buildMemo(line: JournalEntryLineListDisplay): string {
+buildMemo(line: JournalEntryLineListDisplay): string {
     const parts = [
       (line.description || '').trim(),
       (line.journalEntryCode || '').trim(),
@@ -159,7 +159,7 @@ export class CheckPrintService {
     return parts.join(' - ');
   }
 
-  private buildStubDetailRow(line: JournalEntryLineListDisplay, amount: number): string {
+buildStubDetailRow(line: JournalEntryLineListDisplay, amount: number): string {
     return this.buildStubRow(
       (line.transactionDate || '').trim(),
       'Bill Payment',
@@ -169,7 +169,7 @@ export class CheckPrintService {
     );
   }
 
-  private buildCompanyStubDetailRow(line: JournalEntryLineListDisplay, amount: number): string {
+buildCompanyStubDetailRow(line: JournalEntryLineListDisplay, amount: number): string {
     return this.buildStubRow(
       (line.transactionDate || '').trim(),
       (line.account || '').trim() || 'Bank',
@@ -179,7 +179,7 @@ export class CheckPrintService {
     );
   }
 
-  private buildStubRow(date: string, type: string, reference: string, memo: string, amount: number): string {
+buildStubRow(date: string, type: string, reference: string, memo: string, amount: number): string {
     const blankRows = Array.from({ length: 2 }, () =>
       '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>'
     ).join('');
@@ -191,7 +191,7 @@ export class CheckPrintService {
         <tr class="total-row"><td colspan="4" class="num">Check Total</td><td class="num">$${amountPlain}</td></tr>`;
   }
 
-  private resolveCheckNumber(line: JournalEntryLineListDisplay): string {
+resolveCheckNumber(line: JournalEntryLineListDisplay): string {
     const code = (line.journalEntryCode || '').trim();
     if (!code) {
       return '';
@@ -200,7 +200,7 @@ export class CheckPrintService {
     return numericSuffix?.[1] || code;
   }
 
-  private amountToWords(amount: number): string {
+amountToWords(amount: number): string {
     const normalized = Math.round(Math.abs(Number(amount) || 0) * 100) / 100;
     const dollars = Math.floor(normalized);
     const cents = Math.round((normalized - dollars) * 100);
@@ -209,7 +209,7 @@ export class CheckPrintService {
     return `${capitalized} and ${String(cents).padStart(2, '0')}/100`;
   }
 
-  private numberToWords(value: number): string {
+numberToWords(value: number): string {
     if (!Number.isFinite(value) || value === 0) {
       return 'zero';
     }
@@ -247,11 +247,11 @@ export class CheckPrintService {
     return words.join(' ').replace(/\s+/g, ' ').trim();
   }
 
-  private joinParts(parts: Array<string | null | undefined>, separator = ' '): string {
+joinParts(parts: Array<string | null | undefined>, separator = ' '): string {
     return parts.map(part => (part || '').trim()).filter(Boolean).join(separator);
   }
 
-  private escapeHtml(value: string): string {
+escapeHtml(value: string): string {
     return String(value || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')

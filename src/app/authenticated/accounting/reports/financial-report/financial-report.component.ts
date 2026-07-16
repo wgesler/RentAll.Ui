@@ -32,7 +32,7 @@ import {
   FinancialReportResult,
   FinancialReportTreeNode
 } from '../../models/financial-report.model';
-import { buildJournalEntryFromSearchLines, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryResponse } from '../../models/journal-entry.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryResponse } from '../../models/journal-entry.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
@@ -99,13 +99,11 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   drillDownView: FinancialReportDrillDownView | null = null;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
-  selectedJournalEntry: JournalEntryResponse | null = null;
   activeInvoiceId: string | null = null;
   activeInvoiceOfficeId: number | null = null;
   activeInvoiceReservationId: string | null = null;
   selectedInvoice: InvoiceResponse | null = null;
   activeReceiptId: string | null = null;
-  selectedReceipt: ReceiptResponse | null = null;
   drillDownReceiptProperty: PropertyResponse | null = null;
   drillDownReceiptOfficeId: number | null = null;
   drillDownColumns: ColumnSet = {
@@ -449,11 +447,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       return;
     }
 
-    this.selectedJournalEntry = buildJournalEntryFromSearchLines(
-      row.journalEntryId,
-      this.allLines,
-      this.organizationId
-    );
     this.activeJournalEntryId = row.journalEntryId;
     this.selectedJournalEntryLineId = row.journalEntryLineId;
     this.emitDrillDownChildDetailActive();
@@ -503,7 +496,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.scheduleShellTitleBarRefresh();
   }
 
-  private scheduleShellTitleBarRefresh(attempt = 0): void {
+scheduleShellTitleBarRefresh(attempt = 0): void {
     if (this.drillDownInvoiceEditor?.form || attempt >= 40) {
       this.shellTitleBarRefresh.emit();
       this.markViewForCheck();
@@ -518,7 +511,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     const resolvedPropertyId = (propertyId || receipt.propertyIds?.[0] || '').trim() || null;
 
     const openDetail = (property: PropertyResponse | null) => {
-      this.selectedReceipt = receipt;
       this.activeReceiptId = receipt.receiptId;
       this.drillDownReceiptOfficeId = resolvedOfficeId;
       this.drillDownReceiptProperty = property;
@@ -547,7 +539,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.activeInvoiceReservationId = null;
     this.selectedInvoice = null;
     this.activeReceiptId = null;
-    this.selectedReceipt = null;
     this.drillDownReceiptProperty = null;
     this.drillDownReceiptOfficeId = null;
     this.emitDrillDownChildDetailActive();
@@ -568,7 +559,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
 
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
-    this.selectedJournalEntry = null;
     this.emitDrillDownChildDetailActive();
     this.markViewForCheck();
   }
@@ -579,12 +569,12 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.journalEntriesChanged.emit();
   }
 
-  private emitDrillDownChildDetailActive(): void {
+emitDrillDownChildDetailActive(): void {
     const active = !!(this.activeJournalEntryId || this.activeInvoiceId || this.activeReceiptId);
     this.journalEntryDetailActiveChange.emit(active);
   }
 
-  private buildDrillDownReceiptPropertyStub(officeId: number | null): PropertyResponse {
+buildDrillDownReceiptPropertyStub(officeId: number | null): PropertyResponse {
     const resolvedOfficeId = officeId ?? 0;
     const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';
     return {
@@ -635,7 +625,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.documentExportService.exportExcelTable(fileName, headers, rows);
   }
 
-  private buildDrillDownExcelFileName(): string {
+buildDrillDownExcelFileName(): string {
     const reportLabel = this.reportKind === 'balanceSheet' ? 'Balance-Sheet' : 'Profit-Loss';
     const title = (this.drillDownView?.title || 'Ledger')
       .trim()
@@ -660,7 +650,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       : 'financial-report-profit-loss-journal-entries';
   }
 
-  private refreshDrillDownView(): void {
+refreshDrillDownView(): void {
     if (!this.drillDownView || !this.reportResult?.drillDownContext) {
       return;
     }
@@ -927,13 +917,13 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.markViewForCheck();
   }
 
-  private buildNoPreviewMessage(): string {
+buildNoPreviewMessage(): string {
     return this.reportKind === 'balanceSheet'
       ? 'No balance sheet is available to print.'
       : 'No profit and loss report is available to print.';
   }
 
-  private buildReportFileName(): string {
+buildReportFileName(): string {
     const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
     const reportSegment = this.reportKind === 'balanceSheet' ? 'BalanceSheet' : 'ProfitLoss';
     const dateStamp = this.utilityService.sanitizeFileNameSegment(
@@ -944,13 +934,13 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     return `${officeSegment}_${reportSegment}_${dateStamp}.pdf`;
   }
 
-  private resolveReportDocumentType(): DocumentType {
+resolveReportDocumentType(): DocumentType {
     return this.reportKind === 'balanceSheet'
       ? DocumentType.BalanceSheet
       : DocumentType.ProfitLoss;
   }
 
-  private resolveDocumentOfficeId(): number | null {
+resolveDocumentOfficeId(): number | null {
     if (this.officeId != null && this.officeId > 0) {
       return this.officeId;
     }
@@ -960,7 +950,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     return null;
   }
 
-  private refreshPrintableHtml(): void {
+refreshPrintableHtml(): void {
     if (!this.reportResult || this.visibleRows.length === 0) {
       this.clearPrintableHtml();
       return;
@@ -975,7 +965,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.previewIframeStyles = preview.previewIframeStyles;
   }
 
-  private clearPrintableHtml(): void {
+clearPrintableHtml(): void {
     this.previewIframeHtml = '';
     this.previewIframeStyles = '';
   }

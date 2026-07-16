@@ -26,7 +26,7 @@ import { AccountType, PostingStatus, getPostingStatusLabel, isJournalEntryHardCl
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { buildJournalEntryFromSearchLines, GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryResponse, TransferReportRowDisplay } from '../../models/journal-entry.model';
+import { GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryResponse, TransferReportRowDisplay } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../../services/check-html.service';
 import { CheckPrintService } from '../../services/check-print.service';
@@ -38,13 +38,12 @@ import { TransferRequest, TransferResponse, TransferSplit } from '../../models/t
 import { TransferService } from '../../services/transfer.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { ReportService } from '../../services/report.service';
-import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { JournalEntryPostingDialogComponent } from '../journal-entry-posting-dialog/journal-entry-posting-dialog.component';
 
 @Component({
   selector: 'app-general-ledger-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, GeneralLedgerComponent],
+  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './general-ledger-list.component.html',
   styleUrls: ['./general-ledger-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -63,13 +62,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() printChecksOnly = false;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
-  @Input() dismissCreateJournalEntryTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<JournalEntryLineSelection>();
   @Output() depositCompletedEvent = new EventEmitter<void>();
   @Output() transferCompletedEvent = new EventEmitter<void>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
-  @Output() createJournalEntryEvent = new EventEmitter<void>();
-  @Output() createJournalEntryClosedEvent = new EventEmitter<void>();
+  @Output() createJournalEntryEvent = new EventEmitter<JournalEntryResponse | null>();
   @Output() journalEntryCreatedEvent = new EventEmitter<JournalEntryResponse | undefined>();
   @Output() officeValidationRequiredEvent = new EventEmitter<void>();
   generalLedgerService = inject(GeneralLedgerService);
@@ -96,8 +93,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   selectedJournalEntryLineIds = new Set<string>();
   selectedJournalEntryIds = new Set<string>();
-  showCreateJournalEntry = false;
-  copyFromJournalEntry: JournalEntryResponse | null = null;
   isPostingJournalEntries = false;
   showDepositSelections = false;
   showDepositForm = false;
@@ -204,8 +199,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       this.applyLinesDisplay();
     }
 
-    const shouldReloadLines = !this.showCreateJournalEntry && (
-      (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
+    const shouldReloadLines = (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
       || (changes['undepositedFundsOnly'] && !changes['undepositedFundsOnly'].firstChange)
       || (changes['untransferredFundsOnly'] && !changes['untransferredFundsOnly'].firstChange)
       || (changes['transferReportOnly'] && !changes['transferReportOnly'].firstChange)
@@ -215,8 +209,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       || (changes['reservationId'] && !changes['reservationId'].firstChange)
       || (changes['searchDateRange'] && !changes['searchDateRange'].firstChange)
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
-      || (changes['officeId'] && !changes['officeId'].firstChange)
-    );
+      || (changes['officeId'] && !changes['officeId'].firstChange);
 
     if (shouldReloadLines) {
       if (this.undepositedFundsOnly && this.showDepositForm) {
@@ -231,10 +224,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.clearPrintCheckLineSelection();
       }
       this.loadJournalEntryLines();
-    }
-
-    if (changes['dismissCreateJournalEntryTrigger'] && !changes['dismissCreateJournalEntryTrigger'].firstChange) {
-      this.closeCreateJournalEntry(false);
     }
   }
   //#endregion
@@ -814,28 +803,19 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.emitJournalEntryLineSelection(entry.journalEntryId, line.journalEntryLineId);
   }
 
-  private emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journalEntryLineId: string | null | undefined): void {
+emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journalEntryLineId: string | null | undefined): void {
     const resolvedJournalEntryId = (journalEntryId || '').trim();
     if (this.showDepositForm || this.showTransferForm || this.showCheckPreview || !resolvedJournalEntryId) {
       return;
     }
 
-    this.closeCreateJournalEntry(false);
-    // Prefetch is optional; editor always reloads the full JE by id for accurate edit.
-    const journalEntry = buildJournalEntryFromSearchLines(
-      resolvedJournalEntryId,
-      this.allLines,
-      this.organizationId
-    );
     this.lineSelectEvent.emit({
       journalEntryId: resolvedJournalEntryId,
-      journalEntryLineId: (journalEntryLineId || '').trim(),
-      journalEntry
+      journalEntryLineId: (journalEntryLineId || '').trim()
     });
   }
 
   editJournalEntryLine(row: JournalEntryLineListDisplay | GeneralLedgerEntryDisplay): void {
-    this.closeCreateJournalEntry(false);
     this.onLineSelect(row);
   }
 
@@ -858,8 +838,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           return;
         }
 
-        this.copyFromJournalEntry = journalEntry;
-        this.openCreateJournalEntry();
+        this.createJournalEntryEvent.emit(journalEntry);
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to copy journal entry.', 'Error');
@@ -889,33 +869,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   openBlankCreateJournalEntry(): void {
-    this.copyFromJournalEntry = null;
-    this.openCreateJournalEntry();
-  }
-
-  openCreateJournalEntry(): void {
-    this.showCreateJournalEntry = true;
-    this.createJournalEntryEvent.emit();
+    this.createJournalEntryEvent.emit(null);
     this.markViewForCheck();
-  }
-
-  closeCreateJournalEntry(emitClosedEvent = true): void {
-    if (!this.showCreateJournalEntry) {
-      this.copyFromJournalEntry = null;
-      return;
-    }
-
-    this.showCreateJournalEntry = false;
-    this.copyFromJournalEntry = null;
-    if (emitClosedEvent) {
-      this.createJournalEntryClosedEvent.emit();
-    }
-    this.markViewForCheck();
-  }
-
-  onCreateJournalEntrySaved(created?: JournalEntryResponse): void {
-    this.closeCreateJournalEntry();
-    this.journalEntryCreatedEvent.emit(created);
   }
 
   usesUntransferredOpenLinesFilter(): boolean {
@@ -2860,7 +2815,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
-  private resolveSelectedCheckLines(): JournalEntryLineListDisplay[] | null {
+resolveSelectedCheckLines(): JournalEntryLineListDisplay[] | null {
     if (!this.isPrintChecksFormValid) {
       this.toastr.warning('Select one or more checks to view.');
       return null;
@@ -2882,7 +2837,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return selectedLines;
   }
 
-  private applyCheckNumbersToLines(
+applyCheckNumbersToLines(
     selectedLines: JournalEntryLineListDisplay[],
     checkNumberByJournalEntryId: Map<string, string> | null,
     startingCheckNumber: number
@@ -2905,7 +2860,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
-  private previewSelectedChecks(
+previewSelectedChecks(
     selectedLines: JournalEntryLineListDisplay[] | null,
     startingCheckNumber: number | null
   ): void {
@@ -2948,7 +2903,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
-  private resolveCheckStockPdfDataUrl(fileDetails: { file?: string; dataUrl?: string; contentType?: string } | null | undefined): string | null {
+resolveCheckStockPdfDataUrl(fileDetails: { file?: string; dataUrl?: string; contentType?: string } | null | undefined): string | null {
     if (!fileDetails?.file && !fileDetails?.dataUrl) {
       return null;
     }
@@ -2968,7 +2923,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return `data:${fileDetails.contentType || 'application/pdf'};base64,${fileDetails.file}`;
   }
 
-  private renderCheckPreview(
+renderCheckPreview(
     template: string,
     accountingOffice: AccountingOfficeResponse | null,
     linesWithNumbers: JournalEntryLineListDisplay[],
@@ -3005,7 +2960,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }
   }
 
-  private triggerCheckPrint(): void {
+triggerCheckPrint(): void {
     const iframe = this.checkPreviewIframe?.nativeElement;
     const printWindow = iframe?.contentWindow;
     if (!printWindow) {

@@ -428,7 +428,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  private filterLines(lines: ReconcileLineDisplay[]): ReconcileLineDisplay[] {
+filterLines(lines: ReconcileLineDisplay[]): ReconcileLineDisplay[] {
     const term = (this.filterVal || '').trim().toLowerCase();
     if (!term) {
       return lines;
@@ -437,7 +437,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     return lines.filter(line => this.lineMatchesFilter(line, term));
   }
 
-  private lineMatchesFilter(line: ReconcileLineDisplay, term: string): boolean {
+lineMatchesFilter(line: ReconcileLineDisplay, term: string): boolean {
     const haystack = [
       line.transactionDate,
       line.type,
@@ -450,7 +450,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     return haystack.includes(term);
   }
 
-  private applyStickyFilterFromStorage(): boolean {
+applyStickyFilterFromStorage(): boolean {
     const stored = this.readStickyFromStorage();
     if (!stored?.enabled) {
       this.filterSticky = false;
@@ -462,7 +462,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     return true;
   }
 
-  private persistStickyFilter(): void {
+persistStickyFilter(): void {
     if (!this.filterSticky) {
       return;
     }
@@ -481,7 +481,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     localStorage.setItem(this.getStickyStorageKey(userId), JSON.stringify(payload));
   }
 
-  private readStickyFromStorage(): ReconcileStickyFilterState | null {
+readStickyFromStorage(): ReconcileStickyFilterState | null {
     if (typeof localStorage === 'undefined') {
       return null;
     }
@@ -512,7 +512,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private clearStickyStorage(): void {
+clearStickyStorage(): void {
     if (typeof localStorage === 'undefined') {
       return;
     }
@@ -525,11 +525,11 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     localStorage.removeItem(this.getStickyStorageKey(userId));
   }
 
-  private getStickyStorageKey(userId: string): string {
+getStickyStorageKey(userId: string): string {
     return `${this.stickyFilterStorageKeyPrefix}-${userId}-${this.tableName}`;
   }
 
-  private applyColumnPreferencesFromStorage(): void {
+applyColumnPreferencesFromStorage(): void {
     const stored = this.readColumnPreferencesFromStorage();
     if (!stored) {
       return;
@@ -539,7 +539,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.depositsVisibleColumns = stored.depositsVisibleColumns;
   }
 
-  private persistColumnPreferences(): void {
+persistColumnPreferences(): void {
     if (typeof localStorage === 'undefined') {
       return;
     }
@@ -558,7 +558,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     localStorage.setItem(this.getColumnPreferencesStorageKey(userId), JSON.stringify(payload));
   }
 
-  private readColumnPreferencesFromStorage(): ReconcileColumnPreferencesState | null {
+readColumnPreferencesFromStorage(): ReconcileColumnPreferencesState | null {
     if (typeof localStorage === 'undefined') {
       return null;
     }
@@ -589,11 +589,11 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private getColumnPreferencesStorageKey(userId: string): string {
+getColumnPreferencesStorageKey(userId: string): string {
     return `${this.columnPreferencesStorageKeyPrefix}-${userId}-${this.tableName}`;
   }
 
-  private normalizeVisibleColumns(columns: unknown): ReconcileColumnKey[] {
+normalizeVisibleColumns(columns: unknown): ReconcileColumnKey[] {
     if (!Array.isArray(columns)) {
       return [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
     }
@@ -604,7 +604,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  private applySetupValues(): void {
+applySetupValues(): void {
     if (!this.setup) {
       return;
     }
@@ -624,7 +624,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.interestEarnedInput = Math.abs(this.setup.interestEarned) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.interestEarned));
   }
 
-  private resetViewState(placeholderMessage = 'Select an Account to Reconcile.'): void {
+resetViewState(placeholderMessage = 'Select an Account to Reconcile.'): void {
     this.placeholderMessage = placeholderMessage;
     this.filterVal = '';
     this.paymentsSort = { column: null, direction: 'asc' };
@@ -638,13 +638,13 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  private sumClearedAmounts(lines: ReconcileLineDisplay[]): number {
+sumClearedAmounts(lines: ReconcileLineDisplay[]): number {
     return lines
       .filter(line => line.isCleared)
       .reduce((total, line) => total + line.amountValue, 0);
   }
 
-  private sortLines(lines: ReconcileLineDisplay[], side: ReconcileSide): ReconcileLineDisplay[] {
+sortLines(lines: ReconcileLineDisplay[], side: ReconcileSide): ReconcileLineDisplay[] {
     const sortState = this.getSortState(side);
     if (!sortState.column) {
       return lines;
@@ -661,7 +661,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private compareLinesByColumn(left: ReconcileLineDisplay, right: ReconcileLineDisplay, columnKey: ReconcileColumnKey): number {
+compareLinesByColumn(left: ReconcileLineDisplay, right: ReconcileLineDisplay, columnKey: ReconcileColumnKey): number {
     switch (columnKey) {
       case 'date':
         return (left.transactionDateSortValue || '').localeCompare(right.transactionDateSortValue || '');
@@ -680,18 +680,18 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private getSortState(side: ReconcileSide): ReconcileSortState {
+getSortState(side: ReconcileSide): ReconcileSortState {
     return side === 'payments' ? this.paymentsSort : this.depositsSort;
   }
 
-  private buildReconcileLineMarks(): ReconcileJournalEntryLineMark[] {
+buildReconcileLineMarks(): ReconcileJournalEntryLineMark[] {
     return [...this.paymentsLines, ...this.depositsLines].map(line => ({
       journalEntryLineId: line.journalEntryLineId,
       isCleared: line.isCleared
     }));
   }
 
-  private saveReconcileMarks() {
+saveReconcileMarks() {
     const request = this.buildSaveReconcileMarksRequest();
     if (!request) {
       return of(void 0);
@@ -700,11 +700,11 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     return this.generalLedgerService.saveReconcileMarks(request);
   }
 
-  private canSaveReconcileDraft(): boolean {
+canSaveReconcileDraft(): boolean {
     return this.setup != null && this.officeId != null && this.officeId > 0;
   }
 
-  private saveReconcileDraftOrSkip() {
+saveReconcileDraftOrSkip() {
     if (!this.canSaveReconcileDraft() || !this.setup || this.officeId == null) {
       return of(void 0);
     }
@@ -713,7 +713,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     return this.reconcileDraftService.saveReconcileDraft(request).pipe(map(() => void 0));
   }
 
-  private buildSaveReconcileMarksRequest() {
+buildSaveReconcileMarksRequest() {
     if (!this.canSaveReconcileMarks || this.officeId == null || this.chartOfAccountId == null) {
       return null;
     }
@@ -725,7 +725,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private buildCompleteReconcileRequest() {
+buildCompleteReconcileRequest() {
     if (!this.setup || this.officeId == null || this.chartOfAccountId == null) {
       return null;
     }
@@ -744,7 +744,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private formatCurrencyInput(value: string): string {
+formatCurrencyInput(value: string): string {
     const parsed = this.mappingService.parseCurrencyValue(value);
     return parsed === 0 && !value.trim() ? '' : this.formatterService.currencyUsd(parsed);
   }

@@ -58,7 +58,7 @@ export class OwnerFormViewModeService {
     });
   }
 
-  private getEditableFieldSelectorList(): string[] {
+getEditableFieldSelectorList(): string[] {
     return [
       '.line',
       '.inline-underline-fill',

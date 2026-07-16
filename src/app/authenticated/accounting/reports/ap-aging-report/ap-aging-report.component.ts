@@ -113,7 +113,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   detailReport: ApAgingDetailReportResult | null = null;
   activeReceiptId: string | null = null;
   activeReceiptOfficeId: number | null = null;
-  selectedReceipt: ReceiptResponse | null = null;
   drillDownReceiptProperty: PropertyResponse | null = null;
   activeInvoiceId: string | null = null;
   activeInvoiceOfficeId: number | null = null;
@@ -775,7 +774,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   closeReceiptDetail(): void {
     this.activeReceiptId = null;
     this.activeReceiptOfficeId = null;
-    this.selectedReceipt = null;
     this.drillDownReceiptProperty = null;
     this.markViewForCheck();
   }
@@ -1016,10 +1014,9 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
-  private setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
+setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
     this.closeInvoiceDetail();
     this.closeWorkOrderDetail();
-    this.selectedReceipt = receipt;
     this.activeReceiptId = receipt.receiptId;
     this.activeReceiptOfficeId = receipt.officeId;
     this.drillDownReceiptProperty = property;
@@ -1027,7 +1024,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
-  private buildReceiptPropertyStub(receipt: ReceiptResponse): PropertyResponse {
+buildReceiptPropertyStub(receipt: ReceiptResponse): PropertyResponse {
     return {
       propertyId: receipt.propertyIds?.[0] || '',
       organizationId: this.organizationId,
@@ -1038,7 +1035,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     } as PropertyResponse;
   }
 
-  private buildWorkOrderPropertyStub(workOrder: WorkOrderResponse): PropertyResponse {
+buildWorkOrderPropertyStub(workOrder: WorkOrderResponse): PropertyResponse {
     const propertyId = (workOrder.propertyId || '').trim();
     return {
       propertyId,
@@ -1167,7 +1164,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.markViewForCheck();
   }
 
-  private buildReportFileName(): string {
+buildReportFileName(): string {
     const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
     const dateStamp = this.utilityService.sanitizeFileNameSegment(
       this.reportFilters?.asOfDate || this.utilityService.todayAsCalendarDateString()
@@ -1175,7 +1172,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     return `${officeSegment}_ApAging_${dateStamp}.pdf`;
   }
 
-  private resolveDocumentOfficeId(): number | null {
+resolveDocumentOfficeId(): number | null {
     if (this.officeId != null && this.officeId > 0) {
       return this.officeId;
     }
@@ -1185,7 +1182,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     return null;
   }
 
-  private refreshPrintableHtml(): void {
+refreshPrintableHtml(): void {
     if (!this.reportResult || this.reportResult.vendorRows.length === 0) {
       this.clearPrintableHtml();
       return;
@@ -1197,7 +1194,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.previewIframeStyles = preview.previewIframeStyles;
   }
 
-  private clearPrintableHtml(): void {
+clearPrintableHtml(): void {
     this.previewIframeHtml = '';
     this.previewIframeStyles = '';
   }

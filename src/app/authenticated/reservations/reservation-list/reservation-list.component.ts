@@ -317,7 +317,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private executeReservationDelete(reservation: ReservationListDisplay): void {
+executeReservationDelete(reservation: ReservationListDisplay): void {
     const officeIds = this.resolveOfficeIdsForInvoiceCheck();
     this.invoiceService.searchInvoices({
       officeIds,
@@ -357,7 +357,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private resolveOfficeIdsForInvoiceCheck(): number[] {
+resolveOfficeIdsForInvoiceCheck(): number[] {
     if (this.selectedOffice?.officeId) {
       return [this.selectedOffice.officeId];
     }

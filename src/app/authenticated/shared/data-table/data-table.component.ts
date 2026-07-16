@@ -367,7 +367,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   private dateCellModelsByRow = new WeakMap<PurposefulAny, Map<string, Date | null>>();
   private dropdownSearchTextByRow = new WeakMap<PurposefulAny, Map<string, string>>();
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 
@@ -1114,7 +1114,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     input.select();
   }
 
-  private parseDateValue(value: unknown): Date | null {
+parseDateValue(value: unknown): Date | null {
     if (!value) {
       return null;
     }
@@ -1236,11 +1236,11 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     }).join('');
   }
 
-  private getFilterableColumnValue(item: TableItem, column: string): string {
+getFilterableColumnValue(item: TableItem, column: string): string {
     return this.normalizeFilterValue(this.flattenFilterSourceValue(item?.[column]));
   }
 
-  private flattenFilterSourceValue(value: unknown): string {
+flattenFilterSourceValue(value: unknown): string {
     if (value == null) {
       return '';
     }
@@ -1263,7 +1263,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     return String(value);
   }
 
-  private normalizeFilterValue(value: unknown): string {
+normalizeFilterValue(value: unknown): string {
     return String(value ?? '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -1485,7 +1485,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     return `${this.stickyFilterStorageKeyPrefix}-${userId}-${this.tableName.trim()}`;
   }
 
-  private getSortState(): { sortColumn: string; sortDirection: DataTableStickySortDirection } {
+getSortState(): { sortColumn: string; sortDirection: DataTableStickySortDirection } {
     const sortColumn = this.sort?.active?.trim() ?? '';
     const sortDirection = this.sort?.direction;
     if (!sortColumn || (sortDirection !== 'asc' && sortDirection !== 'desc')) {
@@ -1494,7 +1494,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     return { sortColumn, sortDirection };
   }
 
-  private attachTableSortAndPaginator(): void {
+attachTableSortAndPaginator(): void {
     if (this.paginator) {
       this.dataSource.paginator = this.paginator;
     }
@@ -1506,7 +1506,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     this.applyStickySortIfNeeded();
   }
 
-  private applyStickySortIfNeeded(): void {
+applyStickySortIfNeeded(): void {
     if (this.stickySortApplied || !this.pendingStickySort?.sortColumn || !this.pendingStickySort.sortDirection) {
       return;
     }
@@ -1641,7 +1641,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     }
   }
 
-  private updatePageSizeState(): void {
+updatePageSizeState(): void {
     const userDefaultRaw = Number(this.authService.getUser()?.defaultPageSize);
     const userDefaultPageSize = Number.isFinite(userDefaultRaw) && userDefaultRaw > 0
       ? Math.trunc(userDefaultRaw)

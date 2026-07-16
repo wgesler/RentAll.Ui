@@ -214,7 +214,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   addWorkOrder(): void {
     if (this.embeddedInMaintenance) {
       this.workOrderSelect.emit({
-        workOrderId: null,
+        workOrderId: 'new',
         propertyId: (this.property?.propertyId || '').trim() || null,
         officeId: this.officeId ?? this.property?.officeId ?? null
       });

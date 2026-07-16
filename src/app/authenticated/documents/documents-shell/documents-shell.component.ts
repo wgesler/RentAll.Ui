@@ -141,7 +141,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     this.syncDocumentRequest();
   }
 
-  private persistPinnedTopBarIfActive(): void {
+persistPinnedTopBarIfActive(): void {
     if (this.dateRangePinned) {
       this.persistPinnedDateRange();
     }
@@ -352,7 +352,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     };
   }
 
-  private resolveOfficeIdsForRequest(): number[] {
+resolveOfficeIdsForRequest(): number[] {
     if (this.selectedOfficeId != null) {
       return [this.selectedOfficeId];
     }

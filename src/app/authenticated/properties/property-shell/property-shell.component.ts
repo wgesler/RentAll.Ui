@@ -86,7 +86,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
       const wasAddMode = this.isAddMode;
-      this.isAddMode = !id || id === 'new';
+      this.isAddMode = id === 'new';
       if (this.isAddMode && !wasAddMode && this.offices.length > 0) {
         queueMicrotask(() => this.initializeAddModeOfficeFromShell());
       }
@@ -241,11 +241,11 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     this.propertySection?.applyTitleBarReservationSelection(reservationId);
   }
 
-  private normalizeTitleBarReservationId(value: string | number | null | undefined): string | null {
+normalizeTitleBarReservationId(value: string | number | null | undefined): string | null {
     return value == null || value === '' ? null : String(value);
   }
 
-  private syncWelcomeLetterToTitleBarReservation(
+syncWelcomeLetterToTitleBarReservation(
     previousReservationId: string | null,
     nextReservationId: string | null
   ): void {
@@ -264,7 +264,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   //#endregion
 
   //#region Office scope
-  private loadOffices(): void {
+loadOffices(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
@@ -316,7 +316,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     this.propertySection?.initializeOfficeFromShell(initialOfficeId);
   }
 
-  private applyOfficeFromGlobal(officeId: number | null): void {
+applyOfficeFromGlobal(officeId: number | null): void {
     if (!this.isAddMode || this.offices.length === 0) {
       return;
     }

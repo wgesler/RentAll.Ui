@@ -96,7 +96,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
 
   getColor(id?: string | number): void {
     const idToUse = id || this.id;
-    if (!idToUse || idToUse === 'new') {
+    if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
       return;
     }
     const colorIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse.toString(), 10);

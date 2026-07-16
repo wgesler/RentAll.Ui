@@ -63,7 +63,7 @@ export class DocumentExportService {
     this.exportExcelTable(resolvedName, headers, rows);
   }
 
-  private buildExcelBlob(headers: string[], rows: string[][]): Blob {
+buildExcelBlob(headers: string[], rows: string[][]): Blob {
     const worksheet = utils.aoa_to_sheet([headers, ...rows]);
     const workbook = utils.book_new();
     utils.book_append_sheet(workbook, worksheet, 'Sheet1');
@@ -75,7 +75,7 @@ export class DocumentExportService {
     );
   }
 
-  private resolveExcelFileName(fileName: string): string {
+resolveExcelFileName(fileName: string): string {
     let trimmed = (fileName || 'export').trim();
     trimmed = trimmed.replace(/\.(pdf|docx?)$/i, '');
     if (/\.xlsx$/i.test(trimmed)) {

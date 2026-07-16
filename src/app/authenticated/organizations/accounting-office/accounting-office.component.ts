@@ -215,7 +215,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  private parseOfficeId(id: string | number | null): number | null {
+parseOfficeId(id: string | number | null): number | null {
     if (id == null || id === 'new') {
       return null;
     }
@@ -725,7 +725,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  private readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
+readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
     return new Promise(resolve => {
       try {
         const reader = new FileReader();
@@ -856,7 +856,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private loadOfficeCheckHtml(officeId?: number | null): void {
+loadOfficeCheckHtml(officeId?: number | null): void {
     if (!officeId || officeId <= 0) {
       this.clearCheckStockLocal();
       this.officeCheckHtml = null;
@@ -894,7 +894,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private persistAccountingOfficeCheckStockIfNeeded(officeId: number): Observable<unknown> {
+persistAccountingOfficeCheckStockIfNeeded(officeId: number): Observable<unknown> {
     if (!this.hasNewCheckStockUpload && !this.checkStockRemoved) {
       return of(null);
     }
@@ -922,11 +922,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     );
   }
 
-  private applyAccountingOfficeCheckStock(response: AccountingOfficeResponse): void {
+applyAccountingOfficeCheckStock(response: AccountingOfficeResponse): void {
     this.applyCheckStockFromSaved(response?.checkStockPath, response?.checkStockFileDetails || null, null);
   }
 
-  private applyCheckStockFromSaved(
+applyCheckStockFromSaved(
     path: string | null | undefined,
     fileDetails: FileDetails | null | undefined,
     fallbackFileDetails?: FileDetails | null
@@ -958,7 +958,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.cdr.detectChanges();
   }
 
-  private persistCheckPrintingIfNeeded(officeId: number): Observable<CheckHtmlResponse | null> {
+persistCheckPrintingIfNeeded(officeId: number): Observable<CheckHtmlResponse | null> {
     if (!this.hasNewCheckStockUpload && !this.checkStockRemoved) {
       return of(null);
     }
@@ -1022,7 +1022,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     );
   }
 
-  private applyCheckHtmlStock(response: CheckHtmlResponse, fallbackFileDetails?: FileDetails | null): void {
+applyCheckHtmlStock(response: CheckHtmlResponse, fallbackFileDetails?: FileDetails | null): void {
     const path = (response.checkStockPath || '').trim();
     this.checkStockPath = path || null;
     this.checkStockFileDetails = response.checkStockFileDetails || fallbackFileDetails || null;
@@ -1040,7 +1040,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.cdr.detectChanges();
   }
 
-  private extractCheckStockFileName(path: string | null | undefined): string | null {
+extractCheckStockFileName(path: string | null | undefined): string | null {
     const value = (path || '').trim();
     if (!value) {
       return null;
@@ -1054,7 +1054,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  private clearCheckStockLocal(): void {
+clearCheckStockLocal(): void {
     this.checkStockPath = null;
     this.checkStockFileName = null;
     this.checkStockFileDetails = null;

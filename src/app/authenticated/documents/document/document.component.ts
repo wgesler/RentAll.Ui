@@ -69,18 +69,22 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
     this.route.paramMap.pipe(take(1)).subscribe(params => {
       const id = params.get('id');
-      if (id && id !== 'new') {
-        this.documentId = id;
-        this.isAddMode = false;
-        const currentSet = this.itemsToLoad$.value;
-        const newSet = new Set(currentSet);
-        newSet.add('document');
-        this.itemsToLoad$.next(newSet);
-        this.loadDocument();
-      } else {
-        this.isAddMode = true;
+      this.isAddMode = id === 'new';
+      if (this.isAddMode) {
         this.buildForm();
+        return;
       }
+
+      if (!id) {
+        return;
+      }
+
+      this.documentId = id;
+      const currentSet = this.itemsToLoad$.value;
+      const newSet = new Set(currentSet);
+      newSet.add('document');
+      this.itemsToLoad$.next(newSet);
+      this.loadDocument();
     });
   }
 

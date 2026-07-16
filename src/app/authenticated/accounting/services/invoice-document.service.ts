@@ -110,7 +110,7 @@ export class InvoiceDocumentService {
     );
   }
 
-  private loadInvoiceDocumentData(invoiceSummary: InvoiceResponse): Observable<InvoiceDownloadData> {
+loadInvoiceDocumentData(invoiceSummary: InvoiceResponse): Observable<InvoiceDownloadData> {
     const reservationId = (invoiceSummary.reservationId || '').trim();
     if (!invoiceSummary.invoiceId || !reservationId) {
       return throwError(() => new Error('Invoice is missing reservation information.'));
@@ -174,7 +174,7 @@ export class InvoiceDocumentService {
     );
   }
 
-  private buildPrintableHtml(data: InvoiceDownloadData): { processedHtml: string; extractedStyles: string } {
+buildPrintableHtml(data: InvoiceDownloadData): { processedHtml: string; extractedStyles: string } {
     const ctx = this.buildPrintContext(
       data.invoice,
       data.reservation,
@@ -193,7 +193,7 @@ export class InvoiceDocumentService {
     return this.invoiceHtmlBuilder.buildProcessedPreview(templateHtml, ctx);
   }
 
-  private loadOrganization(): Observable<OrganizationResponse | null> {
+loadOrganization(): Observable<OrganizationResponse | null> {
     const cached = this.commonService.getOrganizationValue();
     if (cached) {
       return of(cached);
@@ -203,7 +203,7 @@ export class InvoiceDocumentService {
     return this.commonService.getOrganization().pipe(take(1));
   }
 
-  private buildPrintContext(
+buildPrintContext(
     invoice: InvoiceResponse,
     reservation: ReservationResponse,
     property: PropertyResponse,
@@ -242,13 +242,13 @@ export class InvoiceDocumentService {
     };
   }
 
-  private getPrimaryReservationContactId(reservation: ReservationResponse): string | null {
+getPrimaryReservationContactId(reservation: ReservationResponse): string | null {
     const contactIds = reservation.contactIds || [];
     const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
     return firstContactId ? String(firstContactId) : null;
   }
 
-  private resolveLogoDataUrl(fileDetails?: FileDetails | null): string {
+resolveLogoDataUrl(fileDetails?: FileDetails | null): string {
     if (!fileDetails) {
       return '';
     }

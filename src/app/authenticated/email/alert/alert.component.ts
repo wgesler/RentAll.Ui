@@ -55,13 +55,13 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly defaultFromName = 'The RentAll Exchange';
 
-  currentAlertId = 'new';
+  currentAlertId = '';
   alert: AlertResponse | null = null;
   form: FormGroup = this.buildForm();
   isLoading = false;
   isSubmitting = false;
   isServiceError = false;
-  isAddMode = true;
+  isAddMode = false;
   readonly alertEmailTypeId = EmailType.Alert;
 
   frequencyOptions = getFrequencies().filter(option => Number(option.value) > 0);
@@ -73,18 +73,18 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   //#region Alert
   ngOnInit(): void {
     this.loadDropdownData();
-    if (this.alertId) {
+    if (this.alertId != null && this.alertId !== '') {
       this.initializeAlert(this.alertId);
       return;
     }
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
-      this.initializeAlert(paramMap.get('id') || 'new');
+      this.initializeAlert(paramMap.get('id'));
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['alertId'] && !changes['alertId'].firstChange) {
-      this.initializeAlert(changes['alertId'].currentValue || 'new');
+      this.initializeAlert(changes['alertId'].currentValue);
       return;
     }
     if (changes['alertResponse'] && !changes['alertResponse'].firstChange && this.currentAlertId !== 'new') {
@@ -98,9 +98,13 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  initializeAlert(id: string): void {
-    this.currentAlertId = id || 'new';
-    this.isAddMode = this.currentAlertId === 'new';
+  initializeAlert(id: string | null | undefined): void {
+    if (id == null || id === '') {
+      return;
+    }
+
+    this.currentAlertId = id;
+    this.isAddMode = id === 'new';
     this.isServiceError = false;
     this.alert = null;
     this.form.reset();

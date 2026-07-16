@@ -55,7 +55,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
 
   form: FormGroup;
-  isAddMode = true;
+  isAddMode = false;
   isSubmitting = false;
   isPageReady = false;
   isDepositContentReady = false;
@@ -101,7 +101,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
-    this.isAddMode = this.depositId == null;
+    this.isAddMode = this.depositId === 'new';
     this.applyShellReferenceData();
     this.loadOffices();
     this.loadPropertyCodes();
@@ -127,9 +127,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['depositId'] && !changes['depositId'].firstChange) {
-      this.isAddMode = this.depositId == null;
+      this.isAddMode = this.depositId === 'new';
       if (this.isAddMode) {
-        this.resetForAddMode();
+        this.resetForm();
       } else {
         this.isDepositContentReady = false;
         if (this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
@@ -279,7 +279,16 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
     this.replaceSplitLines(deposit.splits || []);
     this.splitTotalValidationError = false;
-  }  
+  }
+
+  resetForm(): void {
+    this.deposit = null;
+    this.isDepositContentReady = true;
+    this.clearDepositLoading();
+    this.buildForm();
+    this.applyShellOfficeToDeposit();
+    this.applyPropertyInputToForm();
+  }
   //#endregion
 
   //#region Data Load Methods
@@ -318,15 +327,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     if (this.chartOfAccounts.length > 0) {
       this.applyChartOfAccountsForOffice();
     }
-  }
-
-  resetForAddMode(): void {
-    this.deposit = null;
-    this.isDepositContentReady = true;
-    this.clearDepositLoading();
-    this.buildForm();
-    this.applyShellOfficeToDeposit();
-    this.applyPropertyInputToForm();
   }
 
   loadPropertyCodes(): void {

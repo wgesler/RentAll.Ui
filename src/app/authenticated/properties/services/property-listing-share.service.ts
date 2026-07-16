@@ -52,7 +52,7 @@ export class PropertyListingShareService {
   }
 
   /** Matches API — strip PDF hyphenation/zero-width characters before URL segment / lookup. */
-  private normalizeListingShareToken(raw: string): string {
+normalizeListingShareToken(raw: string): string {
     return String(raw ?? '')
       .trim()
       .replace(/\u00AD/g, '')

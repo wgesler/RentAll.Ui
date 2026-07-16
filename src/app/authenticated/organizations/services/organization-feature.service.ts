@@ -129,7 +129,7 @@ export class OrganizationFeatureService {
     return this.coerceHasAccess(feature?.hasAccess);
   }
 
-  private coerceHasAccess(value: boolean | string | number | null | undefined): boolean {
+coerceHasAccess(value: boolean | string | number | null | undefined): boolean {
     if (value === null || value === undefined) {
       return false;
     }
@@ -173,7 +173,7 @@ export class OrganizationFeatureService {
     );
   }
 
-  private upsertFeatureInCache(feature: FeatureResponse): void {
+upsertFeatureInCache(feature: FeatureResponse): void {
     const organizationId = feature?.organizationId?.trim();
     if (!organizationId) {
       return;
@@ -195,7 +195,7 @@ export class OrganizationFeatureService {
     this.allFeatures$.next(features);
   }
 
-  private removeFeatureFromCache(featureId: number, organizationId: string): void {
+removeFeatureFromCache(featureId: number, organizationId: string): void {
     const id = organizationId?.trim();
     if (!id || !this.isSameOrganizationId(this.loadedOrganizationId, id)) {
       return;
@@ -203,7 +203,7 @@ export class OrganizationFeatureService {
     this.allFeatures$.next(this.allFeatures$.value.filter(feature => feature.featureId !== featureId));
   }
 
-  private normalizeFeatureResponse(feature: FeatureResponse): FeatureResponse {
+normalizeFeatureResponse(feature: FeatureResponse): FeatureResponse {
     const raw = feature as FeatureResponse & Record<string, unknown>;
     return {
       featureId: Number(feature.featureId ?? raw['featureId'] ?? raw['FeatureId'] ?? 0),
@@ -215,7 +215,7 @@ export class OrganizationFeatureService {
     };
   }
 
-  private isSameOrganizationId(left: string | null | undefined, right: string | null | undefined): boolean {
+isSameOrganizationId(left: string | null | undefined, right: string | null | undefined): boolean {
     return String(left ?? '').trim().toLowerCase() === String(right ?? '').trim().toLowerCase();
   }
 }

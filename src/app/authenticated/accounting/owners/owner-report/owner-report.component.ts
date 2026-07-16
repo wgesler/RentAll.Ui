@@ -203,7 +203,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  private seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse | OwnerAccrualReportResponse): void {
+seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse | OwnerAccrualReportResponse): void {
     const response: OwnerReportSearchResponse = kind === 'cash'
       ? this.mappingService.mapOwnerCashReportToOwnerReportSearchResponse(report as OwnerCashReportResponse)
       : this.mappingService.mapOwnerAccrualReportToOwnerReportSearchResponse(report as OwnerAccrualReportResponse);

@@ -178,8 +178,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     
     // Get route params first
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
-      this.reservationId = paramMap.get('id') || null;
-      this.isAddMode = !this.reservationId || this.reservationId === 'new';
+      this.reservationId = paramMap.get('id');
+      this.isAddMode = this.reservationId === 'new';
       this.applyAddModeScopeValidators();
 
       if (this.isAddMode) {
@@ -428,7 +428,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   deleteReservation(): void {
-    if (this.isAddMode || !this.reservationId) {
+    if (this.isAddMode) {
       return;
     }
 

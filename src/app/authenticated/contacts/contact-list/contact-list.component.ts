@@ -434,7 +434,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private syncContactsFromCache(contacts: ContactResponse[]): void {
+syncContactsFromCache(contacts: ContactResponse[]): void {
     this.allContacts = this.mappingService.mapContacts(contacts);
     this.applyFilters();
     this.hasInitialLoad = true;

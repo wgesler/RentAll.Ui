@@ -47,7 +47,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   contactTab?: string;
   contactOfficeId?: string;
   shouldPrint: boolean = false; // Flag to trigger print after document loads
-  private iframeLoadHandler?: () => void;
+iframeLoadHandler?: () => void;
   private objectUrl: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));

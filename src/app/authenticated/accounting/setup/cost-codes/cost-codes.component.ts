@@ -71,73 +71,25 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     this.buildForm();
     this.loadOffices();
     
-    // Component is always embedded - use Input properties
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
       }
-      
-      if (this.id) {
-        const idStr = this.id.toString();
-        this.isAddMode = idStr === 'new';
-        this.updateCostCodeValidators();
-        if (this.isAddMode) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-          this.applyCopyFromIfPresent();
-          this.scheduleFocusFirstField();
-        } else {
-          this.costCodeId = Number(idStr);
-          if (this.selectedOffice) {
-            this.getCostCode();
-          } else if (this.offices.length > 0) {
-            // If no officeId provided, try with first office as fallback
-            this.selectedOffice = this.offices[0];
-            this.getCostCode();
-          } else {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-          }
-        }
-      } else {
-        // No id provided - default to add mode
-        this.isAddMode = true;
-        this.updateCostCodeValidators();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-        this.applyCopyFromIfPresent();
-        this.scheduleFocusFirstField();
+
+      const routeOfficeId = Number(this.route.snapshot.queryParamMap.get('officeId'));
+      if (!this.selectedOffice && Number.isFinite(routeOfficeId) && routeOfficeId > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === routeOfficeId) || null;
       }
+
+      this.applyCostCodeIdContext(this.resolveCostCodeEntityId());
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Handle id changes (including first change when inputs are bound)
     if (changes['id'] && this.offices.length > 0) {
-      const newId = changes['id'].currentValue;
-      if (newId) {
-        const idStr = newId.toString();
-        this.isAddMode = idStr === 'new';
-        this.updateCostCodeValidators();
-        if (this.isAddMode) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-          this.applyCopyFromIfPresent();
-          this.scheduleFocusFirstField();
-        } else {
-          this.costCodeId = Number(idStr);
-          if (this.selectedOffice) {
-            this.getCostCode();
-          } else if (this.offices.length > 0) {
-            this.selectedOffice = this.offices[0];
-            this.getCostCode();
-          } else {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-          }
-        }
-      } else {
-        // No id - add mode
-        this.isAddMode = true;
-        this.updateCostCodeValidators();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-        this.applyCopyFromIfPresent();
-        this.scheduleFocusFirstField();
+      const entityId = this.resolveCostCodeEntityId();
+      if (entityId) {
+        this.applyCostCodeIdContext(entityId);
       }
     }
     
@@ -219,7 +171,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
           this.costCodesService.refreshAllCostCodes().pipe(take(1)).subscribe();
           
           // Clear form for another entry (don't navigate back)
-          this.resetFormForNewEntry();
+          this.resetForm();
           
           this.savedEvent.emit();
         },
@@ -331,7 +283,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  resetFormForNewEntry(): void {
+  resetForm(): void {
     // Reset form to allow another entry
     this.form.reset();
     const user = this.authService.getUser();
@@ -425,6 +377,39 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  resolveCostCodeEntityId(): string {
+    const routeId = this.route.snapshot.paramMap.get('id');
+    if (routeId != null) {
+      return routeId;
+    }
+    if (this.id != null && String(this.id).trim() !== '') {
+      return String(this.id).trim();
+    }
+    return '';
+  }
+
+  applyCostCodeIdContext(entityId: string): void {
+    this.isAddMode = entityId === 'new';
+    this.updateCostCodeValidators();
+    if (this.isAddMode) {
+      this.costCodeId = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+      this.applyCopyFromIfPresent();
+      this.scheduleFocusFirstField();
+      return;
+    }
+
+    this.costCodeId = Number(entityId);
+    if (this.selectedOffice) {
+      this.getCostCode();
+    } else if (this.offices.length > 0) {
+      this.selectedOffice = this.offices[0];
+      this.getCostCode();
+    } else {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+    }
+  }
+
   back(): void {
     // Refresh cost codes when navigating back
     if (this.selectedOffice) {

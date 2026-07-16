@@ -305,7 +305,7 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
     this.valueChange.emit(value);
   }
 
-  private syncSelectValueFromInput(): void {
+syncSelectValueFromInput(): void {
     setTimeout(() => {
       const select = this.searchableSelectRef;
       if (!select) {

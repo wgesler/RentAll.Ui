@@ -39,7 +39,7 @@ export class FormTokenReplacerService {
     return `&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;`;
   }
 
-  private normalizeTokenValues(values: Record<string, string | null | undefined>): Record<string, string> {
+normalizeTokenValues(values: Record<string, string | null | undefined>): Record<string, string> {
     const normalized: Record<string, string> = {};
     Object.entries(values || {}).forEach(([key, value]) => {
       normalized[String(key)] = String(value ?? '');
@@ -47,7 +47,7 @@ export class FormTokenReplacerService {
     return normalized;
   }
 
-  private withAutoUnderlinedVariants(values: Record<string, string>): Record<string, string> {
+withAutoUnderlinedVariants(values: Record<string, string>): Record<string, string> {
     const expanded: Record<string, string> = { ...values };
     Object.entries(values).forEach(([key, value]) => {
       if (key.toLowerCase().endsWith('underlined')) {
@@ -65,7 +65,7 @@ export class FormTokenReplacerService {
     return expanded;
   }
 
-  private escapeRegExp(value: string): string {
+escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

@@ -61,7 +61,7 @@ export class ReconcileAdjustmentService {
     );
   }
 
-  private syncAdjustment(params: SyncAdjustmentParams): Observable<BeginReconciliationDialogResult> {
+syncAdjustment(params: SyncAdjustmentParams): Observable<BeginReconciliationDialogResult> {
     const previous = params.previousSetup;
     const previousJournalEntryId = previous?.[params.journalEntryIdKey] ?? null;
     const previousAmount = this.resolvePreviousAmount(params.journalEntryIdKey, previous);
@@ -118,7 +118,7 @@ export class ReconcileAdjustmentService {
     );
   }
 
-  private createPostedAdjustmentJournalEntry(params: {
+createPostedAdjustmentJournalEntry(params: {
     organizationId: string;
     officeId: number;
     bankAccountId: number;
@@ -221,7 +221,7 @@ export class ReconcileAdjustmentService {
     ];
   }
 
-  private resolvePreviousAmount(
+resolvePreviousAmount(
     journalEntryIdKey: ReconcileAdjustmentJournalEntryIdKey,
     previousSetup: BeginReconciliationDialogResult | null | undefined
   ): number {
@@ -234,7 +234,7 @@ export class ReconcileAdjustmentService {
       : previousSetup.interestEarned;
   }
 
-  private resolvePreviousDate(
+resolvePreviousDate(
     journalEntryIdKey: ReconcileAdjustmentJournalEntryIdKey,
     previousSetup: BeginReconciliationDialogResult | null | undefined
   ): string | null {
@@ -247,7 +247,7 @@ export class ReconcileAdjustmentService {
       : previousSetup.interestEarnedDate;
   }
 
-  private resolvePreviousAccountId(
+resolvePreviousAccountId(
     journalEntryIdKey: ReconcileAdjustmentJournalEntryIdKey,
     previousSetup: BeginReconciliationDialogResult | null | undefined
   ): number | null {
@@ -260,7 +260,7 @@ export class ReconcileAdjustmentService {
       : previousSetup.interestEarnedAccountId;
   }
 
-  private hasAdjustmentChanged(
+hasAdjustmentChanged(
     amount: number,
     previousAmount: number,
     transactionDate: string | null,
@@ -273,11 +273,11 @@ export class ReconcileAdjustmentService {
       || offsetAccountId !== previousAccountId;
   }
 
-  private isZeroAmount(amount: number): boolean {
+isZeroAmount(amount: number): boolean {
     return Math.abs(this.roundCurrencyValue(amount)) < 0.005;
   }
 
-  private roundCurrencyValue(amount: number): number {
+roundCurrencyValue(amount: number): number {
     if (!Number.isFinite(amount)) {
       return 0;
     }

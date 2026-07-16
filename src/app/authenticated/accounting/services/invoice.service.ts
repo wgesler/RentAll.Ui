@@ -129,7 +129,7 @@ export class InvoiceService {
     };
   }
 
-  private firstDayOfMonthFromCalendarDate(calendarDate: string): string {
+firstDayOfMonthFromCalendarDate(calendarDate: string): string {
     const match = /^(\d{4})-(\d{2})/.exec(calendarDate.trim());
     if (!match) {
       return calendarDate;

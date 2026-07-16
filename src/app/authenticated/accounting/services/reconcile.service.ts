@@ -39,7 +39,7 @@ export class ReconcileService {
     };
   }
 
-  private toNullableNumber(value: unknown): number | null {
+toNullableNumber(value: unknown): number | null {
     if (value == null || value === '') {
       return null;
     }
@@ -48,7 +48,7 @@ export class ReconcileService {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  private toNullableInt(value: unknown): number | null {
+toNullableInt(value: unknown): number | null {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }

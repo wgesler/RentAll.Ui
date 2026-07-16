@@ -36,7 +36,7 @@ export class PropertyService {
   private propertyCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
 
-  private getOrganizationId(): string {
+getOrganizationId(): string {
     return this.authService.getUser()?.organizationId?.trim() ?? '';
   }
 
@@ -53,7 +53,7 @@ export class PropertyService {
     return this.http.get<PropertyCodeResponse[]>(this.controller + 'codes');
   }
 
-  private fetchPropertyCodesFromApi(): Observable<PropertyCodeResponse[]> {
+fetchPropertyCodesFromApi(): Observable<PropertyCodeResponse[]> {
     const id = this.getOrganizationId();
     if (!id) {
       this.clearPropertyCodes();
@@ -98,7 +98,7 @@ export class PropertyService {
     this.refreshCachedPropertyCodesAfterMutation();
   }
 
-  private refreshCachedPropertyCodesAfterMutation(): void {
+refreshCachedPropertyCodesAfterMutation(): void {
     const id = this.getOrganizationId() || this.loadedOrganizationId?.trim();
     if (!id) {
       return;

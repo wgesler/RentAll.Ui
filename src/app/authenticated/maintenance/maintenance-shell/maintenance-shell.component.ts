@@ -92,15 +92,13 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   maintenanceSaveResolver: ((success: boolean) => void) | null = null;
 
   showReceiptDetail = false;
-  receiptDetailMounted = false;
+  receiptDetailInstance = 0;
   selectedReceiptId: string | null = null;
-  selectedReceipt: ReceiptResponse | null = null;
   refreshReceiptsTrigger = 0;
   receiptSaveValidationAttempted = false;
   receiptPropertySelectionRequired = true;
 
   showWorkOrderDetail = false;
-  workOrderDetailMounted = false;
   selectedWorkOrderId: string | null = null;
   selectedWorkOrder: WorkOrderResponse | null = null;
   workOrderDetailInstance = 0;
@@ -179,14 +177,14 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       const receiptIdParam = (params.get('receiptId') || '').trim();
       if (receiptIdParam !== '') {
         this.selectedTabIndex = this.receiptsTabIndex;
-        this.selectedReceiptId = receiptIdParam.toLowerCase() === 'new' ? null : receiptIdParam;
+        this.selectedReceiptId = receiptIdParam === 'new' ? 'new' : receiptIdParam;
         this.showReceiptDetail = true;
       }
 
       const workOrderIdParam = (params.get('workOrderId') || '').trim();
       if (this.showWorkOrdersTab && workOrderIdParam !== '') {
         this.selectedTabIndex = this.workOrdersTabIndex;
-        this.selectedWorkOrderId = workOrderIdParam;
+        this.selectedWorkOrderId = workOrderIdParam === 'new' ? 'new' : workOrderIdParam;
         this.workOrderDetailInstance++;
         this.showWorkOrderDetail = true;
       }
@@ -413,11 +411,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   get isReceiptAddMode(): boolean {
-    return this.isReceiptDetailActive && this.selectedReceiptId == null;
+    return this.isReceiptDetailActive && this.selectedReceiptId === 'new';
   }
 
   get isWorkOrderAddMode(): boolean {
-    return this.isWorkOrderDetailActive && this.selectedWorkOrderId == null;
+    return this.isWorkOrderDetailActive && this.selectedWorkOrderId === 'new';
   }
 
   get shouldShowWorkOrderLocationRequiredState(): boolean {
@@ -433,7 +431,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   get shouldShowReceiptLocationRequiredState(): boolean {
-    return this.isReceiptAddMode && this.receiptSaveValidationAttempted;
+    return this.isReceiptDetailActive && this.isReceiptAddMode && this.receiptSaveValidationAttempted;
   }
 
   get showOfficeRequiredErrorForReceipt(): boolean {
@@ -473,7 +471,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
     if (keepWorkOrderAddDetailOpen) {
       this.showWorkOrderDetail = true;
-      this.selectedWorkOrderId = null;
+      this.selectedWorkOrderId = 'new';
+      this.workOrderDetailInstance++;
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
         return;
@@ -483,7 +482,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     }
     if (keepReceiptAddDetailOpen) {
       this.showReceiptDetail = true;
-      this.selectedReceiptId = null;
+      this.selectedReceiptId = 'new';
+      this.receiptDetailInstance++;
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
         return;
@@ -621,7 +621,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return numericValue;
   }
 
-  private applyOfficeFromGlobal(officeId: number | null): void {
+applyOfficeFromGlobal(officeId: number | null): void {
     this.applyPageOfficeScope(this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,
@@ -632,11 +632,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   /** Title-bar office change on this page only (never updates global selection). */
-  private applyPageOfficeScope(officeId: number | null): void {
+applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = this.normalizeOfficeId(officeId);
   }
 
-  private applyPageOfficeChangeEffects(): void {
+applyPageOfficeChangeEffects(): void {
     this.workOrderSaveValidationAttempted = false;
     this.receiptSaveValidationAttempted = false;
     if (this.skipNextOfficeChange) {
@@ -658,14 +658,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.selectedReceiptId = null;
       } else {
         this.showReceiptDetail = true;
-        this.selectedReceiptId = null;
+        this.selectedReceiptId = 'new';
+        this.receiptDetailInstance++;
       }
       if (!keepWorkOrderAddDetailOpen) {
         this.showWorkOrderDetail = false;
         this.selectedWorkOrderId = null;
       } else {
         this.showWorkOrderDetail = true;
-        this.selectedWorkOrderId = null;
+        this.selectedWorkOrderId = 'new';
+        this.workOrderDetailInstance++;
       }
     }
     this.syncMaintenanceSearchRequests();
@@ -733,17 +735,19 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.updateAvailableProperties();
     }
 
-    this.selectedReceipt = selection?.receipt ?? null;
+    const reopeningReceiptAdd = receiptId === 'new'
+      && this.showReceiptDetail
+      && this.selectedReceiptId === 'new';
     this.selectedReceiptId = receiptId;
-    this.receiptDetailMounted = true;
+    if (reopeningReceiptAdd) {
+      this.receiptDetailInstance++;
+    }
 
     const openReceiptDetail = () => {
       this.selectedTabIndex = this.receiptsTabIndex;
       this.showWorkOrderDetail = false;
       this.selectedWorkOrderId = null;
-      queueMicrotask(() => {
-        this.showReceiptDetail = true;
-      });
+      this.showReceiptDetail = true;
     };
 
     if (selectedPropertyId && selectedPropertyId !== this.selectedPropertyId) {
@@ -769,7 +773,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
-    this.selectedReceipt = null;
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -809,16 +812,19 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     }
 
     this.selectedWorkOrder = selection?.workOrder ?? null;
+    const reopeningWorkOrderAdd = workOrderId === 'new'
+      && this.showWorkOrderDetail
+      && this.selectedWorkOrderId === 'new';
     this.selectedWorkOrderId = workOrderId;
-    this.workOrderDetailMounted = true;
+    if (reopeningWorkOrderAdd) {
+      this.workOrderDetailInstance++;
+    }
 
     const openWorkOrderDetail = () => {
       this.selectedTabIndex = this.workOrdersTabIndex;
       this.showReceiptDetail = false;
       this.selectedReceiptId = null;
-      queueMicrotask(() => {
-        this.showWorkOrderDetail = true;
-      });
+      this.showWorkOrderDetail = true;
     };
 
     if (targetPropertyId && targetPropertyId !== this.selectedPropertyId) {
@@ -1102,7 +1108,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   /** When title bar is All Offices (null), send every loaded office id — same as documents-shell. */
-  private resolveOfficeIdsForRequest(): number[] {
+resolveOfficeIdsForRequest(): number[] {
     if (this.selectedOfficeId != null) {
       return [this.selectedOfficeId];
     }

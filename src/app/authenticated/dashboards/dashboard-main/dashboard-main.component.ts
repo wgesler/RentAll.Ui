@@ -155,7 +155,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     'commissionDisplay': { displayAs: 'Comm', maxWidth: '20ch', alignment: 'center' },
   };
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

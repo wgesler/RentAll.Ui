@@ -153,7 +153,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   getTicket(id: string | number | null): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ticket');
     this.isServiceError = false;
-    this.isAddMode = id === 'new' || id === null || id === undefined;
+    this.isAddMode = id === 'new';
 
     if (this.isAddMode) {
       this.ticket = null;
@@ -167,7 +167,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       return;
     }
 
-    const ticketId = String(id || '').trim();
+    const ticketId = String(id ?? '').trim();
     if (!ticketId) {
       this.isServiceError = true;
       this.clearTicketLoading();
@@ -290,7 +290,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
     this.isSubmitting = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ticketSave');
-    const shouldCreateTicket = this.isAddMode || !this.ticket?.ticketId || String(this.ticket.ticketId).trim() === '';
+    const shouldCreateTicket = this.isAddMode;
     (shouldCreateTicket ? this.ticketService.createTicket(request) : this.ticketService.updateTicket(request)).pipe(take(1), finalize(() => { this.isSubmitting = false; this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticketSave'); })).subscribe({
       next: (response) => {
         this.ticket = response;

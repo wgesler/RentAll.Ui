@@ -149,14 +149,14 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     }
   }
 
-  private applyShellInputs(): void {
+applyShellInputs(): void {
     this.workOrderId = (this.workOrderIdInput || '').trim() || null;
     this.propertyId = (this.propertyIdInput || '').trim() || null;
     this.reservationId = (this.reservationIdInput || '').trim() || null;
     this.returnTo = 'work-order';
   }
 
-  private initializeWorkOrderPreview(): void {
+initializeWorkOrderPreview(): void {
     if (!this.workOrderId) {
       this.toastr.error('workOrderId is required.', 'Missing Parameters');
       this.itemsToLoad$.next(new Set());

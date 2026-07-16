@@ -92,7 +92,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
     // Use the input id
     if (this.id) {
-      this.isAddMode = this.id === 'new' || this.id === 'new';
+      this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
         this.buildForm();
@@ -133,7 +133,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
   getOffice(id?: string | number): void {
     const idToUse = id || this.id;
-    if (!idToUse || idToUse === 'new') {
+    if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
       return;
     }
 
@@ -739,14 +739,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     }
   }
 
-  private sanitizeQuotePasteHtml(html: string): string {
+sanitizeQuotePasteHtml(html: string): string {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     doc.querySelectorAll('style, script, meta, link, title').forEach(e => e.remove());
     this.sanitizeQuotePasteContainer(doc.body);
     return doc.body.innerHTML;
   }
 
-  private sanitizeQuotePasteContainer(container: HTMLElement): void {
+sanitizeQuotePasteContainer(container: HTMLElement): void {
     const allowed = new Set([
       'B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'DIV', 'UL', 'OL', 'LI'
     ]);
@@ -797,7 +797,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     }
   }
 
-  private quotePastePlainToHtml(plain: string): string {
+quotePastePlainToHtml(plain: string): string {
     return plain
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')

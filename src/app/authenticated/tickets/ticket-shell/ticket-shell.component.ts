@@ -145,7 +145,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    const isAddTicketFlow = String(event.ticketId).trim().toLowerCase() === 'new';
+    const isAddTicketFlow = event.ticketId === 'new';
     if (isAddTicketFlow) {
       // Add flow must preserve title-bar filter context exactly as-is.
       this.lastListTabIndex = this.selectedTabIndex;
@@ -282,7 +282,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
-    const isAddTicketFlow = String(this.currentTicketId || '').trim().toLowerCase() === 'new';
+    const isAddTicketFlow = this.currentTicketId === 'new';
     if (isAddTicketFlow) {
       return;
     }
@@ -312,7 +312,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   openAddAlertDialog(): void {
-    const selectedTicketId = this.currentTicketId != null && String(this.currentTicketId).trim().toLowerCase() !== 'new'
+    const selectedTicketId = this.currentTicketId != null && this.currentTicketId !== 'new'
       ? String(this.currentTicketId)
       : null;
     const selectedTicketCode = this.currentTicketCode || String(this.ticketSection?.ticketCodeDisplay || '').trim() || null;

@@ -320,7 +320,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   addReceipt(): void {
     if (this.embeddedInMaintenance) {
       this.receiptSelect.emit({
-        receiptId: null,
+        receiptId: 'new',
         officeId: this.property?.officeId ?? this.officeId ?? null,
         propertyId: (this.property?.propertyId || '').trim() || null
       });

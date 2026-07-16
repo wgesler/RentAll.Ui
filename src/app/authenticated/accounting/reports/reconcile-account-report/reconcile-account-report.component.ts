@@ -277,7 +277,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     this.markViewForCheck();
   }
 
-  private buildReportFileName(): string {
+buildReportFileName(): string {
     const account = this.resolveSelectedAccount();
     const officeSegment = this.utilityService.sanitizeFileNameSegment(this.officeName || 'Office');
     const accountNo = this.utilityService.sanitizeFileNameSegment(account?.accountNo || 'Account');
@@ -288,13 +288,13 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     return `${officeSegment}_${accountSegment}_${viewLabel}_${dateStamp}.pdf`;
   }
 
-  private resolveReportDocumentType(): DocumentType {
+resolveReportDocumentType(): DocumentType {
     return this.isDetailView
       ? DocumentType.ReconcileAccountDetail
       : DocumentType.ReconcileAccountSummary;
   }
 
-  private loadOrganization(): void {
+loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
       this.companyName = cachedOrganization.name.trim();
@@ -307,7 +307,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     });
   }
 
-  private loadOffices(): void {
+loadOffices(): void {
     if (!this.organizationId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
@@ -333,7 +333,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     });
   }
 
-  private loadChartOfAccounts(): void {
+loadChartOfAccounts(): void {
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(
       take(1),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
@@ -346,7 +346,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     });
   }
 
-  private loadReportData(): void {
+loadReportData(): void {
     if (!this.isPageReady) {
       return;
     }
@@ -402,7 +402,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     });
   }
 
-  private applyReportDisplay(): void {
+applyReportDisplay(): void {
     const account = this.resolveSelectedAccount();
     const statementDate = String(this.statementDate || '').trim();
     if (!account || !statementDate) {
@@ -425,7 +425,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     this.refreshPrintableHtml();
   }
 
-  private refreshPrintableHtml(): void {
+refreshPrintableHtml(): void {
     if (!this.reportResult) {
       this.clearPrintableHtml();
       return;
@@ -437,12 +437,12 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     this.previewIframeStyles = preview.previewIframeStyles;
   }
 
-  private clearPrintableHtml(): void {
+clearPrintableHtml(): void {
     this.previewIframeHtml = '';
     this.previewIframeStyles = '';
   }
 
-  private resolveSelectedAccount(): ChartOfAccountResponse | null {
+resolveSelectedAccount(): ChartOfAccountResponse | null {
     if (this.chartOfAccountId == null) {
       return null;
     }
@@ -450,14 +450,14 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     return this.chartOfAccounts.find(account => account.accountId === this.chartOfAccountId) ?? null;
   }
 
-  private resolveOfficeId(account: ChartOfAccountResponse | null): number | null {
+resolveOfficeId(account: ChartOfAccountResponse | null): number | null {
     if (this.officeId != null) {
       return this.officeId;
     }
     return account?.officeId ?? null;
   }
 
-  private syncOfficeName(): void {
+syncOfficeName(): void {
     const officeId = this.resolveOfficeId(this.resolveSelectedAccount());
     if (officeId == null) {
       this.officeName = '';
@@ -467,7 +467,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     this.officeName = this.offices.find(office => office.officeId === officeId)?.name?.trim() || '';
   }
 
-  private markViewForCheck(): void {
+markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 }

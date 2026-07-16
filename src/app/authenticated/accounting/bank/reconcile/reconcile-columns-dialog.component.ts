@@ -67,7 +67,7 @@ export class ReconcileColumnsDialogComponent {
     }
   }
 
-  private normalizeSelectedColumns(columns: ReconcileColumnKey[]): ReconcileColumnKey[] {
+normalizeSelectedColumns(columns: ReconcileColumnKey[]): ReconcileColumnKey[] {
     const validColumns = RECONCILE_CONFIGURABLE_COLUMN_ORDER.filter(key => columns.includes(key));
     return validColumns.length > 0 ? validColumns : [...DEFAULT_RECONCILE_VISIBLE_COLUMNS];
   }
