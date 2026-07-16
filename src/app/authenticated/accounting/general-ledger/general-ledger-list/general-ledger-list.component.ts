@@ -583,12 +583,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   executePostingDialogResult(result: JournalEntryPostingDialogResult): void {
     const journalEntryIds = [...new Set(result.journalEntryIds.map(id => id.trim()).filter(id => id.length > 0))];
-    if (journalEntryIds.length === 0) {
-      return;
-    }
 
     if (result.action === 'softClose' || result.action === 'hardClose') {
       this.executeCloseAccountingPeriod(result, journalEntryIds);
+      return;
+    }
+
+    if (journalEntryIds.length === 0) {
       return;
     }
 
@@ -666,8 +667,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.selectedJournalEntryIds.clear();
         this.syncPostJournalEntrySelectionInPlace();
 
-        if (closeResult.successCount > 0) {
+        if (closeResult.closedDateId) {
+          if (closeResult.successCount > 0) {
+            this.toastr.success(this.buildPostingSuccessMessage(result.action, closeResult.successCount), CommonMessage.Success);
+          } else {
+            this.toastr.success(this.buildPeriodClosedSuccessMessage(result.action), CommonMessage.Success);
+          }
+          this.journalEntryCreatedEvent.emit();
+        } else if (closeResult.successCount > 0) {
           this.toastr.success(this.buildPostingSuccessMessage(result.action, closeResult.successCount), CommonMessage.Success);
+          this.toastr.warning('Journal entries were closed, but the closed date range was not saved.', CommonMessage.Error);
           this.journalEntryCreatedEvent.emit();
         }
 
@@ -675,21 +684,18 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           this.toastr.error(this.buildPostingFailureMessage(result.action, closeResult.failedCount), CommonMessage.Error);
         }
 
-        if (closeResult.successCount > 0 && !closeResult.closedDateId) {
-          this.toastr.warning('Journal entries were closed, but the closed date range was not saved.', CommonMessage.Error);
-        }
-
-        if (closeResult.successCount > 0 || closeResult.failedCount > 0) {
+        if (closeResult.closedDateId || closeResult.successCount > 0 || closeResult.failedCount > 0) {
           this.loadJournalEntryLines();
         }
 
         this.markViewForCheck();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        const apiMessage = this.utilityService.extractApiErrorMessage(err);
         this.toastr.error(
-          result.action === 'softClose'
+          apiMessage || (result.action === 'softClose'
             ? 'Unable to soft close the accounting period.'
-            : 'Unable to hard close the accounting period.',
+            : 'Unable to hard close the accounting period.'),
           CommonMessage.Error
         );
       }
@@ -725,6 +731,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return count === 1 ? 'Journal entry hard closed successfully.' : `${count} journal entries hard closed successfully.`;
     }
     return count === 1 ? 'Journal entry posted successfully.' : `${count} journal entries posted successfully.`;
+  }
+
+  buildPeriodClosedSuccessMessage(action: JournalEntryPostingAction): string {
+    return action === 'softClose'
+      ? 'Accounting period soft closed successfully.'
+      : 'Accounting period hard closed successfully.';
   }
 
   buildPostingFailureMessage(action: JournalEntryPostingAction, count: number): string {

@@ -39,6 +39,28 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
     endDate: [null as Date | null]
   });
 
+  readonly postingActionInstructions: ReadonlyArray<{
+    action: JournalEntryPostingAction;
+    label: string;
+    text: string;
+  }> = [
+    {
+      action: 'post',
+      label: 'Post',
+      text: 'Prevents items from being cleared from the General Ledger.'
+    },
+    {
+      action: 'softClose',
+      label: 'Soft Close',
+      text: 'Locks down Journal Entries within certain date ranges and requires an administrator to change.'
+    },
+    {
+      action: 'hardClose',
+      label: 'Hard Close',
+      text: 'Locks down Journal Entries within certain date ranges and prevents all changes.'
+    }
+  ];
+
   //#region Journal Entry Posting Dialog
   ngOnInit(): void {
     this.displayedEntries = [...this.data.initialEntries];
@@ -73,6 +95,10 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
 
   get requiresDateRange(): boolean {
     return this.form.getRawValue().action !== 'post';
+  }
+
+  get hasPeriodDateRange(): boolean {
+    return !!this.resolveDateControlValue('startDate') && !!this.resolveDateControlValue('endDate');
   }
 
   get dateFieldClass(): string {
@@ -111,8 +137,8 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.displayedEntries.length === 0) {
-      this.toastr.warning(action === 'post' ? 'Select one or more journal entries to post.' : 'No journal entries found for the selected date range.');
+    if (this.displayedEntries.length === 0 && action === 'post') {
+      this.toastr.warning('Select one or more journal entries to post.');
       return;
     }
 

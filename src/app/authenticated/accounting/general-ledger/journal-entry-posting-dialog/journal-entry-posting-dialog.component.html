@@ -15,6 +15,16 @@
           <mat-radio-button color="primary" value="softClose">Soft Close</mat-radio-button>
           <mat-radio-button color="primary" value="hardClose">Hard Close</mat-radio-button>
         </mat-radio-group>
+        <div class="journal-entry-posting-dialog__instructions" aria-live="polite">
+          @for (instruction of postingActionInstructions; track instruction.action) {
+            <p
+              class="journal-entry-posting-dialog__instruction"
+              [class.journal-entry-posting-dialog__instruction--active]="form.getRawValue().action === instruction.action">
+              <span class="journal-entry-posting-dialog__instruction-label">{{ instruction.label }}:</span>
+              {{ instruction.text }}
+            </p>
+          }
+        </div>
       </fieldset>
 
       @if (requiresDateRange) {
@@ -40,7 +50,9 @@
           <p class="journal-entry-posting-dialog__status">Loading journal entries...</p>
         } @else if (displayedEntries.length === 0) {
           <p class="journal-entry-posting-dialog__status">
-            @if (requiresDateRange) {
+            @if (requiresDateRange && hasPeriodDateRange) {
+              No journal entries in this date range. The accounting period can still be closed.
+            } @else if (requiresDateRange) {
               Enter a start and end date to list journal entries in that accounting period range.
             } @else {
               No journal entries are selected.

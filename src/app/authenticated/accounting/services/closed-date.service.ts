@@ -3,22 +3,22 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
-import { ClosedDateRequest, ClosedDateResponse, ClosedDateSearchRequest } from '../models/closed-dates.model';
+import { ClosedDateRequest, ClosedDateResponse, ClosedDateSearchRequest } from '../models/closed-date.model';
 
 @Injectable({
   providedIn: 'root'
 })
-export class ClosedDatesService {
+export class ClosedDateService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
   private utilityService = inject(UtilityService);
 
   private readonly controller = this.configService.config().apiUrl + 'accounting/closed-date';
 
-  searchClosedDates(request: ClosedDateSearchRequest): Observable<ClosedDateResponse[]> {
+  searchClosedDate(request: ClosedDateSearchRequest): Observable<ClosedDateResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
     if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search closed dates.');
+      throw new Error('At least one office ID is required to search closed date.');
     }
 
     return this.http.post<ClosedDateResponse[]>(`${this.controller}/search`, {
