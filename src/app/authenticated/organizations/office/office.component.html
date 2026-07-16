@@ -143,38 +143,7 @@
                       <mat-label>Website</mat-label>
                       <input matInput formControlName="website" type="url">
                     </mat-form-field>
-
-                    <div class="col-span-1 grid grid-cols-2 gap-2">
-                      <mat-form-field appearance="outline" class="w-full">
-                        <mat-label>Year End Month</mat-label>
-                        <mat-select formControlName="yearEndMonth" required>
-                          @for (month of yearEndMonthOptions; track month.value) {
-                            <mat-option [value]="month.value">{{ month.label }}</mat-option>
-                          }
-                        </mat-select>
-                        @if (form.get('yearEndMonth')?.hasError('required') && form.get('yearEndMonth')?.touched) {
-                          <mat-error>Required.</mat-error>
-                        }
-                      </mat-form-field>
-
-                      <mat-form-field appearance="outline" class="w-full">
-                        <mat-label>Year End Day</mat-label>
-                        <mat-select formControlName="yearEndDay" required>
-                          @for (day of yearEndDayOptions; track day.value) {
-                            <mat-option [value]="day.value">{{ day.label }}</mat-option>
-                          }
-                        </mat-select>
-                        @if (form.get('yearEndDay')?.hasError('required') && form.get('yearEndDay')?.touched) {
-                          <mat-error>Required.</mat-error>
-                        }
-                      </mat-form-field>
-                    </div>
                   </div>
-                  @if (form.hasError('invalidYearEndDayForMonth') && (form.get('yearEndMonth')?.touched || form.get('yearEndDay')?.touched)) {
-                    <div class="col-span-4">
-                      <mat-error>Year End Day must be valid for the selected month.</mat-error>
-                    </div>
-                  }
 
                   <mat-form-field appearance="outline" class="col-span-4 w-full">
                     <mat-label>Emails to Notify of Reservation Changes (semicolon-separated emails)</mat-label>

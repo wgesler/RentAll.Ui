@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
-import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -72,14 +72,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   sdwCostCodeOptions: { value: number, label: string }[] = [];
   qbNameTypeOptions: { value: number; label: string }[] = getQbNameTypes();
   qbClassTypeOptions: { value: number; label: string }[] = getQbClassTypes();
-  yearEndMonthOptions: { value: number; label: string }[] = Array.from({ length: 12 }, (_, index) => {
-    const month = index + 1;
-    return { value: month, label: month.toString().padStart(2, '0') };
-  });
-  yearEndDayOptions: { value: number; label: string }[] = Array.from({ length: 31 }, (_, index) => {
-    const day = index + 1;
-    return { value: day, label: day.toString() };
-  });
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -203,8 +195,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       isInternational: isInternational,
       website: formValue.website || undefined,
-      yearEndMonth: Number(formValue.yearEndMonth),
-      yearEndDay: Number(formValue.yearEndDay),
       phone: phoneDigits,
       fax: faxDigits || undefined,
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
@@ -425,8 +415,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       website: new FormControl(''),
-      yearEndMonth: new FormControl<number>(12, [Validators.required]),
-      yearEndDay: new FormControl<number>(31, [Validators.required]),
       fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       isInternational: new FormControl(false),
       isActive: new FormControl(true),
@@ -489,7 +477,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
       qbNameTypeId: new FormControl<number | null>(null),
       qbClassTypeId: new FormControl<number | null>(null)
-    }, { validators: [this.yearEndDayWithinMonthValidator()] });
+    });
 
     // Setup conditional validation for international addresses
     this.setupConditionalFields();
@@ -511,8 +499,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           phone: this.formatterService.phoneNumber(this.office.phone),
           fax: this.formatterService.phoneNumber(this.office.fax) || '',
           website: this.office.website || '',
-          yearEndMonth: this.office.yearEndMonth,
-          yearEndDay: this.office.yearEndDay,
           isInternational: this.office.isInternational || false,
           isActive: this.office.isActive
         });
@@ -597,8 +583,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       phone: this.formatterService.phoneNumber(o.phone) || '',
       fax: this.formatterService.phoneNumber(o.fax) || '',
       website: o.website || '',
-      yearEndMonth: o.yearEndMonth,
-      yearEndDay: o.yearEndDay,
       isInternational: o.isInternational || false,
       isActive: o.isActive
     }, { emitEvent: false });
@@ -1028,28 +1012,6 @@ quotePastePlainToHtml(plain: string): string {
     }
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? numericValue : null;
-  }
-
-  yearEndDayWithinMonthValidator(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const monthValue = control.get('yearEndMonth')?.value;
-      const dayValue = control.get('yearEndDay')?.value;
-      const month = Number(monthValue);
-      const day = Number(dayValue);
-
-      if (!Number.isInteger(month) || month < 1 || month > 12) {
-        return { invalidYearEndMonth: true };
-      }
-      if (!Number.isInteger(day)) {
-        return { invalidYearEndDayForMonth: true };
-      }
-      const maxDayInMonth = new Date(2024, month, 0).getDate();
-      if (day < 1 || day > maxDayInMonth) {
-        return { invalidYearEndDayForMonth: true };
-      }
-
-      return null;
-    };
   }
 
   onIntegerInput(event: Event, fieldName: string): void {

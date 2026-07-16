@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
-import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, throwError } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -86,6 +86,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   isAddMode: boolean = false;
   states: string[] = [];
   accountingOffice: AccountingOfficeResponse;
+  yearEndMonthOptions: { value: number; label: string }[] = Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    return { value: month, label: String(month).padStart(2, '0') };
+  });
+  yearEndDayOptions: { value: number; label: string }[] = Array.from({ length: 31 }, (_, index) => {
+    const day = index + 1;
+    return { value: day, label: String(day).padStart(2, '0') };
+  });
 
   // Bank card state
   bankCards: BankCardResponse[] = [];
@@ -131,7 +139,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   defaultAccountFieldsRow3: { controlName: string; label: string }[] = [
     { controlName: 'defaultEscrowOwnersAccountId', label: 'Escrow Owners' },
     { controlName: 'defaultOwnActPayableAccountId', label: 'Owner A/P' },
-    { controlName: 'defaultPrePayAccountId', label: 'Pre-Payment' }
+    { controlName: 'defaultPrePayAccountId', label: 'Pre-Payment' },
+    { controlName: 'defaultRetainedEarningsAccountId', label: 'Retained Earnings' }
   ];
 
   organizationId = '';
@@ -314,12 +323,16 @@ parseOfficeId(id: string | number | null): number | null {
       zip: (formValue.zip || '').trim(),
       phone: phoneDigits,
       fax: faxDigits,
+      email: formValue.email || '',
+      website: formValue.website || '',
       bankName: formValue.bankName || '',
       bankRouting: formValue.bankRouting || '',
       bankAccount: formValue.bankAccount || '',
       bankSwiftCode: formValue.bankSwiftCode || '',
       bankAddress: formValue.bankAddress || '',
       bankPhone: bankPhoneDigits,
+      yearEndMonth: Number(formValue.yearEndMonth),
+      yearEndDay: Number(formValue.yearEndDay),
       workOrderNo: Number(formValue.workOrderNo) || 0,
       currentCheckNumber: Number(formValue.currentCheckNumber) || 1,
       defaultTenantIncAccountId: this.parseOptionalAccountId(formValue.defaultTenantIncAccountId),
@@ -342,8 +355,7 @@ parseOfficeId(id: string | number | null): number | null {
       defaultEscrowSdwAccountId: this.parseOptionalAccountId(formValue.defaultEscrowSdwAccountId),
       defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
       defaultPrePayAccountId: this.parseOptionalAccountId(formValue.defaultPrePayAccountId),
-      email: formValue.email || '',
-      website: formValue.website || '',
+      defaultRetainedEarningsAccountId: this.parseOptionalAccountId(formValue.defaultRetainedEarningsAccountId),
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
       isActive: formValue.isActive
@@ -426,6 +438,8 @@ parseOfficeId(id: string | number | null): number | null {
       bankSwiftCode: new FormControl('', [Validators.required]),
       bankAddress: new FormControl('', [Validators.required]),
       bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
+      yearEndMonth: new FormControl<number>(12, [Validators.required]),
+      yearEndDay: new FormControl<number>(31, [Validators.required]),
       workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
       currentCheckNumber: new FormControl(1, [Validators.required, Validators.min(1)]),
       defaultTenantIncAccountId: new FormControl<number | null>(null),
@@ -448,10 +462,11 @@ parseOfficeId(id: string | number | null): number | null {
       defaultEscrowSdwAccountId: new FormControl<number | null>(null),
       defaultOwnActPayableAccountId: new FormControl<number | null>(null),
       defaultPrePayAccountId: new FormControl<number | null>(null),
+      defaultRetainedEarningsAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       checkStockUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['pdf'], ['application/pdf'], 10000000, true)] }),
       isActive: new FormControl(true)
-    });
+    }, { validators: [this.yearEndDayWithinMonthValidator()] });
   }
 
   populateForm(): void {
@@ -475,6 +490,8 @@ parseOfficeId(id: string | number | null): number | null {
         bankSwiftCode: this.accountingOffice.bankSwiftCode || '',
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
+        yearEndMonth: this.accountingOffice.yearEndMonth ?? 12,
+        yearEndDay: this.accountingOffice.yearEndDay ?? 31,
         workOrderNo: this.accountingOffice.workOrderNo ?? 0,
         currentCheckNumber: this.accountingOffice.currentCheckNumber ?? 1,
         defaultTenantIncAccountId: this.accountingOffice.defaultTenantIncAccountId ?? null,
@@ -497,6 +514,7 @@ parseOfficeId(id: string | number | null): number | null {
         defaultEscrowSdwAccountId: this.accountingOffice.defaultEscrowSdwAccountId ?? null,
         defaultOwnActPayableAccountId: this.accountingOffice.defaultOwnActPayableAccountId ?? null,
         defaultPrePayAccountId: this.accountingOffice.defaultPrePayAccountId ?? null,
+        defaultRetainedEarningsAccountId: this.accountingOffice.defaultRetainedEarningsAccountId ?? null,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
     }
@@ -524,6 +542,8 @@ parseOfficeId(id: string | number | null): number | null {
       bankSwiftCode: o.bankSwiftCode || '',
       bankAddress: o.bankAddress || '',
       bankPhone: o.bankPhone ? this.formatterService.phoneNumber(o.bankPhone) : '',
+      yearEndMonth: o.yearEndMonth ?? 12,
+      yearEndDay: o.yearEndDay ?? 31,
       workOrderNo: o.workOrderNo ?? 0,
       defaultTenantIncAccountId: o.defaultTenantIncAccountId ?? null,
       defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
@@ -545,6 +565,7 @@ parseOfficeId(id: string | number | null): number | null {
       defaultEscrowSdwAccountId: o.defaultEscrowSdwAccountId ?? null,
       defaultOwnActPayableAccountId: o.defaultOwnActPayableAccountId ?? null,
       defaultPrePayAccountId: o.defaultPrePayAccountId ?? null,
+      defaultRetainedEarningsAccountId: o.defaultRetainedEarningsAccountId ?? null,
       isActive: o.isActive
     }, { emitEvent: false });
     this.resetBankCards();
@@ -1512,6 +1533,28 @@ clearCheckStockLocal(): void {
     if (this.form?.valid && !this.isSubmitting) {
       this.saveOffice();
     }
+  }
+
+  yearEndDayWithinMonthValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const monthValue = control.get('yearEndMonth')?.value;
+      const dayValue = control.get('yearEndDay')?.value;
+      const month = Number(monthValue);
+      const day = Number(dayValue);
+
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        return { invalidYearEndMonth: true };
+      }
+      if (!Number.isInteger(day)) {
+        return { invalidYearEndDayForMonth: true };
+      }
+      const maxDayInMonth = new Date(2024, month, 0).getDate();
+      if (day < 1 || day > maxDayInMonth) {
+        return { invalidYearEndDayForMonth: true };
+      }
+
+      return null;
+    };
   }
 
   ngOnDestroy(): void {

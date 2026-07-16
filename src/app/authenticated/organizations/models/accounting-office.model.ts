@@ -21,6 +21,8 @@ export interface AccountingOfficeRequest {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  yearEndMonth: number;
+  yearEndDay: number;
   workOrderNo: number;
   defaultTenantIncAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
@@ -42,6 +44,7 @@ export interface AccountingOfficeRequest {
   defaultEscrowSdwAccountId?: number | null;
   defaultOwnActPayableAccountId?: number | null;
   defaultPrePayAccountId?: number | null;
+  defaultRetainedEarningsAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
   currentCheckNumber: number;
@@ -68,6 +71,8 @@ export interface AccountingOfficeResponse {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  yearEndMonth: number;
+  yearEndDay: number;
   bankCards?: BankCardResponse[];
   workOrderNo: number;
   defaultTenantIncAccountId?: number | null;
@@ -90,6 +95,7 @@ export interface AccountingOfficeResponse {
   defaultEscrowSdwAccountId?: number | null;
   defaultOwnActPayableAccountId?: number | null;
   defaultPrePayAccountId?: number | null;
+  defaultRetainedEarningsAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
   checkStockPath?: string | null;

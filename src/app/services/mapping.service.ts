@@ -173,8 +173,6 @@ export class MappingService {
         phone: this.formatter.phoneNumber(o.phone),
         fax: this.formatter.phoneNumber(o.fax),
         website: o.website,
-        yearEndMonth: o.yearEndMonth ?? 12,
-        yearEndDay: o.yearEndDay ?? 31,
         isInternational: isInternational,
         isActive: o.isActive,
         // Configuration display fields
