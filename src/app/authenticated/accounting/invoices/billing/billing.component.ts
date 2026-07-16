@@ -21,6 +21,7 @@ import { TransactionType, TransactionTypeLabels } from '../../models/accounting-
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titlebar-select.component';
 
@@ -45,6 +46,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   utilityService = inject(UtilityService);
   dialog = inject(MatDialog);
   organizationService = inject(OrganizationService);
+  private journalEntryService = inject(JournalEntryService);
 
   isServiceError: boolean = false;
   invoiceId: string;
@@ -151,6 +153,11 @@ export class BillingComponent implements OnInit, OnDestroy {
     
     if (!this.form.valid) {
       this.form.markAllAsTouched();
+      this.isSubmitting = false;
+      return;
+    }
+
+    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.invoice?.postingStatusId, 'Invoice')) {
       this.isSubmitting = false;
       return;
     }
