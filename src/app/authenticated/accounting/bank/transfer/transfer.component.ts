@@ -239,7 +239,14 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
           this.backEvent.emit();
         }
       },
-      error: () => this.toastr.error('Unable to save transfer.', 'Error')
+      error: (err: HttpErrorResponse) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, 'Error');
+          return;
+        }
+        this.toastr.error('Unable to save transfer.', 'Error');
+      }
     });
   }
   //#endregion

@@ -449,6 +449,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         }
       },
       error: (err: HttpErrorResponse) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, 'Error');
+          return;
+        }
         const apiMessage = typeof err.error === 'string'
           ? err.error
           : err.error?.message || err.error?.title || err.message;

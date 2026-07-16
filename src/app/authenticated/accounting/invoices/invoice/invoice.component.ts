@@ -788,6 +788,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         if (err.status === 404) {
           return;
         }
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, CommonMessage.Error);
+          return;
+        }
         this.toastr.error('Unable to save invoice. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
       }
     });

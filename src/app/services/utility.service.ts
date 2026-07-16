@@ -7,6 +7,7 @@ import { CostCodesResponse } from '../authenticated/accounting/models/cost-codes
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationCodeResponse, ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
+import { PostingStatus } from '../authenticated/accounting/models/accounting-enum';
 import { FileDetails } from '../shared/models/fileDetails';
 import { FormatterService } from './formatter-service';
 import { CommonService } from './common.service';
@@ -384,6 +385,43 @@ export class UtilityService {
     return Number.isNaN(n) ? null : n;
   }
   //#endregion
+
+  isAccountingPeriodClosedConflict(error: unknown): boolean {
+    if (!(error instanceof HttpErrorResponse) || error.status !== 409) {
+      return false;
+    }
+
+    const payload = error.error;
+    if (!payload || typeof payload !== 'object') {
+      return false;
+    }
+
+    const closedStatus = Number((payload as Record<string, unknown>)['closedStatus']
+      ?? (payload as Record<string, unknown>)['ClosedStatus']);
+    return closedStatus === PostingStatus.SoftClosed || closedStatus === PostingStatus.HardClosed;
+  }
+
+  getAccountingPeriodClosedErrorMessage(error: unknown): string | null {
+    if (!this.isAccountingPeriodClosedConflict(error)) {
+      return null;
+    }
+
+    const apiMessage = this.extractApiErrorMessage(error);
+    if (apiMessage) {
+      return apiMessage;
+    }
+
+    const payload = (error as HttpErrorResponse).error as Record<string, unknown>;
+    const closedStatus = Number(payload['closedStatus'] ?? payload['ClosedStatus']);
+    if (closedStatus === PostingStatus.HardClosed) {
+      return 'This accounting period has been hard closed.';
+    }
+    if (closedStatus === PostingStatus.SoftClosed) {
+      return 'This accounting period has been soft closed.';
+    }
+
+    return 'This accounting period has been closed.';
+  }
 
   extractApiErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {

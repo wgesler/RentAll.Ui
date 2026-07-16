@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
+import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus, CloseAccountingPeriodRequest, CloseAccountingPeriodResult } from '../models/journal-entry.model';
 import { CompleteReconcileRequest, SaveReconcileMarksRequest } from '../models/reconcile.model';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -133,6 +133,30 @@ export class GeneralLedgerService {
     );
   }
 
+  softCloseJournalEntry(journalEntryId: string): Observable<JournalEntryResponse> {
+    return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/soft-close`, {}).pipe(
+      map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
+    );
+  }
+
+  hardCloseJournalEntry(journalEntryId: string): Observable<JournalEntryResponse> {
+    return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/hard-close`, {}).pipe(
+      map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
+    );
+  }
+
+  closeAccountingPeriod(request: CloseAccountingPeriodRequest): Observable<CloseAccountingPeriodResult> {
+    return this.http.post<CloseAccountingPeriodResult>(`${this.controller}journal-entry/close-period`, {
+      officeId: Number(request.officeId) || 0,
+      startDate: this.utilityService.toDateOnlyJsonString(request.startDate) ?? request.startDate,
+      endDate: this.utilityService.toDateOnlyJsonString(request.endDate) ?? request.endDate,
+      postingStatusId: Number(request.postingStatusId) || 0,
+      journalEntryIds: (request.journalEntryIds ?? []).filter(id => (id || '').trim().length > 0)
+    }).pipe(
+      map(result => this.mapCloseAccountingPeriodResult(result))
+    );
+  }
+
   voidJournalEntry(journalEntryId: string): Observable<JournalEntryResponse> {
     return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/void`, {}).pipe(
       map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
@@ -230,6 +254,15 @@ export class GeneralLedgerService {
       journalEntriesSkipped: Number(result?.journalEntriesSkipped ?? 0),
       journalEntriesDeleted: Number(result?.journalEntriesDeleted ?? 0),
       errors: result?.errors ?? []
+    };
+  }
+
+  mapCloseAccountingPeriodResult(result: CloseAccountingPeriodResult | Record<string, unknown>): CloseAccountingPeriodResult {
+    return {
+      successCount: Number(result['successCount'] ?? result['SuccessCount'] ?? 0),
+      failedCount: Number(result['failedCount'] ?? result['FailedCount'] ?? 0),
+      closedDateId: result['closedDateId'] ?? result['ClosedDateId'] ?? null,
+      errors: (result['errors'] ?? result['Errors'] ?? []) as string[]
     };
   }
 

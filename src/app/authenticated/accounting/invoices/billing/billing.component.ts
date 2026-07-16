@@ -310,7 +310,12 @@ export class BillingComponent implements OnInit, OnDestroy {
         this.toastr.warning('Saved successfully, but response did not include invoiceId. Returning to Billing list.', 'Missing invoice id');
         this.navigateBack(formValue);
       },
-      error: () => { void 0; }
+      error: (err: HttpErrorResponse) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, CommonMessage.Error);
+        }
+      }
     });
   }
   //#endregion

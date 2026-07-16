@@ -178,9 +178,26 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
   }
 }
 
+function isAccountingPeriodClosedConflict(error: HttpErrorResponse): boolean {
+  if (error.status !== 409) {
+    return false;
+  }
+
+  const payload = error.error;
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const closedStatus = Number((payload as Record<string, unknown>)['closedStatus']
+    ?? (payload as Record<string, unknown>)['ClosedStatus']);
+  return closedStatus === 2 || closedStatus === 3;
+}
+
 // 409 Conflict: show API message globally when available
 function handle409Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  showErrorToast(error, toastrService, CommonMessage.Error, false);
+  if (!isAccountingPeriodClosedConflict(error)) {
+    showErrorToast(error, toastrService, CommonMessage.Error, false);
+  }
   return throwError(() => error);
 }
 

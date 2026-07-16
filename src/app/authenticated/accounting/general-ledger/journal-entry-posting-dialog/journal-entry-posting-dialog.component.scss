@@ -1,0 +1,82 @@
+@import '../../bank/reconcile/begin-reconciliation-dialog.component.scss';
+
+.journal-entry-posting-dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.journal-entry-posting-dialog__action-panel,
+.journal-entry-posting-dialog__entries-panel {
+  width: 100%;
+}
+
+.journal-entry-posting-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.journal-entry-posting-dialog__date-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--global-form-field-gap-x);
+}
+
+.journal-entry-posting-dialog__date-field {
+  width: 100%;
+}
+
+.journal-entry-posting-dialog__status {
+  margin: 0;
+  color: #64748b;
+}
+
+.journal-entry-posting-dialog__table-wrap {
+  overflow: auto;
+  max-height: 18rem;
+}
+
+.journal-entry-posting-dialog__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.journal-entry-posting-dialog__table th,
+.journal-entry-posting-dialog__table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.journal-entry-posting-dialog__table th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+}
+
+::ng-deep .journal-entry-posting-dialog__date-field--error .mdc-notched-outline__leading,
+::ng-deep .journal-entry-posting-dialog__date-field--error .mdc-notched-outline__trailing {
+  border-color: #dc2626 !important;
+}
+
+::ng-deep .journal-entry-posting-dialog__date-field--error .mdc-notched-outline__notch {
+  border-left-color: transparent !important;
+  border-right-color: #dc2626 !important;
+  border-top-color: #dc2626 !important;
+  border-bottom-color: #dc2626 !important;
+}
+
+::ng-deep .journal-entry-posting-dialog__date-field--error .mdc-floating-label {
+  color: #dc2626 !important;
+}
+
+@media (max-width: 900px) {
+  .journal-entry-posting-dialog__date-fields {
+    grid-template-columns: 1fr;
+  }
+}

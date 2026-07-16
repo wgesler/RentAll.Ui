@@ -990,6 +990,12 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   showSaveError(error: HttpErrorResponse | Error): void {
+    const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
+    if (closedPeriodMessage) {
+      this.toastr.error(closedPeriodMessage, 'Error');
+      return;
+    }
+
     const apiMessage = error instanceof HttpErrorResponse
       ? (typeof error.error === 'string'
         ? error.error

@@ -400,3 +400,44 @@ export interface JournalEntrySyncJobStatus {
   message?: string | null;
   types: JournalEntrySyncJobTypeStatus[];
 }
+
+export type JournalEntryPostingAction = 'post' | 'softClose' | 'hardClose';
+
+export interface JournalEntryPostingDialogEntry {
+  journalEntryId: string;
+  journalEntryCode: string;
+  transactionDate: string;
+  accountingPeriod: string;
+  description: string;
+  postingStatusId: number;
+  postingStatusLabel: string;
+}
+
+export interface JournalEntryPostingDialogData {
+  officeId: number;
+  officeIds: number[];
+  initialEntries: JournalEntryPostingDialogEntry[];
+}
+
+export interface JournalEntryPostingDialogResult {
+  action: JournalEntryPostingAction;
+  officeId: number;
+  journalEntryIds: string[];
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface CloseAccountingPeriodRequest {
+  officeId: number;
+  startDate: string;
+  endDate: string;
+  postingStatusId: number;
+  journalEntryIds: string[];
+}
+
+export interface CloseAccountingPeriodResult {
+  successCount: number;
+  failedCount: number;
+  closedDateId?: number | null;
+  errors: string[];
+}

@@ -22,11 +22,11 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, PostingStatus, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, SourceType, SourceTypeLabels } from '../../models/accounting-enum';
+import { AccountType, PostingStatus, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, SourceType, SourceTypeLabels } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { buildJournalEntryFromSearchLines, GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryResponse, TransferReportRowDisplay } from '../../models/journal-entry.model';
+import { buildJournalEntryFromSearchLines, GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryResponse, TransferReportRowDisplay } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../../services/check-html.service';
 import { CheckPrintService } from '../../services/check-print.service';
@@ -39,6 +39,7 @@ import { TransferService } from '../../services/transfer.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { ReportService } from '../../services/report.service';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
+import { JournalEntryPostingDialogComponent } from '../journal-entry-posting-dialog/journal-entry-posting-dialog.component';
 
 @Component({
   selector: 'app-general-ledger-list',
@@ -97,7 +98,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   selectedJournalEntryIds = new Set<string>();
   showCreateJournalEntry = false;
   copyFromJournalEntry: JournalEntryResponse | null = null;
-  sortByCreated = false;
   isPostingJournalEntries = false;
   showDepositSelections = false;
   showDepositForm = false;
@@ -557,11 +557,38 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    const journalEntryIds = [...this.selectedJournalEntryIds]
-      .map(id => id.trim())
-      .filter(id => id.length > 0);
+    if (!this.officeId) {
+      this.officeValidationRequiredEvent.emit();
+      this.toastr.error('Please correct the highlighted fields before posting.', CommonMessage.Error);
+      return;
+    }
+
+    this.dialog.open(JournalEntryPostingDialogComponent, {
+      width: '95vw',
+      maxWidth: '56rem',
+      maxHeight: '95vh',
+      panelClass: 'accounting-form-dialog-panel',
+      data: {
+        officeId: this.officeId,
+        officeIds: [this.officeId],
+        initialEntries: this.buildPostingDialogInitialEntries()
+      }
+    }).afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe((result: JournalEntryPostingDialogResult | undefined) => {
+      if (!result) {
+        return;
+      }
+      this.executePostingDialogResult(result);
+    });
+  }
+
+  executePostingDialogResult(result: JournalEntryPostingDialogResult): void {
+    const journalEntryIds = [...new Set(result.journalEntryIds.map(id => id.trim()).filter(id => id.length > 0))];
     if (journalEntryIds.length === 0) {
-      this.toastr.warning('Select one or more journal entries to post.');
+      return;
+    }
+
+    if (result.action === 'softClose' || result.action === 'hardClose') {
+      this.executeCloseAccountingPeriod(result, journalEntryIds);
       return;
     }
 
@@ -576,8 +603,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     from(journalEntryIds).pipe(
       concatMap(journalEntryId => this.generalLedgerService.postJournalEntry(journalEntryId, postingDate).pipe(
-        map(() => ({ journalEntryId, posted: true as const })),
-        catchError(() => of({ journalEntryId, posted: false as const }))
+        map(() => ({ journalEntryId, succeeded: true as const })),
+        catchError(() => of({ journalEntryId, succeeded: false as const }))
       )),
       toArray(),
       finalize(() => {
@@ -586,34 +613,128 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }),
       take(1),
       takeUntil(this.destroy$)
-    ).subscribe((results: Array<{ journalEntryId: string; posted: boolean }>) => {
-      const postedCount = results.filter(result => result.posted).length;
-      const failedCount = results.length - postedCount;
+    ).subscribe((results: Array<{ journalEntryId: string; succeeded: boolean }>) => {
+      const successCount = results.filter(result => result.succeeded).length;
+      const failedCount = results.length - successCount;
 
       this.selectedJournalEntryIds.clear();
       this.syncPostJournalEntrySelectionInPlace();
 
-      if (postedCount > 0) {
-        this.toastr.success(
-          postedCount === 1 ? 'Journal entry posted successfully.' : `${postedCount} journal entries posted successfully.`,
-          CommonMessage.Success
-        );
+      if (successCount > 0) {
+        this.toastr.success(this.buildPostingSuccessMessage(result.action, successCount), CommonMessage.Success);
         this.journalEntryCreatedEvent.emit();
       }
 
       if (failedCount > 0) {
-        this.toastr.error(
-          failedCount === 1 ? 'Unable to post one journal entry.' : `Unable to post ${failedCount} journal entries.`,
-          CommonMessage.Error
-        );
+        this.toastr.error(this.buildPostingFailureMessage(result.action, failedCount), CommonMessage.Error);
       }
 
-      if (postedCount > 0 || failedCount > 0) {
+      if (successCount > 0 || failedCount > 0) {
         this.loadJournalEntryLines();
       }
 
       this.markViewForCheck();
     });
+  }
+
+  executeCloseAccountingPeriod(result: JournalEntryPostingDialogResult, journalEntryIds: string[]): void {
+    const officeId = result.officeId ?? this.officeId;
+    if (!officeId || !result.startDate || !result.endDate) {
+      this.toastr.error('Office and date range are required to close an accounting period.', CommonMessage.Error);
+      return;
+    }
+
+    const postingStatusId = result.action === 'softClose' ? PostingStatus.SoftClosed : PostingStatus.HardClosed;
+    this.isPostingJournalEntries = true;
+    this.markViewForCheck();
+
+    this.generalLedgerService.closeAccountingPeriod({
+      officeId,
+      startDate: result.startDate,
+      endDate: result.endDate,
+      postingStatusId,
+      journalEntryIds
+    }).pipe(
+      finalize(() => {
+        this.isPostingJournalEntries = false;
+        this.markViewForCheck();
+      }),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: closeResult => {
+        this.selectedJournalEntryIds.clear();
+        this.syncPostJournalEntrySelectionInPlace();
+
+        if (closeResult.successCount > 0) {
+          this.toastr.success(this.buildPostingSuccessMessage(result.action, closeResult.successCount), CommonMessage.Success);
+          this.journalEntryCreatedEvent.emit();
+        }
+
+        if (closeResult.failedCount > 0) {
+          this.toastr.error(this.buildPostingFailureMessage(result.action, closeResult.failedCount), CommonMessage.Error);
+        }
+
+        if (closeResult.successCount > 0 && !closeResult.closedDateId) {
+          this.toastr.warning('Journal entries were closed, but the closed date range was not saved.', CommonMessage.Error);
+        }
+
+        if (closeResult.successCount > 0 || closeResult.failedCount > 0) {
+          this.loadJournalEntryLines();
+        }
+
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error(
+          result.action === 'softClose'
+            ? 'Unable to soft close the accounting period.'
+            : 'Unable to hard close the accounting period.',
+          CommonMessage.Error
+        );
+      }
+    });
+  }
+
+  buildPostingDialogInitialEntries(): JournalEntryPostingDialogEntry[] {
+    return this.entriesDisplay
+      .filter(entry => this.selectedJournalEntryIds.has(entry.journalEntryId))
+      .map(entry => this.mapEntryToPostingDialogEntry(entry));
+  }
+
+  mapEntryToPostingDialogEntry(entry: GeneralLedgerEntryDisplay): JournalEntryPostingDialogEntry {
+    const sourceLine = this.allLines.find(line => line.journalEntryId === entry.journalEntryId);
+    const firstLine = entry.journalEntryLines[0];
+    const postingStatusId = Number(firstLine?.postingStatusId ?? sourceLine?.postingStatusId ?? PostingStatus.Open);
+    return {
+      journalEntryId: entry.journalEntryId,
+      journalEntryCode: entry.journalEntryCode,
+      transactionDate: entry.transactionDate,
+      accountingPeriod: this.formatter.formatDateString(sourceLine?.accountingPeriod ?? ''),
+      description: entry.description,
+      postingStatusId,
+      postingStatusLabel: getPostingStatusLabel(postingStatusId)
+    };
+  }
+
+  buildPostingSuccessMessage(action: JournalEntryPostingAction, count: number): string {
+    if (action === 'softClose') {
+      return count === 1 ? 'Journal entry soft closed successfully.' : `${count} journal entries soft closed successfully.`;
+    }
+    if (action === 'hardClose') {
+      return count === 1 ? 'Journal entry hard closed successfully.' : `${count} journal entries hard closed successfully.`;
+    }
+    return count === 1 ? 'Journal entry posted successfully.' : `${count} journal entries posted successfully.`;
+  }
+
+  buildPostingFailureMessage(action: JournalEntryPostingAction, count: number): string {
+    if (action === 'softClose') {
+      return count === 1 ? 'Unable to soft close one journal entry.' : `Unable to soft close ${count} journal entries.`;
+    }
+    if (action === 'hardClose') {
+      return count === 1 ? 'Unable to hard close one journal entry.' : `Unable to hard close ${count} journal entries.`;
+    }
+    return count === 1 ? 'Unable to post one journal entry.' : `Unable to post ${count} journal entries.`;
   }
 
   onPostJournalEntrySelectionSet(selection: SelectionModel<unknown>): void {
@@ -785,12 +906,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.journalEntryCreatedEvent.emit(created);
   }
 
-  onSortByCreatedToggle(checked: boolean): void {
-    this.sortByCreated = checked;
-    this.applyLinesDisplay();
-    this.markViewForCheck();
-  }
-
   usesUntransferredOpenLinesFilter(): boolean {
     return this.untransferredFundsOnly || this.transferReportOnly;
   }
@@ -875,8 +990,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const mappedLines = this.mappingService.mapJournalEntryLineListDisplay(
       this.allLines,
       this.chartOfAccounts,
-      SourceTypeLabels,
-      this.sortByCreated && !this.transferReportOnly
+      SourceTypeLabels
     );
 
     if (this.transferReportOnly) {
@@ -1443,6 +1557,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.depositCompletedEvent.emit();
       },
       error: (error: HttpErrorResponse) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, CommonMessage.Error);
+          return;
+        }
         const apiMessage = typeof error.error === 'string'
           ? error.error
           : error.error?.title || error.error?.message || error.message;
@@ -1971,6 +2090,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.transferCompletedEvent.emit();
       },
       error: (error: HttpErrorResponse | Error) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, CommonMessage.Error);
+          return;
+        }
         const apiMessage = error instanceof HttpErrorResponse
           ? (typeof error.error === 'string'
             ? error.error

@@ -238,7 +238,14 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
           this.backEvent.emit();
         }
       },
-      error: () => this.toastr.error('Unable to save deposit.', 'Error')
+      error: (err: HttpErrorResponse) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, 'Error');
+          return;
+        }
+        this.toastr.error('Unable to save deposit.', 'Error');
+      }
     });
   }
   //#endregion

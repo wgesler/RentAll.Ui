@@ -1,0 +1,86 @@
+<div class="begin-reconciliation-dialog-wrap">
+  <div class="begin-reconciliation-dialog-header">
+    <span class="begin-reconciliation-dialog-title">
+      <mat-icon class="flex-shrink-0">publish</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Post Journal Entries</span>
+    </span>
+  </div>
+
+  <mat-dialog-content class="begin-reconciliation-dialog-content">
+    <form [formGroup]="form" class="journal-entry-posting-dialog__form form-hide-error-text">
+      <fieldset class="begin-reconciliation-dialog__adjustments journal-entry-posting-dialog__action-panel">
+        <legend class="begin-reconciliation-dialog__adjustments-legend">Posting Action</legend>
+        <mat-radio-group formControlName="action" class="journal-entry-posting-dialog__actions">
+          <mat-radio-button color="primary" value="post">Post</mat-radio-button>
+          <mat-radio-button color="primary" value="softClose">Soft Close</mat-radio-button>
+          <mat-radio-button color="primary" value="hardClose">Hard Close</mat-radio-button>
+        </mat-radio-group>
+      </fieldset>
+
+      @if (requiresDateRange) {
+        <div class="journal-entry-posting-dialog__date-fields">
+          <mat-form-field appearance="outline" [class]="dateFieldClass">
+            <mat-label>Start Date</mat-label>
+            <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field appearance="outline" [class]="dateFieldClass">
+            <mat-label>End Date</mat-label>
+            <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #endDatePicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+      }
+
+      <fieldset class="begin-reconciliation-dialog__adjustments journal-entry-posting-dialog__entries-panel">
+        <legend class="begin-reconciliation-dialog__adjustments-legend">Journal Entries</legend>
+        @if (isLoadingEntries) {
+          <p class="journal-entry-posting-dialog__status">Loading journal entries...</p>
+        } @else if (displayedEntries.length === 0) {
+          <p class="journal-entry-posting-dialog__status">
+            @if (requiresDateRange) {
+              Enter a start and end date to list journal entries in that accounting period range.
+            } @else {
+              No journal entries are selected.
+            }
+          </p>
+        } @else {
+          <div class="journal-entry-posting-dialog__table-wrap">
+            <table class="journal-entry-posting-dialog__table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Transaction Date</th>
+                  <th>Accounting Period</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (entry of displayedEntries; track entry.journalEntryId) {
+                  <tr>
+                    <td>{{ entry.journalEntryCode }}</td>
+                    <td>{{ entry.transactionDate }}</td>
+                    <td>{{ entry.accountingPeriod }}</td>
+                    <td>{{ entry.description }}</td>
+                    <td>{{ entry.postingStatusLabel }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </fieldset>
+    </form>
+
+    <div class="begin-reconciliation-dialog-actions">
+      <span></span>
+      <div class="begin-reconciliation-dialog-actions-right">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isLoadingEntries" (click)="onPost()">{{ confirmButtonLabel }}</button>
+      </div>
+    </div>
+  </mat-dialog-content>
+</div>

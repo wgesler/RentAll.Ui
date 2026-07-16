@@ -462,6 +462,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.toastr.warning('Work order saved, but unable to open the preview page.', 'Navigation Warning');
       },
       error: (err: HttpErrorResponse) => {
+        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+        if (closedPeriodMessage) {
+          this.toastr.error(closedPeriodMessage, 'Error');
+          return;
+        }
         const detail = this.utilityService.extractApiErrorMessage(err);
         this.toastr.error(
           detail ? `Unable to save work order. ${detail}` : 'Unable to save work order.',
