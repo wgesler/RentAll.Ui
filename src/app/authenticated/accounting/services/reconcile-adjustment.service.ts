@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, of, switchMap, throwError } from 'rxjs';
-import { SourceType } from '../models/accounting-enum';
+import { PostingStatus, SourceType, isJournalEntryPosted } from '../models/accounting-enum';
 import { JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../models/journal-entry.model';
 import { BeginReconciliationDialogResult } from '../models/reconcile.model';
 import { GeneralLedgerService } from './general-ledger.service';
@@ -144,19 +144,18 @@ export class ReconcileAdjustmentService {
       organizationId: params.organizationId,
       officeId: params.officeId,
       transactionDate: params.transactionDate,
-      postingDate: params.transactionDate,
+      accountingPeriod: params.transactionDate,
       sourceTypeId: SourceType.Journal,
       sourceId: null,
       memo: params.memo,
-      isPosted: false,
-      isVoided: false,
+      postingStatusId: PostingStatus.Open,
       isCashOnly: false,
       journalEntryLines
     };
 
     return this.generalLedgerService.createJournalEntry(request).pipe(
       switchMap(created => {
-        if (created.isPosted) {
+        if (isJournalEntryPosted(created.postingStatusId)) {
           return of(created);
         }
 

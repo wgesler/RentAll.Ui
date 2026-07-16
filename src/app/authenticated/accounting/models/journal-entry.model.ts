@@ -37,14 +37,13 @@ export interface JournalEntryLineSearchResponse {
   clearedOn?: string | null;
   officeId: number;
   transactionDate: CalendarDateString;
-  postingDate: CalendarDateString;
+  accountingPeriod: CalendarDateString;
   sourceTypeId?: number | null;
   sourceId?: string | null;
   sourceCode?: string | null;
   checkNumber?: string | null;
   journalEntryMemo?: string | null;
-  isPosted: boolean;
-  isVoided: boolean;
+  postingStatusId: number;
   createdOn: string;
   createdBy: string;
   modifiedOn: string;
@@ -69,13 +68,12 @@ export interface JournalEntryRequest {
   organizationId: string;
   officeId: number;
   transactionDate: CalendarDateString;
-  postingDate: CalendarDateString;
+  accountingPeriod: CalendarDateString;
   sourceTypeId?: number | null;
   sourceId?: string | null;
   sourceCode?: string | null;
   memo?: string | null;
-  isPosted: boolean;
-  isVoided: boolean;
+  postingStatusId: number;
   isCashOnly: boolean;
   journalEntryLines: JournalEntryLineRequest[];
 }
@@ -106,13 +104,12 @@ export interface JournalEntryResponse {
   officeId: number;
   journalEntryCode: string;
   transactionDate: CalendarDateString;
-  postingDate: CalendarDateString;
+  accountingPeriod: CalendarDateString;
   sourceTypeId?: number | null;
   sourceId?: string | null;
   sourceCode?: string | null;
   memo?: string | null;
-  isPosted: boolean;
-  isVoided: boolean;
+  postingStatusId: number;
   isCashOnly: boolean;
   journalEntryLines: JournalEntryLineResponse[];
   createdOn: string;
@@ -154,13 +151,12 @@ export function buildJournalEntryFromSearchLines(
     officeId: header.officeId,
     journalEntryCode: header.journalEntryCode,
     transactionDate: header.transactionDate,
-    postingDate: header.postingDate,
+    accountingPeriod: header.accountingPeriod,
     sourceTypeId: header.sourceTypeId ?? null,
     sourceId: header.sourceId ?? null,
     sourceCode: header.sourceCode ?? null,
     memo: header.journalEntryMemo ?? null,
-    isPosted: header.isPosted,
-    isVoided: header.isVoided,
+    postingStatusId: header.postingStatusId,
     isCashOnly: false,
     createdOn: header.createdOn,
     createdBy: header.createdBy,
@@ -238,8 +234,7 @@ export interface JournalEntryLineListDisplay {
   debitValue: number;
   creditValue: number;
   balanceValue: number;
-  isPosted: boolean;
-  isVoided: boolean;
+  postingStatusId: number;
   sortDateValue: number;
   selected?: boolean;
   disabled?: boolean;

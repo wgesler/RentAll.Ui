@@ -16,6 +16,7 @@ import { OfficeService } from '../../../organizations/services/office.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
 import { TransferRequest, TransferResponse, TransferSplit } from '../../models/transfer.model';
 import { TransferService } from '../../services/transfer.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
@@ -41,6 +42,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private transferService = inject(TransferService);
+  private journalEntryService = inject(JournalEntryService);
   private propertyService = inject(PropertyService);
   private officeService = inject(OfficeService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -195,6 +197,10 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     if (!Number.isFinite(bankAccountId) || bankAccountId <= 0) {
       this.form.get('bankAccountId')?.markAsTouched();
       this.showValidationErrorToast();
+      return;
+    }
+
+    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.transfer?.postingStatusId, 'Transfer')) {
       return;
     }
 

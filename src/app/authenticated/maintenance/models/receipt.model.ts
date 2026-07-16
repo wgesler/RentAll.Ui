@@ -72,6 +72,8 @@ export interface ReceiptResponse {
   fileDetails?: FileDetails | null;
   paymentTypeId?: number;
   checkPrinted?: boolean;
+  journalEntryId?: string | null;
+  postingStatusId?: number | null;
   bankCardDisplayName?: string;
   isUtility?: boolean;
   isActive: boolean;

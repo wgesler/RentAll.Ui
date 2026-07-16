@@ -17,6 +17,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../../shar
 import { AccountType } from '../../models/accounting-enum';
 import { DepositRequest, DepositResponse, DepositSplit } from '../../models/deposit.model';
 import { DepositService } from '../../services/deposit.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
@@ -42,6 +43,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private depositService = inject(DepositService);
+  private journalEntryService = inject(JournalEntryService);
   private propertyService = inject(PropertyService);
   private officeService = inject(OfficeService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -194,6 +196,10 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     if (!Number.isFinite(bankAccountId) || bankAccountId <= 0) {
       this.form.get('bankAccountId')?.markAsTouched();
       this.showValidationErrorToast();
+      return;
+    }
+
+    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.deposit?.postingStatusId, 'Deposit')) {
       return;
     }
 

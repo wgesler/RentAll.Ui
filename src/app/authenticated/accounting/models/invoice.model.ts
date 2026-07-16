@@ -56,6 +56,8 @@ export interface InvoiceResponse {
   dueDate: CalendarDateString;
   accountingPeriod: CalendarDateString;
   invoicePeriod?: string;
+  journalEntryId?: string | null;
+  postingStatusId?: number | null;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;

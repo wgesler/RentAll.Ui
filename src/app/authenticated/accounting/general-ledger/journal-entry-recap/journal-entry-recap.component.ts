@@ -5,7 +5,7 @@ import { MaterialModule } from '../../../../material.module';
 import { UtilityService } from '../../../../services/utility.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
+import { PostingStatus, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
 import { JournalEntryLineListDisplay, JournalEntryRecapRowDisplay } from '../../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
@@ -157,8 +157,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
       debitValue: 0,
       creditValue: 0,
       balanceValue: 0,
-      isPosted: true,
-      isVoided: false,
+      postingStatusId: PostingStatus.Posted,
       sortDateValue: row.sortDateValue
     };
   }

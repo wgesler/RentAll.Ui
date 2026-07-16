@@ -657,7 +657,8 @@ export class MappingService {
       contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null,
       checkNumber: String(raw['checkNumber'] ?? raw['CheckNumber'] ?? base.checkNumber ?? '').trim() || null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
-      postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
+      accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
+      postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
       // IsCleared is the reconcile check mark. Do not derive it from ClearedOn.
       isCleared: this.resolveIsClearedFlag(raw['isCleared'] ?? raw['IsCleared'] ?? base.isCleared)
@@ -702,7 +703,8 @@ export class MappingService {
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
       sourceCode: String(raw['sourceCode'] ?? raw['SourceCode'] ?? base.sourceCode ?? '').trim() || null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
-      postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
+      accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
+      postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
       isCashOnly: rawIsCashOnly === true || rawIsCashOnly === 1 || rawIsCashOnly === '1',
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
     };
@@ -925,8 +927,7 @@ export class MappingService {
         debitValue,
         creditValue,
         balanceValue: runningBalance,
-        isPosted: line.isPosted,
-        isVoided: line.isVoided,
+        postingStatusId: Number(line.postingStatusId ?? 0),
         sortDateValue
       });
     });
@@ -1048,6 +1049,10 @@ export class MappingService {
       base.modifiedOn ??
       '';
     const invoicePeriod = String(raw['invoicePeriod'] ?? raw['InvoicePeriod'] ?? base.invoicePeriod ?? '');
+    const journalEntryIdRaw = raw['journalEntryId'] ?? raw['JournalEntryId'] ?? base.journalEntryId;
+    const journalEntryId = journalEntryIdRaw == null || String(journalEntryIdRaw).trim().length === 0
+      ? null
+      : String(journalEntryIdRaw).trim();
     const { startDate, endDate } = this.utility.invoicePeriodStartEnd(
       invoicePeriod,
       base.startDate,
@@ -1064,6 +1069,8 @@ export class MappingService {
       dueDate,
       accountingPeriod,
       invoicePeriod: invoicePeriod || base.invoicePeriod,
+      journalEntryId,
+      postingStatusId: this.mapOptionalPostingStatusId(raw, base.postingStatusId),
       startDate,
       endDate,
       createdOn,
@@ -1098,6 +1105,23 @@ export class MappingService {
       return calendarDate;
     }
     return `${match[1]}-${match[2]}-01`;
+  }
+
+  private mapOptionalJournalEntryId(raw: Record<string, unknown>, base?: string | null): string | null {
+    const rawVal = raw['journalEntryId'] ?? raw['JournalEntryId'] ?? base;
+    if (rawVal == null || String(rawVal).trim().length === 0) {
+      return null;
+    }
+    return String(rawVal).trim();
+  }
+
+  private mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): number | null {
+    const rawVal = raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base;
+    if (rawVal === null || rawVal === undefined || String(rawVal).trim() === '') {
+      return null;
+    }
+    const parsed = Number(rawVal);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
@@ -2075,7 +2099,7 @@ export class MappingService {
     cachedWorkOrder?: WorkOrderResponse | null,
     displayRow?: WorkOrderDisplayList | null
   ): WorkOrderResponse {
-    return {
+    return this.mapWorkOrderResponse({
       ...sourceWorkOrder,
       propertyId: sourceWorkOrder.propertyId ?? cachedWorkOrder?.propertyId ?? displayRow?.propertyId ?? null,
       reservationId: sourceWorkOrder.reservationId ?? cachedWorkOrder?.reservationId ?? displayRow?.reservationId ?? null,
@@ -2087,6 +2111,17 @@ export class MappingService {
         ?? displayRow?.description
         ?? ''
       ).trim()
+    });
+  }
+
+  mapWorkOrderResponse(raw: WorkOrderResponse | Record<string, unknown>): WorkOrderResponse {
+    const base = raw as WorkOrderResponse;
+    const rawRecord = raw as Record<string, unknown>;
+
+    return {
+      ...base,
+      journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),
+      postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId)
     };
   }
 
@@ -2953,6 +2988,8 @@ export class MappingService {
       isUtility,
       agreementLineId,
       agreementLineNotes,
+      journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),
+      postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId),
       splits: this.mapReceiptSplitsFromApi(base.splits)
     };
   }
@@ -3231,6 +3268,7 @@ export class MappingService {
       createdBy: createdBy || createdByName,
       createdByName: createdByName || createdBy,
       modifiedBy,
+      postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId),
       splits: mappedSplits,
       propertyIds: this.resolveDepositPropertyIds(mappedSplits, mappedPropertyIds, propertyId)
     };
@@ -3489,6 +3527,7 @@ export class MappingService {
       createdBy: createdBy || createdByName,
       createdByName: createdByName || createdBy,
       modifiedBy,
+      postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId),
       splits: mappedSplits,
       propertyIds: this.resolveTransferPropertyIds(mappedSplits, mappedPropertyIds, propertyId)
     };

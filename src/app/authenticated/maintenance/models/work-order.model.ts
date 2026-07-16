@@ -36,6 +36,8 @@ export interface WorkOrderResponse {
   workOrderDate: string;
   useDepartureFee: boolean;
   enteredInQb: boolean;
+  journalEntryId?: string | null;
+  postingStatusId?: number | null;
   isActive: boolean;
   createdBy: string;
   modifiedOn: string;

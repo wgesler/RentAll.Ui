@@ -120,8 +120,8 @@ export class GeneralLedgerService {
     );
   }
 
-  postJournalEntry(journalEntryId: string, postingDate?: string | null): Observable<JournalEntryResponse> {
-    const body = postingDate?.trim() ? { postingDate: postingDate.trim() } : {};
+  postJournalEntry(journalEntryId: string, accountingPeriod?: string | null): Observable<JournalEntryResponse> {
+    const body = accountingPeriod?.trim() ? { accountingPeriod: accountingPeriod.trim() } : {};
     return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/post`, body).pipe(
       map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
     );
@@ -235,7 +235,7 @@ export class GeneralLedgerService {
 
   normalizeJournalEntryRequest(journalEntry: JournalEntryRequest): JournalEntryRequest {
     const transactionDate = this.utilityService.toDateOnlyJsonString(journalEntry.transactionDate) ?? journalEntry.transactionDate;
-    const postingDate = this.utilityService.toDateOnlyJsonString(journalEntry.postingDate) ?? journalEntry.postingDate;
+    const accountingPeriod = this.utilityService.toDateOnlyJsonString(journalEntry.accountingPeriod) ?? journalEntry.accountingPeriod;
     const journalEntryLines = (journalEntry.journalEntryLines ?? []).map(line => ({
       ...line,
       chartOfAccountId: Number(line.chartOfAccountId) || 0,
@@ -251,12 +251,11 @@ export class GeneralLedgerService {
     return {
       ...journalEntry,
       transactionDate,
-      postingDate,
+      accountingPeriod,
       memo: journalEntry.memo?.trim() || null,
       sourceTypeId: journalEntry.sourceTypeId ?? null,
       sourceId: journalEntry.sourceId || null,
-      isPosted: journalEntry.isPosted === true,
-      isVoided: journalEntry.isVoided === true,
+      postingStatusId: Number(journalEntry.postingStatusId ?? 0),
       isCashOnly: journalEntry.isCashOnly === true,
       journalEntryLines
     };

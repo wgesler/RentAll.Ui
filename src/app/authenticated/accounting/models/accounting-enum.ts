@@ -257,6 +257,69 @@ export function getAccountTypeLabel(accountTypeId: number, accountTypes?: { valu
 }
 //#endregion
 
+//#region PostingStatus
+export enum PostingStatus {
+  Open = 0,
+  Posted = 1,
+  SoftClosed = 2,
+  HardClosed = 3
+}
+
+export const PostingStatusLabels: { value: PostingStatus; label: string }[] = [
+  { value: PostingStatus.Open, label: 'Open' },
+  { value: PostingStatus.Posted, label: 'Posted' },
+  { value: PostingStatus.SoftClosed, label: 'Soft Closed' },
+  { value: PostingStatus.HardClosed, label: 'Hard Closed' },
+];
+
+export function getPostingStatus(postingStatusId: number | undefined | null): string {
+  if (postingStatusId === undefined || postingStatusId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [PostingStatus.Open]: 'Open',
+    [PostingStatus.Posted]: 'Posted',
+    [PostingStatus.SoftClosed]: 'Soft Closed',
+    [PostingStatus.HardClosed]: 'Hard Closed',
+  };
+
+  return typeMap[postingStatusId] || '';
+}
+
+export function getPostingStatuses(): { value: number; label: string }[] {
+  return PostingStatusLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function getPostingStatusLabel(
+  postingStatusId: number | undefined | null,
+  postingStatuses?: { value: number; label: string }[]
+): string {
+  if (postingStatusId === undefined || postingStatusId === null) {
+    return '';
+  }
+
+  if (postingStatuses && postingStatuses.length > 0) {
+    const found = postingStatuses.find(t => t.value === postingStatusId);
+    return found?.label || getPostingStatus(postingStatusId);
+  }
+
+  return getPostingStatus(postingStatusId) || 'Unknown';
+}
+
+export function isJournalEntryPosted(postingStatusId: number | undefined | null): boolean {
+  return postingStatusId === PostingStatus.Posted;
+}
+
+export function isJournalEntrySoftClosed(postingStatusId: number | undefined | null): boolean {
+  return postingStatusId === PostingStatus.SoftClosed;
+}
+
+export function isJournalEntryHardClosed(postingStatusId: number | undefined | null): boolean {
+  return postingStatusId === PostingStatus.HardClosed;
+}
+//#endregion
+
 //#region PaymentType
 export enum PaymentType {
   Check = 0,

@@ -55,6 +55,7 @@ export interface TransferResponse {
   bankAccountDisplayName?: string;
   splits: TransferSplit[];
   journalEntryId?: string | null;
+  postingStatusId?: number | null;
   isActive: boolean;
   createdOn?: string;
   createdBy?: string;

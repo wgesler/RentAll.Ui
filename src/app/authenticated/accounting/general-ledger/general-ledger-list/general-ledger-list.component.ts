@@ -22,7 +22,7 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, isJournalEntrySourceNavigable, SourceType, SourceTypeLabels } from '../../models/accounting-enum';
+import { AccountType, PostingStatus, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, SourceType, SourceTypeLabels } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
@@ -649,7 +649,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return false;
     }
 
-    return !firstLine.isPosted && !firstLine.isVoided && !entry.disabled;
+    return !isJournalEntryPosted(firstLine.postingStatusId)
+      && !isJournalEntrySoftClosed(firstLine.postingStatusId)
+      && !isJournalEntryHardClosed(firstLine.postingStatusId)
+      && !entry.disabled;
   }
 
   isPostJournalEntryLinesPostable(lines: JournalEntryLineListDisplay[]): boolean {
@@ -658,7 +661,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return false;
     }
 
-    return !firstLine.isPosted && !firstLine.isVoided && !lines.every(line => line.disabled);
+    return !isJournalEntryPosted(firstLine.postingStatusId)
+      && !isJournalEntrySoftClosed(firstLine.postingStatusId)
+      && !isJournalEntryHardClosed(firstLine.postingStatusId)
+      && !lines.every(line => line.disabled);
   }
 
   syncPostJournalEntrySelectionInPlace(): void {
@@ -2464,8 +2470,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       debitValue: amount,
       creditValue: 0,
       balanceValue: 0,
-      isPosted: false,
-      isVoided: false,
+      postingStatusId: PostingStatus.Open,
       sortDateValue: contextLine.sortDateValue,
       disabled: true
     };

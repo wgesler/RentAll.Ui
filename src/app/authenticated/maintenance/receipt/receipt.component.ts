@@ -23,6 +23,7 @@ import { NewContactDialogService } from '../../shared/contacts/new-contact-dialo
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
+import { JournalEntryService } from '../../accounting/services/journal-entry.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -75,6 +76,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
+  private journalEntryService = inject(JournalEntryService);
 
   fb: FormBuilder;
   form: FormGroup;
@@ -386,6 +388,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         }
         return;
       }
+    }
+
+    if (this.receipt?.receiptId && !this.journalEntryService.guardCanUpdateJournalEntry(this.receipt.postingStatusId, 'Receipt')) {
+      return;
     }
 
     this.isSubmitting = true;

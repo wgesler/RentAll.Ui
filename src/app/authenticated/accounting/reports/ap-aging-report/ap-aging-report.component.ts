@@ -36,7 +36,7 @@ import {
   ApAgingReportResult,
   ApAgingVisibleRow
 } from '../../models/ap-aging-report.model';
-import { AccountType, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
+import { AccountType, PostingStatus, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
 import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
@@ -875,8 +875,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         debitValue: 0,
         creditValue: 0,
         balanceValue: 0,
-        isPosted: true,
-        isVoided: false,
+        postingStatusId: PostingStatus.Posted,
         sortDateValue: 0
       };
 

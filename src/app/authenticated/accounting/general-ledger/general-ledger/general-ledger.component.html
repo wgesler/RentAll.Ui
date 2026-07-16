@@ -52,10 +52,10 @@
 
         <mat-form-field appearance="outline" class="general-ledger-field w-full">
           <mat-label>Posting Date</mat-label>
-          <input matInput [matDatepicker]="postingDatePicker" formControlName="postingDate">
-          <mat-datepicker-toggle matIconSuffix [for]="postingDatePicker"></mat-datepicker-toggle>
-          <mat-datepicker #postingDatePicker></mat-datepicker>
-          @if (shouldShowControlError(form.get('postingDate'))) {
+          <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
+          <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+          <mat-datepicker #accountingPeriodPicker></mat-datepicker>
+          @if (shouldShowControlError(form.get('accountingPeriod'))) {
             <mat-error>Posting date is required when posted</mat-error>
           }
         </mat-form-field>

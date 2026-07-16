@@ -23,6 +23,7 @@ import { TransactionType, TransactionTypeLabels } from '../../models/accounting-
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePreviewSelection, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 import { CostCodesService } from '../../services/cost-codes.service';
 
 @Component({
@@ -56,6 +57,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private journalEntryService = inject(JournalEntryService);
   private cdr = inject(ChangeDetectorRef);
 
   isServiceError: boolean = false;
@@ -391,6 +393,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.form?.markAllAsTouched();
       this.form?.updateValueAndValidity({ emitEvent: false });
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
+      this.isSubmitting = false;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.invoice?.postingStatusId, 'Invoice')) {
       this.isSubmitting = false;
       this.cdr.markForCheck();
       return;

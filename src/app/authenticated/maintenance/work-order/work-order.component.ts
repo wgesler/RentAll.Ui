@@ -34,6 +34,7 @@ import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOr
 import { WorkOrderAmountService } from '../services/work-order-amount.service';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
+import { JournalEntryService } from '../../accounting/services/journal-entry.service';
 
 @Component({
   standalone: true,
@@ -81,6 +82,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+  private journalEntryService = inject(JournalEntryService);
   
   readonly parseInt = parseInt;
   readonly noReceiptOptionValue = 0;
@@ -314,6 +316,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (invalidItem) {
       this.form.markAllAsTouched();
       this.toastr.warning('Each work order item must have a non-zero Total. Total = receipt amount + (labor hours × labor cost).', 'Item Total Required');
+      return;
+    }
+
+    if (!isCreate && !this.journalEntryService.guardCanUpdateJournalEntry(this.workOrder?.postingStatusId, 'Work Order')) {
       return;
     }
 

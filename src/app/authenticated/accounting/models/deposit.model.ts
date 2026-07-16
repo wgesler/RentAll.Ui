@@ -55,6 +55,7 @@ export interface DepositResponse {
   bankAccountDisplayName?: string;
   splits: DepositSplit[];
   journalEntryId?: string | null;
+  postingStatusId?: number | null;
   isActive: boolean;
   createdOn?: string;
   createdBy?: string;
