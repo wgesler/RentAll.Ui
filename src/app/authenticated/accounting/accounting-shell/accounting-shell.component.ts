@@ -90,7 +90,8 @@ type JournalEntrySyncProgressKey =
   | 'deposit'
   | 'transfer'
   | 'departureFee'
-  | 'linenAndTowelFee';
+  | 'linenAndTowelFee'
+  | 'retainedEarnings';
 
 interface JournalEntrySyncProgressRow {
   key: JournalEntrySyncProgressKey;
@@ -3270,7 +3271,8 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       { key: 'deposit', label: 'Deposits', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'transfer', label: 'Transfers', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'departureFee', label: 'Departure Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'linenAndTowelFee', label: 'Linen & Towel Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
+      { key: 'linenAndTowelFee', label: 'Linen & Towel Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'retainedEarnings', label: 'Retained Earnings', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
     ];
   }
 
