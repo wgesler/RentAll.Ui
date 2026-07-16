@@ -167,6 +167,15 @@ export class GeneralLedgerService {
     return this.http.delete<void>(`${this.controller}journal-entry/${journalEntryId}`);
   }
 
+  previewRetainedEarningsJournalEntry(officeId: number, fiscalYearEndYear = 2024): Observable<JournalEntryResponse> {
+    return this.http.post<JournalEntryResponse>(`${this.controller}retained-earnings/journal-entry/preview`, {
+      officeId: Number(officeId) || 0,
+      fiscalYearEndYear: Number(fiscalYearEndYear) || 2024
+    }).pipe(
+      map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
+    );
+  }
+
   syncInvoiceJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
     return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/sync/invoices`, { officeIds }).pipe(
       map(result => this.mapJournalEntrySyncResult(result))

@@ -590,9 +590,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showGeneralLedgerOfficeValidationError = false;
     this.selectedGlPropertyId = null;
     this.selectedGlReservationId = null;
-    this.copyFromJournalEntry = copyFrom;
     this.selectedJournalEntryLineId = null;
-    if (this.activeJournalEntryId === 'new' && this.showGeneralLedgerDetail) {
+    this.copyFromJournalEntry = copyFrom;
+    if (copyFrom || (this.activeJournalEntryId === 'new' && this.showGeneralLedgerDetail)) {
       this.generalLedgerDetailInstance++;
     }
     this.activeJournalEntryId = 'new';

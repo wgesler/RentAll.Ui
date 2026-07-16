@@ -151,6 +151,22 @@
           (deleteEvent)="deleteJournalEntryLine($event)"
           (sourceClickEvent)="onTransferReportSourceClick($event)"
           (selectionSet)="onTableLineSelectionSet($event)">
+          @if (showGeneralLedgerRetainedEarningsButton) {
+            <div dataTableFilterActions>
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="accent"
+                  id="create-retained-earnings-button"
+                  class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                  (click)="createRetainedEarningsJournalEntryFor2024()"
+                  [disabled]="isCreatingRetainedEarningsJournalEntry">
+                  RE
+                </button>
+              </div>
+            </div>
+          }
           @if (undepositedFundsOnly) {
             <div dataTableFilterActions>
               <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">

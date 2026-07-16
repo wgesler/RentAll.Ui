@@ -698,12 +698,15 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
     const rawIsCashOnly = raw['isCashOnly'] ?? raw['IsCashOnly'] ?? base.isCashOnly;
     return {
       ...base,
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? base.officeId ?? 0),
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
       sourceCode: String(raw['sourceCode'] ?? raw['SourceCode'] ?? base.sourceCode ?? '').trim() || null,
+      sourceTypeId: Number(raw['sourceTypeId'] ?? raw['SourceTypeId'] ?? base.sourceTypeId ?? SourceType.Journal),
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
       isCashOnly: rawIsCashOnly === true || rawIsCashOnly === 1 || rawIsCashOnly === '1',
+      memo: String(raw['memo'] ?? raw['Memo'] ?? base.memo ?? ''),
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
     };
   }
@@ -712,6 +715,11 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
     const base = raw as unknown as JournalEntryLineResponse;
     return {
       ...base,
+      journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? base.journalEntryLineId ?? ''),
+      chartOfAccountId: Number(raw['chartOfAccountId'] ?? raw['ChartOfAccountId'] ?? base.chartOfAccountId ?? 0),
+      debit: Number(raw['debit'] ?? raw['Debit'] ?? base.debit ?? 0),
+      credit: Number(raw['credit'] ?? raw['Credit'] ?? base.credit ?? 0),
+      memo: String(raw['memo'] ?? raw['Memo'] ?? base.memo ?? ''),
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? base.propertyCode ?? '').trim() || null,
       reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
       contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null

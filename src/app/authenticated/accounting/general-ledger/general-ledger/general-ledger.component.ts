@@ -109,10 +109,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       } else {
         this.loadJournalEntry();
       }
+      return;
     }
 
-    if ((changes['officeId'] || changes['copyFromJournalEntry']) && this.isAddMode
-      && !changes['journalEntryId']?.firstChange) {
+    if (changes['copyFromJournalEntry'] && this.isAddMode) {
       this.resetForm();
     }
   }
@@ -677,7 +677,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
     this.form.reset({
       transactionDate: this.utilityService.parseDateOnlyStringToDate(source.transactionDate) ?? new Date(),
-      accountingPeriod: null,
+      accountingPeriod: this.utilityService.parseDateOnlyStringToDate(source.accountingPeriod),
       memo: source.memo ?? '',
       isPosted: false
     });

@@ -94,6 +94,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   selectedJournalEntryLineIds = new Set<string>();
   selectedJournalEntryIds = new Set<string>();
   isPostingJournalEntries = false;
+  isCreatingRetainedEarningsJournalEntry = false;
   showDepositSelections = false;
   showDepositForm = false;
   showTransferSelections = false;
@@ -871,6 +872,42 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   openBlankCreateJournalEntry(): void {
     this.createJournalEntryEvent.emit(null);
     this.markViewForCheck();
+  }
+
+  createRetainedEarningsJournalEntryFor2024(): void {
+    if (!this.officeId) {
+      this.officeValidationRequiredEvent.emit();
+      return;
+    }
+
+    if (this.isCreatingRetainedEarningsJournalEntry) {
+      return;
+    }
+
+    this.isCreatingRetainedEarningsJournalEntry = true;
+    this.generalLedgerService.previewRetainedEarningsJournalEntry(this.officeId, 2024).pipe(
+      take(1),
+      finalize(() => {
+        this.isCreatingRetainedEarningsJournalEntry = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: journalEntry => {
+        const preview = {
+          ...journalEntry,
+          officeId: Number(journalEntry?.officeId || this.officeId || 0),
+          journalEntryId: '',
+          journalEntryCode: ''
+        };
+        this.createJournalEntryEvent.emit(preview);
+      },
+      error: (error: HttpErrorResponse) => {
+        const message = typeof error?.error === 'string'
+          ? error.error
+          : error?.error?.message || 'Unable to preview retained earnings journal entry.';
+        this.toastr.error(message, 'Retained Earnings');
+      }
+    });
   }
 
   usesUntransferredOpenLinesFilter(): boolean {
@@ -3116,6 +3153,10 @@ triggerCheckPrint(): void {
   }
 
   get showGeneralLedgerAddButton(): boolean {
+    return this.showGeneralLedgerRowActions;
+  }
+
+  get showGeneralLedgerRetainedEarningsButton(): boolean {
     return this.showGeneralLedgerRowActions;
   }
 
