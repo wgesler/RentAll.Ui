@@ -19,8 +19,8 @@
     <div class="financial-report-panel dbg-band-main">
       <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
         @if (isLoading || itemsToLoad$.value.has('escrowReport')) {
-          <div class="financial-report-empty-state">
-            <mat-spinner diameter="36"></mat-spinner>
+          <div class="loading-container loading-container--section">
+            <mat-spinner [diameter]="40"></mat-spinner>
             <p>Loading Escrow report…</p>
           </div>
         } @else if (isServiceError) {
@@ -98,8 +98,8 @@
     </div>
   </div>
 } @else {
-  <div class="financial-report-empty-state">
-    <mat-spinner diameter="36"></mat-spinner>
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading…</p>
   </div>
 }

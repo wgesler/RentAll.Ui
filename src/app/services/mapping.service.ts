@@ -4028,7 +4028,7 @@ roundCurrency(value: number): number {
     const asOfDate = this.resolveFinancialReportBalanceSheetAsOfDate(request.endDate);
     request = {
       ...request,
-      startDate: null,
+      startDate: this.resolveAsOfReportYearStartDate(asOfDate),
       endDate: asOfDate
     };
 
@@ -5294,6 +5294,10 @@ roundCurrency(value: number): number {
       ?? '';
   }
 
+  resolveAsOfReportYearStartDate(asOfDate: string | null | undefined): string | null {
+    return this.utility.resolveYearStartDateFromAsOf(this.normalizeFinancialReportDate(asOfDate));
+  }
+
   resolveFinancialReportBalanceSheetColumnStartDate(
     startDate: string | null,
     endDate: string | null,
@@ -5308,13 +5312,9 @@ roundCurrency(value: number): number {
       return normalizedStartDate;
     }
 
-    const asOfDate = this.formatter.parseCalendarPrefixToLocalDate(endDate);
-    if (!asOfDate) {
-      return null;
-    }
-
-    return `${asOfDate.getFullYear()}-01-01`;
+    return this.resolveAsOfReportYearStartDate(endDate);
   }
+
 
   formatFinancialReportAsOfDate(dateString: string | null | undefined): string {
     const date = this.formatter.parseCalendarPrefixToLocalDate(this.normalizeFinancialReportDate(dateString) ?? undefined);
@@ -5653,7 +5653,7 @@ buildEscrowLastRecapAmountsByProperty(
     const isProfitLossAccount = this.isFinancialReportProfitLossAccountType(accountTypeId);
 
     if (spec.includeProfitLossActivity && isProfitLossAccount) {
-      return this.isJournalEntryLineInDateRange(line.transactionDate, null, endDate);
+      return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
     }
     if (spec.mode === 'balance') {
       return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, endDate);

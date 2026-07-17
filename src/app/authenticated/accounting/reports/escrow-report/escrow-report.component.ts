@@ -31,6 +31,7 @@ import { ReportService } from '../../services/report.service';
 export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
+  @Input() asOfDate: string | null = null;
   @Input() searchRequest: MaintenanceListSearchRequest | null = null;
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
@@ -55,7 +56,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   reportResult: EscrowReportResult | null = null;
   cushionInput = 0;
-  noDataMessage = 'Click Go to load the Escrow report for the selected office, property, and date range.';
+  noDataMessage = 'Click Go to load the Escrow report for the selected office, property, and as-of date.';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   destroy$ = new Subject<void>();
@@ -80,7 +81,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     }
 
-    if ((changes['searchRequest'] || changes['officeId']) && this.hasLoadedOnce) {
+    if ((changes['searchRequest'] || changes['officeId'] || changes['asOfDate']) && this.hasLoadedOnce) {
       this.loadReport();
     }
   }
@@ -127,7 +128,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const officeIds = this.resolveOfficeIds();
-    const asOfDate = this.searchRequest?.endDate || this.utilityService.formatDateOnlyForApi(new Date());
+    const asOfDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
     if (officeIds.length === 0) {
       this.reportResult = null;
       this.isServiceError = false;

@@ -150,18 +150,11 @@
   box-sizing: border-box;
 }
 
-.reconcile-placeholder,
-.reconcile-loading {
+.reconcile-placeholder {
   padding: 2rem 1rem;
   font-size: 0.95rem;
   color: rgba(0, 0, 0, 0.6);
   text-align: center;
-}
-
-.reconcile-loading {
-  display: flex;
-  justify-content: center;
-  width: 100%;
 }
 
 .reconcile-columns {

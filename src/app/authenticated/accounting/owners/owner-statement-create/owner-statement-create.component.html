@@ -62,14 +62,14 @@
       }
     } @else if (shellMode) {
       <div class="property-tab-main-area">
-        <div class="document-preview-loading">
+        <div class="loading-container loading-container--section">
           <mat-spinner [diameter]="40"></mat-spinner>
           <p>Rendering owner statement...</p>
         </div>
       </div>
     } @else {
       <div class="document-preview-editor">
-        <div class="document-preview-loading">
+        <div class="loading-container loading-container--section">
           <mat-spinner [diameter]="40"></mat-spinner>
           <p>Rendering owner statement...</p>
         </div>
@@ -81,14 +81,14 @@
 @if (!isPageReady) {
   @if (shellMode) {
     <div class="owner-statement-create-container owner-statement-shell-mode">
-      <div class="document-preview-loading">
+      <div class="loading-container">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading owner statement...</p>
       </div>
     </div>
   } @else {
     <div class="document-preview-shell">
-      <div class="document-preview-loading">
+      <div class="loading-container">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading owner statement...</p>
       </div>

@@ -25,6 +25,7 @@ import { OfficeService } from '../../../organizations/services/office.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { Class, SourceTypeLabels } from '../../models/accounting-enum';
 import {
+  AsOfReportDateRange,
   FINANCIAL_REPORT_TOTAL_COLUMN_ID,
   FinancialReportColumn,
   FinancialReportDrillDownView,
@@ -70,6 +71,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   @Input() officeId: number | null = null;
   @Input() reportClass: Class = Class.TotalOnly;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
+  @Input() asOfDateRange: AsOfReportDateRange | null = null;
   @Input() refreshTrigger = 0;
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntryDetailActiveChange = new EventEmitter<boolean>();
@@ -155,8 +157,11 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     const searchDateRangeChanged = !!changes['searchDateRange']
       && !changes['searchDateRange'].firstChange
       && this.hasSearchDateRangeChanged(changes['searchDateRange']);
+    const asOfDateRangeChanged = !!changes['asOfDateRange']
+      && !changes['asOfDateRange'].firstChange
+      && this.hasAsOfDateRangeChanged(changes['asOfDateRange']);
 
-    if (reportClassChanged || searchDateRangeChanged) {
+    if (reportClassChanged || searchDateRangeChanged || asOfDateRangeChanged) {
       this.applyReportDisplay();
       this.markViewForCheck();
     }
@@ -164,6 +169,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     const shouldReloadLines =
       (changes['officeId'] && !changes['officeId'].firstChange)
       || searchDateRangeChanged
+      || asOfDateRangeChanged
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
       || (changes['reportKind'] && !changes['reportKind'].firstChange);
 
@@ -241,6 +247,8 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
 
     this.isServiceError = false;
 
+    const { startDate, endDate } = this.resolveJournalEntryLineSearchDates();
+
     this.generalLedgerService.searchJournalEntryLines({
       officeIds,
       chartOfAccountId: null,
@@ -248,8 +256,8 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       reservationId: null,
       includeVoided: false,
       includeUnposted: true,
-      startDate: this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
-      endDate: this.searchDateRange?.endDate ?? null
+      startDate,
+      endDate
     }).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
@@ -683,7 +691,7 @@ refreshDrillDownView(): void {
         reportKind: this.reportKind,
         accounts: scopedAccounts,
         lines: this.allLines,
-        startDate: this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
+        startDate: this.resolveReportStartDate(),
         endDate: this.resolveReportEndDate(),
         chartOfAccountId: null,
         reportClass: this.mappingService.normalizeFinancialReportClass(this.reportClass)
@@ -928,7 +936,7 @@ buildReportFileName(): string {
     const reportSegment = this.reportKind === 'balanceSheet' ? 'BalanceSheet' : 'ProfitLoss';
     const dateStamp = this.utilityService.sanitizeFileNameSegment(
       this.reportKind === 'balanceSheet'
-        ? (this.searchDateRange?.endDate || this.utilityService.todayAsCalendarDateString())
+        ? (this.asOfDateRange?.asOfDate || this.utilityService.todayAsCalendarDateString())
         : `${this.searchDateRange?.startDate || 'Start'}_${this.searchDateRange?.endDate || 'End'}`
     );
     return `${officeSegment}_${reportSegment}_${dateStamp}.pdf`;
@@ -981,12 +989,34 @@ clearPrintableHtml(): void {
     return allAccounts.filter(account => officeIds.includes(account.officeId));
   }
 
+  resolveReportStartDate(): string | null {
+    if (this.reportKind === 'balanceSheet') {
+      return this.asOfDateRange?.asOfStart ?? null;
+    }
+
+    return this.searchDateRange?.startDate ?? null;
+  }
+
   resolveReportEndDate(): string | null {
     if (this.reportKind === 'balanceSheet') {
-      return this.searchDateRange?.endDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+      return this.asOfDateRange?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
     }
 
     return this.searchDateRange?.endDate ?? null;
+  }
+
+  resolveJournalEntryLineSearchDates(): { startDate: string | null; endDate: string | null } {
+    if (this.reportKind === 'balanceSheet') {
+      return {
+        startDate: null,
+        endDate: this.asOfDateRange?.asOfDate ?? null
+      };
+    }
+
+    return {
+      startDate: this.searchDateRange?.startDate ?? null,
+      endDate: this.searchDateRange?.endDate ?? null
+    };
   }
 
   resolveOfficeIds(): number[] {
@@ -1001,6 +1031,13 @@ clearPrintableHtml(): void {
     const current = change?.currentValue as { startDate: string | null; endDate: string | null } | null | undefined;
     return (previous?.startDate ?? null) !== (current?.startDate ?? null)
       || (previous?.endDate ?? null) !== (current?.endDate ?? null);
+  }
+
+  hasAsOfDateRangeChanged(change: SimpleChanges['asOfDateRange']): boolean {
+    const previous = change?.previousValue as AsOfReportDateRange | null | undefined;
+    const current = change?.currentValue as AsOfReportDateRange | null | undefined;
+    return (previous?.asOfStart ?? null) !== (current?.asOfStart ?? null)
+      || (previous?.asOfDate ?? null) !== (current?.asOfDate ?? null);
   }
   //#endregion
 

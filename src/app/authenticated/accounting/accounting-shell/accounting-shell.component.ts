@@ -107,6 +107,8 @@ interface AccountingShellPinnedTopBarState {
   enabled: boolean;
   startDate: string;
   endDate: string;
+  asOfDate?: string;
+  asOfStart?: string;
   selectedTabIndex?: number;
   selectedBillsReceiptKind?: AccountingShellBillsReceiptKind;
   selectedBankActivityKind?: AccountingShellBankActivityKind;
@@ -272,6 +274,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   userId = '';
   startDate: Date | null = null;
   endDate: Date | null = null;
+  asOfDate: Date | null = null;
+  asOfStart: Date | null = null;
   dateRangePinned = false;
   invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
@@ -932,12 +936,12 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   buildApAgingReportFilters(): ApAgingReportFilters {
-    const endDateApi = this.utilityService.formatDateOnlyForApi(this.endDate);
-    // Owners → AP Aging always shows an editable "As of" (endDate). Use that date directly;
+    const asOfDateApi = this.utilityService.formatDateOnlyForApi(this.asOfDate);
+    // Owners → AP Aging always shows an editable "As of" date. Use that date directly;
     // preset resolution (e.g. "today") would ignore picker changes.
     const asOfDate = this.isOwnerApAgingViewActive
-      ? (endDateApi || this.utilityService.todayAsCalendarDateString())
-      : resolveApAgingAsOfDate(this.selectedArAgingDatePreset, endDateApi);
+      ? (asOfDateApi || this.utilityService.todayAsCalendarDateString())
+      : resolveApAgingAsOfDate(this.selectedArAgingDatePreset, asOfDateApi);
 
     return {
       datePreset: this.isOwnerApAgingViewActive ? 'custom' : this.selectedArAgingDatePreset,
@@ -957,7 +961,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       datePreset: this.selectedArAgingDatePreset,
       asOfDate: resolveArAgingAsOfDate(
         this.selectedArAgingDatePreset,
-        this.utilityService.formatDateOnlyForApi(this.endDate)
+        this.utilityService.formatDateOnlyForApi(this.asOfDate)
       ),
       intervalDays: this.selectedArAgingIntervalDays,
       throughDays: normalizeArAgingThroughDays(this.selectedArAgingThroughValue),
@@ -1027,19 +1031,92 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   syncArAgingAsOfDateFromFilters(): void {
-    const asOfDate = this.utilityService.parseDateOnlyStringToDate(
+    const resolvedAsOfDate = this.utilityService.parseDateOnlyStringToDate(
       resolveArAgingAsOfDate(
         this.selectedArAgingDatePreset,
-        this.utilityService.formatDateOnlyForApi(this.endDate)
+        this.utilityService.formatDateOnlyForApi(this.asOfDate)
       )
     );
-    if (!asOfDate) {
+    if (!resolvedAsOfDate) {
       return;
     }
 
-    this.endDate = asOfDate;
-    this.syncInvoiceSearchDateRange();
+    this.asOfDate = resolvedAsOfDate;
+    this.syncAsOfStartFromAsOfDate();
     this.syncArAgingReportFilters();
+  }
+
+  onAsOfDateChange(): void {
+    this.normalizeAsOfDateValue();
+    this.asOfDate = this.cloneShellDate(this.asOfDate);
+    this.syncAsOfStartFromAsOfDate();
+    this.publishAsOfDateState();
+  }
+
+  publishAsOfDateState(): void {
+    this.syncAsOfStartFromAsOfDate();
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
+
+    this.syncArAgingReportFilters();
+    this.syncApAgingReportFilters();
+
+    if (this.usesAccountingShellAsOfDate) {
+      this.financialReportsRefreshTrigger++;
+      if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'escrow') {
+        this.ownersStatementsRefreshTrigger++;
+      }
+    }
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildAsOfQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+    this.cdr.markForCheck();
+  }
+
+  normalizeAsOfDateValue(): void {
+    if (this.asOfDate) {
+      this.asOfDate.setHours(0, 0, 0, 0);
+    }
+  }
+
+  normalizeAsOfStartValue(): void {
+    if (this.asOfStart) {
+      this.asOfStart.setHours(0, 0, 0, 0);
+    }
+  }
+
+  syncAsOfStartFromAsOfDate(): void {
+    if (!this.asOfDate) {
+      this.asOfStart = null;
+      return;
+    }
+
+    const asOfYear = this.asOfDate.getFullYear();
+    const currentAsOfStartYear = this.asOfStart?.getFullYear();
+    if (this.asOfStart == null || currentAsOfStartYear !== asOfYear) {
+      this.asOfStart = new Date(asOfYear, 0, 1);
+      this.normalizeAsOfStartValue();
+    }
+  }
+
+  applyStoredAsOfStart(storedAsOfStart: string | undefined): void {
+    if (!storedAsOfStart) {
+      this.syncAsOfStartFromAsOfDate();
+      return;
+    }
+
+    const asOfStart = this.utilityService.parseCalendarDateInput(storedAsOfStart);
+    if (!asOfStart) {
+      this.syncAsOfStartFromAsOfDate();
+      return;
+    }
+
+    asOfStart.setHours(0, 0, 0, 0);
+    this.asOfStart = asOfStart;
   }
 
   publishApAgingFilterState(): void {
@@ -2403,6 +2480,9 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
         this.loadReconcileHistoryForSelectedAccount();
       }
     } else if (kindChanged) {
+      if (kind === 'balanceSheet') {
+        this.ensureDefaultAsOfDates();
+      }
       this.financialReportsRefreshTrigger++;
       queueMicrotask(() => this.syncFinancialReportDrillDownActiveState());
     }
@@ -2496,6 +2576,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       return;
     }
     if (this.selectedOwnerKind === 'escrow') {
+      this.ownersStatementsRefreshTrigger++;
       return;
     }
     if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements') {
@@ -2522,6 +2603,24 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       return;
     }
     this.syncOwnerReportsBundleSearchRequest();
+
+    if (this.billsSearchRequest.officeIds.length === 0) {
+      this.toastr.warning('Select an office before running the report.');
+      return;
+    }
+
+    const startDate = this.billsSearchRequest.startDate;
+    const endDate = this.billsSearchRequest.endDate;
+    if (!startDate || !endDate) {
+      this.toastr.warning('Start Date and End Date are required.');
+      return;
+    }
+
+    if (startDate > endDate) {
+      this.toastr.warning('End Date must be on or after Start Date.');
+      return;
+    }
+
     this.ownerReportsCacheService.clear();
     this.isOwnerReportsLoading = true;
     this.ownersStatementsRefreshTrigger++;
@@ -2536,8 +2635,18 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
         this.cdr.markForCheck();
       })
     ).subscribe({
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         this.ownerReportsCacheService.clear();
+        const message = this.utilityService.extractApiErrorMessage(error);
+        if (/timeout/i.test(message)) {
+          this.toastr.error(
+            'The report took too long to generate. Try a shorter date range or narrow filters.',
+            CommonMessage.ServiceError
+          );
+          return;
+        }
+
+        this.toastr.error(message || 'Unable to load owner reports.', CommonMessage.ServiceError);
       }
     });
   }
@@ -2548,11 +2657,19 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       ? this.selectedGlPropertyId
       : this.selectedBillsPropertyId;
     this.billsSearchRequest = {
-      officeIds: this.resolveOfficeIdsForBillsSearch(),
+      officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
       propertyId: propertyId || null,
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
+  }
+
+  resolveOfficeIdsForOwnerReportsSearch(): number[] {
+    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
+      return [this.selectedOfficeId];
+    }
+
+    return [];
   }
 
 refreshGeneralLedgerListView(): void {
@@ -2826,6 +2943,8 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
 
   onDateRangeChange(): void {
     this.normalizeDateRangeValues();
+    this.startDate = this.cloneShellDate(this.startDate);
+    this.endDate = this.cloneShellDate(this.endDate);
     if (this.dateRangePinned) {
       this.persistPinnedDateRange();
     }
@@ -2856,9 +2975,23 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
     }
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.buildShellQueryParams(),
+      queryParams: this.buildRangeQueryParams(),
       queryParamsHandling: 'merge'
     });
+  }
+
+  buildRangeQueryParams(): Record<string, string | null> {
+    return {
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  buildAsOfQueryParams(): Record<string, string | null> {
+    return {
+      asOfDate: this.utilityService.formatDateOnlyForApi(this.asOfDate),
+      asOfStart: this.utilityService.formatDateOnlyForApi(this.asOfStart)
+    };
   }
   //#endregion
 
@@ -2919,8 +3052,12 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
   toggleDateRangePin(): void {
     this.dateRangePinned = !this.dateRangePinned;
     if (this.dateRangePinned) {
-      this.onDateRangeChange();
-      this.persistPinnedDateRange();
+      if (this.showAccountingShellRangeDates) {
+        this.onDateRangeChange();
+      } else {
+        this.syncAsOfStartFromAsOfDate();
+        this.persistPinnedDateRange();
+      }
       return;
     }
     this.clearPinnedDateRangeStorage();
@@ -2931,20 +3068,45 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
 
   applyPinnedDateRangeFromStorage(): void {
     const stored = this.readPinnedDateRangeFromStorage();
-    if (stored?.enabled && stored.startDate && stored.endDate) {
-      const start = this.utilityService.parseCalendarDateInput(stored.startDate);
-      const end = this.utilityService.parseCalendarDateInput(stored.endDate);
-      if (start && end) {
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
-        this.dateRangePinned = true;
-        this.startDate = start;
-        this.endDate = end;
-        this.applyPinnedTopBarFields(stored);
-        this.syncInvoiceSearchDateRange();
-        this.syncBillsSearchRequest();
-        return;
+    const hasRange = !!(stored?.enabled && stored.startDate && stored.endDate);
+    const hasAsOf = !!(stored?.enabled && stored.asOfDate);
+
+    if (hasRange || hasAsOf) {
+      this.dateRangePinned = true;
+
+      if (stored!.startDate) {
+        const start = this.utilityService.parseCalendarDateInput(stored!.startDate);
+        if (start) {
+          start.setHours(0, 0, 0, 0);
+          this.startDate = start;
+        }
       }
+
+      if (stored!.endDate) {
+        const end = this.utilityService.parseCalendarDateInput(stored!.endDate);
+        if (end) {
+          end.setHours(0, 0, 0, 0);
+          this.endDate = end;
+        }
+      }
+
+      if (stored!.asOfDate) {
+        const asOf = this.utilityService.parseCalendarDateInput(stored!.asOfDate);
+        if (asOf) {
+          asOf.setHours(0, 0, 0, 0);
+          this.asOfDate = asOf;
+        }
+      }
+
+      this.applyStoredAsOfStart(stored!.asOfStart);
+      this.applyPinnedTopBarFields(stored!);
+      this.syncInvoiceSearchDateRange();
+      this.syncBillsSearchRequest();
+      this.syncArAgingReportFilters();
+      return;
+    }
+
+    if (stored?.enabled) {
       this.clearPinnedDateRangeStorage();
     }
 
@@ -2955,20 +3117,30 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
   }
 
   persistPinnedDateRange(): void {
-    if (!this.dateRangePinned || !this.startDate || !this.endDate) {
+    if (!this.dateRangePinned) {
       return;
     }
 
+    this.syncAsOfStartFromAsOfDate();
+
     const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-    if (!startDate || !endDate) {
+    const asOfDate = this.utilityService.formatDateOnlyForApi(this.asOfDate);
+    const asOfStart = this.utilityService.formatDateOnlyForApi(this.asOfStart);
+    if (this.usesAccountingShellAsOfDate && !this.showAccountingShellEndDate) {
+      if (!asOfDate || !asOfStart) {
+        return;
+      }
+    } else if (!startDate || !endDate) {
       return;
     }
 
     const snapshot: AccountingShellPinnedTopBarState = {
       enabled: true,
-      startDate,
-      endDate,
+      startDate: startDate ?? '',
+      endDate: endDate ?? '',
+      asOfDate: asOfDate ?? undefined,
+      asOfStart: asOfStart ?? undefined,
       selectedTabIndex: this.selectedTabIndex,
       selectedBillsReceiptKind: this.selectedBillsReceiptKind,
       selectedBankActivityKind: this.selectedBankActivityKind,
@@ -3006,15 +3178,24 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
 
     try {
       const parsed = JSON.parse(rawValue) as AccountingShellPinnedTopBarState;
-      if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
+      if (parsed?.enabled !== true) {
         return null;
       }
+
+      const hasRange = !!parsed.startDate && !!parsed.endDate;
+      const hasAsOf = !!parsed.asOfDate;
+      if (!hasRange && !hasAsOf) {
+        return null;
+      }
+
       const officeId = parsed.officeId == null || parsed.officeId === undefined ? null : Number(parsed.officeId);
       const chartOfAccountId = parsed.chartOfAccountId == null || parsed.chartOfAccountId === undefined ? null : Number(parsed.chartOfAccountId);
       return {
         enabled: true,
-        startDate: String(parsed.startDate),
-        endDate: String(parsed.endDate),
+        startDate: String(parsed.startDate || ''),
+        endDate: String(parsed.endDate || ''),
+        asOfDate: parsed.asOfDate ? String(parsed.asOfDate) : undefined,
+        asOfStart: parsed.asOfStart ? String(parsed.asOfStart) : undefined,
         selectedTabIndex: Number.isFinite(Number(parsed.selectedTabIndex)) ? Number(parsed.selectedTabIndex) : 0,
         selectedBillsReceiptKind: parsed.selectedBillsReceiptKind,
         selectedBankActivityKind: parsed.selectedBankActivityKind,
@@ -3615,19 +3796,56 @@ captureOwnerStatementReturnContext(): void {
       return false;
     }
 
-    return !this.isOwnerApAgingViewActive
-      && !(this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind)));
+    return !this.usesAccountingShellAsOfDate;
+  }
+
+  get usesAccountingShellAsOfDate(): boolean {
+    return this.isOwnerApAgingViewActive
+      || (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'escrow')
+      || (this.selectedTabIndex === this.tabReports
+        && (this.selectedReportKind === 'balanceSheet'
+          || this.selectedReportKind === 'arAging'
+          || this.isApAgingReportKind(this.selectedReportKind)));
+  }
+
+  get showAccountingShellRangeDates(): boolean {
+    return this.showAccountingShellStartDate || this.showAccountingShellEndDate;
+  }
+
+  get showAccountingShellAsOfDate(): boolean {
+    if (!this.showShellDateRange || !this.usesAccountingShellAsOfDate) {
+      return false;
+    }
+
+    if (this.selectedTabIndex === this.tabReports
+      && (this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind))) {
+      return this.showArAgingCustomAsOfDate;
+    }
+
+    return true;
+  }
+
+  get showAccountingShellEndDate(): boolean {
+    if (this.isReconcileAccountReportActive()) {
+      return false;
+    }
+
+    return !this.usesAccountingShellAsOfDate;
   }
 
   get accountingShellEndDateLabel(): string {
-    if (this.isReconcileBankActivityActive || this.isReconcileAccountReportActive()) {
-      return 'Statement Date';
-    }
+    return this.isReconcileBankActivityActive ? 'Statement Date' : 'End Date';
+  }
 
-    return this.isOwnerApAgingViewActive
-      || (this.selectedTabIndex === this.tabReports && (this.selectedReportKind === 'balanceSheet' || this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind)))
-      ? 'As of'
-      : 'End Date';
+  get asOfReportSearchDateRange(): { asOfStart: string | null; asOfDate: string | null } {
+    return {
+      asOfStart: this.utilityService.formatDateOnlyForApi(this.asOfStart),
+      asOfDate: this.utilityService.formatDateOnlyForApi(this.asOfDate)
+    };
+  }
+
+  get shellAsOfDateApi(): string | null {
+    return this.utilityService.formatDateOnlyForApi(this.asOfDate);
   }
 
   get isReconcileBankActivityActive(): boolean {
@@ -4016,11 +4234,13 @@ captureOwnerStatementReturnContext(): void {
 
     const startDateParam = getStringQueryParam(params, 'startDate');
     const endDateParam = getStringQueryParam(params, 'endDate');
+    const asOfDateParam = getStringQueryParam(params, 'asOfDate');
+    const asOfStartParam = getStringQueryParam(params, 'asOfStart');
     if (startDateParam || endDateParam) {
       const previousStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
       const previousEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-      this.startDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
-      this.endDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
+      this.startDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(startDateParam));
+      this.endDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(endDateParam));
       this.normalizeDateRangeValues();
       if (this.dateRangePinned) {
         this.persistPinnedDateRange();
@@ -4053,6 +4273,27 @@ captureOwnerStatementReturnContext(): void {
             this.financialReportsRefreshTrigger++;
             this.generalLedgerRefreshTrigger++;
           });
+        }
+      }
+    }
+
+    if (asOfDateParam) {
+      const previousAsOfDate = this.utilityService.formatDateOnlyForApi(this.asOfDate);
+      this.asOfDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(asOfDateParam));
+      this.normalizeAsOfDateValue();
+      if (asOfStartParam) {
+        this.asOfStart = this.utilityService.parseDateOnlyStringToDate(asOfStartParam);
+        this.normalizeAsOfStartValue();
+      } else {
+        this.syncAsOfStartFromAsOfDate();
+      }
+      if (this.dateRangePinned) {
+        this.persistPinnedDateRange();
+      }
+      if (previousAsOfDate !== this.utilityService.formatDateOnlyForApi(this.asOfDate)) {
+        this.syncArAgingReportFilters();
+        if (this.usesAccountingShellAsOfDate) {
+          this.financialReportsRefreshTrigger++;
         }
       }
     } else if (!this.startDate && !this.endDate && !this.dateRangePinned) {
@@ -4121,6 +4362,11 @@ captureOwnerStatementReturnContext(): void {
       return;
     }
 
+    this.setDefaultRangeDates();
+    this.ensureDefaultAsOfDates();
+  }
+
+  setDefaultRangeDates(): void {
     const end = new Date();
     end.setHours(0, 0, 0, 0);
 
@@ -4129,6 +4375,25 @@ captureOwnerStatementReturnContext(): void {
 
     this.endDate = end;
     this.startDate = start;
+  }
+
+  ensureDefaultAsOfDates(): void {
+    if (this.asOfDate) {
+      return;
+    }
+
+    const asOf = new Date();
+    asOf.setHours(0, 0, 0, 0);
+    this.asOfDate = asOf;
+    this.syncAsOfStartFromAsOfDate();
+  }
+
+  cloneShellDate(value: Date | null | undefined): Date | null {
+    if (!value || !(value instanceof Date) || isNaN(value.getTime())) {
+      return null;
+    }
+
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
   }
 
   applyRentRollMonthDateRange(): boolean {
@@ -4185,6 +4450,16 @@ captureOwnerStatementReturnContext(): void {
       return;
     }
 
+    if (this.usesAccountingShellAsOfDate && !this.showAccountingShellEndDate) {
+      if (this.startDate) {
+        this.startDate.setHours(0, 0, 0, 0);
+      }
+      if (this.endDate) {
+        this.endDate.setHours(0, 0, 0, 0);
+      }
+      return;
+    }
+
     if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
       return;
@@ -4219,6 +4494,8 @@ captureOwnerStatementReturnContext(): void {
       tab: String(this.selectedTabIndex),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
+      asOfDate: this.utilityService.formatDateOnlyForApi(this.asOfDate),
+      asOfStart: this.utilityService.formatDateOnlyForApi(this.asOfStart),
       billsReceipt: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsReceiptKind : null,
       bankActivity: this.selectedTabIndex === this.tabBankActivities ? this.selectedBankActivityKind : null,
       ownerKind: this.selectedTabIndex === this.tabOwners ? this.selectedOwnerKind : null,

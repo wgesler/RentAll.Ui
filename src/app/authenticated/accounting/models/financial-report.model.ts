@@ -4,6 +4,11 @@ import { Class } from './accounting-enum';
 
 export type FinancialReportKind = 'profitLoss' | 'balanceSheet';
 
+export interface AsOfReportDateRange {
+  asOfStart: string | null;
+  asOfDate: string | null;
+}
+
 export type FinancialReportRowKind = 'section' | 'account' | 'total' | 'summary';
 
 export type FinancialReportDrillDownMode = 'activity' | 'balance';

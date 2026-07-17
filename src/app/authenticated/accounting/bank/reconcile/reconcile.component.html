@@ -53,8 +53,9 @@
   }
   <div class="reconcile-panel dbg-band-main">
     @if (isLoading$ | async) {
-      <div class="reconcile-loading">
-        <mat-spinner diameter="36"></mat-spinner>
+      <div class="loading-container loading-container--section">
+        <mat-spinner [diameter]="40"></mat-spinner>
+        <p>Loading reconcile data…</p>
       </div>
     } @else if (placeholderMessage) {
       <div class="reconcile-placeholder">

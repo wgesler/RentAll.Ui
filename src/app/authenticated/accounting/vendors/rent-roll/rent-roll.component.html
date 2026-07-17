@@ -1,7 +1,7 @@
 <div class="rent-roll-wrap">
   @if (!isPageReady) {
-    <div class="rent-roll-loading">
-      <mat-spinner diameter="36"></mat-spinner>
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
       <p>Loading rent roll...</p>
     </div>
   } @else if (isServiceError) {

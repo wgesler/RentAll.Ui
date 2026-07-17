@@ -123,6 +123,16 @@ export class UtilityService {
     return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
   }
 
+  /** Calendar year start (`yyyy-01-01`) for an as-of date string. */
+  resolveYearStartDateFromAsOf(asOfDate: string | null | undefined): string | null {
+    const normalized = this.toDateOnlyJsonString(asOfDate);
+    if (!normalized) {
+      return null;
+    }
+
+    return `${normalized.slice(0, 4)}-01-01`;
+  }
+
   /**
    * **To API:** coerce a control or loose UI value → `yyyy-MM-dd` for JSON calendar fields.
    * Accepts `Date`, or strings such as `2026-04-16` or values with an ISO date prefix.

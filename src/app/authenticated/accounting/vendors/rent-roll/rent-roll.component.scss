@@ -9,15 +9,6 @@
   box-sizing: border-box;
 }
 
-.rent-roll-loading {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  min-height: 200px;
-}
-
 .rent-roll-empty {
   padding: 24px 8px;
   color: #64748b;

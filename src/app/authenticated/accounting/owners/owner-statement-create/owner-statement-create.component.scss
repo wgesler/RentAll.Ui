@@ -18,17 +18,3 @@
   max-width: 100%;
   box-sizing: border-box;
 }
-
-.document-preview-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  gap: 1rem;
-
-  p {
-    margin-top: 1rem;
-    color: #666;
-  }
-}

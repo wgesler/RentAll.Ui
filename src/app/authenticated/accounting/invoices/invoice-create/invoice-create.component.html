@@ -102,7 +102,7 @@
 @if (!isPageReady) {
   @if (shellMode) {
     <div class="invoice-create-container invoice-shell-mode">
-      <div class="document-preview-loading">
+      <div class="loading-container">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading invoice...</p>
       </div>
@@ -157,7 +157,7 @@
           </div>
         </div>
         <mat-card>
-          <div class="document-preview-loading">
+          <div class="loading-container loading-container--section">
             <mat-spinner [diameter]="40"></mat-spinner>
             <p>Loading invoice...</p>
           </div>
