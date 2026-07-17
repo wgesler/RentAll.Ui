@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -37,7 +37,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   leaseInformation: LeaseInformationResponse | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leaseInformation']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   constructor() {
     this.form = this.buildForm();
@@ -45,6 +46,9 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Lease-Information
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.getLeaseInformation(true);
   }
 
@@ -315,6 +319,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

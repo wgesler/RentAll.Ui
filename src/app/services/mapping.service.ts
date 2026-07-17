@@ -5478,7 +5478,7 @@ roundCurrency(value: number): number {
       totals,
       cushion,
       escrowBankBalance,
-      escrowBankAccountLabel: (request.escrowBankAccountLabel || '').trim() || 'Escrow Bank Balance',
+      escrowBankAccountLabel: (request.escrowBankAccountLabel || '').trim() || 'Escrow Owners',
       transfer: this.roundFinancialReportAmount(escrowBankBalance + totals.total - cushion)
     };
   }
@@ -5489,6 +5489,50 @@ roundCurrency(value: number): number {
       ...result,
       cushion: nextCushion,
       transfer: this.roundFinancialReportAmount(result.escrowBankBalance + result.totals.total - nextCushion)
+    };
+  }
+
+  mapEscrowReportResponse(raw: Record<string, unknown>): EscrowReportResult {
+    const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapEscrowReportRow(row as Record<string, unknown>))
+      : [];
+    const totalsRaw = (raw['totals'] ?? raw['Totals'] ?? {}) as Record<string, unknown>;
+
+    return {
+      reportTitle: String(raw['reportTitle'] ?? raw['ReportTitle'] ?? 'Escrow Report'),
+      periodLabel: String(raw['periodLabel'] ?? raw['PeriodLabel'] ?? ''),
+      entityLineLabel: (() => {
+        const value = String(raw['entityLineLabel'] ?? raw['EntityLineLabel'] ?? '').trim();
+        return value || null;
+      })(),
+      rows,
+      totals: {
+        arBalance: this.roundFinancialReportAmount(Number(totalsRaw['arBalance'] ?? totalsRaw['ArBalance'] ?? 0)),
+        prepaids: this.roundFinancialReportAmount(Number(totalsRaw['prepaids'] ?? totalsRaw['Prepaids'] ?? 0)),
+        notCollected: this.roundFinancialReportAmount(Number(totalsRaw['notCollected'] ?? totalsRaw['NotCollected'] ?? 0)),
+        total: this.roundFinancialReportAmount(Number(totalsRaw['total'] ?? totalsRaw['Total'] ?? 0)),
+        e2: this.roundFinancialReportAmount(Number(totalsRaw['e2'] ?? totalsRaw['E2'] ?? 0))
+      },
+      cushion: this.roundFinancialReportAmount(Number(raw['cushion'] ?? raw['Cushion'] ?? 0)),
+      escrowBankBalance: this.roundFinancialReportAmount(Number(raw['escrowBankBalance'] ?? raw['EscrowBankBalance'] ?? 0)),
+      escrowBankAccountLabel: String(raw['escrowBankAccountLabel'] ?? raw['EscrowBankAccountLabel'] ?? 'Escrow Owners').trim() || 'Escrow Owners',
+      transfer: this.roundFinancialReportAmount(Number(raw['transfer'] ?? raw['Transfer'] ?? 0))
+    };
+  }
+
+  mapEscrowReportRow(raw: Record<string, unknown>): EscrowReportRow {
+    return {
+      rowId: String(raw['rowId'] ?? raw['RowId'] ?? ''),
+      ownerName: String(raw['ownerName'] ?? raw['OwnerName'] ?? '—'),
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? ''),
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? '—'),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
+      arBalance: this.roundFinancialReportAmount(Number(raw['arBalance'] ?? raw['ArBalance'] ?? 0)),
+      prepaids: this.roundFinancialReportAmount(Number(raw['prepaids'] ?? raw['Prepaids'] ?? 0)),
+      notCollected: this.roundFinancialReportAmount(Number(raw['notCollected'] ?? raw['NotCollected'] ?? 0)),
+      total: this.roundFinancialReportAmount(Number(raw['total'] ?? raw['Total'] ?? 0)),
+      e2: this.roundFinancialReportAmount(Number(raw['e2'] ?? raw['E2'] ?? 0))
     };
   }
 

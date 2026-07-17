@@ -89,7 +89,7 @@
               <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
                 <span class="dashboard-titlebar-stat-line">Properties</span>
               </h4>
-              @if (isLoading$ | async) {
+              @if (!isPageReady) {
                 <div class="dashboard-titlebar-spinner">
                   <mat-spinner [diameter]="16"></mat-spinner>
                 </div>
@@ -154,13 +154,13 @@
           <div class="reservation-tables">
             <mat-accordion multi="true">
             <!-- Upcoming Properties Table -->
-            @if ((isLoading$ | async) || hasReservationTurnoverRows()) {
+            @if ((!isPageReady) || hasReservationTurnoverRows()) {
             <mat-expansion-panel
               [(expanded)]="expandedSections.properties">
               <mat-expansion-panel-header>
                 <mat-panel-title>Reservation Turnover</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoading$ | async) {
+              @if (!isPageReady) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
                   <p>Loading…</p>
@@ -229,13 +229,13 @@
             </mat-expansion-panel>
             }
 
-            @if ((isLoading$ | async) || hasPropertyTurnoverRows()) {
+            @if ((!isPageReady) || hasPropertyTurnoverRows()) {
             <mat-expansion-panel
               [(expanded)]="expandedSections.propertyTurnover">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Turnover</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoading$ | async) {
+              @if (!isPageReady) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
                   <p>Loading…</p>
@@ -422,13 +422,13 @@
             </mat-expansion-panel>
             }
 
-            @if ((isLoading$ | async) || propertiesByVacancy.length > 0) {
+            @if ((!isPageReady) || propertiesByVacancy.length > 0) {
             <mat-expansion-panel
               [(expanded)]="expandedSections.vacantProperties">
               <mat-expansion-panel-header>
                 <mat-panel-title>Vacant Properties</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoading$ | async) {
+              @if (!isPageReady) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
                   <p>Loading…</p>
@@ -456,7 +456,7 @@
             }
 
             <!-- Monthly Commissions Table -->
-            @if (showCommissionsUi && ((isLoading$ | async) || monthlyCommissions.length > 0 || (!isAdmin && !currentUserAgentId))) {
+            @if (showCommissionsUi && ((!isPageReady) || monthlyCommissions.length > 0 || (!isAdmin && !currentUserAgentId))) {
               <mat-expansion-panel 
                 [(expanded)]="expandedSections.monthlyCommissions">
                 <mat-expansion-panel-header>
@@ -467,7 +467,7 @@
                     }
                   </mat-panel-title>
                 </mat-expansion-panel-header>
-                @if (isLoading$ | async) {
+                @if (!isPageReady) {
                   <div class="loading-container">
                     <mat-spinner [diameter]="40"></mat-spinner>
                     <p>Loading…</p>

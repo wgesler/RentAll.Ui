@@ -58,11 +58,14 @@ export class DocumentComponent implements OnInit, OnDestroy {
   documentTypes: { value: DocumentType, label: string }[] = getDocumentTypes();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Documents
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
     this.loadOffices();

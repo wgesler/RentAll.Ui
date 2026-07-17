@@ -1,4 +1,4 @@
-@if (isLoading$ | async) {
+@if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner diameter="50"></mat-spinner>
     <p>Loading document...</p>

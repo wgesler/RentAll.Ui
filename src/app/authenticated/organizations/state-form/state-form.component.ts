@@ -53,11 +53,14 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   hasNewFileUpload: boolean = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForm', 'states']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region StateForm
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.buildForm();
     this.loadStates();
     this.handleIdChange(this.id);

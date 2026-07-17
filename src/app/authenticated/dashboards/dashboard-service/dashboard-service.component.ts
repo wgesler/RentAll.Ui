@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
@@ -60,7 +60,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   selectedScheduleCalendarDayKey: string | null = null;
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(s => s.size > 0));
+  isPageReady = false;
 
   readonly scheduledCleaningColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -119,7 +119,10 @@ markViewForCheck(): void {
 
   //#region Dashboard-Service
   override ngOnInit(): void {
-    this.setTodayDate();
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });    this.setTodayDate();
     this.userId = this.authService.getUser()?.userId?.trim();
     this.loadCurrentUser(this.userId);
 

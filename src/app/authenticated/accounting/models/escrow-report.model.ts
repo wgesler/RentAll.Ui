@@ -42,3 +42,11 @@ export interface EscrowReportBuildRequest {
   escrowBankBalance: number;
   escrowBankAccountLabel: string;
 }
+
+export interface EscrowReportSearchRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  startDate: string | null;
+  endDate: string;
+  cushion?: number;
+}

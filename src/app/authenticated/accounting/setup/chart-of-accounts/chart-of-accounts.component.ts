@@ -60,11 +60,14 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   selectedOffice: OfficeResponse | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccount', 'offices']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region ChartOfAccount
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
     this.loadOffices();
@@ -360,7 +363,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.isAddMode) {
       return;
     }
-    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }

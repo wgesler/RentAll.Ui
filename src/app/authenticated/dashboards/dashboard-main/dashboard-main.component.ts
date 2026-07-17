@@ -88,7 +88,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
   expandedSections = { monthlyCommissions: true, properties: true, propertyTurnover: true, vacantProperties: true };
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList', 'trackerConfiguration']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   trackerContextType = TrackerContextType;
   
 
@@ -161,6 +161,9 @@ markViewForCheck(): void {
 
   //#region Dashboard-Main
   override ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.setTodayDate();
     this.isAdmin = this.authService.isAdmin();
     this.canViewCommissions = this.authService.canViewCommissions();

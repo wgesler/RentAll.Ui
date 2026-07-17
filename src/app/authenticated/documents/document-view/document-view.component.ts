@@ -3,7 +3,7 @@ import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@an
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -51,10 +51,14 @@ iframeLoadHandler?: () => void;
   private objectUrl: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   //#region Document-View
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     const queryParams = this.route.snapshot.queryParams;
     this.returnTo = queryParams['returnTo'];
     this.propertyId = queryParams['propertyId'];
@@ -608,6 +612,9 @@ iframeLoadHandler?: () => void;
   }
   
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
     // Remove iframe load listener if it exists
     if (this.iframeLoadHandler) {
       const iframe = document.querySelector('iframe.document-iframe') as HTMLIFrameElement;

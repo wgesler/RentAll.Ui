@@ -2,22 +2,16 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Subject, catchError, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { AuthService } from '../../../../services/auth.service';
-import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
-import { JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay } from '../../models/journal-entry.model';
 import { EscrowReportResult } from '../../models/escrow-report.model';
-import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
-import { GeneralLedgerService } from '../../services/general-ledger.service';
-import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { ReportService } from '../../services/report.service';
 
 @Component({
@@ -32,17 +26,13 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
   @Input() asOfDate: string | null = null;
-  @Input() searchRequest: MaintenanceListSearchRequest | null = null;
+  @Input() asOfStart: string | null = null;
+  @Input() propertyId: string | null = null;
   @Input() refreshTrigger = 0;
-  @Input() isLoading = false;
 
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
-  private accountingOfficeService = inject(AccountingOfficeService);
-  private chartOfAccountsService = inject(ChartOfAccountsService);
-  private generalLedgerService = inject(GeneralLedgerService);
   private reportService = inject(ReportService);
-  private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
@@ -51,14 +41,13 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   isPageReady = false;
   isServiceError = false;
-  hasLoadedOnce = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
   reportResult: EscrowReportResult | null = null;
   cushionInput = 0;
-  noDataMessage = 'Click Go to load the Escrow report for the selected office, property, and as-of date.';
+  noDataMessage = 'No escrow activity for the selected office, property, and as-of date.';
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'escrowReport']));
   destroy$ = new Subject<void>();
   private reportLoadId = 0;
 
@@ -75,15 +64,19 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadReport();
+      return;
     }
 
-    if (changes['isLoading'] && !changes['isLoading'].firstChange) {
-      this.markViewForCheck();
-    }
-
-    if ((changes['searchRequest'] || changes['officeId'] || changes['asOfDate']) && this.hasLoadedOnce) {
+    if (!this.itemsToLoad$.value.has('offices') && this.hasFilterInputChange(changes)) {
       this.loadReport();
     }
+  }
+
+  hasFilterInputChange(changes: SimpleChanges): boolean {
+    return ['officeId', 'asOfDate', 'asOfStart', 'propertyId'].some(key => {
+      const change = changes[key];
+      return !!change && !change.firstChange;
+    });
   }
 
   ngOnDestroy(): void {
@@ -96,6 +89,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.organizationId) {
       this.offices = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.loadReport();
       return;
     }
 
@@ -105,11 +99,13 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+            this.loadReport();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+            this.loadReport();
             this.markViewForCheck();
           }
         });
@@ -117,108 +113,56 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       error: () => {
         this.offices = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.loadReport();
         this.markViewForCheck();
       }
     });
   }
 
   loadReport(): void {
-    if (!this.isPageReady) {
+    if (this.itemsToLoad$.value.has('offices')) {
       return;
     }
 
     const officeIds = this.resolveOfficeIds();
-    const asOfDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
+    const endDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
     if (officeIds.length === 0) {
       this.reportResult = null;
       this.isServiceError = false;
-      this.hasLoadedOnce = true;
-      this.noDataMessage = 'Select an office to load the Escrow report.';
+      this.noDataMessage = 'Select an office to view the Escrow report.';
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
       this.markViewForCheck();
       return;
     }
 
     const loadId = ++this.reportLoadId;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'escrowReport');
-    this.hasLoadedOnce = true;
+    if (!this.itemsToLoad$.value.has('escrowReport')) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'escrowReport');
+    }
 
-    const searchRequest: MaintenanceListSearchRequest = {
+    this.reportService.searchEscrowReport({
       officeIds,
-      propertyId: this.searchRequest?.propertyId ?? null,
-      startDate: this.searchRequest?.startDate ?? null,
-      endDate: asOfDate
-    };
-
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+      propertyId: this.propertyId,
+      startDate: this.asOfStart,
+      endDate,
+      cushion: this.cushionInput
+    }).pipe(
       take(1),
-      switchMap(() => this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))),
-      switchMap(() => {
-        const cached = this.ownerReportsCacheService.getAccrualReport();
-        const cachedRecap = this.ownerReportsCacheService.getRecapReport();
-        const reports$ = cached && cachedRecap
-          ? of({ accrual: cached, recap: cachedRecap })
-          : this.reportService.searchOwnerReports(
-              this.mappingService.mapOwnerReportSearchRequest(searchRequest)
-            ).pipe(
-              map(bundle => ({ accrual: bundle.accrual, recap: bundle.recap }))
-            );
-
-        return reports$.pipe(
-          switchMap(({ accrual, recap }) => {
-            const bankRequests = officeIds.map(officeId => {
-              const accountId = this.resolveEscrowBankAccountId(officeId);
-              if (accountId == null) {
-                return of({ officeId, accountId: null as number | null, lines: [] as JournalEntryLineSearchResponse[] });
-              }
-
-              return this.generalLedgerService.searchJournalEntryLines({
-                officeIds: [officeId],
-                chartOfAccountId: accountId,
-                includeVoided: false,
-                includeUnposted: true,
-                startDate: null,
-                endDate: asOfDate
-              }).pipe(
-                catchError(() => of([] as JournalEntryLineSearchResponse[])),
-                map(lines => ({ officeId, accountId, lines }))
-              );
-            });
-
-            return forkJoin(bankRequests).pipe(
-              map(bankResults => ({ accrual, recap, bankResults }))
-            );
-          })
-        );
-      }),
-      take(1)
+      finalize(() => {
+        if (this.reportLoadId === loadId) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
+        }
+        this.markViewForCheck();
+      })
     ).subscribe({
-      next: ({ accrual, recap, bankResults }) => {
+      next: report => {
         if (this.reportLoadId !== loadId) {
           return;
         }
 
         this.isServiceError = false;
-        const escrowBankBalance = this.mappingService.roundFinancialReportAmount(
-          bankResults.reduce(
-            (sum, result) => sum + this.mappingService.sumEscrowAssetAccountBalance(result.lines),
-            0
-          )
-        );
-        const bankLabels = bankResults
-          .map(result => this.resolveEscrowBankAccountLabel(result.officeId, result.accountId))
-          .filter(label => !!label);
-        this.reportResult = this.mappingService.buildEscrowReport({
-          accrualRows: accrual?.rows || [],
-          recapRows: (recap?.rows || []) as JournalEntryRecapRowDisplay[],
-          propertyId: this.searchRequest?.propertyId ?? null,
-          asOfDateLabel: this.formatAsOfLabel(asOfDate),
-          officeName: this.displayOfficeName,
-          cushion: this.cushionInput,
-          escrowBankBalance,
-          escrowBankAccountLabel: bankLabels[0] || 'Escrow Bank Balance'
-        });
-        this.cushionInput = this.reportResult.cushion;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
+        this.reportResult = report;
+        this.cushionInput = report.cushion;
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
@@ -228,9 +172,10 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
         this.reportResult = null;
         this.isServiceError = true;
-        const message = typeof error?.error === 'string' ? error.error : 'Unable to load Escrow report.';
+        const message = typeof error?.error === 'string'
+          ? error.error
+          : error.error?.title || error.error?.message || error.message || 'Unable to load Escrow report.';
         this.toastr.error(message, 'Escrow');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
         this.markViewForCheck();
       }
     });
@@ -258,53 +203,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return [this.officeId];
     }
 
-    const fromSearch = (this.searchRequest?.officeIds || []).filter(id => id > 0);
-    if (fromSearch.length > 0) {
-      return fromSearch;
-    }
-
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
-  }
-
-resolveEscrowBankAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-      .find(office => Number(office.officeId) === officeId);
-    const configuredAccountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
-    if (configuredAccountId > 0) {
-      return configuredAccountId;
-    }
-
-    const account1003 = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId).find(account => {
-      const accountNo = String(account.accountNo || '').trim().replace(/^0+/, '');
-      return accountNo === '1003';
-    });
-    const fallbackId = Number(account1003?.accountId ?? 0);
-    return fallbackId > 0 ? fallbackId : null;
-  }
-
-resolveEscrowBankAccountLabel(officeId: number, accountId: number | null): string {
-    if (accountId == null) {
-      return '';
-    }
-
-    const account = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
-      .find(item => Number(item.accountId) === accountId);
-    if (!account) {
-      return '';
-    }
-
-    return this.utilityService.getChartOfAccountDropdownLabel(account);
-  }
-
-formatAsOfLabel(asOfDate: string): string {
-    return this.formatter.formatDateString(asOfDate) || asOfDate;
-  }
-
-  get displayOfficeName(): string {
-    if (this.officeId == null) {
-      return 'All Offices';
-    }
-    return this.offices.find(office => office.officeId === this.officeId)?.name || '';
   }
 
   markViewForCheck(): void {

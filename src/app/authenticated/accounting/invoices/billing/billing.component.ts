@@ -73,11 +73,14 @@ export class BillingComponent implements OnInit, OnDestroy {
   originalNotes: string | null = null; // Store original notes for comparison
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Invoice
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.isPaymentMode = false;
     this.loadCostCodes();
     this.loadOrganizations();

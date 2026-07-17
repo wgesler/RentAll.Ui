@@ -75,13 +75,17 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   interestEarnedInput = '';
   isSavingReconcile = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
-  isLoading$ = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
   private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
   private readonly columnPreferencesStorageKeyPrefix = 'rentall-reconcile-columns';
 
   //#region Reconcile
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
+    });
     this.resetViewState();
     this.applyStickyFilterFromStorage();
     this.applyColumnPreferencesFromStorage();

@@ -131,11 +131,14 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Contacts
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
       this.syncDefaultOfficeOptions();

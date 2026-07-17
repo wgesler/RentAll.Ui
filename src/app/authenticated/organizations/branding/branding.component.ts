@@ -46,7 +46,7 @@ export class BrandingComponent implements OnInit, OnDestroy {
   isUploadingCollapsedLogo: boolean = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['branding']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
 
   private readonly defaultBranding: BrandingResponse = {
     organizationId: '',
@@ -60,6 +60,9 @@ export class BrandingComponent implements OnInit, OnDestroy {
 
   //#region Branding
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.buildForm();
     this.loadBranding();
   }

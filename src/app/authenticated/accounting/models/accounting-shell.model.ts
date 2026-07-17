@@ -12,6 +12,7 @@ export type AccountingShellOwnerKind =
   | 'statements'
   | 'ownerStatements'
   | 'apAging'
-  | 'escrow';
+  | 'escrow'
+  | 'securityDeposits';
 
 export type AccountingShellGeneralLedgerKind = 'ledger' | 'recap';

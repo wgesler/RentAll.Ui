@@ -1,5 +1,5 @@
 <div class="flex content-card-wrap justify-center">
-  @if (isLoading$ | async) {
+  @if (!isPageReady) {
     <section class="content-card dashboard-service-page-loading dbg-band-main" aria-busy="true">
       <div class="loading-container">
         <mat-spinner [diameter]="48"></mat-spinner>

@@ -15,6 +15,7 @@
 .owner-statement-empty-msg {
   margin: 1.5rem;
   color: rgba(0, 0, 0, 0.6);
+  text-align: center;
 }
 
 .owner-statement-layout {
@@ -58,8 +59,19 @@
 }
 
 .owner-statement-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 1.5rem 0;
+  width: 100%;
   color: rgba(15, 23, 42, 0.72);
+  text-align: center;
+
+  p {
+    margin: 0;
+    text-align: center;
+  }
 }
 
 .owner-statement-context-band {

@@ -65,7 +65,6 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   descriptionOverflowCheckScheduled = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   photosLoadedForPropertyId: string | null = null;
   readonly photoUploadConcurrency = 3;

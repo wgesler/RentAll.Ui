@@ -236,7 +236,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'utilities', label: 'Utilities & Bills' },
     { kind: 'statements', label: 'Accrual & Cash' },
     { kind: 'apAging', label: 'AP Aging' },
-    { kind: 'escrow', label: 'Escrow' },
+    { kind: 'escrow', label: 'Escrow (E2)' },
+    { kind: 'securityDeposits', label: 'Security Deposits' },
     { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -2379,6 +2380,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.syncArAgingAsOfDateFromFilters();
     }
 
+    if (kindChanged && kind === 'escrow') {
+      this.ensureDefaultAsOfDates();
+    }
+
     if (previousTab !== this.tabOwners) {
       this.onTabChange({ index: this.tabOwners });
       return;
@@ -2611,12 +2616,15 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
 
     const startDate = this.billsSearchRequest.startDate;
     const endDate = this.billsSearchRequest.endDate;
-    if (!startDate || !endDate) {
+    if (this.isOwnerEscrowViewActive) {
+      if (!endDate) {
+        this.toastr.warning('As of date is required.');
+        return;
+      }
+    } else if (!startDate || !endDate) {
       this.toastr.warning('Start Date and End Date are required.');
       return;
-    }
-
-    if (startDate > endDate) {
+    } else if (startDate > endDate) {
       this.toastr.warning('End Date must be on or after Start Date.');
       return;
     }
@@ -2656,6 +2664,17 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     const propertyId = this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap'
       ? this.selectedGlPropertyId
       : this.selectedBillsPropertyId;
+
+    if (this.isOwnerEscrowViewActive) {
+      this.billsSearchRequest = {
+        officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
+        propertyId: propertyId || null,
+        startDate: this.utilityService.formatDateOnlyForApi(this.asOfStart),
+        endDate: this.utilityService.formatDateOnlyForApi(this.asOfDate)
+      };
+      return;
+    }
+
     this.billsSearchRequest = {
       officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
       propertyId: propertyId || null,
@@ -3656,6 +3675,10 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.isOwnerReportView(this.selectedOwnerKind);
   }
 
+  get isOwnerEscrowViewActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'escrow';
+  }
+
   get showOwnerReportGoButton(): boolean {
     if (this.isOwnerStatementCreateActive) {
       return false;
@@ -3663,8 +3686,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
 
     if (this.selectedTabIndex === this.tabOwners
       && (this.isOwnerReportView(this.selectedOwnerKind)
-        || this.selectedOwnerKind === 'ownerStatements'
-        || this.selectedOwnerKind === 'escrow')) {
+        || this.selectedOwnerKind === 'ownerStatements')) {
       return true;
     }
 
@@ -3846,6 +3868,10 @@ captureOwnerStatementReturnContext(): void {
 
   get shellAsOfDateApi(): string | null {
     return this.utilityService.formatDateOnlyForApi(this.asOfDate);
+  }
+
+  get shellAsOfStartApi(): string | null {
+    return this.utilityService.formatDateOnlyForApi(this.asOfStart);
   }
 
   get isReconcileBankActivityActive(): boolean {
@@ -4090,6 +4116,7 @@ captureOwnerStatementReturnContext(): void {
         || ownerKind === 'ownerStatements'
         || ownerKind === 'apAging'
         || ownerKind === 'escrow'
+        || ownerKind === 'securityDeposits'
       ) {
         this.selectedOwnerKind = ownerKind;
         if (ownerKind === 'statements') {

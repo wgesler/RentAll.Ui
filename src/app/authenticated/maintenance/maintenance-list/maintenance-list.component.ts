@@ -139,7 +139,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   otherPropertiesMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices','activeReservations','propertyMaintenanceList','cleaners','carpetUsers','inspectors']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
 
 markViewForCheck(): void {
     this.cdr.markForCheck();
@@ -165,6 +165,9 @@ markViewForCheck(): void {
 
   //#region Maintenance-List
   override ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.userId = this.authService.getUser()?.userId || '';
     this.setTodayDate();
 

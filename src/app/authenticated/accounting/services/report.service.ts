@@ -5,6 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
+import { EscrowReportResult, EscrowReportSearchRequest } from '../models/escrow-report.model';
 
 @Injectable({
   providedIn: 'root'
@@ -108,6 +109,31 @@ export class ReportService {
 
     return this.http.post<OwnerReportsBundleResponse>(`${this.controller}owner-reports/search`, body).pipe(
       map(bundle => this.mappingService.mapOwnerReportsBundleResponse(bundle as unknown as Record<string, unknown>))
+    );
+  }
+
+  searchEscrowReport(request: EscrowReportSearchRequest): Observable<EscrowReportResult> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search the escrow report.');
+    }
+
+    const endDate = (request.endDate || '').trim();
+    if (!endDate) {
+      throw new Error('As-of date is required to search the escrow report.');
+    }
+
+    const propertyId = (request.propertyId || '').trim();
+    const body: Record<string, unknown> = {
+      officeIds,
+      propertyId: propertyId || null,
+      startDate: request.startDate || null,
+      endDate,
+      cushion: request.cushion ?? 0
+    };
+
+    return this.http.post<EscrowReportResult>(`${this.controller}escrow/search`, body).pipe(
+      map(report => this.mappingService.mapEscrowReportResponse(report as unknown as Record<string, unknown>))
     );
   }
 

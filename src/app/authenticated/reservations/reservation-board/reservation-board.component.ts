@@ -111,11 +111,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   private readonly externalCalendarReservationIdPrefix = 'extcal:';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Reservation-Board
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.showReservationNames = this.showReservationNames !== false;
     this.userId = this.authService.getUser()?.userId || '';

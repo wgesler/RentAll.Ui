@@ -1,6 +1,12 @@
 .general-ledger-empty-state {
   padding: 1.5rem 1rem;
   color: rgba(15, 23, 42, 0.72);
+  text-align: center;
+
+  p {
+    margin: 0;
+    text-align: center;
+  }
 }
 
 .loading-container {

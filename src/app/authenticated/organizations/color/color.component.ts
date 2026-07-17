@@ -52,11 +52,14 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   showCheckedInNoticeVariants = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Color
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     // Use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new';
@@ -289,7 +292,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
 
   scheduleFocusFirstField(): void {
     if (!this.isAddMode) return;
-    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }

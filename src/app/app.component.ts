@@ -52,7 +52,7 @@ export class AppComponent implements OnInit, OnDestroy {
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes', 'chartOfAccounts', 'propertyCodes']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
   private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
     { name: 'reservation', prefixes: ['/auth/reservations'] },
@@ -61,6 +61,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.debugLayoutBandsService.setEnabled(false);
 
     // Load anonymous data on app startup

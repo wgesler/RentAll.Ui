@@ -52,7 +52,7 @@
     </div>
   }
   <div class="reconcile-panel dbg-band-main">
-    @if (isLoading$ | async) {
+    @if (!isPageReady) {
       <div class="loading-container loading-container--section">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading reconcile data…</p>

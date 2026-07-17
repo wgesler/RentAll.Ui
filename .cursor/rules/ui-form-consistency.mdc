@@ -83,14 +83,15 @@ alwaysApply: true
 - Components should subscribe to shared/global data providers/stores rather than re-fetching duplicate reference data per component.
 - Components should use the `utilityService` load-item gating pattern for loading state consistency:
   - `itemsToLoad$` as `BehaviorSubject<Set<string>>`
-  - `isLoading$` derived from set size
+  - `isPageReady` boolean synced from set size (`items.size === 0`)
   - add/remove load items through utility helpers
 - Use subscription lifecycle cleanup consistently (`destroy$` + `takeUntil(...)` and `ngOnDestroy` completion/unsubscribe).
 - Prefer this standard component loading shell when applicable:
   - `globalOfficeSubscription?: Subscription`
   - `itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set([...]))`
-  - `isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0))`
+  - `isPageReady = false`
   - `destroy$ = new Subject<void>()`
+  - In `ngOnInit`, subscribe: `this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => { this.isPageReady = items.size === 0; ... })`
 - Assume default property retrieval is org/user-scoped by API access control:
   - For users with access to multiple offices, default `getProperties` returns all properties they are allowed to access across those offices.
   - Office authorization filtering is enforced by the API.
@@ -102,7 +103,9 @@ alwaysApply: true
   - Use dedicated methods like `loadOffices()`, `loadRegions()`, `loadAreas()`, `loadBuildings()`, etc.
   - Give each loader its own load-item key in `itemsToLoad$`.
   - Remove each key in that loader's `finalize(...)`.
-  - Gate page render (`isLoading$`) until all required keys are cleared.
+  - Gate page render (`isPageReady`) until all required keys are cleared.
+  - In templates: `@if (!isPageReady) { …spinner… }` / `@if (isPageReady) { …content… }`. Do **not** use `isLoading$` for this pattern.
+  - `LoadingBarService.isLoading$` is the global HTTP progress bar only — unrelated to component page readiness.
   - Keep each loader focused and independently debuggable.
 
 # Formatting Standard

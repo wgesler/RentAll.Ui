@@ -1133,10 +1133,14 @@
                 <app-escrow-report
                   [officeId]="selectedOfficeId"
                   [asOfDate]="shellAsOfDateApi"
-                  [searchRequest]="billsSearchRequest"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger"
-                  [isLoading]="isOwnerReportsLoading">
+                  [asOfStart]="shellAsOfStartApi"
+                  [propertyId]="selectedBillsPropertyId"
+                  [refreshTrigger]="ownersStatementsRefreshTrigger">
                 </app-escrow-report>
+              } @else if (selectedOwnerKind === 'securityDeposits') {
+                <div class="financial-report-empty-state">
+                  <p>Security Deposits report is coming soon.</p>
+                </div>
               } @else if (isOwnerReportViewActive) {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger

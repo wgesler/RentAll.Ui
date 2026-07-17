@@ -183,7 +183,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   formPropertyContactEntityTypeId: number | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'areas', 'buildings', 'contacts']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   get isOwnerMode(): boolean {
@@ -221,6 +221,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   //#region Property
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
       this.applyOwnerModeDefaults();

@@ -18,12 +18,7 @@
 
     <div class="financial-report-panel dbg-band-main">
       <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
-        @if (isLoading || itemsToLoad$.value.has('escrowReport')) {
-          <div class="loading-container loading-container--section">
-            <mat-spinner [diameter]="40"></mat-spinner>
-            <p>Loading Escrow report…</p>
-          </div>
-        } @else if (isServiceError) {
+        @if (isServiceError) {
           <div class="financial-report-empty-state">
             <p>Unable to load Escrow report.</p>
           </div>
@@ -32,6 +27,7 @@
             <p>{{ noDataMessage }}</p>
           </div>
         } @else {
+          <div class="escrow-report-body">
           <div class="financial-report-table-wrap">
             <table class="financial-report-table escrow-report-table">
               <thead>
@@ -58,7 +54,7 @@
                   </tr>
                 }
                 <tr class="financial-report-row-total">
-                  <td colspan="2">Totals</td>
+                  <td colspan="2" class="escrow-report-total-label">Totals</td>
                   <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.arBalance) }}</td>
                   <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.prepaids) }}</td>
                   <td class="financial-report-col-amount">{{ formatAmount(reportResult.totals.notCollected) }}</td>
@@ -72,6 +68,7 @@
           <div class="escrow-report-summary">
             <div class="escrow-report-summary-row">
               <span class="escrow-report-summary-label">Cushion</span>
+              <span class="escrow-report-summary-instructions"></span>
               <input
                 class="escrow-report-summary-input escrow-report-summary-input--cushion"
                 type="number"
@@ -81,16 +78,20 @@
             </div>
             <div class="escrow-report-summary-row">
               <span class="escrow-report-summary-label">{{ reportResult.escrowBankAccountLabel }}</span>
+              <span class="escrow-report-summary-instructions"></span>
               <span class="escrow-report-summary-value escrow-report-summary-value--bank">
                 {{ formatAmount(reportResult.escrowBankBalance) }}
               </span>
             </div>
             <div class="escrow-report-summary-row escrow-report-summary-row--transfer">
               <span class="escrow-report-summary-label">Transfer</span>
+              <span class="escrow-report-summary-instructions escrow-report-summary-hint">
+                *pos number = transfer OUT, neg number = needs transferred IN
+              </span>
               <span class="escrow-report-summary-value escrow-report-summary-value--transfer">
                 {{ formatAmount(reportResult.transfer) }}
               </span>
-              <span class="escrow-report-summary-hint">*pos number = transfer OUT, neg number = needs transferred IN</span>
+            </div>
             </div>
           </div>
         }

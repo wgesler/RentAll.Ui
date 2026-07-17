@@ -33,30 +33,64 @@
     background: rgba(15, 23, 42, 0.02);
   }
 
+  tbody tr.financial-report-row-total {
+    background: #eff6ff;
+
+    td {
+      font-weight: 600;
+      border-top: 1px solid rgba(15, 23, 42, 0.18);
+    }
+  }
+
+  .escrow-report-total-label {
+    text-align: right;
+    padding-right: 0.65rem;
+  }
+
   .financial-report-col-amount {
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
 }
 
+.escrow-report-body {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .escrow-report-summary {
   margin-top: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-width: 42rem;
+  margin-left: auto;
+  width: 50%;
+  max-width: 50%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 2.25fr) minmax(0, 1.15fr) minmax(0, 0.9fr);
+  column-gap: 1rem;
+  row-gap: 0.65rem;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .escrow-report-summary-row {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) 9rem auto;
-  align-items: center;
-  gap: 0.75rem;
+  display: contents;
 }
 
 .escrow-report-summary-label {
   font-weight: 600;
   font-size: 0.875rem;
+  text-align: left;
+  justify-self: stretch;
+  align-self: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+  padding-right: 0.25rem;
 }
 
 .escrow-report-summary-row--transfer .escrow-report-summary-label {
@@ -64,10 +98,26 @@
   font-weight: 700;
 }
 
+.escrow-report-summary-instructions {
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  justify-self: stretch;
+  overflow: hidden;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  box-sizing: border-box;
+}
+
 .escrow-report-summary-input,
 .escrow-report-summary-value {
-  width: 9rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   text-align: right;
+  justify-self: stretch;
   font-variant-numeric: tabular-nums;
   font-size: 0.875rem;
   padding: 0.35rem 0.5rem;

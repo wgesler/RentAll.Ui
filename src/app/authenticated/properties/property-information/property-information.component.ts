@@ -52,7 +52,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   organizationId = '';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation', 'offices']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -61,6 +61,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   //#region Property-Information
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     
