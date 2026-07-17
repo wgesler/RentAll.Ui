@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, Subject, BehaviorSubject, firstValueFrom, take } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import {
   ReservationCodeResponse,
   ReservationDepartureResponse,
@@ -24,6 +25,7 @@ export class ReservationService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
   private mixedMappingService = inject(MixedMappingService);
+  private utility = inject(UtilityService);
 
   
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
@@ -68,7 +70,7 @@ export class ReservationService {
           return;
         }
 
-        this.setSecurityDepositsOutstanding((response?.rows || []).length > 0);
+        this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(response?.rows));
       },
       error: () => {
         if (loadId !== this.securityDepositsOutstandingLoadId) {
@@ -77,6 +79,22 @@ export class ReservationService {
 
         this.setSecurityDepositsOutstanding(false);
       }
+    });
+  }
+
+  updateSecurityDepositsOutstandingBadge(rows: ReservationDepartureResponse[] | null | undefined): void {
+    this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(rows));
+  }
+
+  private hasDepartedUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[] | null | undefined): boolean {
+    const todayOrdinal = this.utility.parseCalendarDateToOrdinal(this.utility.todayAsCalendarDateString());
+    if (todayOrdinal == null) {
+      return false;
+    }
+
+    return (rows || []).some(row => {
+      const departureOrdinal = this.utility.parseCalendarDateToOrdinal(row.departureDate);
+      return departureOrdinal != null && departureOrdinal <= todayOrdinal;
     });
   }
 

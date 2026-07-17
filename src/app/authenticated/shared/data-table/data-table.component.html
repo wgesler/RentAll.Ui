@@ -347,6 +347,16 @@
                     } @else {
                       {{item[column.name]}}
                     }
+                  } @case ('invoiceCode') {
+                    @if (hasInvoiceCodeLink && item?.invoiceId) {
+                      <span (click)="onInvoiceCodeClick($event, item)"
+                        class="text-blue-700 underline cursor-pointer"
+                        id="table-invoice-code-link-{{templateTableId}}-{{i}}">
+                        {{item[column.name]}}
+                      </span>
+                    } @else {
+                      {{item[column.name]}}
+                    }
                   } @case ('journalEntryCode') {
                     @if (hasJournalEntryCodeLink && item?.journalEntryId) {
                       <span (click)="onJournalEntryCodeClick($event, item)"

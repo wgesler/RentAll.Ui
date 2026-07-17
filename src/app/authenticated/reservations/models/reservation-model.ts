@@ -381,6 +381,15 @@ export interface ReservationDepartureResponse {
   deposit: number;
   depositReturned: boolean;
   securityDepositReturnDate: CalendarDateString;
+  paidAmount: number;
+  returnedAmount: number;
+  owedAmount: number;
+  journalEntryId?: string | null;
+  journalEntryCode?: string | null;
+  paidJournalEntryId?: string | null;
+  paidJournalEntryCode?: string | null;
+  invoiceId?: string | null;
+  invoiceCode?: string | null;
 }
 
 export interface SecurityDepositReturnRequest {
@@ -405,7 +414,8 @@ export interface UnreturnedSecurityDepositDisplay {
   reservationCode: string;
   propertyCode: string;
   officeId: number;
-  agentCode: string;
+  invoiceId: string;
+  invoiceCode: string;
   contactName: string;
   tenantName: string;
   companyName: string;
@@ -414,6 +424,17 @@ export interface UnreturnedSecurityDepositDisplay {
   securityDepositReturnDate: string;
   depositDisplay: string;
   deposit: number;
+  paidDisplay: string;
+  paidAmount: number;
+  owedDisplay: string;
+  owedAmount: number;
+  balanceDisplay: string;
+  balanceAmount: number;
+  returnedAmount: number;
+  journalEntryId: string;
+  journalEntryCode: string;
+  paidJournalEntryId: string;
+  paidJournalEntryCode: string;
   depositReturned: boolean;
 }
 

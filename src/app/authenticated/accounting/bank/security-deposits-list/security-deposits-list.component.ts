@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -18,6 +18,7 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { SecurityDepositReturnPaymentDialogComponent } from './security-deposit-return-payment-dialog.component';
 import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-payment-dialog.model';
 import { FormatterService } from '../../../../services/formatter-service';
+import { InvoiceSelection } from '../../models/invoice.model';
 
 @Component({
   selector: 'app-security-deposits-list',
@@ -31,6 +32,8 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   @Input() officeId: number | null = null;
   @Input() refreshTrigger = 0;
+  @Output() journalEntrySelectEvent = new EventEmitter<{ journalEntryId: string }>();
+  @Output() invoiceSelectEvent = new EventEmitter<InvoiceSelection>();
 
   @ViewChild('tableWrap') tableWrapRef?: ElementRef<HTMLElement>;
   @ViewChild('summaryFooter') summaryFooterRef?: ElementRef<HTMLElement>;
@@ -46,7 +49,8 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   readonly displayedColumns: ColumnSet = {
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
-    agentCode: { displayAs: 'Agent', wrap: false, maxWidth: '12ch', sortType: 'natural' },
+    invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '14ch', sortType: 'natural' },
+    journalEntryCode: { displayAs: 'JE', wrap: false, maxWidth: '14ch', sortType: 'natural' },
     tenantName: { displayAs: 'Occupant', wrap: true, maxWidth: '22ch' },
     contactName: { displayAs: 'Contact', wrap: true, maxWidth: '22ch' },
     companyName: { displayAs: 'Company', wrap: true, maxWidth: '22ch' },
@@ -54,7 +58,10 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     departureDate: { displayAs: 'Departure', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     securityDepositReturnDate: { displayAs: 'Return By', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     depositDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
+    paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    owedDisplay: { displayAs: 'Owed', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    balanceDisplay: { displayAs: 'Balance', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
   };
 
   rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
@@ -134,7 +141,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
         this.escrowBalance = Number(mappedResponse.escrowBalance ?? 0);
         this.discrepancy = Number(mappedResponse.discrepancy ?? 0);
         this.escrowAccountLabel = String(mappedResponse.escrowAccountLabel ?? '').trim();
-        this.reservationService.setSecurityDepositsOutstanding((mappedResponse.rows || []).length > 0);
+        this.reservationService.updateSecurityDepositsOutstandingBadge(mappedResponse.rows);
         this.markViewForCheck();
         this.scheduleSummaryAlignmentRetries();
       },
@@ -265,7 +272,9 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
     this.paymentTargetReservationId = reservationId;
     this.paymentInitialDescription = `${row.reservationCode} Security Deposit Return`.trim();
-    this.paymentInitialAmount = this.roundCurrencyValue(Number(row.deposit ?? 0));
+    const depositOwed = this.roundCurrencyValue(Number(row.deposit ?? 0));
+    const returnedAmount = this.roundCurrencyValue(Number(row.returnedAmount ?? 0));
+    this.paymentInitialAmount = this.roundCurrencyValue(Math.max(0, depositOwed - returnedAmount));
     this.showPaymentForm = true;
     this.markViewForCheck();
   }
@@ -319,40 +328,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     });
   }
 
-  onDepositReturnedCheckboxChange(event: UnreturnedSecurityDepositDisplay): void {
-    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
-    if (changedCheckboxColumn !== 'depositReturned') {
-      return;
-    }
-
-    const previousValue = (event as any)?.__previousCheckboxValue === true;
-    const nextValue = (event as any)?.__checkboxValue === true;
-    if (previousValue === nextValue) {
-      return;
-    }
-
-    this.applyDepositReturnedValue(event.reservationId, nextValue);
-
-    void this.reservationService.updateModifiedReservation(event.reservationId, { depositReturned: nextValue }).then(() => {
-      this.toastr.success('Reservation updated.', CommonMessage.Success);
-      this.loadRows();
-      this.reservationService.refreshSecurityDepositsOutstanding();
-    }).catch(() => {
-      this.applyDepositReturnedValue(event.reservationId, previousValue);
-      this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-      this.markViewForCheck();
-    });
-  }
-
-  applyDepositReturnedValue(reservationId: string, depositReturned: boolean): void {
-    const nextValue = !!depositReturned;
-    this.rowsDisplay = this.rowsDisplay.map(row =>
-      row.reservationId === reservationId
-        ? { ...row, depositReturned: nextValue }
-        : row
-    );
-  }
-
   openReservation(row: UnreturnedSecurityDepositDisplay): void {
     const reservationId = String(row?.reservationId || '').trim();
     if (!reservationId) {
@@ -370,6 +345,29 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])],
       { queryParams }
     );
+  }
+
+  openJournalEntry(row: UnreturnedSecurityDepositDisplay): void {
+    const journalEntryId = String(row?.journalEntryId || '').trim();
+    if (!journalEntryId) {
+      return;
+    }
+
+    this.journalEntrySelectEvent.emit({ journalEntryId });
+  }
+
+  openInvoice(row: UnreturnedSecurityDepositDisplay): void {
+    const invoiceId = String(row?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return;
+    }
+
+    const rowOfficeId = Number(row?.officeId ?? 0);
+    this.invoiceSelectEvent.emit({
+      invoiceId,
+      officeId: this.officeId ?? (Number.isFinite(rowOfficeId) && rowOfficeId > 0 ? rowOfficeId : null),
+      reservationId: String(row?.reservationId || '').trim() || null
+    });
   }
 
   clearPaymentContext(): void {

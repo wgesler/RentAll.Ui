@@ -601,6 +601,31 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.cdr.markForCheck();
   }
 
+  onSecurityDepositJournalEntrySelect(event: { journalEntryId: string }): void {
+    const journalEntryId = (event?.journalEntryId || '').trim();
+    if (!journalEntryId) {
+      return;
+    }
+
+    this.selectedTabIndex = this.tabGeneralLedger;
+    this.selectedGeneralLedgerKind = 'ledger';
+    this.showGeneralLedgerOfficeValidationError = false;
+    this.copyFromJournalEntry = null;
+    this.activeJournalEntryId = journalEntryId;
+    this.selectedJournalEntryLineId = null;
+    this.showGeneralLedgerDetail = true;
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({
+        tab: String(this.tabGeneralLedger),
+        glView: 'ledger',
+        bankActivity: null
+      }),
+      queryParamsHandling: 'merge'
+    });
+    this.cdr.markForCheck();
+  }
+
   onCreateJournalEntry(copyFrom: JournalEntryResponse | null = null): void {
     this.showGeneralLedgerOfficeValidationError = false;
     this.selectedGlPropertyId = null;

@@ -1008,7 +1008,9 @@
               } @else if (selectedBankActivityKind === 'securityDeposits') {
                 <app-security-deposits-list
                   [officeId]="selectedOfficeId"
-                  [refreshTrigger]="securityDepositsRefreshTrigger">
+                  [refreshTrigger]="securityDepositsRefreshTrigger"
+                  (journalEntrySelectEvent)="onSecurityDepositJournalEntrySelect($event)"
+                  (invoiceSelectEvent)="onInvoiceSelect($event)">
                 </app-security-deposits-list>
               } @else if (selectedBankActivityKind === 'reconcile') {
                 <app-reconcile

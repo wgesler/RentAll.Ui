@@ -3934,7 +3934,16 @@ roundCurrency(value: number): number {
       depositTypeId: Number(raw['depositTypeId'] ?? raw['DepositTypeId'] ?? 0),
       deposit: Number(raw['deposit'] ?? raw['Deposit'] ?? 0),
       depositReturned: !!(raw['depositReturned'] ?? raw['DepositReturned']),
-      securityDepositReturnDate: this.utility.coerceCalendarDateStringFromApi(raw['securityDepositReturnDate'] ?? raw['SecurityDepositReturnDate']) ?? ''
+      securityDepositReturnDate: this.utility.coerceCalendarDateStringFromApi(raw['securityDepositReturnDate'] ?? raw['SecurityDepositReturnDate']) ?? '',
+      paidAmount: Number(raw['paidAmount'] ?? raw['PaidAmount'] ?? 0),
+      returnedAmount: Number(raw['returnedAmount'] ?? raw['ReturnedAmount'] ?? 0),
+      owedAmount: Number(raw['owedAmount'] ?? raw['OwedAmount'] ?? 0),
+      journalEntryId: this.utility.normalizeIdOrNull(String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '')),
+      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? '').trim(),
+      paidJournalEntryId: this.utility.normalizeIdOrNull(String(raw['paidJournalEntryId'] ?? raw['PaidJournalEntryId'] ?? '')),
+      paidJournalEntryCode: String(raw['paidJournalEntryCode'] ?? raw['PaidJournalEntryCode'] ?? '').trim(),
+      invoiceId: this.utility.normalizeIdOrNull(String(raw['invoiceId'] ?? raw['InvoiceId'] ?? '')),
+      invoiceCode: String(raw['invoiceCode'] ?? raw['InvoiceCode'] ?? '').trim()
     };
   }
 
@@ -3947,14 +3956,14 @@ roundCurrency(value: number): number {
       const companyName = String(row.companyName || '').trim();
       const tenantName = String(row.tenantName || '').trim();
       const contactName = String(row.contactName || '').trim();
-      const agentCode = String(row.agentCode || '').trim();
 
       return {
         reservationId: this.utility.normalizeId(row.reservationId),
         reservationCode: row.reservationCode,
         propertyCode: row.propertyCode,
         officeId: row.officeId,
-        agentCode,
+        invoiceId: this.utility.normalizeId(row.invoiceId ?? ''),
+        invoiceCode: String(row.invoiceCode ?? '').trim(),
         contactName,
         tenantName,
         companyName,
@@ -3963,6 +3972,17 @@ roundCurrency(value: number): number {
         securityDepositReturnDate: this.formatter.formatDateString(row.securityDepositReturnDate),
         depositDisplay: this.formatter.currencyUsd(row.deposit),
         deposit: Number(row.deposit ?? 0),
+        paidDisplay: this.formatter.currencyUsd(row.paidAmount ?? 0),
+        paidAmount: Number(row.paidAmount ?? 0),
+        owedDisplay: this.formatter.currencyUsd(row.owedAmount ?? 0),
+        owedAmount: Number(row.owedAmount ?? 0),
+        balanceAmount: this.roundFinancialReportAmount(Number(row.paidAmount ?? 0) - Number(row.owedAmount ?? 0)),
+        balanceDisplay: this.formatter.currencyUsd(this.roundFinancialReportAmount(Number(row.paidAmount ?? 0) - Number(row.owedAmount ?? 0))),
+        returnedAmount: Number(row.returnedAmount ?? 0),
+        journalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
+        journalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
+        paidJournalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
+        paidJournalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
         depositReturned: !!row.depositReturned
       };
     });

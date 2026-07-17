@@ -168,6 +168,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasPropertyCodeLink: boolean = false;
   @Input() hasReservationCodeLink: boolean = false;
   @Input() hasJournalEntryCodeLink: boolean = false;
+  @Input() hasInvoiceCodeLink: boolean = false;
   @Input() hasSourceLink: boolean = false;
   @Input() hasContactNameLink: boolean = true;
   @Input() hasWorkOrderCodeLink: boolean = false;
@@ -215,6 +216,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() reservationCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() journalEntryCodeClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() invoiceCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() sourceClickEvent = new EventEmitter<PurposefulAny>();
   @Output() workOrderCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() inlineEditChangeEvent = new EventEmitter<PurposefulAny>();
@@ -769,6 +771,11 @@ markViewForCheck(): void {
   onJournalEntryCodeClick(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.journalEntryCodeClickEvent.emit(rowItem);
+  }
+
+  onInvoiceCodeClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.invoiceCodeClickEvent.emit(rowItem);
   }
 
   onSourceClick(event: Event, rowItem: PurposefulAny): void {
