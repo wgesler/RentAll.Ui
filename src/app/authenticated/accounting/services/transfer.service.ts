@@ -67,4 +67,9 @@ export class TransferService {
   deleteTransfer(transferId: string): Observable<void> {
     return this.http.delete<void>(this.controller + transferId);
   }
+
+  postTransferReport(transferId: string): Observable<TransferResponse> {
+    return this.http.post<TransferResponse>(`${this.controller}${transferId}/post-report`, {})
+      .pipe(map(transfer => this.mappingService.mapTransferResponse(transfer)));
+  }
 }

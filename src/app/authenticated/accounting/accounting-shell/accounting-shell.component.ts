@@ -227,7 +227,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'deposits', label: 'Deposits' },
     { kind: 'untransferredFunds', label: 'Untransferred Funds' },
     { kind: 'transfers', label: 'Transfers' },
-    { kind: 'transferReport', label: 'Transfer Report' },
+    { kind: 'transferReport', label: 'Transfer Reports' },
     { kind: 'printChecks', label: 'Print Checks' },
     { kind: 'reconcile', label: 'Reconcile' }
   ];
@@ -1694,6 +1694,12 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showTransferReportDetail = false;
     this.selectedTransferReportId = null;
     this.selectedTransferReport = null;
+  }
+
+
+  onTransferReportPosted(transfer: TransferResponse): void {
+    this.selectedTransferReport = transfer;
+    this.onJournalEntriesChanged();
   }
 
   buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {

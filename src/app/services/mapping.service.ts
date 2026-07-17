@@ -3505,6 +3505,8 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     const modifiedBy = String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim();
     const isActiveRaw = rawRecord['isActive'] ?? rawRecord['IsActive'] ?? base.isActive;
     const isActive = isActiveRaw === false || isActiveRaw === 'false' || isActiveRaw === 0 ? false : true;
+    const hasBeenTransferedRaw = rawRecord['hasBeenTransfered'] ?? rawRecord['HasBeenTransfered'] ?? base.hasBeenTransfered;
+    const hasBeenTransfered = hasBeenTransferedRaw === true || hasBeenTransferedRaw === 'true' || hasBeenTransferedRaw === 1;
     const mappedSplits = this.mapTransferSplitsFromApi(
       (rawRecord['splits'] ?? rawRecord['Splits'] ?? base.splits) as TransferSplit[] | undefined | null
     );
@@ -3530,6 +3532,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       bankAccountId,
       bankAccountDisplayName: String(rawRecord['bankAccountDisplayName'] ?? rawRecord['BankAccountDisplayName'] ?? base.bankAccountDisplayName ?? '').trim(),
       isActive,
+      hasBeenTransfered,
       createdBy: createdBy || createdByName,
       createdByName: createdByName || createdBy,
       modifiedBy,
@@ -3639,6 +3642,7 @@ resolveTransferPropertyIds(
         bankAccountDisplay: (transfer.bankAccountDisplayName || '').trim(),
         accountDisplay: distinctAccounts.join(', '),
         isSplitAmountValid: splitTotalAmount <= transferAmount,
+        hasBeenTransfered: transfer.hasBeenTransfered === true,
         isActive: transfer.isActive,
         createdBy: transfer.createdBy ?? transfer.createdByName ?? '',
         createdByName: transfer.createdByName ?? transfer.createdBy ?? '',

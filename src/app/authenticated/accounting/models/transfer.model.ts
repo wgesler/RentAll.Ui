@@ -56,6 +56,7 @@ export interface TransferResponse {
   splits: TransferSplit[];
   journalEntryId?: string | null;
   postingStatusId?: number | null;
+  hasBeenTransfered?: boolean;
   isActive: boolean;
   createdOn?: string;
   createdBy?: string;
@@ -86,6 +87,7 @@ export interface TransferDisplayList {
   notes?: string;
   isSplitAmountValid?: boolean;
   descriptionDisplay?: string;
+  hasBeenTransfered?: boolean;
   isActive: boolean;
   period?: string;
   createdBy?: string;

@@ -26,6 +26,24 @@
         [itemsPerPage]="25"
         [totalsRow]="totalsRow"
         [totalsRowAlerts]="totalsRowAlerts">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <button
+              mat-raised-button
+              type="button"
+              color="primary"
+              class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+              (click)="postTransferReport()"
+              [disabled]="!canPostTransferReport || isPostingTransferReport">
+              @if (isPostingTransferReport) {
+                <mat-spinner diameter="15" />
+              } @else {
+                <mat-icon class="text-base">publish</mat-icon>
+              }
+              <span>{{ isPostingTransferReport ? 'Posting...' : 'Post' }}</span>
+            </button>
+          </div>
+        </div>
       </app-data-table>
     </div>
   </div>

@@ -868,7 +868,11 @@
                 } @else if (selectedBankActivityKind === 'transfers') {
                   Transfers
                 } @else if (selectedBankActivityKind === 'transferReport') {
-                  Transfer Report
+                  @if (showTransferReportDetail && selectedTransferReportId) {
+                    Transfer Report
+                  } @else {
+                    Transfer Reports
+                  }
                 } @else if (selectedBankActivityKind === 'printChecks') {
                   Print Checks
                 } @else if (selectedBankActivityKind === 'reconcile') {
@@ -964,7 +968,8 @@
                       [officeId]="selectedOfficeId"
                       [transferId]="selectedTransferReportId"
                       [prefetchedTransfer]="selectedTransferReport"
-                      [refreshTrigger]="transferReportRefreshTrigger">
+                      [refreshTrigger]="transferReportRefreshTrigger"
+                      (transferPosted)="onTransferReportPosted($event)">
                     </app-transfer-report>
                   }
                 } @else {
