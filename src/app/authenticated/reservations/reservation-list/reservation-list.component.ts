@@ -205,7 +205,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams['officeId'] = this.selectedOffice.officeId;
     }
 
-    this.router.navigate([url], { queryParams });
+    this.router.navigate(['/' + url], { queryParams });
   }
 
   openAddAlertDialog(): void {
@@ -253,7 +253,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         if (this.selectedOffice) {
           queryParams['officeId'] = this.selectedOffice.officeId;
         }
-        this.router.navigate([url], {
+        this.router.navigate(['/' + url], {
           queryParams,
           state: { copyFromReservation: reservation }
         });
@@ -383,7 +383,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       queryParams['officeId'] = this.selectedOffice.officeId;
     }
 
-    this.router.navigate([url], { queryParams });
+    this.router.navigate(['/' + url], { queryParams });
   }
 
   goToInvoice(event: ReservationListDisplay): void {
@@ -403,7 +403,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       queryParams['officeId'] = this.selectedOffice.officeId;
     }
 
-    this.router.navigate([url], { queryParams });
+    this.router.navigate(['/' + url], { queryParams });
   }
 
   goToPropertySelection(): void {

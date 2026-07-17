@@ -1696,6 +1696,10 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.selectedTransferReport = null;
   }
 
+  onEscrowTransferNavigate(): void {
+    this.onTransferReportBack();
+    this.selectBankActivity('transferReport');
+  }
 
   onTransferReportPosted(transfer: TransferResponse): void {
     this.selectedTransferReport = transfer;

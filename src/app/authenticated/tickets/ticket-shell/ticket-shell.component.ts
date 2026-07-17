@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } fr
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import {BehaviorSubject, Subject, finalize, skip, take, takeUntil} from 'rxjs';
+import { Subject, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -93,9 +93,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   private allReservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
 
-
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isApplyingTicketSelectionContext = false;
   destroy$ = new Subject<void>();
 
@@ -107,11 +104,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,
       offices: this.offices
-    });
-
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-      this.markViewForCheck();
     });
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -357,11 +349,10 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   loadOffices(): void {
     if (!this.organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
 
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(
@@ -480,11 +471,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Utility Methods
-  syncPageReadyFromLoadItems(): void {
-    this.isPageReady = this.itemsToLoad$.value.size === 0;
-    this.cdr.markForCheck();
-  }
-
   getFilteredPropertiesByOffice(): PropertyCodeResponse[] {
     const scopedOfficeId = this.selectedOfficeId;
     if (scopedOfficeId == null) {
@@ -612,7 +598,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.itemsToLoad$.complete();
   }
   //#endregion
 }

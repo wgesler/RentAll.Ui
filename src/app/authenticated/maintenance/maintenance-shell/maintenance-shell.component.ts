@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, filter, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -127,8 +127,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   receiptSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   workOrderSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
-  isPageReady = false;
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -138,9 +136,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   //#region Maintenance-Shell
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
     this.openWithAllSelections = ((this.route.snapshot.queryParamMap.get('scope') || '').trim().toLowerCase() === 'all');
     this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
@@ -195,7 +190,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
     this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
       if (this.openWithAllSelections || this.clearPropertyOnOpen) {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
         this.property = null;
         this.shellReservations = [];
         this.titleBarReservationId = null;
@@ -216,8 +210,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(take(1),
           map(reservations => ({ property, reservations: reservations || [] }))
         )
-      ),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))
+      )
     ).subscribe({
       next: ({ property, reservations }) => {
         if (loadVersion !== this.propertyLoadVersion) {
@@ -508,7 +501,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
     this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
     this.syncMaintenanceSearchRequests();
@@ -756,7 +748,6 @@ applyPageOfficeChangeEffects(): void {
     if (selectedPropertyId && selectedPropertyId !== this.selectedPropertyId) {
       this.skipNextPropertyCodeChange = true;
       this.selectedPropertyId = selectedPropertyId;
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
       this.loadProperty(selectedPropertyId, () => openReceiptDetail(), null);
       return;
     }
@@ -1124,7 +1115,6 @@ resolveOfficeIdsForRequest(): number[] {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.itemsToLoad$.complete();
   }
   //#endregion
 }

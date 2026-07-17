@@ -1,9 +1,4 @@
-@if (!isPageReady) {
-  <div class="loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading property...</p>
-  </div>
-} @else if (isServiceError) {
+@if (isServiceError) {
   <div class="loading-container">
     <p>Unable to load property.</p>
   </div>

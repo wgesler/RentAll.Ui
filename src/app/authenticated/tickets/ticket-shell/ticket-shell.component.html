@@ -1,10 +1,4 @@
-@if (!isPageReady) {
-  <div class="page-loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading tickets...</p>
-  </div>
-} @else {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+<div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
         <div class="flex items-center flex-wrap py-4">
@@ -155,4 +149,3 @@
       </mat-card>
     </section>
   </div>
-}

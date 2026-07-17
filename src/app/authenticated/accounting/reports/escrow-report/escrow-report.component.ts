@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -29,6 +29,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   @Input() asOfStart: string | null = null;
   @Input() propertyId: string | null = null;
   @Input() refreshTrigger = 0;
+  @Output() transferNavigate = new EventEmitter<void>();
 
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
@@ -208,5 +209,9 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  openTransferReports(): void {
+    this.transferNavigate.emit();
   }
 }

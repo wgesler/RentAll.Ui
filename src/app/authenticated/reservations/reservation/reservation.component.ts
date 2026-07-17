@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, HostListener, Input, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, QueryList, SimpleChanges, ViewChild, ViewChildren, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -63,10 +63,11 @@ import { UserService } from '../../users/services/user.service';
     styleUrl: './reservation.component.scss'
 })
 
-export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanComponentDeactivate {
 
   @Input() shellMode: boolean = false;
   @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
+  @Input() reservationIdInput: string | null = null;
   reservationService = inject(ReservationService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -178,22 +179,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
 
     this.buildForm();
-    
-    // Get route params first
-    this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
-      this.reservationId = paramMap.get('id');
-      this.isAddMode = this.reservationId === 'new';
-      this.applyAddModeScopeValidators();
+    this.applyReservationIdFromContext();
 
-      if (this.isAddMode) {
-        this.propertyPanelOpen = true;
-        this.billingPanelOpen = true;
-        this.updatePetFields();
-        this.updateMaidServiceFields();
-        this.extraFeeLines = [];
-      }
-    });
-    
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
         this.selectedTabIndex = 0;
@@ -235,6 +222,50 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         this.getReservation();
       }
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['reservationIdInput'] && this.shellMode && !changes['reservationIdInput'].firstChange) {
+      this.applyReservationIdFromContext();
+      if (!this.isAddMode && this.isPageReady) {
+        this.getReservation(this.reservationId);
+      }
+    }
+  }
+
+  applyReservationIdFromContext(): void {
+    if (this.shellMode) {
+      const inputId = (this.reservationIdInput || '').trim();
+      if (inputId) {
+        this.reservationId = inputId;
+        this.isAddMode = inputId === 'new';
+        this.applyAddModeScopeValidators();
+        if (this.isAddMode) {
+          this.prepareAddModeDefaults();
+        }
+        return;
+      }
+    }
+
+    const routeId = this.route.snapshot.paramMap.get('id');
+    if (!routeId) {
+      return;
+    }
+
+    this.reservationId = routeId;
+    this.isAddMode = routeId === 'new';
+    this.applyAddModeScopeValidators();
+    if (this.isAddMode) {
+      this.prepareAddModeDefaults();
+    }
+  }
+
+  prepareAddModeDefaults(): void {
+    this.propertyPanelOpen = true;
+    this.billingPanelOpen = true;
+    this.updatePetFields();
+    this.updateMaidServiceFields();
+    this.extraFeeLines = [];
   }
 
   getReservation(reservationId?: string): void {

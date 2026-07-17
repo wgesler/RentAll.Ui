@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { Subject, skip, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -83,17 +83,12 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   activeOfficeId: number | null = null;
   activePropertyId: string | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
-  isPageReady = false;
   destroy$ = new Subject<void>();
 
   readonly DocumentType = DocumentType;
 
   //#region Reservation-Shell
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isAdmin = this.authService.isAdmin();
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
@@ -562,9 +557,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-    })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -592,10 +585,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       return;
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservationContext');
-    this.reservationService.getReservationByGuid(this.routeReservationId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservationContext');
-    })).subscribe({
+    this.reservationService.getReservationByGuid(this.routeReservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
         if (reservation?.officeId != null) {
           this.applyReservationScope(
@@ -689,7 +679,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.itemsToLoad$.complete();
   }
 
   closeEmbeddedInvoiceEditor(): void {

@@ -28,12 +28,23 @@
           </div>
         } @else {
           <div class="escrow-report-body">
+          <div class="escrow-report-toolbar">
+            <button
+              mat-raised-button
+              type="button"
+              color="primary"
+              class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+              (click)="openTransferReports()">
+              <mat-icon class="text-base">swap_horiz</mat-icon>
+              <span>Transfer</span>
+            </button>
+          </div>
           <div class="financial-report-table-wrap">
             <table class="financial-report-table escrow-report-table">
               <thead>
                 <tr>
-                  <th>Owner</th>
-                  <th>Property</th>
+                  <th class="escrow-report-col-owner">Owner</th>
+                  <th class="escrow-report-col-property">Property</th>
                   <th class="financial-report-col-amount">AR Balance</th>
                   <th class="financial-report-col-amount">Prepaids</th>
                   <th class="financial-report-col-amount">Not Collected</th>
@@ -44,8 +55,8 @@
               <tbody>
                 @for (row of reportResult.rows; track row.rowId) {
                   <tr>
-                    <td>{{ row.ownerName }}</td>
-                    <td>{{ row.propertyCode }}</td>
+                    <td class="escrow-report-col-owner">{{ row.ownerName }}</td>
+                    <td class="escrow-report-col-property">{{ row.propertyCode }}</td>
                     <td class="financial-report-col-amount">{{ formatAmount(row.arBalance) }}</td>
                     <td class="financial-report-col-amount">{{ formatAmount(row.prepaids) }}</td>
                     <td class="financial-report-col-amount">{{ formatAmount(row.notCollected) }}</td>
@@ -86,13 +97,14 @@
             <div class="escrow-report-summary-row escrow-report-summary-row--transfer">
               <span class="escrow-report-summary-label">Transfer</span>
               <span class="escrow-report-summary-instructions escrow-report-summary-hint">
-                *pos number = transfer OUT, neg number = needs transferred IN
+                <span class="escrow-report-summary-hint-line">*pos number = transfer OUT</span>
+                <span class="escrow-report-summary-hint-line">neg number = transfer IN</span>
               </span>
               <span class="escrow-report-summary-value escrow-report-summary-value--transfer">
                 {{ formatAmount(reportResult.transfer) }}
               </span>
             </div>
-            </div>
+          </div>
           </div>
         }
       </div>

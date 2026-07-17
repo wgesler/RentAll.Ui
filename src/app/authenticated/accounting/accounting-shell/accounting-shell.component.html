@@ -1140,7 +1140,8 @@
                   [asOfDate]="shellAsOfDateApi"
                   [asOfStart]="shellAsOfStartApi"
                   [propertyId]="selectedBillsPropertyId"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger">
+                  [refreshTrigger]="ownersStatementsRefreshTrigger"
+                  (transferNavigate)="onEscrowTransferNavigate()">
                 </app-escrow-report>
               } @else if (selectedOwnerKind === 'securityDeposits') {
                 <div class="financial-report-empty-state">
