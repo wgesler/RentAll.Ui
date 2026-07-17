@@ -17,6 +17,7 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
+import { PasswordCheckDialogService } from '../../../shared/modals/password-check-dialog/password-check-dialog.service';
 import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult } from './owner-statement-starting-balance-dialog.component';
 
 @Component({
@@ -38,6 +39,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private propertyAgreementService = inject(PropertyAgreementService);
   private authService = inject(AuthService);
+  private passwordCheckDialogService = inject(PasswordCheckDialogService);
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -233,10 +235,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       width: '34rem',
       data: {
         defaultDate,
-        defaultAmount,
-        existingAmount,
-        existingTransactionDate,
-        requiresAdminPassword: hasExistingStartingBalance
+        defaultAmount
       }
     }).afterClosed().pipe(take(1)).subscribe((result?: OwnerStatementStartingBalanceDialogResult) => {
       if (!result) {
@@ -245,15 +244,14 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
       const changedExistingValue = hasExistingStartingBalance
         && ((existingTransactionDate || '') !== result.transactionDate || Math.abs((Number(existingAmount) || 0) - (Number(result.amount) || 0)) > 0.005);
-      const currentPassword = String(result.currentPassword || '').trim();
-      const createStartingBalance = () => {
+      const createStartingBalance = (currentPassword: string | null) => {
         this.ownerStatementService.createOwnerStatementStartingBalance({
           officeId: row.officeId,
           ownerId: row.ownerId,
           propertyId: row.propertyId,
           transactionDate: result.transactionDate,
           amount: result.amount,
-          currentPassword: changedExistingValue ? currentPassword : null
+          currentPassword
         }).pipe(take(1)).subscribe({
           next: () => {
             this.toastr.success('Starting balance journal entry saved and posted.', CommonMessage.Success);
@@ -265,23 +263,20 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
           }
         });
       };
+
       if (!changedExistingValue) {
-        createStartingBalance();
+        createStartingBalance(null);
         return;
       }
 
-      this.authService.confirmPassword(currentPassword).pipe(take(1)).subscribe({
-        next: isConfirmed => {
-          if (!isConfirmed) {
-            this.toastr.error('Password confirmation failed.', CommonMessage.Error);
-            return;
-          }
-          createStartingBalance();
-        },
-        error: () => {
-          this.toastr.error('Password confirmation failed.', CommonMessage.Error);
-          this.markViewForCheck();
+      this.passwordCheckDialogService.confirm({
+        hint: 'Required when changing an existing starting balance.'
+      }).pipe(take(1)).subscribe(currentPassword => {
+        if (!currentPassword) {
+          return;
         }
+
+        createStartingBalance(currentPassword);
       });
     });
   }

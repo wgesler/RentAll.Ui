@@ -387,75 +387,86 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
 
-    if (this.receipt?.receiptId && !this.journalEntryService.guardCanUpdateJournalEntry(this.receipt.postingStatusId, 'Receipt')) {
+    const saveReceipt = () => {
+      this.isSubmitting = true;
+
+      const save$ = this.receipt?.receiptId
+        ? this.receiptService.updateReceipt(payload)
+        : this.receiptService.createReceipt(payload);
+
+      save$.pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
+        next: (saved: ReceiptResponse) => {
+          this.receipt = saved;
+          this.activeAgreementLineId = this.normalizeAgreementLineId(saved.agreementLineId);
+          this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(saved.agreementLineNotes);
+          this.isAddMode = false;
+          const formPropertyIds = this.toFormPropertyIds(saved.propertyIds || [], saved.splits || []);
+          this.form.patchValue({
+            officeName: saved.officeName || this.property?.officeName || '',
+            receiptDate: this.getReceiptDateControlValue(saved.receiptDate),
+            dueDate: this.getReceiptDateControlValue(saved.dueDate || saved.receiptDate),
+            accountingPeriod: this.getReceiptDateControlValue(saved.accountingPeriod || saved.receiptDate),
+            propertyCode: this.getPropertyCodesDisplay(formPropertyIds) || this.property?.propertyCode || '',
+            propertyIds: formPropertyIds,
+            description: saved.description || '',
+            amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
+            bankCardId: saved.bankCardId ?? 0,
+            vendorId: (saved.vendorId || '').trim() || null,
+            vendorName: (saved.vendorName || '').trim() || null,
+            billNumber: (saved.billNumber || '').trim() || null,
+            receiptPath: saved.receiptPath || '',
+            isUtility: saved.isUtility ?? false,
+            isActive: saved.isActive
+          });
+          this.replaceSplitLines(saved.splits || []);
+          this.lastPropertyIdsValue = this.getFormPropertyIds();
+          this.receiptFileDetails = saved.fileDetails || this.receiptFileDetails;
+          if (saved.fileDetails?.file && saved.fileDetails?.contentType) {
+            this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
+              || `data:${saved.fileDetails.contentType};base64,${saved.fileDetails.file}`;
+            this.receiptFileName = saved.fileDetails.fileName || this.extractFileName(saved.receiptPath || '');
+            this.setReceiptPdfThumbnail(this.receiptPreviewDataUrl, saved.fileDetails.contentType);
+          } else {
+            this.receiptPreviewDataUrl = null;
+            this.receiptPdfThumbnailUrl = null;
+            this.receiptFileName = this.extractFileName(saved.receiptPath || '');
+          }
+          this.hasNewReceiptUpload = false;
+          this.originalReceiptPath = saved.receiptPath ?? null;
+          this.splitTotalValidationError = false;
+          this.saveValidationHighlightActive = false;
+          this.receiptFileValidationError = false;
+          this.savedEvent.emit(saved);
+          this.toastr.success('Receipt saved.', 'Success');
+          if (this.selectedPropertyId || this.isEmbeddedInShell) {
+            this.back();
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+          if (closedPeriodMessage) {
+            this.toastr.error(closedPeriodMessage, 'Error');
+            return;
+          }
+          const apiMessage = typeof err.error === 'string'
+            ? err.error
+            : err.error?.message || err.error?.title || err.message;
+          this.toastr.error(apiMessage || 'Unable to save receipt.', 'Error');
+        }
+      });
+    };
+
+    if (!this.receipt?.receiptId) {
+      saveReceipt();
       return;
     }
 
-    this.isSubmitting = true;
-
-    const save$ = this.receipt?.receiptId
-      ? this.receiptService.updateReceipt(payload)
-      : this.receiptService.createReceipt(payload);
-
-    save$.pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
-      next: (saved: ReceiptResponse) => {
-        this.receipt = saved;
-        this.activeAgreementLineId = this.normalizeAgreementLineId(saved.agreementLineId);
-        this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(saved.agreementLineNotes);
-        this.isAddMode = false;
-        const formPropertyIds = this.toFormPropertyIds(saved.propertyIds || [], saved.splits || []);
-        this.form.patchValue({
-          officeName: saved.officeName || this.property?.officeName || '',
-          receiptDate: this.getReceiptDateControlValue(saved.receiptDate),
-          dueDate: this.getReceiptDateControlValue(saved.dueDate || saved.receiptDate),
-          accountingPeriod: this.getReceiptDateControlValue(saved.accountingPeriod || saved.receiptDate),
-          propertyCode: this.getPropertyCodesDisplay(formPropertyIds) || this.property?.propertyCode || '',
-          propertyIds: formPropertyIds,
-          description: saved.description || '',
-          amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
-          bankCardId: saved.bankCardId ?? 0,
-          vendorId: (saved.vendorId || '').trim() || null,
-          vendorName: (saved.vendorName || '').trim() || null,
-          billNumber: (saved.billNumber || '').trim() || null,
-          receiptPath: saved.receiptPath || '',
-          isUtility: saved.isUtility ?? false,
-          isActive: saved.isActive
-        });
-        this.replaceSplitLines(saved.splits || []);
-        this.lastPropertyIdsValue = this.getFormPropertyIds();
-        this.receiptFileDetails = saved.fileDetails || this.receiptFileDetails;
-        if (saved.fileDetails?.file && saved.fileDetails?.contentType) {
-          this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
-            || `data:${saved.fileDetails.contentType};base64,${saved.fileDetails.file}`;
-          this.receiptFileName = saved.fileDetails.fileName || this.extractFileName(saved.receiptPath || '');
-          this.setReceiptPdfThumbnail(this.receiptPreviewDataUrl, saved.fileDetails.contentType);
-        } else {
-          this.receiptPreviewDataUrl = null;
-          this.receiptPdfThumbnailUrl = null;
-          this.receiptFileName = this.extractFileName(saved.receiptPath || '');
-        }
-        this.hasNewReceiptUpload = false;
-        this.originalReceiptPath = saved.receiptPath ?? null;
-        this.splitTotalValidationError = false;
-        this.saveValidationHighlightActive = false;
-        this.receiptFileValidationError = false;
-        this.savedEvent.emit(saved);
-        this.toastr.success('Receipt saved.', 'Success');
-        if (this.selectedPropertyId || this.isEmbeddedInShell) {
-          this.back();
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-        if (closedPeriodMessage) {
-          this.toastr.error(closedPeriodMessage, 'Error');
-          return;
-        }
-        const apiMessage = typeof err.error === 'string'
-          ? err.error
-          : err.error?.message || err.error?.title || err.message;
-        this.toastr.error(apiMessage || 'Unable to save receipt.', 'Error');
+    this.journalEntryService.confirmUpdateIfAllowed(this.receipt.postingStatusId, 'Receipt').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        return;
       }
+
+      saveReceipt();
     });
   }
 

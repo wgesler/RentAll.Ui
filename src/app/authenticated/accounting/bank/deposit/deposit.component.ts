@@ -199,10 +199,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
 
-    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.deposit?.postingStatusId, 'Deposit')) {
-      return;
-    }
-
     const payload: DepositRequest = {
       depositId: this.deposit?.depositId,
       organizationId: this.organizationId,
@@ -218,34 +214,49 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       isActive: !!this.form.get('isActive')?.value
     };
 
-    this.isSubmitting = true;
-    const save$ = this.isAddMode
-      ? this.depositService.createDeposit(payload)
-      : this.depositService.updateDeposit(payload);
+    const saveDeposit = () => {
+      this.isSubmitting = true;
+      const save$ = this.isAddMode
+        ? this.depositService.createDeposit(payload)
+        : this.depositService.updateDeposit(payload);
 
-    save$.pipe(take(1), finalize(() => {
-        this.isSubmitting = false;
-        this.cdr.markForCheck();
-      })
-    ).subscribe({
-      next: (saved: DepositResponse) => {
-        this.deposit = saved;
-        this.isAddMode = false;
-        this.saveValidationHighlightActive = false;
-        this.toastr.success('Deposit saved successfully.', 'Success');
-        this.savedEvent.emit(saved);
-        if (this.autoBackOnSave) {
-          this.backEvent.emit();
+      save$.pipe(take(1), finalize(() => {
+          this.isSubmitting = false;
+          this.cdr.markForCheck();
+        })
+      ).subscribe({
+        next: (saved: DepositResponse) => {
+          this.deposit = saved;
+          this.isAddMode = false;
+          this.saveValidationHighlightActive = false;
+          this.toastr.success('Deposit saved successfully.', 'Success');
+          this.savedEvent.emit(saved);
+          if (this.autoBackOnSave) {
+            this.backEvent.emit();
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+          if (closedPeriodMessage) {
+            this.toastr.error(closedPeriodMessage, 'Error');
+            return;
+          }
+          this.toastr.error('Unable to save deposit.', 'Error');
         }
-      },
-      error: (err: HttpErrorResponse) => {
-        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-        if (closedPeriodMessage) {
-          this.toastr.error(closedPeriodMessage, 'Error');
-          return;
-        }
-        this.toastr.error('Unable to save deposit.', 'Error');
+      });
+    };
+
+    if (this.isAddMode) {
+      saveDeposit();
+      return;
+    }
+
+    this.journalEntryService.confirmUpdateIfAllowed(this.deposit?.postingStatusId, 'Deposit').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        return;
       }
+
+      saveDeposit();
     });
   }
   //#endregion

@@ -157,13 +157,19 @@ export class BillingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.invoice?.postingStatusId, 'Invoice')) {
-      this.isSubmitting = false;
+    if (this.isAddMode) {
+      this.performSave();
       return;
     }
 
-    // Create invoice directly without checking for credit dialog
-    this.performSave();
+    this.journalEntryService.confirmUpdateIfAllowed(this.invoice?.postingStatusId, 'Invoice').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        this.isSubmitting = false;
+        return;
+      }
+
+      this.performSave();
+    });
   }
 
   onPrimaryAction(): void {

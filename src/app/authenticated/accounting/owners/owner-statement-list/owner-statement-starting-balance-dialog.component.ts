@@ -8,15 +8,11 @@ import { UtilityService } from '../../../../services/utility.service';
 export interface OwnerStatementStartingBalanceDialogData {
   defaultDate: Date | null;
   defaultAmount?: number | null;
-  existingAmount?: number | null;
-  existingTransactionDate?: string | null;
-  requiresAdminPassword?: boolean;
 }
 
 export interface OwnerStatementStartingBalanceDialogResult {
   transactionDate: string;
   amount: number;
-  currentPassword?: string;
 }
 
 @Component({
@@ -34,8 +30,7 @@ export class OwnerStatementStartingBalanceDialogComponent {
 
   readonly form = this.fb.group({
     transactionDate: [this.data.defaultDate ?? new Date(), Validators.required],
-    amount: [this.data.defaultAmount != null ? Number(this.data.defaultAmount).toFixed(2) : '', Validators.required],
-    currentPassword: ['']
+    amount: [this.data.defaultAmount != null ? Number(this.data.defaultAmount).toFixed(2) : '', Validators.required]
   });
 
   onCancel(): void {
@@ -56,17 +51,9 @@ export class OwnerStatementStartingBalanceDialogComponent {
       return;
     }
 
-    const currentPassword = String(this.form.get('currentPassword')?.value || '').trim();
-    if (this.requiresPasswordConfirmation(transactionDate, amount) && !currentPassword) {
-      this.form.get('currentPassword')?.setErrors({ required: true });
-      this.form.markAllAsTouched();
-      return;
-    }
-
     this.dialogRef.close({
       transactionDate,
-      amount,
-      currentPassword
+      amount
     });
   }
 
@@ -79,14 +66,4 @@ export class OwnerStatementStartingBalanceDialogComponent {
     this.form.get('amount')?.setValue(amount.toFixed(2), { emitEvent: false });
   }
 
-  requiresPasswordConfirmation(transactionDate: string, amount: number): boolean {
-    if (!this.data.requiresAdminPassword) {
-      return false;
-    }
-
-    const existingTransactionDate = String(this.data.existingTransactionDate || '').trim();
-    const existingAmountRaw = Number(this.data.existingAmount);
-    const existingAmount = Number.isFinite(existingAmountRaw) ? existingAmountRaw : 0;
-    return existingTransactionDate !== transactionDate || Math.abs(existingAmount - amount) > 0.005;
-  }
 }

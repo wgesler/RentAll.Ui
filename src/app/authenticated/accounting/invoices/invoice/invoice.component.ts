@@ -398,13 +398,20 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.invoice?.postingStatusId, 'Invoice')) {
-      this.isSubmitting = false;
-      this.cdr.markForCheck();
+    if (this.isAddMode) {
+      this.performSave();
       return;
     }
 
-    this.performSave();
+    this.journalEntryService.confirmUpdateIfAllowed(this.invoice?.postingStatusId, 'Invoice').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        this.isSubmitting = false;
+        this.cdr.markForCheck();
+        return;
+      }
+
+      this.performSave();
+    });
   }
 
   toInvoiceCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {

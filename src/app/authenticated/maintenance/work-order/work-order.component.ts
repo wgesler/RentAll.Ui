@@ -319,10 +319,6 @@ onWorkOrderIdChanged(): void {
       return;
     }
 
-    if (!isCreate && !this.journalEntryService.guardCanUpdateJournalEntry(this.workOrder?.postingStatusId, 'Work Order')) {
-      return;
-    }
-
     const payload: WorkOrderRequest = {
       organizationId: resolvedOrganizationId,
       officeId: resolvedOfficeId,
@@ -354,9 +350,10 @@ onWorkOrderIdChanged(): void {
       }
     }
 
-    this.isSubmitting = true;
+    const saveWorkOrder = () => {
+      this.isSubmitting = true;
 
-    const previousAssignedSplitKeys = this.getAssignedSplitKeysForWorkOrderCode(this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '');
+      const previousAssignedSplitKeys = this.getAssignedSplitKeysForWorkOrderCode(this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '');
     const selectedSplitKeysForSave: string[] = [];
     const usedSplitKeys = new Set<string>();
     const currentWorkOrderCodeForSelection = (this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '').toString();
@@ -473,6 +470,20 @@ onWorkOrderIdChanged(): void {
           'Error'
         );
       }
+    });
+    };
+
+    if (isCreate) {
+      saveWorkOrder();
+      return;
+    }
+
+    this.journalEntryService.confirmUpdateIfAllowed(this.workOrder?.postingStatusId, 'Work Order').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        return;
+      }
+
+      saveWorkOrder();
     });
   }
 

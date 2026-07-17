@@ -200,10 +200,6 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       return;
     }
 
-    if (!this.isAddMode && !this.journalEntryService.guardCanUpdateJournalEntry(this.transfer?.postingStatusId, 'Transfer')) {
-      return;
-    }
-
     const payload: TransferRequest = {
       transferId: this.transfer?.transferId,
       organizationId: this.organizationId,
@@ -219,34 +215,49 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       isActive: !!this.form.get('isActive')?.value
     };
 
-    this.isSubmitting = true;
-    const save$ = this.isAddMode
-      ? this.transferService.createTransfer(payload)
-      : this.transferService.updateTransfer(payload);
+    const saveTransfer = () => {
+      this.isSubmitting = true;
+      const save$ = this.isAddMode
+        ? this.transferService.createTransfer(payload)
+        : this.transferService.updateTransfer(payload);
 
-    save$.pipe(take(1), finalize(() => {
-        this.isSubmitting = false;
-        this.cdr.markForCheck();
-      })
-    ).subscribe({
-      next: (saved: TransferResponse) => {
-        this.transfer = saved;
-        this.isAddMode = false;
-        this.saveValidationHighlightActive = false;
-        this.toastr.success('Transfer saved successfully.', 'Success');
-        this.savedEvent.emit(saved);
-        if (this.autoBackOnSave) {
-          this.backEvent.emit();
+      save$.pipe(take(1), finalize(() => {
+          this.isSubmitting = false;
+          this.cdr.markForCheck();
+        })
+      ).subscribe({
+        next: (saved: TransferResponse) => {
+          this.transfer = saved;
+          this.isAddMode = false;
+          this.saveValidationHighlightActive = false;
+          this.toastr.success('Transfer saved successfully.', 'Success');
+          this.savedEvent.emit(saved);
+          if (this.autoBackOnSave) {
+            this.backEvent.emit();
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
+          if (closedPeriodMessage) {
+            this.toastr.error(closedPeriodMessage, 'Error');
+            return;
+          }
+          this.toastr.error('Unable to save transfer.', 'Error');
         }
-      },
-      error: (err: HttpErrorResponse) => {
-        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-        if (closedPeriodMessage) {
-          this.toastr.error(closedPeriodMessage, 'Error');
-          return;
-        }
-        this.toastr.error('Unable to save transfer.', 'Error');
+      });
+    };
+
+    if (this.isAddMode) {
+      saveTransfer();
+      return;
+    }
+
+    this.journalEntryService.confirmUpdateIfAllowed(this.transfer?.postingStatusId, 'Transfer').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        return;
       }
+
+      saveTransfer();
     });
   }
   //#endregion

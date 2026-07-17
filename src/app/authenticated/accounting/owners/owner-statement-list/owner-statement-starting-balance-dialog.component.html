@@ -19,14 +19,6 @@
         <mat-label>Amount</mat-label>
         <input matInput type="text" formControlName="amount" (blur)="onAmountBlur()" />
       </mat-form-field>
-
-      @if (data.requiresAdminPassword) {
-        <mat-form-field appearance="outline">
-          <mat-label>Confirm Password</mat-label>
-          <input matInput type="password" formControlName="currentPassword" autocomplete="current-password" />
-          <mat-hint>Required only when changing an existing starting balance.</mat-hint>
-        </mat-form-field>
-      }
     </form>
   </mat-dialog-content>
 
