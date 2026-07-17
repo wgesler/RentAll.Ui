@@ -21,6 +21,7 @@ import { ButtonData } from './models/button-data';
 import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { TableItem } from './models/table-item';
 import { DataTableFilterActionsDirective } from './data-table-filter-actions.directive';
+import { DataTableFooterDirective } from './data-table-footer.directive';
 
 /** Match list display dates (`MM/dd/yyyy`) used by FormatterService.formatDateString. */
 type DataTableStickySortDirection = 'asc' | 'desc' | '';
@@ -235,6 +236,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   Math = Math;
 
   readonly filterActionsSlot = contentChild(DataTableFilterActionsDirective);
+  readonly footerSlot = contentChild(DataTableFooterDirective);
 
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;

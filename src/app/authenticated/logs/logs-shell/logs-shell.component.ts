@@ -88,15 +88,15 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   hasActiveTabDetail(): boolean {
     switch (this.selectedTabIndex) {
       case 0:
-        return !!this.selectedAccountingError;
-      case 1:
-        return !!this.selectedDatabaseError;
-      case 2:
-        return !!this.selectedGeneralError;
-      case 3:
-        return !!this.selectedAccountingLog;
-      case 4:
         return !!this.selectedApplicationLog;
+      case 1:
+        return !!this.selectedAccountingLog;
+      case 2:
+        return !!this.selectedAccountingError;
+      case 3:
+        return !!this.selectedDatabaseError;
+      case 4:
+        return !!this.selectedGeneralError;
       default:
         return false;
     }
@@ -158,19 +158,19 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   backActiveTabDetail(): void {
     switch (this.selectedTabIndex) {
       case 0:
-        this.closeAccountingErrorLog();
+        this.closeApplicationLog();
         return;
       case 1:
-        this.closeDatabaseErrorLog();
-        return;
-      case 2:
-        this.closeGeneralErrorLog();
-        return;
-      case 3:
         this.closeAccountingLog();
         return;
+      case 2:
+        this.closeAccountingErrorLog();
+        return;
+      case 3:
+        this.closeDatabaseErrorLog();
+        return;
       case 4:
-        this.closeApplicationLog();
+        this.closeGeneralErrorLog();
         return;
       default:
         return;

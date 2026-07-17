@@ -26,6 +26,20 @@
 
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab label="Application Log">
+          <app-application-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedApplicationLog" (openApplicationLog)="openApplicationLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedApplicationLog) {
+            <app-application-log [row]="selectedApplicationLog" />
+          }
+        </mat-tab>
+
+        <mat-tab label="Accounting Log">
+          <app-accounting-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedAccountingLog" (openAccountingLog)="openAccountingLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedAccountingLog) {
+            <app-accounting-log [row]="selectedAccountingLog" />
+          }
+        </mat-tab>
+
         <mat-tab label="Accounting Error">
           <app-accounting-error-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedAccountingError" (openAccountingErrorLog)="openAccountingErrorLog($event)" (listActionCompleted)="onListActionCompleted()" />
           @if (selectedAccountingError) {
@@ -44,20 +58,6 @@
           <app-general-error-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedGeneralError" (openGeneralErrorLog)="openGeneralErrorLog($event)" (listActionCompleted)="onListActionCompleted()" />
           @if (selectedGeneralError) {
             <app-general-error-log [row]="selectedGeneralError" />
-          }
-        </mat-tab>
-
-        <mat-tab label="Accounting Log">
-          <app-accounting-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedAccountingLog" (openAccountingLog)="openAccountingLog($event)" (listActionCompleted)="onListActionCompleted()" />
-          @if (selectedAccountingLog) {
-            <app-accounting-log [row]="selectedAccountingLog" />
-          }
-        </mat-tab>
-
-        <mat-tab label="Application Log">
-          <app-application-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedApplicationLog" (openApplicationLog)="openApplicationLog($event)" (listActionCompleted)="onListActionCompleted()" />
-          @if (selectedApplicationLog) {
-            <app-application-log [row]="selectedApplicationLog" />
           }
         </mat-tab>
       </mat-tab-group>

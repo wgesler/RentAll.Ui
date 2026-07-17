@@ -392,6 +392,14 @@ export interface SecurityDepositReturnRequest {
   amount: number;
 }
 
+export interface UnreturnedSecurityDepositsResponse {
+  rows: ReservationDepartureResponse[];
+  totalDepositsOwed: number;
+  escrowBalance: number;
+  discrepancy: number;
+  escrowAccountLabel: string;
+}
+
 export interface UnreturnedSecurityDepositDisplay {
   reservationId: string;
   reservationCode: string;

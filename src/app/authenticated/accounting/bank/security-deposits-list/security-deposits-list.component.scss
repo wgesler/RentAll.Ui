@@ -16,3 +16,100 @@
 .payment-actions-anchor {
   position: relative;
 }
+
+.security-deposits-table-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
+:host ::ng-deep app-data-table .is-scrollable {
+  margin-bottom: 0;
+}
+
+.security-deposits-summary {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.security-deposits-summary:not(.security-deposits-summary--aligned) {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.security-deposits-summary-panel {
+  box-sizing: border-box;
+  width: 25%;
+  min-width: 11rem;
+  max-width: 100%;
+  margin-left: auto;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-top: 2px solid #000;
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.security-deposits-summary--aligned .security-deposits-summary-panel {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.security-deposits-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.5fr);
+  column-gap: 0.5rem;
+  align-items: center;
+}
+
+.security-deposits-summary-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.security-deposits-summary-row--discrepancy .security-deposits-summary-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.security-deposits-summary-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  justify-self: end;
+}
+
+.security-deposits-summary-value--total {
+  background: #dbeafe;
+}
+
+.security-deposits-summary-value--escrow {
+  background: #fef08a;
+  border-color: #eab308;
+}
+
+.security-deposits-summary-value--discrepancy {
+  background: #fbcfe8;
+  border-color: #f472b6;
+  font-weight: 700;
+}

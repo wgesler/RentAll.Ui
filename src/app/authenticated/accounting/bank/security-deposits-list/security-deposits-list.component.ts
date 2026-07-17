@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -13,26 +13,32 @@ import { UnreturnedSecurityDepositDisplay } from '../../../reservations/models/r
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
+import { DataTableFooterDirective } from '../../../shared/data-table/data-table-footer.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { SecurityDepositReturnPaymentDialogComponent } from './security-deposit-return-payment-dialog.component';
 import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-payment-dialog.model';
+import { FormatterService } from '../../../../services/formatter-service';
 
 @Component({
   selector: 'app-security-deposits-list',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, SecurityDepositReturnPaymentDialogComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, DataTableFooterDirective, SecurityDepositReturnPaymentDialogComponent],
   templateUrl: './security-deposits-list.component.html',
   styleUrl: './security-deposits-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestroy {
+export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
 
   @Input() officeId: number | null = null;
   @Input() refreshTrigger = 0;
 
+  @ViewChild('tableWrap') tableWrapRef?: ElementRef<HTMLElement>;
+  @ViewChild('summaryFooter') summaryFooterRef?: ElementRef<HTMLElement>;
+
   private reservationService = inject(ReservationService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
+  readonly formatter = inject(FormatterService);
   private router = inject(Router);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
@@ -52,13 +58,18 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   };
 
   rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
-  allRowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
+  totalDepositsOwed = 0;
+  escrowBalance = 0;
+  discrepancy = 0;
+  escrowAccountLabel = '';
   isPageReady = false;
   isServiceError = false;
   noDataMessage = 'No unreturned security deposits for the selected office access.';
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['securityDeposits']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
   private loadId = 0;
+  private summaryScrollHost: HTMLElement | null = null;
+  private summaryScrollHandler = (): void => this.scheduleSummaryAlignment();
 
   showPaymentForm = false;
   isSubmittingPayment = false;
@@ -66,6 +77,12 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   paymentTargetReservationId: string | null = null;
   paymentInitialAmount = 0;
   paymentInitialDescription = '';
+
+  summaryPanelWidthPx = 0;
+  summaryPanelMarginLeftPx = 0;
+  summaryMinWidthPx = 0;
+  private summaryResizeObserver?: ResizeObserver;
+  private summaryAlignFrameId: number | null = null;
 
   //#region Security Deposits List
   ngOnInit(): void {
@@ -76,6 +93,10 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     this.loadRows();
   }
 
+  ngAfterViewInit(): void {
+    this.scheduleSummaryAlignmentRetries();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadRows();
@@ -83,8 +104,8 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     }
 
     if (changes['officeId'] && !changes['officeId'].firstChange) {
-      this.applyOfficeFilter();
-      this.markViewForCheck();
+      this.loadRows();
+      return;
     }
   }
   //#endregion
@@ -95,24 +116,27 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'securityDeposits');
 
-    this.reservationService.getUnreturnedSecurityDeposits().pipe(
+    this.reservationService.getUnreturnedSecurityDeposits(this.officeId).pipe(
       take(1),
       finalize(() => {
-        if (loadId === this.loadId) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'securityDeposits');
-        }
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'securityDeposits');
       }),
       takeUntil(this.destroy$)
     ).subscribe({
-      next: rows => {
+      next: response => {
         if (loadId !== this.loadId) {
           return;
         }
 
-        this.allRowsDisplay = this.mappingService.mapUnreturnedSecurityDeposits(rows || []);
-        this.applyOfficeFilter();
-        this.reservationService.setSecurityDepositsOutstanding((rows || []).length > 0);
+        const mappedResponse = this.mappingService.mapUnreturnedSecurityDepositsResponse(response);
+        this.rowsDisplay = this.mappingService.mapUnreturnedSecurityDeposits(mappedResponse);
+        this.totalDepositsOwed = Number(mappedResponse.totalDepositsOwed ?? 0);
+        this.escrowBalance = Number(mappedResponse.escrowBalance ?? 0);
+        this.discrepancy = Number(mappedResponse.discrepancy ?? 0);
+        this.escrowAccountLabel = String(mappedResponse.escrowAccountLabel ?? '').trim();
+        this.reservationService.setSecurityDepositsOutstanding((mappedResponse.rows || []).length > 0);
         this.markViewForCheck();
+        this.scheduleSummaryAlignmentRetries();
       },
       error: (_error: HttpErrorResponse) => {
         if (loadId !== this.loadId) {
@@ -120,8 +144,11 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
         }
 
         this.isServiceError = true;
-        this.allRowsDisplay = [];
         this.rowsDisplay = [];
+        this.totalDepositsOwed = 0;
+        this.escrowBalance = 0;
+        this.discrepancy = 0;
+        this.escrowAccountLabel = '';
         this.reservationService.setSecurityDepositsOutstanding(false);
         this.toastr.error('Unable to load security deposits.');
         this.markViewForCheck();
@@ -129,12 +156,92 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     });
   }
 
-  applyOfficeFilter(): void {
-    if (this.officeId != null) {
-      this.rowsDisplay = this.allRowsDisplay.filter(row => row.officeId === this.officeId);
-    } else {
-      this.rowsDisplay = [...this.allRowsDisplay];
+  //#endregion
+
+  //#region Summary Methods
+  get hasSummaryFooter(): boolean {
+    return this.isPageReady && !this.isServiceError;
+  }
+
+  get hasSummaryColumnAlignment(): boolean {
+    return this.summaryPanelWidthPx > 0 && this.summaryMinWidthPx > 0;
+  }
+
+  scheduleSummaryAlignmentRetries(): void {
+    this.ensureSummaryObservers();
+    for (const delay of [0, 50, 150, 350]) {
+      setTimeout(() => this.scheduleSummaryAlignment(), delay);
     }
+  }
+
+  scheduleSummaryAlignment(): void {
+    if (this.summaryAlignFrameId != null) {
+      cancelAnimationFrame(this.summaryAlignFrameId);
+    }
+
+    this.summaryAlignFrameId = requestAnimationFrame(() => {
+      this.summaryAlignFrameId = requestAnimationFrame(() => {
+        this.summaryAlignFrameId = null;
+        this.updateSummaryAlignment();
+      });
+    });
+  }
+
+  ensureSummaryObservers(): void {
+    const wrap = this.tableWrapRef?.nativeElement;
+    if (!wrap) {
+      return;
+    }
+
+    if (typeof ResizeObserver !== 'undefined' && !this.summaryResizeObserver) {
+      this.summaryResizeObserver = new ResizeObserver(() => this.scheduleSummaryAlignment());
+      this.summaryResizeObserver.observe(wrap);
+    }
+
+    const scrollHost = wrap.querySelector<HTMLElement>('.is-scrollable');
+    if (scrollHost && scrollHost !== this.summaryScrollHost) {
+      this.summaryScrollHost?.removeEventListener('scroll', this.summaryScrollHandler);
+      this.summaryScrollHost = scrollHost;
+      scrollHost.addEventListener('scroll', this.summaryScrollHandler, { passive: true });
+    }
+
+    this.scheduleSummaryAlignment();
+  }
+
+  updateSummaryAlignment(): void {
+    const wrap = this.tableWrapRef?.nativeElement;
+    if (!wrap) {
+      return;
+    }
+
+    const returnedCell = wrap.querySelector<HTMLElement>(
+      'th.mat-column-depositReturned, td.mat-column-depositReturned, th.mat-mdc-header-cell.mat-column-depositReturned, td.mat-mdc-cell.mat-column-depositReturned'
+    );
+    const table = wrap.querySelector<HTMLElement>('table.data-table, table.mat-table, table.mat-mdc-table');
+    const summaryEl = this.summaryFooterRef?.nativeElement ?? wrap.querySelector<HTMLElement>('.security-deposits-summary');
+    if (!returnedCell || !table || !summaryEl) {
+      return;
+    }
+
+    const summaryRect = summaryEl.getBoundingClientRect();
+    const returnedRect = returnedCell.getBoundingClientRect();
+    const tableWidth = Math.max(0, Math.round(table.offsetWidth));
+    const returnedRightOffset = Math.max(0, Math.round(returnedRect.right - summaryRect.left));
+    const nextPanelWidth = Math.max(0, Math.round(tableWidth / 4));
+    const nextPanelMarginLeft = Math.max(0, returnedRightOffset - nextPanelWidth);
+
+    if (
+      nextPanelWidth === this.summaryPanelWidthPx
+      && nextPanelMarginLeft === this.summaryPanelMarginLeftPx
+      && tableWidth === this.summaryMinWidthPx
+    ) {
+      return;
+    }
+
+    this.summaryPanelWidthPx = nextPanelWidth;
+    this.summaryPanelMarginLeftPx = nextPanelMarginLeft;
+    this.summaryMinWidthPx = tableWidth;
+    this.markViewForCheck();
   }
   //#endregion
 
@@ -201,12 +308,10 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     ).subscribe({
       next: () => {
         this.toastr.success('Security deposit return recorded.', CommonMessage.Success);
-        this.removeReturnedRow(payment.reservationId);
         this.showPaymentForm = false;
         this.clearPaymentContext();
-        this.applyOfficeFilter();
+        this.loadRows();
         this.reservationService.refreshSecurityDepositsOutstanding();
-        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to return security deposit.', CommonMessage.Error);
@@ -230,36 +335,22 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
     void this.reservationService.updateModifiedReservation(event.reservationId, { depositReturned: nextValue }).then(() => {
       this.toastr.success('Reservation updated.', CommonMessage.Success);
-      if (nextValue) {
-        this.removeReturnedRow(event.reservationId);
-      }
+      this.loadRows();
       this.reservationService.refreshSecurityDepositsOutstanding();
     }).catch(() => {
       this.applyDepositReturnedValue(event.reservationId, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-      this.markViewForCheck();
-    }).finally(() => {
-      this.applyOfficeFilter();
       this.markViewForCheck();
     });
   }
 
   applyDepositReturnedValue(reservationId: string, depositReturned: boolean): void {
     const nextValue = !!depositReturned;
-    this.allRowsDisplay = this.allRowsDisplay.map(row =>
-      row.reservationId === reservationId
-        ? { ...row, depositReturned: nextValue }
-        : row
-    );
     this.rowsDisplay = this.rowsDisplay.map(row =>
       row.reservationId === reservationId
         ? { ...row, depositReturned: nextValue }
         : row
     );
-  }
-
-  removeReturnedRow(reservationId: string): void {
-    this.allRowsDisplay = this.allRowsDisplay.filter(row => row.reservationId !== reservationId);
   }
 
   openReservation(row: UnreturnedSecurityDepositDisplay): void {
@@ -302,6 +393,12 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   }
 
   ngOnDestroy(): void {
+    if (this.summaryAlignFrameId != null) {
+      cancelAnimationFrame(this.summaryAlignFrameId);
+    }
+    this.summaryScrollHost?.removeEventListener('scroll', this.summaryScrollHandler);
+    this.summaryResizeObserver?.disconnect();
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'securityDeposits');
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

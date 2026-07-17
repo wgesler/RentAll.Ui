@@ -1,4 +1,9 @@
-@if (isPageReady) {
+@if (!isPageReady && reportResult == null) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading…</p>
+  </div>
+} @else {
   <div class="mat list-layout-standard financial-report-layout escrow-report-layout">
     <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
       <div class="property-tab-actions-band__row financial-report-context-band__row">
@@ -109,10 +114,5 @@
         }
       </div>
     </div>
-  </div>
-} @else {
-  <div class="loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading…</p>
   </div>
 }

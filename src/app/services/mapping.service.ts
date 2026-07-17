@@ -48,7 +48,7 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
+import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
 import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
@@ -3848,7 +3848,101 @@ roundCurrency(value: number): number {
     });
   }
 
-  mapUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[]): UnreturnedSecurityDepositDisplay[] {
+  mapUnreturnedSecurityDepositsResponse(raw: UnreturnedSecurityDepositsResponse | ReservationDepartureResponse[] | Record<string, unknown> | null | undefined): UnreturnedSecurityDepositsResponse {
+    if (!raw) {
+      return this.createEmptyUnreturnedSecurityDepositsResponse();
+    }
+
+    if (Array.isArray(raw)) {
+      const rows = raw.map(row => this.mapReservationDepartureResponse(row as unknown as Record<string, unknown>));
+      return {
+        ...this.createEmptyUnreturnedSecurityDepositsResponse(),
+        rows,
+        totalDepositsOwed: this.roundFinancialReportAmount(rows.reduce((sum, row) => sum + Number(row.deposit || 0), 0))
+      };
+    }
+
+    if (this.isUnreturnedSecurityDepositsResponse(raw)) {
+      return {
+        rows: raw.rows ?? [],
+        totalDepositsOwed: Number(raw.totalDepositsOwed ?? 0),
+        escrowBalance: Number(raw.escrowBalance ?? 0),
+        discrepancy: Number(raw.discrepancy ?? 0),
+        escrowAccountLabel: String(raw.escrowAccountLabel ?? '').trim()
+      };
+    }
+
+    const record = raw as Record<string, unknown>;
+    const rowsRaw = record['rows'] ?? record['Rows'] ?? [];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapReservationDepartureResponse(row as Record<string, unknown>))
+      : [];
+
+    return {
+      rows,
+      totalDepositsOwed: Number(record['totalDepositsOwed'] ?? record['TotalDepositsOwed'] ?? 0),
+      escrowBalance: Number(record['escrowBalance'] ?? record['EscrowBalance'] ?? 0),
+      discrepancy: Number(record['discrepancy'] ?? record['Discrepancy'] ?? 0),
+      escrowAccountLabel: String(record['escrowAccountLabel'] ?? record['EscrowAccountLabel'] ?? '').trim()
+    };
+  }
+
+  isUnreturnedSecurityDepositsResponse(value: unknown): value is UnreturnedSecurityDepositsResponse {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+
+    return 'rows' in value && 'totalDepositsOwed' in value && 'escrowBalance' in value && 'discrepancy' in value;
+  }
+
+  createEmptyUnreturnedSecurityDepositsResponse(): UnreturnedSecurityDepositsResponse {
+    return {
+      rows: [],
+      totalDepositsOwed: 0,
+      escrowBalance: 0,
+      discrepancy: 0,
+      escrowAccountLabel: ''
+    };
+  }
+
+  mapReservationDepartureResponse(raw: Record<string, unknown>): ReservationDepartureResponse {
+    const agentCode = String(raw['agentCode'] ?? raw['AgentCode'] ?? '').trim();
+    const companyName = String(raw['companyName'] ?? raw['CompanyName'] ?? '').trim();
+
+    return {
+      reservationId: this.utility.normalizeId(String(raw['reservationId'] ?? raw['ReservationId'] ?? '')),
+      reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? ''),
+      propertyId: this.utility.normalizeId(String(raw['propertyId'] ?? raw['PropertyId'] ?? '')),
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
+      officeName: String(raw['officeName'] ?? raw['OfficeName'] ?? ''),
+      agentCode: agentCode || null,
+      contactId: this.utility.normalizeId(String(raw['contactId'] ?? raw['ContactId'] ?? '')),
+      contactName: String(raw['contactName'] ?? raw['ContactName'] ?? ''),
+      companyId: this.utility.normalizeIdOrNull(String(raw['companyId'] ?? raw['CompanyId'] ?? '')),
+      companyName: companyName || null,
+      tenantName: String(raw['tenantName'] ?? raw['TenantName'] ?? ''),
+      monthlyRate: Number(raw['monthlyRate'] ?? raw['MonthlyRate'] ?? 0),
+      dailyRate: Number(raw['dailyRate'] ?? raw['DailyRate'] ?? 0),
+      billingRate: Number(raw['billingRate'] ?? raw['BillingRate'] ?? 0),
+      billingTypeId: Number(raw['billingTypeId'] ?? raw['BillingTypeId'] ?? 0),
+      arrivalDate: this.utility.coerceCalendarDateStringFromApi(raw['arrivalDate'] ?? raw['ArrivalDate']) ?? '',
+      departureDate: this.utility.coerceCalendarDateStringFromApi(raw['departureDate'] ?? raw['DepartureDate']) ?? '',
+      reservationTypeId: Number(raw['reservationTypeId'] ?? raw['ReservationTypeId'] ?? 0),
+      reservationStatusId: Number(raw['reservationStatusId'] ?? raw['ReservationStatusId'] ?? 0),
+      hasPets: !!(raw['hasPets'] ?? raw['HasPets']),
+      depositTypeId: Number(raw['depositTypeId'] ?? raw['DepositTypeId'] ?? 0),
+      deposit: Number(raw['deposit'] ?? raw['Deposit'] ?? 0),
+      depositReturned: !!(raw['depositReturned'] ?? raw['DepositReturned']),
+      securityDepositReturnDate: this.utility.coerceCalendarDateStringFromApi(raw['securityDepositReturnDate'] ?? raw['SecurityDepositReturnDate']) ?? ''
+    };
+  }
+
+  mapUnreturnedSecurityDeposits(response: UnreturnedSecurityDepositsResponse | ReservationDepartureResponse[] | null | undefined): UnreturnedSecurityDepositDisplay[] {
+    const rows = Array.isArray(response)
+      ? response
+      : (response?.rows || []);
+
     return (rows || []).map(row => {
       const companyName = String(row.companyName || '').trim();
       const tenantName = String(row.tenantName || '').trim();

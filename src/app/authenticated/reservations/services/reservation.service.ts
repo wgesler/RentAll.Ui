@@ -10,6 +10,7 @@ import {
   ReservationRequest,
   ReservationResponse,
   SecurityDepositReturnRequest,
+  UnreturnedSecurityDepositsResponse,
   ReservationTrackerResponse,
   ReservationTrackerResponseOption,
   ReservationTrackerResponseOptionRequest,
@@ -45,8 +46,13 @@ export class ReservationService {
     return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
   }
 
-  getUnreturnedSecurityDeposits(): Observable<ReservationDepartureResponse[]> {
-    return this.http.get<ReservationDepartureResponse[]>(this.controller + 'unreturned-security-deposits');
+  getUnreturnedSecurityDeposits(officeId?: number | null): Observable<UnreturnedSecurityDepositsResponse> {
+    const params: Record<string, string | number> = {};
+    if (officeId != null && officeId > 0) {
+      params['officeId'] = officeId;
+    }
+
+    return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned-security-deposits', { params });
   }
 
   applySecurityDepositReturn(request: SecurityDepositReturnRequest): Observable<ReservationResponse> {
@@ -57,12 +63,12 @@ export class ReservationService {
     const loadId = ++this.securityDepositsOutstandingLoadId;
 
     this.getUnreturnedSecurityDeposits().pipe(take(1)).subscribe({
-      next: rows => {
+      next: response => {
         if (loadId !== this.securityDepositsOutstandingLoadId) {
           return;
         }
 
-        this.setSecurityDepositsOutstanding((rows || []).length > 0);
+        this.setSecurityDepositsOutstanding((response?.rows || []).length > 0);
       },
       error: () => {
         if (loadId !== this.securityDepositsOutstandingLoadId) {

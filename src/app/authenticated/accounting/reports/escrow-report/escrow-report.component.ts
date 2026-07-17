@@ -81,6 +81,8 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
@@ -150,11 +152,10 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     }).pipe(
       take(1),
       finalize(() => {
-        if (this.reportLoadId === loadId) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
-        }
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
         this.markViewForCheck();
-      })
+      }),
+      takeUntil(this.destroy$)
     ).subscribe({
       next: report => {
         if (this.reportLoadId !== loadId) {

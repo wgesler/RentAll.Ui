@@ -605,6 +605,10 @@
               [style.border-top]="totalsRow && data.length > 0 ? '2px solid #333' : 'none'"
             [style.display]="totalsRow && data.length > 0 ? 'table-row' : 'none'"></tr>
           </table>
+
+        @if (footerSlot()) {
+          <ng-content select="[dataTableFooter]"></ng-content>
+        }
         </div>
 
         <div class="datatable-paginator-wrap" [ngClass]="{'datatable-hidden' : data.length < effectiveItemsPerPage}">

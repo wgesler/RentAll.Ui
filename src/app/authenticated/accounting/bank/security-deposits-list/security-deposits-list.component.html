@@ -1,9 +1,9 @@
-@if (!isPageReady) {
+@if (!isPageReady && rowsDisplay.length === 0) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading security deposits...</p>
   </div>
-} @else if (isServiceError) {
+} @else if (isServiceError && rowsDisplay.length === 0) {
   <div class="financial-report-empty-state">
     <p>Unable to load security deposits.</p>
   </div>
@@ -11,9 +11,12 @@
   <div class="financial-report-empty-state">
     <p>{{ noDataMessage }}</p>
   </div>
+  @if (hasSummaryFooter) {
+    <ng-container *ngTemplateOutlet="securityDepositsSummary"></ng-container>
+  }
 } @else {
   <div class="mat list-layout-standard dbg-band-main">
-    <div class="tableDiv">
+    <div class="tableDiv security-deposits-table-wrap" #tableWrap>
       <app-data-table
         tableName="security-deposits-list"
         [data]="rowsDisplay"
@@ -46,7 +49,40 @@
             </app-security-deposit-return-payment-dialog>
           </div>
         </div>
+        @if (hasSummaryFooter) {
+          <div dataTableFooter>
+            <ng-container *ngTemplateOutlet="securityDepositsSummary"></ng-container>
+          </div>
+        }
       </app-data-table>
     </div>
   </div>
 }
+
+<ng-template #securityDepositsSummary>
+  <div #summaryFooter class="security-deposits-summary" [class.security-deposits-summary--aligned]="hasSummaryColumnAlignment"
+    [style.minWidth.px]="hasSummaryColumnAlignment ? summaryMinWidthPx : null">
+    <div class="security-deposits-summary-panel"
+      [style.width.px]="hasSummaryColumnAlignment ? summaryPanelWidthPx : null"
+      [style.marginLeft.px]="hasSummaryColumnAlignment ? summaryPanelMarginLeftPx : null">
+      <div class="security-deposits-summary-row">
+        <span class="security-deposits-summary-label">Total</span>
+        <span class="security-deposits-summary-value security-deposits-summary-value--total">
+          {{ formatter.currencyUsd(totalDepositsOwed) }}
+        </span>
+      </div>
+      <div class="security-deposits-summary-row">
+        <span class="security-deposits-summary-label">{{ escrowAccountLabel || 'Escrow Security Deposit' }}</span>
+        <span class="security-deposits-summary-value security-deposits-summary-value--escrow">
+          {{ formatter.currencyUsd(escrowBalance) }}
+        </span>
+      </div>
+      <div class="security-deposits-summary-row security-deposits-summary-row--discrepancy">
+        <span class="security-deposits-summary-label">Discrepancy</span>
+        <span class="security-deposits-summary-value security-deposits-summary-value--discrepancy">
+          {{ formatter.currencyUsd(discrepancy) }}
+        </span>
+      </div>
+    </div>
+  </div>
+</ng-template>
