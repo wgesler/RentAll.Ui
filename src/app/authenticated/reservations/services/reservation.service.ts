@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, Subject, firstValueFrom } from 'rxjs';
+import { Observable, Subject, BehaviorSubject, firstValueFrom, take } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import {
   ReservationCodeResponse,
+  ReservationDepartureResponse,
   ReservationListResponse,
   ReservationRequest,
   ReservationResponse,
@@ -26,6 +27,9 @@ export class ReservationService {
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
   private readonly reservationSavedSubject = new Subject<{ reservationId: string }>();
   reservationSaved$ = this.reservationSavedSubject.asObservable();
+  private readonly securityDepositsOutstandingSubject = new BehaviorSubject<boolean>(false);
+  securityDepositsOutstanding$ = this.securityDepositsOutstandingSubject.asObservable();
+  private securityDepositsOutstandingLoadId = 0;
 
   // GET: Get reservation list (summary view)
   getReservationList(): Observable<ReservationListResponse[]> {
@@ -38,6 +42,40 @@ export class ReservationService {
 
   getReservationCodes(): Observable<ReservationCodeResponse[]> {
     return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
+  }
+
+  getUnreturnedSecurityDeposits(): Observable<ReservationDepartureResponse[]> {
+    return this.http.get<ReservationDepartureResponse[]>(this.controller + 'unreturned-security-deposits');
+  }
+
+  refreshSecurityDepositsOutstanding(): void {
+    const loadId = ++this.securityDepositsOutstandingLoadId;
+
+    this.getUnreturnedSecurityDeposits().pipe(take(1)).subscribe({
+      next: rows => {
+        if (loadId !== this.securityDepositsOutstandingLoadId) {
+          return;
+        }
+
+        this.setSecurityDepositsOutstanding((rows || []).length > 0);
+      },
+      error: () => {
+        if (loadId !== this.securityDepositsOutstandingLoadId) {
+          return;
+        }
+
+        this.setSecurityDepositsOutstanding(false);
+      }
+    });
+  }
+
+  setSecurityDepositsOutstanding(outstanding: boolean): void {
+    this.securityDepositsOutstandingSubject.next(outstanding);
+  }
+
+  clearSecurityDepositsOutstanding(): void {
+    this.securityDepositsOutstandingLoadId++;
+    this.securityDepositsOutstandingSubject.next(false);
   }
 
 
@@ -84,6 +122,7 @@ export class ReservationService {
       return;
     }
     this.reservationSavedSubject.next({ reservationId: normalizedReservationId });
+    this.refreshSecurityDepositsOutstanding();
   }
 
   getReservationTrackerResponses(reservationId: string): Observable<ReservationTrackerResponse[]> {

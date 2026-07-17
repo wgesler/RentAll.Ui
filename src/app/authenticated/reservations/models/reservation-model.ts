@@ -353,3 +353,45 @@ export interface ReservationNotificationContext {
   departureDateChanged: boolean;
 }
 
+export interface ReservationDepartureResponse {
+  reservationId: string;
+  reservationCode: string;
+  propertyId: string;
+  propertyCode: string;
+  officeId: number;
+  officeName: string;
+  agentCode?: string | null;
+  contactId: string;
+  contactName: string;
+  companyId?: string | null;
+  companyName?: string | null;
+  tenantName: string;
+  monthlyRate: number;
+  dailyRate: number;
+  billingRate: number;
+  billingTypeId: number;
+  arrivalDate: CalendarDateString;
+  departureDate: CalendarDateString;
+  reservationTypeId: number;
+  reservationStatusId: number;
+  hasPets: boolean;
+  depositTypeId: number;
+  deposit: number;
+  depositReturned: boolean;
+  securityDepositReturnDate: CalendarDateString;
+}
+
+export interface UnreturnedSecurityDepositDisplay {
+  reservationId: string;
+  reservationCode: string;
+  propertyCode: string;
+  officeId: number;
+  officeName: string;
+  contactName: string;
+  tenantName: string;
+  companyName: string;
+  departureDate: string;
+  depositDisplay: string;
+  securityDepositReturnDate: string;
+}
+

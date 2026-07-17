@@ -11,6 +11,7 @@ import { LeadsService } from '../../../leads/services/leads.service';
 import { getVisibleNavItems } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
+import { ReservationService } from '../../../reservations/services/reservation.service';
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
 import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
@@ -30,6 +31,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private breakpointObserver = inject(BreakpointObserver);
   private sidebarStateService = inject(SidebarStateService);
   private ticketService = inject(TicketService);
+  private reservationService = inject(ReservationService);
   private leadsService = inject(LeadsService);
   private organizationFeatureService = inject(OrganizationFeatureService);
   private cdr = inject(ChangeDetectorRef);
@@ -48,6 +50,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   navItems: any[] = [];
   hasAssignedTicketBadge = false;
   hasNewLeadBadge = false;
+  hasSecurityDepositsOutstanding = false;
   destroy$ = new Subject<void>();
 
 markViewForCheck(): void {
@@ -58,6 +61,12 @@ markViewForCheck(): void {
     this.filterNavItemsByRole();
     this.refreshAssignedTicketBadge();
     this.refreshLeadBadge();
+    this.refreshSecurityDepositsOutstandingBadge();
+
+    this.reservationService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
+      this.hasSecurityDepositsOutstanding = outstanding;
+      this.markViewForCheck();
+    });
 
     this.sidebarStateService.isExpanded$.pipe(takeUntil(this.destroy$)).subscribe(isExpanded => {
       this.isExpanded = isExpanded;
@@ -82,6 +91,7 @@ markViewForCheck(): void {
       this.filterNavItemsByRole();
       this.refreshAssignedTicketBadge();
       this.refreshLeadBadge();
+      this.refreshSecurityDepositsOutstandingBadge();
       this.markViewForCheck();
     });
 
@@ -89,6 +99,7 @@ markViewForCheck(): void {
       this.filterNavItemsByRole();
       this.refreshAssignedTicketBadge();
       this.refreshLeadBadge();
+      this.refreshSecurityDepositsOutstandingBadge();
       this.markViewForCheck();
     });
 
@@ -98,6 +109,10 @@ markViewForCheck(): void {
 
     this.leadsService.leadStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.refreshLeadBadge();
+    });
+
+    this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshSecurityDepositsOutstandingBadge();
     });
   }
 
@@ -207,6 +222,26 @@ markViewForCheck(): void {
 
   hasNewLeadState(rows: Array<{ leadStateId?: number }> | null | undefined): boolean {
     return (rows || []).some(row => row?.leadStateId === LeadStateType.New);
+  }
+
+  refreshSecurityDepositsOutstandingBadge(): void {
+    if (!this.authService.hasAccountingNavAccess()) {
+      this.reservationService.clearSecurityDepositsOutstanding();
+      this.markViewForCheck();
+      return;
+    }
+
+    const hasAccountingNavItem = this.navItems.some(navItem => {
+      const url = String(navItem?.url || '');
+      return url === 'accounting' || url.startsWith('accounting/');
+    });
+    if (!hasAccountingNavItem) {
+      this.reservationService.clearSecurityDepositsOutstanding();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.reservationService.refreshSecurityDepositsOutstanding();
   }
     
   get desktopSidebarWidth(): number {

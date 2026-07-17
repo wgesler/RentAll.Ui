@@ -1971,6 +1971,17 @@ mat-form-field input,
 
 .mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-label {
   padding-right: 36px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-menu-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--mat-sys-error, #dc2626);
+  flex-shrink: 0;
 }
 
 .mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-check {

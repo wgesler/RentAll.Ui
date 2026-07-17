@@ -80,6 +80,7 @@ import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntryLineSelection, JournalEntryResponse, JournalEntrySyncResult } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owners/owner-report-details/owner-report-details.component';
+import { SecurityDepositsListComponent } from '../owners/security-deposits-list/security-deposits-list.component';
 import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 
 type JournalEntrySyncProgressKey =
@@ -159,6 +160,7 @@ interface AccountingShellPinnedTopBarState {
     ArAgingReportComponent,
     ApAgingReportComponent,
     EscrowReportComponent,
+    SecurityDepositsListComponent,
     ReconcileAccountReportComponent,
     RentRollComponent,
     OwnerReportComponent,
@@ -371,6 +373,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
   ownersStatementsRefreshTrigger = 0;
+  hasUnreturnedSecurityDeposits = false;
   ownerStatementReturnAfterUtilityDetail = false;
   ownerStatementReturnAfterWorkOrderDetail = false;
   ownerStatementReturnAfterInvoiceDetail = false;
@@ -481,6 +484,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (invoiceId && this.selectedTabIndex !== 0) {
         this.selectedTabIndex = 0;
       }
+    });
+
+    this.refreshSecurityDepositsOwedBadge();
+    this.reservationService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
+      this.hasUnreturnedSecurityDeposits = outstanding;
+      this.cdr.markForCheck();
     });
   }
 
@@ -2590,7 +2599,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.financialReportsRefreshTrigger++;
       return;
     }
-    if (this.selectedOwnerKind === 'escrow') {
+    if (this.selectedOwnerKind === 'escrow' || this.selectedOwnerKind === 'securityDeposits') {
       this.ownersStatementsRefreshTrigger++;
       return;
     }
@@ -4812,6 +4821,10 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
   //#endregion
 
   //#region Utility Methods
+  refreshSecurityDepositsOwedBadge(): void {
+    this.reservationService.refreshSecurityDepositsOutstanding();
+  }
+
   ngOnDestroy(): void {
     this.releaseRentRollTransitionLock();
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);

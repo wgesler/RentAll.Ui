@@ -1,0 +1,35 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading security deposits...</p>
+  </div>
+} @else if (isServiceError) {
+  <div class="financial-report-empty-state">
+    <p>Unable to load security deposits.</p>
+  </div>
+} @else if (rowsDisplay.length === 0) {
+  <div class="financial-report-empty-state">
+    <p>{{ noDataMessage }}</p>
+  </div>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="security-deposits-list"
+        [data]="rowsDisplay"
+        [columns]="displayedColumns"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsView]="true"
+        [hasActionsEdit]="false"
+        [hasActionsDelete]="false"
+        [itemsPerPage]="25"
+        (viewEvent)="openReservation($event)"
+        (rowClickEvent)="openReservation($event)">
+      </app-data-table>
+    </div>
+  </div>
+}

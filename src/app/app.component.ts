@@ -18,6 +18,7 @@ import { BrandingService } from './services/branding.service';
 import { CommonService } from './services/common.service';
 import { PropertySelectionFilterService } from './authenticated/properties/services/property-selection-filter.service';
 import { PropertyService } from './authenticated/properties/services/property.service';
+import { ReservationService } from './authenticated/reservations/services/reservation.service';
 import { DebugLayoutBandsService } from './services/debug-layout-bands.service';
 import { UtilityService } from './services/utility.service';
 
@@ -43,6 +44,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private router = inject(Router);
@@ -80,8 +82,12 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadOffices();
         this.loadPropertyCodes();
         this.loadPropertySelectionFilterState();
+        if (this.authService.hasAccountingNavAccess()) {
+          this.reservationService.refreshSecurityDepositsOutstanding();
+        }
       } else {
         this.organizationId = '';
+        this.reservationService.clearSecurityDepositsOutstanding();
         this.brandingService.clearBranding();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'branding');
         this.organizationListService.clearOrganizations();

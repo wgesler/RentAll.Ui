@@ -48,7 +48,7 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
 import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
@@ -3844,6 +3844,28 @@ roundCurrency(value: number): number {
         currentInvoiceNo: o.currentInvoiceNo,
         isActive: o.isActive,
         createdOn: this.formatter.formatDateTimeString(o.createdOn)
+      };
+    });
+  }
+
+  mapUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[]): UnreturnedSecurityDepositDisplay[] {
+    return (rows || []).map(row => {
+      const companyName = String(row.companyName || '').trim();
+      const tenantName = String(row.tenantName || '').trim();
+      const contactName = String(row.contactName || '').trim();
+
+      return {
+        reservationId: this.utility.normalizeId(row.reservationId),
+        reservationCode: row.reservationCode,
+        propertyCode: row.propertyCode,
+        officeId: row.officeId,
+        officeName: row.officeName,
+        contactName,
+        tenantName,
+        companyName,
+        departureDate: this.formatter.formatDateString(row.departureDate),
+        depositDisplay: this.formatter.currencyUsd(row.deposit),
+        securityDepositReturnDate: this.formatter.formatDateString(row.securityDepositReturnDate)
       };
     });
   }
