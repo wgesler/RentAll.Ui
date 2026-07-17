@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -30,6 +30,7 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
   private propertyService = inject(PropertyService);
   private invoiceService = inject(InvoiceService);
   private formatter = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
 
   rows: Array<AccountingLogResponse & { propertyCodeDisplay: string; invoiceCodeDisplay: string; createdOnDate: string; firstPeriodDisplay: string; secondPeriodDisplay: string; originalAmountDisplay: string; firstAmountDisplay: string; secondAmountDisplay: string }> = [];
   isLoading = false;
@@ -90,7 +91,10 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
   loadAccountingLogs(emitCallback = false): void {
     this.isLoading = true;
     this.errorMessage = null;
-    this.logService.getAllAccountingLog().pipe(take(1), finalize(() => this.isLoading = false)).subscribe({
+    this.logService.getAllAccountingLog().pipe(take(1), finalize(() => {
+      this.isLoading = false;
+      this.cdr.markForCheck();
+    })).subscribe({
       next: (rows: AccountingLogResponse[]) => {
         this.loadCodeDisplays(rows || [], emitCallback);
       },

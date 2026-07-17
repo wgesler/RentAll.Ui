@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -24,6 +24,7 @@ export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestr
   @Output() listActionCompleted = new EventEmitter<void>();
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
 
   rows: Array<DatabaseErrorLogResponse & { createdOnDate: string }> = [];
   isLoading = false;
@@ -77,7 +78,10 @@ export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestr
   loadDatabaseErrorLogs(emitCallback = false): void {
     this.isLoading = true;
     this.errorMessage = null;
-    this.logService.getAllDatabaseError().pipe(take(1), finalize(() => this.isLoading = false)).subscribe({
+    this.logService.getAllDatabaseError().pipe(take(1), finalize(() => {
+      this.isLoading = false;
+      this.cdr.markForCheck();
+    })).subscribe({
       next: (rows: DatabaseErrorLogResponse[]) => {
         this.rows = (rows || []).map(row => ({
           ...row,

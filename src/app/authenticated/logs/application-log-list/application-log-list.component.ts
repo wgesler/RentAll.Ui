@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -24,6 +24,7 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   @Output() listActionCompleted = new EventEmitter<void>();
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
 
   rows: Array<ApplicationLogResponse & { createdOnDate: string }> = [];
   isLoading = false;
@@ -78,7 +79,10 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   loadApplicationLogs(emitCallback = false): void {
     this.isLoading = true;
     this.errorMessage = null;
-    this.logService.getAllApplicationLog().pipe(take(1), finalize(() => this.isLoading = false)).subscribe({
+    this.logService.getAllApplicationLog().pipe(take(1), finalize(() => {
+      this.isLoading = false;
+      this.cdr.markForCheck();
+    })).subscribe({
       next: (rows: ApplicationLogResponse[]) => {
         this.rows = (rows || []).map(row => ({
           ...row,

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { finalize, firstValueFrom, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -32,6 +32,7 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
   @Output() listActionCompleted = new EventEmitter<void>();
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
+  private cdr = inject(ChangeDetectorRef);
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
   private invoiceService = inject(InvoiceService);
@@ -92,7 +93,10 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
   loadGeneralErrorLogs(emitCallback = false): void {
     this.isLoading = true;
     this.errorMessage = null;
-    this.logService.getAllGeneralError().pipe(take(1), finalize(() => this.isLoading = false)).subscribe({
+    this.logService.getAllGeneralError().pipe(take(1), finalize(() => {
+      this.isLoading = false;
+      this.cdr.markForCheck();
+    })).subscribe({
       next: (rows: GeneralErrorLogResponse[]) => {
         void this.loadCodeDisplays(rows || [], emitCallback);
       },

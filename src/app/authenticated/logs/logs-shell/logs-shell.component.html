@@ -25,7 +25,7 @@
     }
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Application Log">
           <app-application-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedApplicationLog" (openApplicationLog)="openApplicationLog($event)" (listActionCompleted)="onListActionCompleted()" />
           @if (selectedApplicationLog) {
