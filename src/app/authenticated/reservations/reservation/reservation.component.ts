@@ -47,7 +47,7 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
@@ -316,9 +316,16 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   performSave(): void {
+    const formValue = this.form.getRawValue();
+    const nextIsActive = (formValue['isActive'] as boolean | null | undefined) ?? true;
+    if (!nextIsActive && this.shouldBlockInactivationForUnreturnedSecurityDeposit()) {
+      this.form.get('isActive')?.setValue(true, { emitEvent: false });
+      this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+      return;
+    }
+
     this.isSubmitting = true;
 
-    const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
     const officeId = formValue.officeId ?? this.selectedOffice?.officeId ?? this.selectedProperty?.officeId;
     if (!officeId) {
@@ -1349,6 +1356,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.setupContactSelectionHandler();
     this.setupReservationTypeHandler();
     this.setupDepositHandlers();
+    this.setupIsActiveInactivationGuard();
     this.setupBillingTypeHandler();
     this.setupPetFeeHandler();
     this.setupMaidServiceHandler();
@@ -1445,6 +1453,25 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.form.get('depositType')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateDepositValues();
     });
+  }
+
+  setupIsActiveInactivationGuard(): void {
+    this.form.get('isActive')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isActive => {
+      if (isActive !== false) {
+        return;
+      }
+
+      if (this.shouldBlockInactivationForUnreturnedSecurityDeposit()) {
+        this.form.get('isActive')?.setValue(true, { emitEvent: false });
+        this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+      }
+    });
+  }
+
+  shouldBlockInactivationForUnreturnedSecurityDeposit(): boolean {
+    const depositTypeId = Number(this.form.get('depositType')?.value);
+    const depositReturned = this.reservation?.depositReturned ?? false;
+    return blocksInactivationForUnreturnedSecurityDeposit(depositTypeId, depositReturned);
   }
 
   setupBillingTypeHandler(): void {
@@ -3226,7 +3253,27 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.router.navigateByUrl(RouterUrl.ReservationList);
       return;
     }
+    if (returnTo === 'security-deposits') {
+      const path = qp.get('listReturnPath')?.trim();
+      if (path && this.isAllowedSecurityDepositsReturnPath(path)) {
+        this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
+        return;
+      }
+
+      const params: string[] = ['tab=2', 'bankActivity=securityDeposits'];
+      const officeId = qp.get('officeId');
+      if (officeId) {
+        params.push(`officeId=${officeId}`);
+      }
+      this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
+      return;
+    }
     this.router.navigateByUrl(RouterUrl.ReservationList);
+  }
+
+  isAllowedSecurityDepositsReturnPath(path: string): boolean {
+    const normalized = path.split('?')[0].replace(/^\/+/, '');
+    return normalized === RouterUrl.AccountingList;
   }
 
   isAllowedReservationListReturnPath(path: string): boolean {

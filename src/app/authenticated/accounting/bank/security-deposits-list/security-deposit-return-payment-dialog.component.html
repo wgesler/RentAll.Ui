@@ -1,0 +1,65 @@
+@if (visible) {
+  <div class="payment-dialog-overlay">
+    <div class="payment-form-box" style="font-size: 11px !important;">
+      <div class="flex gap-2 items-center payment-inline-row">
+        <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
+          <mat-label style="font-size: 11px !important;">Date</mat-label>
+          <input matInput [matDatepicker]="paymentDatePicker" [(ngModel)]="paymentDate" style="font-size: 11px !important;">
+          <mat-datepicker-toggle matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #paymentDatePicker></mat-datepicker>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="payment-type-dropdown" style="font-size: 11px !important;">
+          <mat-label style="font-size: 11px !important;">Payment Type</mat-label>
+          <mat-select [(ngModel)]="selectedPaymentTypeId" (selectionChange)="onPaymentTypeChange($event.value)" style="font-size: 11px !important;">
+            @for (type of paymentTypeOptions; track type.value) {
+              <mat-option [value]="type.value" style="font-size: 11px !important;">{{ type.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (isCreditCardPaymentTypeSelected) {
+          <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+            <mat-label style="font-size: 11px !important;">Credit Card</mat-label>
+            <mat-select [(ngModel)]="selectedPaymentCreditCardId" [disabled]="paymentCreditCardOptions.length === 0" style="font-size: 11px !important;">
+              <mat-option [value]="null" style="font-size: 11px !important;">Select Credit Card</mat-option>
+              @for (creditCard of paymentCreditCardOptions; track creditCard.value) {
+                <mat-option [value]="creditCard.value" style="font-size: 11px !important;">{{ creditCard.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        } @else {
+          <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+            <mat-label style="font-size: 11px !important;">Bank</mat-label>
+            <mat-select [(ngModel)]="selectedPaymentChartOfAccountId" (selectionChange)="onPaymentChartOfAccountChange($event.value)" [disabled]="!officeId" style="font-size: 11px !important;">
+              <mat-option [value]="null" style="font-size: 11px !important;">Select Bank Account</mat-option>
+              @for (account of paymentChartOfAccounts; track account.value) {
+                <mat-option [value]="account.value" style="font-size: 11px !important;">{{ account.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
+          <mat-label style="font-size: 11px !important;">Description</mat-label>
+          <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
+          <mat-label style="font-size: 11px !important;">Amount</mat-label>
+          <input matInput
+            type="text"
+            [value]="paymentAmountDisplay"
+            (input)="onPaymentAmountInput($event)"
+            (focus)="onPaymentAmountFocus($event)"
+            (blur)="onPaymentAmountBlur($event)"
+            (keydown.enter)="onPaymentAmountEnter($event)"
+            placeholder="0.00"
+            style="font-size: 11px !important;">
+        </mat-form-field>
+      </div>
+    </div>
+    <button mat-raised-button type="button" color="primary" (click)="submit()" [disabled]="!isPaymentFormValid || isSubmitting" class="whitespace-nowrap items-center flex gap-1">
+      Submit
+    </button>
+    <button mat-raised-button type="button" color="accent" (click)="cancel()" class="whitespace-nowrap items-center flex gap-1">
+      Cancel
+    </button>
+  </div>
+}

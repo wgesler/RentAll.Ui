@@ -1,0 +1,52 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading security deposits...</p>
+  </div>
+} @else if (isServiceError) {
+  <div class="financial-report-empty-state">
+    <p>Unable to load security deposits.</p>
+  </div>
+} @else if (rowsDisplay.length === 0 && !showPaymentForm) {
+  <div class="financial-report-empty-state">
+    <p>{{ noDataMessage }}</p>
+  </div>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="security-deposits-list"
+        [data]="rowsDisplay"
+        [columns]="displayedColumns"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsView]="false"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="false"
+        [hasActionsPayable]="true"
+        [itemsPerPage]="25"
+        (editEvent)="openReservation($event)"
+        (rowClickEvent)="openReservation($event)"
+        (payableEvent)="onPayable($event)"
+        (checkboxChangeEvent)="onDepositReturnedCheckboxChange($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+            <app-security-deposit-return-payment-dialog
+              [visible]="showPaymentForm"
+              [officeId]="paymentOfficeId"
+              [reservationId]="paymentTargetReservationId"
+              [initialAmount]="paymentInitialAmount"
+              [initialDescription]="paymentInitialDescription"
+              [isSubmitting]="isSubmittingPayment"
+              (cancelEvent)="cancelPaymentForm()"
+              (submitEvent)="onPaymentSubmit($event)">
+            </app-security-deposit-return-payment-dialog>
+          </div>
+        </div>
+      </app-data-table>
+    </div>
+  </div>
+}

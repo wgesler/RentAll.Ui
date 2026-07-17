@@ -1,0 +1,18 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+  min-height: 50vh;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.payment-actions-anchor {
+  position: relative;
+}

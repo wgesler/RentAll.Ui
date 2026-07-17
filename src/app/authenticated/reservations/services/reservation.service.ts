@@ -9,6 +9,7 @@ import {
   ReservationListResponse,
   ReservationRequest,
   ReservationResponse,
+  SecurityDepositReturnRequest,
   ReservationTrackerResponse,
   ReservationTrackerResponseOption,
   ReservationTrackerResponseOptionRequest,
@@ -46,6 +47,10 @@ export class ReservationService {
 
   getUnreturnedSecurityDeposits(): Observable<ReservationDepartureResponse[]> {
     return this.http.get<ReservationDepartureResponse[]>(this.controller + 'unreturned-security-deposits');
+  }
+
+  applySecurityDepositReturn(request: SecurityDepositReturnRequest): Observable<ReservationResponse> {
+    return this.http.put<ReservationResponse>(this.controller + 'security-deposit/return', request);
   }
 
   refreshSecurityDepositsOutstanding(): void {

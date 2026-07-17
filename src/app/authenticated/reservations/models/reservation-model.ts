@@ -35,6 +35,7 @@ export interface ReservationRequest {
   billingRate: number;
   deposit: number;
   depositTypeId: number;
+  depositReturned: boolean;
   departureFee: number;
   taxes: number;
   hasPets: boolean;
@@ -101,6 +102,7 @@ export interface ReservationResponse {
   billingRate: number;
   deposit: number;
   depositTypeId?: number | null;
+  depositReturned?: boolean | null;
   departureFee: number;
   taxes: number;
   hasPets: boolean;
@@ -381,17 +383,29 @@ export interface ReservationDepartureResponse {
   securityDepositReturnDate: CalendarDateString;
 }
 
+export interface SecurityDepositReturnRequest {
+  reservationId: string;
+  paymentDate: CalendarDateString;
+  chartOfAccountId: number;
+  paymentTypeId: number;
+  description: string;
+  amount: number;
+}
+
 export interface UnreturnedSecurityDepositDisplay {
   reservationId: string;
   reservationCode: string;
   propertyCode: string;
   officeId: number;
-  officeName: string;
+  agentCode: string;
   contactName: string;
   tenantName: string;
   companyName: string;
+  arrivalDate: string;
   departureDate: string;
-  depositDisplay: string;
   securityDepositReturnDate: string;
+  depositDisplay: string;
+  deposit: number;
+  depositReturned: boolean;
 }
 

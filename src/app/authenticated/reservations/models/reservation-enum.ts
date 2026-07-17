@@ -278,6 +278,16 @@ export enum DepositType {
   SDW = 2
 }
 
+export const UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE =
+  'Reservations with unreturned security deposits may not be made inactive.';
+
+export function blocksInactivationForUnreturnedSecurityDeposit(
+  depositTypeId: number | null | undefined,
+  depositReturned: boolean | null | undefined
+): boolean {
+  return Number(depositTypeId) === DepositType.Deposit && depositReturned !== true;
+}
+
 export function getDepositType(depositTypeId: number | undefined): string {
   if (depositTypeId === undefined || depositTypeId === null) return '';
   

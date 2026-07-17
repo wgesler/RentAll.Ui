@@ -3853,19 +3853,23 @@ roundCurrency(value: number): number {
       const companyName = String(row.companyName || '').trim();
       const tenantName = String(row.tenantName || '').trim();
       const contactName = String(row.contactName || '').trim();
+      const agentCode = String(row.agentCode || '').trim();
 
       return {
         reservationId: this.utility.normalizeId(row.reservationId),
         reservationCode: row.reservationCode,
         propertyCode: row.propertyCode,
         officeId: row.officeId,
-        officeName: row.officeName,
+        agentCode,
         contactName,
         tenantName,
         companyName,
+        arrivalDate: this.formatter.formatDateString(row.arrivalDate),
         departureDate: this.formatter.formatDateString(row.departureDate),
+        securityDepositReturnDate: this.formatter.formatDateString(row.securityDepositReturnDate),
         depositDisplay: this.formatter.currencyUsd(row.deposit),
-        securityDepositReturnDate: this.formatter.formatDateString(row.securityDepositReturnDate)
+        deposit: Number(row.deposit ?? 0),
+        depositReturned: !!row.depositReturned
       };
     });
   }

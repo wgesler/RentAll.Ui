@@ -30,7 +30,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { ReservationStatus, ReservationType } from '../models/reservation-enum';
+import { ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit } from '../models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { ReservationService } from '../services/reservation.service';
@@ -757,13 +757,42 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       return;
     }
 
-    this.applyReservationIsActiveValue(event.reservationId, nextValue);
+    if (!nextValue) {
+      void this.attemptReservationDeactivation(event.reservationId, previousValue);
+      return;
+    }
 
-    void this.reservationService.updateModifiedReservation(event.reservationId, { isActive: nextValue }).then(async () => {
+    this.updateReservationIsActive(event.reservationId, previousValue, nextValue);
+  }
+
+  async attemptReservationDeactivation(reservationId: string, previousValue: boolean): Promise<void> {
+    try {
+      const reservation = await firstValueFrom(this.reservationService.getReservationByGuid(reservationId));
+      if (blocksInactivationForUnreturnedSecurityDeposit(reservation.depositTypeId, reservation.depositReturned)) {
+        this.applyReservationIsActiveValue(reservationId, true);
+        this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+        this.applyFilters();
+        this.markViewForCheck();
+        return;
+      }
+
+      this.updateReservationIsActive(reservationId, previousValue, false);
+    } catch {
+      this.applyReservationIsActiveValue(reservationId, previousValue);
+      this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+      this.applyFilters();
+      this.markViewForCheck();
+    }
+  }
+
+  updateReservationIsActive(reservationId: string, previousValue: boolean, nextValue: boolean): void {
+    this.applyReservationIsActiveValue(reservationId, nextValue);
+
+    void this.reservationService.updateModifiedReservation(reservationId, { isActive: nextValue }).then(async () => {
       this.toastr.success('Reservation updated.', CommonMessage.Success);
-      await firstValueFrom(this.invoiceService.syncInvoicesForReservationActiveChange(event.reservationId, previousValue, nextValue));
+      await firstValueFrom(this.invoiceService.syncInvoicesForReservationActiveChange(reservationId, previousValue, nextValue));
     }).catch(() => {
-      this.applyReservationIsActiveValue(event.reservationId, previousValue);
+      this.applyReservationIsActiveValue(reservationId, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);
       this.markViewForCheck();
     }).finally(() => {

@@ -80,7 +80,7 @@ import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntryLineSelection, JournalEntryResponse, JournalEntrySyncResult } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owners/owner-report-details/owner-report-details.component';
-import { SecurityDepositsListComponent } from '../owners/security-deposits-list/security-deposits-list.component';
+import { SecurityDepositsListComponent } from '../bank/security-deposits-list/security-deposits-list.component';
 import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 
 type JournalEntrySyncProgressKey =
@@ -231,6 +231,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'transfers', label: 'Transfers' },
     { kind: 'transferReport', label: 'Transfer Reports' },
     { kind: 'printChecks', label: 'Print Checks' },
+    { kind: 'securityDeposits', label: 'Security Deposits' },
     { kind: 'reconcile', label: 'Reconcile' }
   ];
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
@@ -239,7 +240,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'statements', label: 'Accrual & Cash' },
     { kind: 'apAging', label: 'AP Aging' },
     { kind: 'escrow', label: 'Escrow (E2)' },
-    { kind: 'securityDeposits', label: 'Security Deposits' },
     { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -370,6 +370,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   shellReconcileStatementDateOptions: SearchableSelectOption[] = [];
   selectedReconcileId: number | null = null;
   printChecksRefreshTrigger = 0;
+  securityDepositsRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
   ownersStatementsRefreshTrigger = 0;
@@ -2538,6 +2539,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.printChecksRefreshTrigger++;
       return;
     }
+    if (this.selectedBankActivityKind === 'securityDeposits') {
+      this.securityDepositsRefreshTrigger++;
+      return;
+    }
     if (this.selectedBankActivityKind === 'deposits') {
       this.depositsRefreshTrigger++;
       return;
@@ -2599,7 +2604,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.financialReportsRefreshTrigger++;
       return;
     }
-    if (this.selectedOwnerKind === 'escrow' || this.selectedOwnerKind === 'securityDeposits') {
+    if (this.selectedOwnerKind === 'escrow') {
       this.ownersStatementsRefreshTrigger++;
       return;
     }
@@ -3048,7 +3053,10 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
     if (stored.selectedBankActivityKind) {
       this.selectedBankActivityKind = stored.selectedBankActivityKind;
     }
-    if (stored.selectedOwnerKind) {
+    if ((stored.selectedOwnerKind as string | undefined) === 'securityDeposits') {
+      this.selectedTabIndex = this.tabBankActivities;
+      this.selectedBankActivityKind = 'securityDeposits';
+    } else if (stored.selectedOwnerKind) {
       this.selectedOwnerKind = stored.selectedOwnerKind;
     }
     if (stored.selectedReportKind) {
@@ -4120,6 +4128,7 @@ captureOwnerStatementReturnContext(): void {
         || bankActivity === 'deposits'
         || bankActivity === 'transfers'
         || bankActivity === 'printChecks'
+        || bankActivity === 'securityDeposits'
         || bankActivity === 'reconcile'
       ) {
         this.selectedBankActivityKind = bankActivity;
@@ -4128,14 +4137,16 @@ captureOwnerStatementReturnContext(): void {
 
     if ('ownerKind' in params) {
       const ownerKind = params['ownerKind'];
-      if (
+      if (ownerKind === 'securityDeposits') {
+        this.selectedTabIndex = this.tabBankActivities;
+        this.selectedBankActivityKind = 'securityDeposits';
+      } else if (
         ownerKind === 'utilities'
         || ownerKind === 'workOrders'
         || ownerKind === 'statements'
         || ownerKind === 'ownerStatements'
         || ownerKind === 'apAging'
         || ownerKind === 'escrow'
-        || ownerKind === 'securityDeposits'
       ) {
         this.selectedOwnerKind = ownerKind;
         if (ownerKind === 'statements') {
@@ -4308,6 +4319,7 @@ captureOwnerStatementReturnContext(): void {
             this.transferReportRefreshTrigger++;
             this.reconcileRefreshTrigger++;
             this.printChecksRefreshTrigger++;
+            this.securityDepositsRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
             if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {

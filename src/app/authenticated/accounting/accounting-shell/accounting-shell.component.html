@@ -849,7 +849,12 @@
               <mat-menu #bankActivitiesMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (option of shellBankActivityMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBankActivity(option.kind)">
-                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
+                    <span class="office-menu-label accounting-reports-menu-label">
+                      {{ option.label }}
+                      @if (option.kind === 'securityDeposits' && hasUnreturnedSecurityDeposits) {
+                        <span class="accounting-menu-badge-dot" aria-hidden="true"></span>
+                      }
+                    </span>
                     @if (selectedTabIndex === tabBankActivities && selectedBankActivityKind === option.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
@@ -875,6 +880,8 @@
                   }
                 } @else if (selectedBankActivityKind === 'printChecks') {
                   Print Checks
+                } @else if (selectedBankActivityKind === 'securityDeposits') {
+                  Security Deposits
                 } @else if (selectedBankActivityKind === 'reconcile') {
                   Reconcile
                 }
@@ -998,7 +1005,12 @@
                     (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
                   </app-general-ledger-list>
                 }
-              } @else {
+              } @else if (selectedBankActivityKind === 'securityDeposits') {
+                <app-security-deposits-list
+                  [officeId]="selectedOfficeId"
+                  [refreshTrigger]="securityDepositsRefreshTrigger">
+                </app-security-deposits-list>
+              } @else if (selectedBankActivityKind === 'reconcile') {
                 <app-reconcile
                   [officeId]="selectedOfficeId"
                   [organizationId]="organizationId"
@@ -1032,12 +1044,7 @@
               <mat-menu #ownersMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
                 @for (option of shellOwnerMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectOwnerKind(option.kind)">
-                    <span class="office-menu-label accounting-reports-menu-label">
-                      {{ option.label }}
-                      @if (option.kind === 'securityDeposits' && hasUnreturnedSecurityDeposits) {
-                        <span class="accounting-menu-badge-dot" aria-hidden="true"></span>
-                      }
-                    </span>
+                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
                     @if (selectedTabIndex === tabOwners && selectedOwnerKind === option.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
@@ -1148,11 +1155,6 @@
                   [refreshTrigger]="ownersStatementsRefreshTrigger"
                   (transferNavigate)="onEscrowTransferNavigate()">
                 </app-escrow-report>
-              } @else if (selectedOwnerKind === 'securityDeposits') {
-                <app-security-deposits-list
-                  [officeId]="selectedOfficeId"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger">
-                </app-security-deposits-list>
               } @else if (isOwnerReportViewActive) {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger

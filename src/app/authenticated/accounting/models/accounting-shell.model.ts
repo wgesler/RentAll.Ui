@@ -4,7 +4,7 @@ export type AccountingShellReportKind = FinancialReportKind | 'arAging' | 'apAgi
 
 export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'rentRoll';
 
-export type AccountingShellBankActivityKind = 'undepositedFunds' | 'untransferredFunds' | 'deposits' | 'transfers' | 'transferReport' | 'printChecks' | 'reconcile';
+export type AccountingShellBankActivityKind = 'undepositedFunds' | 'untransferredFunds' | 'deposits' | 'transfers' | 'transferReport' | 'printChecks' | 'securityDeposits' | 'reconcile';
 
 export type AccountingShellOwnerKind =
   | 'utilities'
@@ -12,7 +12,6 @@ export type AccountingShellOwnerKind =
   | 'statements'
   | 'ownerStatements'
   | 'apAging'
-  | 'escrow'
-  | 'securityDeposits';
+  | 'escrow';
 
 export type AccountingShellGeneralLedgerKind = 'ledger' | 'recap';
