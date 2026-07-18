@@ -92,6 +92,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsEdit: boolean = false;
   @Input() hasActionsLock: boolean = false;
   @Input() hasActionsPayable: boolean = false;
+  @Input() hasActionsTransfer: boolean = false;
   @Input() hasActionsInvoice: boolean = false;
   @Input() hasActionsInfo: boolean = false;
   @Input() userActionTooltip: string = 'Create User';
@@ -194,6 +195,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() editEvent = new EventEmitter<PurposefulAny>();
   @Output() lockEvent = new EventEmitter<PurposefulAny>();
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
+  @Output() transferEvent = new EventEmitter<PurposefulAny>();
   @Output() invoiceEvent = new EventEmitter<PurposefulAny>();
   @Output() infoEvent = new EventEmitter<PurposefulAny>();
   @Output() printEvent = new EventEmitter<PurposefulAny>();
@@ -554,6 +556,11 @@ markViewForCheck(): void {
   emitPayableEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.payableEvent.emit(rowItem);
+  }
+
+  emitTransferEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.transferEvent.emit(rowItem);
   }
 
   emitInvoiceEvent(event: Event, rowItem: PurposefulAny): void {
@@ -1315,7 +1322,7 @@ normalizeFilterValue(value: unknown): string {
     }
     columns = { ...columns, ...rest };
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsStartingBalance || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsStartingBalance || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -1356,6 +1363,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsRental)   this.buttons.push({name: 'rental', callback: (event, rowItem) => this.emitRentalEvent(event, rowItem), color: '#1976D2', tooltip: 'Convert to Rental Lead', tooltipPosition: 'before', icon: 'home_work', suspendOnUpdate: false});
     if (this.hasActionsOwner)    this.buttons.push({name: 'owner', callback: (event, rowItem) => this.emitOwnerEvent(event, rowItem), color: '#7B1FA2', tooltip: 'Convert Lead to Owner', tooltipPosition: 'before', icon: 'person', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: this.payableActionColor, tooltip: 'Create Bill & Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
+    if (this.hasActionsTransfer) this.buttons.push({name: 'transfer', callback: (event, rowItem) => this.emitTransferEvent(event, rowItem), color: '#1565C0', tooltip: 'Transfer To Business Bank', tooltipPosition: 'before', icon: 'sync_alt', suspendOnUpdate: false});
     if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: this.invoiceActionColor, tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsInfo && !placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});

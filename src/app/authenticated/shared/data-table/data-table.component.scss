@@ -764,6 +764,38 @@ td.mat-mdc-cell .mat-mdc-icon-button {
   line-height: 1;
 }
 
+.datatable-transfer-action-btn {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 4px !important;
+}
+
+.datatable-transfer-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background-color: #1565c0;
+}
+
+.datatable-transfer-icon-btn__icon {
+  color: #fff !important;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+}
+
+.datatable-transfer-action-btn:not([disabled]):hover .datatable-transfer-icon-btn {
+  background-color: #0d47a1;
+}
+
+.datatable-transfer-action-btn[disabled] .datatable-transfer-icon-btn {
+  background-color: #90a4ae;
+}
+
 td.mat-cell.no-wrap,
 td.mat-mdc-cell.no-wrap {
     white-space: nowrap;

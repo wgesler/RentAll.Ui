@@ -28,7 +28,7 @@
           </mat-form-field>
         } @else {
           <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
-            <mat-label style="font-size: 11px !important;">Bank</mat-label>
+            <mat-label style="font-size: 11px !important;">{{ bankAccountLabel }}</mat-label>
             <mat-select [(ngModel)]="selectedPaymentChartOfAccountId" (selectionChange)="onPaymentChartOfAccountChange($event.value)" [disabled]="!officeId" style="font-size: 11px !important;">
               <mat-option [value]="null" style="font-size: 11px !important;">Select Bank Account</mat-option>
               @for (account of paymentChartOfAccounts; track account.value) {

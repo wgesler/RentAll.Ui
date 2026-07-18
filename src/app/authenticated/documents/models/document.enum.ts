@@ -14,7 +14,8 @@ export enum DocumentType {
   ArAging = 12,
   ReconcileAccountSummary = 13,
   ReconcileAccountDetail = 14,
-  ApAging = 15
+  ApAging = 15,
+  SecurityDepositReport = 16
 }
 
 export function getDocumentType(documentTypeId: number | undefined): string {
@@ -36,7 +37,8 @@ export function getDocumentType(documentTypeId: number | undefined): string {
     [DocumentType.ArAging]: 'AR Aging',
     [DocumentType.ReconcileAccountSummary]: 'Reconciliation Summary',
     [DocumentType.ReconcileAccountDetail]: 'Reconciliation Detail',
-    [DocumentType.ApAging]: 'AP Aging'
+    [DocumentType.ApAging]: 'AP Aging',
+    [DocumentType.SecurityDepositReport]: 'Security Deposit Report'
   };
   
   return typeMap[documentTypeId] || '';
@@ -63,6 +65,7 @@ export function getDocumentTypes(): { value: DocumentType, label: string }[] {
     { value: DocumentType.ArAging, label: getDocumentType(DocumentType.ArAging) },
     { value: DocumentType.ReconcileAccountSummary, label: getDocumentType(DocumentType.ReconcileAccountSummary) },
     { value: DocumentType.ReconcileAccountDetail, label: getDocumentType(DocumentType.ReconcileAccountDetail) },
-    { value: DocumentType.ApAging, label: getDocumentType(DocumentType.ApAging) }
+    { value: DocumentType.ApAging, label: getDocumentType(DocumentType.ApAging) },
+    { value: DocumentType.SecurityDepositReport, label: getDocumentType(DocumentType.SecurityDepositReport) }
   ];
 }

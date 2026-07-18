@@ -1,0 +1,131 @@
+<ng-template #reportActionButtons>
+  <button mat-raised-button type="button" color="accent" (click)="onPrint()" [disabled]="!previewIframeHtml">
+    <mat-icon>print</mat-icon>
+    Print
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="exportReportToExcel()" [disabled]="!detail">
+    <mat-icon>grid_on</mat-icon>
+    Excel
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onDownload()"
+    [disabled]="!previewIframeHtml || isDownloading">
+    <mat-icon>download</mat-icon>
+    {{ isDownloading ? 'Downloading...' : 'PDF' }}
+  </button>
+  <button mat-raised-button type="button" color="primary" (click)="saveReport()"
+    [disabled]="!previewIframeHtml || isSubmitting">
+    <mat-icon>save</mat-icon>
+    {{ isSubmitting ? 'Saving...' : 'Save' }}
+  </button>
+  @if (!shellMode) {
+    <button mat-raised-button type="button" (click)="onBack()">
+      <mat-icon>arrow_back</mat-icon>
+      Back
+    </button>
+  }
+</ng-template>
+
+<ng-template #reportEditorField>
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Security Deposit Report (HTML)</mat-label>
+    <textarea
+      matInput
+      formControlName="reportHtml"
+      rows="20"
+      [placeholder]="'Enter security deposit report HTML. Use {{reservationCode}} and other placeholders in double curly brackets for dynamic content.'">
+    </textarea>
+    <mat-hint>
+      Placeholders are merged when the report preview is generated for the selected reservation.
+    </mat-hint>
+  </mat-form-field>
+</ng-template>
+
+<ng-template #documentPreviewContent>
+  <form [formGroup]="form" class="security-deposit-report-form" [class.security-deposit-report-form--shell-bands]="shellMode">
+    @if (detail) {
+      @if (previewIframeHtml) {
+        @if (shellMode) {
+          <div class="property-tab-actions-band">
+            <div class="property-tab-actions-band__row">
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                <ng-container *ngTemplateOutlet="reportActionButtons"></ng-container>
+              </div>
+            </div>
+          </div>
+          <div class="property-tab-main-area">
+            <div class="document-preview-frame">
+              <iframe
+                [srcdoc]="safePreviewIframeHtml"
+                class="document-preview-iframe preview-iframe"
+                #previewIframe
+                [attr.key]="iframeKey"
+                (load)="onPreviewIframeLoad()"
+                frameborder="0">
+              </iframe>
+            </div>
+          </div>
+        } @else {
+          <div class="document-preview-editor">
+            <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
+              <ng-container *ngTemplateOutlet="reportActionButtons"></ng-container>
+            </div>
+            <div class="document-preview-frame">
+              <iframe
+                [srcdoc]="safePreviewIframeHtml"
+                class="document-preview-iframe preview-iframe"
+                #previewIframe
+                [attr.key]="iframeKey"
+                (load)="onPreviewIframeLoad()"
+                frameborder="0">
+              </iframe>
+            </div>
+          </div>
+        }
+      } @else if (shellMode) {
+        <div class="property-tab-main-area">
+          <ng-container *ngTemplateOutlet="reportEditorField"></ng-container>
+        </div>
+      } @else {
+        <div class="document-preview-editor">
+          <ng-container *ngTemplateOutlet="reportEditorField"></ng-container>
+        </div>
+      }
+    } @else if (shellMode) {
+      <div class="property-tab-main-area">
+        <ng-container *ngTemplateOutlet="reportEditorField"></ng-container>
+      </div>
+    } @else {
+      <div class="document-preview-editor">
+        <ng-container *ngTemplateOutlet="reportEditorField"></ng-container>
+      </div>
+    }
+  </form>
+</ng-template>
+
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading security deposit report...</p>
+  </div>
+} @else if (isServiceError) {
+  <div class="financial-report-empty-state">
+    <p>Unable to load security deposit report.</p>
+    @if (!shellMode) {
+      <button mat-raised-button type="button" (click)="onBack()">Back</button>
+    }
+  </div>
+} @else if (shellMode) {
+  <div class="security-deposit-report-container security-deposit-report-shell-mode">
+    <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <mat-card>
+        <div class="mat">
+          <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}

@@ -311,7 +311,7 @@ export class InvoiceHtmlBuilderService {
     }).join('<br>');
   }
 
-  getPropertySideBlock(ctx: InvoicePrintContext): string {
+  getPropertySideBlock(ctx: InvoicePrintContext, includeBillingType = true): string {
     if (!ctx.property)
       return '';
 
@@ -321,7 +321,6 @@ export class InvoiceHtmlBuilderService {
     const propertyAddress2 = this.escapeHtml(propertyAddress2Raw);
     const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
     const propertyCode = this.escapeHtml(ctx.property.propertyCode || '');
-    const billingType = this.escapeHtml(getBillingMethod(ctx.reservation?.billingMethodId));
     const useSingleAddressLine = this.utilityService.isAddressSingleLine('Property Address:', propertyAddress1Raw, propertyAddress2Raw);
 
     const lines = [
@@ -329,9 +328,14 @@ export class InvoiceHtmlBuilderService {
       useSingleAddressLine
         ? `<span style="font-weight: bold">Property Address:</span> ${propertyAddressSingleLine}`
         : `<span style="font-weight: bold">Property Address:</span> ${propertyAddress1}`,
-      ...(!useSingleAddressLine ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}`] : []),
-      `<span style="font-weight: bold">Billing Type:</span> ${billingType}`
+      ...(!useSingleAddressLine ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}`] : [])
     ];
+
+    if (includeBillingType) {
+      const billingType = this.escapeHtml(getBillingMethod(ctx.reservation?.billingMethodId));
+      lines.push(`<span style="font-weight: bold">Billing Type:</span> ${billingType}`);
+    }
+
     return lines.join('<br>');
   }
 

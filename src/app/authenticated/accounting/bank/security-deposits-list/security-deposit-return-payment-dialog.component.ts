@@ -25,6 +25,7 @@ import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-pa
 export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() visible = false;
+  @Input() dialogMode: 'return' | 'transfer' = 'return';
   @Input() officeId: number | null = null;
   @Input() reservationId: string | null = null;
   @Input() initialAmount = 0;
@@ -64,7 +65,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible']?.currentValue === true || changes['initialAmount'] || changes['initialDescription'] || changes['officeId'] || changes['reservationId']) {
+    if (changes['visible']?.currentValue === true || changes['initialAmount'] || changes['initialDescription'] || changes['officeId'] || changes['reservationId'] || changes['dialogMode']) {
       if (this.visible) {
         this.initializeFormFromInputs();
       }
@@ -118,6 +119,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
     this.paymentAmountDisplay = this.formatPaymentAmountDisplay(this.paymentAmount);
     this.refreshPaymentChartOfAccountsForOffice();
     this.refreshPaymentCreditCardOptionsForOffice();
+    this.applyDefaultBusinessBankSelection();
     this.markViewForCheck();
   }
   //#endregion
@@ -167,6 +169,30 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
     return hasReservation && hasPaymentDate && hasPaymentAccount && this.paymentAmount !== 0;
   }
 
+  get isTransferMode(): boolean {
+    return this.dialogMode === 'transfer';
+  }
+
+  get bankAccountLabel(): string {
+    return this.isTransferMode ? 'Business Bank' : 'Bank';
+  }
+
+  applyDefaultBusinessBankSelection(): void {
+    if (!this.isTransferMode || !this.officeId) {
+      return;
+    }
+
+    const office = (this.accountingOffices || []).find(item => Number(item.officeId) === Number(this.officeId)) || null;
+    const defaultBankAccountId = Number(office?.defaultBankAccountId ?? 0);
+    if (!Number.isFinite(defaultBankAccountId) || defaultBankAccountId <= 0) {
+      return;
+    }
+
+    if (this.paymentChartOfAccounts.some(account => account.value === defaultBankAccountId)) {
+      this.selectedPaymentChartOfAccountId = defaultBankAccountId;
+    }
+  }
+
   refreshPaymentChartOfAccountsForOffice(): void {
     const officeId = this.officeId;
     if (!officeId) {
@@ -201,6 +227,8 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
     } else {
       this.selectedPaymentChartOfAccountId = null;
     }
+
+    this.applyDefaultBusinessBankSelection();
   }
 
   refreshPaymentCreditCardOptionsForOffice(): void {

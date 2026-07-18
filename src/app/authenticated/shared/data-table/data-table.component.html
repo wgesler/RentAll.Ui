@@ -198,9 +198,10 @@
                           <button mat-icon-button type="button"
                             id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
                             (click)="button.callback($event, item)"
-                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true) || (button.name === 'payable' && item?.payableDisabled === true)"
-                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) && !(button.name === 'payable' && item?.payableDisabled === true) ? button.color : ''"
-                            [color]="button.color">
+                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true) || (button.name === 'payable' && item?.payableDisabled === true) || (button.name === 'transfer' && item?.transferDisabled === true)"
+                            [style.color]="hasActionsEnabled && button.name !== 'transfer' && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) && !(button.name === 'payable' && item?.payableDisabled === true) ? button.color : ''"
+                            [class.datatable-transfer-action-btn]="button.name === 'transfer'"
+                            [color]="button.name === 'transfer' ? undefined : button.color">
                             @if (button.suspendOnUpdate && item?.updating) {
                               <div class="datatable-{{button.name}}-loader-wrap">
                                 <mat-spinner diameter="15" [style.color]="button.color" [color]="button.color"/>
@@ -213,6 +214,10 @@
                               } @else if (button.name === 'startingBalance') {
                                 <span class="datatable-starting-balance-letter-icon" id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
                                   SB
+                                </span>
+                              } @else if (button.name === 'transfer') {
+                                <span class="datatable-transfer-icon-btn" id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                  <mat-icon class="datatable-transfer-icon-btn__icon">sync_alt</mat-icon>
                                 </span>
                               } @else {
                                 <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" [ngClass]="{'datatable-info-icon': button.name === 'info'}">

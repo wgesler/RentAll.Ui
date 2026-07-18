@@ -80,7 +80,10 @@ import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntryLineSelection, JournalEntryResponse, JournalEntrySyncResult } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owners/owner-report-details/owner-report-details.component';
+import { SecurityDepositService } from '../services/security-deposit.service';
 import { SecurityDepositsListComponent } from '../bank/security-deposits-list/security-deposits-list.component';
+import { SecurityDepositReportComponent } from '../bank/security-deposit-report/security-deposit-report.component';
+import { SecurityDepositReportSelection } from '../models/security-deposit-report.model';
 import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 
 type JournalEntrySyncProgressKey =
@@ -161,6 +164,7 @@ interface AccountingShellPinnedTopBarState {
     ApAgingReportComponent,
     EscrowReportComponent,
     SecurityDepositsListComponent,
+    SecurityDepositReportComponent,
     ReconcileAccountReportComponent,
     RentRollComponent,
     OwnerReportComponent,
@@ -187,6 +191,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private propertyService = inject(PropertyService);
+  private securityDepositService = inject(SecurityDepositService);
   private reservationService = inject(ReservationService);
   private receiptService = inject(ReceiptService);
   private workOrderService = inject(WorkOrderService);
@@ -371,6 +376,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedReconcileId: number | null = null;
   printChecksRefreshTrigger = 0;
   securityDepositsRefreshTrigger = 0;
+  showSecurityDepositReport = false;
+  securityDepositReportContext: SecurityDepositReportSelection | null = null;
+  securityDepositReportInstance = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
   ownersStatementsRefreshTrigger = 0;
@@ -488,7 +496,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
 
     this.refreshSecurityDepositsOwedBadge();
-    this.reservationService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
+    this.securityDepositService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
       this.hasUnreturnedSecurityDeposits = outstanding;
       this.cdr.markForCheck();
     });
@@ -612,6 +620,36 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.activeJournalEntryId = journalEntryId;
     this.selectedJournalEntryLineId = null;
     this.showGeneralLedgerDetail = true;
+    this.cdr.markForCheck();
+  }
+
+  onSecurityDepositReportOpen(selection: SecurityDepositReportSelection): void {
+    const reservationId = (selection?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    if (selection.officeId != null && this.selectedOfficeId !== selection.officeId) {
+      this.selectedOfficeId = selection.officeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+    }
+
+    this.securityDepositReportContext = {
+      reservationId,
+      reservationCode: selection.reservationCode ?? null,
+      officeId: selection.officeId ?? this.selectedOfficeId,
+      securityDepositReturnDate: selection.securityDepositReturnDate ?? null
+    };
+    this.showSecurityDepositReport = true;
+    this.securityDepositReportInstance++;
+    this.cdr.markForCheck();
+  }
+
+  onSecurityDepositReportBack(): void {
+    this.showSecurityDepositReport = false;
+    this.securityDepositReportContext = null;
+    this.securityDepositsRefreshTrigger++;
     this.cdr.markForCheck();
   }
 
@@ -2260,6 +2298,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       this.onDepositBack();
       this.onTransferBack();
       this.onTransferReportBack();
+      this.onSecurityDepositReportBack();
     }
     if (event.index !== this.tabReports) {
       this.isFinancialReportDrillDownActive = false;
@@ -2375,6 +2414,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.onDepositBack();
       this.onTransferBack();
       this.onTransferReportBack();
+      this.onSecurityDepositReportBack();
     }
 
     this.selectedBankActivityKind = kind;
@@ -3774,6 +3814,35 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       && !!this.selectedOwnerStatementMonthLine;
   }
 
+  get isSecurityDepositReportActive(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'securityDeposits'
+      && this.showSecurityDepositReport
+      && !!this.securityDepositReportContext;
+  }
+
+  get securityDepositReportOfficeTitleBarOptions(): { value: number; label: string }[] {
+    const officeId = this.securityDepositReportContext?.officeId;
+    if (officeId == null) {
+      return [];
+    }
+
+    const office = this.offices.find(item => item.officeId === officeId);
+    return [{ value: officeId, label: office?.name || String(officeId) }];
+  }
+
+  get securityDepositReportReservationTitleBarOptions(): { value: string; label: string }[] {
+    const reservationId = (this.securityDepositReportContext?.reservationId || '').trim();
+    if (!reservationId) {
+      return [];
+    }
+
+    return [{
+      value: reservationId,
+      label: (this.securityDepositReportContext?.reservationCode || '').trim() || reservationId
+    }];
+  }
+
   get isInvoiceCreateActive(): boolean {
     return this.selectedTabIndex === 0 && this.showInvoiceCreate && !!this.invoiceCreateContext;
   }
@@ -4853,7 +4922,7 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
 
   //#region Utility Methods
   refreshSecurityDepositsOwedBadge(): void {
-    this.reservationService.refreshSecurityDepositsOutstanding();
+    this.securityDepositService.refreshSecurityDepositsOutstanding();
   }
 
   ngOnDestroy(): void {

@@ -40,6 +40,31 @@
               </app-title-bar-select>
             </div>
           </div>
+        } @else if (isSecurityDepositReportActive && securityDepositReportContext) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+              @if (showShellOfficeDropdown || securityDepositReportContext.officeId != null) {
+                <app-title-bar-select
+                  [label]="'Office'"
+                  [formFieldClass]="'titlebar-field-office'"
+                  [value]="securityDepositReportContext.officeId"
+                  [options]="securityDepositReportOfficeTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Office'"
+                  [noResultsText]="'No offices match your search'">
+                </app-title-bar-select>
+              }
+              <app-title-bar-select
+                [label]="'Reservation'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="securityDepositReportContext.reservationId"
+                [options]="securityDepositReportReservationTitleBarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Reservation'"
+                [noResultsText]="'No reservations match your search'">
+              </app-title-bar-select>
+            </div>
+          </div>
         } @else if (isShellInvoiceTitleBarActive) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
@@ -654,6 +679,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isSecurityDepositReportActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onSecurityDepositReportBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isOwnersUtilityReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -881,7 +911,11 @@
                 } @else if (selectedBankActivityKind === 'printChecks') {
                   Print Checks
                 } @else if (selectedBankActivityKind === 'securityDeposits') {
-                  Security Deposits
+                  @if (showSecurityDepositReport && securityDepositReportContext) {
+                    Security Deposit Report
+                  } @else {
+                    Security Deposits
+                  }
                 } @else if (selectedBankActivityKind === 'reconcile') {
                   Reconcile
                 }
@@ -1006,7 +1040,17 @@
                   </app-general-ledger-list>
                 }
               } @else if (selectedBankActivityKind === 'securityDeposits') {
-                @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                @if (showSecurityDepositReport && securityDepositReportContext) {
+                  @for (instance of [securityDepositReportInstance]; track instance) {
+                    <app-security-deposit-report
+                      [shellMode]="true"
+                      [reservationIdInput]="securityDepositReportContext.reservationId"
+                      [officeIdInput]="securityDepositReportContext.officeId ?? null"
+                      [securityDepositReturnDateInput]="securityDepositReportContext.securityDepositReturnDate ?? null"
+                      (backEvent)="onSecurityDepositReportBack()">
+                    </app-security-deposit-report>
+                  }
+                } @else if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
                     [selectedJournalEntryLineId]="selectedJournalEntryLineId"
@@ -1018,7 +1062,8 @@
                     [officeId]="selectedOfficeId"
                     [refreshTrigger]="securityDepositsRefreshTrigger"
                     (journalEntrySelectEvent)="onSecurityDepositJournalEntrySelect($event)"
-                    (invoiceSelectEvent)="onInvoiceSelect($event)">
+                    (invoiceSelectEvent)="onInvoiceSelect($event)"
+                    (securityDepositReportEvent)="onSecurityDepositReportOpen($event)">
                   </app-security-deposits-list>
                 }
               } @else if (selectedBankActivityKind === 'reconcile') {

@@ -1,22 +1,19 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, Subject, BehaviorSubject, firstValueFrom, take } from 'rxjs';
+import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
-import { UtilityService } from '../../../services/utility.service';
 import {
   ReservationCodeResponse,
-  ReservationDepartureResponse,
   ReservationListResponse,
   ReservationRequest,
   ReservationResponse,
-  SecurityDepositReturnRequest,
-  UnreturnedSecurityDepositsResponse,
   ReservationTrackerResponse,
   ReservationTrackerResponseOption,
   ReservationTrackerResponseOptionRequest,
   ReservationTrackerResponseRequest
 } from '../models/reservation-model';
+import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 
 @Injectable({
   providedIn: 'root'
@@ -25,15 +22,12 @@ export class ReservationService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
   private mixedMappingService = inject(MixedMappingService);
-  private utility = inject(UtilityService);
+  private securityDepositService = inject(SecurityDepositService);
 
   
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
   private readonly reservationSavedSubject = new Subject<{ reservationId: string }>();
   reservationSaved$ = this.reservationSavedSubject.asObservable();
-  private readonly securityDepositsOutstandingSubject = new BehaviorSubject<boolean>(false);
-  securityDepositsOutstanding$ = this.securityDepositsOutstandingSubject.asObservable();
-  private securityDepositsOutstandingLoadId = 0;
 
   // GET: Get reservation list (summary view)
   getReservationList(): Observable<ReservationListResponse[]> {
@@ -47,66 +41,6 @@ export class ReservationService {
   getReservationCodes(): Observable<ReservationCodeResponse[]> {
     return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
   }
-
-  getUnreturnedSecurityDeposits(officeId?: number | null): Observable<UnreturnedSecurityDepositsResponse> {
-    const params: Record<string, string | number> = {};
-    if (officeId != null && officeId > 0) {
-      params['officeId'] = officeId;
-    }
-
-    return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned-security-deposits', { params });
-  }
-
-  applySecurityDepositReturn(request: SecurityDepositReturnRequest): Observable<ReservationResponse> {
-    return this.http.put<ReservationResponse>(this.controller + 'security-deposit/return', request);
-  }
-
-  refreshSecurityDepositsOutstanding(): void {
-    const loadId = ++this.securityDepositsOutstandingLoadId;
-
-    this.getUnreturnedSecurityDeposits().pipe(take(1)).subscribe({
-      next: response => {
-        if (loadId !== this.securityDepositsOutstandingLoadId) {
-          return;
-        }
-
-        this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(response?.rows));
-      },
-      error: () => {
-        if (loadId !== this.securityDepositsOutstandingLoadId) {
-          return;
-        }
-
-        this.setSecurityDepositsOutstanding(false);
-      }
-    });
-  }
-
-  updateSecurityDepositsOutstandingBadge(rows: ReservationDepartureResponse[] | null | undefined): void {
-    this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(rows));
-  }
-
-  private hasDepartedUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[] | null | undefined): boolean {
-    const todayOrdinal = this.utility.parseCalendarDateToOrdinal(this.utility.todayAsCalendarDateString());
-    if (todayOrdinal == null) {
-      return false;
-    }
-
-    return (rows || []).some(row => {
-      const departureOrdinal = this.utility.parseCalendarDateToOrdinal(row.departureDate);
-      return departureOrdinal != null && departureOrdinal <= todayOrdinal;
-    });
-  }
-
-  setSecurityDepositsOutstanding(outstanding: boolean): void {
-    this.securityDepositsOutstandingSubject.next(outstanding);
-  }
-
-  clearSecurityDepositsOutstanding(): void {
-    this.securityDepositsOutstandingLoadId++;
-    this.securityDepositsOutstandingSubject.next(false);
-  }
-
 
   // GET: Get reservations list for a particular property
   getReservationsByPropertyId(propertyId: string): Observable<ReservationListResponse[]> {
@@ -151,7 +85,7 @@ export class ReservationService {
       return;
     }
     this.reservationSavedSubject.next({ reservationId: normalizedReservationId });
-    this.refreshSecurityDepositsOutstanding();
+    this.securityDepositService.refreshSecurityDepositsOutstanding();
   }
 
   getReservationTrackerResponses(reservationId: string): Observable<ReservationTrackerResponse[]> {

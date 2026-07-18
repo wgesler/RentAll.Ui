@@ -383,6 +383,7 @@ export interface ReservationDepartureResponse {
   securityDepositReturnDate: CalendarDateString;
   collectedAmount: number;
   returnedAmount: number;
+  transferredAmount: number;
   owedAmount: number;
   balanceAmount: number;
   journalEntryId?: string | null;
@@ -433,11 +434,15 @@ export interface UnreturnedSecurityDepositDisplay {
   returnedBalanceAmount: number;
   paidDisplay: string;
   paidAmount: number;
+  transferredDisplay: string;
+  transferredAmount: number;
   journalEntryId: string;
   journalEntryCode: string;
   paidJournalEntryId: string;
   paidJournalEntryCode: string;
   depositReturned: boolean;
+  depositComplete: boolean;
   payableDisabled?: boolean;
+  transferDisabled?: boolean;
 }
 

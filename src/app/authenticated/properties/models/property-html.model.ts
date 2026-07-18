@@ -6,6 +6,7 @@ export interface PropertyHtmlRequest {
   invoice: string;
   workOrder: string;
   ownerStatement: string;
+  securityDepositReport: string;
   letterOfResponsibility: string;
   noticeToVacate: string;
   creditAuthorization: string;
@@ -21,6 +22,7 @@ export interface PropertyHtmlResponse {
   invoice: string;
   workOrder: string;
   ownerStatement: string;
+  securityDepositReport: string;
   letterOfResponsibility: string;
   noticeToVacate: string;
   creditAuthorization: string;

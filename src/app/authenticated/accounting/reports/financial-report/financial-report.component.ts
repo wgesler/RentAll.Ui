@@ -23,7 +23,7 @@ import { DataTableFilterActionsDirective } from '../../../shared/data-table/data
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { Class, SourceTypeLabels } from '../../models/accounting-enum';
+import { Class, getClass, SourceTypeLabels } from '../../models/accounting-enum';
 import {
   AsOfReportDateRange,
   FINANCIAL_REPORT_TOTAL_COLUMN_ID,
@@ -933,11 +933,19 @@ buildNoPreviewMessage(): string {
 
 buildReportFileName(): string {
     const officeSegment = this.utilityService.sanitizeFileNameSegment(this.displayOfficeName || 'Office');
-    const reportSegment = this.reportKind === 'balanceSheet' ? 'BalanceSheet' : 'ProfitLoss';
+    if (this.reportKind === 'balanceSheet') {
+      const classSegment = this.utilityService.sanitizeFileNameSegment(
+        getClass(this.reportClass) || 'TotalOnly'
+      );
+      const dateStamp = this.utilityService.sanitizeFileNameSegment(
+        this.asOfDateRange?.asOfDate || this.utilityService.todayAsCalendarDateString()
+      );
+      return `${officeSegment}_BalanceSheetBy${classSegment}_${dateStamp}.pdf`;
+    }
+
+    const reportSegment = 'ProfitLoss';
     const dateStamp = this.utilityService.sanitizeFileNameSegment(
-      this.reportKind === 'balanceSheet'
-        ? (this.asOfDateRange?.asOfDate || this.utilityService.todayAsCalendarDateString())
-        : `${this.searchDateRange?.startDate || 'Start'}_${this.searchDateRange?.endDate || 'End'}`
+      `${this.searchDateRange?.startDate || 'Start'}_${this.searchDateRange?.endDate || 'End'}`
     );
     return `${officeSegment}_${reportSegment}_${dateStamp}.pdf`;
   }

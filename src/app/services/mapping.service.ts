@@ -13,6 +13,7 @@ import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconci
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { EscrowReportBuildRequest, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
+import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -3938,6 +3939,7 @@ roundCurrency(value: number): number {
       securityDepositReturnDate: this.utility.coerceCalendarDateStringFromApi(raw['securityDepositReturnDate'] ?? raw['SecurityDepositReturnDate']) ?? '',
       collectedAmount: Number(raw['collectedAmount'] ?? raw['CollectedAmount'] ?? raw['paidAmount'] ?? raw['PaidAmount'] ?? 0),
       returnedAmount: Number(raw['returnedAmount'] ?? raw['ReturnedAmount'] ?? 0),
+      transferredAmount: Number(raw['transferredAmount'] ?? raw['TransferredAmount'] ?? 0),
       owedAmount: Number(raw['owedAmount'] ?? raw['OwedAmount'] ?? 0),
       balanceAmount: Number(raw['balanceAmount'] ?? raw['BalanceAmount'] ?? 0),
       journalEntryId: this.utility.normalizeIdOrNull(String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '')),
@@ -3947,6 +3949,95 @@ roundCurrency(value: number): number {
       invoiceId: this.utility.normalizeIdOrNull(String(raw['invoiceId'] ?? raw['InvoiceId'] ?? '')),
       invoiceCode: String(raw['invoiceCode'] ?? raw['InvoiceCode'] ?? '').trim()
     };
+  }
+
+  mapSecurityDepositDetailResponse(raw: Record<string, unknown> | SecurityDepositDetailResponse | null | undefined): SecurityDepositDetailResponse {
+    if (!raw) {
+      return this.createEmptySecurityDepositDetailResponse();
+    }
+
+    if (this.isSecurityDepositDetailResponse(raw)) {
+      return raw;
+    }
+
+    const record = raw as Record<string, unknown>;
+    const reservationRaw = (record['reservation'] ?? record['Reservation'] ?? {}) as Record<string, unknown>;
+
+    return {
+      reservation: this.mapReservationDepartureResponse(reservationRaw),
+      depositAmount: Number(record['depositAmount'] ?? record['DepositAmount'] ?? 0),
+      collectedAmount: Number(record['collectedAmount'] ?? record['CollectedAmount'] ?? 0),
+      owedAmount: Number(record['owedAmount'] ?? record['OwedAmount'] ?? 0),
+      balanceAmount: Number(record['balanceAmount'] ?? record['BalanceAmount'] ?? 0),
+      returnedAmount: Number(record['returnedAmount'] ?? record['ReturnedAmount'] ?? 0),
+      remainingReturnAmount: Number(record['remainingReturnAmount'] ?? record['RemainingReturnAmount'] ?? 0),
+      securityDepositCharges: this.mapSecurityDepositDetailLines(record['securityDepositCharges'] ?? record['SecurityDepositCharges']),
+      outstandingCharges: this.mapSecurityDepositDetailLines(record['outstandingCharges'] ?? record['OutstandingCharges']),
+      securityDepositPayments: this.mapSecurityDepositDetailLines(record['securityDepositPayments'] ?? record['SecurityDepositPayments']),
+      returnPayments: this.mapSecurityDepositDetailReturnLines(record['returnPayments'] ?? record['ReturnPayments'])
+    };
+  }
+
+  isSecurityDepositDetailResponse(value: unknown): value is SecurityDepositDetailResponse {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+
+    return 'reservation' in value && 'securityDepositCharges' in value && 'securityDepositPayments' in value;
+  }
+
+  createEmptySecurityDepositDetailResponse(): SecurityDepositDetailResponse {
+    return {
+      reservation: this.mapReservationDepartureResponse({}),
+      depositAmount: 0,
+      collectedAmount: 0,
+      owedAmount: 0,
+      balanceAmount: 0,
+      returnedAmount: 0,
+      remainingReturnAmount: 0,
+      securityDepositCharges: [],
+      outstandingCharges: [],
+      securityDepositPayments: [],
+      returnPayments: []
+    };
+  }
+
+  mapSecurityDepositDetailLines(raw: unknown): SecurityDepositDetailLineResponse[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(line => this.mapSecurityDepositDetailLine(line as Record<string, unknown>));
+  }
+
+  mapSecurityDepositDetailLine(raw: Record<string, unknown>): SecurityDepositDetailLineResponse {
+    return {
+      invoiceId: this.utility.normalizeIdOrNull(String(raw['invoiceId'] ?? raw['InvoiceId'] ?? '')),
+      invoiceCode: String(raw['invoiceCode'] ?? raw['InvoiceCode'] ?? '').trim(),
+      ledgerLineId: this.utility.normalizeIdOrNull(String(raw['ledgerLineId'] ?? raw['LedgerLineId'] ?? '')),
+      lineDate: this.utility.coerceCalendarDateStringFromApi(raw['lineDate'] ?? raw['LineDate']) ?? null,
+      description: String(raw['description'] ?? raw['Description'] ?? '').trim(),
+      amount: Number(raw['amount'] ?? raw['Amount'] ?? 0),
+      journalEntryId: this.utility.normalizeIdOrNull(String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '')),
+      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? '').trim()
+    };
+  }
+
+  mapSecurityDepositDetailReturnLines(raw: unknown): SecurityDepositDetailReturnLineResponse[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(line => {
+      const record = line as Record<string, unknown>;
+      return {
+        journalEntryId: this.utility.normalizeId(String(record['journalEntryId'] ?? record['JournalEntryId'] ?? '')),
+        journalEntryCode: String(record['journalEntryCode'] ?? record['JournalEntryCode'] ?? '').trim(),
+        transactionDate: this.utility.coerceCalendarDateStringFromApi(record['transactionDate'] ?? record['TransactionDate']) ?? '',
+        memo: String(record['memo'] ?? record['Memo'] ?? '').trim(),
+        amount: Number(record['amount'] ?? record['Amount'] ?? 0)
+      };
+    });
   }
 
   mapUnreturnedSecurityDeposits(response: UnreturnedSecurityDepositsResponse | ReservationDepartureResponse[] | null | undefined): UnreturnedSecurityDepositDisplay[] {
@@ -3960,12 +4051,18 @@ roundCurrency(value: number): number {
       const contactName = String(row.contactName || '').trim();
 
       const collectedAmount = Number(row.collectedAmount ?? 0);
+      const owedAmount = Number(row.owedAmount ?? 0);
+      const transferredAmount = Number(row.transferredAmount ?? 0);
       const returnedBalanceAmount = this.roundFinancialReportAmount(
-        Math.max(0, Number(row.balanceAmount ?? collectedAmount - Number(row.owedAmount ?? 0)))
+        Math.max(0, Number(row.balanceAmount ?? collectedAmount - owedAmount))
       );
       const paidAmount = Number(row.returnedAmount ?? 0);
       const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, returnedBalanceAmount - paidAmount));
+      const remainingTransferAmount = this.roundFinancialReportAmount(Math.max(0, owedAmount - transferredAmount));
       const depositReturned = !!row.depositReturned;
+      const depositComplete = Number(row.deposit ?? 0) > 0
+        && collectedAmount > 0
+        && this.roundFinancialReportAmount(collectedAmount) === this.roundFinancialReportAmount(paidAmount + transferredAmount);
 
       return {
         reservationId: this.utility.normalizeId(row.reservationId),
@@ -3984,18 +4081,22 @@ roundCurrency(value: number): number {
         deposit: Number(row.deposit ?? 0),
         collectedDisplay: this.formatter.currencyUsd(collectedAmount),
         collectedAmount,
-        owedDisplay: this.formatter.currencyUsd(row.owedAmount ?? 0),
-        owedAmount: Number(row.owedAmount ?? 0),
+        owedDisplay: this.formatter.currencyUsd(owedAmount),
+        owedAmount,
         returnedBalanceAmount,
         returnedDisplay: this.formatter.currencyUsd(returnedBalanceAmount),
         paidDisplay: this.formatter.currencyUsd(paidAmount),
         paidAmount,
+        transferredDisplay: this.formatter.currencyUsd(transferredAmount),
+        transferredAmount,
         journalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
         journalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
         paidJournalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
         paidJournalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
         depositReturned,
-        payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0
+        depositComplete,
+        payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0,
+        transferDisabled: collectedAmount <= 0 || collectedAmount <= returnedBalanceAmount || remainingTransferAmount <= 0
       };
     });
   }

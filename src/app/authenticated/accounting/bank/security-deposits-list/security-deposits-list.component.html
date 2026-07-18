@@ -25,25 +25,28 @@
         [hasFilter]="true"
         [hasToggleTop]="false"
         [hasButtonTop]="false"
-        [hasActionsRowClick]="false"
+        [hasActionsRowClick]="true"
         [hasActionsView]="false"
-        [hasActionsEdit]="true"
+        [hasActionsEdit]="false"
         [hasActionsDelete]="false"
         [hasActionsPayable]="true"
+        [hasActionsTransfer]="true"
         [hasReservationCodeLink]="true"
         [hasInvoiceCodeLink]="true"
         [hasJournalEntryCodeLink]="true"
         [itemsPerPage]="25"
         [totalsRow]="totalsRow"
-        (editEvent)="openReservation($event)"
+        (rowClickEvent)="openSecurityDepositReport($event)"
         (reservationCodeClickEvent)="openReservation($event)"
         (invoiceCodeClickEvent)="openInvoice($event)"
         (journalEntryCodeClickEvent)="openJournalEntry($event)"
-        (payableEvent)="onPayable($event)">
+        (payableEvent)="onPayable($event)"
+        (transferEvent)="onTransfer($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
             <app-security-deposit-return-payment-dialog
               [visible]="showPaymentForm"
+              [dialogMode]="paymentDialogMode"
               [officeId]="paymentOfficeId"
               [reservationId]="paymentTargetReservationId"
               [initialAmount]="paymentInitialAmount"
