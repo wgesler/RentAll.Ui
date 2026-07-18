@@ -10,8 +10,8 @@ export interface ContactRequest {
   contactCode?: string;
   userId?: string | null;
   entityTypeId: number;
-  ownerTypeId?: number | null;
-  vendorTypeId?: number | null;
+  ownerTypeId: number;
+  vendorTypeId: number;
   properties: string[];
   companyName?: string | null;
   companyEmail?: string | null;
@@ -58,8 +58,8 @@ export interface ContactResponse {
   contactCode: string;
   userId?: string | null;
   entityTypeId: number;
-  ownerTypeId?: number | null;
-  vendorTypeId?: number | null;
+  ownerTypeId: number;
+  vendorTypeId: number;
   properties: string[];
   companyName?: string | null;
   companyEmail?: string | null;
@@ -107,7 +107,8 @@ export interface ContactListDisplay {
   fullName?: string | null;
   contactType: string;
   entityTypeId?: number;
-  ownerTypeId?: number | null;
+  ownerTypeId: number;
+  vendorTypeId: number;
   properties?: string[];
   propertyCodesDisplay?: string;
   companyName?: string | null;

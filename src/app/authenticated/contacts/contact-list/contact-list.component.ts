@@ -80,8 +80,17 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
+  private readonly tenantColumns: ColumnSet = {
+    'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
+    'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '25ch' },
+    'email': { displayAs: 'Email', maxWidth: '30ch' },
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
+  };
+
   private readonly ownerColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
+    'companyName': { displayAs: 'Company', maxWidth: '30ch' },
     'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
@@ -399,7 +408,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get contactsDisplayedColumns(): ColumnSet {
-    return this.entityTypeId === EntityType.Owner ? this.ownerColumns : this.baseColumns;
+    if (this.entityTypeId === EntityType.Owner) {
+      return this.ownerColumns;
+    }
+    if (this.entityTypeId === EntityType.Tenant) {
+      return this.tenantColumns;
+    }
+    return this.baseColumns;
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
@@ -464,6 +479,7 @@ syncContactsFromCache(contacts: ContactResponse[]): void {
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
     this.baseColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+    this.tenantColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
     this.ownerColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
   }
 

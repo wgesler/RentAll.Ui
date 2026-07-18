@@ -13,7 +13,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
-import { EntityType, OwnerType } from '../../contacts/models/contact-enum';
+import { EntityType, OwnerType, VendorType } from '../../contacts/models/contact-enum';
 import { ContactRequest } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
@@ -267,6 +267,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
               officeAccess: [officeId],
               entityTypeId: EntityType.Owner,
               ownerTypeId: OwnerType.Individual,
+              vendorTypeId: VendorType.Individual,
               properties: [],
               firstName: ownerLead.firstName ?? null,
               lastName: ownerLead.lastName ?? null,

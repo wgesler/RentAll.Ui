@@ -270,15 +270,10 @@ export class MappingService {
       : (officeAccess[0] ?? 0);
     const base = raw as unknown as ContactResponse;
     const parsedEntityTypeId = Number(raw['entityTypeId']);
-    const isVendor = Number.isFinite(parsedEntityTypeId) && parsedEntityTypeId === EntityType.Vendor;
-    let vendorTypeId: number | null = null;
-    if (isVendor) {
-      const rawVt = raw['vendorTypeId'];
-      if (rawVt != null && rawVt !== '') {
-        const n = Number(rawVt);
-        vendorTypeId = Number.isFinite(n) ? n : null;
-      }
-    }
+    const rawOwnerTypeId = raw['ownerTypeId'];
+    const rawVendorTypeId = raw['vendorTypeId'];
+    const ownerTypeId = Number.isFinite(Number(rawOwnerTypeId)) ? Number(rawOwnerTypeId) : 0;
+    const vendorTypeId = Number.isFinite(Number(rawVendorTypeId)) ? Number(rawVendorTypeId) : 0;
     const rawPaymentTermsId = raw['paymentTermsId'] ?? raw['PaymentTermsId'];
     const paymentTermsId =
       rawPaymentTermsId === undefined || rawPaymentTermsId === null || rawPaymentTermsId === ''
@@ -289,6 +284,7 @@ export class MappingService {
       ...base,
       officeAccess,
       officeId,
+      ownerTypeId,
       vendorTypeId,
       paymentTermsId
     };
@@ -314,8 +310,8 @@ export class MappingService {
       officeId: contact.officeId,
       officeAccess: resolvedOfficeAccess,
       entityTypeId: contact.entityTypeId,
-      ownerTypeId: contact.ownerTypeId ?? null,
-      vendorTypeId: contact.vendorTypeId ?? null,
+      ownerTypeId: contact.ownerTypeId ?? 0,
+      vendorTypeId: contact.vendorTypeId ?? 0,
       properties: contact.properties ?? [],
       paymentTermsId: contact.paymentTermsId ?? null,
       bankName: contact.bankName ?? null,
@@ -371,7 +367,8 @@ export class MappingService {
         fullName: displayName,
         contactType: getEntityType(o.entityTypeId),
         entityTypeId: o.entityTypeId,
-        ownerTypeId: o.ownerTypeId ?? null,
+        ownerTypeId: o.ownerTypeId ?? 0,
+        vendorTypeId: o.vendorTypeId ?? 0,
         properties: codesArray,
         companyName: o.companyName ?? null,
         companyEmail: o.companyEmail ?? null,

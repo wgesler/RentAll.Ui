@@ -200,13 +200,11 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       } else {
         this.setFormValuesFromQueryParams();
         if (this.presetEntityTypeId != null) {
-          const patch: { entityTypeId: number; ownerTypeId?: number; vendorTypeId?: number | null } = { entityTypeId: this.presetEntityTypeId };
-          if (this.presetEntityTypeId === EntityType.Owner) {
-            patch.ownerTypeId = OwnerType.Individual;
-          }
-          if (this.presetEntityTypeId === EntityType.Vendor) {
-            patch.vendorTypeId = VendorType.Company;
-          }
+          const patch: { entityTypeId: number; ownerTypeId: number; vendorTypeId: number } = {
+            entityTypeId: this.presetEntityTypeId,
+            ownerTypeId: OwnerType.Individual,
+            vendorTypeId: VendorType.Individual
+          };
           this.form?.patchValue(patch, { emitEvent: false });
         }
         this.applyPrefillContact();
@@ -306,7 +304,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const entityTypeId = getNumberQueryParam(queryParams, 'entityTypeId');
     if (entityTypeId !== null && Object.values(EntityType).includes(entityTypeId)) {
       this.form.patchValue({ entityTypeId: entityTypeId }, patchOptions);
-      if (this.isAddMode && entityTypeId === EntityType.Vendor && this.form.getRawValue().vendorTypeId == null) {
+      if (this.isAddMode && entityTypeId === EntityType.Vendor && !Number.isFinite(Number(this.form.getRawValue().vendorTypeId))) {
         this.form.patchValue({ vendorTypeId: VendorType.Company }, patchOptions);
       }
     }
@@ -568,8 +566,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.form = this.fb.group({
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
       entityTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
-      ownerTypeId: new FormControl<number | null>(null),
-      vendorTypeId: new FormControl<number | null>(null),
+      ownerTypeId: new FormControl<number>(OwnerType.Individual),
+      vendorTypeId: new FormControl<number>(VendorType.Individual),
       propertyCodes: new FormControl<string[]>([]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
@@ -614,6 +612,10 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       }
       if (entityTypeId !== EntityType.Vendor) {
         this.form.get('addAsUser')?.setValue(false, { emitEvent: false });
+        this.form.get('vendorTypeId')?.setValue(VendorType.Individual, { emitEvent: false });
+      }
+      if (entityTypeId !== EntityType.Owner) {
+        this.form.get('ownerTypeId')?.setValue(OwnerType.Individual, { emitEvent: false });
       }
     });
 
@@ -665,8 +667,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.form.patchValue({
         contactCode: this.contact.contactCode,
         entityTypeId: entityTypeId,
-        ownerTypeId: this.contact.ownerTypeId ?? null,
-        vendorTypeId: entityTypeId === EntityType.Vendor ? (this.contact.vendorTypeId ?? null) : null,
+        ownerTypeId: this.contact.ownerTypeId ?? OwnerType.Individual,
+        vendorTypeId: this.contact.vendorTypeId ?? VendorType.Individual,
         propertyCodes: propertyCodesArray,
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
@@ -853,6 +855,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const patch: Record<string, unknown> = {
       entityTypeId: this.presetEntityTypeId ?? EntityType.Owner,
       ownerTypeId: OwnerType.Individual,
+      vendorTypeId: VendorType.Individual,
       firstName: String(this.prefillContact['firstName'] ?? '').trim(),
       lastName: String(this.prefillContact['lastName'] ?? '').trim(),
       email: String(this.prefillContact['email'] ?? '').trim(),
@@ -1127,6 +1130,13 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const known = [EntityType.Tenant, EntityType.Owner, EntityType.Company, EntityType.Vendor, EntityType.Property].includes(Number(id));
     return known && label ? label : 'Contact';
   }
+
+  get readOnlyContactCodeDisplay(): string {
+    if (this.isAddMode) {
+      return (this.publicReadOnlyContactCode || '').trim() || 'New';
+    }
+    return (this.contact?.contactCode || this.publicReadOnlyContactCode || '').trim();
+  }
   
   get ratingValue(): number {
     const raw = Number(this.form?.get('rating')?.value ?? 0);
@@ -1198,25 +1208,26 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   applyEntityTypeSpecificContactFields(
     contactRequest: ContactRequest,
     entityTypeId: number,
-    formValue: { ownerTypeId?: number | null; vendorTypeId?: number | null; propertyCodes?: string[]; addAsUser?: boolean }
+    formValue: { ownerTypeId: number; vendorTypeId: number; propertyCodes?: string[]; addAsUser?: boolean }
   ): void {
+    contactRequest.ownerTypeId = this.normalizeContactTypeId(formValue.ownerTypeId ?? this.contact?.ownerTypeId, OwnerType.Individual);
+    contactRequest.vendorTypeId = this.normalizeContactTypeId(formValue.vendorTypeId ?? this.contact?.vendorTypeId, VendorType.Individual);
+
     if (entityTypeId === EntityType.Owner) {
-      contactRequest.ownerTypeId = formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null;
       contactRequest.properties = formValue.propertyCodes || [];
       contactRequest.addAsUser = 0;
-      contactRequest.vendorTypeId = null;
       contactRequest.isOwnerReady = !!(contactRequest.isOwnerReady ?? false);
       return;
     }
-    contactRequest.ownerTypeId = undefined;
+
     contactRequest.properties = entityTypeId === EntityType.Property ? (formValue.propertyCodes || []) : [];
     contactRequest.isOwnerReady = false;
-    if (entityTypeId === EntityType.Vendor) {
-      contactRequest.vendorTypeId = formValue.vendorTypeId ?? this.contact?.vendorTypeId ?? null;
-    } else {
-      contactRequest.vendorTypeId = null;
-    }
     contactRequest.addAsUser = entityTypeId === EntityType.Vendor && formValue.addAsUser ? 1 : 0;
+  }
+
+  private normalizeContactTypeId(value: unknown, fallback = 0): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
   applyContactTypeLockedState(): void {
@@ -1678,9 +1689,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       officeAccess: this.mappingService.normalizeOfficeAccessNumbers(savedContact.officeAccess ?? originalRequest.officeAccess),
       userId,
       entityTypeId: savedContact.entityTypeId,
-      ownerTypeId: savedContact.entityTypeId === EntityType.Owner ? (savedContact.ownerTypeId ?? originalRequest.ownerTypeId ?? null) : undefined,
-      vendorTypeId:
-        savedContact.entityTypeId === EntityType.Vendor ? (savedContact.vendorTypeId ?? originalRequest.vendorTypeId ?? null) : null,
+      ownerTypeId: savedContact.ownerTypeId ?? originalRequest.ownerTypeId ?? OwnerType.Individual,
+      vendorTypeId: savedContact.vendorTypeId ?? originalRequest.vendorTypeId ?? VendorType.Individual,
       properties: savedContact.entityTypeId === EntityType.Owner ? (savedContact.properties ?? originalRequest.properties ?? []) : [],
       companyName: savedContact.companyName ?? originalRequest.companyName,
       companyEmail: savedContact.companyEmail ?? originalRequest.companyEmail,
