@@ -1058,16 +1058,21 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     }
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
+    const boardProperty = this.properties.find(property => property.propertyId === propertyId);
+    const propertyRow = this.allPropertyRows.find(property => property.propertyId === propertyId);
+    const officeId = boardProperty?.officeId ?? propertyRow?.officeId;
+    const queryParams: Record<string, string> = {
+      returnTo: 'reservation-board',
+      propertyId,
+      startDate: this.utilityService.formatDateOnlyForApi(selectedDate) ?? this.utilityService.todayAsCalendarDateString()
+    };
+    if (officeId != null && officeId > 0) {
+      queryParams['officeId'] = String(officeId);
+    }
 
     this.router.navigate(
       ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, ['new'])],
-      {
-        queryParams: {
-          returnTo: 'reservation-board',
-          propertyId,
-          startDate: this.utilityService.formatDateOnlyForApi(selectedDate) ?? this.utilityService.todayAsCalendarDateString()
-        }
-      }
+      { queryParams }
     );
   }
 

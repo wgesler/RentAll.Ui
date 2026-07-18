@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, QueryList, SimpleChanges, ViewChild, ViewChildren, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -68,6 +68,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   @Input() shellMode: boolean = false;
   @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
   @Input() reservationIdInput: string | null = null;
+  @Output() addModeScopeResolved = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
   reservationService = inject(ReservationService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -700,6 +701,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           }
         }
         this.syncOfficeIdToForm();
+        if (this.shellMode && this.isAddMode) {
+          this.addModeScopeResolved.emit({
+            officeId: property.officeId ?? null,
+            propertyId: id
+          });
+        }
         this.updatePetFields(false);
         this.updateMaidServiceFields(false);
         this.updateContactFields();
@@ -2506,10 +2513,31 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (!this.isAddMode) {
       return;
     }
-    this.onTitleBarOfficeChange(officeId);
+    this.syncOfficeFromShell(officeId);
+  }
+
+  syncOfficeFromShell(officeId: number | null): void {
+    if (!this.isAddMode) {
+      return;
+    }
+    this.resolveOfficeScope(officeId);
+    if (this.selectedOffice) {
+      this.loadCostCodes();
+    } else {
+      this.chargeCostCodes = [];
+      this.availableChargeCostCodes = [];
+    }
+    this.filterPropertiesByOffice();
+    this.syncOfficeIdToForm();
   }
 
   onTitleBarOfficeChange(officeId: number | null): void {
+    const currentPropertyId = String(this.form.get('propertyId')?.value ?? '').trim();
+    const keepSelectedProperty = this.isAddMode
+      && !!currentPropertyId
+      && officeId != null
+      && this.selectedProperty?.officeId === officeId;
+
     this.resolveOfficeScope(officeId);
     if (this.selectedOffice) {
       this.loadCostCodes();
@@ -2519,7 +2547,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
     this.filterPropertiesByOffice();
 
-    if (this.isAddMode) {
+    if (this.isAddMode && !keepSelectedProperty) {
       this.selectedProperty = null;
       this.form.patchValue({ propertyId: '', propertyCode: '', propertyAddress: '' }, { emitEvent: false });
       this.form.get('propertyId')?.updateValueAndValidity({ emitEvent: false });

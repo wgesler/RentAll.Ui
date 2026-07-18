@@ -342,7 +342,10 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   /** Add-mode shell office scope; null means All Offices until the user picks one. */
   get addModeOfficeId(): number | null {
-    return this.selectedOfficeId;
+    return this.selectedOfficeId
+      ?? this.activeOfficeId
+      ?? this.reservationSection?.sharedOfficeId
+      ?? null;
   }
 
   initializeAddModeOfficeFromShell(): void {
@@ -359,13 +362,17 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       }
     }
 
-    this.selectedOfficeId = initialOfficeId;
-    this.selectedOffice = initialOfficeId != null
-      ? this.offices.find(office => office.officeId === initialOfficeId) ?? null
-      : null;
-    this.activeOfficeId = initialOfficeId;
-    this.reservationSection?.initializeOfficeFromShell(initialOfficeId);
+    const queryPropertyId = this.route.snapshot.queryParamMap.get('propertyId')?.trim() || null;
+    this.applyReservationScope(initialOfficeId, queryPropertyId);
+    this.reservationSection?.syncOfficeFromShell(initialOfficeId);
     this.refreshHeaderReservationOptions();
+  }
+
+  onAddModeScopeResolved(scope: { officeId: number | null; propertyId: string | null }): void {
+    if (!this.isAddMode || this.routeReservationId) {
+      return;
+    }
+    this.applyReservationScope(scope.officeId, scope.propertyId);
   }
 
   onShellOfficeDropdownChange(officeId: string | number | null): void {

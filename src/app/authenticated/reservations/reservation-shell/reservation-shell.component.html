@@ -122,7 +122,8 @@
             #reservationSection
             [shellMode]="true"
             [reservationIdInput]="routeReservationId"
-            [shellOfficeOptions]="officeOptions">
+            [shellOfficeOptions]="officeOptions"
+            (addModeScopeResolved)="onAddModeScopeResolved($event)">
           </app-reservation>
         </mat-tab>
 
