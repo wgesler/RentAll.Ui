@@ -3,19 +3,20 @@
     <mat-icon>print</mat-icon>
     Print
   </button>
-  <button mat-raised-button type="button" color="accent" (click)="exportReportToExcel()" [disabled]="!detail">
-    <mat-icon>grid_on</mat-icon>
-    Excel
+  <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+    [disabled]="!previewIframeHtml || !getRecipientEmail()">
+    <mat-icon>email</mat-icon>
+    Email
   </button>
   <button mat-raised-button type="button" color="accent" (click)="onDownload()"
     [disabled]="!previewIframeHtml || isDownloading">
     <mat-icon>download</mat-icon>
-    {{ isDownloading ? 'Downloading...' : 'PDF' }}
+    {{ isDownloading ? 'Downloading...' : 'Download' }}
   </button>
-  <button mat-raised-button type="button" color="primary" (click)="saveReport()"
-    [disabled]="!previewIframeHtml || isSubmitting">
+  <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveReport()"
+    class="text-nowrap flex-shrink-0" [disabled]="!previewIframeHtml || isSubmitting">
     <mat-icon>save</mat-icon>
-    {{ isSubmitting ? 'Saving...' : 'Save' }}
+    {{ isSubmitting ? 'Saving...' : 'Document' }}
   </button>
   @if (!shellMode) {
     <button mat-raised-button type="button" (click)="onBack()">

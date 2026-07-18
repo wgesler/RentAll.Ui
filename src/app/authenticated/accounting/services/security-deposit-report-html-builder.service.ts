@@ -104,12 +104,21 @@ export class SecurityDepositReportHtmlBuilderService {
       result = result.replace(/\{\{accountingOfficeEmail\}\}/g, ctx.selectedAccountingOffice.email || '');
       result = result.replace(/\{\{accountingOfficePhone\}\}/g, this.formatterService.phoneNumber(ctx.selectedAccountingOffice.phone) || '');
       result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, ctx.selectedAccountingOffice.website || '');
+      result = result.replace(/\{\{accountingOfficeBank\}\}/g, ctx.selectedAccountingOffice.bankName || '');
+      result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, ctx.selectedAccountingOffice.bankRouting || '');
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, ctx.selectedAccountingOffice.bankAccount || '');
+      result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, ctx.selectedAccountingOffice.bankSwiftCode || '');
+      result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, ctx.selectedAccountingOffice.bankAddress || '');
+      result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(ctx.selectedAccountingOffice.bankPhone) || '');
     }
+
+    const netBalance = this.calculateNetBalance(ctx.detail);
+    result = result.replace(/\{\{balanceDueRow\}\}/g, this.buildBalanceDueRow(netBalance));
+    result = result.replace(/\{\{paymentInformationSectionClass\}\}/g, netBalance < 0 ? '' : 'section-hidden');
 
     result = result.replace(/\{\{securityDepositRows\}\}/g, this.buildSecurityDepositRows(ctx.detail.securityDepositPayments));
     result = result.replace(/\{\{chargeRows\}\}/g, this.buildChargeRows(ctx.detail.outstandingCharges));
     result = result.replace(/\{\{tenantPaymentRows\}\}/g, this.buildTenantPaymentRows(ctx.detail.returnPayments));
-    result = result.replace(/\{\{balanceDueRow\}\}/g, this.buildBalanceDueRow(ctx.detail));
     result = result.replace(/\{\{returnPaymentsSectionClass\}\}/g, '');
 
     return result;
@@ -118,7 +127,7 @@ export class SecurityDepositReportHtmlBuilderService {
 
   private buildSecurityDepositRows(lines: SecurityDepositDetailLineResponse[]): string {
     if (!lines.length) {
-      return `<tr class="ledger-line-row"><td colspan="4">No security deposit payments found.</td></tr>`;
+      return this.buildZeroAmountRow();
     }
 
     return lines.map(line => this.formatDetailLineRow(
@@ -129,11 +138,11 @@ export class SecurityDepositReportHtmlBuilderService {
     )).join('');
   }
 
-  private calculateBalanceDue(detail: SecurityDepositDetailResponse): number {
+  calculateNetBalance(detail: SecurityDepositDetailResponse): number {
     const collectedAmount = Number(detail.collectedAmount ?? 0);
     const totalOutstandingCharges = this.sumLineAmounts(detail.outstandingCharges);
     const totalTenantPayments = this.sumReturnPaymentAmounts(detail.returnPayments);
-    return Math.max(0, collectedAmount - totalOutstandingCharges - totalTenantPayments);
+    return collectedAmount - totalOutstandingCharges - totalTenantPayments;
   }
 
   private sumLineAmounts(lines: SecurityDepositDetailLineResponse[]): number {
@@ -146,7 +155,7 @@ export class SecurityDepositReportHtmlBuilderService {
 
   private buildChargeRows(lines: SecurityDepositDetailLineResponse[]): string {
     if (!lines.length) {
-      return `<tr class="ledger-line-row"><td colspan="4">No outstanding charges found.</td></tr>`;
+      return this.buildZeroAmountRow();
     }
 
     return lines.map(line => this.formatDetailLineRow(
@@ -159,7 +168,7 @@ export class SecurityDepositReportHtmlBuilderService {
 
   private buildTenantPaymentRows(lines: SecurityDepositDetailResponse['returnPayments']): string {
     if (!lines.length) {
-      return `<tr class="ledger-line-row"><td colspan="4">No payments found.</td></tr>`;
+      return this.buildZeroAmountRow();
     }
 
     return lines.map(line => this.formatDetailLineRow(
@@ -170,15 +179,21 @@ export class SecurityDepositReportHtmlBuilderService {
     )).join('');
   }
 
-  private buildBalanceDueRow(detail: SecurityDepositDetailResponse): string {
-    const balanceDue = this.calculateBalanceDue(detail);
+  private buildBalanceDueRow(netBalance: number): string {
+    const isOwed = netBalance < 0;
+    const label = isOwed ? 'Balance Owed:' : 'Balance Due:';
+    const displayAmount = Math.abs(netBalance);
     return `
       <tr class="subtotal-row">
         <td></td>
         <td></td>
-        <td class="invoice-summary-cell"><span class="label invoice-summary-label">Balance Due:</span></td>
-        <td class="amount-col">${this.formatterService.currencyUsd(balanceDue)}</td>
+        <td class="invoice-summary-cell"><span class="label invoice-summary-label">${label}</span></td>
+        <td class="amount-col">${this.formatterService.currencyUsd(displayAmount)}</td>
       </tr>`;
+  }
+
+  private buildZeroAmountRow(): string {
+    return this.formatDetailLineRow('', '', '', 0);
   }
 
   private formatDetailLineRow(dateValue: string | null | undefined, refNo: string, description: string, amount: number): string {

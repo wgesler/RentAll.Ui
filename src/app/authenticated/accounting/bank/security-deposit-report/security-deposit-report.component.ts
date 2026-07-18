@@ -3,8 +3,10 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, firstValueFrom, forkJoin, of, take, takeUntil } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
+import { RouterUrl } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
 import { MappingService } from '../../../../services/mapping.service';
@@ -12,10 +14,15 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { UtilityService } from '../../../../services/utility.service';
 import { environment } from '../../../../../environments/environment';
 import { ContactResponse } from '../../../contacts/models/contact.model';
+import { EntityType } from '../../../contacts/models/contact-enum';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
+import { EmailType } from '../../../email/models/email.enum';
+import { EmailHtmlResponse } from '../../../email/models/email-html.model';
+import { EmailCreateDraftService } from '../../../email/services/email-create-draft.service';
+import { EmailHtmlService } from '../../../email/services/email-html.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OrganizationResponse } from '../../../organizations/models/organization.model';
@@ -27,7 +34,7 @@ import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyHtmlService } from '../../../properties/services/property-html.service';
 import { ReservationResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
 import { SecurityDepositDetailResponse } from '../../models/security-deposit-report.model';
 import { SecurityDepositService } from '../../services/security-deposit.service';
 import { SecurityDepositReportHtmlBuilderService, SecurityDepositReportPrintContext } from '../../services/security-deposit-report-html-builder.service';
@@ -64,6 +71,9 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   private utilityService = inject(UtilityService);
   private documentReloadService = inject(DocumentReloadService);
   private reportHtmlBuilder = inject(SecurityDepositReportHtmlBuilderService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private router = inject(Router);
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
 
@@ -83,6 +93,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   selectedOffice: OfficeResponse | null = null;
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
   accountingOfficeLogo = '';
+  emailHtml: EmailHtmlResponse | null = null;
   previewHtmlBeforeIframe = '';
   previewIframeHtml = '';
   previewIframeStyles = '';
@@ -107,6 +118,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.loadContacts();
     this.loadOffices();
     this.loadAccountingOffices();
+    this.loadEmailHtml();
     this.loadReport();
   }
 
@@ -152,6 +164,35 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.contact = reservationContactId
       ? this.contacts.find(item => item.contactId === reservationContactId) || this.contact
       : this.contact;
+  }
+
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1)).subscribe({
+      next: html => this.emailHtml = html,
+      error: () => this.emailHtml = null
+    });
+  }
+
+  getRecipientEmail(): string {
+    if (!this.contact) {
+      return '';
+    }
+
+    const email = this.contact.entityTypeId === EntityType.Company
+      ? this.contact.companyEmail
+      : this.contact.email;
+    return String(email || '').trim();
+  }
+
+  getRecipientName(): string {
+    if (!this.contact) {
+      return '';
+    }
+
+    const name = this.contact.entityTypeId === EntityType.Company
+      ? this.contact.companyName
+      : this.contact.fullName;
+    return String(name || '').trim();
   }
 
   loadOrganization(): void {
@@ -447,46 +488,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     }
   }
 
-  exportReportToExcel(): void {
-    if (!this.detail) {
-      this.toastr.warning('Security deposit report is not ready to export.', 'No Report');
-      return;
-    }
-
-    const headers = ['Section', 'Date', 'Ref No', 'Description', 'Amount'];
-    const rows: string[][] = [];
-
-    const pushLines = (
-      section: string,
-      lines: Array<{ lineDate?: string; transactionDate?: string; description?: string; memo?: string; invoiceCode?: string; journalEntryCode?: string; amount?: number }>,
-      useJournalEntryRef = false
-    ) => {
-      lines.forEach(line => {
-        rows.push([
-          section,
-          this.formatterService.formatDateString(line.lineDate || line.transactionDate || '') || '',
-          useJournalEntryRef ? (line.journalEntryCode || '') : (line.invoiceCode || line.journalEntryCode || ''),
-          line.description || line.memo || '',
-          this.formatterService.currencyUsd(Number(line.amount ?? 0))
-        ]);
-      });
-    };
-
-    pushLines('Security Deposit', this.detail.securityDepositPayments, true);
-    pushLines('Outstanding Charges', this.detail.outstandingCharges);
-    pushLines('Payments', this.detail.returnPayments, true);
-
-    const totalOutstandingCharges = this.detail.outstandingCharges
-      .reduce((total, line) => total + Number(line.amount ?? 0), 0);
-    const totalTenantPayments = this.detail.returnPayments
-      .reduce((total, line) => total + Number(line.amount ?? 0), 0);
-    const balanceDue = Math.max(0, Number(this.detail.collectedAmount ?? 0) - totalOutstandingCharges - totalTenantPayments);
-    rows.push(['Payments', '', '', 'Balance Due', this.formatterService.currencyUsd(balanceDue)]);
-
-    this.documentExportService.exportExcelTable(this.buildReportFileName('xlsx'), headers, rows);
-  }
-
-  buildReportFileName(extension: 'pdf' | 'xlsx'): string {
+  buildReportFileName(extension: 'pdf'): string {
     const reservationCode = this.detail?.reservation.reservationCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.reservationId || 'Report';
     const dateStamp = this.utilityService.todayAsCalendarDateString();
     return `SecurityDeposit_${reservationCode}_${dateStamp}.${extension}`;
@@ -509,6 +511,66 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   protected setDownloading(value: boolean): void {
     this.isDownloading = value;
     this.cdr.markForCheck();
+  }
+
+  override async onEmail(): Promise<void> {
+    if (!this.detail || !this.previewIframeHtml) {
+      this.toastr.warning('Security deposit report is not ready to email.', 'No Report');
+      return;
+    }
+
+    const toEmail = this.getRecipientEmail();
+    const toName = this.getRecipientName();
+    if (!toEmail || !toName) {
+      this.toastr.warning('Recipient email information is missing.', 'No Email');
+      return;
+    }
+
+    const salutationName = `${this.contact?.firstName || ''}`.trim() || toName.trim().split(/\s+/)[0] || '';
+    const tenantName = `${this.reservation?.tenantName || this.detail.reservation.tenantName || ''}`.trim();
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const accountingName = this.selectedAccountingOffice?.name || this.selectedOffice?.name || '';
+    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
+    const reservationCode = this.detail.reservation.reservationCode || 'SecurityDeposit';
+    const emailTemplateHtml = this.contact?.entityTypeId === EntityType.Company
+      ? (this.emailHtml?.corporateInvoice || this.emailHtml?.invoice || '')
+      : (this.emailHtml?.invoice || '');
+    const subject = (this.emailHtml?.invoiceSubject || 'Security Deposit Report: {{invoiceCode}}')
+      .replace(/\{\{invoiceCode\}\}/g, reservationCode);
+    const body = (emailTemplateHtml || '<p>Please find your security deposit report attached.</p>')
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{tenantName\}\}/g, tenantName)
+      .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
+      .replace(/\{\{accountingName\}\}/g, accountingName)
+      .replace(/\{\{accountingPhone\}\}/g, accountingPhone)
+      .replace(/\{\{invoiceCode\}\}/g, reservationCode);
+
+    const emailConfig: EmailConfig = {
+      subject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.SecurityDepositReport,
+      emailType: EmailType.Other,
+      plainTextContent: '',
+      htmlContent: body,
+      fileDetails: {
+        fileName: this.buildReportFileName('pdf'),
+        contentType: 'application/pdf',
+        file: ''
+      }
+    };
+
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
 
   override async onDownload(): Promise<void> {
