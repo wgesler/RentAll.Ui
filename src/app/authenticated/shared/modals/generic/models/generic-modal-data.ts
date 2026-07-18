@@ -1,12 +1,11 @@
 import { DialogRef } from "@angular/cdk/dialog";
 import { MatDialogRef } from "@angular/material/dialog";
-import { MatIcon } from "@angular/material/icon";
 import { GenericModalComponent } from "../generic-modal.component";
 
 export type GenericModalData = {
     title: string;
     message: string;
-    icon: MatIcon;
+    icon: string;
     iconColor: string;
     no: string;
     yes: string;

@@ -878,10 +878,10 @@
                               [attr.data-field]="'amount'"
                               [attr.data-index]="i"
                               [value]="line.feeAmount != null && line.feeAmount !== undefined ? line.feeAmount.toFixed(2) : ''"
-                              (input)="onExtraFeeAmountInput($event, i)"
+                              (input)="onExtraFeeAmountInput($event)"
                               (focus)="onExtraFeeAmountFocus($event, i)"
                               (blur)="onExtraFeeAmountBlur($event, i)"
-                              (keydown.enter)="onExtraFeeAmountEnter($event, i)"
+                              (keydown.enter)="onExtraFeeAmountEnter($event)"
                               placeholder="0.00">
                           </td>
                           <td class="text-right" style="width: 50px;">

@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, forkJoin, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -397,6 +397,9 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const formValue = this.form.getRawValue();
+    const contactFormFields = { ...formValue };
+    delete (contactFormFields as Record<string, unknown>)['propertyCodes'];
+    delete (contactFormFields as Record<string, unknown>)['vendorId'];
     const user = this.authService.getUser();
     const entityTypeId = formValue.entityTypeId;
     const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(formValue.officeAccess || []);
@@ -415,7 +418,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const derivedDisplayName = isCompanyType && (formValue.displayName || '').trim()
       ? (formValue.displayName || '').trim() : `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim() || null;
     const contactRequest: ContactRequest = {
-      ...formValue,
+      ...contactFormFields,
       ownerLeadId: this.ownerLeadId ?? this.contact?.ownerLeadId ?? null,
       organizationId: user?.organizationId || '',
       entityTypeId: entityTypeId,
@@ -465,8 +468,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         : (formValue.paymentTermsId ?? null),
       isOwnerReady: !!formValue.isOwnerReady
     };
-    delete (contactRequest as any).propertyCodes;
-    delete (contactRequest as any).vendorId;
     this.applyEntityTypeSpecificContactFields(contactRequest, entityTypeId, formValue);
     contactRequest.companyName = ((formValue.companyName || '').trim() || undefined);
     contactRequest.companyEmail = ((formValue.companyEmail || '').trim() || undefined);
@@ -657,7 +658,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     if (this.contact && this.form) {
       const isActiveValue = typeof this.contact.isActive === 'number' ? this.contact.isActive === 1 : Boolean(this.contact.isActive);
       const entityTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
-      const companyName = this.contact.companyName ?? (this.contact as any).companyName ?? '';
+      const companyName = this.contact.companyName ?? '';
       const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(this.contact.officeAccess);
       const normalizedOfficeAccess = officeAccess.length > 0
         ? officeAccess

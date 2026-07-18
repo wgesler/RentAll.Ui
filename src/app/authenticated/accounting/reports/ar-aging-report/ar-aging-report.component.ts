@@ -27,8 +27,9 @@ import { InvoiceService } from '../../services/invoice.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
 import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
 import { ContactService } from '../../../contacts/services/contact.service';
+import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { ReservationResponse } from '../../../reservations/models/reservation-model';
+import { ReservationCodeResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
 
 @Component({
   selector: 'app-ar-aging-report',
@@ -82,6 +83,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   allInvoices: InvoiceResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
   contactNameByContactId = new Map<string, string>();
+  contactsByContactId = new Map<string, ContactResponse>();
+  reservationsByReservationId = new Map<string, ReservationCodeResponse>();
   reservationContextByReservationId = new Map<string, ArAgingReservationContext>();
 
   detailDisplayedColumns: ColumnSet = {
@@ -219,6 +222,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     const officeIds = this.resolveOfficeIds();
     if (officeIds.length === 0) {
       this.allInvoices = [];
+      this.reservationsByReservationId.clear();
       this.reservationContextByReservationId.clear();
       this.isServiceError = false;
       this.applyReportDisplay();
@@ -229,7 +233,9 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.contactService.ensureContactsLoaded().pipe(
       take(1),
       switchMap(() => {
-        this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(this.contactService.getAllContactsValue());
+        const contacts = this.contactService.getAllContactsValue();
+        this.contactsByContactId = new Map(contacts.map(contact => [contact.contactId, contact]));
+        this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
         return this.invoiceService.searchInvoices({
           officeIds,
           includeInactive: true,
@@ -250,6 +256,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       error: (error: HttpErrorResponse) => {
         this.allInvoices = [];
         this.contactNameByContactId = new Map();
+        this.contactsByContactId = new Map();
+        this.reservationsByReservationId.clear();
         this.reservationContextByReservationId.clear();
         this.isServiceError = true;
         this.reportResult = null;
@@ -268,7 +276,9 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     )];
 
     if (reservationIds.length === 0) {
+      this.reservationsByReservationId.clear();
       this.reservationContextByReservationId.clear();
+      this.applyReportDisplay();
       if (this.drillDownView) {
         this.refreshDetailReport();
       }
@@ -291,14 +301,20 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       }),
       takeUntil(this.destroy$)
     ).subscribe(({ contactsById, reservations }) => {
-      this.reservationContextByReservationId = new Map(
-        reservations
-          .filter((reservation): reservation is ReservationResponse => reservation != null)
-          .map(reservation => [
-            reservation.reservationId,
-            buildArAgingReservationContext(reservation, contactsById)
-          ])
+      const loadedReservations = reservations.filter((reservation): reservation is ReservationResponse => reservation != null);
+      this.reservationsByReservationId = new Map(
+        loadedReservations.map(reservation => [
+          reservation.reservationId,
+          this.mappingService.buildArAgingReservationLabelSource(reservation)
+        ])
       );
+      this.reservationContextByReservationId = new Map(
+        loadedReservations.map(reservation => [
+          reservation.reservationId,
+          buildArAgingReservationContext(reservation, contactsById)
+        ])
+      );
+      this.applyReportDisplay();
       if (this.drillDownView) {
         this.refreshDetailReport();
       }
@@ -315,6 +331,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         invoices: this.allInvoices,
         costCodes: this.allCostCodes,
         contactNameByContactId: this.contactNameByContactId,
+        contactsByContactId: this.contactsByContactId,
+        reservationsByReservationId: this.reservationsByReservationId,
         asOfDate,
         intervalDays: this.reportFilters?.intervalDays ?? 30,
         throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,

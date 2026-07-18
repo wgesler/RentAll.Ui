@@ -3,7 +3,7 @@ import { CostCodesResponse } from './cost-codes.model';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { TermType, getTermType } from '../../contacts/models/contact-enum';
 import { ReservationType } from '../../reservations/models/reservation-enum';
-import { ReservationResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 
 //#region Types
 export type ArAgingBucketId = string;
@@ -100,6 +100,8 @@ export interface ArAgingReportBuildRequest {
   invoices: InvoiceResponse[];
   costCodes: CostCodesResponse[];
   contactNameByContactId?: ReadonlyMap<string, string>;
+  contactsByContactId?: ReadonlyMap<string, ContactResponse>;
+  reservationsByReservationId?: ReadonlyMap<string, ReservationCodeResponse>;
   asOfDate: string | null;
   intervalDays?: number;
   throughDays?: number | null;
@@ -438,7 +440,8 @@ export function resolveArAgingAsOfDate(preset: ArAgingDatePreset, customAsOfDate
 
 //#region Sort Helpers
 export function buildArAgingCompanySortKey(
-  invoice: Pick<InvoiceResponse, 'companyName' | 'responsibleParty' | 'contactName'>
+  invoice: Pick<InvoiceResponse, 'companyName' | 'responsibleParty' | 'contactName'>,
+  customerLabel?: string
 ): string {
   const companyName = (invoice.companyName || '').trim();
   if (companyName) {
@@ -446,7 +449,7 @@ export function buildArAgingCompanySortKey(
   }
 
   const contactName = (invoice.contactName || '').trim();
-  const responsibleParty = (invoice.responsibleParty || '').trim();
+  const responsibleParty = (customerLabel || invoice.responsibleParty || '').trim();
   if (
     contactName
     && responsibleParty

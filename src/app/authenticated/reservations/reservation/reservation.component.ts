@@ -3,9 +3,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, pairwise, skip, startWith, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, filter, finalize, map, of, pairwise, skip, startWith, switchMap, take, takeUntil } from 'rxjs';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
@@ -44,6 +44,18 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+
+interface ValidationProblemDetails {
+  title?: string;
+  message?: string;
+  Message?: string;
+  errors?: Record<string, string[]>;
+}
+
+interface ReservationNotificationFormValue {
+  arrivalDate?: string | Date | null;
+  departureDate?: string | Date | null;
+}
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
@@ -446,7 +458,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         if (err.status === 400) {
           const errorData = err?.error;
           if (errorData && typeof errorData === 'object') {
-            const problemDetails = errorData as any;
+            const problemDetails = errorData as ValidationProblemDetails;
             let message = problemDetails.title || problemDetails.message || problemDetails.Message || 'Validation failed.';
             if (problemDetails.errors && typeof problemDetails.errors === 'object') {
               const fieldErrors: string[] = [];
@@ -487,7 +499,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       const dialogData: GenericModalData = {
         title: 'Cancel Reservation',
         message: 'It is not possible to cancel a reservation that has already begun.',
-        icon: 'warning' as any,
+        icon: 'warning',
         iconColor: 'warn',
         no: '',
         yes: 'OK',
@@ -505,7 +517,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const dialogData: GenericModalData = {
       title: 'Delete Reservation',
       message: 'Are you sure you want to delete this reservation?',
-      icon: 'warning' as any,
+      icon: 'warning',
       iconColor: 'warn',
       no: 'No',
       yes: 'Yes',
@@ -2223,9 +2235,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
-  updateExtraFeeLineField(index: number, field: keyof ExtraFeeLineDisplay, value: any): void {
+  updateExtraFeeLineField(
+    index: number,
+    field: keyof ExtraFeeLineDisplay,
+    value: ExtraFeeLineDisplay[keyof ExtraFeeLineDisplay]
+  ): void {
     if (index >= 0 && index < this.extraFeeLines.length) {
-      (this.extraFeeLines[index] as any)[field] = value;
+      this.extraFeeLines[index] = { ...this.extraFeeLines[index], [field]: value };
     }
   }
 
@@ -2299,7 +2315,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
-  enableFieldWithValidation(controlName: string, validators?: any[]): void {
+  enableFieldWithValidation(controlName: string, validators?: ValidatorFn[]): void {
     const control = this.form?.get(controlName);
     if (control) {
       // Restore validators when enabling
@@ -2457,11 +2473,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const dialogData: GenericModalData = {
       title: 'Date Conflict',
       message: `The selected dates overlap with an existing reservation.<br><div style="text-align: center; margin-top: 10px;"><strong>${reservationCode}</strong></div>`,
-      icon: 'warning' as any,
+      icon: 'warning',
       iconColor: 'warn',
       no: '',
       yes: 'OK',
-      callback: (dialogRef, result) => {
+      callback: (dialogRef) => {
         if (resetDates) {
           // Reset arrival and departure dates
           this.form.patchValue({
@@ -2740,7 +2756,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     return firstContactId ? String(firstContactId) : null;
   }
 
-  getReservationNotificationContext(formValue: any): ReservationNotificationContext {
+  getReservationNotificationContext(formValue: ReservationNotificationFormValue): ReservationNotificationContext {
     if (this.isAddMode) {
       return {
         shouldNotify: true,
@@ -3096,7 +3112,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   isReservationMarkedDeleted(reservation: ReservationResponse | null | undefined): boolean {
-    return (reservation as any)?.isDeleted === true;
+    return reservation?.isDeleted === true;
   }
 
   parseDateOnly(value: string | Date | null | undefined): Date | null {
@@ -3145,9 +3161,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
-  onExtraFeeAmountInput(event: Event, index: number): void {
+  onExtraFeeAmountInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const line = this.extraFeeLines[index];
     let value = input.value;
     
     // Check if value starts with minus sign
@@ -3218,7 +3233,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
-  onExtraFeeAmountEnter(event: Event, index: number): void {
+  onExtraFeeAmountEnter(event: Event): void {
     // Prevent default form submission behavior
     event.preventDefault();
     // Blur the input to complete the edit (same as pressing Tab)
@@ -3265,7 +3280,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
     event.preventDefault();
-    event.returnValue = '';
   }
 
   navigateToReservationEntryOrigin(): void {
