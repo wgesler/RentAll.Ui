@@ -13,7 +13,6 @@ import { UnreturnedSecurityDepositDisplay } from '../../../reservations/models/r
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
-import { DataTableFooterDirective } from '../../../shared/data-table/data-table-footer.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { SecurityDepositReturnPaymentDialogComponent } from './security-deposit-return-payment-dialog.component';
 import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-payment-dialog.model';
@@ -23,7 +22,7 @@ import { InvoiceSelection } from '../../models/invoice.model';
 @Component({
   selector: 'app-security-deposits-list',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, DataTableFooterDirective, SecurityDepositReturnPaymentDialogComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, SecurityDepositReturnPaymentDialogComponent],
   templateUrl: './security-deposits-list.component.html',
   styleUrl: './security-deposits-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -49,18 +48,17 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   readonly displayedColumns: ColumnSet = {
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
-    invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '14ch', sortType: 'natural' },
-    journalEntryCode: { displayAs: 'JE', wrap: false, maxWidth: '14ch', sortType: 'natural' },
+    invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '16ch', sortType: 'natural' },
+    journalEntryCode: { displayAs: 'JEntry', wrap: false, maxWidth: '14ch', sortType: 'natural' },
     tenantName: { displayAs: 'Occupant', wrap: true, maxWidth: '22ch' },
     contactName: { displayAs: 'Contact', wrap: true, maxWidth: '22ch' },
-    companyName: { displayAs: 'Company', wrap: true, maxWidth: '22ch' },
     arrivalDate: { displayAs: 'Arrival', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     departureDate: { displayAs: 'Departure', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     securityDepositReturnDate: { displayAs: 'Return By', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     depositDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     owedDisplay: { displayAs: 'Owed', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    balanceDisplay: { displayAs: 'Balance', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    returnedDisplay: { displayAs: 'For Return', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
   };
 
@@ -75,8 +73,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
   private loadId = 0;
-  private summaryScrollHost: HTMLElement | null = null;
-  private summaryScrollHandler = (): void => this.scheduleSummaryAlignment();
 
   showPaymentForm = false;
   isSubmittingPayment = false;
@@ -87,7 +83,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   summaryPanelWidthPx = 0;
   summaryPanelMarginLeftPx = 0;
-  summaryMinWidthPx = 0;
   private summaryResizeObserver?: ResizeObserver;
   private summaryAlignFrameId: number | null = null;
 
@@ -171,7 +166,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   }
 
   get hasSummaryColumnAlignment(): boolean {
-    return this.summaryPanelWidthPx > 0 && this.summaryMinWidthPx > 0;
+    return this.summaryPanelWidthPx > 0;
   }
 
   scheduleSummaryAlignmentRetries(): void {
@@ -205,13 +200,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       this.summaryResizeObserver.observe(wrap);
     }
 
-    const scrollHost = wrap.querySelector<HTMLElement>('.is-scrollable');
-    if (scrollHost && scrollHost !== this.summaryScrollHost) {
-      this.summaryScrollHost?.removeEventListener('scroll', this.summaryScrollHandler);
-      this.summaryScrollHost = scrollHost;
-      scrollHost.addEventListener('scroll', this.summaryScrollHandler, { passive: true });
-    }
-
     this.scheduleSummaryAlignment();
   }
 
@@ -240,14 +228,12 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     if (
       nextPanelWidth === this.summaryPanelWidthPx
       && nextPanelMarginLeft === this.summaryPanelMarginLeftPx
-      && tableWidth === this.summaryMinWidthPx
     ) {
       return;
     }
 
     this.summaryPanelWidthPx = nextPanelWidth;
     this.summaryPanelMarginLeftPx = nextPanelMarginLeft;
-    this.summaryMinWidthPx = tableWidth;
     this.markViewForCheck();
   }
   //#endregion
@@ -394,7 +380,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     if (this.summaryAlignFrameId != null) {
       cancelAnimationFrame(this.summaryAlignFrameId);
     }
-    this.summaryScrollHost?.removeEventListener('scroll', this.summaryScrollHandler);
     this.summaryResizeObserver?.disconnect();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'securityDeposits');
     this.destroy$.next();

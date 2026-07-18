@@ -384,6 +384,7 @@ export interface ReservationDepartureResponse {
   paidAmount: number;
   returnedAmount: number;
   owedAmount: number;
+  balanceAmount: number;
   journalEntryId?: string | null;
   journalEntryCode?: string | null;
   paidJournalEntryId?: string | null;
@@ -428,8 +429,8 @@ export interface UnreturnedSecurityDepositDisplay {
   paidAmount: number;
   owedDisplay: string;
   owedAmount: number;
-  balanceDisplay: string;
-  balanceAmount: number;
+  returnedDisplay: string;
+  returnedBalanceAmount: number;
   returnedAmount: number;
   journalEntryId: string;
   journalEntryCode: string;

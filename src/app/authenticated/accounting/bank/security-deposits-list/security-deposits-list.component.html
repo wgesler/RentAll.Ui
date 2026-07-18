@@ -53,24 +53,21 @@
             </app-security-deposit-return-payment-dialog>
           </div>
         </div>
-        @if (hasSummaryFooter) {
-          <div dataTableFooter>
-            <ng-container *ngTemplateOutlet="securityDepositsSummary"></ng-container>
-          </div>
-        }
       </app-data-table>
+      @if (hasSummaryFooter) {
+        <ng-container *ngTemplateOutlet="securityDepositsSummary"></ng-container>
+      }
     </div>
   </div>
 }
 
 <ng-template #securityDepositsSummary>
-  <div #summaryFooter class="security-deposits-summary" [class.security-deposits-summary--aligned]="hasSummaryColumnAlignment"
-    [style.minWidth.px]="hasSummaryColumnAlignment ? summaryMinWidthPx : null">
+  <div #summaryFooter class="security-deposits-summary" [class.security-deposits-summary--aligned]="hasSummaryColumnAlignment">
     <div class="security-deposits-summary-panel"
       [style.width.px]="hasSummaryColumnAlignment ? summaryPanelWidthPx : null"
       [style.marginLeft.px]="hasSummaryColumnAlignment ? summaryPanelMarginLeftPx : null">
       <div class="security-deposits-summary-row">
-        <span class="security-deposits-summary-label">Total</span>
+        <span class="security-deposits-summary-label">Total Collected</span>
         <span class="security-deposits-summary-value security-deposits-summary-value--total">
           {{ formatter.currencyUsd(totalDepositsOwed) }}
         </span>

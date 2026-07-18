@@ -607,22 +607,11 @@ hydrateSelectedInvoiceForActiveId(): void {
       return;
     }
 
-    this.selectedTabIndex = this.tabGeneralLedger;
-    this.selectedGeneralLedgerKind = 'ledger';
     this.showGeneralLedgerOfficeValidationError = false;
     this.copyFromJournalEntry = null;
     this.activeJournalEntryId = journalEntryId;
     this.selectedJournalEntryLineId = null;
     this.showGeneralLedgerDetail = true;
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: this.buildShellQueryParams({
-        tab: String(this.tabGeneralLedger),
-        glView: 'ledger',
-        bankActivity: null
-      }),
-      queryParamsHandling: 'merge'
-    });
     this.cdr.markForCheck();
   }
 
@@ -648,6 +637,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     const shouldRefreshOwnerStatements = this.selectedTabIndex === this.tabOwners
       && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines;
+    const shouldRefreshSecurityDeposits = this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'securityDeposits';
     this.showGeneralLedgerOfficeValidationError = false;
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
@@ -655,6 +646,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.copyFromJournalEntry = null;
     if (shouldRefreshOwnerStatements) {
       this.ownersStatementsRefreshTrigger++;
+    }
+    if (shouldRefreshSecurityDeposits) {
+      this.securityDepositsRefreshTrigger++;
     }
   }
 

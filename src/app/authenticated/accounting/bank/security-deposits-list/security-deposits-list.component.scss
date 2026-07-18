@@ -24,15 +24,16 @@
   min-width: 0;
 }
 
+:host ::ng-deep app-data-table .datatable-main-block,
 :host ::ng-deep app-data-table .is-scrollable {
-  margin-bottom: 0;
+  overflow-x: clip;
 }
 
 .security-deposits-summary {
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
+  padding: 0 var(--global-page-inner-padding) var(--global-page-inner-padding);
 }
 
 .security-deposits-summary:not(.security-deposits-summary--aligned) {
