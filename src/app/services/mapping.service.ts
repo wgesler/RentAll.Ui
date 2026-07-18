@@ -3863,8 +3863,9 @@ roundCurrency(value: number): number {
     }
 
     if (this.isUnreturnedSecurityDepositsResponse(raw)) {
+      const rows = (raw.rows ?? []).map(row => this.mapReservationDepartureResponse(row as unknown as Record<string, unknown>));
       return {
-        rows: raw.rows ?? [],
+        rows,
         totalDepositsOwed: Number(raw.totalDepositsOwed ?? 0),
         escrowBalance: Number(raw.escrowBalance ?? 0),
         discrepancy: Number(raw.discrepancy ?? 0),
@@ -3935,7 +3936,7 @@ roundCurrency(value: number): number {
       deposit: Number(raw['deposit'] ?? raw['Deposit'] ?? 0),
       depositReturned: !!(raw['depositReturned'] ?? raw['DepositReturned']),
       securityDepositReturnDate: this.utility.coerceCalendarDateStringFromApi(raw['securityDepositReturnDate'] ?? raw['SecurityDepositReturnDate']) ?? '',
-      paidAmount: Number(raw['paidAmount'] ?? raw['PaidAmount'] ?? 0),
+      collectedAmount: Number(raw['collectedAmount'] ?? raw['CollectedAmount'] ?? raw['paidAmount'] ?? raw['PaidAmount'] ?? 0),
       returnedAmount: Number(raw['returnedAmount'] ?? raw['ReturnedAmount'] ?? 0),
       owedAmount: Number(raw['owedAmount'] ?? raw['OwedAmount'] ?? 0),
       balanceAmount: Number(raw['balanceAmount'] ?? raw['BalanceAmount'] ?? 0),
@@ -3958,6 +3959,14 @@ roundCurrency(value: number): number {
       const tenantName = String(row.tenantName || '').trim();
       const contactName = String(row.contactName || '').trim();
 
+      const collectedAmount = Number(row.collectedAmount ?? 0);
+      const returnedBalanceAmount = this.roundFinancialReportAmount(
+        Math.max(0, Number(row.balanceAmount ?? collectedAmount - Number(row.owedAmount ?? 0)))
+      );
+      const paidAmount = Number(row.returnedAmount ?? 0);
+      const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, returnedBalanceAmount - paidAmount));
+      const depositReturned = !!row.depositReturned;
+
       return {
         reservationId: this.utility.normalizeId(row.reservationId),
         reservationCode: row.reservationCode,
@@ -3973,18 +3982,20 @@ roundCurrency(value: number): number {
         securityDepositReturnDate: this.formatter.formatDateString(row.securityDepositReturnDate),
         depositDisplay: this.formatter.currencyUsd(row.deposit),
         deposit: Number(row.deposit ?? 0),
-        paidDisplay: this.formatter.currencyUsd(row.paidAmount ?? 0),
-        paidAmount: Number(row.paidAmount ?? 0),
+        collectedDisplay: this.formatter.currencyUsd(collectedAmount),
+        collectedAmount,
         owedDisplay: this.formatter.currencyUsd(row.owedAmount ?? 0),
         owedAmount: Number(row.owedAmount ?? 0),
-        returnedBalanceAmount: this.roundFinancialReportAmount(Number(row.paidAmount ?? 0) - Number(row.owedAmount ?? 0)),
-        returnedDisplay: this.formatter.currencyUsd(this.roundFinancialReportAmount(Number(row.paidAmount ?? 0) - Number(row.owedAmount ?? 0))),
-        returnedAmount: Number(row.returnedAmount ?? 0),
+        returnedBalanceAmount,
+        returnedDisplay: this.formatter.currencyUsd(returnedBalanceAmount),
+        paidDisplay: this.formatter.currencyUsd(paidAmount),
+        paidAmount,
         journalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
         journalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
         paidJournalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
         paidJournalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
-        depositReturned: !!row.depositReturned
+        depositReturned,
+        payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0
       };
     });
   }

@@ -13,6 +13,7 @@ import { UnreturnedSecurityDepositDisplay } from '../../../reservations/models/r
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
+import { DataTableFooterDirective } from '../../../shared/data-table/data-table-footer.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { SecurityDepositReturnPaymentDialogComponent } from './security-deposit-return-payment-dialog.component';
 import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-payment-dialog.model';
@@ -22,7 +23,7 @@ import { InvoiceSelection } from '../../models/invoice.model';
 @Component({
   selector: 'app-security-deposits-list',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, SecurityDepositReturnPaymentDialogComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, DataTableFooterDirective, SecurityDepositReturnPaymentDialogComponent],
   templateUrl: './security-deposits-list.component.html',
   styleUrl: './security-deposits-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -56,20 +57,19 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     departureDate: { displayAs: 'Departure', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     securityDepositReturnDate: { displayAs: 'Return By', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     depositDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    collectedDisplay: { displayAs: 'Collected', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     owedDisplay: { displayAs: 'Owed', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    returnedDisplay: { displayAs: 'For Return', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
+    returnedDisplay: { displayAs: 'TBR', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '14ch' }
   };
 
   rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
-  totalDepositsOwed = 0;
   escrowBalance = 0;
-  discrepancy = 0;
   escrowAccountLabel = '';
   isPageReady = false;
   isServiceError = false;
-  noDataMessage = 'No unreturned security deposits for the selected office access.';
+  noDataMessage = 'No security deposits for the selected office access.';
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
   private loadId = 0;
@@ -78,6 +78,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   isSubmittingPayment = false;
   paymentOfficeId: number | null = null;
   paymentTargetReservationId: string | null = null;
+  paymentTargetReservationCode: string | null = null;
   paymentInitialAmount = 0;
   paymentInitialDescription = '';
 
@@ -132,9 +133,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
         const mappedResponse = this.mappingService.mapUnreturnedSecurityDepositsResponse(response);
         this.rowsDisplay = this.mappingService.mapUnreturnedSecurityDeposits(mappedResponse);
-        this.totalDepositsOwed = Number(mappedResponse.totalDepositsOwed ?? 0);
         this.escrowBalance = Number(mappedResponse.escrowBalance ?? 0);
-        this.discrepancy = Number(mappedResponse.discrepancy ?? 0);
         this.escrowAccountLabel = String(mappedResponse.escrowAccountLabel ?? '').trim();
         this.reservationService.updateSecurityDepositsOutstandingBadge(mappedResponse.rows);
         this.markViewForCheck();
@@ -147,9 +146,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
         this.isServiceError = true;
         this.rowsDisplay = [];
-        this.totalDepositsOwed = 0;
         this.escrowBalance = 0;
-        this.discrepancy = 0;
         this.escrowAccountLabel = '';
         this.reservationService.setSecurityDepositsOutstanding(false);
         this.toastr.error('Unable to load security deposits.');
@@ -249,6 +246,16 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return;
     }
 
+    if (row?.payableDisabled || Number(row?.collectedAmount ?? 0) <= 0) {
+      this.toastr.warning('No security deposit has been collected for this reservation.');
+      return;
+    }
+
+    if (row?.depositReturned) {
+      this.toastr.warning('Security deposit has already been returned.');
+      return;
+    }
+
     const rowOfficeId = Number(row?.officeId ?? 0);
     this.paymentOfficeId = this.officeId ?? (Number.isFinite(rowOfficeId) && rowOfficeId > 0 ? rowOfficeId : null);
     if (!this.paymentOfficeId) {
@@ -257,10 +264,11 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     }
 
     this.paymentTargetReservationId = reservationId;
+    this.paymentTargetReservationCode = String(row?.reservationCode || '').trim() || null;
     this.paymentInitialDescription = `${row.reservationCode} Security Deposit Return`.trim();
-    const depositOwed = this.roundCurrencyValue(Number(row.deposit ?? 0));
-    const returnedAmount = this.roundCurrencyValue(Number(row.returnedAmount ?? 0));
-    this.paymentInitialAmount = this.roundCurrencyValue(Math.max(0, depositOwed - returnedAmount));
+    const tbrAmount = this.roundCurrencyValue(Number(row.returnedBalanceAmount ?? 0));
+    const paidToTenant = this.roundCurrencyValue(Number(row.paidAmount ?? 0));
+    this.paymentInitialAmount = this.roundCurrencyValue(Math.max(0, tbrAmount - paidToTenant));
     this.showPaymentForm = true;
     this.markViewForCheck();
   }
@@ -292,8 +300,17 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return;
     }
 
+    const reservationId = String(this.paymentTargetReservationId || '').trim();
+    if (!reservationId) {
+      this.toastr.warning('Unable to determine reservation for security deposit return.');
+      return;
+    }
+
     this.isSubmittingPayment = true;
-    this.reservationService.applySecurityDepositReturn(payment).pipe(
+    this.reservationService.applySecurityDepositReturn({
+      ...payment,
+      reservationId
+    }).pipe(
       take(1),
       finalize(() => {
         this.isSubmittingPayment = false;
@@ -358,6 +375,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   clearPaymentContext(): void {
     this.paymentTargetReservationId = null;
+    this.paymentTargetReservationCode = null;
     this.paymentOfficeId = null;
     this.paymentInitialAmount = 0;
     this.paymentInitialDescription = '';
@@ -368,6 +386,37 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return 0;
     }
     return Math.round(amount * 100) / 100;
+  }
+
+  get totalCollected(): number {
+    return this.sumSecurityDepositColumn('collectedAmount');
+  }
+
+  get summaryDiscrepancy(): number {
+    return this.roundCurrencyValue(this.escrowBalance - this.totalCollected);
+  }
+
+  get totalsRow(): { [key: string]: string } | undefined {
+    if (this.rowsDisplay.length === 0) {
+      return undefined;
+    }
+
+    return {
+      reservationCode: 'Total',
+      depositDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('deposit')),
+      collectedDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('collectedAmount')),
+      owedDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('owedAmount')),
+      returnedDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('returnedBalanceAmount')),
+      paidDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('paidAmount'))
+    };
+  }
+
+  sumSecurityDepositColumn(
+    column: 'deposit' | 'collectedAmount' | 'owedAmount' | 'returnedBalanceAmount' | 'paidAmount'
+  ): number {
+    return this.roundCurrencyValue(
+      this.rowsDisplay.reduce((sum, row) => sum + Number(row[column] ?? 0), 0)
+    );
   }
   //#endregion
 

@@ -64,7 +64,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible']?.currentValue === true || changes['initialAmount'] || changes['initialDescription'] || changes['officeId']) {
+    if (changes['visible']?.currentValue === true || changes['initialAmount'] || changes['initialDescription'] || changes['officeId'] || changes['reservationId']) {
       if (this.visible) {
         this.initializeFormFromInputs();
       }

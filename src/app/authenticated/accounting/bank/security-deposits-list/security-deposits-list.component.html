@@ -34,6 +34,7 @@
         [hasInvoiceCodeLink]="true"
         [hasJournalEntryCodeLink]="true"
         [itemsPerPage]="25"
+        [totalsRow]="totalsRow"
         (editEvent)="openReservation($event)"
         (reservationCodeClickEvent)="openReservation($event)"
         (invoiceCodeClickEvent)="openInvoice($event)"
@@ -53,10 +54,12 @@
             </app-security-deposit-return-payment-dialog>
           </div>
         </div>
+        <div dataTableFooter>
+          @if (hasSummaryFooter) {
+            <ng-container *ngTemplateOutlet="securityDepositsSummary"></ng-container>
+          }
+        </div>
       </app-data-table>
-      @if (hasSummaryFooter) {
-        <ng-container *ngTemplateOutlet="securityDepositsSummary"></ng-container>
-      }
     </div>
   </div>
 }
@@ -69,7 +72,7 @@
       <div class="security-deposits-summary-row">
         <span class="security-deposits-summary-label">Total Collected</span>
         <span class="security-deposits-summary-value security-deposits-summary-value--total">
-          {{ formatter.currencyUsd(totalDepositsOwed) }}
+          {{ formatter.currencyUsd(totalCollected) }}
         </span>
       </div>
       <div class="security-deposits-summary-row">
@@ -81,7 +84,7 @@
       <div class="security-deposits-summary-row security-deposits-summary-row--discrepancy">
         <span class="security-deposits-summary-label">Discrepancy</span>
         <span class="security-deposits-summary-value security-deposits-summary-value--discrepancy">
-          {{ formatter.currencyUsd(discrepancy) }}
+          {{ formatter.currencyUsd(summaryDiscrepancy) }}
         </span>
       </div>
     </div>
