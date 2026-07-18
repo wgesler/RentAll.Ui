@@ -92,7 +92,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   isDownloading = false;
   isSubmitting = false;
   debuggingHtml = environment.local || environment.dev;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['detail', 'template', 'organization', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['detail', 'template', 'organization']));
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -136,14 +136,12 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: contacts => {
         this.contacts = contacts || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
         this.syncPrimaryContact();
         this.renderPreview();
         this.cdr.markForCheck();
       },
       error: () => {
         this.contacts = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
         this.cdr.markForCheck();
       }
     });

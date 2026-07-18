@@ -100,7 +100,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   accountingOfficeLogo = '';
   organization: OrganizationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['accountingOffices', 'contacts', 'reservation', 'property', 'emailHtml', 'workOrder', 'previewHtml', 'template', 'propertyReceipts', 'organization']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'property', 'emailHtml', 'workOrder', 'previewHtml', 'template', 'propertyReceipts', 'organization']));
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -246,10 +246,7 @@ initializeWorkOrderPreview(): void {
 
   //#region Data Load Methods
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'))
-    ).subscribe({
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
         this.accountingOffices = offices || [];
         this.loadAccountingOffice();
@@ -281,7 +278,7 @@ initializeWorkOrderPreview(): void {
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: (contacts) => {
         this.contacts = contacts || [];
         this.loadClientPartyData();

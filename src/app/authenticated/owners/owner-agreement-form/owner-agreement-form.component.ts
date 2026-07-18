@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { environment } from '../../../../environments/environment';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -52,6 +52,7 @@ import {
   styleUrl: './owner-agreement-form.component.scss'
 })
 export class OwnerAgreementFormComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() token: string | null = null;
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
@@ -127,7 +128,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   leadOwner: LeadOwnerResponse | null = null;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo']));
   destroy$ = new Subject<void>();
 
   readonly OwnerAuthorization = OwnerAuthorization;
@@ -146,6 +147,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.fallbackIframeHtml = this.sanitizer.bypassSecurityTrustHtml(fallbackDocument);
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
     this.isPageReady = items.size === 0;
+    this.cdr.markForCheck();
     if (this.isPageReady && !this.hasAttemptedPreviewRender) {
     this.hasAttemptedPreviewRender = true;
     this.generatePreview();
@@ -178,7 +180,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const templateHtmlChanged = changes['templateHtml'] && (changes['templateHtml'].previousValue !== changes['templateHtml'].currentValue);
     if (tokenChanged) {
       this.hasAttemptedPreviewRender = false;
-      this.itemsToLoad$.next(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
+      this.itemsToLoad$.next(new Set(['organization', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo']));
       this.initializeDataContext();
       return;
     }
@@ -188,7 +190,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (propertyIdChanged || propertyCodeChanged || officeIdChanged) {
       // Incremental restore: add property next.
       this.hasAttemptedPreviewRender = false;
-      this.itemsToLoad$.next(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
+      this.itemsToLoad$.next(new Set(['organization', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo']));
       this.initializeDataContext();
       return;
     }
@@ -399,26 +401,20 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.leadOwner = null;
       this.agreementInformation = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.generatePreviewIfReady();
       return;
     }
 
     this.ownersService.getPublicAgreementContext(token).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
         this.generatePreviewIfReady();
       })).subscribe({
       next: response => {
@@ -505,11 +501,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   loadOffices(): void {
     if (!this.organizationId) {
       this.selectedOffice = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
     this.ownersService.getOfficeListByContext(null, this.organizationId).pipe(take(1),finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.generatePreviewIfReady();
       })).subscribe({
       next: offices => {
@@ -544,7 +538,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   loadContacts(): void {
     this.ownersService.getOwnerContactsByContext().pipe(take(1),finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
         this.generatePreviewIfReady();
       })).subscribe({
       next: contacts => {
@@ -709,7 +702,6 @@ tryLoadPropertyByLeadOwnerCode(): void {
 
   loadAccountingOffices(): void {
     this.ownersService.getAccountingOfficesByContext().pipe(take(1),finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.generatePreviewIfReady();
     })).subscribe({
       next: accountingOffices => {

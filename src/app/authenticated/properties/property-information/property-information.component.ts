@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
@@ -26,6 +26,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
     styleUrls: ['./property-information.component.scss']
 })
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyInformationResponse | null = null;
@@ -51,7 +52,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   showOfficeDropdown: boolean = false;
   organizationId = '';
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -63,6 +64,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
@@ -177,7 +179,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.globalSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({

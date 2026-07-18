@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -59,6 +59,7 @@ import { OwnerDocuSignSignersDialogService } from '../../owners/services/owner-d
     styleUrl: './lease.component.scss'
 })
 export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
@@ -150,7 +151,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     rentalCreditApplication: string;
   } | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'buildings', 'logo'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'emailHtml', 'buildings', 'logo'])); 
   destroy$ = new Subject<void>();
   logoSourcesLoaded = { offices: false, organization: false };
 
@@ -163,6 +164,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   ngOnInit(): void {
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
+      this.cdr.markForCheck();
       this.getLease();
     });
 
@@ -735,7 +737,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
    //#region Data Loading Methods 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: (contacts) => {
         this.contacts = contacts || [];
       },
@@ -758,7 +760,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); this.markLogoSourceLoaded('offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.markLogoSourceLoaded('offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -791,7 +793,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
   
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
       next: (accountingOffices) => {
         this.accountingOffices = accountingOffices || [];
       },

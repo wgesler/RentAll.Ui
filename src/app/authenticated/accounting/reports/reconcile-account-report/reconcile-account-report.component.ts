@@ -79,7 +79,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   beginningBalance = 0;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   ngOnInit(): void {
@@ -309,14 +309,10 @@ loadOrganization(): void {
 
 loadOffices(): void {
     if (!this.organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
 
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))
-    ).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
@@ -334,10 +330,7 @@ loadOffices(): void {
   }
 
 loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
-    ).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
         this.applyReportDisplay();

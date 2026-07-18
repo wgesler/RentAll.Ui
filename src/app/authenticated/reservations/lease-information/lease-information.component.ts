@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -22,6 +22,7 @@ type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
     styleUrl: './lease-information.component.scss'
 })
 export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() reservationId: string | null = null;
   @Input() officeId: number | null = null;
@@ -48,6 +49,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.getLeaseInformation(true);
   }

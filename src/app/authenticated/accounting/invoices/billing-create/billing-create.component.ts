@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -40,6 +40,7 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
     styleUrls: ['./billing-create.component.scss']
 })
 export class BillingCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() organizationId: string | null = null; 
   @Input() invoiceId: string | null = null;
@@ -97,6 +98,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   ngOnInit(): void {
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
+      this.cdr.markForCheck();
     });
 
     this.route.queryParams.pipe(take(1)).subscribe((queryParams) => {

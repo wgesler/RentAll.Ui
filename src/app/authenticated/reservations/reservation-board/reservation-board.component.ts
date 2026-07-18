@@ -110,7 +110,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   private externalCalendarLoadSequence = 0;
   private readonly externalCalendarReservationIdPrefix = 'extcal:';
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'officeScope']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -118,6 +118,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.showReservationNames = this.showReservationNames !== false;
@@ -231,7 +232,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts || [];
         this.markViewForCheck();

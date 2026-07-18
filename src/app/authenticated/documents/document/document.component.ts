@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -31,6 +31,7 @@ import { DocumentService } from '../services/document.service';
     styleUrls: ['./document.component.scss']
 })
 export class DocumentComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   documentService = inject(DocumentService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -57,7 +58,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   documentTypes: { value: DocumentType, label: string }[] = getDocumentTypes();
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -65,6 +66,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
@@ -215,7 +217,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -76,6 +76,7 @@ import { UserService } from '../../users/services/user.service';
 })
 
 export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanComponentDeactivate {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() shellMode: boolean = false;
   @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
@@ -162,7 +163,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'contacts', 'cleaners']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'cleaners']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -170,6 +171,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadContacts();  
@@ -563,7 +565,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   //#region Data Load Methods
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
           this.contacts = contacts || [];

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -21,6 +21,7 @@ import { LeadsService } from '../services/leads.service';
   styleUrl: './leads-reports.component.scss'
 })
 export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() officeId: number | null = null;
   @Input() startDate: Date | null = null;
@@ -75,6 +76,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     
     this.loadRentalLeads();

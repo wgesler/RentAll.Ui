@@ -113,7 +113,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   reservationsDisplayedColumns: ColumnSet = this.fullReservationsDisplayedColumns;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'properties', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'properties', 'officeScope']));
   destroy$ = new Subject<void>();
 
   //#region Reservation List
@@ -473,7 +473,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
   }
 
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

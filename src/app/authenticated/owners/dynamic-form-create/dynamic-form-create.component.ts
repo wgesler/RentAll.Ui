@@ -38,6 +38,7 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
   styleUrl: './dynamic-form-create.component.scss'
 })
 export class DynamicFormCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() formName = '';
   @Input() formKey = '';
@@ -94,6 +95,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
     this.isPageReady = items.size === 0;
+    this.cdr.markForCheck();
   });
 
     if (this.sharedContext$) {
@@ -369,10 +371,9 @@ htmlNeedsTokenReplacement(html: string): boolean {
   loadOffices(): void {
     if (!this.organizationId) {
       this.selectedOffice = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.ownersService.getOfficeListByContext(null, this.organizationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.ownersService.getOfficeListByContext(null, this.organizationId).pipe(take(1)).subscribe({
       next: offices => {
         this.syncSelectedOfficeFromLoadedOffices(offices || []);
       },
@@ -402,7 +403,7 @@ htmlNeedsTokenReplacement(html: string): boolean {
   }
 
   loadContacts(): void {
-    this.ownersService.getOwnerContactsByContext().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.ownersService.getOwnerContactsByContext().pipe(take(1)).subscribe({
       next: contacts => {
         this.allContacts = contacts || [];
         const ownerLeadId = Number(this.ownerLeadId);

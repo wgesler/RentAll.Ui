@@ -115,7 +115,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   includeDepartureDate: boolean = true;
   reservationLoadSeq = 0;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'buildings', 'emailHtml', 'logo']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
   destroy$ = new Subject<void>();
 
@@ -130,6 +130,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
+      this.cdr.markForCheck();
     });
 
     this.loadOffices();
@@ -290,7 +291,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: (contacts) => {
         this.contacts = contacts || [];
         // Rebuild reservation labels now that contact display names are available.
@@ -344,7 +345,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.resolveSelectedOfficeFromContext();
@@ -360,7 +361,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   loadAccountingOffices(): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.markLogoSourceLoaded('accountingOffices');
     })).subscribe({
       next: (offices) => {

@@ -83,7 +83,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   });
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntry', 'referenceData']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntry']));
   destroy$ = new Subject<void>();
 
   get isAddMode(): boolean {
@@ -880,11 +880,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Loading Methods
   loadReferenceData(): void {
     if (!this.organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'referenceData');
       return;
     }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'referenceData');
 
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
@@ -893,8 +890,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         this.markViewForCheck();
       });
     });
-
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'referenceData');
   }
 
   loadJournalEntry(): void {

@@ -60,7 +60,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
 
   isPageReady = false;
   destroy$ = new Subject<void>();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'agents', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'officeScope']));
 
   //#region Agent-List
   ngOnInit(): void {
@@ -126,7 +126,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = this.globalSelectionService.filterOfficeListForUser(allOffices || []);
         this.resolveOfficeScope(this.useGlobalOfficeSelection ? this.globalSelectionService.getSelectedOfficeIdValue() : this.officeId);

@@ -57,7 +57,7 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
 
   isPageReady = false;
   destroy$ = new Subject<void>();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
 
   //#region Office-List
   ngOnInit(): void {
@@ -83,13 +83,13 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     const orgId = (this.organizationId ?? this.authService.getUser()?.organizationId ?? '').trim();
     if (!orgId) {
       this.isServiceError = true;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.markViewForCheck();
       return;
     }
     const load$ = forceRefresh
       ? this.officeService.refreshOffices(orgId)
       : this.officeService.ensureOfficesLoaded(orgId);
-    load$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    load$.pipe(take(1)).subscribe({
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();
@@ -97,7 +97,6 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.markViewForCheck();
       }
     });

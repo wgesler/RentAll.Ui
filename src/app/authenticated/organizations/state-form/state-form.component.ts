@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -24,6 +24,7 @@ import { StateFormService } from '../services/state-form.service';
     styleUrl: './state-form.component.scss'
 })
 export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
@@ -60,6 +61,7 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.buildForm();
     this.loadStates();

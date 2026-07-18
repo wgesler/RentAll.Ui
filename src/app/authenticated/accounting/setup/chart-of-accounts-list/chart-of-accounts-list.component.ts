@@ -76,7 +76,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
    };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccounts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region ChartOfAccounts-List
@@ -244,7 +244,6 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.cachedChartOfAccounts = accounts || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
         this.filterChartOfAccounts();
         this.markViewForCheck();
       });

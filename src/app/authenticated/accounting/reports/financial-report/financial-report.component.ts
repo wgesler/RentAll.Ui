@@ -131,7 +131,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   allLines: JournalEntryLineSearchResponse[] = [];
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region Financial-Report
@@ -194,15 +194,11 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
 
   loadOffices(): void {
     if (!this.organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.loadJournalEntryLines();
       return;
     }
 
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))
-    ).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
@@ -219,10 +215,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   }
 
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
-    ).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
         this.applyReportDisplay();

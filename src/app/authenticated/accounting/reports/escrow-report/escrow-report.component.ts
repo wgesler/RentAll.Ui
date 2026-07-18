@@ -48,7 +48,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   cushionInput = 0;
   noDataMessage = 'No escrow activity for the selected office, property, and as-of date.';
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'escrowReport']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['escrowReport']));
   destroy$ = new Subject<void>();
   private reportLoadId = 0;
 
@@ -68,7 +68,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (!this.itemsToLoad$.value.has('offices') && this.hasFilterInputChange(changes)) {
+    if (this.hasFilterInputChange(changes)) {
       this.loadReport();
     }
   }
@@ -81,7 +81,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
     this.destroy$.next();
     this.destroy$.complete();
@@ -91,7 +90,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   loadOffices(): void {
     if (!this.organizationId) {
       this.offices = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.loadReport();
       return;
     }
@@ -101,13 +99,11 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
         this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
             this.loadReport();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
             this.loadReport();
             this.markViewForCheck();
           }
@@ -115,7 +111,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         this.offices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.loadReport();
         this.markViewForCheck();
       }
@@ -123,10 +118,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadReport(): void {
-    if (this.itemsToLoad$.value.has('offices')) {
-      return;
-    }
-
     const officeIds = this.resolveOfficeIds();
     const endDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
     if (officeIds.length === 0) {

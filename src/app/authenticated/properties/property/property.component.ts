@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -71,6 +71,7 @@ import {
 })
 
 export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
+  private cdr = inject(ChangeDetectorRef);
   @Input() disableOwnerModeLayout = false;
   @Input() shellPropertyId: string | null = null;
   @Input() shellPropertyCode: string | null = null;
@@ -182,7 +183,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   formPropertyContactCopyFrom: string | null = null;
   formPropertyContactEntityTypeId: number | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'areas', 'buildings', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['regions', 'areas', 'buildings']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -223,6 +224,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
@@ -351,8 +353,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   copyFromProperty(sourcePropertyId: string): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    const contactsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('contacts')), filter(loaded => loaded === true), take(1));
-    const officesLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('offices')), filter(loaded => loaded === true), take(1));
+    const contactsLoaded$ = this.contactService.ensureContactsLoaded().pipe(take(1));
+    const officesLoaded$ = this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1));
     const regionsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('regions')), filter(loaded => loaded === true), take(1));
     const areasLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('areas')), filter(loaded => loaded === true), take(1));
     const buildingsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('buildings')), filter(loaded => loaded === true), take(1));
@@ -1942,7 +1944,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
           this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
@@ -1955,7 +1957,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   }
 
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(f => f.organizationId === this.organizationId && f.isActive);

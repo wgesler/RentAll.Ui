@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -67,6 +67,7 @@ export function buildPropertyInformationPatchFromPropertyInfo(response: Property
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class PropertyInformationComponent implements OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() token = '';
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
@@ -128,6 +129,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
     this.hasLoadStateSubscription = true;
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
   }
 

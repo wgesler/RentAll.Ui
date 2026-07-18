@@ -141,7 +141,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
   isPageReady: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'reservation', 'property', 'emailHtml', 'invoice', 'previewHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'property', 'emailHtml', 'invoice', 'previewHtml']));
     destroy$ = new Subject<void>();
 
   constructor() {
@@ -373,7 +373,7 @@ initializeInvoicePreview(): void {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
       });
@@ -381,7 +381,7 @@ initializeInvoicePreview(): void {
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');})).subscribe(() => {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe(() => {
       this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
         this.accountingOffices = accountingOffices || [];
       });
@@ -415,7 +415,7 @@ initializeInvoicePreview(): void {
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');})).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: (contacts) => {
         this.contacts = contacts || [];
       },

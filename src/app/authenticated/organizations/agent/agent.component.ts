@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -26,6 +26,7 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() agentId: string | number | null = null;
   @Input() officeId: number | null = null;
@@ -54,7 +55,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agent', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agent']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -62,6 +63,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
@@ -162,7 +164,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = this.globalSelectionService.filterOfficeListForUser(offices || []);
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

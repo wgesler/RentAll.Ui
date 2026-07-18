@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil } from 'rxjs';
@@ -45,6 +45,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   private costCodesService = inject(CostCodesService);
   private userService = inject(UserService);
   private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {this.quotePrefaceEditor = value; this.syncQuoteTextEditorFromForm('quotePreface'); }
   @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteSuffixEditor = value; this.syncQuoteTextEditorFromForm('quoteSuffix'); }
@@ -81,6 +82,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.loadStates();
     this.loadCostCodes();
@@ -113,6 +115,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
       if (newId && newId !== 'new') {
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'office');
         this.getOffice(newId.toString());
       } else if (newId === 'new') {
         this.isAddMode = true;
@@ -129,6 +132,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   getOffice(id?: string | number): void {
     const idToUse = id || this.id;
     if (idToUse === 'new' || idToUse == null || String(idToUse).trim() === '') {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
       return;
     }
 
@@ -136,6 +140,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     if (isNaN(officeIdNum)) {
       this.isServiceError = true;
       this.toastr.error('Invalid office ID', CommonMessage.Error);
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
       return;
     }
 
@@ -166,10 +171,12 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
         this.buildForm();
         this.populateForm();
         this.filterOfficeCostCodeOptions();
+        this.cdr.markForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+        this.cdr.markForCheck();
       }
     });
   }

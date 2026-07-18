@@ -59,7 +59,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   scheduleDotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
   selectedScheduleCalendarDayKey: string | null = null;
 
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'activeReservations', 'propertyMaintenanceList']));
   isPageReady = false;
 
   readonly scheduledCleaningColumns: ColumnSet = {

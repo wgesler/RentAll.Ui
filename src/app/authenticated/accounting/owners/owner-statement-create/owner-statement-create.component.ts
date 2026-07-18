@@ -96,7 +96,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   debuggingHtml = environment.local || environment.dev;
   emailHtml: EmailHtmlResponse | null = null;
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'property', 'previewHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'previewHtml']));
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -198,7 +198,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.applyLineSelections();
@@ -207,7 +207,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'))).subscribe(() => {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe(() => {
       this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
         this.accountingOffices = accountingOffices || [];
         this.applyLineSelections();
@@ -216,7 +216,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'))).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: rows => {
         this.contacts = rows || [];
         this.applyLineSelections();

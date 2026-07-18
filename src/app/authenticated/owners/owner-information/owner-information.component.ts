@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -25,6 +25,7 @@ import { OwnerAuthorization } from '../models/owner-authorization.model';
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() token = '';
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
@@ -59,6 +60,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.isPageReady = this.itemsToLoad$.value.size === 0;
+      this.cdr.markForCheck();
     });
     this.resetOwnerInformationState();
     this.loadOwnerForm();

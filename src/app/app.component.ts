@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
@@ -29,6 +29,7 @@ import { UtilityService } from './services/utility.service';
 })
 
 export class AppComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
   private brandingService = inject(BrandingService);
   private commonService = inject(CommonService);
@@ -52,7 +53,7 @@ export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes', 'chartOfAccounts', 'propertyCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding']));
   isPageReady = false;
   destroy$ = new Subject<void>();
   private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
@@ -64,6 +65,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.debugLayoutBandsService.setEnabled(false);
 
@@ -142,7 +144,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {},
       error: () => {}
     });
@@ -155,9 +157,6 @@ export class AppComponent implements OnInit, OnDestroy {
       this.organizationFeatureService.clearFeatures();
       this.accountingOfficeService.clearAccountingOffices();
       this.globalSelectionService.clearGlobalOfficeSelection();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'features');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       return;
     }
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(
@@ -173,12 +172,8 @@ export class AppComponent implements OnInit, OnDestroy {
             return features || [];
           })
         );
-      }),
-      finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'features');
-    })).subscribe({
+      })
+    ).subscribe({
       next: (features) => {
         const onLoginRoute = this.normalizePath(this.router.url) === '/login';
         if (!onLoginRoute && !this.verifyMainProgramAccess(features)) {
@@ -193,13 +188,9 @@ export class AppComponent implements OnInit, OnDestroy {
   loadPropertyCodes(): void {
     if (!this.organizationId) {
       this.propertyService.clearPropertyCodes();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes');
       return;
     }
-    this.propertyService.loadPropertyCodes().pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes'))
-    ).subscribe({ error: () => {} });
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({ error: () => {} });
   }
 
   verifyMainProgramAccess(features?: FeatureResponse[]): boolean {
@@ -215,17 +206,9 @@ export class AppComponent implements OnInit, OnDestroy {
     forkJoin({
       costCodes: this.costCodesService.ensureCostCodesLoaded().pipe(take(1)),
       chartOfAccounts: this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))
-    }).pipe(
-      take(1),
-      finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
-      })
-    ).subscribe({
+    }).pipe(take(1)).subscribe({
       next: () => {},
       error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
       }
     });
   }

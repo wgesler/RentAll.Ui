@@ -138,7 +138,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   proportiesInProgressMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
   otherPropertiesMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices','activeReservations','propertyMaintenanceList','cleaners','carpetUsers','inspectors']));
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['activeReservations', 'propertyMaintenanceList', 'cleaners', 'carpetUsers', 'inspectors']));
   isPageReady = false;
 
 markViewForCheck(): void {
@@ -167,6 +167,7 @@ markViewForCheck(): void {
   override ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
     this.userId = this.authService.getUser()?.userId || '';
     this.setTodayDate();

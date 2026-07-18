@@ -99,7 +99,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region AR-Aging-Report
@@ -156,7 +156,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
 
   loadOffices(): void {
     if (!this.organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.loadInvoices();
       return;
     }
@@ -166,13 +165,11 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
             this.loadInvoices();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
             this.loadInvoices();
             this.markViewForCheck();
           }
@@ -180,7 +177,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       },
       error: () => {
         this.offices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.loadInvoices();
         this.markViewForCheck();
       }
@@ -193,13 +189,11 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         this.costCodesService.getAllCostCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
           next: costCodes => {
             this.allCostCodes = costCodes || [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
             this.applyReportDisplay();
             this.markViewForCheck();
           },
           error: () => {
             this.allCostCodes = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
             this.applyReportDisplay();
             this.markViewForCheck();
           }
@@ -207,7 +201,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       },
       error: () => {
         this.allCostCodes = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
         this.applyReportDisplay();
         this.markViewForCheck();
       }

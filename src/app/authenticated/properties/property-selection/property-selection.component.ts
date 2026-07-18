@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,6 +33,7 @@ import { PropertyService } from '../services/property.service';
     styleUrl: './property-selection.component.scss'
 })
 export class PropertySelectionComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private propertyService = inject(PropertyService);
@@ -76,6 +77,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.buildForm();

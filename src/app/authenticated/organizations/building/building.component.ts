@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -26,6 +26,7 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
@@ -53,7 +54,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   trashDays: { value: number, label: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['building', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['building']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -61,6 +62,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeTrashDays();
@@ -192,7 +194,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

@@ -59,7 +59,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region Office-List
@@ -81,7 +81,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     const load$ = forceRefresh
       ? this.accountingOfficeService.refreshAccountingOffices()
       : this.accountingOfficeService.ensureAccountingOfficesLoaded();
-    load$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+    load$.pipe(take(1)).subscribe({
       next: (response: AccountingOfficeResponse[]) => {
         this.allAccountingOffices = this.mappingService.mapAccountingOffices(response, this.offices);
         this.applyFilters();
@@ -98,7 +98,6 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     this.accountingOfficeService.deleteAccountingOffice(office.officeId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Accounting Office deleted successfully', CommonMessage.Success);
-        this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
         this.getAccountingOffices(true);
       },
       error: (_err: HttpErrorResponse) => {}
@@ -122,13 +121,12 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         if (!this.offices.length) {
           this.allAccountingOffices = [];
           this.accountingOfficesDisplay = [];
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
           this.markViewForCheck();
           return;
         }

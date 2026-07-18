@@ -92,7 +92,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCodes', 'chartOfAccounts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region CostCodes-List
@@ -368,7 +368,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe(() => {
       this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
         this.cachedCostCodes = costCodes || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
         this.filterCostCodes();
         this.markViewForCheck();
       });
@@ -379,7 +378,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.allChartOfAccounts = accounts || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
         this.applyFilters();
         this.markViewForCheck();
       });

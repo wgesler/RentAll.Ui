@@ -65,7 +65,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   alertsById = new Map<string, AlertResponse>();
   isPageReady = false;
   isServiceError = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts', 'contacts', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts', 'reservations']));
   showInactive = false;
 
   offices: OfficeResponse[] = [];
@@ -208,7 +208,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       this.markViewForCheck();
     })).subscribe({
       next: () => {

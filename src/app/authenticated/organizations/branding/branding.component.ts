@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
@@ -22,6 +22,7 @@ import { OrganizationService } from '../services/organization.service';
   styleUrl: './branding.component.scss'
 })
 export class BrandingComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() organizationId: string | null = null;
   private fb = inject(FormBuilder);
@@ -62,6 +63,7 @@ export class BrandingComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.buildForm();
     this.loadBranding();

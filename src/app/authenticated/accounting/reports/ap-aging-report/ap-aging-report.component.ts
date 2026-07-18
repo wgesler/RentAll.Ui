@@ -143,7 +143,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'propertyCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region AP-Aging-Report
@@ -207,7 +207,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
   loadOffices(): void {
     if (!this.organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.loadReportSourceData();
       return;
     }
@@ -217,13 +216,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
             this.loadReportSourceData();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
             this.loadReportSourceData();
             this.markViewForCheck();
           }
@@ -231,7 +228,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       },
       error: () => {
         this.offices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.loadReportSourceData();
         this.markViewForCheck();
       }
@@ -244,13 +240,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         this.propertyCodeByPropertyId = new Map(
           this.propertyService.getAllPropertyCodesValue().map(property => [property.propertyId, property.propertyCode])
         );
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes');
         this.applyReportDisplay();
         this.markViewForCheck();
       },
       error: () => {
         this.propertyCodeByPropertyId.clear();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyCodes');
         this.applyReportDisplay();
         this.markViewForCheck();
       }

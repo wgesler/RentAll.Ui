@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -41,6 +41,7 @@ export interface UserDialogData {
 })
 
 export class UserComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() id: string = 'new';
   @Output() closed = new EventEmitter<{ saved?: boolean; userId?: string }>();
@@ -115,6 +116,7 @@ export class UserComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isPrivilegedOfficeEditor = this.authService.isAdmin();

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -34,6 +34,7 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
 })
 
 export class BillingComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   accountingService = inject(InvoiceService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -80,6 +81,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.isPaymentMode = false;
     this.loadCostCodes();

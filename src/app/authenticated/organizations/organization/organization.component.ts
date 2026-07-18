@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -31,6 +31,7 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   organizationService = inject(OrganizationService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -70,6 +71,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
     this.loadStates();

@@ -125,7 +125,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['properties', 'officeScope']));
 
   //#region Property-List
   ngOnInit(): void {
@@ -521,7 +521,6 @@ showPropertyCalendarUrlDialog(
   //#region Office Methods
   loadOffices(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {

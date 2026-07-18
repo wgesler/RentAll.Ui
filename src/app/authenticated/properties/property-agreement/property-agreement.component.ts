@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -34,6 +34,7 @@ import { NewContactDialogService } from '../../shared/contacts/new-contact-dialo
   styleUrl: './property-agreement.component.scss'
 })
 export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input({ required: true }) propertyId!: string;
   @Input({ required: true }) isAddMode!: boolean;
@@ -114,7 +115,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @ViewChild('agreementDocFileInput') agreementDocFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'propertyAgreement']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['propertyAgreement']));
   destroy$ = new Subject<void>();
 
   //#region Property Agreement
@@ -122,11 +123,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.isPageReady = this.itemsToLoad$.value.size === 0;
+      this.cdr.markForCheck();
     });
 
     this.buildAgreementForm();
     if (!this.canManageAgreement || !this.propertyId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       return;
     }
@@ -447,8 +448,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1),
-      finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
       });

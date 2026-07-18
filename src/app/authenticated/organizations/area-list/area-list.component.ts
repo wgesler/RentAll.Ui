@@ -56,7 +56,7 @@ export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'areas', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['areas', 'officeScope']));
   destroy$ = new Subject<void>();
 
   //#region Area-List
@@ -114,7 +114,7 @@ export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.resolveOfficeScope(this.officeId);

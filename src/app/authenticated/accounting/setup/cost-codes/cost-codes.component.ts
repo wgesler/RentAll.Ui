@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -26,6 +26,7 @@ import { CostCodesService } from '../../services/cost-codes.service';
 })
 
 export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() id: string | number | null = null; // Input to accept id from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
@@ -61,7 +62,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
    
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCode', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCode']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -69,6 +70,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
@@ -305,7 +307,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

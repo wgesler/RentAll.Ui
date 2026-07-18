@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -21,6 +21,7 @@ import { DocumentService } from '../services/document.service';
     styleUrls: ['./document-view.component.scss']
 })
 export class DocumentViewComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private documentService = inject(DocumentService);
@@ -58,6 +59,7 @@ iframeLoadHandler?: () => void;
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     const queryParams = this.route.snapshot.queryParams;
     this.returnTo = queryParams['returnTo'];

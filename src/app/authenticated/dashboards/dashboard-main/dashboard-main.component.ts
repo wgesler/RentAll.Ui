@@ -87,7 +87,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   directOfflinePropertyRows: DashboardPropertyTurnoverRow[] = [];
 
   expandedSections = { monthlyCommissions: true, properties: true, propertyTurnover: true, vacantProperties: true };
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList', 'trackerConfiguration']));
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'activeReservations', 'propertyMaintenanceList', 'trackerConfiguration']));
   isPageReady = false;
   trackerContextType = TrackerContextType;
   
@@ -163,6 +163,7 @@ markViewForCheck(): void {
   override ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
     this.setTodayDate();
     this.isAdmin = this.authService.isAdmin();

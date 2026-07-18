@@ -100,7 +100,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region Contact-List
@@ -435,7 +435,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
           this.syncContactsFromCache(contacts || []);

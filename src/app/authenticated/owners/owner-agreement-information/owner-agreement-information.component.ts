@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -21,6 +21,7 @@ type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
   styleUrl: './owner-agreement-information.component.scss'
 })
 export class OwnerAgreementInformationComponent implements OnInit, OnChanges, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
@@ -42,6 +43,7 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
 
     this.getAgreementInformation(true);

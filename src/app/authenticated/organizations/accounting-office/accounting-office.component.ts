@@ -147,7 +147,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -155,6 +155,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadStates();
@@ -169,11 +170,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
 
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (!this.id) {
-        return;
-      }
-
+    if (this.id) {
       this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
@@ -194,7 +191,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       }
 
       this.getAccountingOffice(officeIdNum);
-    });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -203,27 +200,26 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
-      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-        if (newId && newId !== 'new') {
-          const officeIdNum = this.parseOfficeId(newId);
-          if (officeIdNum == null) {
-            this.isServiceError = true;
-            return;
-          }
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'office');
-          this.getAccountingOffice(officeIdNum);
-        } else if (newId === 'new') {
-          this.isAddMode = true;
+      if (newId && newId !== 'new') {
+        const officeIdNum = this.parseOfficeId(newId);
+        if (officeIdNum == null) {
+          this.isServiceError = true;
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-          this.resetBankCards();
-          this.buildForm();
-          this.setupOfficeSelectionHandler();
-          this.scheduleFocusFirstField();
-          if (this.copyFrom) {
-            setTimeout(() => this.populateFormFromCopy(), 0);
-          }
+          return;
         }
-      });
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'office');
+        this.getAccountingOffice(officeIdNum);
+      } else if (newId === 'new') {
+        this.isAddMode = true;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+        this.resetBankCards();
+        this.buildForm();
+        this.setupOfficeSelectionHandler();
+        this.scheduleFocusFirstField();
+        if (this.copyFrom) {
+          setTimeout(() => this.populateFormFromCopy(), 0);
+        }
+      }
     }
   }
 
@@ -275,6 +271,7 @@ parseOfficeId(id: string | number | null): number | null {
       error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -394,7 +391,7 @@ parseOfficeId(id: string | number | null): number | null {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
