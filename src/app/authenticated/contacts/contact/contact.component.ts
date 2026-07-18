@@ -636,6 +636,12 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
 
+    this.form.get('ownerTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.form?.getRawValue().entityTypeId === EntityType.Owner) {
+        this.applyOwnerNameCompanyValidators();
+      }
+    });
+
     this.applyEntityTypeContactValidators(this.form.getRawValue().entityTypeId);
 
     this.form.get('officeAccess')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -774,6 +780,19 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       stateControl?.clearValidators();
       zipControl?.clearValidators();
       vendorTypeIdControl?.clearValidators();
+    } else if (entityTypeId === EntityType.Owner) {
+      companyEmailControl?.setValidators([Validators.email]);
+      displayNameControl?.clearValidators();
+      firstNameControl?.setValidators([Validators.required]);
+      lastNameControl?.setValidators([Validators.required]);
+      phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      emailControl?.setValidators([Validators.required, Validators.email]);
+      address1Control?.clearValidators();
+      cityControl?.clearValidators();
+      stateControl?.clearValidators();
+      zipControl?.clearValidators();
+      vendorTypeIdControl?.clearValidators();
+      this.applyOwnerNameCompanyValidators();
     } else {
       companyNameControl?.clearValidators();
       companyEmailControl?.setValidators([Validators.email]);
@@ -841,6 +860,29 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   vendorCompanyNameRequired(): boolean {
     const raw = this.form?.getRawValue();
     return raw?.entityTypeId === EntityType.Vendor && raw?.vendorTypeId === VendorType.Company;
+  }
+
+  applyOwnerNameCompanyValidators(): void {
+    if (!this.form || this.form.getRawValue().entityTypeId !== EntityType.Owner) {
+      return;
+    }
+    const ownerTypeId = this.form.getRawValue().ownerTypeId;
+    const companyNameControl = this.form.get('companyName');
+    if (ownerTypeId === OwnerType.Company) {
+      companyNameControl?.setValidators([Validators.required]);
+    } else {
+      companyNameControl?.clearValidators();
+    }
+    companyNameControl?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  ownerCompanyNameVisible(): boolean {
+    const raw = this.form?.getRawValue();
+    return raw?.entityTypeId === EntityType.Owner && raw?.ownerTypeId === OwnerType.Company;
+  }
+
+  ownerCompanyNameRequired(): boolean {
+    return this.ownerCompanyNameVisible();
   }
   //#endregion
 

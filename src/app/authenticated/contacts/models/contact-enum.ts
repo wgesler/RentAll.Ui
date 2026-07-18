@@ -50,9 +50,7 @@ export function getContactTypes(): { value: number, label: string }[] {
 //#region OwnerType
 export enum OwnerType {
   Individual = 0,
-  Trust = 1,
-  Business = 2,
-  Corporation = 3
+  Company = 1
 }
 
 export function getOwnerType(ownerTypeId: number | undefined): string {
@@ -60,9 +58,7 @@ export function getOwnerType(ownerTypeId: number | undefined): string {
 
   const typeMap: { [key: number]: string } = {
     [OwnerType.Individual]: 'Individual',
-    [OwnerType.Trust]: 'Trust',
-    [OwnerType.Business]: 'Business',
-    [OwnerType.Corporation]: 'Corporation'
+    [OwnerType.Company]: 'Company'
   };
 
   return typeMap[ownerTypeId] || '';
