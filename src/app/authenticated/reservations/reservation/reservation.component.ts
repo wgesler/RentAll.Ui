@@ -555,7 +555,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       next: () => {
         this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
           this.contacts = contacts || [];
-          this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+          this.updateContactsByReservationType();
           if (this.additionalContactRows.length > 0) {
             this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
           }
@@ -701,6 +701,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           }
         }
         this.syncOfficeIdToForm();
+        this.updateContactsByReservationType();
         if (this.shellMode && this.isAddMode) {
           this.addModeScopeResolved.emit({
             officeId: property.officeId ?? null,
@@ -999,6 +1000,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.syncOfficeIdToForm();
+    this.updateContactsByReservationType();
   }
 
   applyCopyFromReservation(source: ReservationResponse): void {
@@ -1619,20 +1621,36 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const reservationTypeId = this.form.get('reservationTypeId')?.value as number;
     const contactId = this.form.get('contactId')?.value || this.getPrimaryReservationContactId(this.reservation);
 
+    // Filter our contact drop down list by type and office
+    let contactsFilteredByType: ContactResponse[];
     if (reservationTypeId === ReservationType.Individual) 
-      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
+      contactsFilteredByType = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
     else if (reservationTypeId === ReservationType.Corporate) 
-      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+      contactsFilteredByType = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
     else if (reservationTypeId === ReservationType.Owner) 
-      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Owner);
+      contactsFilteredByType = this.contacts.filter(c => c.entityTypeId === EntityType.Owner);
     else if (reservationTypeId === ReservationType.Platform)
-      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
+      contactsFilteredByType = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
     else
-      this.filteredContacts = this.contacts;
+      contactsFilteredByType = this.contacts;
+    this.filteredContacts = this.filterContactsByReservationOffice(contactsFilteredByType);
+
+    // Filter our company contacts for platform or corporate types
+    const companyContactsFilteredByType = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+    this.companyContacts = this.filterContactsByReservationOffice(companyContactsFilteredByType);
     
     if (contactId)  {
       this.updateContactFields();
     }
+  }
+
+  getReservationOfficeIdForContactFilter(): number | null {
+    return this.selectedOffice?.officeId ?? this.selectedProperty?.officeId ?? null;
+  }
+
+  filterContactsByReservationOffice(contacts: ContactResponse[]): ContactResponse[] {
+    const officeId = this.getReservationOfficeIdForContactFilter();
+    return contacts.filter(contact => this.utilityService.contactHasOfficeAccess(contact, officeId));
   }
 
   mapContactsToSortedSelectOptions(contacts: ContactResponse[]): SearchableSelectOption[] {
@@ -1988,11 +2006,20 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         return;
       }
 
+      const currentReservationTypeId = this.form.get('reservationTypeId')?.value as number | null;
       let targetReservationTypeId: number | null = null;
       if (result.entityTypeId === EntityType.Tenant) {
-        targetReservationTypeId = ReservationType.Individual;
+        if (currentReservationTypeId === ReservationType.Platform) {
+          targetReservationTypeId = null;
+        } else if (currentReservationTypeId !== ReservationType.Individual) {
+          targetReservationTypeId = ReservationType.Individual;
+        }
       } else if (result.entityTypeId === EntityType.Company) {
-        targetReservationTypeId = ReservationType.Corporate;
+        if (currentReservationTypeId === ReservationType.Platform) {
+          targetReservationTypeId = null;
+        } else if (currentReservationTypeId !== ReservationType.Corporate) {
+          targetReservationTypeId = ReservationType.Corporate;
+        }
       }
 
       if (targetReservationTypeId !== null) {
