@@ -6,7 +6,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, EMPTY, Subject, filter, finalize, firstValueFrom, map, skip, switchMap, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, firstValueFrom, map, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -291,6 +291,26 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
 
+    const officeIds = this.resolveOfficeIdsForInvoiceCheck();
+    this.invoiceService.getInvoicesByReservationId(reservation.reservationId, officeIds).pipe(take(1)).subscribe({
+      next: invoices => {
+        if ((invoices?.length ?? 0) > 0) {
+          this.toastr.error(
+            'This reservation has invoices billed to it. It may not be deleted.',
+            CommonMessage.Error
+          );
+          return;
+        }
+
+        this.openDeleteReservationConfirmDialog(reservation);
+      },
+      error: () => {
+        this.toastr.error('Unable to verify invoices for this reservation.', CommonMessage.Error);
+      }
+    });
+  }
+
+  openDeleteReservationConfirmDialog(reservation: ReservationListDisplay): void {
     const dialogData: GenericModalData = {
       title: 'Delete Reservation',
       message: 'Are you sure you want to delete this reservation?',
@@ -317,32 +337,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-executeReservationDelete(reservation: ReservationListDisplay): void {
-    const officeIds = this.resolveOfficeIdsForInvoiceCheck();
-    this.invoiceService.searchInvoices({
-      officeIds,
-      reservationId: reservation.reservationId,
-      includeInactive: true,
-      includePaid: true
-    }).pipe(
+  executeReservationDelete(reservation: ReservationListDisplay): void {
+    const deletedReservation = { ...reservation, isDeleted: true };
+    this.reservationService.deleteReservation(reservation.reservationId).pipe(
       take(1),
-      switchMap(invoices => {
-        if (invoices.some(invoice => Math.abs(Number(invoice.paidAmount || 0)) > 0)) {
-          this.toastr.error(
-            'This reservation has paid invoices applied to it. It may not be deleted.',
-            CommonMessage.Error
-          );
-          return EMPTY;
-        }
-
-        const deletedReservation = { ...reservation, isDeleted: true };
-        return this.reservationService.deleteReservation(reservation.reservationId).pipe(
-          map(() => deletedReservation)
-        );
-      })
+      map(() => deletedReservation)
     ).subscribe({
-      next: (deletedReservation) => {
-        this.sendReservationDeletedNotification(deletedReservation);
+      next: (deletedReservationResult) => {
+        this.sendReservationDeletedNotification(deletedReservationResult);
         this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
         this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
         this.applyFilters();

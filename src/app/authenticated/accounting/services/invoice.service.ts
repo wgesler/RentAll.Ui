@@ -162,6 +162,15 @@ firstDayOfMonthFromCalendarDate(calendarDate: string): string {
     );
   }
 
+  getInvoicesByReservationId(reservationId: string, officeIds: number[]): Observable<InvoiceResponse[]> {
+    return this.searchInvoices({
+      officeIds,
+      reservationId,
+      includeInactive: true,
+      includePaid: true
+    });
+  }
+
   deactivateInvoicesByReservationId(reservationId: string): Observable<{ deactivatedCount: number }> {
     return this.http.put<{ deactivatedCount: number }>(
       this.controller + 'invoice/reservation/' + reservationId + '/deactivate',

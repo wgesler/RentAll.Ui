@@ -516,6 +516,31 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
 
+    const officeId = Number(this.reservation?.officeId ?? this.form.get('officeId')?.value ?? 0);
+    if (officeId <= 0) {
+      this.toastr.error('Unable to verify invoices for this reservation.', CommonMessage.Error);
+      return;
+    }
+
+    this.invoiceService.getInvoicesByReservationId(this.reservationId, [officeId]).pipe(take(1)).subscribe({
+      next: invoices => {
+        if ((invoices?.length ?? 0) > 0) {
+          this.toastr.error(
+            'This reservation has invoices billed to it. It may not be deleted.',
+            CommonMessage.Error
+          );
+          return;
+        }
+
+        this.openDeleteReservationConfirmDialog();
+      },
+      error: () => {
+        this.toastr.error('Unable to verify invoices for this reservation.', CommonMessage.Error);
+      }
+    });
+  }
+
+  openDeleteReservationConfirmDialog(): void {
     const dialogData: GenericModalData = {
       title: 'Delete Reservation',
       message: 'Are you sure you want to delete this reservation?',
