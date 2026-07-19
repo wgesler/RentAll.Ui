@@ -1041,12 +1041,17 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
   }
 
-  navigateToReservation(reservationId: string): void {
+  navigateToReservation(reservationId: string, propertyId?: string | null): void {
     if (this.readOnly) {
       return;
     }
+    const queryParams: Record<string, string> = { returnTo: 'reservation-board' };
+    const normalizedPropertyId = String(propertyId ?? '').trim();
+    if (normalizedPropertyId) {
+      queryParams['propertyId'] = normalizedPropertyId;
+    }
     this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])], {
-      queryParams: { returnTo: 'reservation-board' }
+      queryParams
     });
   }
 
@@ -1108,7 +1113,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (this.isExternalCalendarReservation(reservationId)) {
       return;
     }
-    this.navigateToReservation(reservationId);
+    this.navigateToReservation(reservationId, propertyId);
   }
 
   onEmptyCellClick(propertyId: string, date: Date, event?: MouseEvent): void {

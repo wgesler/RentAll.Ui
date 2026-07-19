@@ -445,15 +445,15 @@ clearOfficeTitleBarErrorIfValid(): void {
   }
 
   getOwnerTabIndex(): number {
-    return this.isAdmin ? 1 : 0;
+    return this.isOwnerAdmin ? 1 : -1;
   }
 
   getGeneralTabIndex(): number {
-    return this.isAdmin ? 2 : 1;
+    return this.isOwnerAdmin ? 2 : 1;
   }
 
   getReportsTabIndex(): number {
-    return this.isAdmin ? 3 : 2;
+    return this.isOwnerAdmin ? 3 : 2;
   }
 
   normalizeTabIndex(index: number): number {

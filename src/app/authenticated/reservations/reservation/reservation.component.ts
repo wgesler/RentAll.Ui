@@ -165,7 +165,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'agents']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -619,7 +619,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
+    this.agentService.getAgents().pipe(take(1)).subscribe({
       next: (agents: AgentResponse[]) => {
         this.agents = agents;
       },

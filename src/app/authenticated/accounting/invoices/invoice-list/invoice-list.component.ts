@@ -483,6 +483,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && this.organizationId) {
       params.push(`organizationId=${this.organizationId}`);
     }
+    if (event?.propertyId) {
+      params.push(`propertyId=${event.propertyId}`);
+    }
 
     const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
     this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`);

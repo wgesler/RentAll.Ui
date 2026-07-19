@@ -386,6 +386,10 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       queryParams['officeId'] = this.selectedOffice.officeId;
     }
 
+    if (event.propertyId) {
+      queryParams['propertyId'] = event.propertyId;
+    }
+
     this.router.navigate(['/' + url], { queryParams });
   }
 
@@ -404,6 +408,10 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
 
     if (this.selectedOffice) {
       queryParams['officeId'] = this.selectedOffice.officeId;
+    }
+
+    if (event.propertyId) {
+      queryParams['propertyId'] = event.propertyId;
     }
 
     this.router.navigate(['/' + url], { queryParams });

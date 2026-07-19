@@ -690,16 +690,16 @@ applyPageOfficeChangeEffects(): void {
 
     this.isHandlingTabGuard = true;
     const previousTabIndex = this.selectedTabIndex;
-    this.selectedTabIndex = nextTabIndex;
     try {
       const canLeave = await this.confirmChecklistNavigation({
         previousIndex: previousTabIndex,
         nextIndex: nextTabIndex
       });
       if (!canLeave) {
-        this.selectedTabIndex = previousTabIndex;
         return;
       }
+
+      this.selectedTabIndex = nextTabIndex;
       if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
         this.titleBarReservationId = null;
       }
@@ -999,9 +999,7 @@ applyPageOfficeChangeEffects(): void {
   /**
    * @param tabChange When set (mat-tab switch): prompt only when leaving Inspection (index 0) if that
    * checklist has unsaved changes, or when leaving Maintenance (index 1) if the maintenance form has
-   * unsaved changes (maintenance-only edits do not require leaving Inspection). Other tabs stay mounted, so
-   * inspection `dirty` must not block moves between read-only tabs. Omit for property change, Back,
-   * and route deactivate — then both sections are checked.
+   * unsaved changes. Inactive tabs are unmounted via shell tab guards.
    */
   async confirmChecklistNavigation(tabChange?: { previousIndex: number; nextIndex: number }): Promise<boolean> {
     const hasInspectionChanges = this.inspectionHasUnsavedChanges;

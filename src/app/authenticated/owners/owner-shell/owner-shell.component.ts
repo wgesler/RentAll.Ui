@@ -209,7 +209,31 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return tabIndex >= 1;
   }
 
-  /** Mirrors reservation Lease tab: mount once office + property context exist; stays alive when switching tabs. */
+  get ownerInformationTabIndex(): number {
+    return 0;
+  }
+
+  get propertyInformationTabIndex(): number {
+    return 1;
+  }
+
+  get agreementInformationTabIndex(): number {
+    return this.canAccessInformationTab ? 2 : -1;
+  }
+
+  get agreementTabIndex(): number {
+    return 2 + (this.canAccessInformationTab ? 1 : 0);
+  }
+
+  get depositTabIndex(): number {
+    return this.agreementTabIndex + 1;
+  }
+
+  getStateFormTabIndex(stateFormIndex: number): number {
+    return this.depositTabIndex + 1 + stateFormIndex;
+  }
+
+  /** Mirrors reservation Lease tab: mount once office + property context exist. */
   canMountOwnerAgreementTab(): boolean {
     if (this.selectedOfficeId == null) {
       return false;

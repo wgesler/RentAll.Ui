@@ -64,6 +64,7 @@
         } @else {
           <mat-tab-group class="shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)">
             <mat-tab label="Owners">
+              @if (selectedTabIndex === ownerInformationTabIndex) {
               <app-owner-information
                 [token]="token"
                 [ownerAuthorization]="ownerAuthorization"
@@ -74,9 +75,11 @@
                 (ownerContextChanged)="onOwnerAgreementContextRefresh()"
                 (ownerLeadCreated)="onOwnerLeadCreated($event)">
               </app-owner-information>
+              }
             </mat-tab>
 
             <mat-tab label="Properties">
+              @if (selectedTabIndex === propertyInformationTabIndex) {
               <app-property-information
                 [token]="token"
                 [ownerAuthorization]="ownerAuthorization"
@@ -93,19 +96,22 @@
                 (titleBarPropertyCodeInvalid)="onTitleBarPropertyCodeInvalid()"
                 (propertyContextChanged)="onOwnerAgreementContextRefresh()">
               </app-property-information>
+              }
             </mat-tab>
 
             @if (canAccessInformationTab) {
               <mat-tab label="Information">
+                @if (selectedTabIndex === agreementInformationTabIndex) {
                 <app-owner-agreement-information
                   [officeId]="selectedOfficeId"
                   [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
                 </app-owner-agreement-information>
+                }
               </mat-tab>
             }
             <mat-tab label="Agreement">
-              @if (canMountOwnerAgreementTab()) {
-                <app-owner-agreement-form
+              @if (selectedTabIndex === agreementTabIndex && canMountOwnerAgreementTab()) {
+              <app-owner-agreement-form
                   [token]="token"
                   [ownerAuthorization]="ownerAuthorization"
                   [ownerLeadId]="leadOwnerId"
@@ -117,6 +123,7 @@
               }
             </mat-tab>
             <mat-tab label="Deposit">
+              @if (selectedTabIndex === depositTabIndex && canMountOwnerAgreementTab()) {
               <app-owner-agreement-form
                 [token]="token"
                 [ownerAuthorization]="ownerAuthorization"
@@ -130,9 +137,11 @@
                 [documentFileSuffix]="'Deposit'"
                 [sharedContext$]="ownerAgreementContext$">
               </app-owner-agreement-form>
+              }
             </mat-tab>
-            @for (stateForm of stateForms; track stateForm.stateFormId) {
+            @for (stateForm of stateForms; track stateForm.stateFormId; let stateFormIndex = $index) {
               <mat-tab [label]="stateForm.formName">
+                @if (selectedTabIndex === getStateFormTabIndex(stateFormIndex)) {
                 @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
                   <app-shared-form-create
                     [token]="token"
@@ -163,6 +172,7 @@
                     [sharedContext$]="ownerAgreementContext$"
                     (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
                   </app-shared-form-editor>
+                }
                 }
               </mat-tab>
             }

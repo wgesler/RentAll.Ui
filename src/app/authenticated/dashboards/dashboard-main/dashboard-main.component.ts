@@ -941,7 +941,11 @@ markViewForCheck(): void {
       return;
     }
     const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
-    this.router.navigateByUrl(url);
+    const queryParams: Record<string, string> = {};
+    if (event.propertyId) {
+      queryParams['propertyId'] = event.propertyId;
+    }
+    this.router.navigate(['/' + url], { queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined });
   }
 
   goToContact(event: ReservationListDisplay): void {

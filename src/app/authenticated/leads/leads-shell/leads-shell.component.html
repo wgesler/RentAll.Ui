@@ -64,6 +64,7 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Rental">
+          @if (selectedTabIndex === 0) {
           @if (showRentalLeadForm) {
             <app-rental
               [shellLeadId]="rentalShellLeadId"
@@ -78,9 +79,11 @@
               (requestEditRental)="onEditRentalLead($event)"
               />
           }
+          }
         </mat-tab>
         @if (isOwnerAdmin) {
           <mat-tab label="Owner">
+            @if (selectedTabIndex === getOwnerTabIndex()) {
             @if (showOwnerLeadForm) {
               <app-owner
                 [shellLeadId]="ownerShellLeadId"
@@ -96,9 +99,11 @@
                 (requestEditOwner)="onEditOwnerLead($event)"
                 />
             }
+            }
           </mat-tab>
         }
         <mat-tab label="General">
+          @if (selectedTabIndex === getGeneralTabIndex()) {
           @if (showGeneralLeadForm) {
             <app-general
               [shellLeadId]="generalShellLeadId"
@@ -113,14 +118,17 @@
               (requestEditGeneral)="onEditGeneralLead($event)"
               />
           }
+          }
         </mat-tab>
         <mat-tab label="Reports">
+          @if (selectedTabIndex === getReportsTabIndex()) {
           <app-leads-reports
             [officeId]="selectedOfficeId"
             [startDate]="reportsStartDate"
             [endDate]="reportsEndDate"
             [offices]="offices">
           </app-leads-reports>
+          }
         </mat-tab>
       </mat-tab-group>
     </mat-card>

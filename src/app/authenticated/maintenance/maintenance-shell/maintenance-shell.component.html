@@ -135,7 +135,7 @@
       <mat-card>
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
           <mat-tab label="Inspection">
-            @if (property) {
+            @if (selectedTabIndex === 0 && property) {
               <app-inspection
                 [property]="property"
                 [checklistType]="'inspection'"
@@ -152,14 +152,17 @@
             }
           </mat-tab>
           <mat-tab label="Maintenance">
+            @if (selectedTabIndex === 1) {
             <app-maintenance
               [property]="property"
               [saveRequestToken]="maintenanceSaveRequestToken"
               [discardRequestToken]="maintenanceDiscardRequestToken"
               (unsavedChangesChange)="onMaintenanceUnsavedChangesChange($event)"
               (saveRequestCompleted)="onMaintenanceSaveRequestCompleted($event)" />
+            }
           </mat-tab>
           <mat-tab label="Receipts">
+            @if (selectedTabIndex === receiptsTabIndex) {
             @if (showReceiptDetail) {
               @for (instance of [receiptDetailInstance]; track instance) {
                 <app-receipt
@@ -183,9 +186,11 @@
                 (receiptSelect)="onReceiptSelect($event)"
                 (workOrderSelect)="onWorkOrderSelect($event)" />
             }
+            }
           </mat-tab>
           @if (showWorkOrdersTab) {
             <mat-tab label="Work Orders">
+              @if (selectedTabIndex === workOrdersTabIndex) {
               @if (showWorkOrderCreate && workOrderCreateContext) {
                 @for (instance of [workOrderCreateInstance]; track instance) {
                   <app-work-order-create
@@ -224,9 +229,11 @@
                   (workOrderSelect)="onWorkOrderSelect($event)"
                   (previewEvent)="onWorkOrderPreviewOpen($event)" />
               }
+              }
             </mat-tab>
           }
           <mat-tab label="Documents">
+            @if (selectedTabIndex === documentsTabIndex) {
             <app-document-list
               [documentTypeIds]="[DocumentType.Inspection, DocumentType.WorkOrder]"
               [documentRequest]="documentRequest"
@@ -238,6 +245,7 @@
               source="maintenance"
               [hideHeader]="true"
               [hideFilters]="true" />
+            }
           </mat-tab>
         </mat-tab-group>
       </mat-card>

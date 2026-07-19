@@ -83,6 +83,7 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   invoiceCreateReturnToEditor = false;
   activeOfficeId: number | null = null;
   activePropertyId: string | null = null;
+  private reservationsLoadedPropertyId: string | null = null;
 
   destroy$ = new Subject<void>();
 
@@ -118,6 +119,8 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       this.isAddMode = id === 'new';
       this.routeReservationId = this.isAddMode ? null : id;
       this.selectedHeaderReservationId = this.routeReservationId;
+      this.reservationsLoadedPropertyId = null;
+      this.applyPropertyIdFromRouteQuery();
       this.loadOffices();
     });
 
@@ -287,14 +290,59 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     this.routeReservationId = context.reservationId;
     this.selectedHeaderReservationId = context.reservationId;
 
+    const propertyId = context.propertyId?.trim() || null;
     if (context.officeId != null) {
-      this.applyReservationScope(context.officeId, context.propertyId, context.reservationId);
-    } else if (context.propertyId) {
-      this.selectedPropertyIdSeed = context.propertyId;
-      this.activePropertyId = context.propertyId;
+      this.applyReservationScope(context.officeId, propertyId, context.reservationId);
+    } else if (propertyId) {
+      this.selectedPropertyIdSeed = propertyId;
+      this.activePropertyId = propertyId;
+    }
+
+    if (propertyId && this.reservationsLoadedPropertyId === propertyId && this.reservationList.length > 0) {
+      this.syncHeaderFromReservationList();
+      this.refreshHeaderReservationOptions();
+      return;
     }
 
     this.loadReservations();
+  }
+
+  applyPropertyIdFromRouteQuery(): void {
+    if (this.isAddMode) {
+      return;
+    }
+
+    const propertyId = this.route.snapshot.queryParamMap.get('propertyId')?.trim() || null;
+    if (!propertyId) {
+      return;
+    }
+
+    this.selectedPropertyIdSeed = propertyId;
+    this.activePropertyId = propertyId;
+
+    const officeIdRaw = this.route.snapshot.queryParamMap.get('officeId');
+    if (officeIdRaw) {
+      const officeId = Number(officeIdRaw);
+      if (!isNaN(officeId)) {
+        this.selectedOfficeId = officeId;
+      }
+    }
+
+    this.loadReservations();
+  }
+
+  syncHeaderFromReservationList(): void {
+    if (!this.selectedHeaderReservationId) {
+      const currentReservationId = this.routeReservationId
+        ?? this.reservationSection?.sharedReservationId
+        ?? this.reservationSection?.reservation?.reservationId
+        ?? null;
+      if (currentReservationId && this.reservationList.some(r => r.reservationId === currentReservationId)) {
+        this.selectedHeaderReservationId = currentReservationId;
+      }
+    }
+    this.selectedReservationSummary =
+      this.reservationList.find(r => r.reservationId === this.selectedHeaderReservationId) || null;
   }
 
   refreshHeaderReservationOptions(): void {
@@ -586,22 +634,30 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   loadReservationsByPropertyId(propertyId: string): void {
-    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1)).subscribe({
+    const normalizedPropertyId = propertyId.trim();
+    if (!normalizedPropertyId) {
+      return;
+    }
+
+    if (this.reservationsLoadedPropertyId === normalizedPropertyId && this.reservationList.length > 0) {
+      this.syncHeaderFromReservationList();
+      this.refreshHeaderReservationOptions();
+      return;
+    }
+
+    this.reservationService.getReservationsByPropertyId(normalizedPropertyId).pipe(take(1)).subscribe({
       next: reservations => {
+        this.reservationsLoadedPropertyId = normalizedPropertyId;
         this.reservationList = reservations || [];
-        if (!this.selectedHeaderReservationId) {
-          const currentReservationId = this.routeReservationId ?? this.reservationSection?.sharedReservationId ?? this.reservationSection?.reservation?.reservationId ?? null;
-          if (currentReservationId && this.reservationList.some(r => r.reservationId === currentReservationId)) {
-            this.selectedHeaderReservationId = currentReservationId;
-          }
-        }
-        this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === this.selectedHeaderReservationId) || null;
+        this.syncHeaderFromReservationList();
         if (this.selectedReservationSummary) {
           this.applyReservationScope(
             this.selectedReservationSummary.officeId,
             this.selectedReservationSummary.propertyId,
             this.selectedReservationSummary.reservationId
           );
+        } else {
+          this.refreshHeaderReservationOptions();
         }
       },
       error: () => {
