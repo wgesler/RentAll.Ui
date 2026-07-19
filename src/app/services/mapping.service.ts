@@ -4161,6 +4161,24 @@ roundCurrency(value: number): number {
     AccountType.OtherExpense
   ];
 
+  /** Year-end close JEs posted the day after fiscal year-end; excluded from P&L activity. */
+  isRetainedEarningsCloseJournalEntryLine(
+    line: Pick<JournalEntryLineSearchResponse, 'journalEntryMemo' | 'sourceTypeId'>
+  ): boolean {
+    const sourceTypeId = Number(line.sourceTypeId);
+    const memo = line.journalEntryMemo?.trim() ?? '';
+    return sourceTypeId === SourceType.Journal
+      && memo.toLowerCase().startsWith('retained earnings for ');
+  }
+
+  shouldExcludeRetainedEarningsCloseFromProfitLossActivity(
+    line: JournalEntryLineSearchResponse,
+    accountTypeId: number | undefined
+  ): boolean {
+    return this.isRetainedEarningsCloseJournalEntryLine(line)
+      && this.isFinancialReportProfitLossAccountType(accountTypeId);
+  }
+
   buildFinancialReport(request: FinancialReportBuildRequest): FinancialReportResult {
     request = {
       ...request,
@@ -4894,6 +4912,9 @@ roundCurrency(value: number): number {
       if (accountTypeById.get(line.chartOfAccountId) === undefined) {
         continue;
       }
+      if (this.shouldExcludeRetainedEarningsCloseFromProfitLossActivity(line, accountTypeById.get(line.chartOfAccountId))) {
+        continue;
+      }
       if (!this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate)) {
         continue;
       }
@@ -5115,6 +5136,9 @@ roundCurrency(value: number): number {
     for (const line of lines || []) {
       const accountTypeId = accountTypeById.get(line.chartOfAccountId);
       if (accountTypeId === undefined) {
+        continue;
+      }
+      if (this.shouldExcludeRetainedEarningsCloseFromProfitLossActivity(line, accountTypeId)) {
         continue;
       }
       if (!this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate)) {
@@ -6018,6 +6042,10 @@ buildEscrowLastRecapAmountsByProperty(
 
     return (lines || []).filter(line => {
       if (!allowedAccountIds.has(line.chartOfAccountId)) {
+        return false;
+      }
+      const accountTypeId = context.scopedAccounts.find(account => account.accountId === line.chartOfAccountId)?.accountTypeId;
+      if (this.shouldExcludeRetainedEarningsCloseFromProfitLossActivity(line, accountTypeId)) {
         return false;
       }
       if (!this.isFinancialReportDrillDownLineInDateScope(
