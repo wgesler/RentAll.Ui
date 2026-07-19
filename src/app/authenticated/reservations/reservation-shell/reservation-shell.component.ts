@@ -3,6 +3,7 @@ import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild, inject } from '
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, skip, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -141,17 +142,15 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
     this.isHandlingTabGuard = true;
     try {
-      // Accept the emitted index first so we can deterministically revert on "Stay".
-      this.selectedTabIndex = requestedTabIndex;
-
-      if (this.reservationSection) {
+      const leavingReservationTab = previousTabIndex === 0 && requestedTabIndex !== 0;
+      if (leavingReservationTab && this.reservationSection) {
         const canLeave = await this.reservationSection.confirmNavigationWithUnsavedChanges();
         if (!canLeave) {
-          this.selectedTabIndex = previousTabIndex;
           return;
         }
       }
 
+      this.selectedTabIndex = requestedTabIndex;
       this.refreshHeaderReservationOptions();
       this.onHeaderReservationChange();
 
@@ -169,8 +168,8 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         queryParamsHandling: 'merge'
       });
 
-      if (requestedTabIndex === this.getDocumentsTabIndex() && this.reservationDocumentList) {
-        this.reservationDocumentList.reload();
+      if (requestedTabIndex === this.getDocumentsTabIndex()) {
+        queueMicrotask(() => this.reservationDocumentList?.reload());
       }
     } finally {
       this.isHandlingTabGuard = false;
@@ -196,7 +195,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   getTabParamFromIndex(tabIndex: number): string | null {
-    if (tabIndex === (this.isAdmin ? 1 : -1)) {
+    if (tabIndex === this.getInformationTabIndex()) {
       return 'information';
     }
     if (tabIndex === this.getLeaseTabIndex()) {
@@ -272,13 +271,9 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   onHeaderReservationChange(): void {
-    const reservation = this.reservationSection;
-    if (!reservation) {
-      return;
-    }
-
     if (this.selectedTabIndex === 0) {
-      if (!this.selectedHeaderReservationId) {
+      const reservation = this.reservationSection;
+      if (!reservation || !this.selectedHeaderReservationId) {
         return;
       }
       if (reservation.reservation?.reservationId !== this.selectedHeaderReservationId) {
@@ -286,8 +281,8 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       }
       return;
     }
-    if (this.selectedTabIndex === this.getDocumentsTabIndex() && this.reservationDocumentList) {
-      this.reservationDocumentList.reload();
+    if (this.selectedTabIndex === this.getDocumentsTabIndex()) {
+      queueMicrotask(() => this.reservationDocumentList?.reload());
     }
   }
 
@@ -549,6 +544,15 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     this.activePropertyId = null;
   }
 
+  get showShellContextTitleBar(): boolean {
+    return !!this.reservationSection?.form
+      || (this.selectedTabIndex !== 0 && !this.isAddMode && !!this.activeReservationId);
+  }
+
+  getInformationTabIndex(): number {
+    return this.isAdmin ? 1 : -1;
+  }
+
   getLeaseTabIndex(): number {
     return this.isAdmin ? 2 : 1;
   }
@@ -680,6 +684,9 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   //#region Utility Methods
 
   canDeactivate(): Promise<boolean> | boolean {
+    if (this.selectedTabIndex !== 0) {
+      return true;
+    }
     return this.reservationSection?.canDeactivate() ?? true;
   }
 
@@ -793,7 +800,12 @@ applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
       return;
     }
 
-    this.reservationSection?.back();
+    if (this.reservationSection) {
+      this.reservationSection.back();
+      return;
+    }
+
+    void this.router.navigateByUrl(RouterUrl.ReservationList);
   }
   //#endregion
 }

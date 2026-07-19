@@ -8,47 +8,48 @@
             Reservations
           </span>
         </span>
-        @if (reservationSection?.form) {
+        @if (isInvoiceCreateActive && invoiceCreateContext) {
           <div class="header-title form-titlebar-fields-wrap">
-            @if (isInvoiceCreateActive && invoiceCreateContext) {
-              @if (showOfficeDropdown || officeOptions.length > 0) {
-                <app-title-bar-select
-                  [label]="'Office'"
-                  [formFieldClass]="'titlebar-field-office'"
-                  [value]="invoiceCreateContext.officeId"
-                  [options]="invoiceCreateOfficeTitleBarOptions"
-                  [disabled]="true"
-                  [nullOptionLabel]="'Office'"
-                  [noResultsText]="'No offices match your search'">
-                </app-title-bar-select>
-              }
-              <app-title-bar-select
-                [label]="'Reservation'"
-                [formFieldClass]="'titlebar-field-reservation'"
-                [value]="invoiceCreateContext.reservationId"
-                [options]="invoiceCreateReservationTitleBarOptions"
-                [disabled]="true"
-                [nullOptionLabel]="'Reservation'"
-                [noResultsText]="'No reservations match your search'">
-              </app-title-bar-select>
-              <app-title-bar-select
-                [label]="'Invoice No'"
-                [formFieldClass]="'titlebar-field-invoice-no'"
-                [value]="invoiceCreateContext.invoiceId"
-                [options]="invoiceCreateInvoiceTitleBarOptions"
-                [disabled]="true"
-                [nullOptionLabel]="'Invoice'"
-                [noResultsText]="'No invoices match your search'">
-              </app-title-bar-select>
-            } @else {
-            @if (showOfficeDropdown || (reservationSection?.isAddMode && officeOptions.length > 0)) {
+            @if (showOfficeDropdown || officeOptions.length > 0) {
               <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
-                [required]="reservationSection?.isAddMode ?? false"
-                [value]="reservationSection?.isAddMode ? addModeOfficeId : displayOfficeId"
+                [value]="invoiceCreateContext.officeId"
+                [options]="invoiceCreateOfficeTitleBarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Office'"
+                [noResultsText]="'No offices match your search'">
+              </app-title-bar-select>
+            }
+            <app-title-bar-select
+              [label]="'Reservation'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="invoiceCreateContext.reservationId"
+              [options]="invoiceCreateReservationTitleBarOptions"
+              [disabled]="true"
+              [nullOptionLabel]="'Reservation'"
+              [noResultsText]="'No reservations match your search'">
+            </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Invoice No'"
+              [formFieldClass]="'titlebar-field-invoice-no'"
+              [value]="invoiceCreateContext.invoiceId"
+              [options]="invoiceCreateInvoiceTitleBarOptions"
+              [disabled]="true"
+              [nullOptionLabel]="'Invoice'"
+              [noResultsText]="'No invoices match your search'">
+            </app-title-bar-select>
+          </div>
+        } @else if (showShellContextTitleBar) {
+          <div class="header-title form-titlebar-fields-wrap">
+            @if (showOfficeDropdown || (isAddMode && !routeReservationId && officeOptions.length > 0)) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [required]="isAddMode && !routeReservationId"
+                [value]="isAddMode && !routeReservationId ? addModeOfficeId : displayOfficeId"
                 [options]="officeOptions"
-                [disabled]="!(reservationSection?.isAddMode ?? false)"
+                [disabled]="!(isAddMode && !routeReservationId)"
                 [showInstructionOption]="true"
                 [nullOptionLabel]="'All Offices'"
                 [noResultsText]="'No offices match your search'"
@@ -57,7 +58,7 @@
                 (valueChange)="onShellOfficeDropdownChange($event)">
               </app-title-bar-select>
             }
-            @if (reservationSection?.isAddMode) {
+            @if (isAddMode && !routeReservationId && reservationSection) {
               <app-title-bar-select
                 [label]="'Property Code'"
                 [formFieldClass]="'titlebar-field-property-code'"
@@ -76,7 +77,7 @@
                 <input matInput [value]="selectedPropertyCode" readonly [disabled]="true" class="readonly-field">
               </mat-form-field>
             }
-            @if (!(reservationSection?.isAddMode ?? true)) {
+            @if (!isAddMode || routeReservationId) {
               <div class="titlebar-reservation-slot invoice-titlebar-reservation-wrap">
                 <app-title-bar-select
                   [label]="'Reservation'"
@@ -102,7 +103,6 @@
                 }
               </div>
             }
-            }
           </div>
         }
       </div>
@@ -118,89 +118,96 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Reservation">
-          <app-reservation
-            #reservationSection
-            [shellMode]="true"
-            [reservationIdInput]="routeReservationId"
-            [shellOfficeOptions]="officeOptions"
-            (addModeScopeResolved)="onAddModeScopeResolved($event)">
-          </app-reservation>
+          @if (selectedTabIndex === 0) {
+            <app-reservation
+              #reservationSection
+              [shellMode]="true"
+              [reservationIdInput]="routeReservationId"
+              [shellOfficeOptions]="officeOptions"
+              (addModeScopeResolved)="onAddModeScopeResolved($event)">
+            </app-reservation>
+          }
         </mat-tab>
 
         @if (isAdmin) {
           <mat-tab label="Information">
-            <app-lease-information
-              [reservationId]="activeReservationId"
-              [officeId]="displayOfficeId"
-              [propertyId]="selectedPropertyId"
-              >
-            </app-lease-information>
+            @if (selectedTabIndex === getInformationTabIndex()) {
+              <app-lease-information
+                [reservationId]="activeReservationId"
+                [officeId]="displayOfficeId"
+                [propertyId]="selectedPropertyId">
+              </app-lease-information>
+            }
           </mat-tab>
         }
 
         <mat-tab label="Lease">
-          @if (displayOfficeId != null && selectedPropertyId) {
+          @if (selectedTabIndex === getLeaseTabIndex() && displayOfficeId != null && selectedPropertyId) {
             <app-lease
               [reservationId]="activeReservationId ?? ''"
               [propertyId]="selectedPropertyId"
               [officeId]="displayOfficeId"
               [lockOfficeSelection]="true"
               [shellMode]="true"
-              [openInViewOnTabSelect]="selectedTabIndex === getLeaseTabIndex()"
-              [hideEditButtonInViewMode]="selectedTabIndex === getLeaseTabIndex()"
+              [openInViewOnTabSelect]="true"
+              [hideEditButtonInViewMode]="true"
               (officeIdChange)="reservationSection?.onLeaseOfficeIdChange($event)">
             </app-lease>
           }
         </mat-tab>
 
         <mat-tab label="Invoices">
-          @if (showInvoiceCreate && invoiceCreateContext) {
-            @for (instance of [invoiceCreateInstance]; track instance) {
-              <app-invoice-create
-                [shellMode]="true"
-                [invoiceIdInput]="invoiceCreateContext.invoiceId"
-                [officeIdInput]="invoiceCreateContext.officeId"
-                [reservationIdInput]="invoiceCreateContext.reservationId"
-                [companyIdInput]="invoiceCreateContext.companyId ?? null"
-                (backEvent)="onInvoiceCreateBack()">
-              </app-invoice-create>
-            }
-          } @else if (activeInvoiceId) {
-            @for (instance of [invoiceDetailInstance]; track instance) {
-              <app-invoice
-                [shellMode]="true"
+          @if (selectedTabIndex === getInvoicesTabIndex()) {
+            @if (showInvoiceCreate && invoiceCreateContext) {
+              @for (instance of [invoiceCreateInstance]; track instance) {
+                <app-invoice-create
+                  [shellMode]="true"
+                  [invoiceIdInput]="invoiceCreateContext.invoiceId"
+                  [officeIdInput]="invoiceCreateContext.officeId"
+                  [reservationIdInput]="invoiceCreateContext.reservationId"
+                  [companyIdInput]="invoiceCreateContext.companyId ?? null"
+                  (backEvent)="onInvoiceCreateBack()">
+                </app-invoice-create>
+              }
+            } @else if (activeInvoiceId) {
+              @for (instance of [invoiceDetailInstance]; track instance) {
+                <app-invoice
+                  [shellMode]="true"
+                  [embedDocumentPreviewInShell]="true"
+                  [invoiceIdInput]="activeInvoiceId"
+                  [officeIdInput]="displayOfficeId"
+                  [reservationIdInput]="activeReservationId"
+                  [prefetchedInvoice]="selectedInvoice"
+                  (previewEvent)="onInvoicePreviewOpen($event)">
+                </app-invoice>
+              }
+            } @else {
+              <app-invoice-list
+                [officeId]="displayOfficeId"
+                [reservationId]="activeReservationId"
+                [source]="'reservation'"
                 [embedDocumentPreviewInShell]="true"
-                [invoiceIdInput]="activeInvoiceId"
-                [officeIdInput]="displayOfficeId"
-                [reservationIdInput]="activeReservationId"
-                [prefetchedInvoice]="selectedInvoice"
+                (invoiceSelect)="onInvoiceSelect($event)"
                 (previewEvent)="onInvoicePreviewOpen($event)">
-              </app-invoice>
+              </app-invoice-list>
             }
-          } @else {
-            <app-invoice-list
-              [officeId]="displayOfficeId"
-              [reservationId]="activeReservationId"
-              [source]="'reservation'"
-              [embedDocumentPreviewInShell]="true"
-              (invoiceSelect)="onInvoiceSelect($event)"
-              (previewEvent)="onInvoicePreviewOpen($event)">
-            </app-invoice-list>
           }
         </mat-tab>
 
         <mat-tab label="Documents">
-          <app-document-list
-            #reservationDocumentList
-            [propertyId]="selectedPropertyId"
-            [propertyCode]="selectedPropertyCode"
-            [documentTypeIds]="[DocumentType.ReservationLease]"
-            [hideFilters]="true"
-            [officeId]="displayOfficeId"
-            [reservationId]="activeReservationId"
-            [source]="'reservation'"
-            [hideHeader]="true">
-          </app-document-list>
+          @if (selectedTabIndex === getDocumentsTabIndex()) {
+            <app-document-list
+              #reservationDocumentList
+              [propertyId]="selectedPropertyId"
+              [propertyCode]="selectedPropertyCode"
+              [documentTypeIds]="[DocumentType.ReservationLease]"
+              [hideFilters]="true"
+              [officeId]="displayOfficeId"
+              [reservationId]="activeReservationId"
+              [source]="'reservation'"
+              [hideHeader]="true">
+            </app-document-list>
+          }
         </mat-tab>
       </mat-tab-group>
     </mat-card>
