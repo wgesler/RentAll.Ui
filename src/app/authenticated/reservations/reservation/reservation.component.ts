@@ -163,7 +163,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'cleaners']));
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'agents']));
   isPageReady = false;
   destroy$ = new Subject<void>();
 
@@ -177,8 +178,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.loadContacts();  
     this.loadOrganization();
     this.loadPropertyCodes();
-    this.loadAgents();
-    this.loadHousekeepingUsers();
     this.loadOffices();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -195,6 +194,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
     this.buildForm();
     this.applyReservationIdFromContext();
+    this.setupFormHandlers();
+    this.loadReservation();
+    this.loadAgents();
+    this.loadHousekeepingUsers();
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
@@ -222,10 +225,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       });
     });
     
-    // Set up handlers after all data is loaded, then load reservation if needed
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
-      this.setupFormHandlers();
-
       if (this.isAddMode) {
         this.applyAddModePrefillFromQueryParams();
         const copyFrom = (history.state?.copyFromReservation) as ReservationResponse | undefined;
@@ -233,8 +233,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           this.applyCopyFromReservation(copyFrom);
         }
         this.captureSavedStateSignature();
-      } else {
-        this.getReservation();
       }
     });
   }
@@ -243,7 +241,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (changes['reservationIdInput'] && this.shellMode && !changes['reservationIdInput'].firstChange) {
       this.applyReservationIdFromContext();
       if (!this.isAddMode && this.isPageReady) {
-        this.getReservation(this.reservationId);
+        this.loadReservation();
       }
     }
   }
@@ -283,19 +281,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.extraFeeLines = [];
   }
 
-  getReservation(reservationId?: string): void {
-    if (this.isAddMode) {
+  loadReservation(): void {
+    if (this.isAddMode || !this.reservationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       return;
     }
 
-    const targetReservationId = reservationId ?? this.reservationId;
-    if (!targetReservationId || this.reservation?.reservationId === targetReservationId) {
-      return;
-    }
-
-    const isInitialLoad = !reservationId;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
-    this.reservationService.getReservationByGuid(targetReservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
+    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
       next: (response: ReservationResponse) => {
         this.reservationId = response.reservationId;
         this.reservation = response;
@@ -303,7 +295,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         this.populateForm();
       },
       error: () => {
-        if (isInitialLoad) {
+        if (!this.reservation) {
           this.isServiceError = true;
         }
       }
@@ -630,7 +622,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   loadHousekeepingUsers(): void {
-    this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'cleaners'))).subscribe({
+    this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(take(1)).subscribe({
       next: (users: UserResponse[]) => {
         this.housekeepingUsers = users || [];
         this.housekeepingById = new Map(this.housekeepingUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
