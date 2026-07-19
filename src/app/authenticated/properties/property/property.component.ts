@@ -906,6 +906,8 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   populateForm(): void {
     if (this.property && this.form) {
       // Start with property object, converting to form-friendly format
+      // Built dynamically from API response with per-field transforms before patchValue.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- patch object spans the full reactive form shape
       const formData: any = { ...this.property };
       const propertyRaw = this.property as unknown as Record<string, unknown>;
       
@@ -2189,6 +2191,12 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     descriptionControl?.markAsTouched();
   }
 
+  /** Contenteditable toolbar; execCommand is deprecated in DOM typings but has no stable replacement yet. */
+  private execEditorCommand(commandId: string, showUi = false, value?: string): boolean {
+    return (document as unknown as { execCommand(commandId: string, showUI?: boolean, value?: string): boolean })
+      .execCommand(commandId, showUi, value);
+  }
+
   applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
     const editor = this.descriptionEditor?.nativeElement;
     if (!editor) {
@@ -2198,9 +2206,9 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     editor.focus();
     if (format === 'paragraph') {
       // Force a visible new paragraph break at caret.
-      const inserted = document.execCommand('insertParagraph', false);
+      const inserted = this.execEditorCommand('insertParagraph', false);
       if (!inserted) {
-        document.execCommand('insertHTML', false, '<p><br></p>');
+        this.execEditorCommand('insertHTML', false, '<p><br></p>');
       }
       this.form.get('description')?.setValue(editor.innerHTML);
       return;
@@ -2212,7 +2220,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
-    document.execCommand(format, false);
+    this.execEditorCommand(format, false);
     this.form.get('description')?.setValue(editor.innerHTML);
   }
 
@@ -2232,9 +2240,9 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
 
     editor.focus();
     if (format === 'paragraph') {
-      const inserted = document.execCommand('insertParagraph', false);
+      const inserted = this.execEditorCommand('insertParagraph', false);
       if (!inserted) {
-        document.execCommand('insertHTML', false, '<p><br></p>');
+        this.execEditorCommand('insertHTML', false, '<p><br></p>');
       }
       this.form.get('amenities')?.setValue(editor.innerHTML);
       return;
@@ -2246,7 +2254,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
-    document.execCommand(format, false);
+    this.execEditorCommand(format, false);
     this.form.get('amenities')?.setValue(editor.innerHTML);
   }
 
@@ -2264,12 +2272,12 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       .filter(item => !!item);
     if (listItems.length > 0) {
       const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeEditorHtml(item)}</li>`).join('')}</ul>`;
-      document.execCommand('insertHTML', false, listHtml);
+      this.execEditorCommand('insertHTML', false, listHtml);
       return;
     }
 
     if (!selection || selection.rangeCount === 0) {
-      document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+      this.execEditorCommand('insertHTML', false, '<ul><li><br></li></ul>');
       return;
     }
 
@@ -2278,7 +2286,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
-    document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+    this.execEditorCommand('insertHTML', false, '<ul><li><br></li></ul>');
   }
 
   parseIdValue(value: unknown, fallback: number = 0): number {
@@ -2382,7 +2390,6 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
     event.preventDefault();
-    event.returnValue = '';
   }
 
   savePropertyAndWait(): Promise<boolean> {
