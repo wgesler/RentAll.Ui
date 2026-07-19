@@ -23,7 +23,8 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         [class.mat-form-field-invalid]="showError"
         [class.mat-mdc-form-field-invalid]="showError"
         [class.searchable-invalid]="showError"
-        [class.searchable-title-bar-select]="titleBarMode">
+        [class.searchable-title-bar-select]="titleBarMode"
+        subscriptSizing="dynamic">
         @if (formFieldLabel) {
           <mat-label>
             {{ formFieldLabel }}
@@ -83,7 +84,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
             <mat-option [disabled]="true">{{ noResultsText }}</mat-option>
           }
         </mat-select>
-        @if (showError) {
+        @if (showError && errorText) {
           <mat-error>{{ errorText }}</mat-error>
         }
       </mat-form-field>

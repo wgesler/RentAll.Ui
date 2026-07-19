@@ -1,5 +1,5 @@
-import { ReceiptResponse } from '../../maintenance/models/receipt.model';
 import { JournalEntryLineSearchResponse } from './journal-entry.model';
+import { ReceiptResponse } from '../../maintenance/models/receipt.model';
 import {
   AR_AGING_DATE_PRESET_OPTIONS,
   AR_AGING_INTERVAL_OPTIONS,
@@ -43,7 +43,7 @@ export interface ApAgingReportFilters {
 }
 
 export interface ApAgingReportBuildRequest {
-  receipts: ReceiptResponse[];
+  lines: JournalEntryLineSearchResponse[];
   propertyCodeByPropertyId: ReadonlyMap<string, string>;
   contactNameByContactId?: ReadonlyMap<string, string>;
   paymentTermsByContactId?: ReadonlyMap<string, number | null>;

@@ -19,22 +19,31 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
-import { CostCodesResponse } from '../../models/cost-codes.model';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { InvoiceResponse } from '../../models/invoice.model';
-import { ArAgingBucketId, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingDrillDownView, ArAgingInvoiceDetail, ArAgingReportFilters, ArAgingReportResult, ArAgingReservationContext, ArAgingVisibleRow, buildArAgingReservationContext } from '../../models/ar-aging-report.model';
-import { CostCodesService } from '../../services/cost-codes.service';
+import { ArAgingBucketId, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingDrillDownView, ArAgingInvoiceDetail, ArAgingReportFilters, ArAgingReportResult, ArAgingVisibleRow } from '../../models/ar-aging-report.model';
+import { AccountType, PostingStatus, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
+import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
+import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { InvoiceService } from '../../services/invoice.service';
+import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
 import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
 import { ContactService } from '../../../contacts/services/contact.service';
-import { ContactResponse } from '../../../contacts/models/contact.model';
-import { ReservationService } from '../../../reservations/services/reservation.service';
-import { ReservationCodeResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
+import { PropertyService } from '../../../properties/services/property.service';
+import { PropertyResponse } from '../../../properties/models/property.model';
+import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
+import { ReceiptComponent } from '../../../maintenance/receipt/receipt.component';
+import { ReceiptService } from '../../../maintenance/services/receipt.service';
+import { WorkOrderComponent } from '../../../maintenance/work-order/work-order.component';
+import { WorkOrderResponse } from '../../../maintenance/models/work-order.model';
+import { WorkOrderService } from '../../../maintenance/services/work-order.service';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
 
 @Component({
   selector: 'app-ar-aging-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, InvoiceComponent],
+  imports: [CommonModule, MaterialModule, InvoiceComponent, ReceiptComponent, WorkOrderComponent],
   templateUrl: './ar-aging-report.component.html',
   styleUrls: ['./ar-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -48,13 +57,18 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   @Output() journalEntriesChanged = new EventEmitter<void>();
   formatter = inject(FormatterService);
   private invoiceService = inject(InvoiceService);
+  private receiptService = inject(ReceiptService);
+  private workOrderService = inject(WorkOrderService);
+  private journalEntrySourceService = inject(JournalEntrySourceService);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
-  private costCodesService = inject(CostCodesService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private generalLedgerService = inject(GeneralLedgerService);
+  private propertyService = inject(PropertyService);
   private commonService = inject(CommonService);
   private utilityService = inject(UtilityService);
   private contactService = inject(ContactService);
-  private reservationService = inject(ReservationService);
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
@@ -76,16 +90,20 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   activeInvoiceOfficeId: number | null = null;
   activeInvoiceReservationId: string | null = null;
   selectedInvoice: InvoiceResponse | null = null;
+  activeReceiptId: string | null = null;
+  activeReceiptOfficeId: number | null = null;
+  drillDownReceiptProperty: PropertyResponse | null = null;
+  activeWorkOrderId: string | null = null;
+  selectedWorkOrder: WorkOrderResponse | null = null;
+  drillDownWorkOrderProperty: PropertyResponse | null = null;
 
   companyName = '';
   organizationId = '';
   offices: OfficeResponse[] = [];
-  allInvoices: InvoiceResponse[] = [];
-  allCostCodes: CostCodesResponse[] = [];
+  allArLines: JournalEntryLineSearchResponse[] = [];
   contactNameByContactId = new Map<string, string>();
-  contactsByContactId = new Map<string, ContactResponse>();
-  reservationsByReservationId = new Map<string, ReservationCodeResponse>();
-  reservationContextByReservationId = new Map<string, ArAgingReservationContext>();
+  paymentTermsByContactId = new Map<string, number | null>();
+  propertyCodeByPropertyId = new Map<string, string>();
 
   detailDisplayedColumns: ColumnSet = {
     name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
@@ -108,7 +126,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
       if (!wasReady && this.isPageReady) {
-        this.loadInvoices();
+        this.loadArLines();
       }
       this.markViewForCheck();
     });
@@ -116,7 +134,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOrganization();
     this.loadOffices();
-    this.loadCostCodes();
+    this.loadPropertyCodes();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -135,7 +153,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange);
 
     if (shouldReload) {
-      this.loadInvoices();
+      this.loadArLines();
     }
   }
   //#endregion
@@ -156,7 +174,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
 
   loadOffices(): void {
     if (!this.organizationId) {
-      this.loadInvoices();
+      this.loadArLines();
       return;
     }
 
@@ -165,154 +183,148 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
           next: offices => {
             this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
-            this.loadInvoices();
+            this.loadArLines();
             this.markViewForCheck();
           },
           error: () => {
             this.offices = [];
-            this.loadInvoices();
+            this.loadArLines();
             this.markViewForCheck();
           }
         });
       },
       error: () => {
         this.offices = [];
-        this.loadInvoices();
+        this.loadArLines();
         this.markViewForCheck();
       }
     });
   }
 
-  loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+  loadPropertyCodes(): void {
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
       next: () => {
-        this.costCodesService.getAllCostCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: costCodes => {
-            this.allCostCodes = costCodes || [];
-            this.applyReportDisplay();
-            this.markViewForCheck();
-          },
-          error: () => {
-            this.allCostCodes = [];
-            this.applyReportDisplay();
-            this.markViewForCheck();
-          }
-        });
+        this.propertyCodeByPropertyId = new Map(
+          this.propertyService.getAllPropertyCodesValue().map(property => [property.propertyId, property.propertyCode])
+        );
+        this.applyReportDisplay();
+        this.markViewForCheck();
       },
       error: () => {
-        this.allCostCodes = [];
+        this.propertyCodeByPropertyId.clear();
         this.applyReportDisplay();
         this.markViewForCheck();
       }
     });
   }
 
-  loadInvoices(): void {
+  loadArLines(): void {
     if (!this.isPageReady) {
       return;
     }
 
     const officeIds = this.resolveOfficeIds();
+    const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
     if (officeIds.length === 0) {
-      this.allInvoices = [];
-      this.reservationsByReservationId.clear();
-      this.reservationContextByReservationId.clear();
+      this.allArLines = [];
       this.isServiceError = false;
       this.applyReportDisplay();
       this.markViewForCheck();
       return;
     }
 
-    this.contactService.ensureContactsLoaded().pipe(
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
       take(1),
+      switchMap(() => this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))),
+      switchMap(() => this.contactService.ensureContactsLoaded().pipe(take(1))),
       switchMap(() => {
         const contacts = this.contactService.getAllContactsValue();
-        this.contactsByContactId = new Map(contacts.map(contact => [contact.contactId, contact]));
         this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
-        return this.invoiceService.searchInvoices({
-          officeIds,
-          includeInactive: true,
-          includePaid: true,
-          startDate: null,
-          endDate: null
+        this.paymentTermsByContactId = new Map<string, number | null>(
+          contacts
+            .map((contact): [string, number | null] => [String(contact.contactId || '').trim(), contact.paymentTermsId ?? null])
+            .filter((entry): entry is [string, number | null] => !!entry[0])
+        );
+
+        const accountRequests: Array<{ officeId: number; chartOfAccountId: number }> = [];
+        officeIds.forEach(officeId => {
+          this.resolveArAccountIds(officeId).forEach(chartOfAccountId => {
+            accountRequests.push({ officeId, chartOfAccountId });
+          });
         });
+
+        if (accountRequests.length === 0) {
+          return of([] as JournalEntryLineSearchResponse[]);
+        }
+
+        const requests = accountRequests.map(({ officeId, chartOfAccountId }) =>
+          this.generalLedgerService.searchJournalEntryLines({
+            officeIds: [officeId],
+            chartOfAccountId,
+            includeVoided: false,
+            includeUnposted: true,
+            startDate: null,
+            endDate: asOfDate
+          }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])))
+        );
+
+        return forkJoin(requests).pipe(
+          map(results => {
+            const seen = new Set<string>();
+            return results.flatMap(lines => lines || []).filter(line => {
+              const lineId = String(line.journalEntryLineId || '').trim();
+              if (!lineId || seen.has(lineId)) {
+                return false;
+              }
+              seen.add(lineId);
+              return true;
+            });
+          })
+        );
       }),
       take(1)
     ).subscribe({
-      next: invoices => {
-        this.allInvoices = invoices || [];
+      next: lines => {
+        this.allArLines = lines || [];
         this.isServiceError = false;
         this.applyReportDisplay();
-        this.loadReservationContexts();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
-        this.allInvoices = [];
+        this.allArLines = [];
+        this.paymentTermsByContactId = new Map();
         this.contactNameByContactId = new Map();
-        this.contactsByContactId = new Map();
-        this.reservationsByReservationId.clear();
-        this.reservationContextByReservationId.clear();
         this.isServiceError = true;
         this.reportResult = null;
-        const message = typeof error?.error === 'string' ? error.error : 'Unable to load invoices for AR Aging.';
+        const message = typeof error?.error === 'string' ? error.error : 'Unable to load AR journal lines.';
         this.toastr.error(message, 'AR Aging');
         this.markViewForCheck();
       }
     });
   }
 
-  loadReservationContexts(): void {
-    const reservationIds = [...new Set(
-      this.allInvoices
-        .map(invoice => invoice.reservationId?.trim())
-        .filter((reservationId): reservationId is string => !!reservationId)
-    )];
-
-    if (reservationIds.length === 0) {
-      this.reservationsByReservationId.clear();
-      this.reservationContextByReservationId.clear();
-      this.applyReportDisplay();
-      if (this.drillDownView) {
-        this.refreshDetailReport();
-      }
-      return;
+  /** Default A/R from accounting office. */
+  resolveArAccountIds(officeId: number): number[] {
+    const accountIds = new Set<number>();
+    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
+      .find(office => Number(office.officeId) === officeId);
+    const configuredAccountId = Number(accountingOffice?.defaultActRcvableAccountId ?? 0);
+    if (configuredAccountId > 0) {
+      accountIds.add(configuredAccountId);
     }
 
-    this.contactService.ensureContactsLoaded().pipe(
-      take(1),
-      switchMap(() => {
-        const contactsById = new Map(
-          this.contactService.getAllContactsValue().map(contact => [contact.contactId, contact])
-        );
-        return forkJoin(
-          reservationIds.map(reservationId =>
-            this.reservationService.getReservationByGuid(reservationId).pipe(
-              catchError(() => of(null as ReservationResponse | null))
-            )
-          )
-        ).pipe(map(reservations => ({ contactsById, reservations })));
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe(({ contactsById, reservations }) => {
-      const loadedReservations = reservations.filter((reservation): reservation is ReservationResponse => reservation != null);
-      this.reservationsByReservationId = new Map(
-        loadedReservations.map(reservation => [
-          reservation.reservationId,
-          this.mappingService.buildArAgingReservationLabelSource(reservation)
-        ])
+    if (accountIds.size === 0) {
+      const officeAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId);
+      const arAccount = officeAccounts.find(account =>
+        Number(account.accountTypeId) === AccountType.AccountsReceivable
       );
-      this.reservationContextByReservationId = new Map(
-        loadedReservations.map(reservation => [
-          reservation.reservationId,
-          buildArAgingReservationContext(reservation, contactsById)
-        ])
-      );
-      this.applyReportDisplay();
-      if (this.drillDownView) {
-        this.refreshDetailReport();
+      const fallbackAccountId = Number(arAccount?.accountId ?? 0);
+      if (fallbackAccountId > 0) {
+        accountIds.add(fallbackAccountId);
       }
-      this.markViewForCheck();
-    });
+    }
+
+    return [...accountIds];
   }
   //#endregion
 
@@ -321,11 +333,10 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     try {
       const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
       this.reportResult = this.mappingService.buildArAgingReport({
-        invoices: this.allInvoices,
-        costCodes: this.allCostCodes,
+        lines: this.allArLines,
+        propertyCodeByPropertyId: this.propertyCodeByPropertyId,
         contactNameByContactId: this.contactNameByContactId,
-        contactsByContactId: this.contactsByContactId,
-        reservationsByReservationId: this.reservationsByReservationId,
+        paymentTermsByContactId: this.paymentTermsByContactId,
         asOfDate,
         intervalDays: this.reportFilters?.intervalDays ?? 30,
         throughDays: this.reportFilters?.throughDays !== undefined ? this.reportFilters.throughDays : 90,
@@ -369,11 +380,11 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   hasBucketAmount(source: Record<ArAgingBucketId, number>, bucketId: ArAgingBucketId): boolean {
-    return Number(source[bucketId] || 0) > 0.005;
+    return Math.abs(Number(source[bucketId] || 0)) > 0.005;
   }
 
   hasPositiveAmount(amount: number | null | undefined): boolean {
-    return Number(amount || 0) > 0.005;
+    return Math.abs(Number(amount || 0)) > 0.005;
   }
   //#endregion
 
@@ -497,11 +508,21 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   openDrillDownFromRow(row: ArAgingVisibleRow, bucketId: ArAgingBucketId | null): void {
+    if (bucketId != null) {
+      if (!this.hasBucketAmount(row.bucketAmounts, bucketId)) {
+        return;
+      }
+    } else if (!this.hasPositiveAmount(row.total)) {
+      return;
+    }
+
     this.openDrillDown(row.customerKey, bucketId, row.reservationKey);
   }
 
   closeDrillDown(): void {
     this.closeInvoiceDetail();
+    this.closeReceiptDetail();
+    this.closeWorkOrderDetail();
     this.drillDownView = null;
     this.detailReport = null;
     this.drillDownActiveChange.emit(false);
@@ -515,21 +536,27 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
+    if (this.activeReceiptId) {
+      this.closeReceiptDetail();
+      this.markViewForCheck();
+      return;
+    }
+
+    if (this.activeWorkOrderId) {
+      this.closeWorkOrderDetail();
+      this.markViewForCheck();
+      return;
+    }
+
     this.closeDrillDown();
   }
 
   onDetailRowClick(row: ArAgingDetailRow): void {
-    if (row.kind !== 'transaction' || !row.invoiceId) {
+    if (row.kind !== 'transaction') {
       return;
     }
 
-    const prefetchedInvoice = this.allInvoices.find(item => item.invoiceId === row.invoiceId) ?? null;
-    this.selectedInvoice = prefetchedInvoice;
-    this.activeInvoiceId = row.invoiceId;
-    this.activeInvoiceOfficeId = prefetchedInvoice?.officeId ?? this.officeId;
-    this.activeInvoiceReservationId = prefetchedInvoice?.reservationId ?? null;
-    this.drillDownActiveChange.emit(true);
-    this.markViewForCheck();
+    this.openJeSourceDocument(row);
   }
 
   filterDrillDownInvoices(customerKey: string | null, bucketId: ArAgingBucketId | null, reservationKey: string | null = null): ArAgingInvoiceDetail[] {
@@ -558,12 +585,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     }
 
     const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
-    const invoicesById = new Map(this.allInvoices.map(invoice => [invoice.invoiceId, invoice]));
-    this.detailReport = this.mappingService.buildArAgingDetailReport({
+    this.detailReport = this.mappingService.buildArAgingJeDetailReport({
       invoiceDetails: this.drillDownView.invoices,
-      invoicesById,
-      reservationContextByReservationId: this.reservationContextByReservationId,
-      costCodes: this.allCostCodes,
       asOfDate,
       bucketColumns: this.reportResult.bucketColumns,
       bucketFilter: this.drillDownView.bucketId,
@@ -571,6 +594,221 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       companyName: this.companyName,
       officeName: this.displayOfficeName
     });
+  }
+
+  openJeSourceDocument(row: ArAgingDetailRow): void {
+    const referenceNo = (row.referenceNo || '').trim();
+    if (!referenceNo) {
+      return;
+    }
+
+    if (row.sourceTypeId === SourceType.WorkOrder && (row.sourceId || '').trim()) {
+      this.openWorkOrderById(row.sourceId!.trim(), row);
+      return;
+    }
+
+    if (isJournalEntrySourceNavigable(row.sourceTypeId) && (row.sourceId || '').trim()) {
+      const sourceRow: JournalEntryLineListDisplay = {
+        journalEntryLineId: '',
+        journalEntryId: '',
+        officeId: Number(row.officeId) || 0,
+        transactionDate: row.transactionDate || '',
+        journalEntryCode: '',
+        source: '',
+        sourceTypeId: row.sourceTypeId,
+        sourceId: row.sourceId,
+        sourceLinkable: true,
+        propertyId: null,
+        propertyCode: '',
+        reservationId: row.reservationId ?? null,
+        reservationCode: '',
+        contactId: null,
+        contactName: '',
+        account: '',
+        description: '',
+        journalEntryMemo: '',
+        debit: '',
+        credit: '',
+        balance: '',
+        debitValue: 0,
+        creditValue: 0,
+        balanceValue: 0,
+        postingStatusId: PostingStatus.Posted,
+        sortDateValue: 0
+      };
+
+      this.journalEntrySourceService.resolveSource(sourceRow).pipe(take(1)).subscribe({
+        next: target => {
+          if (target?.kind === 'invoice' && target.invoice?.invoiceId) {
+            this.openInvoiceDetail(target.invoice);
+            return;
+          }
+
+          if (target?.kind === 'receipt' && target.receipt?.receiptId) {
+            this.openReceiptDetail(target.receipt);
+            return;
+          }
+
+          this.openInvoiceByReference(referenceNo, row);
+        },
+        error: () => this.openInvoiceByReference(referenceNo, row)
+      });
+      return;
+    }
+
+    if (/^WO/i.test(referenceNo)) {
+      this.openWorkOrderByReference(referenceNo, row);
+      return;
+    }
+
+    if (/^RC/i.test(referenceNo) || /^R-\d+/i.test(referenceNo)) {
+      this.openReceiptByReference(referenceNo, row);
+      return;
+    }
+
+    this.openInvoiceByReference(referenceNo, row);
+  }
+
+  openInvoiceDetail(invoice: InvoiceResponse): void {
+    this.closeReceiptDetail();
+    this.closeWorkOrderDetail();
+    this.selectedInvoice = invoice;
+    this.activeInvoiceId = invoice.invoiceId;
+    this.activeInvoiceOfficeId = invoice.officeId ?? this.officeId;
+    this.activeInvoiceReservationId = invoice.reservationId ?? null;
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
+  }
+
+  openReceiptDetail(receipt: ReceiptResponse | null): void {
+    if (!receipt) {
+      return;
+    }
+
+    const propertyId = (receipt.propertyIds?.[0] || '').trim();
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: property => this.setActiveReceipt(receipt, property),
+        error: () => this.setActiveReceipt(receipt, null)
+      });
+      return;
+    }
+
+    this.setActiveReceipt(receipt, null);
+  }
+
+  setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
+    this.closeInvoiceDetail();
+    this.closeWorkOrderDetail();
+    this.activeReceiptId = receipt.receiptId;
+    this.activeReceiptOfficeId = receipt.officeId;
+    this.drillDownReceiptProperty = property;
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
+  }
+
+  closeReceiptDetail(): void {
+    this.activeReceiptId = null;
+    this.activeReceiptOfficeId = null;
+    this.drillDownReceiptProperty = null;
+    this.markViewForCheck();
+  }
+
+  closeWorkOrderDetail(): void {
+    this.activeWorkOrderId = null;
+    this.selectedWorkOrder = null;
+    this.drillDownWorkOrderProperty = null;
+    this.markViewForCheck();
+  }
+
+  openInvoiceByReference(referenceNo: string, row: ArAgingDetailRow): void {
+    const officeIds = row.officeId ? [Number(row.officeId)] : this.resolveOfficeIds();
+    if (officeIds.length === 0) {
+      this.toastr.error('Unable to resolve invoice office scope.', 'AR Aging');
+      return;
+    }
+
+    this.invoiceService.getInvoiceByCode(referenceNo, officeIds).pipe(take(1)).subscribe({
+      next: invoice => {
+        if (invoice?.invoiceId) {
+          this.openInvoiceDetail(invoice);
+          return;
+        }
+        this.toastr.error('Unable to locate invoice by Ref No.', 'AR Aging');
+      },
+      error: () => this.toastr.error('Unable to locate invoice by Ref No.', 'AR Aging')
+    });
+  }
+
+  openReceiptByReference(referenceNo: string, row: ArAgingDetailRow): void {
+    const officeIds = row.officeId ? [Number(row.officeId)] : this.resolveOfficeIds();
+    this.receiptService.searchReceipts({
+      officeIds,
+      includeInactive: true,
+      startDate: null,
+      endDate: null,
+      receiptKind: 1
+    }).pipe(take(1)).subscribe({
+      next: receipts => {
+        const receipt = (receipts || []).find(item => (item.receiptCode || '').trim() === referenceNo) ?? null;
+        if (receipt) {
+          this.openReceiptDetail(receipt);
+          return;
+        }
+        this.toastr.error('Unable to locate receipt by Ref No.', 'AR Aging');
+      },
+      error: () => this.toastr.error('Unable to locate receipt by Ref No.', 'AR Aging')
+    });
+  }
+
+  openWorkOrderByReference(referenceNo: string, row: ArAgingDetailRow): void {
+    const officeIds = row.officeId ? [Number(row.officeId)] : this.resolveOfficeIds();
+    if (officeIds.length === 0) {
+      this.toastr.error('Unable to resolve work order office scope.', 'AR Aging');
+      return;
+    }
+
+    this.workOrderService.searchWorkOrders({
+      officeIds,
+      isActive: null,
+      startDate: null,
+      endDate: null
+    }).pipe(take(1)).subscribe({
+      next: workOrders => {
+        const workOrder = (workOrders || []).find(item =>
+          (item.workOrderCode || '').trim().toLowerCase() === referenceNo.toLowerCase()
+        ) ?? null;
+        if (workOrder?.workOrderId) {
+          this.openWorkOrderDetail(workOrder);
+          return;
+        }
+        this.toastr.error('Unable to locate work order by Ref No.', 'AR Aging');
+      },
+      error: () => this.toastr.error('Unable to locate work order by Ref No.', 'AR Aging')
+    });
+  }
+
+  openWorkOrderById(workOrderId: string, row: ArAgingDetailRow): void {
+    this.workOrderService.getWorkOrderById(workOrderId).pipe(take(1)).subscribe({
+      next: workOrder => {
+        if (!workOrder?.workOrderId) {
+          this.openInvoiceByReference((row.referenceNo || '').trim(), row);
+          return;
+        }
+        this.openWorkOrderDetail(workOrder);
+      },
+      error: () => this.openInvoiceByReference((row.referenceNo || '').trim(), row)
+    });
+  }
+
+  openWorkOrderDetail(workOrder: WorkOrderResponse): void {
+    this.closeReceiptDetail();
+    this.closeInvoiceDetail();
+    this.selectedWorkOrder = workOrder;
+    this.activeWorkOrderId = workOrder.workOrderId;
+    this.drillDownWorkOrderProperty = null;
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
   }
 
   closeInvoiceDetail(): void {
@@ -584,15 +822,35 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   onInvoiceSaved(): void {
     this.closeInvoiceDetail();
     this.journalEntriesChanged.emit();
-    this.loadInvoices();
+    this.loadArLines();
+  }
+
+  onReceiptSaved(): void {
+    this.closeReceiptDetail();
+    this.journalEntriesChanged.emit();
+    this.loadArLines();
+  }
+
+  onWorkOrderSaved(): void {
+    this.closeWorkOrderDetail();
+    this.journalEntriesChanged.emit();
+    this.loadArLines();
   }
 
   isDetailRowClickable(row: ArAgingDetailRow): boolean {
-    return row.kind === 'transaction' && !!row.invoiceId;
+    if (row.kind !== 'transaction' || !(row.referenceNo || '').trim()) {
+      return false;
+    }
+
+    return isJournalEntrySourceNavigable(row.sourceTypeId)
+      || row.sourceTypeId === SourceType.WorkOrder
+      || /^WO/i.test(row.referenceNo || '')
+      || /^RC/i.test(row.referenceNo || '')
+      || /^R-\d+/i.test(row.referenceNo || '');
   }
 
   isDetailRefNoLinkable(row: ArAgingDetailRow): boolean {
-    return this.isDetailRowClickable(row) && !!(row.referenceNo || '').trim();
+    return this.isDetailRowClickable(row);
   }
 
   onDetailRefNoClick(row: ArAgingDetailRow, event: Event): void {

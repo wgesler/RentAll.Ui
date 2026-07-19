@@ -46,6 +46,26 @@
       [reservationIdInput]="activeInvoiceReservationId"
       (savedEvent)="onInvoiceSaved()">
     </app-invoice>
+  } @else if (activeReceiptId) {
+    <app-receipt
+      #drillDownReceiptEditor
+      [officeId]="activeReceiptOfficeId"
+      [property]="drillDownReceiptProperty"
+      [receiptId]="activeReceiptId"
+      [shellContext]="'accounting'"
+      (backEvent)="drillDownBack()"
+      (savedEvent)="onReceiptSaved()">
+    </app-receipt>
+  } @else if (activeWorkOrderId) {
+    <app-work-order
+      [property]="drillDownWorkOrderProperty"
+      [workOrderId]="activeWorkOrderId"
+      [prefetchedWorkOrder]="selectedWorkOrder"
+      [officeId]="selectedWorkOrder?.officeId ?? officeId"
+      [embedDocumentPreviewInShell]="true"
+      (backEvent)="drillDownBack()"
+      (savedEvent)="onWorkOrderSaved()">
+    </app-work-order>
   } @else if (detailReport && drillDownView) {
     <div class="mat list-layout-standard financial-report-layout ar-aging-detail-layout">
       <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
@@ -267,9 +287,10 @@
                       </td>
                     }
                     <td
-                      class="financial-report-col-amount financial-report-col-total financial-report-col-amount--clickable"
-                      role="button"
-                      tabindex="0"
+                      class="financial-report-col-amount financial-report-col-total"
+                      [class.financial-report-col-amount--clickable]="hasPositiveAmount(reportResult.grandTotal)"
+                      [attr.role]="hasPositiveAmount(reportResult.grandTotal) ? 'button' : null"
+                      [attr.tabindex]="hasPositiveAmount(reportResult.grandTotal) ? 0 : null"
                       (click)="openDrillDown(null, null)"
                       (keydown.enter)="openDrillDown(null, null)"
                       (keydown.space)="openDrillDown(null, null); $event.preventDefault()">

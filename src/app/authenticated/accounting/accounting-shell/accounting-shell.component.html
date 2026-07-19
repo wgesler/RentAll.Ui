@@ -505,6 +505,7 @@
                 (valueChange)="onShellOfficeDropdownChange($event)">
               </app-title-bar-select>
             }
+            @if (!isGeneralLedgerDetailActive) {
             <app-title-bar-select
               [label]="'Property Code'"
               [formFieldClass]="'titlebar-field-property-code'"
@@ -523,6 +524,7 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onShellGlReservationDropdownChange($event)">
             </app-title-bar-select>
+            }
             @if (showGeneralLedgerChartOfAccountFilter) {
             <app-title-bar-select
               [label]="'Account'"

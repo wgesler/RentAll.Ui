@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
@@ -6081,26 +6081,15 @@ buildEscrowLastRecapAmountsByProperty(
     );
     const bucketIds = bucketDefinitions.map(bucket => bucket.id);
     const contactNameByContactId = request.contactNameByContactId || new Map<string, string>();
-    const contactsByContactId = request.contactsByContactId || new Map<string, ContactResponse>();
-    const reservationsByReservationId = request.reservationsByReservationId || new Map<string, ReservationCodeResponse>();
-    const invoiceDetails = (request.invoices || [])
-      .map(invoice => {
-        try {
-          return this.buildArAgingInvoiceDetail(
-            invoice,
-            asOfDate,
-            request.costCodes || [],
-            bucketDefinitions,
-            contactNameByContactId,
-            contactsByContactId,
-            reservationsByReservationId
-          );
-        } catch {
-          return null;
-        }
-      })
-      .filter((invoice): invoice is ArAgingInvoiceDetail => invoice != null)
-      .sort((a, b) => compareArAgingInvoiceSortKeys(a, b));
+    const paymentTermsByContactId = request.paymentTermsByContactId || new Map<string, number | null>();
+    const invoiceDetails = this.buildArAgingInvoiceDetailsFromJournalLines(
+      request.lines || [],
+      asOfDate,
+      request.propertyCodeByPropertyId,
+      paymentTermsByContactId,
+      contactNameByContactId,
+      bucketDefinitions
+    ).sort((a, b) => compareArAgingInvoiceSortKeys(a, b));
 
     const customerRows = sortArAgingCustomerRows(
       this.buildArAgingCustomerRows(invoiceDetails, bucketIds),
@@ -6434,6 +6423,271 @@ buildEscrowLastRecapAmountsByProperty(
     }
     const diffMs = asOf.getTime() - due.getTime();
     return Math.floor(diffMs / 86400000);
+  }
+
+  buildArAgingInvoiceDetailsFromJournalLines(
+    lines: JournalEntryLineSearchResponse[],
+    asOfDate: string,
+    propertyCodeByPropertyId: ReadonlyMap<string, string>,
+    paymentTermsByContactId: ReadonlyMap<string, number | null>,
+    contactNameByContactId: ReadonlyMap<string, string>,
+    bucketDefinitions: ArAgingBucketDefinition[]
+  ): ArAgingInvoiceDetail[] {
+    type ArLot = {
+      journalEntryLineId: string;
+      transactionDate: string;
+      remaining: number;
+      contactId: string | null;
+      contactName: string;
+      reservationId: string | null;
+      reservationCode: string | null;
+      reservationLabel: string;
+      reservationKey: string;
+      propertyCode: string | null;
+      sourceCode: string | null;
+      sourceTypeId: number | null;
+      sourceId: string | null;
+      journalEntryCode: string;
+      officeId: number;
+    };
+
+    const linesByGroup = new Map<string, JournalEntryLineSearchResponse[]>();
+    (lines || []).forEach(line => {
+      const transactionDate = this.toDateOnlyJsonString(line.transactionDate);
+      if (!transactionDate || transactionDate > asOfDate) {
+        return;
+      }
+
+      const contactId = (line.contactId || '').trim() || 'no-contact';
+      const reservationId = (line.reservationId || '').trim() || 'no-reservation';
+      const groupKey = `${contactId}|${reservationId}`;
+      const bucket = linesByGroup.get(groupKey) ?? [];
+      bucket.push(line);
+      linesByGroup.set(groupKey, bucket);
+    });
+
+    const invoiceDetails: ArAgingInvoiceDetail[] = [];
+    linesByGroup.forEach(groupLines => {
+      const sortedLines = groupLines.slice().sort((left, right) => {
+        const leftDate = this.toDateOnlyJsonString(left.transactionDate) || '';
+        const rightDate = this.toDateOnlyJsonString(right.transactionDate) || '';
+        const dateCompare = leftDate.localeCompare(rightDate);
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+
+        const codeCompare = (left.journalEntryCode || '').localeCompare(right.journalEntryCode || '', undefined, { numeric: true, sensitivity: 'base' });
+        if (codeCompare !== 0) {
+          return codeCompare;
+        }
+
+        return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '', undefined, { sensitivity: 'base' });
+      });
+
+      const lots: ArLot[] = [];
+      sortedLines.forEach(line => {
+        const transactionDate = this.toDateOnlyJsonString(line.transactionDate) || asOfDate;
+        const amount = this.roundFinancialReportAmount(Number(line.debit || 0) - Number(line.credit || 0));
+        if (Math.abs(amount) <= 0.005) {
+          return;
+        }
+
+        const contactId = (line.contactId || '').trim() || null;
+        const contactName = (line.contactName || '').trim()
+          || (contactId ? (contactNameByContactId.get(contactId) || '').trim() : '')
+          || 'Unknown Customer';
+        const reservationId = (line.reservationId || '').trim() || null;
+        const reservationCode = (line.reservationCode || '').trim() || null;
+        const reservationLabel = reservationCode || reservationId || 'No Reservation';
+        const reservationKey = reservationId || reservationCode || `line:${line.journalEntryLineId}`;
+        const propertyId = (line.propertyId || '').trim() || null;
+        const propertyCode = propertyId
+          ? (propertyCodeByPropertyId.get(propertyId) || line.propertyCode || null)
+          : (line.propertyCode || null);
+        const sourceCode = (line.sourceCode || '').trim() || null;
+        const sourceTypeId = Number(line.sourceTypeId);
+        const sourceId = (line.sourceId || '').trim() || null;
+        const journalEntryCode = (line.journalEntryCode || '').trim() || sourceCode || line.journalEntryLineId;
+
+        if (amount > 0.005) {
+          let debit = amount;
+          while (debit > 0.005 && lots.length > 0 && lots[0].remaining < -0.005) {
+            const lot = lots[0];
+            const take = Math.min(-lot.remaining, debit);
+            lot.remaining = this.roundFinancialReportAmount(lot.remaining + take);
+            debit = this.roundFinancialReportAmount(debit - take);
+            if (Math.abs(lot.remaining) <= 0.005) {
+              lots.shift();
+            }
+          }
+
+          if (debit > 0.005) {
+            lots.push({
+              journalEntryLineId: line.journalEntryLineId,
+              transactionDate,
+              remaining: debit,
+              contactId,
+              contactName,
+              reservationId,
+              reservationCode,
+              reservationLabel,
+              reservationKey,
+              propertyCode,
+              sourceCode,
+              sourceTypeId: Number.isFinite(sourceTypeId) && sourceTypeId > 0 ? sourceTypeId : null,
+              sourceId,
+              journalEntryCode,
+              officeId: Number(line.officeId) || 0
+            });
+          }
+          return;
+        }
+
+        let apply = this.roundFinancialReportAmount(-amount);
+        while (apply > 0.005 && lots.length > 0 && lots[0].remaining > 0.005) {
+          const lot = lots[0];
+          const take = Math.min(lot.remaining, apply);
+          lot.remaining = this.roundFinancialReportAmount(lot.remaining - take);
+          apply = this.roundFinancialReportAmount(apply - take);
+          if (lot.remaining <= 0.005) {
+            lots.shift();
+          }
+        }
+
+        if (apply > 0.005) {
+          lots.push({
+            journalEntryLineId: line.journalEntryLineId,
+            transactionDate,
+            remaining: this.roundFinancialReportAmount(-apply),
+            contactId,
+            contactName,
+            reservationId,
+            reservationCode,
+            reservationLabel,
+            reservationKey,
+            propertyCode,
+            sourceCode,
+            sourceTypeId: Number.isFinite(sourceTypeId) && sourceTypeId > 0 ? sourceTypeId : null,
+            sourceId,
+            journalEntryCode,
+            officeId: Number(line.officeId) || 0
+          });
+        }
+      });
+
+      lots.forEach(lot => {
+        if (Math.abs(lot.remaining) <= 0.005) {
+          return;
+        }
+
+        const customerLabel = (lot.contactName || '').trim()
+          || (lot.contactId ? (contactNameByContactId.get(lot.contactId) || '').trim() : '')
+          || 'Unknown Customer';
+        const customerKey = `${lot.contactId || ''}|${customerLabel.toLowerCase()}`;
+        const paymentTermsId = lot.contactId ? (paymentTermsByContactId.get(lot.contactId) ?? null) : null;
+        const dueDate = this.addOwnerApAgingTermsToDate(lot.transactionDate, paymentTermsId);
+        const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
+
+        invoiceDetails.push({
+          invoiceId: lot.journalEntryLineId,
+          invoiceCode: lot.sourceCode || lot.journalEntryCode,
+          customerKey,
+          customerLabel,
+          companySortKey: customerLabel.toLowerCase(),
+          contactSortKey: customerLabel.toLowerCase(),
+          contactId: lot.contactId,
+          reservationKey: lot.reservationKey,
+          reservationId: lot.reservationId,
+          reservationLabel: lot.reservationLabel,
+          invoiceDate: lot.transactionDate,
+          dueDate,
+          daysPastDue,
+          balanceDue: lot.remaining,
+          bucketId: resolveArAgingBucketId(daysPastDue, bucketDefinitions),
+          reservationCode: lot.reservationCode,
+          propertyCode: lot.propertyCode,
+          officeId: lot.officeId,
+          sourceTypeId: lot.sourceTypeId,
+          sourceId: lot.sourceId
+        });
+      });
+    });
+
+    return invoiceDetails;
+  }
+
+  buildArAgingJeDetailReport(request: ArAgingJeDetailBuildRequest): ArAgingDetailReportResult {
+    const transactionRows: ArAgingDetailRow[] = [];
+
+    request.invoiceDetails.forEach(detail => {
+      if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
+        return;
+      }
+
+      transactionRows.push({
+        rowId: `ar-je:${detail.invoiceId}`,
+        kind: 'transaction',
+        label: null,
+        bucketId: detail.bucketId,
+        transactionType: null,
+        transactionDate: detail.invoiceDate,
+        num: null,
+        referenceNo: detail.invoiceCode,
+        name: detail.customerLabel,
+        terms: 'Due on receipt',
+        dueDate: detail.dueDate,
+        classLabel: detail.propertyCode?.trim() || 'Company',
+        aging: detail.daysPastDue,
+        openBalance: this.roundFinancialReportAmount(detail.balanceDue),
+        invoiceId: detail.invoiceId,
+        officeId: detail.officeId,
+        sourceTypeId: detail.sourceTypeId ?? null,
+        sourceId: detail.sourceId ?? null,
+        reservationId: detail.reservationId ?? null
+      });
+    });
+
+    transactionRows.sort((a, b) =>
+      (a.transactionDate || '').localeCompare(b.transactionDate || '')
+      || (a.referenceNo || '').localeCompare(b.referenceNo || '', undefined, { numeric: true, sensitivity: 'base' })
+      || (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+
+    const reportTotal = transactionRows.reduce(
+      (sum, row) => this.roundFinancialReportAmount(sum + Number(row.openBalance || 0)),
+      0
+    );
+    const rows: ArAgingDetailRow[] = [];
+    if (transactionRows.length > 0) {
+      rows.push({
+        rowId: 'ar-aging-total',
+        kind: 'bucketTotal',
+        label: (request.scopeLabel || '').trim() || 'Customer',
+        bucketId: request.bucketFilter,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: reportTotal,
+        invoiceId: null
+      });
+      rows.push(...transactionRows);
+    }
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: 'AR Aging Detail',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(request.asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      scopeLabel: request.scopeLabel,
+      rows,
+      reportTotal
+    };
   }
 
   buildArAgingDetailReport(request: ArAgingDetailBuildRequest): ArAgingDetailReportResult {
@@ -6831,6 +7085,203 @@ buildEscrowLastRecapAmountsByProperty(
     return billDetails;
   }
 
+  buildStandardApAgingBillDetailsFromJournalLines(
+    lines: JournalEntryLineSearchResponse[],
+    asOfDate: string,
+    propertyCodeByPropertyId: ReadonlyMap<string, string>,
+    paymentTermsByContactId: ReadonlyMap<string, number | null>,
+    contactNameByContactId: ReadonlyMap<string, string>,
+    bucketDefinitions: ApAgingBucketDefinition[]
+  ): ApAgingBillDetail[] {
+    type ApLot = {
+      journalEntryLineId: string;
+      transactionDate: string;
+      remaining: number;
+      contactId: string | null;
+      contactName: string;
+      propertyId: string | null;
+      propertyCode: string | null;
+      propertyKey: string;
+      sourceCode: string | null;
+      sourceTypeId: number | null;
+      sourceId: string | null;
+      reservationId: string | null;
+      journalEntryCode: string;
+      officeId: number;
+      memo: string | null;
+    };
+
+    const linesByGroup = new Map<string, JournalEntryLineSearchResponse[]>();
+    (lines || []).forEach(line => {
+      const transactionDate = this.toDateOnlyJsonString(line.transactionDate);
+      if (!transactionDate || transactionDate > asOfDate) {
+        return;
+      }
+
+      const contactId = (line.contactId || '').trim() || 'no-contact';
+      const propertyId = (line.propertyId || '').trim() || 'no-property';
+      const groupKey = `${contactId}|${propertyId}`;
+      const bucket = linesByGroup.get(groupKey) ?? [];
+      bucket.push(line);
+      linesByGroup.set(groupKey, bucket);
+    });
+
+    const billDetails: ApAgingBillDetail[] = [];
+    linesByGroup.forEach(groupLines => {
+      const sortedLines = groupLines.slice().sort((left, right) => {
+        const leftDate = this.toDateOnlyJsonString(left.transactionDate) || '';
+        const rightDate = this.toDateOnlyJsonString(right.transactionDate) || '';
+        const dateCompare = leftDate.localeCompare(rightDate);
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+
+        const codeCompare = (left.journalEntryCode || '').localeCompare(right.journalEntryCode || '', undefined, { numeric: true, sensitivity: 'base' });
+        if (codeCompare !== 0) {
+          return codeCompare;
+        }
+
+        return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '', undefined, { sensitivity: 'base' });
+      });
+
+      const lots: ApLot[] = [];
+      sortedLines.forEach(line => {
+        const transactionDate = this.toDateOnlyJsonString(line.transactionDate) || asOfDate;
+        const amount = this.roundFinancialReportAmount(Number(line.credit || 0) - Number(line.debit || 0));
+        if (Math.abs(amount) <= 0.005) {
+          return;
+        }
+
+        const propertyId = (line.propertyId || '').trim() || null;
+        const propertyKey = propertyId || 'no-property';
+        const propertyCode = propertyId
+          ? (propertyCodeByPropertyId.get(propertyId) || line.propertyCode || null)
+          : (line.propertyCode || null);
+        const contactId = (line.contactId || '').trim() || null;
+        const contactName = (line.contactName || '').trim()
+          || (contactId ? (contactNameByContactId.get(contactId) || '').trim() : '')
+          || 'Unknown Vendor';
+        const sourceCode = (line.sourceCode || '').trim() || null;
+        const sourceTypeId = Number(line.sourceTypeId);
+        const sourceId = (line.sourceId || '').trim() || null;
+        const reservationId = (line.reservationId || '').trim() || null;
+        const journalEntryCode = (line.journalEntryCode || '').trim() || sourceCode || line.journalEntryLineId;
+        const memo = (line.journalEntryMemo || line.memo || '').trim() || null;
+
+        if (amount > 0.005) {
+          let credit = amount;
+          while (credit > 0.005 && lots.length > 0 && lots[0].remaining < -0.005) {
+            const lot = lots[0];
+            const take = Math.min(-lot.remaining, credit);
+            lot.remaining = this.roundFinancialReportAmount(lot.remaining + take);
+            credit = this.roundFinancialReportAmount(credit - take);
+            if (Math.abs(lot.remaining) <= 0.005) {
+              lots.shift();
+            }
+          }
+
+          if (credit > 0.005) {
+            lots.push({
+              journalEntryLineId: line.journalEntryLineId,
+              transactionDate,
+              remaining: credit,
+              contactId,
+              contactName,
+              propertyId,
+              propertyCode,
+              propertyKey,
+              sourceCode,
+              sourceTypeId: Number.isFinite(sourceTypeId) && sourceTypeId > 0 ? sourceTypeId : null,
+              sourceId,
+              reservationId,
+              journalEntryCode,
+              officeId: Number(line.officeId) || 0,
+              memo
+            });
+          }
+          return;
+        }
+
+        let apply = this.roundFinancialReportAmount(-amount);
+        while (apply > 0.005 && lots.length > 0 && lots[0].remaining > 0.005) {
+          const lot = lots[0];
+          const take = Math.min(lot.remaining, apply);
+          lot.remaining = this.roundFinancialReportAmount(lot.remaining - take);
+          apply = this.roundFinancialReportAmount(apply - take);
+          if (lot.remaining <= 0.005) {
+            lots.shift();
+          }
+        }
+
+        if (apply > 0.005) {
+          lots.push({
+            journalEntryLineId: line.journalEntryLineId,
+            transactionDate,
+            remaining: this.roundFinancialReportAmount(-apply),
+            contactId,
+            contactName,
+            propertyId,
+            propertyCode,
+            propertyKey,
+            sourceCode,
+            sourceTypeId: Number.isFinite(sourceTypeId) && sourceTypeId > 0 ? sourceTypeId : null,
+            sourceId,
+            reservationId,
+            journalEntryCode,
+            officeId: Number(line.officeId) || 0,
+            memo
+          });
+        }
+      });
+
+      lots.forEach(lot => {
+        if (Math.abs(lot.remaining) <= 0.005) {
+          return;
+        }
+
+        const vendorId = lot.contactId;
+        const vendorLabel = (lot.contactName || '').trim()
+          || (vendorId ? (contactNameByContactId.get(vendorId) || '').trim() : '')
+          || 'Unknown Vendor';
+        const vendorSortKey = vendorLabel;
+        const vendorKey = `${vendorId || ''}|${vendorSortKey.toLowerCase()}`;
+        const propertyId = lot.propertyId;
+        const propertyCode = lot.propertyCode;
+        const propertyLabel = propertyId ? (propertyCode || propertyId) : 'Company';
+        const paymentTermsId = vendorId ? (paymentTermsByContactId.get(vendorId) ?? null) : null;
+        const termsLabel = getTermType(paymentTermsId) || 'Due on receipt';
+        const dueDate = this.addOwnerApAgingTermsToDate(lot.transactionDate, paymentTermsId);
+        const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
+
+        billDetails.push({
+          receiptId: lot.journalEntryLineId,
+          receiptCode: lot.sourceCode || lot.journalEntryCode,
+          vendorKey,
+          vendorLabel,
+          vendorSortKey,
+          vendorId,
+          propertyKey: lot.propertyKey,
+          propertyId,
+          propertyLabel,
+          propertyCode,
+          receiptDate: lot.transactionDate,
+          dueDate,
+          daysPastDue,
+          balanceDue: lot.remaining,
+          bucketId: resolveApAgingBucketId(daysPastDue, bucketDefinitions),
+          billNumber: lot.memo,
+          termsLabel,
+          officeId: lot.officeId,
+          sourceTypeId: lot.sourceTypeId,
+          sourceId: lot.sourceId,
+          reservationId: lot.reservationId
+        });
+      });
+    });
+
+    return billDetails;
+  }
+
   addOwnerApAgingTermsToDate(transactionDate: string, paymentTermsId: number | null | undefined): string {
     const termDays = getPaymentTermDays(paymentTermsId);
     if (termDays <= 0) {
@@ -6928,6 +7379,18 @@ buildEscrowLastRecapAmountsByProperty(
     };
   }
 
+  buildStandardApAgingJeDetailReport(request: Omit<ApAgingDetailBuildRequest, 'receiptsById'>): ApAgingDetailReportResult {
+    const ownerStyle = this.buildOwnerApAgingDetailReport(request);
+    return {
+      ...ownerStyle,
+      reportTitle: 'AP Aging Detail',
+      rows: ownerStyle.rows.map(row => ({
+        ...row,
+        rowId: row.rowId.startsWith('owner-ap') ? row.rowId.replace('owner-ap', 'ap-je') : row.rowId
+      }))
+    };
+  }
+
   buildApAgingReport(request: ApAgingReportBuildRequest): ApAgingReportResult {
     const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
     const bucketDefinitions = buildApAgingBucketDefinitions(
@@ -6937,23 +7400,14 @@ buildEscrowLastRecapAmountsByProperty(
     const bucketIds = bucketDefinitions.map(bucket => bucket.id);
     const contactNameByContactId = request.contactNameByContactId || new Map<string, string>();
     const paymentTermsByContactId = request.paymentTermsByContactId || new Map<string, number | null>();
-    const billDetails = (request.receipts || [])
-      .map(receipt => {
-        try {
-          return this.buildApAgingBillDetail(
-            receipt,
-            asOfDate,
-            request.propertyCodeByPropertyId,
-            bucketDefinitions,
-            contactNameByContactId,
-            paymentTermsByContactId
-          );
-        } catch {
-          return null;
-        }
-      })
-      .filter((bill): bill is ApAgingBillDetail => bill != null)
-      .sort((a, b) => compareApAgingBillSortKeys(a, b));
+    const billDetails = this.buildStandardApAgingBillDetailsFromJournalLines(
+      request.lines || [],
+      asOfDate,
+      request.propertyCodeByPropertyId,
+      paymentTermsByContactId,
+      contactNameByContactId,
+      bucketDefinitions
+    ).sort((a, b) => compareApAgingBillSortKeys(a, b));
 
     const vendorRows = sortApAgingVendorRows(
       this.buildApAgingVendorRows(billDetails, bucketIds),

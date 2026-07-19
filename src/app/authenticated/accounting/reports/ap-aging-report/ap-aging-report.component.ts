@@ -125,7 +125,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   companyName = '';
   organizationId = '';
   offices: OfficeResponse[] = [];
-  allReceipts: ReceiptResponse[] = [];
+  allStandardApLines: JournalEntryLineSearchResponse[] = [];
   allOwnerApLines: JournalEntryLineSearchResponse[] = [];
   paymentTermsByContactId = new Map<string, number | null>();
   contactNameByContactId = new Map<string, string>();
@@ -257,26 +257,28 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.loadReceipts();
+    this.loadStandardApLines();
   }
 
-  loadReceipts(): void {
+  loadStandardApLines(): void {
     if (!this.isPageReady) {
       return;
     }
 
     const officeIds = this.resolveOfficeIds();
+    const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
     if (officeIds.length === 0) {
-      this.allReceipts = [];
-      this.allOwnerApLines = [];
+      this.allStandardApLines = [];
       this.isServiceError = false;
       this.applyReportDisplay();
       this.markViewForCheck();
       return;
     }
 
-    this.contactService.ensureContactsLoaded().pipe(
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
       take(1),
+      switchMap(() => this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))),
+      switchMap(() => this.contactService.ensureContactsLoaded().pipe(take(1))),
       switchMap(() => {
         const contacts = this.contactService.getAllContactsValue();
         this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
@@ -285,34 +287,87 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
             .map((contact): [string, number | null] => [String(contact.contactId || '').trim(), contact.paymentTermsId ?? null])
             .filter((entry): entry is [string, number | null] => !!entry[0])
         );
-        return this.receiptService.searchReceipts({
-          officeIds,
-          includeInactive: true,
-          startDate: null,
-          endDate: null,
-          receiptKind: 1
+
+        const accountRequests: Array<{ officeId: number; chartOfAccountId: number }> = [];
+        officeIds.forEach(officeId => {
+          this.resolveStandardApAccountIds(officeId).forEach(chartOfAccountId => {
+            accountRequests.push({ officeId, chartOfAccountId });
+          });
         });
+
+        if (accountRequests.length === 0) {
+          return of([] as JournalEntryLineSearchResponse[]);
+        }
+
+        const requests = accountRequests.map(({ officeId, chartOfAccountId }) =>
+          this.generalLedgerService.searchJournalEntryLines({
+            officeIds: [officeId],
+            chartOfAccountId,
+            includeVoided: false,
+            includeUnposted: true,
+            startDate: null,
+            endDate: asOfDate
+          }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])))
+        );
+
+        return forkJoin(requests).pipe(
+          map(results => {
+            const seen = new Set<string>();
+            return results.flatMap(lines => lines || []).filter(line => {
+              const lineId = String(line.journalEntryLineId || '').trim();
+              if (!lineId || seen.has(lineId)) {
+                return false;
+              }
+              seen.add(lineId);
+              return true;
+            });
+          })
+        );
       }),
       take(1)
     ).subscribe({
-      next: receipts => {
-        this.allReceipts = receipts || [];
-        this.allOwnerApLines = [];
+      next: lines => {
+        this.allStandardApLines = lines || [];
         this.isServiceError = false;
         this.applyReportDisplay();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
-        this.allReceipts = [];
-        this.allOwnerApLines = [];
+        this.allStandardApLines = [];
+        this.paymentTermsByContactId = new Map();
         this.contactNameByContactId = new Map();
         this.isServiceError = true;
         this.reportResult = null;
-        const message = typeof error?.error === 'string' ? error.error : 'Unable to load bills for AP Aging.';
+        const message = typeof error?.error === 'string' ? error.error : 'Unable to load AP journal lines.';
         this.toastr.error(message, 'AP Aging');
         this.markViewForCheck();
       }
     });
+  }
+
+  /** Default A/P from accounting office (vendor payables — not Owner A/P). */
+  resolveStandardApAccountIds(officeId: number): number[] {
+    const accountIds = new Set<number>();
+    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
+      .find(office => Number(office.officeId) === officeId);
+    const configuredAccountId = Number(accountingOffice?.defaultActPayableAccountId ?? 0);
+    if (configuredAccountId > 0) {
+      accountIds.add(configuredAccountId);
+    }
+
+    if (accountIds.size === 0) {
+      const officeAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId);
+      const apAccount = officeAccounts.find(account =>
+        Number(account.accountTypeId) === AccountType.AccountsPayable
+        && !/owner/i.test((account.name || account.accountNo || '').trim())
+      );
+      const fallbackAccountId = Number(apAccount?.accountId ?? 0);
+      if (fallbackAccountId > 0) {
+        accountIds.add(fallbackAccountId);
+      }
+    }
+
+    return [...accountIds];
   }
 
   loadOwnerApLines(): void {
@@ -324,7 +379,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
     if (officeIds.length === 0) {
       this.allOwnerApLines = [];
-      this.allReceipts = [];
       this.isServiceError = false;
       this.applyReportDisplay();
       this.markViewForCheck();
@@ -385,14 +439,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     ).subscribe({
       next: lines => {
         this.allOwnerApLines = lines || [];
-        this.allReceipts = [];
         this.isServiceError = false;
         this.applyReportDisplay();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.allOwnerApLines = [];
-        this.allReceipts = [];
         this.paymentTermsByContactId = new Map();
         this.contactNameByContactId = new Map();
         this.isServiceError = true;
@@ -467,7 +519,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
           reportTitle: this.reportDisplayTitle
         })
         : this.mappingService.buildApAgingReport({
-          receipts: this.allReceipts || [],
+          lines: this.allStandardApLines,
           propertyCodeByPropertyId: this.propertyCodeByPropertyId,
           contactNameByContactId: this.contactNameByContactId,
           paymentTermsByContactId: this.paymentTermsByContactId,
@@ -515,11 +567,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   hasBucketAmount(source: Record<ApAgingBucketId, number>, bucketId: ApAgingBucketId): boolean {
-    return Number(source[bucketId] || 0) > 0.005;
+    return Math.abs(Number(source[bucketId] || 0)) > 0.005;
   }
 
   hasPositiveAmount(amount: number | null | undefined): boolean {
-    return Number(amount || 0) > 0.005;
+    return Math.abs(Number(amount || 0)) > 0.005;
   }
   //#endregion
 
@@ -643,6 +695,14 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   openDrillDownFromRow(row: ApAgingVisibleRow, bucketId: ApAgingBucketId | null): void {
+    if (bucketId != null) {
+      if (!this.hasBucketAmount(row.bucketAmounts, bucketId)) {
+        return;
+      }
+    } else if (!this.hasPositiveAmount(row.total)) {
+      return;
+    }
+
     this.openDrillDown(row.vendorKey, bucketId, row.propertyKey);
   }
 
@@ -683,17 +743,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    if (this.isOwnerPayableMode) {
-      this.openOwnerSourceDocument(row);
-      return;
-    }
-
-    if (!row.receiptId) {
-      return;
-    }
-
-    const prefetchedReceipt = this.allReceipts.find(item => item.receiptId === row.receiptId) ?? null;
-    this.openReceiptDetail(prefetchedReceipt);
+    this.openOwnerSourceDocument(row);
   }
 
   filterDrillDownBills(vendorKey: string | null, bucketId: ApAgingBucketId | null, propertyKey: string | null = null): ApAgingBillDetail[] {
@@ -735,10 +785,8 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    const receiptsById = new Map(this.allReceipts.map(receipt => [receipt.receiptId, receipt]));
-    this.detailReport = this.mappingService.buildApAgingDetailReport({
+    this.detailReport = this.mappingService.buildStandardApAgingJeDetailReport({
       billDetails: this.drillDownView.bills,
-      receiptsById,
       asOfDate,
       bucketColumns: this.reportResult.bucketColumns,
       bucketFilter: this.drillDownView.bucketId,
@@ -818,7 +866,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         || /^R-\d+/i.test(row.referenceNo || '');
     }
 
-    return !!row.receiptId;
+    return isJournalEntrySourceNavigable(row.sourceTypeId)
+      || row.sourceTypeId === SourceType.WorkOrder
+      || /^WO/i.test(row.referenceNo || '')
+      || /^RC/i.test(row.referenceNo || '')
+      || /^R-\d+/i.test(row.referenceNo || '');
   }
 
   isDetailRefNoLinkable(row: ApAgingDetailRow): boolean {

@@ -12,13 +12,29 @@ Reports → **AP Aging**, Reports → **AR Aging**, and Owners → **AP Aging** 
 
 When changing layout, styles, columns, Ref No link behavior, back navigation, or detail/summary totaling on **AP Aging** or **AR Aging**, apply the same change to **Owner AP Aging** (same `ApAgingReportComponent` with owner mode, plus `buildOwnerApAging*` mapping helpers) unless the difference is intentional and documented here.
 
+## Data sources (JE-based)
+
+All three aging reports aggregate **journal entry lines**, not raw receipts/invoices:
+
+| Report | Account scope | FIFO normal | Grouping |
+|--------|---------------|-------------|----------|
+| AP Aging | `defaultActPayableAccountId` (Accounting Office) | Credit-normal | vendor + property |
+| AR Aging | `defaultActRcvableAccountId` (Accounting Office) | Debit-normal | contact + reservation |
+| Owner AP | `defaultOwnActPayableAccountId` and/or chart **No 2001** | Credit-normal | owner + property |
+
+Mapping helpers: `buildStandardApAging*`, `buildArAging*`, `buildOwnerApAging*` in `mapping.service.ts`.
+
+## Do not change Owner AP behavior
+
+Owner AP Aging is working and must stay unchanged unless the user explicitly requests it. When updating standard AP or AR aging, reuse Owner AP **UI patterns** only (layout, Ref No, drill-down shell)—do not modify `buildOwnerApAging*`, `loadOwnerApLines`, or owner-mode wiring in `ApAgingReportComponent`.
+
 ## Intentional Owner AP differences
 
-- Data source: all JE lines that hit **Default Owner A/P** (`DefaultOwnActPayableAccountId`) and/or chart account **No 2001**, including **credits and debits**, and including `IsCashOnly` entries (Owner Actual). GL / P&L / BS continue to omit cash-only via `JournalEntryLine_GetByCriteria` default.
+- Includes **credits and debits**, and `IsCashOnly` entries (Owner Actual). GL / P&L / BS continue to omit cash-only via `JournalEntryLine_GetByCriteria` default.
 - Ref No opens the JE supporting document via `sourceTypeId`/`sourceId` (and `RC*` / `R-*` code fallback), not only `receiptId`.
 - Detail report title/scope copy may say Owner instead of Vendor.
 
 ## Ref No links
 
-- Standard AP → receipt; AR → invoice; Owner AP → receipt, invoice, and **work order** (`WO*`) from JE source (same blue underline affordance).
+- AP, AR, and Owner AP → receipt, invoice, and **work order** (`WO*`) from JE `sourceTypeId`/`sourceId` (same blue underline affordance).
 - Shell back must close embedded receipt/invoice/work order before leaving aging detail.

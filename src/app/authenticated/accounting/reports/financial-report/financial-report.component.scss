@@ -304,9 +304,17 @@
 }
 
 .financial-report-row-section td,
-.financial-report-row-total td,
 .financial-report-row-summary td {
   font-weight: 600;
+}
+
+.financial-report-table--multi-column tbody tr.financial-report-row-total td.financial-report-col-amount,
+.financial-report-table--multi-column tbody tr.financial-report-row-total td.financial-report-col-label {
+  font-weight: 600;
+}
+
+.financial-report-table--multi-column tbody tr.financial-report-row-expandable:not(.financial-report-row-total) td.financial-report-col-amount {
+  font-weight: 400;
 }
 
 .financial-report-table tbody tr.financial-report-row-total td,

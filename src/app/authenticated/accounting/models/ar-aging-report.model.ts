@@ -97,11 +97,10 @@ export interface ArAgingReportFilters {
 }
 
 export interface ArAgingReportBuildRequest {
-  invoices: InvoiceResponse[];
-  costCodes: CostCodesResponse[];
+  lines: import('./journal-entry.model').JournalEntryLineSearchResponse[];
+  propertyCodeByPropertyId: ReadonlyMap<string, string>;
   contactNameByContactId?: ReadonlyMap<string, string>;
-  contactsByContactId?: ReadonlyMap<string, ContactResponse>;
-  reservationsByReservationId?: ReadonlyMap<string, ReservationCodeResponse>;
+  paymentTermsByContactId?: ReadonlyMap<string, number | null>;
   asOfDate: string | null;
   intervalDays?: number;
   throughDays?: number | null;
@@ -129,6 +128,18 @@ export interface ArAgingInvoiceDetail {
   reservationCode?: string | null;
   propertyCode?: string | null;
   officeId: number;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+}
+
+export interface ArAgingJeDetailBuildRequest {
+  invoiceDetails: ArAgingInvoiceDetail[];
+  asOfDate: string;
+  bucketColumns: { id: ArAgingBucketId; label: string }[];
+  bucketFilter: ArAgingBucketId | null;
+  scopeLabel: string;
+  companyName?: string;
+  officeName?: string;
 }
 
 export interface ArAgingReservationRow {
@@ -209,6 +220,10 @@ export interface ArAgingDetailRow {
   aging: number | null;
   openBalance: number | null;
   invoiceId: string | null;
+  officeId?: number | null;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  reservationId?: string | null;
 }
 
 export interface ArAgingDetailReportResult {

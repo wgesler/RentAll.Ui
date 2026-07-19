@@ -118,6 +118,11 @@ body.rent-roll-create-transition-lock {
 }
 
 /* Shell tab groups (mat-tab-group.shell-tabs): defer scroll to page; lock tab body width. */
+.shell-tabs .mat-mdc-tab-body.mat-mdc-tab-body-active {
+  overflow: visible !important;
+  overflow-x: hidden !important;
+}
+
 .shell-tabs .mat-mdc-tab-body-content {
   overflow: visible !important;
   overflow-x: hidden !important;
@@ -397,6 +402,8 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table {
@@ -432,7 +439,7 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   padding-bottom: var(--global-page-inner-padding);
   box-sizing: border-box;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel,
@@ -472,6 +479,10 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   padding-left: var(--global-page-inner-padding);
   padding-right: calc(2 * var(--global-page-inner-padding));
   transform: none;
+}
+
+.shell-tabs .mat-mdc-tab-body-content app-general-ledger .general-ledger-form.form-standard-top-padding {
+  padding-top: 0 !important;
 }
 
 /*
@@ -1639,6 +1650,7 @@ mat-form-field.company-dropdown {
   .tableDiv {
     width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     padding: var(--global-page-inner-padding);
     box-sizing: border-box;
   }

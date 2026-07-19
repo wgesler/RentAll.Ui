@@ -287,9 +287,10 @@
                       </td>
                     }
                     <td
-                      class="financial-report-col-amount financial-report-col-total financial-report-col-amount--clickable"
-                      role="button"
-                      tabindex="0"
+                      class="financial-report-col-amount financial-report-col-total"
+                      [class.financial-report-col-amount--clickable]="hasPositiveAmount(reportResult.grandTotal)"
+                      [attr.role]="hasPositiveAmount(reportResult.grandTotal) ? 'button' : null"
+                      [attr.tabindex]="hasPositiveAmount(reportResult.grandTotal) ? 0 : null"
                       (click)="openDrillDown(null, null)"
                       (keydown.enter)="openDrillDown(null, null)"
                       (keydown.space)="openDrillDown(null, null); $event.preventDefault()">

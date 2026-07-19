@@ -1,21 +1,33 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
-import { AbstractControl, FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ErrorStateMatcher } from '@angular/material/core';
+import { AbstractControl, FormBuilder, FormControl, FormGroupDirective, FormsModule, NgForm, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
-import { BehaviorSubject, Subject, finalize, of, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, finalize, of, switchMap, take, takeUntil } from 'rxjs';
 import { AuthService } from '../../../../services/auth.service';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
+import { EntityType } from '../../../contacts/models/contact-enum';
+import { ContactResponse } from '../../../contacts/models/contact.model';
+import { ContactService } from '../../../contacts/services/contact.service';
+import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { PropertyCodeResponse } from '../../../properties/models/property.model';
+import { PropertyService } from '../../../properties/services/property.service';
+import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
+import { ReservationService } from '../../../reservations/services/reservation.service';
 import { PostingStatus, SourceType, SourceTypeLabels, getSourceTypeLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
+
+type JournalEntryLineContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable';
 
 interface EditableJournalEntryLine {
   lineKey: string;
@@ -57,6 +69,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   private formBuilder = inject(FormBuilder);
   private authService = inject(AuthService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
@@ -72,6 +88,20 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   linesBalanceValidationError = false;
   organizationId = '';
   chartOfAccounts: ChartOfAccountResponse[] = [];
+  properties: PropertyCodeResponse[] = [];
+  reservations: ReservationCodeResponse[] = [];
+  contacts: ContactResponse[] = [];
+  accountingOfficeDefaults: Pick<
+    AccountingOfficeResponse,
+    'defaultActPayableAccountId' | 'defaultActRcvableAccountId' | 'defaultOwnActPayableAccountId'
+  > | null = null;
+  entryPropertyId: string | null = null;
+  entryReservationId: string | null = null;
+  entryContactId: string | null = null;
+  headerMemoErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: (_control: FormControl | null, _form: FormGroupDirective | NgForm | null): boolean =>
+      this.shouldShowHeaderMemoError()
+  };
   private editableLineKeyCounter = 0;
   private formSubscriptionsInitialized = false;
 
@@ -115,6 +145,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['copyFromJournalEntry'] && this.isAddMode) {
       this.resetForm();
     }
+
+    if (changes['officeId'] && !changes['officeId'].firstChange) {
+      this.loadAccountingOfficeDefaults();
+    }
   }
 
   get canEdit(): boolean {
@@ -144,6 +178,399 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         label: this.utilityService.getChartOfAccountDropdownLabel(account)
       }))
       .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }
+
+  get effectiveOfficeId(): number | null {
+    return this.officeId ?? this.journalEntry?.officeId ?? null;
+  }
+  //#endregion
+
+  //#region Entry Context Dropdowns
+  getLineContextMode(line: EditableJournalEntryLine): JournalEntryLineContextMode {
+    const accountId = Number(line.chartOfAccountId ?? 0);
+    if (!accountId || !this.accountingOfficeDefaults) {
+      return 'default';
+    }
+
+    if (accountId === Number(this.accountingOfficeDefaults.defaultActPayableAccountId ?? 0)) {
+      return 'accountsPayable';
+    }
+
+    if (accountId === Number(this.accountingOfficeDefaults.defaultActRcvableAccountId ?? 0)) {
+      return 'accountsReceivable';
+    }
+
+    if (accountId === Number(this.accountingOfficeDefaults.defaultOwnActPayableAccountId ?? 0)) {
+      return 'ownerPayable';
+    }
+
+    return 'default';
+  }
+
+  getLinesWithSelectedAccounts(): EditableJournalEntryLine[] {
+    return this.editableLines.filter(line => !!line.chartOfAccountId);
+  }
+
+  getSelectedLineContextModes(): Set<JournalEntryLineContextMode> {
+    const modes = new Set<JournalEntryLineContextMode>();
+    this.getLinesWithSelectedAccounts().forEach(line => modes.add(this.getLineContextMode(line)));
+    return modes;
+  }
+
+  hasSelectedLineContextMode(mode: JournalEntryLineContextMode): boolean {
+    return this.getSelectedLineContextModes().has(mode);
+  }
+
+  getActiveLineContextModes(): Set<JournalEntryLineContextMode> {
+    const modes = new Set<JournalEntryLineContextMode>();
+    this.getActiveEditableLines().forEach(line => modes.add(this.getLineContextMode(line)));
+    return modes;
+  }
+
+  hasActiveLineContextMode(mode: JournalEntryLineContextMode): boolean {
+    return this.getActiveLineContextModes().has(mode);
+  }
+
+  shouldShowEntryProperty(): boolean {
+    return this.hasSelectedLineContextMode('accountsPayable')
+      || this.hasSelectedLineContextMode('ownerPayable')
+      || this.hasSelectedLineContextMode('accountsReceivable');
+  }
+
+  shouldShowEntryContact(): boolean {
+    return this.hasSelectedLineContextMode('accountsPayable');
+  }
+
+  shouldShowEntryReservation(): boolean {
+    return this.hasSelectedLineContextMode('accountsReceivable');
+  }
+
+  shouldShowEntryContextRow(): boolean {
+    return this.shouldShowEntryProperty()
+      || this.shouldShowEntryReservation()
+      || this.shouldShowEntryContact();
+  }
+
+  getEntryContactLabel(): string {
+    return 'Vendor';
+  }
+
+  getEntryPropertyNullLabel(): string {
+    if (this.hasSelectedLineContextMode('accountsReceivable')
+      || this.hasSelectedLineContextMode('ownerPayable')) {
+      return 'Select Property';
+    }
+
+    return 'Company';
+  }
+
+  getEntryReservationNullLabel(): string {
+    return 'Select Reservation';
+  }
+
+  getEntryContactNullLabel(): string {
+    return 'Select Vendor';
+  }
+
+  getEntryPropertyOptions(): SearchableSelectOption<string>[] {
+    const officeId = this.effectiveOfficeId;
+    const filteredProperties = officeId == null
+      ? this.properties
+      : this.properties.filter(property => property.officeId === officeId);
+
+    const options = filteredProperties.map(property => ({
+      value: property.propertyId,
+      label: property.propertyCode
+    }));
+
+    return this.ensureSelectedPropertyOption(options, this.entryPropertyId);
+  }
+
+  getEntryReservationOptions(): SearchableSelectOption<string>[] {
+    const options = this.buildEntryReservationOptions();
+    return this.ensureSelectedReservationOption(options, this.entryReservationId);
+  }
+
+  buildEntryReservationOptions(): SearchableSelectOption<string>[] {
+    const filteredReservations = this.getReservationsForProperty(this.entryPropertyId);
+
+    return filteredReservations.map(reservation => ({
+      value: reservation.reservationId,
+      label: this.utilityService.getReservationDropdownLabel(reservation, null)
+    }));
+  }
+
+  getReservationsForProperty(propertyId: string | null | undefined): ReservationCodeResponse[] {
+    const officeId = this.effectiveOfficeId;
+    const officeFilteredReservations = officeId == null
+      ? this.reservations
+      : this.reservations.filter(reservation => reservation.officeId === officeId);
+    const normalizedPropertyId = this.normalizeLinePropertyId(propertyId);
+
+    if (!normalizedPropertyId) {
+      return this.hasSelectedLineContextMode('accountsReceivable') ? [] : officeFilteredReservations;
+    }
+
+    return officeFilteredReservations.filter(reservation => reservation.propertyId === normalizedPropertyId);
+  }
+
+  getEntryContactOptions(): SearchableSelectOption<string>[] {
+    const officeId = this.effectiveOfficeId;
+    const filteredContacts = officeId == null
+      ? this.contacts.filter(contact => contact.entityTypeId === EntityType.Vendor)
+      : this.contacts.filter(contact =>
+        contact.entityTypeId === EntityType.Vendor
+        && this.utilityService.contactHasOfficeAccess(contact, officeId));
+
+    const options = filteredContacts.map(contact => ({
+      value: String(contact.contactId || '').trim(),
+      label: this.utilityService.getVendorDropdownLabel(contact)
+    })).filter(option => option.value.length > 0);
+
+    return this.ensureSelectedOption(options, this.entryContactId, this.resolveContactLabel(this.entryContactId));
+  }
+
+  onEntryPropertySelectionChange(value: string | number | null | undefined): void {
+    this.entryPropertyId = value == null || value === '' ? null : String(value);
+    this.clearInvalidEntryReservationSelection();
+    this.markViewForCheck();
+  }
+
+  onEntryReservationSelectionChange(value: string | number | null | undefined): void {
+    this.entryReservationId = value == null || value === '' ? null : String(value);
+    if (this.entryReservationId) {
+      const reservation = this.reservations.find(item => item.reservationId === this.entryReservationId);
+      if (reservation?.propertyId) {
+        this.entryPropertyId = reservation.propertyId;
+      }
+      if (reservation?.contactId && this.shouldShowEntryContact()) {
+        this.entryContactId = reservation.contactId;
+      }
+    }
+
+    this.markViewForCheck();
+  }
+
+  onEntryContactSelectionChange(value: string | number | null | undefined): void {
+    this.entryContactId = value == null || value === '' ? null : String(value);
+    this.markViewForCheck();
+  }
+
+  shouldShowEntryPropertyError(): boolean {
+    if (!this.saveValidationHighlightActive) {
+      return false;
+    }
+
+    if (!this.hasSelectedLineContextMode('accountsReceivable')
+      && !this.hasSelectedLineContextMode('ownerPayable')) {
+      return false;
+    }
+
+    return !this.normalizeLinePropertyId(this.entryPropertyId);
+  }
+
+  shouldShowEntryReservationError(): boolean {
+    if (!this.saveValidationHighlightActive) {
+      return false;
+    }
+
+    if (!this.hasSelectedLineContextMode('accountsReceivable')) {
+      return false;
+    }
+
+    return !(this.entryReservationId || '').trim();
+  }
+
+  shouldShowEntryContactError(): boolean {
+    if (!this.saveValidationHighlightActive) {
+      return false;
+    }
+
+    if (!this.hasSelectedLineContextMode('accountsPayable')) {
+      return false;
+    }
+
+    return !(this.entryContactId || '').trim();
+  }
+
+  getEntryContextSelectClass(field: 'property' | 'reservation' | 'contact'): string {
+    const baseClass = 'split-editable-input split-account-select-control';
+    const hasError = field === 'property'
+      ? this.shouldShowEntryPropertyError()
+      : field === 'reservation'
+        ? this.shouldShowEntryReservationError()
+        : this.shouldShowEntryContactError();
+    return hasError ? `${baseClass} split-input-invalid` : baseClass;
+  }
+
+  syncEntryContextFromLines(): void {
+    const sourceLine = this.getActiveEditableLines()[0]
+      ?? this.editableLines.find(line => line.propertyId || line.reservationId || line.contactId)
+      ?? this.editableLines[0];
+    if (!sourceLine) {
+      this.entryPropertyId = null;
+      this.entryReservationId = null;
+      this.entryContactId = null;
+      return;
+    }
+
+    this.entryPropertyId = sourceLine.propertyId ?? null;
+    this.entryReservationId = sourceLine.reservationId ?? null;
+    this.entryContactId = sourceLine.contactId ?? null;
+    this.applyEntryContextVisibilityRules();
+  }
+
+  applyEntryContextVisibilityRules(): void {
+    if (!this.shouldShowEntryProperty()) {
+      this.entryPropertyId = null;
+    }
+
+    if (!this.shouldShowEntryReservation()) {
+      this.entryReservationId = null;
+    }
+
+    if (!this.shouldShowEntryContact()) {
+      this.entryContactId = null;
+    }
+
+    this.clearInvalidEntryReservationSelection();
+  }
+
+  applyEntryContextToLines(): void {
+    const propertyId = this.shouldShowEntryProperty()
+      ? this.normalizeLinePropertyId(this.entryPropertyId)
+      : null;
+    const reservationId = this.shouldShowEntryReservation()
+      ? ((this.entryReservationId || '').trim() || null)
+      : null;
+    const contactId = this.shouldShowEntryContact()
+      ? ((this.entryContactId || '').trim() || null)
+      : null;
+
+    this.editableLines = this.editableLines.map(line => ({
+      ...line,
+      propertyId,
+      reservationId,
+      contactId
+    }));
+  }
+
+  clearInvalidEntryReservationSelection(): void {
+    if (!this.entryReservationId) {
+      return;
+    }
+
+    const reservationIds = new Set(
+      this.buildEntryReservationOptions().map(option => String(option.value))
+    );
+    if (!reservationIds.has(this.entryReservationId)) {
+      this.entryReservationId = null;
+    }
+  }
+
+  normalizeLinePropertyId(propertyId: string | null | undefined): string | null {
+    const normalized = (propertyId || '').trim();
+    return normalized || null;
+  }
+
+  getContactDropdownLabel(contact: ContactResponse): string {
+    if (contact.entityTypeId === EntityType.Company) {
+      return (contact.companyName || contact.displayName || contact.fullName || '').trim();
+    }
+
+    const personName = (`${contact.firstName || ''} ${contact.lastName || ''}`).trim();
+    return personName || (contact.companyName || contact.displayName || contact.fullName || '').trim();
+  }
+
+  findContactById(contactId: string | null | undefined): ContactResponse | null {
+    const normalized = (contactId || '').trim();
+    if (!normalized) {
+      return null;
+    }
+
+    return this.contacts.find(contact => contact.contactId === normalized) ?? null;
+  }
+
+  resolveContactLabel(contactId: string | null | undefined): string {
+    const contact = this.findContactById(contactId);
+    if (contact) {
+      return this.getContactDropdownLabel(contact);
+    }
+
+    const line = this.journalEntry?.journalEntryLines?.find(item => item.contactId === contactId);
+    return (line?.contactName || contactId || '').trim();
+  }
+
+  resolveReservationLabel(reservationId: string | null | undefined): string {
+    const normalized = (reservationId || '').trim();
+    if (!normalized) {
+      return '';
+    }
+
+    const reservation = this.reservations.find(item => item.reservationId === normalized);
+    if (reservation) {
+      return this.utilityService.getReservationDropdownLabel(reservation, null);
+    }
+
+    const line = this.journalEntry?.journalEntryLines?.find(item => item.reservationId === normalized);
+    return (line?.reservationCode || normalized).trim();
+  }
+
+  resolvePropertyLabel(propertyId: string | null | undefined): string {
+    const normalized = this.normalizeLinePropertyId(propertyId);
+    if (!normalized) {
+      return 'Company';
+    }
+
+    const property = this.properties.find(item => item.propertyId === normalized);
+    return (property?.propertyCode || normalized).trim();
+  }
+
+  ensureSelectedPropertyOption(
+    options: SearchableSelectOption<string>[],
+    selectedPropertyId: string | null | undefined
+  ): SearchableSelectOption<string>[] {
+    const normalized = this.normalizeLinePropertyId(selectedPropertyId);
+    if (!normalized || options.some(option => String(option.value) === normalized)) {
+      return options;
+    }
+
+    return [
+      ...options,
+      { value: normalized, label: this.resolvePropertyLabel(normalized) }
+    ];
+  }
+
+  ensureSelectedReservationOption(
+    options: SearchableSelectOption<string>[],
+    selectedReservationId: string | null | undefined
+  ): SearchableSelectOption<string>[] {
+    const normalized = (selectedReservationId || '').trim();
+    if (!normalized || options.some(option => String(option.value) === normalized)) {
+      return options;
+    }
+
+    return [
+      ...options,
+      { value: normalized, label: this.resolveReservationLabel(normalized) }
+    ];
+  }
+
+  ensureSelectedOption(
+    options: SearchableSelectOption<string>[],
+    selectedValue: string | null | undefined,
+    selectedLabel: string
+  ): SearchableSelectOption<string>[] {
+    const normalized = (selectedValue || '').trim();
+    if (!normalized || options.some(option => String(option.value) === normalized)) {
+      return options.sort((left, right) =>
+        left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+    }
+
+    return [
+      ...options,
+      { value: normalized, label: selectedLabel || normalized }
+    ].sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
   }
   //#endregion
 
@@ -296,6 +723,12 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       isValid = false;
     }
 
+    if (this.shouldShowEntryPropertyError()
+      || this.shouldShowEntryReservationError()
+      || this.shouldShowEntryContactError()) {
+      isValid = false;
+    }
+
     if (activeLines.length > 0
       && Math.abs(this.getEditableTotalDebit() - this.getEditableTotalCredit()) > 0.005) {
       this.linesBalanceValidationError = true;
@@ -342,6 +775,12 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       || this.shouldShowLineAmountError(line)
       || this.shouldShowLineDebitCreditConflict(line)
       || this.shouldShowLineMemoError(line))) {
+      isValid = false;
+    }
+
+    if (this.shouldShowEntryPropertyError()
+      || this.shouldShowEntryReservationError()
+      || this.shouldShowEntryContactError()) {
       isValid = false;
     }
 
@@ -395,7 +834,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   shouldShowLineMemoError(line: EditableJournalEntryLine): boolean {
-    if (!this.saveValidationHighlightActive) {
+    if (!this.saveValidationHighlightActive || !this.shouldHighlightLineOnSave(line)) {
       return false;
     }
 
@@ -413,20 +852,28 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       && !(line.memo || '').trim();
   }
 
-  shouldShowLineAccountError(line: EditableJournalEntryLine): boolean {
-    if (!this.saveValidationHighlightActive || line.chartOfAccountId) {
-      return false;
-    }
-
-    if (line.debit > 0 || line.credit > 0 || !this.hasMemoValue(line.memo)) {
+  shouldHighlightLineOnSave(line: EditableJournalEntryLine): boolean {
+    if (!this.isLineEmpty(line)) {
       return true;
     }
 
     return this.getActiveEditableLines().length === 0;
   }
 
+  shouldShowLineAccountError(line: EditableJournalEntryLine): boolean {
+    if (!this.saveValidationHighlightActive || line.chartOfAccountId || !this.shouldHighlightLineOnSave(line)) {
+      return false;
+    }
+
+    if (line.debit > 0 || line.credit > 0) {
+      return true;
+    }
+
+    return !this.isLineEmpty(line) || this.getActiveEditableLines().length === 0;
+  }
+
   shouldShowLineAmountError(line: EditableJournalEntryLine): boolean {
-    if (!this.saveValidationHighlightActive) {
+    if (!this.saveValidationHighlightActive || !this.shouldHighlightLineOnSave(line)) {
       return false;
     }
 
@@ -503,15 +950,16 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     const accountingPeriod = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().accountingPeriod)
       ?? this.journalEntry.accountingPeriod;
 
+    this.applyEntryContextToLines();
     const journalEntryLines: JournalEntryLineRequest[] = this.canEditLines
       ? this.getActiveEditableLines().map(line => ({
           journalEntryLineId: line.journalEntryLineId,
           journalEntryId: this.journalEntry!.journalEntryId,
           chartOfAccountId: Number(line.chartOfAccountId),
           costCodeId: line.costCodeId ?? null,
-          propertyId: line.propertyId ?? null,
-          reservationId: line.reservationId ?? null,
-          contactId: line.contactId ?? null,
+          propertyId: this.normalizeLinePropertyId(line.propertyId),
+          reservationId: (line.reservationId || '').trim() || null,
+          contactId: (line.contactId || '').trim() || null,
           debit: this.roundCurrencyValue(line.debit),
           credit: this.roundCurrencyValue(line.credit),
           memo: line.memo.trim() || null
@@ -558,16 +1006,16 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return null;
     }
 
-    const lineContext = this.resolveCreateLineContext();
+    this.applyEntryContextToLines();
     const journalEntryLines: JournalEntryLineRequest[] = this.getActiveEditableLines().map(line => ({
       chartOfAccountId: Number(line.chartOfAccountId),
       debit: this.roundCurrencyValue(line.debit),
       credit: this.roundCurrencyValue(line.credit),
       memo: line.memo.trim() || null,
       costCodeId: line.costCodeId ?? null,
-      propertyId: (line.propertyId || '').trim() || lineContext.propertyId,
-      reservationId: (line.reservationId || '').trim() || lineContext.reservationId,
-      contactId: (line.contactId || '').trim() || lineContext.contactId
+      propertyId: this.normalizeLinePropertyId(line.propertyId),
+      reservationId: (line.reservationId || '').trim() || null,
+      contactId: (line.contactId || '').trim() || null
     }));
 
     return {
@@ -602,6 +1050,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.syncFormFromJournalEntry();
     this.populateEditableLinesFromJournalEntry(journalEntry);
     this.applyLineDisplay();
+    this.loadAccountingOfficeDefaults();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
     this.markViewForCheck();
   }
@@ -611,6 +1060,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     const lines = journalEntry.journalEntryLines ?? [];
     if (lines.length === 0) {
       this.editableLines = [this.createEditableLine(), this.createEditableLine()];
+      this.syncEntryContextFromLines();
       return;
     }
 
@@ -626,6 +1076,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       reservationId: line.reservationId ?? null,
       contactId: line.contactId ?? null
     }));
+    this.syncEntryContextFromLines();
   }
 
   resetForm(): void {
@@ -642,6 +1093,9 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.editableLines = [this.createEditableLine(), this.createEditableLine()];
+    this.entryPropertyId = null;
+    this.entryReservationId = null;
+    this.entryContactId = null;
     const today = new Date();
     this.form.reset({
       transactionDate: today,
@@ -675,6 +1129,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         }))
       : [this.createEditableLine(), this.createEditableLine()];
 
+    this.syncEntryContextFromLines();
     this.form.reset({
       transactionDate: this.utilityService.parseDateOnlyStringToDate(source.transactionDate) ?? new Date(),
       accountingPeriod: this.utilityService.parseDateOnlyStringToDate(source.accountingPeriod),
@@ -715,21 +1170,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  resolveCreateLineContext(): { propertyId: string | null; reservationId: string | null; contactId: string | null } {
-    const propertyId = (this.propertyId || '').trim() || null;
-    if (!propertyId) {
-      return { propertyId: null, reservationId: null, contactId: null };
-    }
-
-    const reservationId = (this.reservationId || '').trim() || null;
-    if (!reservationId) {
-      return { propertyId, reservationId: null, contactId: null };
-    }
-
-    const contactId = (this.reservationContactId || '').trim() || null;
-    return { propertyId, reservationId, contactId };
-  }
-
   createEditableLine(): EditableJournalEntryLine {
     return {
       lineKey: `line-${++this.editableLineKeyCounter}`,
@@ -751,6 +1191,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.editableLines = this.editableLines.filter(line => line.lineKey !== lineKey);
+    this.applyEntryContextVisibilityRules();
     this.markViewForCheck();
   }
 
@@ -759,6 +1200,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     if (line.debit > 0) {
       line.credit = 0;
     }
+    this.applyEntryContextVisibilityRules();
     this.markViewForCheck();
   }
 
@@ -767,6 +1209,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     if (line.credit > 0) {
       line.debit = 0;
     }
+    this.applyEntryContextVisibilityRules();
     this.markViewForCheck();
   }
 
@@ -778,6 +1221,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
     const parsed = Number(value ?? 0);
     line.chartOfAccountId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    this.applyEntryContextVisibilityRules();
     this.markViewForCheck();
   }
 
@@ -889,6 +1333,55 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         this.applyLineDisplay();
         this.markViewForCheck();
       });
+    });
+
+    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe(() => {
+      this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe(properties => {
+        this.properties = properties || [];
+        this.markViewForCheck();
+      });
+    });
+
+    this.reservationService.getReservationCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: reservations => {
+        this.reservations = reservations || [];
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.reservations = [];
+        this.markViewForCheck();
+      }
+    });
+
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: contacts => {
+        this.contacts = contacts || [];
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.contacts = [];
+        this.markViewForCheck();
+      }
+    });
+
+    this.loadAccountingOfficeDefaults();
+  }
+
+  loadAccountingOfficeDefaults(): void {
+    const officeId = this.effectiveOfficeId;
+    if (!officeId) {
+      this.accountingOfficeDefaults = null;
+      this.markViewForCheck();
+      return;
+    }
+
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(
+      take(1),
+      catchError(() => of(null))
+    ).subscribe(office => {
+      this.accountingOfficeDefaults = office;
+      this.applyEntryContextVisibilityRules();
+      this.markViewForCheck();
     });
   }
 

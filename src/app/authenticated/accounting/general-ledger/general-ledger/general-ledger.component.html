@@ -23,57 +23,116 @@
         </button>
       </div>
 
-      <div class="general-ledger-header-row">
-        <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-entry w-full">
-          <mat-label>Entry No</mat-label>
-          <input matInput [value]="isAddMode ? 'New' : (journalEntry?.journalEntryCode || '')" readonly disabled class="readonly-field">
-        </mat-form-field>
+      <div class="grid grid-cols-4 form-standard-grid general-ledger-form-grid">
+        <div class="col-span-4 general-ledger-header-row">
+          <div class="general-ledger-header-fields">
+            <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-entry w-full">
+              <mat-label>Entry No</mat-label>
+              <input matInput [value]="isAddMode ? 'New' : (journalEntry?.journalEntryCode || '')" readonly disabled class="readonly-field">
+            </mat-form-field>
 
-        <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-source w-full">
-          <mat-label>Source</mat-label>
-          <input matInput [value]="getSourceTypeLabel()" readonly disabled class="readonly-field">
-        </mat-form-field>
+            <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-source w-full">
+              <mat-label>Source</mat-label>
+              <input matInput [value]="getSourceTypeLabel()" readonly disabled class="readonly-field">
+            </mat-form-field>
 
-        <mat-form-field appearance="outline" class="general-ledger-field w-full">
-          <mat-label>Transaction Date</mat-label>
-          @if (canEditLines) {
-            <input matInput [matDatepicker]="transactionDatePicker" formControlName="transactionDate">
-          } @else {
-            <input matInput [value]="formatter.formatDateString(journalEntry?.transactionDate)" readonly disabled class="readonly-field">
-          }
-          @if (canEditLines) {
-            <mat-datepicker-toggle matIconSuffix [for]="transactionDatePicker"></mat-datepicker-toggle>
-          }
-          <mat-datepicker #transactionDatePicker></mat-datepicker>
-          @if (canEditLines && shouldShowControlError(form.get('transactionDate'))) {
-            <mat-error>Transaction date is required</mat-error>
-          }
-        </mat-form-field>
+            <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">
+              <mat-label>Transaction Date</mat-label>
+              @if (canEditLines) {
+                <input matInput [matDatepicker]="transactionDatePicker" formControlName="transactionDate">
+              } @else {
+                <input matInput [value]="formatter.formatDateString(journalEntry?.transactionDate)" readonly disabled class="readonly-field">
+              }
+              @if (canEditLines) {
+                <mat-datepicker-toggle matIconSuffix [for]="transactionDatePicker"></mat-datepicker-toggle>
+              }
+              <mat-datepicker #transactionDatePicker></mat-datepicker>
+            </mat-form-field>
 
-        <mat-form-field appearance="outline" class="general-ledger-field w-full">
-          <mat-label>Posting Date</mat-label>
-          <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
-          <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
-          <mat-datepicker #accountingPeriodPicker></mat-datepicker>
-          @if (shouldShowControlError(form.get('accountingPeriod'))) {
-            <mat-error>Posting date is required when posted</mat-error>
-          }
-        </mat-form-field>
+            <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">
+              <mat-label>Posting Date</mat-label>
+              <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
+              <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+              <mat-datepicker #accountingPeriodPicker></mat-datepicker>
+            </mat-form-field>
+          </div>
 
-        <mat-form-field
-          appearance="outline"
-          class="general-ledger-field general-ledger-field-memo w-full"
-          [class.mat-form-field-invalid]="shouldShowHeaderMemoError()"
-          [class.mat-mdc-form-field-invalid]="shouldShowHeaderMemoError()">
-          <mat-label>Memo</mat-label>
-          <input matInput formControlName="memo" maxlength="2500">
-          @if (shouldShowHeaderMemoError()) {
-            <mat-error>Memo is required</mat-error>
+          <mat-form-field
+            appearance="outline"
+            class="general-ledger-field general-ledger-field-memo w-full"
+            subscriptSizing="dynamic">
+            <mat-label>Memo</mat-label>
+            <input
+              matInput
+              formControlName="memo"
+              maxlength="2500"
+              [errorStateMatcher]="headerMemoErrorStateMatcher">
+          </mat-form-field>
+        </div>
+
+        @if (canEditLines && shouldShowEntryContextRow()) {
+          <div
+            class="col-span-4 general-ledger-context-row"
+            [class.general-ledger-context-row--vendor]="shouldShowEntryContact() && !shouldShowEntryProperty() && !shouldShowEntryReservation()"
+            [class.general-ledger-context-row--vendor-property]="shouldShowEntryContact() && shouldShowEntryProperty() && !shouldShowEntryReservation()">
+          @if (shouldShowEntryProperty()) {
+            <app-searchable-select
+              class="general-ledger-context-select"
+              [renderInFormField]="true"
+              formFieldLabel="Property Code"
+              [value]="entryPropertyId"
+              [options]="getEntryPropertyOptions()"
+              [required]="hasSelectedLineContextMode('accountsReceivable') || hasSelectedLineContextMode('ownerPayable')"
+              [showInstructionOption]="true"
+              [instructionOptionValue]="null"
+              [nullOptionLabel]="getEntryPropertyNullLabel()"
+              [showSearchInput]="true"
+              noResultsText="No properties match your search"
+              [selectClass]="getEntryContextSelectClass('property')"
+              [showError]="shouldShowEntryPropertyError()"
+              (valueChange)="onEntryPropertySelectionChange($event)" />
           }
-        </mat-form-field>
+
+          @if (shouldShowEntryContact()) {
+            <app-searchable-select
+              class="general-ledger-context-select"
+              [renderInFormField]="true"
+              [formFieldLabel]="getEntryContactLabel()"
+              [value]="entryContactId"
+              [options]="getEntryContactOptions()"
+              [required]="hasSelectedLineContextMode('accountsPayable')"
+              [showInstructionOption]="true"
+              [instructionOptionValue]="null"
+              [nullOptionLabel]="getEntryContactNullLabel()"
+              [showSearchInput]="true"
+              noResultsText="No vendors match your search"
+              [selectClass]="getEntryContextSelectClass('contact')"
+              [showError]="shouldShowEntryContactError()"
+              (valueChange)="onEntryContactSelectionChange($event)" />
+          }
+
+          @if (shouldShowEntryReservation()) {
+            <app-searchable-select
+              class="general-ledger-context-select"
+              [renderInFormField]="true"
+              formFieldLabel="Reservation"
+              [value]="entryReservationId"
+              [options]="getEntryReservationOptions()"
+              [required]="hasSelectedLineContextMode('accountsReceivable')"
+              [showInstructionOption]="true"
+              [instructionOptionValue]="null"
+              [nullOptionLabel]="getEntryReservationNullLabel()"
+              [showSearchInput]="true"
+              noResultsText="No reservations match your search"
+              [selectClass]="getEntryContextSelectClass('reservation')"
+              [showError]="shouldShowEntryReservationError()"
+              (valueChange)="onEntryReservationSelectionChange($event)" />
+          }
+          </div>
+        }
       </div>
 
-      <div class="general-ledger-splits-section">
+      <div class="general-ledger-splits-section form-standard-section-gap">
         <div class="general-ledger-splits-header">
           <span class="text-lg font-medium">Lines</span>
           @if (canEditLines) {
@@ -120,7 +179,6 @@
                           noResultsText="No accounts match your search"
                           [selectClass]="getLineAccountSelectClass(line)"
                           [showError]="shouldShowLineAccountError(line)"
-                          errorText="Account is required"
                           (valueChange)="onAccountSelectionChange(line.lineKey, $event)" />
                       </td>
                       <td class="split-col-description">
