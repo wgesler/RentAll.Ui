@@ -1335,21 +1335,25 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
 
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe(() => {
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe(() => {
       this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe(properties => {
         this.properties = properties || [];
         this.markViewForCheck();
       });
     });
 
-    this.reservationService.getReservationCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: reservations => {
-        this.reservations = reservations || [];
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.reservations = [];
-        this.markViewForCheck();
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.reservations = reservations || [];
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.reservations = [];
+            this.markViewForCheck();
+          }
+        });
       }
     });
 

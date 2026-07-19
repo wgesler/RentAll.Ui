@@ -383,9 +383,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
           next: properties => {
             this.allProperties = properties || [];
             this.refreshPropertyScope();
@@ -402,17 +402,21 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadReservationCodes(): void {
-    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
-      next: reservations => {
-        this.allReservations = reservations || [];
-        this.refreshReservationScope(this.selectedReservationId);
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.allReservations = [];
-        this.reservations = [];
-        this.selectedReservationId = null;
-        this.markViewForCheck();
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.allReservations = reservations || [];
+            this.refreshReservationScope(this.selectedReservationId);
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.allReservations = [];
+            this.reservations = [];
+            this.selectedReservationId = null;
+            this.markViewForCheck();
+          }
+        });
       }
     });
   }

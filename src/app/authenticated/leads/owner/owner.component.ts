@@ -525,9 +525,9 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$), finalize(() => {
           this.syncPropertyOfficeFromSelectedCode();
           this.markViewForCheck();
         })).subscribe({

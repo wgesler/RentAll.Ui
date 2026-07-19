@@ -341,7 +341,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe(() => {
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe(() => {
       this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe(properties => {
         this.propertyOptions = properties || [];
         this.cdr.markForCheck();

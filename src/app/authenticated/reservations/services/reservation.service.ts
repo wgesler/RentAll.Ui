@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, Subject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, firstValueFrom, of, switchMap, take, tap } from 'rxjs';
+import { AuthService } from '../../../services/auth.service';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import {
@@ -21,6 +22,7 @@ import { SecurityDepositService } from '../../accounting/services/security-depos
 export class ReservationService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+  private authService = inject(AuthService);
   private mixedMappingService = inject(MixedMappingService);
   private securityDepositService = inject(SecurityDepositService);
 
@@ -28,6 +30,13 @@ export class ReservationService {
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
   private readonly reservationSavedSubject = new Subject<{ reservationId: string }>();
   reservationSaved$ = this.reservationSavedSubject.asObservable();
+  private allReservationCodes$ = new BehaviorSubject<ReservationCodeResponse[]>([]);
+  private reservationCodesLoaded$ = new BehaviorSubject<boolean>(false);
+  private loadedOrganizationId: string | null = null;
+
+  getOrganizationId(): string {
+    return this.authService.getUser()?.organizationId?.trim() ?? '';
+  }
 
   // GET: Get reservation list (summary view)
   getReservationList(): Observable<ReservationListResponse[]> {
@@ -40,6 +49,77 @@ export class ReservationService {
 
   getReservationCodes(): Observable<ReservationCodeResponse[]> {
     return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
+  }
+
+  loadAllReservationCodes(): Observable<ReservationCodeResponse[]> {
+    const id = this.getOrganizationId();
+    if (!id) {
+      this.clearReservationCodes();
+      return of([]);
+    }
+    return this.getReservationCodes().pipe(
+      tap((codes) => {
+        this.allReservationCodes$.next(codes || []);
+        this.reservationCodesLoaded$.next(true);
+        this.loadedOrganizationId = id;
+      }),
+      catchError((err: HttpErrorResponse) => {
+        console.error('Reservation Service - Error loading reservation codes:', err);
+        this.allReservationCodes$.next([]);
+        this.reservationCodesLoaded$.next(true);
+        this.loadedOrganizationId = id;
+        return of([]);
+      })
+    );
+  }
+
+  ensureReservationCodesLoaded(): Observable<ReservationCodeResponse[]> {
+    const id = this.getOrganizationId();
+    if (!id) {
+      this.clearReservationCodes();
+      return of([]);
+    }
+    if (this.reservationCodesLoaded$.value && this.loadedOrganizationId === id) {
+      return this.getAllReservationCodes().pipe(take(1));
+    }
+    return this.loadAllReservationCodes().pipe(take(1), switchMap(() => this.getAllReservationCodes().pipe(take(1))));
+  }
+
+  refreshReservationCodes(): Observable<ReservationCodeResponse[]> {
+    this.reservationCodesLoaded$.next(false);
+    this.loadedOrganizationId = null;
+    return this.loadAllReservationCodes().pipe(take(1), switchMap(() => this.getAllReservationCodes().pipe(take(1))));
+  }
+
+  /** Reload the global reservation codes cache and push to all getAllReservationCodes() subscribers. */
+  notifyReservationCodesChanged(): void {
+    this.refreshCachedReservationCodesAfterMutation();
+  }
+
+  refreshCachedReservationCodesAfterMutation(): void {
+    const id = this.getOrganizationId() || this.loadedOrganizationId?.trim();
+    if (!id) {
+      return;
+    }
+    this.refreshReservationCodes().pipe(take(1)).subscribe();
+  }
+
+  areReservationCodesLoaded(): Observable<boolean> {
+    return this.reservationCodesLoaded$.asObservable();
+  }
+
+  clearReservationCodes(): void {
+    this.allReservationCodes$.next([]);
+    this.reservationCodesLoaded$.next(false);
+    this.loadedOrganizationId = null;
+  }
+
+  getAllReservationCodes(): Observable<ReservationCodeResponse[]> {
+    return this.allReservationCodes$.asObservable();
+  }
+
+  getAllReservationCodesValue(): ReservationCodeResponse[] {
+    return this.allReservationCodes$.value;
   }
 
   // GET: Get reservations list for a particular property
@@ -86,6 +166,7 @@ export class ReservationService {
     }
     this.reservationSavedSubject.next({ reservationId: normalizedReservationId });
     this.securityDepositService.refreshSecurityDepositsOutstanding();
+    this.notifyReservationCodesChanged();
   }
 
   getReservationTrackerResponses(reservationId: string): Observable<ReservationTrackerResponse[]> {

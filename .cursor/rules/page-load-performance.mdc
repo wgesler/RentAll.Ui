@@ -1,0 +1,83 @@
+---
+description: App-wide page load performance — itemsToLoad/isPageReady standard and change discipline
+alwaysApply: true
+---
+
+# Page load performance effort
+
+**Status:** Holistic audit — reservation-only hotfixes **reverted** (not production-validated).
+**Validate in production only.** One hypothesis → one change → deploy → observe.
+
+## User goals
+
+1. **No flash of wrong data** — list appears only after office scope / required context is resolved (`ui-form-consistency.mdc` loading gate).
+2. **Acceptable wait** — spinner should not run minutes for small datasets (single office, ~30 rows).
+3. **Consistency** — `itemsToLoad$` + `isPageReady` is the standard (~90+ components); do not invent parallel patterns per page.
+
+## How the two mechanisms relate (NOT fighting)
+
+| Mechanism | Purpose |
+|-----------|---------|
+| `itemsToLoad$` → `isPageReady` | **When** to show spinner vs content. Keys = required async work before first paint. |
+| `markViewForCheck()` | **Tell Angular to repaint** after state changes. Required on `ChangeDetectionStrategy.OnPush` components. |
+
+They work together:
+- Async load completes → remove key from `itemsToLoad$` → subscription sets `isPageReady` → **`markViewForCheck()`** in that subscription updates the template.
+- Missing `markViewForCheck` on OnPush = **stuck spinner** (data ready, UI frozen).
+- Extra unrelated keys in `itemsToLoad$` = **long spinner** (waiting on slow/unnecessary HTTP).
+
+**Do not** coalesce, defer, or remove `markViewForCheck` from the standard subscription without a holistic decision.
+
+## Standard pattern (from ui-form-consistency.mdc)
+
+```typescript
+itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['primaryData', 'officeScope']));
+isPageReady = false;
+
+ngOnInit(): void {
+  this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+    this.isPageReady = items.size === 0;
+    this.markViewForCheck();
+  });
+  // each loader: addLoadItem in start, removeLoadItemFromSet in finalize
+}
+```
+
+Template: `@if (!isPageReady) { spinner } @else { content }`
+
+## Likely systemic causes of slow loads (hypotheses — unconfirmed)
+
+1. **Too many gate keys** — e.g. invoice-list gates on `reservations` + `invoices`; reservation-list on `reservations` + `properties` + `officeScope`.
+2. **Heavy shared HTTP** — `getReservationList()` (full org) called from many tabs with no cache.
+3. **Accounting shell** — invoice tab always mounted; `refreshTrigger` shotgun on JE changes; lazy `@if` on other tabs but tab 0 always live.
+4. **Re-gating on broadcasts** — e.g. `propertiesFiltered$` → `addLoadItem('properties')` puts spinner back up.
+5. **officeScope never clearing** — early return when `offices.length === 0` before retry.
+6. **Board render cost** — template method per cell (separate from gate, causes slowness after load).
+
+## Reverted local changes (do not re-apply piecemeal)
+
+- `reservation-list.component.ts` — reverted to standard 3-key gate
+- `reservation-board.component.ts` — reverted to standard subscription (no detectChanges/coalesce experiments)
+
+## Holistic audit order (before next code change)
+
+1. **Inventory gate keys** — list each accounting-shell tab child: what keys block `isPageReady`?
+2. **Network baseline in prod** — which HTTP calls dominate wait (DevTools on one slow tab)?
+3. **Classify keys** — *required for first paint* vs *can load after show* (filters, reference data).
+4. **Shared caches** — reservation list, property selection: load once, invalidate on save (like offices/contacts).
+5. **Shell orchestration** — accounting-shell refresh triggers: scope to active tab only.
+6. **One pilot page** — pick slowest tab, fix gate keys + cache, deploy, measure, then template for others.
+
+## Change discipline
+
+- No reservation-only or markViewForCheck experiments outside the audit plan.
+- Align all fixes with `ui-form-consistency.mdc` unless explicitly changing that standard app-wide.
+- Document prod result after each deploy in this rule's checklist section.
+
+## Production checklist (per deploy)
+
+- Route/tab tested:
+- Spinner duration (rough):
+- Network slow calls:
+- Flash of wrong data (Y/N):
+- Result:

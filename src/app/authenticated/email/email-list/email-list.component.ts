@@ -68,7 +68,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   allEmails: EmailListDisplay[] = [];
   isPageReady = false;
   isServiceError = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'companies', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'companies']));
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
@@ -132,12 +132,7 @@ markViewForCheck(): void {
       });
     }
     this.loadCompanies();
-    if (this.reservations && this.reservations.length > 0) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-      this.filterReservations();
-    } else {
-      this.loadReservations();
-    }
+    this.loadReservations();
     this.loadEmails();
   }
 
@@ -323,15 +318,21 @@ markViewForCheck(): void {
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-      this.markViewForCheck();
-    })).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        this.filterReservations();
-        this.applyFilters();
-        this.markViewForCheck();
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.reservations = reservations || [];
+            this.filterReservations();
+            this.applyFilters();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.reservations = [];
+            this.availableReservations = [];
+            this.markViewForCheck();
+          }
+        });
       },
       error: () => {
         this.reservations = [];

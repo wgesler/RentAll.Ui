@@ -53,7 +53,7 @@ getOrganizationId(): string {
     return this.http.get<PropertyCodeResponse[]>(this.controller + 'codes');
   }
 
-fetchPropertyCodesFromApi(): Observable<PropertyCodeResponse[]> {
+  loadAllPropertyCodes(): Observable<PropertyCodeResponse[]> {
     const id = this.getOrganizationId();
     if (!id) {
       this.clearPropertyCodes();
@@ -75,7 +75,7 @@ fetchPropertyCodesFromApi(): Observable<PropertyCodeResponse[]> {
     );
   }
 
-  loadPropertyCodes(): Observable<PropertyCodeResponse[]> {
+  ensurePropertyCodesLoaded(): Observable<PropertyCodeResponse[]> {
     const id = this.getOrganizationId();
     if (!id) {
       this.clearPropertyCodes();
@@ -84,13 +84,13 @@ fetchPropertyCodesFromApi(): Observable<PropertyCodeResponse[]> {
     if (this.propertyCodesLoaded$.value && this.loadedOrganizationId === id) {
       return this.getAllPropertyCodes().pipe(take(1));
     }
-    return this.fetchPropertyCodesFromApi().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
+    return this.loadAllPropertyCodes().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
   }
 
   refreshPropertyCodes(): Observable<PropertyCodeResponse[]> {
     this.propertyCodesLoaded$.next(false);
     this.loadedOrganizationId = null;
-    return this.fetchPropertyCodesFromApi().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
+    return this.loadAllPropertyCodes().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
   }
 
   /** Reload the global property codes cache and push to all getAllPropertyCodes() subscribers. */

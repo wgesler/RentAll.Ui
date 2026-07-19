@@ -121,7 +121,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   isPageReady = false;
   isInvoiceContentReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice']));
   destroy$ = new Subject<void>();
 
   //#region Invoice
@@ -1149,21 +1149,27 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadReservationCodes(): void {
-    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-    })).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        this.syncSelectedReservationFromForm();
-        if (this.form) {
-          this.updateAvailableReservations();
-        } else {
-          this.availableReservations = this.reservations.map(r => ({
-            value: r.reservationId,
-            label: this.utilityService.getReservationDropdownLabel(r, this.getSelectedCompanyContact())
-          }));
-        }
-        this.applyPrefilledInvoiceContext();
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.reservations = reservations || [];
+            this.syncSelectedReservationFromForm();
+            if (this.form) {
+              this.updateAvailableReservations();
+            } else {
+              this.availableReservations = this.reservations.map(r => ({
+                value: r.reservationId,
+                label: this.utilityService.getReservationDropdownLabel(r, this.getSelectedCompanyContact())
+              }));
+            }
+            this.applyPrefilledInvoiceContext();
+          },
+          error: () => {
+            this.reservations = [];
+            this.availableReservations = [];
+          }
+        });
       },
       error: () => {
         this.reservations = [];

@@ -574,6 +574,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
             arrivalDateChanged: false,
             departureDateChanged: false
           });
+          this.reservationService.notifyReservationCodesChanged();
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.navigateToReservationEntryOrigin();
         },
@@ -646,9 +647,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
           next: (codes: PropertyCodeResponse[]) => {
             this.propertyCodes = codes || [];
             this.filterPropertiesByOffice();

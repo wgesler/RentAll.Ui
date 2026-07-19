@@ -245,9 +245,9 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   }
   
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
           next: (properties) => {
             this.propertyCodeLookup = new Map(
               (properties || []).map(property => [property.propertyId, property.propertyCode])

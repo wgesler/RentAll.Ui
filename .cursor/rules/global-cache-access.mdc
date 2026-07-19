@@ -18,7 +18,7 @@ Do not change how these are consumed.
 
 ## Group B — one sanctioned pattern, no exceptions
 
-Offices, Accounting offices, Cost codes, Chart of accounts, Contacts, Features, and the office-selection stream.
+Offices, Accounting offices, Cost codes, Chart of accounts, Contacts, Features, Property codes, Reservation codes, and the office-selection stream.
 
 ### The pattern: `ensure...Loaded()` → live `getAll...()`
 
@@ -37,7 +37,7 @@ this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
 });
 ```
 
-Reference implementation: `accounting/invoices/invoice/invoice.component.ts`.
+Reference implementation: `accounting/invoices/invoice/invoice.component.ts` (`loadOffices`, `loadReservationCodes`, `loadCostCodes`).
 
 ### Formatting (non-negotiable)
 
@@ -68,7 +68,8 @@ this.officeService
   used to populate component data.
 - **Raw HTTP** — `getOffices()`, `getOfficesByOrganization()`, `loadAllOffices()`,
   `getAccountingOffices()`, `loadAllAccountingOffices()`, `loadAllCostCodes()`,
-  `loadAllContacts()`, `loadAllFeatures()`, `getFeaturesByOrganization()` from a feature component.
+  `loadAllContacts()`, `loadAllFeatures()`, `getFeaturesByOrganization()`,
+  `getPropertyCodes()`, `getReservationCodes()`, `loadAllPropertyCodes()`, `loadAllReservationCodes()` from a feature component.
 
 ### Inline sync reads inside event handlers
 

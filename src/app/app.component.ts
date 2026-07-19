@@ -17,6 +17,7 @@ import { BrandingService } from './services/branding.service';
 import { CommonService } from './services/common.service';
 import { PropertySelectionFilterService } from './authenticated/properties/services/property-selection-filter.service';
 import { PropertyService } from './authenticated/properties/services/property.service';
+import { ReservationService } from './authenticated/reservations/services/reservation.service';
 import { SecurityDepositService } from './authenticated/accounting/services/security-deposit.service';
 import { DebugLayoutBandsService } from './services/debug-layout-bands.service';
 import { UtilityService } from './services/utility.service';
@@ -44,6 +45,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
   private securityDepositService = inject(SecurityDepositService);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
@@ -82,6 +84,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadContacts();
         this.loadOffices();
         this.loadPropertyCodes();
+        this.loadReservationCodes();
         this.loadPropertySelectionFilterState();
         if (this.authService.hasAccountingNavAccess()) {
           this.securityDepositService.refreshSecurityDepositsOutstanding();
@@ -95,6 +98,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.contactService.clearContacts();
         this.officeService.clearOffices();
         this.propertyService.clearPropertyCodes();
+        this.reservationService.clearReservationCodes();
         this.organizationFeatureService.clearFeatures();
         this.accountingOfficeService.clearAccountingOffices();
         this.chartOfAccountsService.clearChartOfAccounts();
@@ -154,6 +158,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.organizationId) {
       this.officeService.clearOffices();
       this.propertyService.clearPropertyCodes();
+      this.reservationService.clearReservationCodes();
       this.organizationFeatureService.clearFeatures();
       this.accountingOfficeService.clearAccountingOffices();
       this.globalSelectionService.clearGlobalOfficeSelection();
@@ -190,7 +195,15 @@ export class AppComponent implements OnInit, OnDestroy {
       this.propertyService.clearPropertyCodes();
       return;
     }
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({ error: () => {} });
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({ error: () => {} });
+  }
+
+  loadReservationCodes(): void {
+    if (!this.organizationId) {
+      this.reservationService.clearReservationCodes();
+      return;
+    }
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({ error: () => {} });
   }
 
   verifyMainProgramAccess(features?: FeatureResponse[]): boolean {

@@ -734,6 +734,7 @@
     <mat-card>
         <mat-tab-group [selectedIndex]="effectiveSelectedTabIndex" class="shell-tabs shell-tabs--6-slots dbg-band-tabs" (selectedTabChange)="onMatTabSelected($event)">
           <mat-tab label="Invoices">
+            @if (selectedTabIndex === 0) {
             @if (showInvoiceCreate && invoiceCreateContext) {
               @for (instance of [invoiceCreateInstance]; track instance) {
                 <app-invoice-create
@@ -779,6 +780,7 @@
               (previewEvent)="onInvoicePreviewOpen($event)"
               (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
+            }
             }
           </mat-tab>
           <mat-tab>

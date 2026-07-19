@@ -294,9 +294,9 @@ persistPinnedTopBarIfActive(): void {
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyService.getAllPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
           next: properties => {
             this.properties = properties || [];
             this.refreshPropertyOptions();
@@ -312,16 +312,20 @@ persistPinnedTopBarIfActive(): void {
   }
 
   loadReservationCodes(): void {
-    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
-      next: reservations => {
-        this.reservations = reservations || [];
-        this.refreshReservationOptions();
-      },
-      error: () => {
-        this.reservations = [];
-        this.availableReservations = [];
-        this.selectedReservationId = null;
-        this.selectedReservationSummary = null;
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.reservations = reservations || [];
+            this.refreshReservationOptions();
+          },
+          error: () => {
+            this.reservations = [];
+            this.availableReservations = [];
+            this.selectedReservationId = null;
+            this.selectedReservationSummary = null;
+          }
+        });
       }
     });
   }

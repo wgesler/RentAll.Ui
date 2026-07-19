@@ -235,13 +235,22 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyCodeByPropertyId = new Map(
-          this.propertyService.getAllPropertyCodesValue().map(property => [property.propertyId, property.propertyCode])
-        );
-        this.applyReportDisplay();
-        this.markViewForCheck();
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.propertyCodeByPropertyId = new Map(
+              (properties || []).map(property => [property.propertyId, property.propertyCode])
+            );
+            this.applyReportDisplay();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.propertyCodeByPropertyId.clear();
+            this.applyReportDisplay();
+            this.markViewForCheck();
+          }
+        });
       },
       error: () => {
         this.propertyCodeByPropertyId.clear();
@@ -535,10 +544,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       this.rebuildVisibleRows();
       this.isServiceError = false;
       this.refreshPrintableHtml();
-
-      if (this.drillDownView) {
-        this.refreshDetailReport();
-      }
+      this.refreshDrillDownViewFromReport();
     } catch (error) {
       console.error('AP Aging - error building report display:', error);
       this.isServiceError = true;
@@ -719,19 +725,19 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   drillDownBack(): void {
     if (this.activeReceiptId) {
       this.closeReceiptDetail();
-      this.markViewForCheck();
+      this.loadReportSourceData();
       return;
     }
 
     if (this.activeInvoiceId) {
       this.closeInvoiceDetail();
-      this.markViewForCheck();
+      this.loadReportSourceData();
       return;
     }
 
     if (this.activeWorkOrderId) {
       this.closeWorkOrderDetail();
-      this.markViewForCheck();
+      this.loadReportSourceData();
       return;
     }
 
@@ -763,6 +769,29 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       }
       return true;
     });
+  }
+
+  refreshDrillDownViewFromReport(): void {
+    if (!this.drillDownView || !this.reportResult) {
+      return;
+    }
+
+    const bills = this.filterDrillDownBills(
+      this.drillDownView.vendorKey,
+      this.drillDownView.bucketId,
+      this.drillDownView.propertyKey
+    );
+
+    if (bills.length === 0) {
+      this.closeDrillDown();
+      return;
+    }
+
+    this.drillDownView = {
+      ...this.drillDownView,
+      bills
+    };
+    this.refreshDetailReport();
   }
 
   refreshDetailReport(): void {

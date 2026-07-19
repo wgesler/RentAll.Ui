@@ -287,7 +287,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      this.markViewForCheck();
       return;
     }
 
@@ -312,7 +311,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      this.markViewForCheck();
       return;
     }
 
@@ -322,7 +320,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      this.markViewForCheck();
       return;
     }
 

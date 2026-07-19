@@ -347,6 +347,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.sendReservationDeletedNotification(deletedReservationResult);
         this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
         this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
+        this.reservationService.notifyReservationCodesChanged();
         this.applyFilters();
         this.markViewForCheck();
       },

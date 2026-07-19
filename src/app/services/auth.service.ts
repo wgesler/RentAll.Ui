@@ -20,6 +20,7 @@ import { OfficeService } from '../authenticated/organizations/services/office.se
 import { OrganizationFeatureService } from '../authenticated/organizations/services/organization-feature.service';
 import { AccountingOfficeService } from '../authenticated/organizations/services/accounting-office.service';
 import { PropertyService } from '../authenticated/properties/services/property.service';
+import { ReservationService } from '../authenticated/reservations/services/reservation.service';
 import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../shared/utils/cdk-overlay.util';
 import { ConfigService } from './config.service';
 import { StorageService } from './storage.service';
@@ -433,6 +434,7 @@ export class AuthService {
         try {
             this.injector.get(OfficeService).clearOffices();
             this.injector.get(PropertyService).clearPropertyCodes();
+            this.injector.get(ReservationService).clearReservationCodes();
             this.injector.get(OrganizationFeatureService).clearFeatures();
             this.injector.get(AccountingOfficeService).clearAccountingOffices();
         } catch {

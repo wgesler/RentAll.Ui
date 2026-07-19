@@ -202,13 +202,22 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   loadPropertyCodes(): void {
-    this.propertyService.loadPropertyCodes().pipe(take(1)).subscribe({
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.propertyCodeByPropertyId = new Map(
-          this.propertyService.getAllPropertyCodesValue().map(property => [property.propertyId, property.propertyCode])
-        );
-        this.applyReportDisplay();
-        this.markViewForCheck();
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.propertyCodeByPropertyId = new Map(
+              (properties || []).map(property => [property.propertyId, property.propertyCode])
+            );
+            this.applyReportDisplay();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.propertyCodeByPropertyId.clear();
+            this.applyReportDisplay();
+            this.markViewForCheck();
+          }
+        });
       },
       error: () => {
         this.propertyCodeByPropertyId.clear();
