@@ -295,6 +295,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         invoiceId: 'new',
         officeId: officeIdToUse,
         reservationId: reservationIdToUse,
+        companyId: companyIdToUse,
         invoice: null
       });
       return;

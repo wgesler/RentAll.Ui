@@ -79,10 +79,32 @@
               (valueChange)="onAccountingInvoiceEditorOfficeDropdownChange($event)">
             </app-title-bar-select>
 
-            <mat-form-field appearance="outline" class="titlebar-field-property-code">
-              <mat-label>Property Code</mat-label>
-              <input matInput [value]="shellInvoiceEditor!.titleBarPropertyCode" readonly [disabled]="true" class="readonly-field">
-            </mat-form-field>
+            @if (shellInvoiceEditor!.isAddMode) {
+              <app-title-bar-select
+                [label]="'Companies'"
+                [formFieldClass]="'titlebar-field-company'"
+                [value]="shellInvoiceEditor!.companyId"
+                [options]="shellInvoiceEditor!.companyTitleBarOptions"
+                [nullOptionLabel]="'All Companies'"
+                [noResultsText]="'No companies match your search'"
+                (valueChange)="onAccountingInvoiceEditorCompanyDropdownChange($event)">
+              </app-title-bar-select>
+
+              <app-title-bar-select
+                [label]="'Property Code'"
+                [formFieldClass]="'titlebar-field-property-code'"
+                [value]="shellInvoiceEditor!.selectedPropertyId"
+                [options]="shellInvoiceEditor!.propertyTitleBarOptions"
+                [nullOptionLabel]="'All Properties'"
+                [noResultsText]="'No properties match your search'"
+                (valueChange)="onAccountingInvoiceEditorPropertyDropdownChange($event)">
+              </app-title-bar-select>
+            } @else {
+              <mat-form-field appearance="outline" class="titlebar-field-property-code">
+                <mat-label>Property Code</mat-label>
+                <input matInput [value]="shellInvoiceEditor!.titleBarPropertyCode" readonly [disabled]="true" class="readonly-field">
+              </mat-form-field>
+            }
 
             <div class="invoice-titlebar-reservation-wrap">
               <app-title-bar-select
@@ -732,6 +754,7 @@
                   [officeIdInput]="selectedOfficeId"
                   [reservationIdInput]="selectedReservationId"
                   [companyIdInput]="selectedCompanyId"
+                  [shellPropertyCodes]="glProperties"
                   (previewEvent)="onInvoicePreviewOpen($event)">
                 </app-invoice>
               }

@@ -577,6 +577,16 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.persistPinnedTopBarIfActive();
   }
 
+  onAccountingInvoiceEditorCompanyDropdownChange(value: string | number | null): void {
+    const companyId = value == null || value === '' ? null : String(value);
+    this.selectedCompanyId = companyId;
+    this.shellInvoiceEditor?.onTitleBarCompanyChange(value);
+  }
+
+  onAccountingInvoiceEditorPropertyDropdownChange(value: string | number | null): void {
+    this.shellInvoiceEditor?.onTitleBarPropertyChange(value);
+  }
+
   onAccountingInvoiceEditorOfficeDropdownChange(value: string | number | null): void {
     const editor = this.shellInvoiceEditor;
     if (!editor) {
@@ -586,11 +596,10 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   onAccountingInvoiceEditorReservationDropdownChange(value: string | number | null): void {
-    const editor = this.shellInvoiceEditor;
-    if (!editor) {
-      return;
-    }
-    editor.onTitleBarReservationChange(value);
+    const reservationId = value == null || value === '' ? null : String(value);
+    this.selectedReservationId = reservationId;
+    this.shellInvoiceEditor?.onTitleBarReservationChange(value);
+    this.selectedCompanyId = this.shellInvoiceEditor?.companyId ?? this.selectedCompanyId;
   }
   //#endregion
 
@@ -739,6 +748,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     }
     if (selection.reservationId && this.selectedReservationId !== selection.reservationId) {
       this.selectedReservationId = selection.reservationId;
+    }
+    if (selection.companyId != null && selection.companyId !== '') {
+      this.selectedCompanyId = selection.companyId;
     }
 
     const reopeningInvoiceAdd = invoiceId === 'new'

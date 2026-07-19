@@ -21,6 +21,10 @@ export interface InvoiceRequest {
   invoiceCode?: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  propertyId?: string | null;
+  propertyCode?: string | null;
+  contactId?: string | null;
+  contactName?: string | null;
   responsibleParty?: string | null;
   startDate: string;
   endDate: string;
@@ -73,6 +77,7 @@ export interface InvoiceSelection {
   invoiceId: string;
   officeId: number | null;
   reservationId: string | null;
+  companyId?: string | null;
   invoice?: InvoiceResponse | null;
 }
 

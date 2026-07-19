@@ -16,7 +16,11 @@ import { OfficeResponse } from '../../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { ReservationCodeResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
+import { ReservationType } from '../../../reservations/models/reservation-enum';
 import { ReservationService } from '../../../reservations/services/reservation.service';
+import { ContactResponse } from '../../../contacts/models/contact.model';
+import { ContactService } from '../../../contacts/services/contact.service';
+import { PropertyCodeResponse } from '../../../properties/models/property.model';
 import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titlebar-select.component';
 import { TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
@@ -42,6 +46,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeIdInput: number | null = null;
   @Input() reservationIdInput: string | null = null;
   @Input() companyIdInput: string | null = null;
+  @Input() propertyIdInput: string | null = null;
+  @Input() shellPropertyCodes: PropertyCodeResponse[] = [];
   @Input() prefetchedInvoice: InvoiceResponse | null = null;
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   accountingService = inject(InvoiceService);
@@ -51,6 +57,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   private toastr = inject(ToastrService);
   private officeService = inject(OfficeService);
   private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
   private costCodesService = inject(CostCodesService);
@@ -79,6 +86,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   selectedReservationDetailRequestId: string | null = null;
   
   companyId: string | null = null;
+  selectedPropertyId: string | null = null;
+  companyContacts: ContactResponse[] = [];
   
   allCostCodes: CostCodesResponse[] = [];
   officeCostCodes:CostCodesResponse[] = [];
@@ -138,6 +147,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadReservationCodes();
     this.loadCostCodes();
+    if (this.isAddMode) {
+      this.loadCompanyContacts();
+    }
 
     this.buildForm();
     this.setupFormHandlers();
@@ -176,7 +188,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       changes['invoiceIdInput'] ||
       changes['officeIdInput'] ||
       changes['reservationIdInput'] ||
-      changes['companyIdInput']
+      changes['companyIdInput'] ||
+      changes['propertyIdInput']
     )) {
       this.applyPrefilledInvoiceContext();
     }
@@ -267,6 +280,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     const reservationIdParam = this.getContextReservationId(queryParams);
     const companyIdParam = this.companyIdInput ?? queryParams['companyId'];
+    const propertyIdParam = this.propertyIdInput ?? queryParams['propertyId'];
     const reservationFromContext = reservationIdParam
       ? this.reservations.find(r => r.reservationId === reservationIdParam) || null
       : null;
@@ -274,6 +288,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     if (companyIdParam) {
       this.companyId = String(companyIdParam);
+    }
+
+    if (propertyIdParam) {
+      this.selectedPropertyId = String(propertyIdParam);
+    } else if (reservationFromContext?.propertyId) {
+      this.selectedPropertyId = reservationFromContext.propertyId;
     }
 
     if (this.offices.length === 0 || officeIdToApply == null) {
@@ -297,6 +317,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.form.get('reservationId')?.setValue(reservationFromContext.reservationId, { emitEvent: false });
     this.selectedReservation = reservationFromContext;
+    this.applyReservationCompanyAndPropertyContext();
     this.setInvoiceCode(this.selectedReservation);
   }
 
@@ -491,6 +512,191 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
 
+  get companyTitleBarOptions(): { value: string, label: string }[] {
+    const dedupedByCompanyLabel = new Map<string, { value: string, label: string }>();
+    const normalizeCompanyKey = (label: string): string => label.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const officeId = this.selectedOffice?.officeId ?? this.form?.get('officeId')?.value ?? null;
+
+    this.companyContacts
+      .filter(contact => !!contact?.isActive)
+      .filter(contact => this.contactHasOfficeAccess(contact, officeId))
+      .forEach(contact => {
+        const label = this.utilityService.getCompanyDropdownLabel(contact);
+        if (!label) {
+          return;
+        }
+
+        const dedupeKey = normalizeCompanyKey(label);
+        if (!dedupedByCompanyLabel.has(dedupeKey)) {
+          dedupedByCompanyLabel.set(dedupeKey, { value: contact.contactId, label });
+          return;
+        }
+
+        const existing = dedupedByCompanyLabel.get(dedupeKey)!;
+        if (label.length > existing.label.length) {
+          dedupedByCompanyLabel.set(dedupeKey, { value: contact.contactId, label });
+        }
+      });
+
+    return Array.from(dedupedByCompanyLabel.values())
+      .sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+        || a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })
+      );
+  }
+
+  get propertyTitleBarOptions(): { value: string, label: string }[] {
+    const officeId = this.selectedOffice?.officeId ?? this.form?.get('officeId')?.value ?? null;
+    const sourceProperties = this.shellPropertyCodes.length > 0
+      ? this.shellPropertyCodes
+      : this.buildPropertyOptionsFromReservations();
+    const filteredProperties = officeId == null
+      ? sourceProperties
+      : sourceProperties.filter(property => property.officeId === officeId);
+
+    return filteredProperties
+      .map(property => ({ value: property.propertyId, label: property.propertyCode }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  }
+
+  buildPropertyOptionsFromReservations(): PropertyCodeResponse[] {
+    const byPropertyId = new Map<string, PropertyCodeResponse>();
+    for (const reservation of this.reservations) {
+      if (!byPropertyId.has(reservation.propertyId)) {
+        byPropertyId.set(reservation.propertyId, {
+          propertyId: reservation.propertyId,
+          propertyCode: reservation.propertyCode,
+          propertyLeaseTypeId: 0,
+          shortAddress: '',
+          officeId: reservation.officeId,
+          officeName: reservation.officeName
+        });
+      }
+    }
+    return Array.from(byPropertyId.values());
+  }
+
+  getSelectedCompanyContact(): ContactResponse | null {
+    if (!this.companyId) {
+      return null;
+    }
+    return this.companyContacts.find(contact => contact.contactId === this.companyId) ?? null;
+  }
+
+  isCorporateOrPlatformReservation(
+    reservation: ReservationCodeResponse | ReservationResponse | null | undefined,
+    detail: ReservationResponse | null = this.selectedReservationDetail
+  ): boolean {
+    const reservationTypeId = detail?.reservationTypeId ?? reservation?.reservationTypeId;
+    return reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform;
+  }
+
+  syncCompanyFromReservation(): void {
+    if (!this.isAddMode || !this.selectedReservation) {
+      return;
+    }
+
+    if (!this.isCorporateOrPlatformReservation(this.selectedReservation)) {
+      return;
+    }
+
+    const companyContactId = (this.selectedReservationDetail?.companyId ?? this.selectedReservation.companyId ?? '').trim();
+    if (companyContactId) {
+      this.companyId = companyContactId;
+    }
+  }
+
+  applyReservationCompanyAndPropertyContext(): void {
+    if (!this.isAddMode || !this.selectedReservation) {
+      return;
+    }
+
+    if (this.selectedReservation.propertyId) {
+      this.selectedPropertyId = this.selectedReservation.propertyId;
+    }
+
+    this.syncCompanyFromReservation();
+  }
+
+  resolveInvoiceSnapshotFields(): {
+    reservationId: string | null;
+    reservationCode: string | null;
+    propertyId: string | null;
+    propertyCode: string | null;
+    contactId: string | null;
+    contactName: string | null;
+  } {
+    const reservationId = this.getEffectiveReservationId();
+    const selectedReservation = reservationId
+      ? this.reservations.find(reservation => reservation.reservationId === reservationId) ?? this.selectedReservation
+      : null;
+    const propertyOption = this.propertyTitleBarOptions.find(option => option.value === this.selectedPropertyId) ?? null;
+    const propertyId = (this.selectedPropertyId || selectedReservation?.propertyId || '').trim() || null;
+    const propertyCode = (propertyOption?.label || selectedReservation?.propertyCode || '').trim() || null;
+    const reservationCode = selectedReservation?.reservationCode ?? null;
+
+    const selectedCompanyContact = this.getSelectedCompanyContact();
+    if (selectedCompanyContact) {
+      return {
+        reservationId,
+        reservationCode,
+        propertyId,
+        propertyCode,
+        contactId: selectedCompanyContact.contactId,
+        contactName: this.utilityService.getCompanyDropdownLabel(selectedCompanyContact) || null
+      };
+    }
+
+    if (selectedReservation && this.isCorporateOrPlatformReservation(selectedReservation)) {
+      const companyContactId = (this.selectedReservationDetail?.companyId ?? selectedReservation.companyId ?? '').trim() || null;
+      if (companyContactId) {
+        const companyContact = this.companyContacts.find(contact => contact.contactId === companyContactId) ?? null;
+        return {
+          reservationId,
+          reservationCode,
+          propertyId,
+          propertyCode,
+          contactId: companyContactId,
+          contactName: companyContact
+            ? this.utilityService.getCompanyDropdownLabel(companyContact)
+            : (this.selectedReservationDetail?.companyName ?? selectedReservation.companyName ?? null)
+        };
+      }
+    }
+
+    if (selectedReservation?.contactId) {
+      return {
+        reservationId,
+        reservationCode,
+        propertyId,
+        propertyCode,
+        contactId: selectedReservation.contactId,
+        contactName: selectedReservation.contactName ?? null
+      };
+    }
+
+    return {
+      reservationId,
+      reservationCode,
+      propertyId,
+      propertyCode,
+      contactId: null,
+      contactName: null
+    };
+  }
+
+  contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
+    if (officeId == null) {
+      return true;
+    }
+
+    if (contact.officeId === officeId) {
+      return true;
+    }
+
+    return (contact.officeAccess || []).some(id => Number(id) === officeId);
+  }
+
   get titleBarPropertyCode(): string {
     const fromInvoice = (this.invoice?.propertyCode ?? '').trim();
     if (fromInvoice) {
@@ -525,6 +731,48 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.form.get('officeId')?.setValue(value == null || value === '' ? null : Number(value));
   }
 
+  onTitleBarCompanyChange(value: string | number | null): void {
+    if (!this.isAddMode) {
+      return;
+    }
+
+    this.companyId = value == null || value === '' ? null : String(value);
+    this.updateAvailableReservations();
+    this.clearReservationIfUnavailable();
+    this.cdr.markForCheck();
+  }
+
+  onTitleBarPropertyChange(value: string | number | null): void {
+    if (!this.isAddMode) {
+      return;
+    }
+
+    this.selectedPropertyId = value == null || value === '' ? null : String(value);
+    this.updateAvailableReservations();
+    this.clearReservationIfUnavailable();
+    this.cdr.markForCheck();
+  }
+
+  clearReservationIfUnavailable(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const currentReservationId = this.form.get('reservationId')?.value;
+    if (!currentReservationId) {
+      return;
+    }
+
+    const stillAvailable = this.availableReservations.some(option => option.value === currentReservationId);
+    if (stillAvailable) {
+      return;
+    }
+
+    this.form.get('reservationId')?.setValue(null, { emitEvent: false });
+    this.syncSelectedReservationFromForm();
+    this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
+  }
+
   onTitleBarReservationChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;
@@ -534,11 +782,18 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.form.get('reservationId')?.setValue(reservationId, { emitEvent: false });
     this.syncSelectedReservationFromForm();
 
+    if (this.selectedReservation?.propertyId) {
+      this.selectedPropertyId = this.selectedReservation.propertyId;
+    }
+
+    this.applyReservationCompanyAndPropertyContext();
+
     if (this.selectedReservation) {
       this.setInvoiceCode(this.selectedReservation);
     } else {
       this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
     }
+    this.cdr.markForCheck();
   }
   //#endregion
 
@@ -597,6 +852,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         }
 
         this.selectedReservationDetail = detail;
+        this.applyReservationCompanyAndPropertyContext();
         this.updateInvoiceCodeFromSelectedReservation();
         this.form?.get('startDate')?.updateValueAndValidity({ emitEvent: false });
         this.form?.get('endDate')?.updateValueAndValidity({ emitEvent: false });
@@ -695,9 +951,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const formValue = this.form.getRawValue();
-    const reservationId = this.getEffectiveReservationId();
-    if (!reservationId) {
-      this.toastr.warning('Please select a reservation before saving.', 'No Reservation Selected');
+    const snapshot = this.resolveInvoiceSnapshotFields();
+    const reservationId = snapshot.reservationId;
+    if (!reservationId && !snapshot.contactId) {
+      this.toastr.warning('Please select a company or reservation before saving.', 'Missing Selection');
       this.isSubmitting = false;
       this.cdr.markForCheck();
       return;
@@ -715,7 +972,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
           costCodeId: Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : undefined,
           transactionTypeId: (line as any).transactionTypeId,
-          reservationId,
+          reservationId: reservationId || null,
           amount: line.amount || 0,
           description: line.description || '',
           ledgerLineDate: line.ledgerLineDate || invoiceDateString
@@ -723,11 +980,18 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         return ledgerLine;
       });
     
-    const invoiceCode = formValue.invoiceCode || '';
+    let invoiceCode = (formValue.invoiceCode || '').trim();
     const selectedOffice = this.availableOffices.find(office => office.value === formValue.officeId);
-    const officeName = selectedOffice?.name || '';  
-    const selectedReservation = this.reservations.find(res => res.reservationId === reservationId);
-    const reservationCode = selectedReservation?.reservationCode || null;
+    const officeName = selectedOffice?.name || '';
+
+    if (!invoiceCode || invoiceCode === '') {
+      const companyPrefix = snapshot.contactName
+        ? snapshot.contactName.replace(/[^a-z0-9]/gi, '').substring(0, 8).toUpperCase()
+        : '';
+      const prefix = snapshot.propertyCode || companyPrefix || 'INV';
+      invoiceCode = `${prefix}-001`;
+    }
+
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.isPaymentMode
       ? this.calculateNewPaymentAmount()
@@ -738,8 +1002,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       officeId: formValue.officeId,
       officeName: officeName,
       invoiceCode: invoiceCode,
-      reservationId,
-      reservationCode: reservationCode,
+      reservationId: snapshot.reservationId,
+      reservationCode: snapshot.reservationCode,
+      propertyId: snapshot.propertyId,
+      propertyCode: snapshot.propertyCode,
+      contactId: snapshot.contactId,
+      contactName: snapshot.contactName,
+      responsibleParty: snapshot.contactName,
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
       invoiceDate: invoiceDateString,
@@ -891,7 +1160,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         } else {
           this.availableReservations = this.reservations.map(r => ({
             value: r.reservationId,
-            label: this.utilityService.getReservationDropdownLabel(r, null)
+            label: this.utilityService.getReservationDropdownLabel(r, this.getSelectedCompanyContact())
           }));
         }
         this.applyPrefilledInvoiceContext();
@@ -899,6 +1168,26 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {
         this.reservations = [];
         this.availableReservations = [];
+      }
+    });
+  }
+
+  loadCompanyContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+          next: (contacts) => {
+            this.companyContacts = contacts || [];
+            this.updateAvailableReservations();
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.companyContacts = [];
+          }
+        });
+      },
+      error: () => {
+        this.companyContacts = [];
       }
     });
   }
@@ -1228,9 +1517,25 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         const currentReservation = this.reservations.find(r => r.reservationId === currentReservationId);
         if (currentReservation && currentReservation.officeId !== this.selectedOffice.officeId) {
           this.form.get('reservationId')?.setValue(null, { emitEvent: false });
+          this.syncSelectedReservationFromForm();
         }
       } else if (!this.selectedOffice) {
         this.form.get('reservationId')?.setValue(null, { emitEvent: false });
+        this.syncSelectedReservationFromForm();
+      }
+
+      if (this.isAddMode && this.selectedOffice) {
+        const companyStillAvailable = !this.companyId
+          || this.companyTitleBarOptions.some(option => option.value === this.companyId);
+        if (!companyStillAvailable) {
+          this.companyId = null;
+        }
+
+        const propertyStillAvailable = !this.selectedPropertyId
+          || this.propertyTitleBarOptions.some(option => option.value === this.selectedPropertyId);
+        if (!propertyStillAvailable) {
+          this.selectedPropertyId = null;
+        }
       }
     });
   }
@@ -1247,6 +1552,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         if (selectedOfficeId !== this.selectedReservation.officeId) {
           this.form.get('officeId')?.setValue(this.selectedReservation.officeId);
         }
+        this.applyReservationCompanyAndPropertyContext();
         this.setInvoiceCode(this.selectedReservation);
       } else {
         this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
@@ -1283,18 +1589,30 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   updateAvailableReservations(): void {
-    if (this.selectedOffice) {
-      const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-      this.availableReservations = filteredReservations.map(r => ({
-        value: r.reservationId,
-        label: this.utilityService.getReservationDropdownLabel(r, null)
-      }));
-    } else {
-      this.availableReservations = this.reservations.map(r => ({
-        value: r.reservationId,
-        label: this.utilityService.getReservationDropdownLabel(r, null)
-      }));
+    let filteredReservations = this.selectedOffice
+      ? this.reservations.filter(r => r.officeId === this.selectedOffice!.officeId)
+      : this.reservations;
+
+    const companyContact = this.getSelectedCompanyContact();
+    if (companyContact) {
+      const companyName = companyContact.companyName;
+      const relatedCompanyContacts = this.companyContacts.filter(contact => contact.isActive && contact.companyName === companyName);
+      const companyContactIds = relatedCompanyContacts.map(contact => contact.contactId);
+      filteredReservations = filteredReservations.filter(reservation =>
+        companyContactIds.includes(reservation.contactId)
+        || relatedCompanyContacts.some(contact => contact.companyName === reservation.companyName || contact.displayName === reservation.companyName)
+        || (reservation.companyId && companyContactIds.includes(reservation.companyId))
+      );
     }
+
+    if (this.selectedPropertyId) {
+      filteredReservations = filteredReservations.filter(reservation => reservation.propertyId === this.selectedPropertyId);
+    }
+
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r.reservationId,
+      label: this.utilityService.getReservationDropdownLabel(r, companyContact)
+    }));
   }
 
   updateLedgerLineField(index: number, field: keyof LedgerLineListDisplay, value: any): void {

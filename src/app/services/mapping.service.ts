@@ -6230,11 +6230,30 @@ buildEscrowLastRecapAmountsByProperty(
       officeName: invoice.officeName ?? '',
       contactId: String(invoice.contactId ?? ''),
       contactName: invoice.contactName ?? '',
+      companyId: invoice.companyId ?? null,
       companyName: invoice.companyName ?? null,
       tenantName: invoice.contactName ?? '',
       reservationTypeId: 0,
       isActive: true
     };
+  }
+
+  resolveArAgingResponsibleContact(
+    invoice: InvoiceResponse,
+    contactsByContactId: ReadonlyMap<string, ContactResponse>,
+    reservation: ReservationCodeResponse | null | undefined
+  ): ContactResponse | undefined {
+    const reservationContext = reservation ?? this.buildArAgingReservationStub(invoice);
+    const reservationTypeId = Number(reservationContext.reservationTypeId);
+    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+      const companyId = String(reservationContext.companyId ?? invoice.companyId ?? '').trim();
+      if (companyId) {
+        return contactsByContactId.get(companyId);
+      }
+    }
+
+    const contactId = String(invoice.contactId ?? reservationContext.contactId ?? '').trim();
+    return contactId ? contactsByContactId.get(contactId) : undefined;
   }
 
   buildArAgingCustomerLabel(
@@ -6243,10 +6262,9 @@ buildEscrowLastRecapAmountsByProperty(
     reservationsByReservationId: ReadonlyMap<string, ReservationCodeResponse>,
     contactNameByContactId: ReadonlyMap<string, string> = new Map<string, string>()
   ): string {
-    const contactId = (invoice.contactId || '').trim();
-    const contact = contactId ? contactsByContactId.get(contactId) : undefined;
     const reservationId = (invoice.reservationId || '').trim();
     const reservation = reservationId ? reservationsByReservationId.get(reservationId) : null;
+    const contact = this.resolveArAgingResponsibleContact(invoice, contactsByContactId, reservation);
 
     if (contact) {
       const reservationContext = reservation ?? this.buildArAgingReservationStub(invoice);
@@ -6256,6 +6274,7 @@ buildEscrowLastRecapAmountsByProperty(
       }
     }
 
+    const contactId = (contact?.contactId || invoice.contactId || '').trim();
     return (invoice.responsibleParty || '').trim()
       || (invoice.contactName || '').trim()
       || (invoice.companyName || '').trim()
@@ -6288,7 +6307,10 @@ buildEscrowLastRecapAmountsByProperty(
 
     const dueDate = this.toDateOnlyJsonString(invoice.dueDate) || invoiceDate || asOfDate;
     const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
-    const contactId = (invoice.contactId || '').trim() || null;
+    const reservationId = (invoice.reservationId || '').trim();
+    const reservation = reservationId ? reservationsByReservationId.get(reservationId) : null;
+    const responsibleContact = this.resolveArAgingResponsibleContact(invoice, contactsByContactId, reservation);
+    const contactId = (responsibleContact?.contactId || invoice.contactId || '').trim() || null;
     const customerLabel = this.buildArAgingCustomerLabel(
       invoice,
       contactsByContactId,
