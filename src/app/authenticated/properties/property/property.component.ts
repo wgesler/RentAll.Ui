@@ -30,9 +30,7 @@ import { BuildingService } from '../../organizations/services/building.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { NoticeStatusType, getNoticeStatusTypes, getReservationNotices } from '../../reservations/models/reservation-enum';
-import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
@@ -86,6 +84,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() publicOwnerToken: string | null = null;
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
+  @Output() reservationsRefreshRequested = new EventEmitter<void>();
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() ownerShellContextChanged = new EventEmitter<void>();
   propertyService = inject(PropertyService);
@@ -106,7 +105,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   private documentReloadService = inject(DocumentReloadService);
   private utilityService = inject(UtilityService);
   private propertyInformationService = inject(PropertyInformationService);
-  private reservationService = inject(ReservationService);
   private globalSelectionService = inject(GlobalSelectionService);
   private dialog = inject(MatDialog);
   private newContactDialogService = inject(NewContactDialogService);
@@ -168,9 +166,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
 
-  reservations: ReservationListResponse[] = [];
-  availableReservations: { value: ReservationListResponse, label: string }[] = [];
- 
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -490,7 +485,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
             this.documentReloadService.triggerReload();
             this.notifyOwnerShellContextChangedIfEmbedded();
             this.propertyService.notifyPropertyCodesChanged();
-            this.loadReservations();
+            this.reservationsRefreshRequested.emit();
             onComplete?.(true);
           },
           error: (error: unknown) => {
@@ -552,7 +547,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           this.documentReloadService.triggerReload();
           this.notifyOwnerShellContextChangedIfEmbedded();
           this.propertyService.notifyPropertyCodesChanged();
-          this.loadReservations();
+          this.reservationsRefreshRequested.emit();
           onComplete?.(true);
         },
         error: (error: unknown) => {
@@ -592,7 +587,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
           this.notifyOwnerShellContextChangedIfEmbedded();
-          this.loadReservations();
+          this.reservationsRefreshRequested.emit();
           onComplete?.(true);
         },
         error: () => {
@@ -1013,19 +1008,15 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       if (this.property.trashPickupId == null || this.property.trashPickupId === undefined) {
         formData.trashPickupId = TrashDays.None;
       }
-      
-      if (this.reservations.length > 0) {
-        this.filterReservations();
-      }
-      
+
       // Remove reservationId from formData (it's not a property field, only used in title bar)
       delete formData.reservationId;
       delete formData.phone;
-      
+
       // Reset reservationId to null BEFORE patching to ensure clean state
       this.form.get('reservationId')?.setValue(null, { emitEvent: false });
       this.selectedReservationId = null;
-      
+
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
       this.syncDescriptionEditorFromForm();
@@ -1979,7 +1970,6 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
                 areaId: this.property.areaId || null,
                 buildingId: this.property.buildingId || null,
               }, { emitEvent: false });
-              this.filterReservations();
             }
           }
 
@@ -2077,30 +2067,6 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     });
   }
 
-  loadReservations(): void {
-    if (this.isAddMode || !this.propertyId) {
-      // In add mode, no reservations to load
-      this.reservations = [];
-      this.availableReservations = [];
-      return;
-    }
-    
-    // In edit mode, load reservations for this property only
-    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1)).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        this.filterReservations();
-        this.emitTitleBarContextToShell();
-      },
-      error: () => {
-        this.reservations = [];
-        this.availableReservations = [];
-        this.emitTitleBarContextToShell();
-      }
-    });
-  }
-  //#endregion
-
   //#region Building amenity sync from selection
   setupBuildingAmenitySyncFromSelection(): void {
     this.form.get('buildingId')?.valueChanges.pipe(distinctUntilChanged(), takeUntil(this.destroy$)).subscribe(buildingId => {
@@ -2135,27 +2101,12 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     this.expandedSections[section] = false;
   }
 
-  filterReservations(): void {
-    const rawOfficeId = this.form?.getRawValue()?.officeId ?? this.form?.get('officeId')?.value ?? this.property?.officeId ?? null;
-    const officeId = rawOfficeId == null || rawOfficeId === '' ? null : Number(rawOfficeId);
-    if (officeId == null || Number.isNaN(officeId)) {
-      this.availableReservations = [];
-      return;
-    }
-
-    const filteredReservations = this.reservations.filter(r => Number(r.officeId) === officeId);
-    this.availableReservations = filteredReservations.map(r => ({
-      value: r,
-      label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
-    }));
-  }
-
   onOfficeChange(): void {
     this.form.get('officeId')?.markAsDirty();
     this.filterLocationLookupsByOffice();
-    this.filterReservations();
     this.form.get('reservationId')?.setValue(null, { emitEvent: false });
     this.selectedReservationId = null;
+    this.emitTitleBarContextToShell();
 
     // In Add mode, enforce owner-office consistency by clearing owner selections
     // whenever office changes.
@@ -2374,7 +2325,6 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       this.setAddModeDefaults();
       this.tryApplyCopyFromProperty();
     }
-    this.loadReservations();
     this.captureSavedStateSignature();
   }
 
@@ -2454,7 +2404,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     const officeId = this.form.get('officeId')?.value;
     this.resolveOfficeScope(officeId == null ? null : Number(officeId));
     this.filterLocationLookupsByOffice();
-    this.filterReservations();
+    this.emitTitleBarContextToShell();
 
     const reservationId = this.form.get('reservationId')?.value;
     this.selectedReservationId = reservationId == null ? null : String(reservationId);

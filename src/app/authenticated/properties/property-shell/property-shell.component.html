@@ -152,7 +152,8 @@
             <app-property
               #propertySection
               [shellMode]="true"
-              (titleBarContextChange)="onTitleBarContextFromProperty($event)">
+              (titleBarContextChange)="onTitleBarContextFromProperty($event)"
+              (reservationsRefreshRequested)="loadShellReservations()">
             </app-property>
           }
         </mat-tab>

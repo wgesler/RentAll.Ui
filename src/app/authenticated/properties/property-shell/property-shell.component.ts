@@ -8,6 +8,8 @@ import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
+import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -17,6 +19,7 @@ import { EmailListComponent } from '../../email/email-list/email-list.component'
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyResponse } from '../models/property.model';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyListingComponent } from '../property-listing/property-listing.component';
 import { PropertyComponent } from '../property/property.component';
@@ -50,6 +53,9 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private utilityService = inject(UtilityService);
 
   readonly DocumentType = DocumentType;
   @ViewChild('propertySection') propertySection?: PropertyComponent;
@@ -71,6 +77,8 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   titleBarPropertyOfficeId: number | null = null;
   titleBarReservationId: string | null = null;
   titleBarPropertyCode = '';
+  propertyReservations: ReservationListResponse[] = [];
+  shellReservationOptions: SearchableSelectOption[] = [];
   isAdminUser = false;
   destroy$ = new Subject<void>();
 
@@ -89,8 +97,16 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
       const wasAddMode = this.isAddMode;
+      const previousPropertyId = this.routePropertyId;
       this.isAddMode = id === 'new';
       this.routePropertyId = this.isAddMode ? null : id;
+      if (this.isAddMode || id !== previousPropertyId) {
+        this.propertyReservations = [];
+        this.shellReservationOptions = [];
+      }
+      if (!this.isAddMode && this.routePropertyId) {
+        this.loadShellReservations();
+      }
       if (this.isAddMode && !wasAddMode && this.offices.length > 0) {
         queueMicrotask(() => this.initializeAddModeOfficeFromShell());
       }
@@ -152,7 +168,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   }
 
   get shellReservations(): ReservationListResponse[] {
-    return this.propertySection?.reservations ?? [];
+    return this.propertyReservations;
   }
 
   get shellProperty(): PropertyResponse | null {
@@ -164,11 +180,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   }
 
   get reservationOptions(): SearchableSelectOption[] {
-    const reservations = this.propertySection?.availableReservations ?? [];
-    return reservations.map(r => ({
-      value: r.value.reservationId,
-      label: r.label
-    }));
+    return this.shellReservationOptions;
   }
 
   get selectedReservationId(): string | null {
@@ -199,10 +211,16 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   //#region Top Bar Event Methods
   onTitleBarContextFromProperty(ctx: PropertyTitleBarContext): void {
     const previousReservationId = this.titleBarReservationId;
+    const previousOfficeId = this.titleBarPropertyOfficeId;
     this.titleBarPropertyOfficeId = ctx.officeId;
-    this.titleBarReservationId = ctx.reservationId;
     this.titleBarPropertyCode = ctx.propertyCode ?? '';
-    this.syncWelcomeLetterToTitleBarReservation(previousReservationId, ctx.reservationId);
+    if (previousOfficeId !== ctx.officeId) {
+      this.titleBarReservationId = null;
+      this.refreshShellReservationOptions();
+    } else {
+      this.titleBarReservationId = ctx.reservationId;
+    }
+    this.syncWelcomeLetterToTitleBarReservation(previousReservationId, this.titleBarReservationId);
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
@@ -210,6 +228,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   }
 
   onReservationDropdownChange(value: string | number | null): void {
+    this.titleBarReservationId = this.normalizeTitleBarReservationId(value);
     this.propertySection?.applyTitleBarReservationSelection(value);
     if (this.selectedTabIndex === 4) {
       this.propertyEmailList?.reload();
@@ -281,6 +300,51 @@ syncWelcomeLetterToTitleBarReservation(
 
   onChildTabOfficeChange(officeId: number | null): void {
     this.propertySection?.applyTitleBarPropertyOfficeSelection(officeId);
+  }
+  //#endregion
+
+  //#region Reservation Loading Methods
+  loadShellReservations(): void {
+    if (this.isAddMode || !this.routePropertyId) {
+      this.propertyReservations = [];
+      this.shellReservationOptions = [];
+      return;
+    }
+
+    this.reservationService.getReservationsByPropertyId(this.routePropertyId).pipe(take(1)).subscribe({
+      next: (reservations) => {
+        this.propertyReservations = reservations || [];
+        this.refreshShellReservationOptions();
+      },
+      error: () => {
+        this.propertyReservations = [];
+        this.shellReservationOptions = [];
+      }
+    });
+  }
+
+  refreshShellReservationOptions(): void {
+    const officeId = this.titleBarPropertyOfficeId;
+    const filtered = officeId == null
+      ? this.propertyReservations
+      : this.propertyReservations.filter(r => Number(r.officeId) === officeId);
+
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+          this.shellReservationOptions = filtered.map(r => ({
+            value: r.reservationId,
+            label: this.utilityService.getReservationDropdownLabel(r, (contacts || []).find(c => c.contactId === r.contactId) ?? null)
+          }));
+        });
+      },
+      error: () => {
+        this.shellReservationOptions = filtered.map(r => ({
+          value: r.reservationId,
+          label: this.utilityService.getReservationDropdownLabel(r, null)
+        }));
+      }
+    });
   }
   //#endregion
 
@@ -367,10 +431,6 @@ applyOfficeFromGlobal(officeId: number | null): void {
         if (!canLeave) {
           return;
         }
-      }
-
-      if (previousTabIndex === 0 && nextIndex === 2 && this.propertySection && !this.isAddMode && this.propertySection.propertyId) {
-        this.propertySection.loadReservations();
       }
 
       this.selectedTabIndex = nextIndex;
