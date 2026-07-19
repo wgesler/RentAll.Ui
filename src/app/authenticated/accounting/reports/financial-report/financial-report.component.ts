@@ -936,11 +936,16 @@ buildReportFileName(): string {
       return `${officeSegment}_BalanceSheetBy${classSegment}_${dateStamp}.pdf`;
     }
 
-    const reportSegment = 'ProfitLoss';
-    const dateStamp = this.utilityService.sanitizeFileNameSegment(
-      `${this.searchDateRange?.startDate || 'Start'}_${this.searchDateRange?.endDate || 'End'}`
+    const classSegment = this.utilityService.sanitizeFileNameSegment(
+      getClass(this.reportClass) || 'TotalOnly'
     );
-    return `${officeSegment}_${reportSegment}_${dateStamp}.pdf`;
+    const startDate = this.utilityService.sanitizeFileNameSegment(
+      this.searchDateRange?.startDate || 'Start'
+    );
+    const endDate = this.utilityService.sanitizeFileNameSegment(
+      this.searchDateRange?.endDate || 'End'
+    );
+    return `${officeSegment}_ProfitLoss_${classSegment}_${startDate}_${endDate}.pdf`;
   }
 
 resolveReportDocumentType(): DocumentType {

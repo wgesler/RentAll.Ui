@@ -1011,10 +1011,6 @@ hydrateSelectedInvoiceForActiveId(): void {
     return kind === 'apAging';
   }
 
-  get showArAgingCustomAsOfDate(): boolean {
-    return this.selectedArAgingDatePreset === 'custom';
-  }
-
   buildApAgingReportFilters(): ApAgingReportFilters {
     const asOfDateApi = this.utilityService.formatDateOnlyForApi(this.asOfDate);
     // Owners → AP Aging always shows an editable "As of" date. Use that date directly;
@@ -1130,6 +1126,13 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.normalizeAsOfDateValue();
     this.asOfDate = this.cloneShellDate(this.asOfDate);
     this.syncAsOfStartFromAsOfDate();
+
+    if (this.selectedTabIndex === this.tabReports
+      && (this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind))
+      && this.selectedArAgingDatePreset !== 'custom') {
+      this.selectedArAgingDatePreset = 'custom';
+    }
+
     this.publishAsOfDateState();
   }
 
@@ -3962,16 +3965,7 @@ captureOwnerStatementReturnContext(): void {
   }
 
   get showAccountingShellAsOfDate(): boolean {
-    if (!this.showShellDateRange || !this.usesAccountingShellAsOfDate) {
-      return false;
-    }
-
-    if (this.selectedTabIndex === this.tabReports
-      && (this.selectedReportKind === 'arAging' || this.isApAgingReportKind(this.selectedReportKind))) {
-      return this.showArAgingCustomAsOfDate;
-    }
-
-    return true;
+    return this.showShellDateRange && this.usesAccountingShellAsOfDate;
   }
 
   get showAccountingShellEndDate(): boolean {
