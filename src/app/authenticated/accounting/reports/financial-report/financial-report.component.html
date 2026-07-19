@@ -23,7 +23,7 @@
       (click)="onDownload()"
       [disabled]="isDownloading">
       <mat-icon>picture_as_pdf</mat-icon>
-      {{ isDownloading ? 'PDF...' : 'PDF' }}
+      {{ isDownloading ? 'Downloading...' : 'Download' }}
     </button>
     <button
       mat-raised-button
@@ -33,7 +33,7 @@
       (click)="saveReportDocument()"
       [disabled]="isSubmitting">
       <mat-icon>save</mat-icon>
-      {{ isSubmitting ? 'Saving...' : 'Save' }}
+      {{ isSubmitting ? 'Saving...' : 'Document' }}
     </button>
   </ng-template>
   @if (drillDownView) {
