@@ -60,7 +60,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
-import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 import { UserGroups } from '../../users/models/user-enums';
@@ -82,6 +82,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
   @Input() reservationIdInput: string | null = null;
   @Output() addModeScopeResolved = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
+  @Output() reservationLoaded = new EventEmitter<ReservationLoadedContext>();
   reservationService = inject(ReservationService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -293,6 +294,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         this.reservation = response;
         this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(response)) || null;
         this.populateForm();
+        if (this.shellMode) {
+          this.reservationLoaded.emit({
+            officeId: response.officeId ?? null,
+            propertyId: response.propertyId ?? null,
+            reservationId: response.reservationId
+          });
+        }
       },
       error: () => {
         if (!this.reservation) {

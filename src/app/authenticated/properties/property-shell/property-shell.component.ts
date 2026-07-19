@@ -15,6 +15,8 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
+import { PropertyResponse } from '../models/property.model';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyListingComponent } from '../property-listing/property-listing.component';
 import { PropertyComponent } from '../property/property.component';
@@ -60,6 +62,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
   isAddMode = false;
+  routePropertyId: string | null = null;
   organizationId = '';
   offices: OfficeResponse[] = [];
   showOfficeDropdown = false;
@@ -87,6 +90,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
       const id = paramMap.get('id');
       const wasAddMode = this.isAddMode;
       this.isAddMode = id === 'new';
+      this.routePropertyId = this.isAddMode ? null : id;
       if (this.isAddMode && !wasAddMode && this.offices.length > 0) {
         queueMicrotask(() => this.initializeAddModeOfficeFromShell());
       }
@@ -136,6 +140,23 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     }
 
     return this.isAdminUser;
+  }
+
+  get showShellContextTitleBar(): boolean {
+    return !!this.propertySection?.form
+      || (this.selectedTabIndex !== 0 && !this.isAddMode && !!this.routePropertyId);
+  }
+
+  get shellPropertyId(): string | null {
+    return this.isAddMode ? null : (this.propertySection?.propertyId ?? this.routePropertyId);
+  }
+
+  get shellReservations(): ReservationListResponse[] {
+    return this.propertySection?.reservations ?? [];
+  }
+
+  get shellProperty(): PropertyResponse | null {
+    return this.propertySection?.property ?? null;
   }
 
   get officeOptions(): SearchableSelectOption[] {
@@ -220,7 +241,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   openAddAlertDialog(): void {
     const dialogData: AddAlertDialogData = {
       officeId: this.titleBarPropertyOfficeId,
-      propertyId: this.propertySection?.isAddMode ? null : (this.propertySection?.propertyId ?? null),
+      propertyId: this.isAddMode ? null : this.shellPropertyId,
       reservationId: this.titleBarReservationId ?? null,
       source: 'property'
     };
@@ -339,26 +360,26 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
     this.isHandlingTabGuard = true;
     const previousTabIndex = this.selectedTabIndex;
-    this.selectedTabIndex = nextIndex;
 
     try {
-      if (previousTabIndex === 0 && this.propertySection) {
+      if (previousTabIndex === 0 && nextIndex !== 0 && this.propertySection) {
         const canLeave = await this.propertySection.confirmNavigationWithUnsavedChanges();
         if (!canLeave) {
-          this.selectedTabIndex = previousTabIndex;
           return;
         }
       }
 
-      this.routeTabQueryParam(nextIndex);
-      if (nextIndex === 2 && this.propertySection && !this.propertySection.isAddMode && this.propertySection.propertyId) {
+      if (previousTabIndex === 0 && nextIndex === 2 && this.propertySection && !this.isAddMode && this.propertySection.propertyId) {
         this.propertySection.loadReservations();
       }
+
+      this.selectedTabIndex = nextIndex;
+      this.routeTabQueryParam(nextIndex);
       if (nextIndex === 4) {
-        this.propertyEmailList?.reload();
+        queueMicrotask(() => this.propertyEmailList?.reload());
       }
       if (nextIndex === 5) {
-        this.propertyDocumentList?.reload();
+        queueMicrotask(() => this.propertyDocumentList?.reload());
       }
     } finally {
       this.isHandlingTabGuard = false;
@@ -385,9 +406,11 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
   //#region Navigation Methods
   async back(): Promise<void> {
-    const canLeave = await (this.propertySection?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
-    if (!canLeave) {
-      return;
+    if (this.selectedTabIndex === 0) {
+      const canLeave = await (this.propertySection?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
+      if (!canLeave) {
+        return;
+      }
     }
 
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
@@ -403,6 +426,9 @@ applyOfficeFromGlobal(officeId: number | null): void {
   }
 
   canDeactivate(): Promise<boolean> | boolean {
+    if (this.selectedTabIndex !== 0) {
+      return true;
+    }
     return this.propertySection?.canDeactivate() ?? true;
   }
   //#endregion

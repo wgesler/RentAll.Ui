@@ -58,7 +58,7 @@
               }
             </mat-form-field>
 
-            @if (!(propertySection?.isAddMode ?? true) && selectedTabIndex >= 2) {
+            @if (!isAddMode && selectedTabIndex >= 2) {
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
@@ -68,6 +68,50 @@
                   [options]="reservationOptions"
                   [showInstructionOption]="true"
                 [nullOptionLabel]="selectedTabIndex >= 4 ? 'All Reservations' : 'Select Reservation'"
+                  [noResultsText]="'No reservations match your search'"
+                  (valueChange)="onReservationDropdownChange($event)">
+                </app-title-bar-select>
+              </div>
+            }
+            @if (selectedTabIndex === 4) {
+              <app-title-bar-select
+                [label]="'Email Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedEmailTypeId"
+                [options]="emailTypeOptions"
+                [nullOptionLabel]="'All Email Types'"
+                [noResultsText]="'No email types match your search'"
+                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+        } @else if (showShellContextTitleBar) {
+            @if (showOfficeDropdown || officeOptions.length > 0) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="displayOfficeId"
+                [options]="officeOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Office'"
+                [noResultsText]="'No offices match your search'">
+              </app-title-bar-select>
+            }
+
+            <mat-form-field appearance="outline" class="titlebar-field-property-code">
+              <mat-label>Property Code</mat-label>
+              <input matInput [value]="sharedPropertyCode || titleBarPropertyCode || ''" readonly disabled class="readonly-field">
+            </mat-form-field>
+
+            @if (!isAddMode && selectedTabIndex >= 2) {
+              <div class="titlebar-reservation-slot">
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'header-title-reservation titlebar-field-reservation'"
+                  [required]="false"
+                  [value]="selectedReservationId ?? null"
+                  [options]="reservationOptions"
+                  [showInstructionOption]="true"
+                  [nullOptionLabel]="selectedTabIndex >= 4 ? 'All Reservations' : 'Select Reservation'"
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onReservationDropdownChange($event)">
                 </app-title-bar-select>
@@ -104,76 +148,88 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
-          <app-property
-            #propertySection
-            [shellMode]="true"
-            (titleBarContextChange)="onTitleBarContextFromProperty($event)">
-          </app-property>
+          @if (selectedTabIndex === 0) {
+            <app-property
+              #propertySection
+              [shellMode]="true"
+              (titleBarContextChange)="onTitleBarContextFromProperty($event)">
+            </app-property>
+          }
         </mat-tab>
 
         <mat-tab label="Information">
-          <app-property-information
-            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
-            [copiedPropertyInformation]="propertySection?.copiedPropertyInformation ?? null"
-            [officeId]="titleBarPropertyOfficeId"
-            [propertyCode]="sharedPropertyCode"
-            [hideOfficeAndPropertyCode]="true">
-          </app-property-information>
+          @if (selectedTabIndex === 1) {
+            <app-property-information
+              [propertyId]="shellPropertyId"
+              [copiedPropertyInformation]="propertySection?.copiedPropertyInformation ?? null"
+              [officeId]="titleBarPropertyOfficeId"
+              [propertyCode]="sharedPropertyCode"
+              [hideOfficeAndPropertyCode]="true">
+            </app-property-information>
+          }
         </mat-tab>
 
         <mat-tab label="Welcome Letter">
-          <app-property-welcome-letter
-            [isAddMode]="propertySection?.isAddMode ?? false"
-            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
-            [titleBarReservationId]="titleBarReservationId"
-            [officeId]="titleBarPropertyOfficeId"
-            [propertyCode]="sharedPropertyCode"
-            [hideOfficePropertyReservation]="true"
-            [reservations]="propertySection?.reservations ?? []"
-            (reservationSelected)="onChildTabReservationChange($event)">
-          </app-property-welcome-letter>
+          @if (selectedTabIndex === 2) {
+            <app-property-welcome-letter
+              [isAddMode]="isAddMode"
+              [propertyId]="shellPropertyId"
+              [titleBarReservationId]="titleBarReservationId"
+              [officeId]="titleBarPropertyOfficeId"
+              [propertyCode]="sharedPropertyCode"
+              [hideOfficePropertyReservation]="true"
+              [reservations]="shellReservations"
+              (reservationSelected)="onChildTabReservationChange($event)">
+            </app-property-welcome-letter>
+          }
         </mat-tab>
 
         <mat-tab label="Listing">
-          <app-property-listing
-            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
-            [officeId]="titleBarPropertyOfficeId"
-            [propertyCode]="sharedPropertyCode"
-            [property]="propertySection?.property ?? null">
-          </app-property-listing>
+          @if (selectedTabIndex === 3) {
+            <app-property-listing
+              [propertyId]="shellPropertyId"
+              [officeId]="titleBarPropertyOfficeId"
+              [propertyCode]="sharedPropertyCode"
+              [property]="shellProperty">
+            </app-property-listing>
+          }
         </mat-tab>
 
         <mat-tab label="Emails">
-          <app-email-list
-            #propertyEmailList
-            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
-            [propertyCode]="sharedPropertyCode"
-            [officeId]="titleBarPropertyOfficeId"
-            [reservationId]="titleBarReservationId"
-            [source]="'property'"
-            [hideHeader]="true"
-            [hideFilters]="true"
-            [reservations]="propertySection?.reservations ?? []"
-            (reservationIdChange)="onChildTabReservationChange($event)"
-            (officeIdChange)="onChildTabOfficeChange($event)">
-          </app-email-list>
+          @if (selectedTabIndex === 4) {
+            <app-email-list
+              #propertyEmailList
+              [propertyId]="shellPropertyId"
+              [propertyCode]="sharedPropertyCode"
+              [officeId]="titleBarPropertyOfficeId"
+              [reservationId]="titleBarReservationId"
+              [source]="'property'"
+              [hideHeader]="true"
+              [hideFilters]="true"
+              [reservations]="shellReservations"
+              (reservationIdChange)="onChildTabReservationChange($event)"
+              (officeIdChange)="onChildTabOfficeChange($event)">
+            </app-email-list>
+          }
         </mat-tab>
 
         <mat-tab label="Documents">
-          <app-document-list
-            #propertyDocumentList
-            [documentTypeIds]="[DocumentType.PropertyLetter, DocumentType.Quote]"
-            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
-            [propertyCode]="sharedPropertyCode"
-            [officeId]="titleBarPropertyOfficeId"
-            [reservationId]="titleBarReservationId"
-            [source]="'property'"
-            [reservations]="propertySection?.reservations ?? []"
-            (reservationIdChange)="onChildTabReservationChange($event)"
-            (officeIdChange)="onChildTabOfficeChange($event)"
-            [hideHeader]="true"
-            [hideFilters]="true">
-          </app-document-list>
+          @if (selectedTabIndex === 5) {
+            <app-document-list
+              #propertyDocumentList
+              [documentTypeIds]="[DocumentType.PropertyLetter, DocumentType.Quote]"
+              [propertyId]="shellPropertyId"
+              [propertyCode]="sharedPropertyCode"
+              [officeId]="titleBarPropertyOfficeId"
+              [reservationId]="titleBarReservationId"
+              [source]="'property'"
+              [reservations]="shellReservations"
+              (reservationIdChange)="onChildTabReservationChange($event)"
+              (officeIdChange)="onChildTabOfficeChange($event)"
+              [hideHeader]="true"
+              [hideFilters]="true">
+            </app-document-list>
+          }
         </mat-tab>
       </mat-tab-group>
     </mat-card>

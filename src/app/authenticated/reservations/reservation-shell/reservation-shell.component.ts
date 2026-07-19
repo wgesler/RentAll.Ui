@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, skip, take, takeUntil } from 'rxjs';
@@ -22,7 +22,7 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
-import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
+import { ReservationListResponse, ReservationLoadedContext } from '../models/reservation-model';
 import { ReservationComponent } from '../reservation/reservation.component';
 import { ReservationService } from '../services/reservation.service';
 
@@ -45,7 +45,7 @@ import { ReservationService } from '../services/reservation.service';
   templateUrl: './reservation-shell.component.html',
   styleUrl: './reservation-shell.component.scss'
 })
-export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
+export class ReservationShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private authService = inject(AuthService);
@@ -119,13 +119,8 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       this.routeReservationId = this.isAddMode ? null : id;
       this.selectedHeaderReservationId = this.routeReservationId;
       this.loadOffices();
-      this.loadSelectedReservationContext();
     });
 
-  }
-
-  ngAfterViewInit(): void {
-    queueMicrotask(() => this.onReservationLoaded());
   }
   //#endregion
 
@@ -288,33 +283,18 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     }
   }
 
-  onReservationLoaded(): void {
-    const reservation = this.reservationSection;
-    if (!reservation) {
-      return;
+  onReservationLoaded(context: ReservationLoadedContext): void {
+    this.routeReservationId = context.reservationId;
+    this.selectedHeaderReservationId = context.reservationId;
+
+    if (context.officeId != null) {
+      this.applyReservationScope(context.officeId, context.propertyId, context.reservationId);
+    } else if (context.propertyId) {
+      this.selectedPropertyIdSeed = context.propertyId;
+      this.activePropertyId = context.propertyId;
     }
 
-    if (!this.routeReservationId) {
-      this.routeReservationId = reservation.sharedReservationId ?? reservation.reservation?.reservationId ?? null;
-    }
-    this.selectedHeaderReservationId = this.routeReservationId ?? reservation.sharedReservationId ?? reservation.reservation?.reservationId ?? null;
-
-    if (this.isAddMode && !this.routeReservationId) {
-      if (this.offices.length > 0) {
-        this.initializeAddModeOfficeFromShell();
-      }
-      this.loadReservations();
-      this.refreshHeaderReservationOptions();
-      return;
-    }
-
-    const officeId = reservation.sharedOfficeId;
-    const propertyId = reservation.sharedPropertyId;
-    if (officeId != null && propertyId) {
-      this.applyReservationScope(officeId, propertyId, reservation.sharedReservationId);
-    }
     this.loadReservations();
-    this.refreshHeaderReservationOptions();
   }
 
   refreshHeaderReservationOptions(): void {
@@ -593,61 +573,10 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     });
   }
 
-  loadSelectedReservationContext(): void {
-    if (!this.routeReservationId || this.isAddMode) {
-      return;
-    }
-
-    this.reservationService.getReservationByGuid(this.routeReservationId).pipe(take(1)).subscribe({
-      next: (reservation: ReservationResponse) => {
-        if (reservation?.officeId != null) {
-          this.applyReservationScope(
-            reservation.officeId,
-            reservation.propertyId ?? null,
-            reservation.reservationId
-          );
-        } else if (reservation?.propertyId) {
-          this.selectedPropertyIdSeed = reservation.propertyId;
-          this.activePropertyId = reservation.propertyId;
-        }
-
-        if (reservation?.propertyId) {
-          this.loadReservationsByPropertyId(reservation.propertyId);
-        } else {
-          this.loadReservations();
-        }
-      },
-      error: () => {
-        this.loadReservations();
-      }
-    });
-  }
-
   loadReservations(): void {
     const propertyId = this.selectedPropertyId;
     if (propertyId) {
       this.loadReservationsByPropertyId(propertyId);
-      return;
-    }
-
-    const reservationIdForPropertyLookup = this.selectedHeaderReservationId ?? this.routeReservationId ?? this.reservationSection?.sharedReservationId ?? null;
-    if (reservationIdForPropertyLookup) {
-      this.reservationService.getReservationByGuid(reservationIdForPropertyLookup).pipe(take(1)).subscribe({
-        next: reservation => {
-          if (reservation?.propertyId) {
-            this.loadReservationsByPropertyId(reservation.propertyId);
-            return;
-          }
-          this.reservationList = [];
-          this.availableHeaderReservations = [];
-          this.selectedReservationSummary = null;
-        },
-        error: () => {
-          this.reservationList = [];
-          this.availableHeaderReservations = [];
-          this.selectedReservationSummary = null;
-        }
-      });
       return;
     }
 

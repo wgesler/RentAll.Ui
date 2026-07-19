@@ -138,6 +138,12 @@ export interface ReservationResponse {
   modifiedBy?: string | null; 
 }
 
+export interface ReservationLoadedContext {
+  officeId: number | null;
+  propertyId: string | null;
+  reservationId: string;
+}
+
 export interface ReservationListResponse {
   reservationId: string;
   reservationCode: string;
