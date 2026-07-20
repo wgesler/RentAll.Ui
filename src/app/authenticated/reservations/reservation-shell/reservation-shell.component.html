@@ -143,7 +143,7 @@
         }
 
         <mat-tab label="Lease">
-          @if (selectedTabIndex === getLeaseTabIndex() && displayOfficeId != null && selectedPropertyId) {
+          @if (selectedTabIndex === getLeaseTabIndex() && displayOfficeId !== null && selectedPropertyId) {
             <app-lease
               [reservationId]="activeReservationId ?? ''"
               [propertyId]="selectedPropertyId"
@@ -170,6 +170,32 @@
                   (backEvent)="onInvoiceCreateBack()">
                 </app-invoice-create>
               }
+            } @else if (showPreviewAllInvoiceEditor && previewAllInvoiceDraft) {
+              @for (instance of [previewAllInvoiceEditorInstance]; track instance) {
+                <app-invoice
+                  #previewAllInvoiceEditor
+                  [shellMode]="true"
+                  [shellCreateInPlace]="true"
+                  [invoiceIdInput]="'new'"
+                  [prefetchedInvoice]="previewAllInvoiceDraft"
+                  [officeIdInput]="previewAllInvoiceDraft.officeId"
+                  [reservationIdInput]="previewAllInvoiceDraft.reservationId ?? activeReservationId"
+                  [companyIdInput]="previewAllInvoiceDraft.contactId ?? null"
+                  (invoiceCreated)="onPreviewAllInvoiceCreated()">
+                </app-invoice>
+              }
+            } @else if (showInvoicePreviewAll) {
+              <app-reservation-invoice-preview
+                [reservationId]="activeReservationId"
+                [reservationCode]="activeReservationCode"
+                [propertyCode]="activePropertyCode"
+                [recipient]="activeReservationRecipient"
+                [arrivalDate]="activeReservationArrivalDate"
+                [departureDate]="activeReservationDepartureDate"
+                [refreshTrigger]="previewAllRefreshTrigger"
+                (invoicesCreated)="onPreviewAllInvoicesCreated($event)"
+                (editInvoice)="onPreviewAllEditInvoice($event)">
+              </app-reservation-invoice-preview>
             } @else if (activeInvoiceId) {
               @for (instance of [invoiceDetailInstance]; track instance) {
                 <app-invoice
@@ -184,12 +210,15 @@
               }
             } @else {
               <app-invoice-list
+                #reservationInvoiceList
                 [officeId]="displayOfficeId"
                 [reservationId]="activeReservationId"
                 [source]="'reservation'"
+                [refreshTrigger]="invoiceListRefreshTrigger"
                 [embedDocumentPreviewInShell]="true"
                 (invoiceSelect)="onInvoiceSelect($event)"
-                (previewEvent)="onInvoicePreviewOpen($event)">
+                (previewEvent)="onInvoicePreviewOpen($event)"
+                (previewAllRequested)="onPreviewAllRequested()">
               </app-invoice-list>
             }
           }

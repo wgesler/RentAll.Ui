@@ -14,7 +14,7 @@ export class TrackerService {
   private readonly controller = this.configService.config().apiUrl + 'organization/';
 
   getTrackerConfiguration(includeInactive: boolean = false): Observable<TrackerConfigurationResponse> {
-    let params = new HttpParams().set('includeInactive', includeInactive);
+    const params = new HttpParams().set('includeInactive', includeInactive);
     return this.http.get<TrackerConfigurationResponse>(this.controller + 'tracker-configuration', { params });
   }
 

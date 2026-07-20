@@ -9,7 +9,7 @@
         @if (isInvoiceCreateActive && invoiceCreateContext) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
-              @if (showShellOfficeDropdown || invoiceCreateContext.officeId != null) {
+              @if (showShellOfficeDropdown || invoiceCreateContext.officeId !== null) {
                 <app-title-bar-select
                   [label]="'Office'"
                   [formFieldClass]="'titlebar-field-office'"
@@ -43,7 +43,7 @@
         } @else if (isSecurityDepositReportActive && securityDepositReportContext) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
-              @if (showShellOfficeDropdown || securityDepositReportContext.officeId != null) {
+              @if (showShellOfficeDropdown || securityDepositReportContext.officeId !== null) {
                 <app-title-bar-select
                   [label]="'Office'"
                   [formFieldClass]="'titlebar-field-office'"
@@ -293,7 +293,7 @@
           @if (isWorkOrderCreateActive && workOrderCreateContext) {
             <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
               <div class="accounting-shell-titlebar-filters">
-                @if (showShellOfficeDropdown || workOrderCreateContext.officeId != null) {
+                @if (showShellOfficeDropdown || workOrderCreateContext.officeId !== null) {
                   <app-title-bar-select
                     [label]="'Office'"
                     [formFieldClass]="'titlebar-field-office'"
@@ -793,7 +793,11 @@
                   class="accounting-shell-dropdown-tab-icon-wrap"
                   [matMenuTriggerFor]="invoicesMenu"
                   #invoicesMenuTrigger="matMenuTrigger"
-                  (click)="onDropdownTabLabelClick($event)">
+                  tabindex="0"
+                  role="button"
+                  (click)="onDropdownTabLabelClick($event)"
+                  (keydown.enter)="onDropdownTabLabelClick($event)"
+                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
                   <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
                 </span>
               </button>
@@ -930,7 +934,11 @@
                   class="accounting-shell-dropdown-tab-icon-wrap"
                   [matMenuTriggerFor]="billsReceiptsMenu"
                   #billsReceiptsMenuTrigger="matMenuTrigger"
-                  (click)="onDropdownTabLabelClick($event)">
+                  tabindex="0"
+                  role="button"
+                  (click)="onDropdownTabLabelClick($event)"
+                  (keydown.enter)="onDropdownTabLabelClick($event)"
+                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
                   <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
                 </span>
               </button>
@@ -1034,7 +1042,11 @@
                   class="accounting-shell-dropdown-tab-icon-wrap"
                   [matMenuTriggerFor]="bankActivitiesMenu"
                   #bankActivitiesMenuTrigger="matMenuTrigger"
-                  (click)="onDropdownTabLabelClick($event)">
+                  tabindex="0"
+                  role="button"
+                  (click)="onDropdownTabLabelClick($event)"
+                  (keydown.enter)="onDropdownTabLabelClick($event)"
+                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
                   <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
                 </span>
               </button>
@@ -1255,7 +1267,11 @@
                   class="accounting-shell-dropdown-tab-icon-wrap"
                   [matMenuTriggerFor]="ownersMenu"
                   #ownersMenuTrigger="matMenuTrigger"
-                  (click)="onDropdownTabLabelClick($event)">
+                  tabindex="0"
+                  role="button"
+                  (click)="onDropdownTabLabelClick($event)"
+                  (keydown.enter)="onDropdownTabLabelClick($event)"
+                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
                   <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
                 </span>
               </button>
@@ -1415,7 +1431,11 @@
                   class="accounting-shell-dropdown-tab-icon-wrap"
                   [matMenuTriggerFor]="reportsMenu"
                   #reportsMenuTrigger="matMenuTrigger"
-                  (click)="onDropdownTabLabelClick($event)">
+                  tabindex="0"
+                  role="button"
+                  (click)="onDropdownTabLabelClick($event)"
+                  (keydown.enter)="onDropdownTabLabelClick($event)"
+                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
                   <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
                 </span>
               </button>
@@ -1490,7 +1510,11 @@
                   class="accounting-shell-dropdown-tab-icon-wrap"
                   [matMenuTriggerFor]="generalLedgerMenu"
                   #generalLedgerMenuTrigger="matMenuTrigger"
-                  (click)="onDropdownTabLabelClick($event)">
+                  tabindex="0"
+                  role="button"
+                  (click)="onDropdownTabLabelClick($event)"
+                  (keydown.enter)="onDropdownTabLabelClick($event)"
+                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
                   <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
                 </span>
               </button>

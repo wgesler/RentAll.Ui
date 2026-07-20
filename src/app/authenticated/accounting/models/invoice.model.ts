@@ -11,6 +11,11 @@ export interface MissingInvoiceSearchRequest {
   officeIds: number[];
 }
 
+/** Body for POST accounting/invoice/reservation/preview-all/search — matches API GetReservationInvoicePreviewsDto. */
+export interface ReservationInvoicePreviewSearchRequest {
+  reservationId: string;
+}
+
 export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'invoiceDate' | 'ledgerLines'> {
   invoiceNumber: string;
   period: string;

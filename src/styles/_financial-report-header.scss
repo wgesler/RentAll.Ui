@@ -1,0 +1,134 @@
+// Canonical financial / invoice report header (title + entity + period).
+// Used by Pre-Billing, Missing Invoice, Preview All, P&L, AR/AP aging, escrow, reconcile, owner statements.
+
+@mixin financial-report-header-band {
+  margin-bottom: var(--datatable-search-wrap-margin-bottom);
+}
+
+@mixin financial-report-header-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  width: 100%;
+  gap: 0;
+  min-height: var(--property-tab-actions-band-height);
+}
+
+@mixin financial-report-header-titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  gap: 0.175rem;
+}
+
+@mixin financial-report-header-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: #000;
+}
+
+@mixin financial-report-header-context-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.175rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: inherit;
+  line-height: normal;
+  text-align: center;
+  cursor: default;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+@mixin financial-report-header-context-line {
+  display: block;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+}
+
+@mixin financial-report-header-entity-line {
+  @include financial-report-header-context-line;
+  font-size: 1rem;
+}
+
+@mixin financial-report-header-period-line {
+  @include financial-report-header-context-line;
+  font-size: 0.75rem;
+}
+
+// Shell tab reports: single source of truth for header typography and layout.
+.shell-tabs .mat-mdc-tab-body-content {
+  .financial-report-layout .financial-report-context-band,
+  .owner-statement-layout .owner-statement-context-band {
+    @include financial-report-header-band;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-inline: 0;
+    box-sizing: border-box;
+  }
+
+  .financial-report-layout .financial-report-context-band__row.property-tab-actions-band__row,
+  .owner-statement-layout .owner-statement-context-band__row.property-tab-actions-band__row {
+    @include financial-report-header-row;
+  }
+
+  .financial-report-layout .financial-report-context-band__titles,
+  .owner-statement-layout .owner-statement-context-band__titles {
+    @include financial-report-header-titles;
+  }
+
+  .financial-report-layout
+    .financial-report-context-band__row:not(:has(.financial-report-actions-wrap, .reconcile-account-report-controls-wrap))
+    .financial-report-context-band__titles,
+  .owner-statement-layout
+    .owner-statement-context-band__row:not(:has(.owner-statement-cash-toggle-wrap))
+    .owner-statement-context-band__titles {
+    grid-column: 1 / -1;
+  }
+
+  .financial-report-layout
+    .financial-report-context-band__row:has(.financial-report-actions-wrap, .reconcile-account-report-controls-wrap)
+    .financial-report-context-band__titles,
+  .owner-statement-layout
+    .owner-statement-context-band__row:has(.owner-statement-cash-toggle-wrap)
+    .owner-statement-context-band__titles {
+    grid-column: 2;
+  }
+
+  .financial-report-layout .financial-report-report-title,
+  .owner-statement-layout .owner-statement-report-title {
+    @include financial-report-header-title;
+  }
+
+  .financial-report-layout .financial-report-context-btn,
+  .owner-statement-layout .owner-statement-context-btn {
+    @include financial-report-header-context-btn;
+  }
+
+  .financial-report-layout .financial-report-context-btn__entity,
+  .owner-statement-layout .owner-statement-context-btn__entity {
+    @include financial-report-header-entity-line;
+  }
+
+  .financial-report-layout .financial-report-context-btn__period,
+  .owner-statement-layout .owner-statement-context-btn__period {
+    @include financial-report-header-period-line;
+  }
+}

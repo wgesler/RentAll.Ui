@@ -187,7 +187,7 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
       }))
       .filter(context => context.value !== TrackerContextType.Unknown);
 
-    let filtered = this.allTrackers.filter(tracker => tracker.isActive);
+    const filtered = this.allTrackers.filter(tracker => tracker.isActive);
 
     const configuredOffices = (this.offices || [])
       .filter(office => !!office && office.isActive)

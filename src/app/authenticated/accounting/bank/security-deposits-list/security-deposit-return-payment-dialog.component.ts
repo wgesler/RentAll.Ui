@@ -285,7 +285,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
 
   onPaymentAmountInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    let value = input.value.replace(/[^0-9.-]/g, '');
+    const value = input.value.replace(/[^0-9.-]/g, '');
     const hasLeadingMinus = value.startsWith('-');
     const unsignedValue = value.replace(/-/g, '');
     const normalizedValue = hasLeadingMinus ? `-${unsignedValue}` : unsignedValue;

@@ -423,7 +423,7 @@ export class InvoiceHtmlBuilderService {
   }
 
   normalizeInvoiceLayoutHtml(html: string): string {
-    let result = this.tagInvoiceFooterDiagnostics(this.tagInvoiceHeaderDiagnostics(html));
+    const result = this.tagInvoiceFooterDiagnostics(this.tagInvoiceHeaderDiagnostics(html));
 
     if (/rentall-row-client/i.test(result)) {
       return this.normalizeChargesTableHtml(result);
@@ -440,7 +440,7 @@ export class InvoiceHtmlBuilderService {
       return this.normalizeChargesTableHtml(result);
     }
 
-    let rows = this.extractDirectTbodyRows(tbodyMatch[1]).filter((row) => !/rentall-section-gap/i.test(row));
+    const rows = this.extractDirectTbodyRows(tbodyMatch[1]).filter((row) => !/rentall-section-gap/i.test(row));
     if (rows.length > 0) {
       rows[0] = this.tagInvoiceRow(rows[0], 'rentall-row-client');
       rows[0] = this.tagInvoiceZone(rows[0], 'rentall-zone-client', 0);

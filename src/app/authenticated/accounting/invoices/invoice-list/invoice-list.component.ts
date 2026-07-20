@@ -1,11 +1,10 @@
 import { CommonModule } from "@angular/common";
-import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, concatMap, filter, finalize, from, map, take, takeUntil, toArray} from 'rxjs';
+import {BehaviorSubject, Subject, concatMap, finalize, from, map, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -28,13 +27,53 @@ import { UserGroups } from '../../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../../models/invoice.model';
+import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, LedgerLineResponse } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceDocumentService } from '../../services/invoice-document.service';
 import { InvoiceIifExportService } from '../../services/invoice-iif-export.service';
 import { QbClassType, QbNameType } from '../../../organizations/models/qb-type-enum';
+
+type InvoiceLedgerLineLike = Pick<LedgerLineResponse, 'costCodeId' | 'amount'> & {
+  transactionTypeId?: number;
+  transactionType?: string;
+};
+
+type LedgerLineDisplayRow = LedgerLineListDisplay & {
+  reservationId?: string | null;
+  transactionTypeId?: number;
+};
+
+interface InvoiceListDisplayRow extends Omit<InvoiceResponse, 'totalAmount' | 'paidAmount' | 'invoiceDate' | 'dueDate' | 'ledgerLines'> {
+  selected?: boolean;
+  invoiceNumber: string;
+  reservationCode: string;
+  propertyCode: string;
+  responsibleParty: string;
+  totalAmount: string;
+  totalAmountValue: number;
+  paidAmount: string;
+  paidAmountValue: number;
+  paidAmountDisplay: string;
+  dueAmount: string;
+  dueAmountValue: number;
+  originalDueAmountValue?: number;
+  applyAmount: string;
+  applyAmountValue: number;
+  applyAmountDisplay: string;
+  applyAmountEditable: boolean;
+  startDate: string;
+  endDate: string;
+  period: string;
+  invoiceDate: string;
+  dueDate: string;
+  created: string;
+  expand: string;
+  expanded: boolean;
+  ledgerLines: LedgerLineListDisplay[];
+  expandClick: (event: Event, item: InvoiceListDisplayRow) => void;
+}
 
 @Component({
     selector: 'app-invoice-list',
@@ -64,6 +103,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   @Output() invoiceSelect = new EventEmitter<InvoiceSelection>();
+  @Output() previewAllRequested = new EventEmitter<void>();
   accountingService = inject(InvoiceService);
   toastr = inject(ToastrService);
   router = inject(Router);
@@ -82,7 +122,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
+  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<unknown>;
   @ViewChild(DataTableComponent) invoiceDataTable?: DataTableComponent;
   
   panelOpenState: boolean = true;
@@ -90,7 +130,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   showInactive: boolean = false;
   showPaid: boolean = true;
   allInvoices: InvoiceResponse[] = [];
-  invoicesDisplay: any[] = []; // Will contain invoices with expand property
+  invoicesDisplay: InvoiceListDisplayRow[] = [];
 
   expandedInvoices: Set<string> = new Set(); // Track which invoices are expanded
   isAllExpanded: boolean = false; // Track if all rows are expanded
@@ -283,6 +323,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getInvoices(): void {
     this.loadInvoicesForCurrentSearchCriteria(true);
+  }
+
+  previewAllInvoices(): void {
+    if (this.source !== 'reservation') {
+      return;
+    }
+
+    this.previewAllRequested.emit();
   }
 
   addInvoice(): void {
@@ -556,7 +604,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  onPayable(event: InvoiceResponse | any): void {
+  onPayable(event: InvoiceListDisplayRow): void {
     // Keep top-bar filters unchanged. Open manual apply mode and focus clicked row amount.
     const invoiceOfficeId = Number(event?.officeId ?? 0);
     this.paymentOfficeId = Number.isFinite(invoiceOfficeId) && invoiceOfficeId > 0 ? invoiceOfficeId : null;
@@ -658,9 +706,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       // Store original due amount value when entering manual mode (for editability check)
       // If already in manual mode and originalDueAmountValue exists, preserve it
-      const invoiceAny = invoice as any; // Type assertion for display object properties
-      const originalDueAmountValue = this.isManualApplyMode && invoiceAny.originalDueAmountValue !== undefined 
-        ? invoiceAny.originalDueAmountValue 
+      const existingDisplay = this.invoicesDisplay.find(row => row.invoiceId === invoice.invoiceId);
+      const originalDueAmountValue = this.isManualApplyMode && existingDisplay?.originalDueAmountValue !== undefined
+        ? existingDisplay.originalDueAmountValue
         : dueAmountValue;
       
       // Manual apply: fill apply box only for selected rows (or single row when opened via $)
@@ -703,7 +751,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
       expanded: this.expandedInvoices.has(invoice.invoiceId), // Restore expanded state from Set
       ledgerLines: mappedLedgerLines,
-      expandClick: (event: Event, item: any) => {
+      expandClick: (event: Event, item: InvoiceListDisplayRow) => {
         event.stopPropagation();
         if (this.expandedInvoices.has(item.invoiceId)) {
           this.expandedInvoices.delete(item.invoiceId);
@@ -936,7 +984,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Selection/Export Methods
-  onInvoiceSelectionSet(_selection: SelectionModel<unknown>): void {
+  onInvoiceSelectionSet(): void {
     this.selectedInvoiceIds = new Set(
       this.invoicesDisplay
         .filter(row => !!row.selected && row.invoiceId)
@@ -1166,7 +1214,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
         this.markViewForCheck();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.reservations = [];
         this.availableReservations = [];
         this.markViewForCheck();
@@ -1343,7 +1391,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (!this.isManualApplyMode) {
-      const { applyAmount, ...columnsWithoutApply } = columns;
+      const { applyAmount: _applyAmount, ...columnsWithoutApply } = columns;
+      void _applyAmount;
       this.invoicesDisplayedColumns = columnsWithoutApply;
       return;
     }
@@ -1408,7 +1457,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
   }
 
-  getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
+  getPaidAmountFromLedgerLines(ledgerLines: InvoiceLedgerLineLike[], officeId: number): number {
     if (!ledgerLines || ledgerLines.length === 0) {
       return 0;
     }
@@ -1423,7 +1472,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }, 0);
   }
 
-  isInvoicePaymentLedgerLine(line: any, officeId: number): boolean {
+  isInvoicePaymentLedgerLine(line: InvoiceLedgerLineLike, officeId: number): boolean {
     // Prefer cost-code lookup: list payloads omit transactionTypeId and mapping defaults missing to Charge (0).
     const fromCostCode = this.getTransactionTypeIdFromCostCode(line?.costCodeId, officeId);
     if (fromCostCode === TransactionType.Payment) {
@@ -1555,7 +1604,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return Object.keys(this.ledgerLinesDisplayedColumns);
   }
 
-  getLedgerLineColumnValue(line: any, columnName: string, invoice: any, lineIndex?: number): any {
+  getLedgerLineColumnValue(line: LedgerLineDisplayRow, columnName: string, invoice: InvoiceListDisplayRow, lineIndex?: number): string | number {
     switch (columnName) {
       case 'lineNo':
         return lineIndex !== undefined ? lineIndex + 1 : '-';
@@ -1569,12 +1618,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         return this.getReservationCode(line.reservationId, invoice.reservationCode);
       case 'description':
         return line.description || '-';
-      case 'amount':
+      case 'amount': {
         const amountValue = line.amount || 0;
         const formattedAmount = this.formatter.currency(amountValue < 0 ? -amountValue : amountValue);
         return amountValue < 0 ? '-$' + formattedAmount : '$' + formattedAmount;
+      }
       default:
-        return line[columnName] || '-';
+        return '-';
     }
   }
 
@@ -1896,16 +1946,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.clearPaymentForm();
         this.markViewForCheck();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.toastr.error('Failed to apply payment', CommonMessage.Error);
         this.markViewForCheck();
       }
     });
   }
 
-  onApplyAmountInput(invoice: any, event: Event): void {
+  onApplyAmountInput(invoice: InvoiceListDisplayRow, event: Event): void {
     const input = event.target as HTMLInputElement;
-    let value = input.value.replace(/[^0-9.\-]/g, '');
+    let value = input.value.replace(/[^0-9.-]/g, '');
 
     // Keep only a single leading negative sign.
     value = value.replace(/(?!^)-/g, '');
@@ -1922,12 +1972,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     invoice.applyAmountDisplay = input.value;
   }
 
-  onApplyAmountChange(invoice: any, newValue: string): void {
+  onApplyAmountChange(invoice: InvoiceListDisplayRow, newValue: string): void {
     // Keep raw user typing (including a standalone leading "-") until blur formatting.
     invoice.applyAmountDisplay = newValue;
   }
   
-  onApplyAmountBlur(invoice: any, event: Event): void {
+  onApplyAmountBlur(invoice: InvoiceListDisplayRow, event: Event): void {
     const input = event.target as HTMLInputElement;
     const sanitizedValue = input.value.replace(/[^0-9.-]/g, '').trim();
     const normalizedSign = sanitizedValue.replace(/(?!^)-/g, '');
@@ -1970,14 +2020,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.markViewForCheck();
   }
   
-  onApplyAmountFocus(invoice: any, event: Event): void {
+  onApplyAmountFocus(invoice: InvoiceListDisplayRow, event: Event): void {
     const input = event.target as HTMLInputElement;
     const currentValue = Number(invoice.applyAmountValue || 0);
     input.value = currentValue.toString();
     input.select();
   }
 
-  onApplyAmountEnter(invoice: any, event: Event): void {
+  onApplyAmountEnter(invoice: InvoiceListDisplayRow, event: Event): void {
     const input = event.target as HTMLInputElement;
     input.blur();
   }

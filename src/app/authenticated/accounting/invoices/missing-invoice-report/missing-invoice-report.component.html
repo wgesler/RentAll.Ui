@@ -17,7 +17,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (line of invoice.ledgerLines; track line.ledgerLineId || line.lineNumber; let i = $index) {
+          @for (line of invoice.ledgerLines; track $index; let i = $index) {
             <tr>
               @for (columnName of getLedgerLineColumnNames(); track columnName) {
                 @if (ledgerLinesDisplayedColumns[columnName]) {

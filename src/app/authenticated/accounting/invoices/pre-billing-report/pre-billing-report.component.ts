@@ -15,7 +15,7 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse, PreBillingInvoiceDisplay } from '../../models/invoice.model';
+import { InvoiceResponse, LedgerLineListDisplay, PreBillingInvoiceDisplay } from '../../models/invoice.model';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
 

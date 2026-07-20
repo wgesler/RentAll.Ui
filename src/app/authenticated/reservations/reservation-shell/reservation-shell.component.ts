@@ -10,6 +10,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceListComponent } from '../../accounting/invoices/invoice-list/invoice-list.component';
+import { ReservationInvoicePreviewComponent } from '../../accounting/invoices/reservation-invoice-preview/reservation-invoice-preview.component';
 import { InvoiceComponent } from '../../accounting/invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../../accounting/invoices/invoice-create/invoice-create.component';
 import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../../accounting/models/invoice.model';
@@ -40,6 +41,7 @@ import { ReservationService } from '../services/reservation.service';
     InvoiceComponent,
     InvoiceCreateComponent,
     InvoiceListComponent,
+    ReservationInvoicePreviewComponent,
     DocumentListComponent
   ],
   templateUrl: './reservation-shell.component.html',
@@ -57,6 +59,8 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
 
   @ViewChild('reservationSection') reservationSection?: ReservationComponent;
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
+  @ViewChild('reservationInvoiceList') reservationInvoiceList?: InvoiceListComponent;
+  @ViewChild('previewAllInvoiceEditor') previewAllInvoiceEditor?: InvoiceComponent;
 
   selectedTabIndex: number = 0;
   selectedOfficeId: number | null = null;
@@ -81,6 +85,12 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   invoiceCreateInstance = 0;
   invoiceDetailInstance = 0;
   invoiceCreateReturnToEditor = false;
+  showInvoicePreviewAll = false;
+  previewAllRefreshTrigger = 0;
+  invoiceListRefreshTrigger = 0;
+  showPreviewAllInvoiceEditor = false;
+  previewAllInvoiceDraft: InvoiceResponse | null = null;
+  previewAllInvoiceEditorInstance = 0;
   activeOfficeId: number | null = null;
   activePropertyId: string | null = null;
   private reservationsLoadedPropertyId: string | null = null;
@@ -442,8 +452,39 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
 
   get showTopbarReservationInfoIcon(): boolean {
     return !this.isInvoiceCreateActive
+      && !this.showInvoicePreviewAll
+      && !this.showPreviewAllInvoiceEditor
       && this.selectedTabIndex === this.getInvoicesTabIndex()
       && !!this.selectedHeaderReservationId;
+  }
+
+  get isInvoicePreviewAllActive(): boolean {
+    return this.selectedTabIndex === this.getInvoicesTabIndex() && this.showInvoicePreviewAll;
+  }
+
+  get activeReservationCode(): string {
+    return (this.selectedReservationSummary?.reservationCode || '').trim();
+  }
+
+  get activePropertyCode(): string {
+    return (this.selectedReservationSummary?.propertyCode || '').trim();
+  }
+
+  get activeReservationArrivalDate(): string | null {
+    return this.selectedReservationSummary?.arrivalDate ?? null;
+  }
+
+  get activeReservationDepartureDate(): string | null {
+    return this.selectedReservationSummary?.departureDate ?? null;
+  }
+
+  get activeReservationRecipient(): string {
+    const summary = this.selectedReservationSummary;
+    if (!summary) {
+      return '';
+    }
+
+    return (summary.companyName || summary.contactName || '').trim();
   }
 
   get isInvoiceCreateActive(): boolean {
@@ -455,7 +496,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   get isInvoiceEditorActive(): boolean {
     return this.selectedTabIndex === this.getInvoicesTabIndex()
       && !!this.activeInvoiceId
-      && !this.showInvoiceCreate;
+      && !this.showInvoiceCreate
+      && !this.showInvoicePreviewAll
+      && !this.showPreviewAllInvoiceEditor;
   }
 
   get invoiceCreateOfficeTitleBarOptions(): SearchableSelectOption[] {
@@ -698,7 +741,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
-    // In-memory open first so a query-param race / canDeactivate dialog cannot wipe the editor.
     const reopeningInvoiceAdd = invoiceId === 'new'
       && this.activeInvoiceId === 'new';
     this.selectedInvoice = invoiceId === 'new' ? null : (selection.invoice ?? null);
@@ -707,6 +749,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       this.invoiceDetailInstance++;
     }
     this.showInvoiceCreate = false;
+    this.showInvoicePreviewAll = false;
+    this.showPreviewAllInvoiceEditor = false;
+    this.previewAllInvoiceDraft = null;
     if (this.selectedTabIndex !== this.getInvoicesTabIndex()) {
       this.selectedTabIndex = this.getInvoicesTabIndex();
     }
@@ -718,10 +763,8 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     });
   }
 
-applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
+  applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
     const invoiceId = invoiceIdParam ? String(invoiceIdParam).trim() : '';
-    // Never clear from an empty query emission — open/close/tab-leave own clearing.
-    // Empty emissions were racing list→editor opens and snapping back to the list.
     if (!invoiceId) {
       return;
     }
@@ -733,6 +776,76 @@ applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
     } else if (this.selectedInvoice?.invoiceId !== this.activeInvoiceId) {
       this.selectedInvoice = null;
     }
+  }
+
+  onPreviewAllRequested(): void {
+    this.showInvoicePreviewAll = true;
+    this.showPreviewAllInvoiceEditor = false;
+    this.previewAllInvoiceDraft = null;
+    this.activeInvoiceId = null;
+    this.selectedInvoice = null;
+    this.showInvoiceCreate = false;
+    this.previewAllRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { invoiceId: null, tab: 'invoices' },
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  closeInvoicePreviewAll(refreshInvoiceList = false): void {
+    this.showInvoicePreviewAll = false;
+    this.showPreviewAllInvoiceEditor = false;
+    this.previewAllInvoiceDraft = null;
+    this.activeInvoiceId = null;
+    this.selectedInvoice = null;
+    this.showInvoiceCreate = false;
+    this.invoiceCreateContext = null;
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { invoiceId: null, tab: 'invoices' },
+      queryParamsHandling: 'merge'
+    });
+
+    if (refreshInvoiceList) {
+      this.refreshReservationInvoiceList();
+    }
+  }
+
+  private refreshReservationInvoiceList(): void {
+    this.invoiceListRefreshTrigger++;
+    queueMicrotask(() => this.reservationInvoiceList?.getInvoices());
+  }
+
+  onPreviewAllInvoicesCreated(allComplete = false): void {
+    this.previewAllRefreshTrigger++;
+    this.invoiceListRefreshTrigger++;
+
+    if (allComplete) {
+      this.closeInvoicePreviewAll(true);
+    }
+  }
+
+  onPreviewAllEditInvoice(invoice: InvoiceResponse): void {
+    this.previewAllInvoiceDraft = invoice;
+    this.showPreviewAllInvoiceEditor = true;
+    this.previewAllInvoiceEditorInstance++;
+  }
+
+  closePreviewAllInvoiceEditor(refresh = false): void {
+    this.showPreviewAllInvoiceEditor = false;
+    this.previewAllInvoiceDraft = null;
+
+    if (refresh) {
+      this.onPreviewAllInvoicesCreated();
+    } else {
+      this.previewAllRefreshTrigger++;
+    }
+  }
+
+  onPreviewAllInvoiceCreated(): void {
+    this.closePreviewAllInvoiceEditor(true);
   }
 
   onInvoicePreviewOpen(selection: InvoicePreviewSelection): void {
@@ -779,6 +892,16 @@ applyInvoiceIdFromQuery(invoiceIdParam: unknown): void {
   onShellBack(): void {
     if (this.isInvoiceCreateActive) {
       this.onInvoiceCreateBack();
+      return;
+    }
+
+    if (this.showPreviewAllInvoiceEditor) {
+      this.closePreviewAllInvoiceEditor(false);
+      return;
+    }
+
+    if (this.showInvoicePreviewAll) {
+      this.closeInvoicePreviewAll(true);
       return;
     }
 

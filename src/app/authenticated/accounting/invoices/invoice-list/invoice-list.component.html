@@ -90,7 +90,7 @@
           (payableEvent)="onPayable($event)"
           (printEvent)="printInvoice($event)"
           (downloadEvent)="downloadInvoice($event)"
-          (selectionSet)="onInvoiceSelectionSet($event)">
+          (selectionSet)="onInvoiceSelectionSet()">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="onInactiveToggleChange($event)" class="whitespace-nowrap">
@@ -108,6 +108,12 @@
                 <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
                   <mat-icon class="text-base">download</mat-icon>
                   <span>Export</span>
+                </button>
+              }
+              @if (source === 'reservation') {
+                <button mat-raised-button type="button" color="primary" id="preview-all-invoices-button" (click)="previewAllInvoices()" class="whitespace-nowrap items-center flex gap-1">
+                  <mat-icon class="text-base">visibility</mat-icon>
+                  <span>Preview All</span>
                 </button>
               }
               <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
