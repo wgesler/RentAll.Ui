@@ -5072,7 +5072,7 @@ roundCurrency(value: number): number {
         amounts[columnId] = this.roundFinancialReportAmount(amount);
       }
     });
-    return this.finalizeFinancialReportColumnAmounts(amounts, columnContext);
+    return this.finalizeFinancialReportColumnAmounts(amounts, columnContext, 'balance');
   }
 
   createEmptyFinancialReportColumnAmounts(columnIds: string[], includeTotal: boolean): Record<string, number> {
@@ -5088,14 +5088,28 @@ roundCurrency(value: number): number {
 
   finalizeFinancialReportColumnAmounts(
     amounts: Record<string, number>,
-    columnContext: FinancialReportColumnContext
+    columnContext: FinancialReportColumnContext,
+    mode: 'activity' | 'balance' = 'activity'
   ): Record<string, number> {
     if (columnContext.showTotalColumn) {
-      amounts[FINANCIAL_REPORT_TOTAL_COLUMN_ID] = this.roundFinancialReportAmount(
-        columnContext.columnIds.reduce((sum, columnId) => sum + (amounts[columnId] || 0), 0)
-      );
+      amounts[FINANCIAL_REPORT_TOTAL_COLUMN_ID] = this.resolveFinancialReportTotalColumnAmount(amounts, columnContext, mode);
     }
     return amounts;
+  }
+
+  resolveFinancialReportTotalColumnAmount(
+    amounts: Record<string, number>,
+    columnContext: FinancialReportColumnContext,
+    mode: 'activity' | 'balance'
+  ): number {
+    if (columnContext.balanceSheet && columnContext.isTimeBased && mode === 'balance') {
+      const lastColumnId = columnContext.columnIds[columnContext.columnIds.length - 1];
+      return this.roundFinancialReportAmount(lastColumnId ? (amounts[lastColumnId] || 0) : 0);
+    }
+
+    return this.roundFinancialReportAmount(
+      columnContext.columnIds.reduce((sum, columnId) => sum + (amounts[columnId] || 0), 0)
+    );
   }
 
   getFinancialReportTotalFromColumnAmounts(
