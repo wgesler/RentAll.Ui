@@ -1,12 +1,13 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, map, Observable, of, tap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse, MissingInvoiceSearchRequest, PreBillingInvoiceSearchRequest, ReservationInvoicePreviewSearchRequest } from '../models/invoice.model';
+import { InvoiceDocumentService } from './invoice-document.service';
 
 @Injectable({
     providedIn: 'root'
@@ -18,6 +19,7 @@ export class InvoiceService {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private injector = inject(Injector);
 
   
   private readonly controller = this.configService.config().apiUrl + 'accounting/';
@@ -52,7 +54,8 @@ export class InvoiceService {
   createInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
     const normalized = this.normalizeInvoiceRequest(invoice);
     return this.http.post<InvoiceResponse>(this.controller + 'invoice', normalized).pipe(
-      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>))
+      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>)),
+      switchMap(savedInvoice => this.injector.get(InvoiceDocumentService).applyReservationInvoiceMethodAfterCreate(savedInvoice))
     );
   }
 

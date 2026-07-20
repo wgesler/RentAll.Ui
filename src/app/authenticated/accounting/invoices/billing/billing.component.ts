@@ -35,7 +35,7 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
 
 export class BillingComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
-  accountingService = inject(InvoiceService);
+  invoiceService = inject(InvoiceService);
   router = inject(Router);
   fb = inject(FormBuilder);
   route = inject(ActivatedRoute);
@@ -132,7 +132,7 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   getInvoice(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
-    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
+    this.invoiceService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
         this.invoice = response;
         this.populateForm();
@@ -289,8 +289,8 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
 
     const save$ = isCreating
-      ? this.accountingService.createInvoice(invoiceRequest)
-      : this.accountingService.updateInvoice(invoiceRequest);
+      ? this.invoiceService.createInvoice(invoiceRequest)
+      : this.invoiceService.updateInvoice(invoiceRequest);
 
     save$.pipe(take(1), finalize(() => {this.isSubmitting = false;})).subscribe({
       next: async (savedInvoice: InvoiceResponse) => {
@@ -1111,7 +1111,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       endDate: this.utilityService.toDateOnlyJsonString(endDate) ?? ''
     };
 
-    this.accountingService.getBillingMonthlyLedgerLines(request).pipe(take(1)).subscribe({
+    this.invoiceService.getBillingMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: BillingMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);

@@ -1,16 +1,26 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, forkJoin, map, of, switchMap, take, throwError, catchError } from 'rxjs';
+import { Router } from '@angular/router';
+import { Observable, forkJoin, map, of, switchMap, take, throwError, catchError, tap } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
+import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { FileDetails, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailHtmlService } from '../../email/services/email-html.service';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
+import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -22,7 +32,7 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { TransactionType } from '../models/accounting-enum';
+import { TransactionType, InvoiceMethod, normalizeInvoiceMethodId } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceResponse } from '../models/invoice.model';
 import { CostCodesService } from './cost-codes.service';
@@ -67,6 +77,11 @@ export class InvoiceDocumentService {
   private documentHtmlService = inject(DocumentHtmlService);
   private documentExportService = inject(DocumentExportService);
   private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
+  private formatterService = inject(FormatterService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private router = inject(Router);
 
 
   downloadInvoicePdf(invoiceSummary: InvoiceResponse): Observable<void> {
@@ -106,6 +121,133 @@ export class InvoiceDocumentService {
         const { processedHtml, extractedStyles } = this.buildPrintableHtml(data);
         const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(processedHtml, extractedStyles);
         this.documentExportService.printHTML(htmlWithStyles);
+      })
+    );
+  }
+
+  applyReservationInvoiceMethodAfterCreate(invoice: InvoiceResponse): Observable<InvoiceResponse> {
+    const reservationId = (invoice.reservationId || '').trim();
+    if (!invoice.invoiceId || !reservationId) {
+      return of(invoice);
+    }
+
+    return this.reservationService.getReservationByGuid(reservationId).pipe(
+      take(1),
+      switchMap(reservation => this.executeInvoiceMethodForReservation(invoice, reservation)),
+      catchError(() => of(invoice))
+    );
+  }
+
+  executeInvoiceMethodForReservation(invoice: InvoiceResponse, reservation: ReservationResponse): Observable<InvoiceResponse> {
+    const method = normalizeInvoiceMethodId(reservation.invoiceMethodId);
+    switch (method) {
+      case InvoiceMethod.Download:
+        return this.downloadInvoicePdf(invoice).pipe(
+          tap(() => this.toastr.success('Invoice downloaded.', CommonMessage.Success)),
+          catchError((err: Error) => {
+            this.toastr.error(err?.message || 'Failed to download invoice.', CommonMessage.Error);
+            return of(undefined);
+          }),
+          map(() => invoice)
+        );
+      case InvoiceMethod.Print:
+        return this.printInvoice(invoice).pipe(
+          catchError((err: Error) => {
+            this.toastr.error(err?.message || 'Failed to print invoice.', CommonMessage.Error);
+            return of(undefined);
+          }),
+          map(() => invoice)
+        );
+      case InvoiceMethod.Email:
+        return this.openInvoiceEmailDraft(invoice).pipe(
+          catchError((err: Error) => {
+            this.toastr.error(err?.message || 'Failed to prepare invoice email.', CommonMessage.Error);
+            return of(undefined);
+          }),
+          map(() => invoice)
+        );
+      default:
+        return of(invoice);
+    }
+  }
+
+  openInvoiceEmailDraft(invoice: InvoiceResponse): Observable<void> {
+    return this.loadInvoiceDocumentData(invoice).pipe(
+      switchMap(data => this.emailHtmlService.getEmailHtml().pipe(take(1), map(emailHtml => ({ data, emailHtml })))),
+      switchMap(({ data, emailHtml }) => {
+        const reservationContactId = this.getPrimaryReservationContactId(data.reservation);
+        const contact = reservationContactId
+          ? data.contacts.find(item => item.contactId === reservationContactId) ?? null
+          : null;
+        if (!contact) {
+          return throwError(() => new Error('No contact found for this reservation.'));
+        }
+
+        const isCompany = contact.entityTypeId === EntityType.Company;
+        const toEmail = (isCompany ? contact.companyEmail : contact.email)?.trim() || '';
+        if (!toEmail) {
+          return throwError(() => new Error('Contact does not have an email address.'));
+        }
+
+        const selectedAccountingOffice = data.accountingOffices.find(item => item.officeId === data.office.officeId) ?? null;
+        const currentUser = this.authService.getUser();
+        const fromEmail = currentUser?.email || '';
+        const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+        const toName = isCompany ? `${contact.companyName || ''}`.trim() : `${contact.fullName || ''}`.trim();
+        const ccEmail = isCompany ? (contact.email || '') : null;
+        const ccEmails = ccEmail ? [ccEmail] : [];
+        const salutationName = `${contact.firstName || ''}`.trim();
+        const tenantName = `${data.reservation.tenantName || ''}`.trim();
+        const accountingName = selectedAccountingOffice?.name || '';
+        const accountingPhone = this.formatterService.phoneNumber(selectedAccountingOffice?.phone) || '';
+        const invoiceCode = data.invoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || data.invoice.invoiceId || 'Invoice';
+        const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
+        const emailTemplateHtml = isCompany ? (emailHtml?.corporateInvoice || '') : (emailHtml?.invoice || '');
+        const emailSubject = (emailHtml?.invoiceSubject || '').trim().replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
+        const emailBodyHtml = emailTemplateHtml
+          .replace(/\{\{salutationName\}\}/g, salutationName)
+          .replace(/\{\{tenantName\}\}/g, tenantName)
+          .replace(/\{\{fromName\}\}/g, fromName)
+          .replace(/\{\{companyName\}\}/g, data.organization?.name || '')
+          .replace(/\{\{accountingName\}\}/g, accountingName)
+          .replace(/\{\{accountingPhone\}\}/g, accountingPhone);
+        const { processedHtml, extractedStyles } = this.buildPrintableHtml(data);
+        const emailConfig: EmailConfig = {
+          subject: emailSubject,
+          toEmail,
+          toName,
+          fromEmail,
+          fromName,
+          ccEmails,
+          documentType: DocumentType.Invoice,
+          emailType: EmailType.Invoice,
+          plainTextContent: '',
+          htmlContent: emailBodyHtml,
+          fileDetails: {
+            fileName: attachmentFileName,
+            contentType: 'application/pdf',
+            file: ''
+          }
+        };
+        const documentConfig: DocumentConfig = {
+          previewIframeHtml: processedHtml,
+          previewIframeStyles: extractedStyles,
+          organizationId: data.organization?.organizationId || null,
+          selectedOfficeId: data.office.officeId,
+          selectedOfficeName: data.office.name || '',
+          selectedReservationId: data.reservation.reservationId,
+          propertyId: data.property.propertyId,
+          contacts: data.contacts,
+          isDownloading: false
+        };
+
+        this.emailCreateDraftService.setDraft({
+          emailConfig,
+          documentConfig,
+          returnUrl: this.router.url
+        });
+        void this.router.navigateByUrl(RouterUrl.EmailCreate);
+        return of(undefined);
       })
     );
   }

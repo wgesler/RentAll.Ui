@@ -52,7 +52,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() shellCreateInPlace = false;
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   @Output() invoiceCreated = new EventEmitter<InvoiceResponse>();
-  accountingService = inject(InvoiceService);
+  invoiceService = inject(InvoiceService);
   router = inject(Router);
   fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
@@ -416,7 +416,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const loadId = ++this.activeInvoiceLoadId;
     const requestedInvoiceId = this.invoiceId;
     this.isInvoiceContentReady = false;
-    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => {
+    this.invoiceService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
       })
     ).subscribe({
@@ -1086,8 +1086,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const save$ = isCreating
-      ? this.accountingService.createInvoice(invoiceRequest)
-      : this.accountingService.updateInvoice(invoiceRequest);
+      ? this.invoiceService.createInvoice(invoiceRequest)
+      : this.invoiceService.updateInvoice(invoiceRequest);
 
     save$.pipe(take(1), finalize(() => {
       this.isSubmitting = false;
@@ -1320,7 +1320,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       endDate: this.utilityService.toDateOnlyJsonString(endDate) ?? ''
     };
     
-    this.accountingService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
+    this.invoiceService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: InvoiceMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
