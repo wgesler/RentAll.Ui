@@ -60,6 +60,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
+import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
@@ -127,6 +128,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   checkOutTimes: { value: number, label: string }[] = [];
   availableClientTypes: { value: number, label: string }[] = [];
   availableBillingTypes: { value: number, label: string }[] = [];
+  availableInvoiceMethods: { value: number, label: string }[] = [];
   availableBillingMethods: { value: number, label: string }[] = [];
   availableProrateTypes: { value: number, label: string }[] = [];
   availableFrequencies: { value: number, label: string }[] = [];
@@ -388,6 +390,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (this.isAddMode) {
       reservationRequest = {
         ...overrides,
+        invoiceMethodId: normalizeInvoiceMethodId(overrides.invoiceMethodId),
         currentInvoiceNo: 0,
         aCleanerUserId: null,
         aCleaningDate: null,
@@ -830,6 +833,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       frequencyId: new FormControl(Frequency.NA),
       taxes: new FormControl(null),
       collapseCharges: new FormControl(false),
+      invoiceMethodId: new FormControl(InvoiceMethod.Create, [Validators.required]),
       notes: new FormControl(''),
       currentInvoiceNo: new FormControl(0)
     });
@@ -910,6 +914,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       notes: formValue['notes'] !== null && formValue['notes'] !== undefined ? String(formValue['notes']) : '',
       allowExtensions: (formValue['allowExtensions'] as boolean | null | undefined) ?? false,
       collapseCharges: (formValue['collapseCharges'] as boolean | null | undefined) ?? false,
+      invoiceMethodId: normalizeInvoiceMethodId(formValue['invoiceMethodId'] as number | null | undefined),
       isActive: (formValue['isActive'] as boolean | null | undefined) ?? true
     };
   }
@@ -939,6 +944,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       isActive: typeof this.reservation.isActive === 'number' ? this.reservation.isActive === 1 : Boolean(this.reservation.isActive),
       allowExtensions: this.reservation.allowExtensions ?? true,
       collapseCharges: this.reservation.collapseCharges ?? false,
+      invoiceMethodId: normalizeInvoiceMethodId(this.reservation.invoiceMethodId),
       reservationCode: this.reservation.reservationCode || '',
       propertyId: this.reservation.propertyId,
       propertyCode: this.propertyCodes.find(p => p.propertyId === this.reservation.propertyId)?.propertyCode || '',
@@ -1076,6 +1082,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       isActive: true,
       allowExtensions: source.allowExtensions ?? true,
       collapseCharges: source.collapseCharges ?? false,
+      invoiceMethodId: normalizeInvoiceMethodId(source.invoiceMethodId),
       reservationCode: '',
       propertyId: '',
       propertyCode: '',
@@ -1646,6 +1653,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.checkInTimes = getCheckInTimes();
     this.checkOutTimes = getCheckOutTimes();
     this.availableBillingTypes = getBillingTypes();
+    this.availableInvoiceMethods = getInvoiceMethods();
     this.availableBillingMethods = getBillingMethods();
     this.availableProrateTypes = getProrateTypes();
     this.availableFrequencies = getFrequencies();

@@ -257,6 +257,49 @@ export function getAccountTypeLabel(accountTypeId: number, accountTypes?: { valu
 }
 //#endregion
 
+//#region InvoiceMethod
+export enum InvoiceMethod {
+  Create = 0,
+  Download = 1,
+  Email = 2,
+  Print = 3
+}
+
+export const InvoiceMethodLabels: { value: InvoiceMethod; label: string }[] = [
+  { value: InvoiceMethod.Create, label: 'Create' },
+  { value: InvoiceMethod.Download, label: 'Download' },
+  { value: InvoiceMethod.Email, label: 'Email' },
+  { value: InvoiceMethod.Print, label: 'Print' }
+];
+
+export function getInvoiceMethod(invoiceMethodId: number | undefined | null): string {
+  if (invoiceMethodId === undefined || invoiceMethodId === null) {
+    return '';
+  }
+
+  const typeMap: Record<number, string> = {
+    [InvoiceMethod.Create]: 'Create',
+    [InvoiceMethod.Download]: 'Download',
+    [InvoiceMethod.Email]: 'Email',
+    [InvoiceMethod.Print]: 'Print'
+  };
+
+  return typeMap[invoiceMethodId] || '';
+}
+
+export function getInvoiceMethods(): { value: number; label: string }[] {
+  return InvoiceMethodLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function normalizeInvoiceMethodId(invoiceMethodId: number | null | undefined): InvoiceMethod {
+  if (invoiceMethodId === null || invoiceMethodId === undefined || Number.isNaN(invoiceMethodId)) {
+    return InvoiceMethod.Create;
+  }
+
+  return invoiceMethodId as InvoiceMethod;
+}
+//#endregion
+
 //#region PostingStatus
 export enum PostingStatus {
   Open = 0,

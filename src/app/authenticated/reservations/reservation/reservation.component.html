@@ -614,10 +614,18 @@
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 form-standard-grid">
-              <div class="col-span-4 reservation-first-row-toggles reservation-toggle-cell form-standard-checkbox-row justify-end">
+              <div class="col-start-3 col-span-1 reservation-billing-collapse-charges">
                 <mat-checkbox formControlName="collapseCharges" color="primary">
                   Collapse Charges on Invoice
                 </mat-checkbox>
+              </div>
+              <div class="col-start-4 col-span-1 min-w-0 reservation-invoice-method-outline">
+                <span class="reservation-invoice-method-outline-label">Invoice Method</span>
+                <mat-radio-group formControlName="invoiceMethodId" color="primary" class="reservation-invoice-method-group">
+                  @for (invoiceMethod of availableInvoiceMethods; track invoiceMethod.value) {
+                    <mat-radio-button [value]="invoiceMethod.value">{{ invoiceMethod.label }}</mat-radio-button>
+                  }
+                </mat-radio-group>
               </div>
 
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">

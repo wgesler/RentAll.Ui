@@ -50,6 +50,7 @@ export interface ReservationRequest {
   notes?: string | null;
   allowExtensions: boolean;
   collapseCharges: boolean;
+  invoiceMethodId: number;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -117,6 +118,7 @@ export interface ReservationResponse {
   notes?: string | null;
   allowExtensions: boolean;
   collapseCharges: boolean;
+  invoiceMethodId: number;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -149,7 +151,7 @@ export interface ReservationListResponse {
   reservationCode: string;
   propertyId: string;
   propertyCode: string;
-  noticeStatusId?: number | null;
+  noticeStatusId: number;
   officeId: number;
   officeName: string;
   contactId: string;
@@ -158,14 +160,15 @@ export interface ReservationListResponse {
   companyName?: string | null;
   tenantName: string;
   agentCode?: string | null;
-  billingTypeId?: number | null;
-  billingRate?: number;
   monthlyRate: number;
+  dailyRate: number;
+  billingRate: number;
+  billingTypeId: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
   reservationTypeId: number;
   reservationStatusId: number;
-  reservationNoticeId?: number | null;
+  reservationNoticeId: number;
   hasPets: boolean;
   maidUserId: string | null;
   maidStartDate: string | null;
@@ -210,7 +213,7 @@ export interface ReservationListDisplay {
   reservationCode: string;
   propertyId: string;
   propertyCode: string;
-  noticeStatusId?: number | null;
+  noticeStatusId: number;
   officeId: number;
   officeName: string;
   office?: string | null;
@@ -222,20 +225,22 @@ export interface ReservationListDisplay {
   companyId?: string | null;
   companyName: string;
   agentCode?: string | null;
-  billingTypeId?: number | null;
-  billingRate?: number;
   monthlyRate: number;
+  dailyRate: number;
+  billingRate: number;
+  billingTypeId: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
   reservationTypeId: number;
   reservationStatusId: number;
-  hasPets?: boolean | null;
+  reservationNoticeId: number;
+  hasPets: boolean;
   maidUserId: string | null;
   maidStartDate?: string | null;
-  frequencyId?: number | null;
-  maidService?: boolean | null;
+  frequencyId: number;
+  maidServiceFee: number;
   currentInvoiceNo: number;
-  
+
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
   aCarpetUserId?: string | null;
@@ -247,7 +252,7 @@ export interface ReservationListDisplay {
   dCarpetUserId?: string | null;
   dCarpetDate?: CalendarDateString | null;
   dInspectorUserId?: string | null;
-  dInspectingDate?: CalendarDateString | null;  
+  dInspectingDate?: CalendarDateString | null;
   isActive: boolean;
   createdOn: string;
 }

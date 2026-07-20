@@ -48,6 +48,8 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { InvoiceComponent } from '../invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../invoices/invoice-create/invoice-create.component';
 import { InvoiceListComponent } from '../invoices/invoice-list/invoice-list.component';
+import { MissingInvoiceListComponent } from '../invoices/missing-invoice-list/missing-invoice-list.component';
+import { PreBillingReportComponent } from '../invoices/pre-billing-report/pre-billing-report.component';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../models/invoice.model';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger/general-ledger.component';
@@ -62,7 +64,7 @@ import { RentRollComponent } from '../vendors/rent-roll/rent-roll.component';
 import { OwnerReportComponent } from '../owners/owner-report/owner-report.component';
 import { OwnerStatementCreateComponent } from '../owners/owner-statement-create/owner-statement-create.component';
 import { OwnerStatementListComponent } from '../owners/owner-statement-list/owner-statement-list.component';
-import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
+import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellInvoiceKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../general-ledger/journal-entry-recap/journal-entry-recap.component';
 import { ReconcileComponent } from '../bank/reconcile/reconcile.component';
 import { BeginReconciliationDialogComponent } from '../bank/reconcile/begin-reconciliation-dialog.component';
@@ -114,6 +116,7 @@ interface AccountingShellPinnedTopBarState {
   asOfDate?: string;
   asOfStart?: string;
   selectedTabIndex?: number;
+  selectedInvoiceKind?: AccountingShellInvoiceKind;
   selectedBillsReceiptKind?: AccountingShellBillsReceiptKind;
   selectedBankActivityKind?: AccountingShellBankActivityKind;
   selectedOwnerKind?: AccountingShellOwnerKind;
@@ -145,6 +148,8 @@ interface AccountingShellPinnedTopBarState {
     InvoiceComponent,
     InvoiceCreateComponent,
     InvoiceListComponent,
+    MissingInvoiceListComponent,
+    PreBillingReportComponent,
     ReceiptsListComponent,
     ReceiptComponent,
     DepositsListComponent,
@@ -210,6 +215,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('reportsApAgingReport') reportsApAgingReport?: ApAgingReportComponent;
   @ViewChild('reconcileAccountReport') reconcileAccountReport?: ReconcileAccountReportComponent;
   @ViewChild('billsReceiptsMenuTrigger') billsReceiptsMenuTrigger?: MatMenuTrigger;
+  @ViewChild('invoicesMenuTrigger') invoicesMenuTrigger?: MatMenuTrigger;
   @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
   @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
   @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
@@ -217,6 +223,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private skipNextDropdownTabMenuOpen = false;
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
+  readonly tabInvoices = 0;
   readonly tabBillsReceipts = 1;
   readonly tabBankActivities = 2;
   readonly tabOwners = 3;
@@ -224,6 +231,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly tabReports = 4;
   readonly tabGeneralLedger = 5;
   readonly tabMaxIndex = 5;
+  readonly shellInvoiceMenuOptions: { kind: AccountingShellInvoiceKind; label: string }[] = [
+    { kind: 'invoices', label: 'Invoices' },
+    { kind: 'missingInvoiceReport', label: 'Missing Invoice Report' },
+    { kind: 'preBillingReport', label: 'Pre-billing Report' }
+  ];
   readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
     { kind: 'receipts', label: 'Receipts' },
@@ -258,6 +270,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'ledger', label: 'General Ledger' },
     { kind: 'recap', label: 'Journal Entry Recap' }
   ];
+  selectedInvoiceKind: AccountingShellInvoiceKind = 'invoices';
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'undepositedFunds';
   selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
@@ -936,7 +949,7 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   get shellInvoiceEditor(): InvoiceComponent | undefined {
-    if (this.selectedTabIndex === 0 && this.activeInvoiceId) {
+    if (this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'invoices' && this.activeInvoiceId) {
       return this.accountingInvoiceEditor;
     }
 
@@ -2230,7 +2243,8 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
   }
 
   isDropdownTabIndex(tabIndex: number): boolean {
-    return tabIndex === this.tabBillsReceipts
+    return tabIndex === this.tabInvoices
+      || tabIndex === this.tabBillsReceipts
       || tabIndex === this.tabBankActivities
       || tabIndex === this.tabOwners
       || tabIndex === this.tabReports
@@ -2239,6 +2253,9 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
 
   openDropdownTabMenu(tabIndex: number): void {
     switch (tabIndex) {
+      case this.tabInvoices:
+        this.invoicesMenuTrigger?.openMenu();
+        break;
       case this.tabBillsReceipts:
         this.billsReceiptsMenuTrigger?.openMenu();
         break;
@@ -2288,10 +2305,12 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       return;
     }
 
-    const leavingInvoicesTab = event.index !== 0;
-    const hadInvoiceDetail = !!this.activeInvoiceId
+    const leavingInvoicesTab = event.index !== this.tabInvoices;
+    const hadInvoiceDetail = this.selectedTabIndex === this.tabInvoices
+      && this.selectedInvoiceKind === 'invoices'
+      && (!!this.activeInvoiceId
       || this.showInvoiceCreate
-      || !!this.route.snapshot.paramMap.get('id');
+      || !!this.route.snapshot.paramMap.get('id'));
 
     if (leavingInvoicesTab) {
       this.clearInvoiceShellDetailState();
@@ -2369,6 +2388,32 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       queryParams: shellQueryParams,
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
+  }
+
+  selectInvoiceKind(kind: AccountingShellInvoiceKind): void {
+    this.invoicesMenuTrigger?.closeMenu();
+    const previousTab = this.selectedTabIndex;
+    const kindChanged = this.selectedInvoiceKind !== kind;
+
+    if (kindChanged && this.selectedInvoiceKind === 'invoices') {
+      this.clearInvoiceShellDetailState();
+    }
+
+    this.selectedInvoiceKind = kind;
+
+    if (previousTab !== this.tabInvoices) {
+      this.onTabChange({ index: this.tabInvoices });
+      return;
+    }
+
+    if (kindChanged) {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ invoiceKind: kind }),
+        queryParamsHandling: 'merge'
+      });
+    }
     this.persistPinnedTopBarIfActive();
   }
 
@@ -3121,6 +3166,9 @@ persistPinnedTopBarIfActive(): void {
 
 applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
     this.selectedTabIndex = stored.selectedTabIndex ?? this.selectedTabIndex;
+    if (stored.selectedInvoiceKind) {
+      this.selectedInvoiceKind = stored.selectedInvoiceKind;
+    }
     if (stored.selectedBillsReceiptKind) {
       this.selectedBillsReceiptKind = stored.selectedBillsReceiptKind;
     }
@@ -3262,6 +3310,7 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
       asOfDate: asOfDate ?? undefined,
       asOfStart: asOfStart ?? undefined,
       selectedTabIndex: this.selectedTabIndex,
+      selectedInvoiceKind: this.selectedInvoiceKind,
       selectedBillsReceiptKind: this.selectedBillsReceiptKind,
       selectedBankActivityKind: this.selectedBankActivityKind,
       selectedOwnerKind: this.selectedOwnerKind,
@@ -3317,6 +3366,7 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
         asOfDate: parsed.asOfDate ? String(parsed.asOfDate) : undefined,
         asOfStart: parsed.asOfStart ? String(parsed.asOfStart) : undefined,
         selectedTabIndex: Number.isFinite(Number(parsed.selectedTabIndex)) ? Number(parsed.selectedTabIndex) : 0,
+        selectedInvoiceKind: parsed.selectedInvoiceKind,
         selectedBillsReceiptKind: parsed.selectedBillsReceiptKind,
         selectedBankActivityKind: parsed.selectedBankActivityKind,
         selectedOwnerKind: parsed.selectedOwnerKind,
@@ -3650,6 +3700,9 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   }
 
   clearInactiveDropdownSelections(activeTabIndex: number): void {
+    if (activeTabIndex !== this.tabInvoices) {
+      this.selectedInvoiceKind = 'invoices';
+    }
     if (activeTabIndex !== this.tabBillsReceipts) {
       this.selectedBillsReceiptKind = 'bills';
     }
@@ -3859,7 +3912,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   }
 
   get isInvoiceCreateActive(): boolean {
-    return this.selectedTabIndex === 0 && this.showInvoiceCreate && !!this.invoiceCreateContext;
+    return this.selectedTabIndex === this.tabInvoices && this.showInvoiceCreate && !!this.invoiceCreateContext;
   }
 
   get invoiceCreateOfficeTitleBarOptions(): { value: number; label: string }[] {
@@ -4204,6 +4257,13 @@ captureOwnerStatementReturnContext(): void {
         this.selectedTabIndex = tabIndex;
       }
       this.clampSelectedTabIndexForAccess();
+    }
+
+    if ('invoiceKind' in params) {
+      const invoiceKind = params['invoiceKind'];
+      if (invoiceKind === 'invoices' || invoiceKind === 'missingInvoiceReport' || invoiceKind === 'preBillingReport') {
+        this.selectedInvoiceKind = invoiceKind;
+      }
     }
 
     if ('billsReceipt' in params) {
@@ -4649,6 +4709,7 @@ captureOwnerStatementReturnContext(): void {
       asOfDate: this.utilityService.formatDateOnlyForApi(this.asOfDate),
       asOfStart: this.utilityService.formatDateOnlyForApi(this.asOfStart),
       billsReceipt: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsReceiptKind : null,
+      invoiceKind: this.selectedTabIndex === this.tabInvoices ? this.selectedInvoiceKind : null,
       bankActivity: this.selectedTabIndex === this.tabBankActivities ? this.selectedBankActivityKind : null,
       ownerKind: this.selectedTabIndex === this.tabOwners ? this.selectedOwnerKind : null,
       ownerReport: this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind)

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell, MaintenanceRequest, MaintenanceResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
+import { normalizeInvoiceMethodId } from '../authenticated/accounting/models/accounting-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import {
   DashboardPropertyTurnoverRow,
@@ -887,6 +888,7 @@ export class MixedMappingService {
       notes: reservation.notes ?? null,
       allowExtensions: reservation.allowExtensions ?? true,
       collapseCharges: reservation.collapseCharges ?? false,
+      invoiceMethodId: normalizeInvoiceMethodId(reservation.invoiceMethodId),
       aCleanerUserId: reservation.aCleanerUserId ?? null,
       aCleaningDate: reservation.aCleaningDate ?? null,
       aCarpetUserId: reservation.aCarpetUserId ?? null,

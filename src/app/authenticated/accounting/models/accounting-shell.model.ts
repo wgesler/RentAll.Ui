@@ -1,5 +1,7 @@
 import { FinancialReportKind } from './financial-report.model';
 
+export type AccountingShellInvoiceKind = 'invoices' | 'missingInvoiceReport' | 'preBillingReport';
+
 export type AccountingShellReportKind = FinancialReportKind | 'arAging' | 'apAging' | 'reconcileAccountSummary' | 'reconcileAccountDetail';
 
 export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'rentRoll';
