@@ -19,6 +19,7 @@ import { OrganizationService } from '../../organizations/services/organization.s
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
@@ -194,6 +195,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private propertyService = inject(PropertyService);
   private securityDepositService = inject(SecurityDepositService);
@@ -3867,9 +3869,17 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     const options: { value: string; label: string }[] = [];
     const today = new Date();
     const anchor = new Date(today.getFullYear(), today.getMonth(), 1);
+    const accountingStart = this.accountingOfficeService.getEarliestAccountingStartDate(
+      this.accountingOfficeService.getAllAccountingOfficesValue(),
+      this.preBillingOfficeIds?.length ? this.preBillingOfficeIds : undefined
+    );
 
     for (let offset = -6; offset <= 18; offset++) {
       const monthDate = new Date(anchor.getFullYear(), anchor.getMonth() + offset, 1);
+      if (accountingStart && monthDate.getTime() < accountingStart.getTime()) {
+        continue;
+      }
+
       const value = this.utilityService.formatDateOnlyForApi(monthDate) ?? '';
       if (!value) {
         continue;

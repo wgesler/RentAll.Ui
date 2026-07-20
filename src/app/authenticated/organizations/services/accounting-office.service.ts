@@ -96,4 +96,23 @@ export class AccountingOfficeService {
   deleteAccountingOffice(officeId: number): Observable<void> {
     return this.http.delete<void>(this.controller + officeId);
   }
+
+  getAccountingStartDate(office: AccountingOfficeResponse): Date {
+    return new Date(office.startYear, office.startMonth - 1, 1);
+  }
+
+  getEarliestAccountingStartDate(offices: AccountingOfficeResponse[], officeIds?: number[]): Date | null {
+    const scopedOffices = officeIds?.length
+      ? offices.filter(office => officeIds.includes(Number(office.officeId)))
+      : offices;
+
+    if (!scopedOffices.length) {
+      return null;
+    }
+
+    return scopedOffices.reduce<Date | null>((earliest, office) => {
+      const start = this.getAccountingStartDate(office);
+      return earliest == null || start < earliest ? start : earliest;
+    }, null);
+  }
 }

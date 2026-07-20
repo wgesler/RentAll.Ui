@@ -21,6 +21,8 @@ export interface AccountingOfficeRequest {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  startMonth: number;
+  startYear: number;
   yearEndMonth: number;
   yearEndDay: number;
   workOrderNo: number;
@@ -71,6 +73,8 @@ export interface AccountingOfficeResponse {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  startMonth: number;
+  startYear: number;
   yearEndMonth: number;
   yearEndDay: number;
   bankCards?: BankCardResponse[];
