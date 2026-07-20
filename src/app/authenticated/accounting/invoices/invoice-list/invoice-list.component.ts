@@ -17,7 +17,8 @@ import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
-import { ReservationListResponse } from '../../../reservations/models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
+import { ReservationStatus, ReservationType } from '../../../reservations/models/reservation-enum';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { PropertyService } from '../../../properties/services/property.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
@@ -216,6 +217,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   isPageReady = false;
+  activeReservationStatusId: number | null = null;
+  activeReservationTypeId: number | null = null;
+  readonly ownerBlockedReservationMessage = 'Invoices do not apply to owner blocked reservations.';
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'invoices']));
   destroy$ = new Subject<void>();
 
@@ -234,6 +238,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadCompanyContacts();
     this.loadCostCodes();
     this.loadChartOfAccounts();
+    this.refreshReservationContext();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -263,6 +268,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       if (previousReservationId === undefined || newReservationId !== previousReservationId) {
         this.syncSelectedReservationFromInput(newReservationId);
+        this.refreshReservationContext();
         if (this.officeScopeResolved) {
           this.loadInvoicesForCurrentSearchCriteria();
         }
@@ -631,9 +637,59 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ? this.reservations.find(r =>
           r.reservationId === reservationId
           && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
-        ) || null
+        ) || this.reservations.find(r => r.reservationId === reservationId) || null
       : null;
     this.filterReservations();
+    this.refreshReservationContext();
+  }
+
+  get isOwnerBlockedReservationContext(): boolean {
+    if (this.source !== 'reservation') {
+      return false;
+    }
+
+    const cachedReservation = this.selectedReservation
+      ?? (this.reservationId ? this.reservations.find(r => r.reservationId === this.reservationId) : null);
+
+    const statusId = this.activeReservationStatusId ?? cachedReservation?.reservationStatusId ?? null;
+    const typeId = this.activeReservationTypeId ?? cachedReservation?.reservationTypeId ?? null;
+
+    return Number(statusId) === ReservationStatus.OwnerBlocked
+      || Number(typeId) === ReservationType.Owner;
+  }
+
+  refreshReservationContext(): void {
+    if (this.source !== 'reservation' || !this.reservationId) {
+      this.activeReservationStatusId = null;
+      this.activeReservationTypeId = null;
+      this.markViewForCheck();
+      return;
+    }
+
+    const cachedReservation = this.selectedReservation
+      ?? this.reservations.find(r => r.reservationId === this.reservationId)
+      ?? null;
+
+    if (cachedReservation) {
+      this.activeReservationStatusId = Number(cachedReservation.reservationStatusId);
+      this.activeReservationTypeId = Number(cachedReservation.reservationTypeId);
+      this.markViewForCheck();
+    }
+
+    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1)).subscribe({
+      next: (response: ReservationResponse) => {
+        this.activeReservationStatusId = Number(response.reservationStatusId);
+        this.activeReservationTypeId = Number(response.reservationTypeId);
+        this.markViewForCheck();
+      },
+      error: () => {
+        if (!cachedReservation) {
+          this.activeReservationStatusId = null;
+          this.activeReservationTypeId = null;
+        }
+        this.markViewForCheck();
+      }
+    });
   }
   //#endregion
 
@@ -1196,16 +1252,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.reservations = reservations || [];
         this.filterReservations();
         
-        // Sync selectedReservation from input
-        if (this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice) {
-          const matchingReservation = this.reservations.find(r => 
-            r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
-          ) || null;
+        if (this.reservationId) {
+          const matchingReservation = this.reservations.find(r => r.reservationId === this.reservationId) || null;
           if (matchingReservation !== this.selectedReservation) {
             this.selectedReservation = matchingReservation;
             this.applyFilters();
           }
         }
+        this.refreshReservationContext();
         
         // If a company is selected, re-apply filters now that reservations are loaded
         // Re-apply filters once reservations load so company matching can evaluate reservation fields.
@@ -2100,6 +2154,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.filterReservations();
     this.filterCostCodes();
     this.filterChartOfAccounts();
+    if (this.source === 'reservation') {
+      this.syncSelectedReservationFromInput(this.reservationId);
+    }
     this.loadInvoicesForCurrentSearchCriteria();
   }
 

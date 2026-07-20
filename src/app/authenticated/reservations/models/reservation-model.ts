@@ -144,6 +144,7 @@ export interface ReservationLoadedContext {
   officeId: number | null;
   propertyId: string | null;
   reservationId: string;
+  reservationStatusId?: number;
 }
 
 export interface ReservationListResponse {

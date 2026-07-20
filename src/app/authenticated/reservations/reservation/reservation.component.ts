@@ -300,7 +300,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           this.reservationLoaded.emit({
             officeId: response.officeId ?? null,
             propertyId: response.propertyId ?? null,
-            reservationId: response.reservationId
+            reservationId: response.reservationId,
+            reservationStatusId: response.reservationStatusId
           });
         }
       },
