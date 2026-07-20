@@ -1,6 +1,29 @@
 import type { CalendarDateString } from '../../../services/utility.service';
 
-/** Body for POST accounting/invoice/search — matches API GetInvoiceDto. */
+/** Body for POST accounting/invoice/pre-billing/search — matches API GetPreBillingInvoicesDto. */
+export interface PreBillingInvoiceSearchRequest {
+  officeIds: number[];
+  billingMonth: string;
+}
+
+/** Body for POST accounting/invoice/missing/search — matches API GetMissingInvoicesDto. */
+export interface MissingInvoiceSearchRequest {
+  officeIds: number[];
+}
+
+export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'invoiceDate' | 'ledgerLines'> {
+  invoiceNumber: string;
+  period: string;
+  invoiceDate: string;
+  totalAmount: string;
+  totalAmountValue: number;
+  ledgerLines?: LedgerLineListDisplay[];
+  expand?: string;
+  expanded?: boolean;
+  selected?: boolean;
+  expandClick?: (event: Event, item: PreBillingInvoiceDisplay) => void;
+}
+
 export interface InvoiceGetRequest {
   officeIds: number[];
   reservationId?: string | null;

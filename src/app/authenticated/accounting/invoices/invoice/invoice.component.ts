@@ -49,7 +49,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyIdInput: string | null = null;
   @Input() shellPropertyCodes: PropertyCodeResponse[] = [];
   @Input() prefetchedInvoice: InvoiceResponse | null = null;
+  @Input() shellCreateInPlace = false;
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
+  @Output() invoiceCreated = new EventEmitter<InvoiceResponse>();
   accountingService = inject(InvoiceService);
   router = inject(Router);
   fb = inject(FormBuilder);
@@ -118,6 +120,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   activeInvoiceLoadId = 0;
   organizationId = '';
   private addModeQueryParamsBound = false;
+  private lastPrefetchedInvoiceKey: string | null = null;
 
   isPageReady = false;
   isInvoiceContentReady = false;
@@ -189,9 +192,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       changes['officeIdInput'] ||
       changes['reservationIdInput'] ||
       changes['companyIdInput'] ||
-      changes['propertyIdInput']
+      changes['propertyIdInput'] ||
+      changes['prefetchedInvoice']
     )) {
-      this.applyPrefilledInvoiceContext();
+      if (changes['prefetchedInvoice']?.currentValue) {
+        this.applyPrefetchedInvoiceDraft(true);
+      } else {
+        this.applyPrefilledInvoiceContext();
+      }
     }
   }
 
@@ -241,6 +249,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.originalFormSnapshot = null;
       this.isInvoiceContentReady = true;
       this.handleAddModeQueryParams();
+      if (this.prefetchedInvoice) {
+        this.applyPrefetchedInvoiceDraft(true);
+      }
     }
   }
 
@@ -319,6 +330,48 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.selectedReservation = reservationFromContext;
     this.applyReservationCompanyAndPropertyContext();
     this.setInvoiceCode(this.selectedReservation);
+  }
+
+  applyPrefetchedInvoiceDraft(force = false): void {
+    if (!this.isAddMode || !this.prefetchedInvoice || !this.form) {
+      return;
+    }
+
+    const draftKey = [
+      this.prefetchedInvoice.reservationId ?? '',
+      this.prefetchedInvoice.invoiceCode ?? '',
+      this.prefetchedInvoice.accountingPeriod ?? ''
+    ].join('|');
+
+    if (!force && this.lastPrefetchedInvoiceKey === draftKey && this.invoice) {
+      return;
+    }
+
+    this.lastPrefetchedInvoiceKey = draftKey;
+    this.invoice = {
+      ...this.prefetchedInvoice,
+      ledgerLines: [...(this.prefetchedInvoice.ledgerLines ?? [])]
+    };
+
+    if (this.offices.length > 0) {
+      this.resolveOfficeScope(this.invoice.officeId);
+      this.form.get('officeId')?.setValue(this.selectedOffice?.officeId ?? this.invoice.officeId ?? null, { emitEvent: false });
+      this.filterCostCodes();
+    }
+
+    if (this.reservations.length > 0) {
+      this.updateAvailableReservations();
+      this.syncSelectedReservationFromForm();
+    }
+
+    this.populateForm();
+    if (this.officeCostCodes.length > 0) {
+      this.loadLedgerLines(false);
+      this.updateTotalAmount();
+    }
+
+    this.isInvoiceContentReady = true;
+    this.cdr.markForCheck();
   }
 
   getContextReservationId(queryParams: Record<string, unknown> = this.route.snapshot.queryParams): string | null {
@@ -1045,6 +1098,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
 
         if (isCreating) {
+          if (this.shellMode && this.shellCreateInPlace) {
+            this.invoiceCreated.emit(savedInvoice);
+            return;
+          }
+
           this.toInvoiceCreate(savedInvoice || this.invoice, formValue);
           return;
         }
@@ -1203,7 +1261,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
         this.allCostCodes = costCodes || [];
         this.filterCostCodes();
-        if (this.invoice && this.form) {
+        if (this.prefetchedInvoice && this.isAddMode) {
+          this.applyPrefetchedInvoiceDraft();
+        } else if (this.invoice && this.form) {
           this.loadLedgerLines(false);
         }
       });

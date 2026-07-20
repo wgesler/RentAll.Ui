@@ -20,17 +20,16 @@ import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
 
 @Component({
-  selector: 'app-pre-billing-report',
+  selector: 'app-missing-invoice-report',
   standalone: true,
   imports: [CommonModule, MaterialModule, DataTableComponent],
-  templateUrl: './pre-billing-report.component.html',
-  styleUrl: './pre-billing-report.component.scss',
+  templateUrl: './missing-invoice-report.component.html',
+  styleUrl: './missing-invoice-report.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
+export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeIds: number[] = [];
-  @Input() billingMonth: string | null = null;
   @Input() companyName: string | null = null;
   @Input() officeName: string | null = null;
   @Input() refreshTrigger = 0;
@@ -50,7 +49,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly preBillingDisplayedColumns: ColumnSet = {
+  readonly invoiceReportDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
@@ -76,18 +75,18 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   isServiceError = false;
   invoices: InvoiceResponse[] = [];
   invoicesDisplay: PreBillingInvoiceDisplay[] = [];
-  expandedReservationIds = new Set<string>();
-  selectedReservationIds = new Set<string>();
+  expandedRowKeys = new Set<string>();
+  selectedRowKeys = new Set<string>();
   isAllExpanded = false;
   isCreatingInvoices = false;
-  noDataMessage = 'No reservations need billing for the selected offices and month.';
+  noDataMessage = 'No missing invoices through the current month.';
   loadedCompanyName = '';
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['preBillingReport']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['missingInvoiceReport']));
   destroy$ = new Subject<void>();
 
-  //#region Pre-Billing Report
+  //#region Missing Invoice Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -114,14 +113,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
       const currentOfficeIds = this.normalizeOfficeIds(officeIdsChange.currentValue);
       if (previousOfficeIds.join(',') !== currentOfficeIds.join(',')) {
         this.loadReport();
-        return;
       }
-    }
-
-    const billingMonthChange = changes['billingMonth'];
-    if (billingMonthChange && !billingMonthChange.firstChange
-      && billingMonthChange.previousValue !== billingMonthChange.currentValue) {
-      this.loadReport();
     }
   }
   //#endregion
@@ -159,31 +151,30 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     if (officeIds.length === 0) {
       this.invoices = [];
       this.isServiceError = false;
-      this.expandedReservationIds.clear();
-      this.selectedReservationIds.clear();
+      this.expandedRowKeys.clear();
+      this.selectedRowKeys.clear();
       this.isAllExpanded = false;
-      this.noDataMessage = 'Select at least one office to view the pre-billing report.';
+      this.noDataMessage = 'Select at least one office to view the missing invoice report.';
       this.buildInvoicesDisplay();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preBillingReport');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
       this.markViewForCheck();
       return;
     }
 
-    const billingMonth = this.resolveBillingMonth();
     this.isServiceError = false;
 
-    this.invoiceService.searchPreBillingInvoices({ officeIds, billingMonth }).pipe(take(1), finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preBillingReport');
+    this.invoiceService.searchMissingInvoices({ officeIds }).pipe(take(1), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
         this.markViewForCheck();
       }),
       takeUntil(this.destroy$)
     ).subscribe({
       next: invoices => {
         this.invoices = invoices ?? [];
-        this.expandedReservationIds.clear();
-        this.selectedReservationIds.clear();
+        this.expandedRowKeys.clear();
+        this.selectedRowKeys.clear();
         this.isAllExpanded = false;
-        this.noDataMessage = 'No reservations need billing for the selected offices and month.';
+        this.noDataMessage = 'No missing invoices through the current month.';
         this.buildInvoicesDisplay();
         this.markViewForCheck();
       },
@@ -193,8 +184,8 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
         this.isServiceError = true;
         const message = typeof error?.error === 'string'
           ? error.error
-          : error.error?.title || error.error?.message || error.message || 'Unable to load pre-billing report.';
-        this.toastr.error(message, 'Pre-Billing');
+          : error.error?.title || error.error?.message || error.message || 'Unable to load missing invoice report.';
+        this.toastr.error(message, 'Missing Invoice Report');
         this.markViewForCheck();
       }
     });
@@ -206,13 +197,13 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     this.isAllExpanded = expanded;
     if (expanded) {
       this.invoices.forEach(invoice => {
-        const reservationId = (invoice.reservationId || '').trim();
-        if (reservationId) {
-          this.expandedReservationIds.add(reservationId);
+        const rowKey = this.getRowKey(invoice);
+        if (rowKey) {
+          this.expandedRowKeys.add(rowKey);
         }
       });
     } else {
-      this.expandedReservationIds.clear();
+      this.expandedRowKeys.clear();
     }
     this.buildInvoicesDisplay();
     this.markViewForCheck();
@@ -220,7 +211,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
 
   buildInvoicesDisplay(): void {
     this.invoicesDisplay = this.invoices.map(invoice => {
-      const reservationId = (invoice.reservationId || '').trim();
+      const rowKey = this.getRowKey(invoice);
       const totalAmount = Number(invoice.totalAmount) || 0;
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
@@ -236,20 +227,20 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
         totalAmount: '$' + this.formatter.currency(totalAmount),
         totalAmountValue: totalAmount,
         ledgerLines: mappedLedgerLines,
-        expand: reservationId,
-        expanded: reservationId ? this.expandedReservationIds.has(reservationId) : false,
-        selected: reservationId ? this.selectedReservationIds.has(reservationId) : false,
+        expand: rowKey,
+        expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,
+        selected: rowKey ? this.selectedRowKeys.has(rowKey) : false,
         expandClick: (event: Event, item: PreBillingInvoiceDisplay) => {
           event.stopPropagation();
-          const key = (item.reservationId || '').trim();
+          const key = this.getRowKey(item);
           if (!key) {
             return;
           }
 
-          if (this.expandedReservationIds.has(key)) {
-            this.expandedReservationIds.delete(key);
+          if (this.expandedRowKeys.has(key)) {
+            this.expandedRowKeys.delete(key);
           } else {
-            this.expandedReservationIds.add(key);
+            this.expandedRowKeys.add(key);
           }
 
           this.buildInvoicesDisplay();
@@ -268,8 +259,8 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.isAllExpanded = this.invoicesDisplay.every(row => {
-      const reservationId = (row.reservationId || '').trim();
-      return !!reservationId && this.expandedReservationIds.has(reservationId);
+      const rowKey = this.getRowKey(row);
+      return !!rowKey && this.expandedRowKeys.has(rowKey);
     });
   }
   //#endregion
@@ -277,10 +268,10 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   //#region Selection/Create Methods
   onSelectionSet(selection: SelectionModel<unknown> | null | undefined): void {
     const selected = Array.isArray(selection?.selected) ? selection.selected : [];
-    this.selectedReservationIds = new Set(
+    this.selectedRowKeys = new Set(
       selected
-        .map(item => String((item as PreBillingInvoiceDisplay)?.reservationId ?? '').trim())
-        .filter(id => !!id)
+        .map(item => this.getRowKey(item as PreBillingInvoiceDisplay))
+        .filter(key => !!key)
     );
     this.syncSelectedRowsOnDisplay();
     this.markViewForCheck();
@@ -307,7 +298,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   onCreateSelectedInvoices(): void {
     const previews = this.getSelectedInvoicePreviews();
     if (previews.length === 0) {
-      this.toastr.warning('Please select an invoice to be created.', 'Pre-Billing');
+      this.toastr.warning('Please select an invoice to be created.', 'Missing Invoice Report');
       return;
     }
 
@@ -342,7 +333,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
             const message = closedPeriodMessage
               || (typeof error?.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message)
               || 'Unable to create invoice.';
-            this.toastr.error(message, 'Pre-Billing');
+            this.toastr.error(message, 'Missing Invoice Report');
             return EMPTY;
           })
         );
@@ -354,7 +345,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
             `Created ${createdCount} invoice${createdCount === 1 ? '' : 's'}.`,
             CommonMessage.Success
           );
-          this.selectedReservationIds.clear();
+          this.selectedRowKeys.clear();
           this.loadReport();
           this.invoicesCreated.emit();
         }
@@ -365,25 +356,22 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSelectedInvoicePreviews(): InvoiceResponse[] {
-    return this.invoices.filter(invoice => {
-      const reservationId = (invoice.reservationId || '').trim();
-      return !!reservationId && this.selectedReservationIds.has(reservationId);
-    });
+    return this.invoices.filter(invoice => this.selectedRowKeys.has(this.getRowKey(invoice)));
   }
 
   resolveInvoicePreview(rowDisplay: PreBillingInvoiceDisplay): InvoiceResponse | null {
-    const reservationId = (rowDisplay?.reservationId || '').trim();
-    if (!reservationId) {
+    const rowKey = this.getRowKey(rowDisplay);
+    if (!rowKey) {
       return null;
     }
 
-    return this.invoices.find(invoice => (invoice.reservationId || '').trim() === reservationId) ?? null;
+    return this.invoices.find(invoice => this.getRowKey(invoice) === rowKey) ?? null;
   }
 
   syncSelectedRowsOnDisplay(): void {
     this.invoicesDisplay.forEach(row => {
-      const reservationId = (row.reservationId || '').trim();
-      row.selected = !!reservationId && this.selectedReservationIds.has(reservationId);
+      const rowKey = this.getRowKey(row);
+      row.selected = !!rowKey && this.selectedRowKeys.has(rowKey);
     });
   }
   //#endregion
@@ -398,7 +386,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
       case 'lineNo':
         return lineIndex !== undefined ? String(lineIndex + 1) : '—';
       case 'ledgerLineDate': {
-        const rawInvoice = this.invoices.find(item => (item.reservationId || '').trim() === (invoice.reservationId || '').trim());
+        const rawInvoice = this.invoices.find(item => this.getRowKey(item) === this.getRowKey(invoice));
         return this.formatter.formatDateString(line.ledgerLineDate || rawInvoice?.invoiceDate) || '—';
       }
       case 'costCode':
@@ -454,7 +442,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
 
   get reservationCountLabel(): string {
     const count = this.invoicesDisplay.length;
-    return `${count} reservation${count === 1 ? '' : 's'}`;
+    return `${count} invoice${count === 1 ? '' : 's'}`;
   }
 
   get totalsRow(): Record<string, string> | undefined {
@@ -474,12 +462,20 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   formatBillingPeriodLine(): string {
-    const parsed = this.utilityService.parseDateOnlyStringToDate(this.resolveBillingMonth());
-    if (!parsed) {
+    const today = new Date();
+    const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthLabel = currentMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return `Through ${monthLabel}`;
+  }
+
+  getRowKey(invoice: Pick<InvoiceResponse, 'reservationId' | 'accountingPeriod'> | null | undefined): string {
+    const reservationId = (invoice?.reservationId || '').trim();
+    const accountingPeriod = this.invoiceService.firstDayOfMonthFromCalendarDate(invoice?.accountingPeriod || '');
+    if (!reservationId || !accountingPeriod) {
       return '';
     }
 
-    return parsed.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return `${reservationId}|${accountingPeriod}`;
   }
 
   normalizeOfficeIds(value: number[] | null | undefined): number[] {
@@ -489,21 +485,6 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   resolveOfficeIds(): number[] {
     return this.normalizeOfficeIds(this.officeIds);
   }
-
-  resolveBillingMonth(): string {
-    const billingMonth = (this.billingMonth || '').trim();
-    if (billingMonth) {
-      return this.invoiceService.firstDayOfMonthFromCalendarDate(billingMonth);
-    }
-
-    return this.defaultNextMonth();
-  }
-
-  defaultNextMonth(): string {
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    return this.utilityService.formatDateOnlyForApi(nextMonth) ?? '';
-  }
   //#endregion
 
   //#region Utility Methods
@@ -512,7 +493,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preBillingReport');
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

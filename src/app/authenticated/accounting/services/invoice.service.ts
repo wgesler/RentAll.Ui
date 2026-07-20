@@ -6,7 +6,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
+import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse, MissingInvoiceSearchRequest, PreBillingInvoiceSearchRequest } from '../models/invoice.model';
 
 @Injectable({
     providedIn: 'root'
@@ -135,6 +135,42 @@ firstDayOfMonthFromCalendarDate(calendarDate: string): string {
       return calendarDate;
     }
     return `${match[1]}-${match[2]}-01`;
+  }
+
+  searchPreBillingInvoices(request: PreBillingInvoiceSearchRequest): Observable<InvoiceResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to load the pre-billing report.');
+    }
+
+    const billingMonth = (request.billingMonth || '').trim();
+    if (!billingMonth) {
+      throw new Error('Billing month is required to load the pre-billing report.');
+    }
+
+    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/pre-billing/search`, {
+      officeIds,
+      billingMonth
+    }).pipe(
+      map(invoices =>
+        (invoices ?? []).map(inv => this.mappingService.mapInvoiceResponse(inv as unknown as Record<string, unknown>))
+      )
+    );
+  }
+
+  searchMissingInvoices(request: MissingInvoiceSearchRequest): Observable<InvoiceResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to load the missing invoice report.');
+    }
+
+    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/missing/search`, {
+      officeIds
+    }).pipe(
+      map(invoices =>
+        (invoices ?? []).map(inv => this.mappingService.mapInvoiceResponse(inv as unknown as Record<string, unknown>))
+      )
+    );
   }
 
   searchInvoices(request: InvoiceGetRequest): Observable<InvoiceResponse[]> {

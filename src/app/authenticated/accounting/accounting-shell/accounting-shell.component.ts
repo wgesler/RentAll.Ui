@@ -48,7 +48,7 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { InvoiceComponent } from '../invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../invoices/invoice-create/invoice-create.component';
 import { InvoiceListComponent } from '../invoices/invoice-list/invoice-list.component';
-import { MissingInvoiceListComponent } from '../invoices/missing-invoice-list/missing-invoice-list.component';
+import { MissingInvoiceReportComponent } from '../invoices/missing-invoice-report/missing-invoice-report.component';
 import { PreBillingReportComponent } from '../invoices/pre-billing-report/pre-billing-report.component';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../models/invoice.model';
@@ -148,7 +148,7 @@ interface AccountingShellPinnedTopBarState {
     InvoiceComponent,
     InvoiceCreateComponent,
     InvoiceListComponent,
-    MissingInvoiceListComponent,
+    MissingInvoiceReportComponent,
     PreBillingReportComponent,
     ReceiptsListComponent,
     ReceiptComponent,
@@ -208,6 +208,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
+  @ViewChild('preBillingInvoiceEditor') preBillingInvoiceEditor?: InvoiceComponent;
+  @ViewChild('missingInvoiceEditor') missingInvoiceEditor?: InvoiceComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
   @ViewChild('financialReport') financialReport?: FinancialReportComponent;
   @ViewChild('arAgingReport') arAgingReport?: ArAgingReportComponent;
@@ -234,7 +236,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellInvoiceMenuOptions: { kind: AccountingShellInvoiceKind; label: string }[] = [
     { kind: 'invoices', label: 'Invoices' },
     { kind: 'missingInvoiceReport', label: 'Missing Invoice Report' },
-    { kind: 'preBillingReport', label: 'Pre-billing Report' }
+    { kind: 'preBillingReport', label: 'Pre-Billing Report' }
   ];
   readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
@@ -299,6 +301,18 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   asOfStart: Date | null = null;
   dateRangePinned = false;
   invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
+  preBillingMonth: string | null = null;
+  preBillingOfficeIds: number[] = [];
+  preBillingRefreshTrigger = 0;
+  showPreBillingInvoiceEditor = false;
+  preBillingInvoiceDraft: InvoiceResponse | null = null;
+  preBillingInvoiceEditorInstance = 0;
+  missingInvoiceOfficeIds: number[] = [];
+  missingInvoiceRefreshTrigger = 0;
+  showMissingInvoiceEditor = false;
+  missingInvoiceDraft: InvoiceResponse | null = null;
+  missingInvoiceEditorInstance = 0;
+  invoicesRefreshTrigger = 0;
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   billsRefreshTrigger = 0;
   receiptsRefreshTrigger = 0;
@@ -949,6 +963,14 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   get shellInvoiceEditor(): InvoiceComponent | undefined {
+    if (this.showPreBillingInvoiceEditor) {
+      return this.preBillingInvoiceEditor;
+    }
+
+    if (this.showMissingInvoiceEditor) {
+      return this.missingInvoiceEditor;
+    }
+
     if (this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'invoices' && this.activeInvoiceId) {
       return this.accountingInvoiceEditor;
     }
@@ -1590,6 +1612,64 @@ hydrateSelectedInvoiceForActiveId(): void {
     } catch {
       // Do not block opening the bill editor if this background link fails.
     }
+  }
+
+  onPreBillingInvoicesCreated(): void {
+    this.invoicesRefreshTrigger++;
+    this.accountingInvoiceList?.loadInvoicesForCurrentSearchCriteria(true);
+    this.onJournalEntriesChanged();
+  }
+
+  onPreBillingEditInvoice(invoice: InvoiceResponse): void {
+    this.preBillingInvoiceDraft = invoice;
+    this.showPreBillingInvoiceEditor = true;
+    this.preBillingInvoiceEditorInstance++;
+    this.cdr.markForCheck();
+  }
+
+  closePreBillingInvoiceEditor(refresh = false): void {
+    this.showPreBillingInvoiceEditor = false;
+    this.preBillingInvoiceDraft = null;
+
+    if (refresh) {
+      this.onPreBillingInvoicesCreated();
+    }
+
+    this.preBillingRefreshTrigger++;
+    this.cdr.markForCheck();
+  }
+
+  onPreBillingInvoiceCreated(): void {
+    this.closePreBillingInvoiceEditor(true);
+  }
+
+  onMissingInvoicesCreated(): void {
+    this.invoicesRefreshTrigger++;
+    this.accountingInvoiceList?.loadInvoicesForCurrentSearchCriteria(true);
+    this.onJournalEntriesChanged();
+  }
+
+  onMissingInvoiceEditInvoice(invoice: InvoiceResponse): void {
+    this.missingInvoiceDraft = invoice;
+    this.showMissingInvoiceEditor = true;
+    this.missingInvoiceEditorInstance++;
+    this.cdr.markForCheck();
+  }
+
+  closeMissingInvoiceEditor(refresh = false): void {
+    this.showMissingInvoiceEditor = false;
+    this.missingInvoiceDraft = null;
+
+    if (refresh) {
+      this.onMissingInvoicesCreated();
+    }
+
+    this.missingInvoiceRefreshTrigger++;
+    this.cdr.markForCheck();
+  }
+
+  onMissingInvoiceCreated(): void {
+    this.closeMissingInvoiceEditor(true);
   }
 
   onJournalEntriesChanged(): void {
@@ -2400,7 +2480,22 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       this.clearInvoiceShellDetailState();
     }
 
+    if (kindChanged && this.selectedInvoiceKind === 'preBillingReport') {
+      this.closePreBillingInvoiceEditor(false);
+    }
+
+    if (kindChanged && this.selectedInvoiceKind === 'missingInvoiceReport') {
+      this.closeMissingInvoiceEditor(false);
+    }
+
     this.selectedInvoiceKind = kind;
+    if (kind === 'preBillingReport') {
+      this.ensurePreBillingMonthDefault();
+      this.syncPreBillingOfficeIds();
+    }
+    if (kind === 'missingInvoiceReport') {
+      this.syncMissingInvoiceOfficeIds();
+    }
 
     if (previousTab !== this.tabInvoices) {
       this.onTabChange({ index: this.tabInvoices });
@@ -3168,6 +3263,13 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
     this.selectedTabIndex = stored.selectedTabIndex ?? this.selectedTabIndex;
     if (stored.selectedInvoiceKind) {
       this.selectedInvoiceKind = stored.selectedInvoiceKind;
+      if (stored.selectedInvoiceKind === 'preBillingReport') {
+        this.ensurePreBillingMonthDefault();
+        this.syncPreBillingOfficeIds();
+      }
+      if (stored.selectedInvoiceKind === 'missingInvoiceReport') {
+        this.syncMissingInvoiceOfficeIds();
+      }
     }
     if (stored.selectedBillsReceiptKind) {
       this.selectedBillsReceiptKind = stored.selectedBillsReceiptKind;
@@ -3692,7 +3794,105 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   }
 
   get showShellDateRange(): boolean {
-    return !this.activeInvoiceId;
+    return !this.activeInvoiceId
+      && !(this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'preBillingReport')
+      && !(this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'missingInvoiceReport');
+  }
+
+  get isPreBillingReportActive(): boolean {
+    return this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'preBillingReport';
+  }
+
+  get isMissingInvoiceReportActive(): boolean {
+    return this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'missingInvoiceReport';
+  }
+
+  get preBillingMonthTitleBarOptions(): { value: string; label: string }[] {
+    return this.buildInvoiceReportMonthOptions();
+  }
+
+  get preBillingOfficeDisplayName(): string {
+    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
+      return this.offices.find(office => office.officeId === this.selectedOfficeId)?.name?.trim() || '';
+    }
+
+    return 'All Offices';
+  }
+
+  syncPreBillingOfficeIds(): void {
+    const next = this.selectedOfficeId != null && this.selectedOfficeId > 0
+      ? [this.selectedOfficeId]
+      : (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    const nextKey = next.join(',');
+    const currentKey = this.preBillingOfficeIds.join(',');
+    if (nextKey !== currentKey) {
+      this.preBillingOfficeIds = next;
+    }
+  }
+
+  ensurePreBillingMonthDefault(): void {
+    if ((this.preBillingMonth || '').trim()) {
+      return;
+    }
+
+    this.preBillingMonth = this.getDefaultPreBillingMonth();
+  }
+
+  getDefaultPreBillingMonth(): string {
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    return this.utilityService.formatDateOnlyForApi(nextMonth) ?? '';
+  }
+
+  get missingInvoiceOfficeDisplayName(): string {
+    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
+      return this.offices.find(office => office.officeId === this.selectedOfficeId)?.name?.trim() || '';
+    }
+
+    return 'All Offices';
+  }
+
+  syncMissingInvoiceOfficeIds(): void {
+    const next = this.selectedOfficeId != null && this.selectedOfficeId > 0
+      ? [this.selectedOfficeId]
+      : (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    const nextKey = next.join(',');
+    const currentKey = this.missingInvoiceOfficeIds.join(',');
+    if (nextKey !== currentKey) {
+      this.missingInvoiceOfficeIds = next;
+    }
+  }
+
+  buildInvoiceReportMonthOptions(): { value: string; label: string }[] {
+    const options: { value: string; label: string }[] = [];
+    const today = new Date();
+    const anchor = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    for (let offset = -6; offset <= 18; offset++) {
+      const monthDate = new Date(anchor.getFullYear(), anchor.getMonth() + offset, 1);
+      const value = this.utilityService.formatDateOnlyForApi(monthDate) ?? '';
+      if (!value) {
+        continue;
+      }
+
+      options.push({
+        value,
+        label: monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+      });
+    }
+
+    return options;
+  }
+
+  onPreBillingMonthChange(value: string | number | null): void {
+    const billingMonth = value == null || value === '' ? null : String(value);
+    if (this.preBillingMonth === billingMonth) {
+      return;
+    }
+
+    this.preBillingMonth = billingMonth;
+    this.preBillingRefreshTrigger++;
+    this.persistPinnedTopBarIfActive();
   }
 
   get billsReceiptsTabLabel(): string {
@@ -4196,6 +4396,14 @@ captureOwnerStatementReturnContext(): void {
       this.clearInvalidChartOfAccountSelection();
       this.onGeneralLedgerBack();
       this.refreshGeneralLedgerListView();
+    }
+    if (this.isPreBillingReportActive) {
+      this.syncPreBillingOfficeIds();
+      this.preBillingRefreshTrigger++;
+    }
+    if (this.isMissingInvoiceReportActive) {
+      this.syncMissingInvoiceOfficeIds();
+      this.missingInvoiceRefreshTrigger++;
     }
   }
 
@@ -4860,6 +5068,7 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
           this.offices = (offices || []).filter(
             o => o.organizationId === this.organizationId && o.isActive
           );
+          this.syncPreBillingOfficeIds();
 
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;

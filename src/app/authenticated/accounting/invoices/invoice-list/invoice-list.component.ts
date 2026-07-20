@@ -54,6 +54,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() invoiceSearchDateRange: { startDate: string | null; endDate: string | null } | null = null;
+  @Input() refreshTrigger = 0;
   /** When true with source=reservation, document preview opens in the host shell instead of routing away. */
   @Input() embedDocumentPreviewInShell = false;
   @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
@@ -196,6 +197,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange && this.officeScopeResolved) {
+      this.loadInvoicesForCurrentSearchCriteria(true);
+    }
+
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;

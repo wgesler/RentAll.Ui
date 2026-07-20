@@ -206,7 +206,18 @@
                 (valueChange)="onAccountingOrganizationDropdownChange($event)">
               </app-title-bar-select>
             }
-            @if (showShellDateRange) {
+            @if (selectedInvoiceKind === 'preBillingReport') {
+              <app-title-bar-select
+                [label]="'Month'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="preBillingMonth"
+                [options]="preBillingMonthTitleBarOptions"
+                [showSearchInput]="false"
+                [nullOptionLabel]="'Select Month'"
+                [noResultsText]="'No months available'"
+                (valueChange)="onPreBillingMonthChange($event)">
+              </app-title-bar-select>
+            } @else if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
               </div>
@@ -690,6 +701,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (showPreBillingInvoiceEditor) {
+          <button mat-raised-button type="button" color="accent" (click)="closePreBillingInvoiceEditor()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (activeInvoiceId && selectedTabIndex === tabInvoices && selectedInvoiceKind === 'invoices') {
           <button mat-raised-button type="button" color="accent" (click)="closeEmbeddedInvoiceEditor()">
             <mat-icon>arrow_back</mat-icon>
@@ -793,15 +809,11 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabInvoices) {
+              @if (selectedInvoiceKind === 'invoices') {
               <div class="accounting-shell-subview-title">
-                @if (selectedInvoiceKind === 'invoices') {
-                  Invoices
-                } @else if (selectedInvoiceKind === 'missingInvoiceReport') {
-                  Missing Invoice Report
-                } @else {
-                  Pre-billing Report
-                }
+                Invoices
               </div>
+              }
               @if (selectedInvoiceKind === 'invoices') {
             @if (showInvoiceCreate && invoiceCreateContext) {
               @for (instance of [invoiceCreateInstance]; track instance) {
@@ -840,6 +852,7 @@
               [organizationOptions]="organizationTitleBarOptions"
               [source]="'accounting'"
               [embedDocumentPreviewInShell]="true"
+              [refreshTrigger]="invoicesRefreshTrigger"
               (organizationIdChange)="onInvoiceOrganizationChange($event)"
               (officeIdChange)="onInvoiceOfficeChange($event)"
               (reservationIdChange)="onInvoiceReservationChange($event)"
@@ -850,17 +863,58 @@
             </app-invoice-list>
             }
               } @else if (selectedInvoiceKind === 'missingInvoiceReport') {
-                <app-missing-invoice-list
-                  [officeId]="selectedOfficeId"
-                  [organizationId]="selectedOrganizationId"
-                  [invoiceSearchDateRange]="invoiceSearchDateRange">
-                </app-missing-invoice-list>
+                @if (showMissingInvoiceEditor && missingInvoiceDraft) {
+                  @for (instance of [missingInvoiceEditorInstance]; track instance) {
+                    <app-invoice
+                      #missingInvoiceEditor
+                      [shellMode]="true"
+                      [shellCreateInPlace]="true"
+                      [invoiceIdInput]="'new'"
+                      [prefetchedInvoice]="missingInvoiceDraft"
+                      [officeIdInput]="missingInvoiceDraft.officeId"
+                      [reservationIdInput]="missingInvoiceDraft.reservationId ?? null"
+                      [companyIdInput]="missingInvoiceDraft.contactId ?? null"
+                      [shellPropertyCodes]="glProperties"
+                      (invoiceCreated)="onMissingInvoiceCreated()">
+                    </app-invoice>
+                  }
+                } @else {
+                <app-missing-invoice-report
+                  [officeIds]="missingInvoiceOfficeIds"
+                  [companyName]="selectedOrganizationName"
+                  [officeName]="missingInvoiceOfficeDisplayName"
+                  [refreshTrigger]="missingInvoiceRefreshTrigger"
+                  (invoicesCreated)="onMissingInvoicesCreated()"
+                  (editInvoice)="onMissingInvoiceEditInvoice($event)">
+                </app-missing-invoice-report>
+                }
               } @else {
+                @if (showPreBillingInvoiceEditor && preBillingInvoiceDraft) {
+                  @for (instance of [preBillingInvoiceEditorInstance]; track instance) {
+                    <app-invoice
+                      #preBillingInvoiceEditor
+                      [shellMode]="true"
+                      [shellCreateInPlace]="true"
+                      [invoiceIdInput]="'new'"
+                      [prefetchedInvoice]="preBillingInvoiceDraft"
+                      [officeIdInput]="preBillingInvoiceDraft.officeId"
+                      [reservationIdInput]="preBillingInvoiceDraft.reservationId ?? null"
+                      [companyIdInput]="preBillingInvoiceDraft.contactId ?? null"
+                      [shellPropertyCodes]="glProperties"
+                      (invoiceCreated)="onPreBillingInvoiceCreated()">
+                    </app-invoice>
+                  }
+                } @else {
                 <app-pre-billing-report
-                  [officeId]="selectedOfficeId"
-                  [organizationId]="selectedOrganizationId"
-                  [invoiceSearchDateRange]="invoiceSearchDateRange">
+                  [officeIds]="preBillingOfficeIds"
+                  [billingMonth]="preBillingMonth"
+                  [companyName]="selectedOrganizationName"
+                  [officeName]="preBillingOfficeDisplayName"
+                  [refreshTrigger]="preBillingRefreshTrigger"
+                  (invoicesCreated)="onPreBillingInvoicesCreated()"
+                  (editInvoice)="onPreBillingEditInvoice($event)">
                 </app-pre-billing-report>
+                }
               }
             }
           </mat-tab>

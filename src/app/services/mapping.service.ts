@@ -5,7 +5,7 @@ import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDet
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
-import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
+import { InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse, TransferReportResponse, TransferReportRowDisplay } from '../authenticated/accounting/models/journal-entry.model';
 import { PrintableReportDocument, PrintableReportRow, PrintableReportRowKind } from '../authenticated/accounting/models/printable-report.model';
 import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../authenticated/accounting/models/reconcile-account-report.model';
@@ -1079,6 +1079,43 @@ compareJournalEntryLinesForListDisplay(
       endDate,
       createdOn,
       modifiedOn,
+      ledgerLines
+    };
+  }
+
+  mapPreBillingInvoiceToCreateRequest(invoice: InvoiceResponse, organizationId: string): InvoiceRequest {
+    const ledgerLines = (invoice.ledgerLines ?? []).map((line, index) => ({
+      lineNumber: line.lineNumber > 0 ? line.lineNumber : index + 1,
+      reservationId: line.reservationId ?? invoice.reservationId ?? null,
+      costCodeId: line.costCodeId,
+      transactionTypeId: line.transactionTypeId,
+      amount: Number(line.amount) || 0,
+      description: line.description || '',
+      ledgerLineDate: line.ledgerLineDate || invoice.invoiceDate
+    }));
+
+    return {
+      organizationId,
+      officeId: invoice.officeId,
+      officeName: invoice.officeName,
+      invoiceCode: invoice.invoiceCode,
+      reservationId: invoice.reservationId ?? null,
+      reservationCode: invoice.reservationCode ?? null,
+      propertyId: invoice.propertyId ?? null,
+      propertyCode: invoice.propertyCode ?? null,
+      contactId: invoice.contactId ?? null,
+      contactName: invoice.contactName ?? null,
+      responsibleParty: invoice.responsibleParty ?? invoice.contactName ?? null,
+      startDate: invoice.startDate,
+      endDate: invoice.endDate,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate,
+      accountingPeriod: invoice.accountingPeriod,
+      invoicePeriod: invoice.invoicePeriod,
+      totalAmount: Number(invoice.totalAmount) || 0,
+      paidAmount: 0,
+      notes: invoice.notes ?? null,
+      isActive: true,
       ledgerLines
     };
   }

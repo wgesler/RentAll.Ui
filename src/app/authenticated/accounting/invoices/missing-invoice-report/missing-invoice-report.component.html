@@ -43,14 +43,14 @@
 @if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading Pre-Billing report...</p>
+    <p>Loading Missing Invoice report...</p>
   </div>
 } @else {
   <div class="mat list-layout-standard financial-report-layout pre-billing-report-layout">
     <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
       <div class="property-tab-actions-band__row financial-report-context-band__row">
         <div class="financial-report-context-band__titles">
-          <p class="financial-report-report-title">Pre-Billing Report</p>
+          <p class="financial-report-report-title">Missing Invoice Report</p>
           <button type="button" class="financial-report-context-btn">
             @if (reportEntityLine) {
               <span class="financial-report-context-btn__entity">{{ reportEntityLine }}</span>
@@ -65,14 +65,14 @@
 
     @if (isServiceError) {
       <div class="pre-billing-report-empty-state">
-        <p>Unable to load pre-billing report.</p>
+        <p>Unable to load missing invoice report.</p>
       </div>
     } @else {
       <div class="tableDiv dbg-band-main">
         <app-data-table
-          tableName="pre-billing-report"
+          tableName="missing-invoice-report"
           [data]="invoicesDisplay"
-          [columns]="preBillingDisplayedColumns"
+          [columns]="invoiceReportDisplayedColumns"
           [noDataMessage]="noDataMessage"
           [hasColumnIndex]="true"
           [hasActionsSelect]="true"
