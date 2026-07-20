@@ -142,7 +142,8 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       && this.prefetchedTransfer && this.prefetchedTransfer.transferId === this.transferId) {
       this.applyLoadedTransfer(this.prefetchedTransfer);
     }
-    if (changes['shellChartOfAccounts'] || changes['shellPropertyCodes']) {
+    if ((changes['shellChartOfAccounts'] && !changes['shellChartOfAccounts'].firstChange)
+      || (changes['shellPropertyCodes'] && !changes['shellPropertyCodes'].firstChange)) {
       this.applyShellReferenceData();
     }
     if (changes['officeId'] && !changes['officeId'].firstChange) {
