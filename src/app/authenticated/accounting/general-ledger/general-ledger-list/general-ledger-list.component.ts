@@ -26,7 +26,7 @@ import { AccountType, PostingStatus, getPostingStatusLabel, isJournalEntryHardCl
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryResponse, TransferReportRowDisplay } from '../../models/journal-entry.model';
+import { GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryRecapRowDisplay, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../../services/check-html.service';
 import { CheckPrintService } from '../../services/check-print.service';
@@ -127,7 +127,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   allLines: JournalEntryLineSearchResponse[] = [];
-  transferReportRows: TransferReportRowDisplay[] = [];
+  transferRecapRows: JournalEntryRecapRowDisplay[] = [];
   linesDisplay: JournalEntryLineListDisplay[] = [];
   entriesDisplay: GeneralLedgerEntryDisplay[] = [];
   expandedJournalEntries = new Set<string>();
@@ -407,7 +407,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
             }),
             ...(this.transferReportOnly
               ? {
-                  transferReport: this.reportService.searchTransferReport({ officeIds, startDate, endDate })
+                  recapReport: this.reportService.searchJournalEntryRecap(
+                    this.buildTransferRecapSearchRequest(officeIds, startDate, endDate)
+                  )
                 }
               : {})
           }).pipe(takeUntil(loadUntil)).subscribe({
@@ -417,7 +419,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
               }
 
               if (this.transferReportOnly) {
-                this.transferReportRows = result.transferReport?.rows || [];
+                this.transferRecapRows = result.recapReport?.rows || [];
               }
 
               const refinedLines = this.filterJournalEntryLinesByMode(
@@ -436,7 +438,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
               }
 
               if (this.transferReportOnly) {
-                this.transferReportRows = [];
+                this.transferRecapRows = [];
               }
 
               const refinedLines = this.filterJournalEntryLinesByMode(
@@ -2041,17 +2043,19 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     this.isSubmittingTransfer = true;
     forkJoin({
-      transferReport: this.reportService.searchTransferReport({ officeIds, startDate, endDate }),
+      recapReport: this.reportService.searchJournalEntryRecap(
+        this.buildTransferRecapSearchRequest(officeIds, startDate, endDate)
+      ),
       deposits: this.depositService.searchDeposits({
         officeIds,
         isActive: true,
         includeInactive: false
       })
     }).pipe(
-      switchMap(({ transferReport, deposits }) => {
+      switchMap(({ recapReport, deposits }) => {
         const splits = this.buildTransferSplitsFromRecap(
           selectedLines,
-          transferReport.rows || [],
+          recapReport.rows || [],
           deposits || [],
           officeId
         );
@@ -2204,36 +2208,65 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return null;
   }
 
+  buildTransferRecapSearchRequest(officeIds: number[], startDate: string | null, endDate: string | null) {
+    return {
+      officeIds,
+      includeVoided: false,
+      includeUnposted: true,
+      startDate,
+      endDate
+    };
+  }
+
+  scoreTransferRecapRowForAllocation(row: JournalEntryRecapRowDisplay): number {
+    return Math.abs(Number(row.expectedIncomeValue || 0))
+      + Math.abs(Number(row.paymentValue || 0))
+      + Math.abs(Number(row.ownerRentActualValue || row.ownerRentValue || 0))
+      + Math.abs(Number(row.securityDepositValue || 0))
+      + Math.abs(Number(row.sdwValue || 0))
+      + Math.abs(Number(row.rentPlus4000Value || 0))
+      + Math.abs(Number(row.feeValue || 0));
+  }
+
   findTransferReportRowByInvoiceSource(
-    rows: TransferReportRowDisplay[],
+    rows: JournalEntryRecapRowDisplay[],
     invoiceSourceCode: string | null
-  ): TransferReportRowDisplay | null {
+  ): JournalEntryRecapRowDisplay | null {
     const normalizedInvoiceSource = this.normalizeTransferSourceKey(invoiceSourceCode);
     if (!normalizedInvoiceSource) {
       return null;
     }
 
-    return rows.find(row => this.normalizeTransferSourceKey(row.source) === normalizedInvoiceSource) ?? null;
+    const matches = rows.filter(row =>
+      this.normalizeTransferSourceKey(row.source) === normalizedInvoiceSource);
+    if (matches.length === 0) {
+      return null;
+    }
+
+    return matches
+      .slice()
+      .sort((left, right) =>
+        this.scoreTransferRecapRowForAllocation(right) - this.scoreTransferRecapRowForAllocation(left))[0];
   }
 
   findTransferReportRowForLine(
     line: JournalEntryLineListDisplay,
-    rows: TransferReportRowDisplay[]
-  ): TransferReportRowDisplay | null {
-    const journalEntryId = (line.journalEntryId || '').trim();
-    if (journalEntryId) {
-      const byJournalEntryId = rows.find(row => (row.journalEntryId || '').trim() === journalEntryId);
-      if (byJournalEntryId) {
-        return byJournalEntryId;
-      }
-    }
-
+    rows: JournalEntryRecapRowDisplay[]
+  ): JournalEntryRecapRowDisplay | null {
     const byInvoiceSource = this.findTransferReportRowByInvoiceSource(
       rows,
       this.extractTransferInvoiceSourceCode(line.description, line.source, line.journalEntryCode)
     );
     if (byInvoiceSource) {
       return byInvoiceSource;
+    }
+
+    const journalEntryId = (line.journalEntryId || '').trim();
+    if (journalEntryId) {
+      const byJournalEntryId = rows.find(row => (row.journalEntryId || '').trim() === journalEntryId);
+      if (byJournalEntryId) {
+        return byJournalEntryId;
+      }
     }
 
     const lineId = String(line.journalEntryLineId || '').trim();
@@ -2280,9 +2313,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   findTransferReportRowForDepositSplit(
     split: DepositSplit,
-    rows: TransferReportRowDisplay[],
+    rows: JournalEntryRecapRowDisplay[],
     journalEntryLines: JournalEntryLineSearchResponse[]
-  ): TransferReportRowDisplay | null {
+  ): JournalEntryRecapRowDisplay | null {
     const byInvoiceSource = this.findTransferReportRowByInvoiceSource(
       rows,
       this.extractTransferInvoiceSourceCode(split.description)
@@ -2345,7 +2378,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   buildTransferSplitsFromRecap(
     selectedLines: JournalEntryLineListDisplay[],
-    transferReportRows: TransferReportRowDisplay[],
+    recapRows: JournalEntryRecapRowDisplay[],
     deposits: DepositResponse[],
     officeId: number
   ): TransferSplit[] {
@@ -2364,7 +2397,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         const deposit = deposits.find(item => String(item.depositId || '').trim() === depositId);
         const depositSplits = (deposit?.splits || []).filter(split => Number(split.amount || 0) !== 0);
         if (depositSplits.length === 0) {
-          const recapRow = this.findTransferReportRowForLine(line, transferReportRows);
+          const recapRow = this.findTransferReportRowForLine(line, recapRows);
           splits.push(...this.buildTransferSplitsForLineAmount(
             recapRow,
             this.getLineNetAmount(line),
@@ -2377,7 +2410,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         for (const depositSplit of depositSplits) {
           const recapRow = this.findTransferReportRowForDepositSplit(
             depositSplit,
-            transferReportRows,
+            recapRows,
             this.allLines
           );
 
@@ -2392,7 +2425,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         continue;
       }
 
-      const recapRow = this.findTransferReportRowForLine(line, transferReportRows);
+      const recapRow = this.findTransferReportRowForLine(line, recapRows);
       splits.push(...this.buildTransferSplitsForLineAmount(
         recapRow,
         this.getLineNetAmount(line),
@@ -2404,7 +2437,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return splits;
   }
 
-  shouldAllocateTransferToBusinessOnly(recapRow: TransferReportRowDisplay | null): boolean {
+  shouldAllocateTransferToBusinessOnly(recapRow: JournalEntryRecapRowDisplay | null): boolean {
     if (!recapRow) {
       return true;
     }
@@ -2416,7 +2449,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   }
 
   buildTransferSplitsForLineAmount(
-    recapRow: TransferReportRowDisplay | null,
+    recapRow: JournalEntryRecapRowDisplay | null,
     baseAmount: number,
     contextLine: JournalEntryLineListDisplay,
     accountIds: {
@@ -2468,7 +2501,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   }
 
   buildTransferSplitsFromRecapRow(
-    recapRow: TransferReportRowDisplay,
+    recapRow: JournalEntryRecapRowDisplay,
     baseAmount: number,
     contextLine: JournalEntryLineListDisplay,
     accountIds: {
@@ -2538,7 +2571,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       expanded.push(line);
 
       const officeId = line.officeId ?? this.officeId ?? 0;
-      const recapRow = this.findTransferReportRowForLine(line, this.transferReportRows);
+      const recapRow = this.findTransferReportRowForLine(line, this.transferRecapRows);
       if (officeId <= 0) {
         continue;
       }
