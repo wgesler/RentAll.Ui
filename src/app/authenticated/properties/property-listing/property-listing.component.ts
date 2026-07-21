@@ -11,6 +11,7 @@ import { PropertyPhotoRequest, PropertyPhotoResponse } from '../models/property-
 import { PropertyResponse } from '../models/property.model';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyPhotoService } from '../services/property-photo.service';
+import { PropertyService } from '../services/property.service';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { FileDetails } from '../../../shared/models/fileDetails';
@@ -41,8 +42,12 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   @Input() disablePhotoApiLoad = false;
   @Input() initialPhotos: PropertyPhotoResponse[] | null = null;
   @Input() hideRateCard = false;
+  @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
+
   formatter = inject(FormatterService);
   propertyPhotoService = inject(PropertyPhotoService);
+  propertyService = inject(PropertyService);
   propertyListingShareService = inject(PropertyListingShareService);
   clipboard = inject(Clipboard);
   toastr = inject(ToastrService);
@@ -51,6 +56,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   dialog = inject(MatDialog);
   cdr = inject(ChangeDetectorRef);
 
+  loadedProperty: PropertyResponse | null = null;
   listingPhotos: ListingPhotoItem[] = [];
   isReorderingPhotos = false;
   isDraggingPhoto = false;
@@ -63,20 +69,19 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   listingAmenitiesHtmlValue = '';
   pendingDescriptionOverflowCheck = false;
   descriptionOverflowCheckScheduled = false;
+  photosLoadedForPropertyId: string | null = null;
+  photoUploadConcurrency = 3;
+
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   destroy$ = new Subject<void>();
-  photosLoadedForPropertyId: string | null = null;
-  readonly photoUploadConcurrency = 3;
-  @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
-  @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
   //#region Property Listing
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       const wasPageReady = this.isPageReady;
       this.isPageReady = items.size === 0;
-      if (!wasPageReady && this.isPageReady && this.property) {
+      if (!wasPageReady && this.isPageReady && this.listingProperty) {
         this.queueDescriptionOverflowCheck();
       }
       this.markViewForCheck();
@@ -86,12 +91,14 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['property'] && !changes['property'].firstChange) {
+    if (changes['property']) {
+      this.loadedProperty = null;
       this.syncListingFromInputs();
     }
 
-    if (changes['propertyId'] && !changes['propertyId'].firstChange) {
+    if (changes['propertyId']) {
       this.photosLoadedForPropertyId = null;
+      this.loadedProperty = null;
       this.syncListingFromInputs();
     }
 
@@ -100,8 +107,12 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
     }
   }
 
+  get listingProperty(): PropertyResponse | null {
+    return this.property ?? this.loadedProperty;
+  }
+
   getActivePropertyId(): string | null {
-    const id = this.property?.propertyId || this.propertyId;
+    const id = this.listingProperty?.propertyId || this.propertyId;
     return id ? String(id).trim() : null;
   }
 
@@ -133,18 +144,44 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
       return;
     }
 
-    if (!this.property) {
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
+    if (this.property) {
+      this.loadedProperty = null;
+      this.applyPropertyListingState(this.property);
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
+    if (this.loadedProperty?.propertyId === activePropertyId) {
+      this.applyPropertyListingState(this.loadedProperty);
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      return;
+    }
+
+    this.loadPropertyById(activePropertyId);
+  }
+
+  loadPropertyById(propertyId: string): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
+    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1), finalize(() => this.cdr.markForCheck())).subscribe({
+      next: (response: PropertyResponse) => {
+        this.loadedProperty = response;
+        this.applyPropertyListingState(response);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      },
+      error: () => {
+        this.loadedProperty = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      }
+    });
+  }
+
+  applyPropertyListingState(property: PropertyResponse): void {
     this.listingDescriptionExpanded = false;
     this.descriptionHasOverflow = false;
     this.pendingDescriptionOverflowCheck = true;
-    this.refreshListingDescriptionHtml();
-    this.refreshListingAmenitiesHtml();
+    this.refreshListingDescriptionHtml(property);
+    this.refreshListingAmenitiesHtml(property);
     this.queueDescriptionOverflowCheck();
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
   }
 
   loadListingPhotos(): void {
@@ -203,25 +240,25 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
 
   //#region Get Methods
   get listingHeaderTitle(): string {
-    return this.propertyCode || this.property?.propertyCode || 'Property Listing';
+    return this.propertyCode || this.listingProperty?.propertyCode || 'Property Listing';
   }
 
   get listingAddressLine(): string {
-    if (!this.property) return '';
-    const line1 = [this.property.address1, this.property.address2].map(v => (v || '').trim()).filter(Boolean).join(', ');
-    const line2 = [this.property.city, this.property.state, this.property.zip].map(v => (v || '').trim()).filter(Boolean).join(', ');
+    if (!this.listingProperty) return '';
+    const line1 = [this.listingProperty.address1, this.listingProperty.address2].map(v => (v || '').trim()).filter(Boolean).join(', ');
+    const line2 = [this.listingProperty.city, this.listingProperty.state, this.listingProperty.zip].map(v => (v || '').trim()).filter(Boolean).join(', ');
     return [line1, line2].filter(Boolean).join(' | ');
   }
 
   get listingDescriptionText(): string {
-    if (this.property?.description?.trim()) {
-      return this.property.description.trim();
+    if (this.listingProperty?.description?.trim()) {
+      return this.listingProperty.description.trim();
     }
 
     const type = this.listingPropertyType || 'home';
-    const neighborhood = this.property?.neighborhood?.trim();
-    const city = this.property?.city?.trim();
-    const addressRef = this.property?.address1?.trim();
+    const neighborhood = this.listingProperty?.neighborhood?.trim();
+    const city = this.listingProperty?.city?.trim();
+    const addressRef = this.listingProperty?.address1?.trim();
     const parts = [
       `This ${type.toLowerCase()} offers a comfortable stay`,
       neighborhood ? `in ${neighborhood}` : '',
@@ -248,29 +285,29 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   get listingPropertyType(): string {
-    return getPropertyType(this.property?.propertyTypeId);
+    return getPropertyType(this.listingProperty?.propertyTypeId);
   }
 
   get highlightColumnOne(): ListingHighlightItem[] {
-    if (!this.property) return [];
+    if (!this.listingProperty) return [];
 
     return [
-      { icon: 'hotel', label: 'Bedrooms', value: String(this.property.bedrooms ?? '-') },
-      { icon: 'bathtub', label: 'Bathrooms', value: String(this.property.bathrooms ?? '-') },
-      { icon: 'straighten', label: 'Square Feet', value: String(this.property.squareFeet ?? '-') },
+      { icon: 'hotel', label: 'Bedrooms', value: String(this.listingProperty.bedrooms ?? '-') },
+      { icon: 'bathtub', label: 'Bathrooms', value: String(this.listingProperty.bathrooms ?? '-') },
+      { icon: 'straighten', label: 'Square Feet', value: String(this.listingProperty.squareFeet ?? '-') },
       { icon: 'apartment', label: 'Property Type', value: this.listingPropertyType || '-' }
     ];
   }
 
   get highlightColumnTwo(): ListingHighlightItem[] {
-    if (!this.property) return [];
+    if (!this.listingProperty) return [];
 
     return [
-      { icon: 'night_shelter', label: 'Minimum Stay', value: `${this.property.minStay || 0} Day(s)` },
-      { icon: 'stairs', label: 'Entry Floor', value: String(this.property.unitLevel ?? '-') },
-      { icon: 'pets', label: 'Pets', value: this.property.petsAllowed ? 'Yes' : 'No' },
-      { icon: 'smoke_free', label: 'Smoking', value: this.property.smoking ? 'Yes' : 'No' },
-      { icon: 'local_parking', label: 'Parking', value: this.property.parking ? 'Yes' : 'No' }
+      { icon: 'night_shelter', label: 'Minimum Stay', value: `${this.listingProperty.minStay || 0} Day(s)` },
+      { icon: 'stairs', label: 'Entry Floor', value: String(this.listingProperty.unitLevel ?? '-') },
+      { icon: 'pets', label: 'Pets', value: this.listingProperty.petsAllowed ? 'Yes' : 'No' },
+      { icon: 'smoke_free', label: 'Smoking', value: this.listingProperty.smoking ? 'Yes' : 'No' },
+      { icon: 'local_parking', label: 'Parking', value: this.listingProperty.parking ? 'Yes' : 'No' }
     ];
   }
 
@@ -279,25 +316,25 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   get listingAmenityIconItems(): ListingAmenityIconItem[] {
-    if (!this.property) {
+    if (!this.listingProperty) {
       return [];
     }
 
-    const washerDryerLabel = this.property.washerDryerInUnit
+    const washerDryerLabel = this.listingProperty.washerDryerInUnit
       ? 'Washer/Dryer In Unit'
-      : (this.property.washerDryerInBldg ? 'Washer/Dryer In Building' : '');
+      : (this.listingProperty.washerDryerInBldg ? 'Washer/Dryer In Building' : '');
 
     return [
       { icon: 'local_laundry_service', label: washerDryerLabel, enabled: !!washerDryerLabel },
-      { icon: 'fitness_center', label: 'Gym', enabled: this.property.gym },
-      { icon: 'spa', label: 'Sauna', enabled: this.property.sauna },
-      { icon: 'hot_tub', label: 'Jacuzzi', enabled: this.property.jacuzzi },
-      { icon: 'pool', label: 'Private Pool', enabled: this.property.privatePool },
-      { icon: 'pool', label: 'Common Pool', enabled: this.property.commonPool },
-      { icon: 'deck', label: 'Deck', enabled: this.property.deck },
-      { icon: 'table_restaurant', label: 'Patio', enabled: this.property.patio },
-      { icon: 'grass', label: 'Yard', enabled: this.property.yard },
-      { icon: 'local_florist', label: 'Garden', enabled: this.property.garden }
+      { icon: 'fitness_center', label: 'Gym', enabled: this.listingProperty.gym },
+      { icon: 'spa', label: 'Sauna', enabled: this.listingProperty.sauna },
+      { icon: 'hot_tub', label: 'Jacuzzi', enabled: this.listingProperty.jacuzzi },
+      { icon: 'pool', label: 'Private Pool', enabled: this.listingProperty.privatePool },
+      { icon: 'pool', label: 'Common Pool', enabled: this.listingProperty.commonPool },
+      { icon: 'deck', label: 'Deck', enabled: this.listingProperty.deck },
+      { icon: 'table_restaurant', label: 'Patio', enabled: this.listingProperty.patio },
+      { icon: 'grass', label: 'Yard', enabled: this.listingProperty.yard },
+      { icon: 'local_florist', label: 'Garden', enabled: this.listingProperty.garden }
     ].filter(item => item.enabled).map(item => ({ icon: item.icon, label: item.label }));
   }
 
@@ -306,19 +343,19 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   get listingViews(): string[] {
-    if (!this.property) return [];
-    return this.splitList(this.property.view);
+    if (!this.listingProperty) return [];
+    return this.splitList(this.listingProperty.view);
   }
 
   get listingPrimaryRate(): string {
     const primaryAmount = this.isMonthlyRateZero
-      ? Number(this.property?.dailyRate || 0)
-      : Number(this.property?.monthlyRate || 0);
+      ? Number(this.listingProperty?.dailyRate || 0)
+      : Number(this.listingProperty?.monthlyRate || 0);
     return `$${this.formatter.currency(primaryAmount)}`;
   }
 
   get listingDailyRate(): string {
-    return `$${this.formatter.currency(Number(this.property?.dailyRate || 0))}`;
+    return `$${this.formatter.currency(Number(this.listingProperty?.dailyRate || 0))}`;
   }
 
   get listingPrimaryRateLabel(): string {
@@ -330,7 +367,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   get isMonthlyRateZero(): boolean {
-    return Number(this.property?.monthlyRate || 0) === 0;
+    return Number(this.listingProperty?.monthlyRate || 0) === 0;
   }
   //#endregion
 
@@ -351,7 +388,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
 
   updateDescriptionOverflow(): void {
     const content = this.descriptionContent?.nativeElement;
-    if (!content || !this.isPageReady || !this.property) {
+    if (!content || !this.isPageReady || !this.listingProperty) {
       this.pendingDescriptionOverflowCheck = true;
       return;
     }
@@ -394,17 +431,17 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
       .filter(Boolean);
   }
 
-  refreshListingDescriptionHtml(): void {
-    this.listingDescriptionHtmlValue = this.property?.description?.trim() || '';
-    this.rebuildListingContentHtml();
+  refreshListingDescriptionHtml(property: PropertyResponse = this.listingProperty!): void {
+    this.listingDescriptionHtmlValue = property?.description?.trim() || '';
+    this.rebuildListingContentHtml(property);
   }
 
-  refreshListingAmenitiesHtml(): void {
-    this.listingAmenitiesHtmlValue = this.property?.amenities?.trim() || '';
-    this.rebuildListingContentHtml();
+  refreshListingAmenitiesHtml(property: PropertyResponse = this.listingProperty!): void {
+    this.listingAmenitiesHtmlValue = property?.amenities?.trim() || '';
+    this.rebuildListingContentHtml(property);
   }
 
-  rebuildListingContentHtml(): void {
+  rebuildListingContentHtml(property: PropertyResponse | null = this.listingProperty): void {
     const hasDescriptionHtml = /<[^>]+>/.test(this.listingDescriptionHtmlValue);
     const descriptionHtml = hasDescriptionHtml
       ? this.listingDescriptionHtmlValue
@@ -446,7 +483,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
       return;
     }
 
-    const activePropertyId = this.property?.propertyId || this.propertyId;
+    const activePropertyId = this.listingProperty?.propertyId || this.propertyId;
     if (!activePropertyId) {
       input.value = '';
       return;
@@ -665,7 +702,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   }
 
   async copyListingLink(): Promise<void> {
-    const activePropertyId = this.property?.propertyId || this.propertyId;
+    const activePropertyId = this.listingProperty?.propertyId || this.propertyId;
     if (!activePropertyId) {
       return;
     }
