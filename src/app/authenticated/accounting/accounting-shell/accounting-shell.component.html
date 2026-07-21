@@ -736,6 +736,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isBillsReceiptsWorkOrderDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onBillsReceiptsWorkOrderBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isDepositDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onDepositBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -964,7 +969,21 @@
                 }
               </div>
               @if (selectedBillsReceiptKind === 'bills') {
-                @if (showBillsReceiptDetail) {
+                @if (showBillsReceiptsWorkOrderDetail) {
+                  @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
+                    <app-work-order
+                      [property]="billsReceiptsWorkOrderProperty"
+                      [workOrderId]="selectedBillsReceiptsWorkOrderId"
+                      [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
+                      [officeId]="selectedOfficeId"
+                      [embeddedInMaintenance]="true"
+                      [embedDocumentPreviewInShell]="true"
+                      [showBackButton]="false"
+                      (previewEvent)="onWorkOrderPreviewOpen($event)"
+                      (backEvent)="onBillsReceiptsWorkOrderBack()"
+                      (savedEvent)="onBillsReceiptsWorkOrderSaved()" />
+                  }
+                } @else if (showBillsReceiptDetail) {
                   @for (instance of [billsReceiptDetailInstance]; track instance) {
                     <app-receipt
                     [property]="billsReceiptProperty"
@@ -976,6 +995,7 @@
                     [autoSaveAttemptToken]="billsReceiptAutoSaveAttemptToken"
                     [officeId]="selectedOfficeId"
                     [shellContext]="'accounting'"
+                    (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (backEvent)="onBillsReceiptBack()"
                     (savedEvent)="onBillsReceiptSaved()" />
                   }
@@ -988,12 +1008,26 @@
                     [accountingListMode]="'bills'"
                     [refreshTrigger]="billsRefreshTrigger"
                     (receiptSelect)="onBillsReceiptSelect($event)"
-                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
+                    (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
               } @else if (selectedBillsReceiptKind === 'receipts') {
-                @if (showReceiptsReceiptDetail) {
+                @if (showBillsReceiptsWorkOrderDetail) {
+                  @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
+                    <app-work-order
+                      [property]="billsReceiptsWorkOrderProperty"
+                      [workOrderId]="selectedBillsReceiptsWorkOrderId"
+                      [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
+                      [officeId]="selectedOfficeId"
+                      [embeddedInMaintenance]="true"
+                      [embedDocumentPreviewInShell]="true"
+                      [showBackButton]="false"
+                      (previewEvent)="onWorkOrderPreviewOpen($event)"
+                      (backEvent)="onBillsReceiptsWorkOrderBack()"
+                      (savedEvent)="onBillsReceiptsWorkOrderSaved()" />
+                  }
+                } @else if (showReceiptsReceiptDetail) {
                   @for (instance of [receiptsReceiptDetailInstance]; track instance) {
                     <app-receipt
                     [property]="receiptsReceiptProperty"
@@ -1001,6 +1035,7 @@
                     [officeId]="selectedOfficeId"
                     [shellContext]="'accounting'"
                     [preferReceiptModeOnAdd]="true"
+                    (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (backEvent)="onReceiptsReceiptBack()"
                     (savedEvent)="onReceiptsReceiptSaved()" />
                   }
@@ -1013,7 +1048,7 @@
                     [accountingListMode]="'receipts'"
                     [refreshTrigger]="receiptsRefreshTrigger"
                     (receiptSelect)="onReceiptsReceiptSelect($event)"
-                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
+                    (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }

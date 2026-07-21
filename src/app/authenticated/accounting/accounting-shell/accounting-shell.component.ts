@@ -338,6 +338,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedReceiptsReceiptId: string | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
   receiptsReceiptDetailInstance = 0;
+  showBillsReceiptsWorkOrderDetail = false;
+  selectedBillsReceiptsWorkOrderId: string | null = null;
+  selectedBillsReceiptsWorkOrder: WorkOrderResponse | null = null;
+  billsReceiptsWorkOrderProperty: PropertyResponse | null = null;
+  billsReceiptsWorkOrderDetailInstance = 0;
   showDepositsDetail = false;
   selectedDepositId: string | null = null;
   selectedDeposit: DepositResponse | null = null;
@@ -1290,6 +1295,7 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.selectedTabIndex = this.tabBillsReceipts;
     this.selectedBillsReceiptKind = 'bills';
     this.billsReceiptOrigin = origin;
+    this.onBillsReceiptsWorkOrderBack();
     this.billsReceiptProperty = propertyStub;
     this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
     this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
@@ -1723,6 +1729,7 @@ hydrateSelectedInvoiceForActiveId(): void {
 
     this.selectedTabIndex = this.tabBillsReceipts;
     this.selectedBillsReceiptKind = 'receipts';
+    this.onBillsReceiptsWorkOrderBack();
     this.receiptsReceiptProperty = propertyStub;
     const reopeningReceiptsReceiptAdd = receiptId === 'new'
       && this.showReceiptsReceiptDetail
@@ -1738,6 +1745,44 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showReceiptsReceiptDetail = false;
     this.selectedReceiptsReceiptId = null;
     this.receiptsReceiptProperty = null;
+  }
+
+  onBillsReceiptsWorkOrderSelect(selection: WorkOrderSelection): void {
+    const workOrderId = selection?.workOrderId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const resolvedOfficeId = this.selectedOfficeId;
+
+    this.selectedBillsReceiptsWorkOrder = selection?.workOrder ?? null;
+    this.billsReceiptsWorkOrderProperty = propertyId
+      ? this.buildOwnersWorkOrderPropertyStub(resolvedOfficeId, propertyId)
+      : this.buildBillsReceiptPropertyStub(resolvedOfficeId);
+
+    this.selectedTabIndex = this.tabBillsReceipts;
+    const reopeningBillsReceiptsWorkOrderAdd = workOrderId === 'new'
+      && this.showBillsReceiptsWorkOrderDetail
+      && this.selectedBillsReceiptsWorkOrderId === 'new';
+    this.selectedBillsReceiptsWorkOrderId = workOrderId;
+    if (reopeningBillsReceiptsWorkOrderAdd) {
+      this.billsReceiptsWorkOrderDetailInstance++;
+    }
+    this.showBillsReceiptsWorkOrderDetail = true;
+    this.cdr.detectChanges();
+  }
+
+  onBillsReceiptsWorkOrderBack(): void {
+    this.showBillsReceiptsWorkOrderDetail = false;
+    this.selectedBillsReceiptsWorkOrderId = null;
+    this.selectedBillsReceiptsWorkOrder = null;
+    this.billsReceiptsWorkOrderProperty = null;
+  }
+
+  onBillsReceiptsWorkOrderSaved(): void {
+    if (this.selectedBillsReceiptKind === 'bills') {
+      this.billsRefreshTrigger++;
+    } else if (this.selectedBillsReceiptKind === 'receipts') {
+      this.receiptsRefreshTrigger++;
+    }
+    this.onBillsReceiptsWorkOrderBack();
   }
 
   onReceiptsReceiptSaved(): void {
@@ -2396,6 +2441,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     if (event.index !== this.tabBillsReceipts) {
       this.onBillsReceiptBack();
       this.onReceiptsReceiptBack();
+      this.onBillsReceiptsWorkOrderBack();
     }
     if (event.index !== this.tabOwners) {
       this.selectedOwnerStatementMonthLine = null;
@@ -2521,6 +2567,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       } else if (this.selectedBillsReceiptKind === 'receipts') {
         this.onReceiptsReceiptBack();
       }
+      this.onBillsReceiptsWorkOrderBack();
     }
 
     this.selectedBillsReceiptKind = kind;
@@ -3580,6 +3627,7 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
       && !this.isGeneralLedgerDetailActive
       && !this.isBillsReceiptDetailActive
       && !this.isReceiptsReceiptDetailActive
+      && !this.isBillsReceiptsWorkOrderDetailActive
       && !this.isDepositDetailActive
       && !this.isTransferDetailActive
       && !this.isOwnersUtilityReceiptDetailActive
@@ -3935,6 +3983,12 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.selectedTabIndex === this.tabBillsReceipts
       && this.selectedBillsReceiptKind === 'receipts'
       && this.showReceiptsReceiptDetail;
+  }
+
+  get isBillsReceiptsWorkOrderDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabBillsReceipts
+      && (this.selectedBillsReceiptKind === 'bills' || this.selectedBillsReceiptKind === 'receipts')
+      && this.showBillsReceiptsWorkOrderDetail;
   }
 
   get isDepositDetailActive(): boolean {
