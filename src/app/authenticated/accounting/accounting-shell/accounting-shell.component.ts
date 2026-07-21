@@ -947,6 +947,24 @@ hydrateSelectedInvoiceForActiveId(): void {
 
   onFinancialReportDrillDownActiveChange(active: boolean): void {
     this.isFinancialReportDrillDownActive = active;
+    if (active && this.selectedReportKind === 'balanceSheet') {
+      this.syncBalanceSheetDrillDownDateRangeFromAsOf();
+    }
+    this.cdr.markForCheck();
+  }
+
+  syncBalanceSheetDrillDownDateRangeFromAsOf(): void {
+    this.ensureDefaultAsOfDates();
+    this.startDate = this.cloneShellDate(this.asOfStart);
+    this.endDate = this.cloneShellDate(this.asOfDate);
+    this.normalizeDateRangeValues();
+    this.syncInvoiceSearchDateRange();
+  }
+
+  get isBalanceSheetDrillDownActive(): boolean {
+    return this.isFinancialReportDrillDownActive
+      && this.selectedTabIndex === this.tabReports
+      && this.selectedReportKind === 'balanceSheet';
   }
 
   onFinancialReportJournalEntryDetailChange(active: boolean): void {
@@ -3255,6 +3273,12 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
   publishDateRangeState(): void {
     this.syncInvoiceSearchDateRange();
     this.syncBillsSearchRequest();
+    if (this.isBalanceSheetDrillDownActive) {
+      this.asOfStart = this.cloneShellDate(this.startDate);
+      this.asOfDate = this.cloneShellDate(this.endDate);
+      this.normalizeAsOfDateValue();
+      this.normalizeAsOfStartValue();
+    }
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
     }
@@ -3276,7 +3300,9 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
     }
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.buildRangeQueryParams(),
+      queryParams: this.isBalanceSheetDrillDownActive
+        ? { ...this.buildRangeQueryParams(), ...this.buildAsOfQueryParams() }
+        : this.buildRangeQueryParams(),
       queryParamsHandling: 'merge'
     });
   }
@@ -4264,6 +4290,11 @@ captureOwnerStatementReturnContext(): void {
   }
 
   get usesAccountingShellAsOfDate(): boolean {
+    // Balance-sheet drill-down is JE activity — show Start/End instead of As of.
+    if (this.isBalanceSheetDrillDownActive) {
+      return false;
+    }
+
     return this.isOwnerApAgingViewActive
       || (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'escrow')
       || (this.selectedTabIndex === this.tabReports

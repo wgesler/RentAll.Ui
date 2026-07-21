@@ -6158,6 +6158,10 @@ buildEscrowLastRecapAmountsByProperty(
       return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
     }
     if (spec.mode === 'balance') {
+      // When a start is present (BS drill-down Start/End), show JE activity in that window.
+      if (startDate) {
+        return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
+      }
       return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, endDate);
     }
     return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
@@ -6187,7 +6191,13 @@ buildEscrowLastRecapAmountsByProperty(
         return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, column.periodEnd || endDate);
       }
       if (spec.mode === 'balance') {
-        return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column?.periodEnd || endDate);
+        if (!column) {
+          return false;
+        }
+        if (startDate) {
+          return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, column.periodEnd || endDate);
+        }
+        return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate);
       }
     }
 
