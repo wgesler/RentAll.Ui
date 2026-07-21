@@ -3401,7 +3401,9 @@ resolveDepositPropertyIds(
         propertyIds,
         depositDate: this.formatter.formatDateString(deposit.depositDate),
         period: this.formatter.formatListAccountingPeriodDot(deposit.accountingPeriod),
+        propertyId: this.resolvePrimaryPropertyId(propertyIds, deposit.propertyId, splits),
         propertyCode: this.buildDepositPropertyCodesDisplay(propertyIds, splits),
+        reservationId: this.resolvePrimaryReservationId(splits),
         reservationCode: this.buildDepositReservationCodesDisplay(splits),
         contactName: this.buildDepositContactNamesDisplay(splits),
         descriptionDisplay: deposit.description || '',
@@ -3437,6 +3439,44 @@ buildDepositPropertyCodesDisplay(propertyIds: string[], splits: DepositSplit[]):
         }
       });
     return Array.from(codes).join(', ');
+  }
+
+  resolvePrimaryPropertyId(
+    propertyIds: string[],
+    headerPropertyId?: string | null,
+    splits?: Array<{ propertyId?: string | null }>
+  ): string | null {
+    const fromHeader = (headerPropertyId || '').trim();
+    if (fromHeader.length > 0) {
+      return fromHeader;
+    }
+
+    for (const propertyId of propertyIds || []) {
+      const trimmedPropertyId = (propertyId || '').trim();
+      if (trimmedPropertyId.length > 0) {
+        return trimmedPropertyId;
+      }
+    }
+
+    for (const split of splits || []) {
+      const trimmedPropertyId = (split.propertyId || '').trim();
+      if (trimmedPropertyId.length > 0) {
+        return trimmedPropertyId;
+      }
+    }
+
+    return null;
+  }
+
+  resolvePrimaryReservationId(splits?: Array<{ reservationId?: string | null }>): string | null {
+    for (const split of splits || []) {
+      const trimmedReservationId = (split.reservationId || '').trim();
+      if (trimmedReservationId.length > 0) {
+        return trimmedReservationId;
+      }
+    }
+
+    return null;
   }
 
 buildDepositReservationCodesDisplay(splits: DepositSplit[]): string {
@@ -3638,8 +3678,29 @@ resolveTransferPropertyIds(
       contactName: String(record.contactName ?? record['ContactName'] ?? '').trim() || null,
       journalEntryLineId: String(record.journalEntryLineId ?? record['JournalEntryLineId'] ?? '').trim() || null,
       chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
-      chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null
+      chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null,
+      sourceJournalEntryLineAmount: this.parseOptionalAmount(record.sourceJournalEntryLineAmount ?? record['SourceJournalEntryLineAmount'])
     };
+  }
+
+  parseOptionalAmount(value: unknown): number | null {
+    if (value == null || value === '') {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  resolveTransferFlatReportEscrowDepositValue(group: TransferSplit[], rowTotalValue: number): number {
+    for (const split of group) {
+      const sourceAmount = Number(split.sourceJournalEntryLineAmount);
+      if (Number.isFinite(sourceAmount) && sourceAmount !== 0) {
+        return this.roundCurrency(Math.abs(sourceAmount));
+      }
+    }
+
+    return rowTotalValue;
   }
 
   mapTransferDisplays(transfers: TransferResponse[]): TransferDisplayList[] {
@@ -3663,10 +3724,12 @@ resolveTransferPropertyIds(
         propertyIds,
         transferDate: this.formatter.formatDateString(transfer.transferDate),
         period: this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod),
+        propertyId: this.resolvePrimaryPropertyId(propertyIds, transfer.propertyId, splits),
         propertyCode: this.buildTransferPropertyCodesDisplay(propertyIds, splits),
+        reservationId: this.resolvePrimaryReservationId(splits),
         reservationCode: this.buildTransferReservationCodesDisplay(splits),
         contactName: this.buildTransferContactNamesDisplay(splits),
-        descriptionDisplay: transfer.description || '',
+        descriptionDisplay: this.formatTransferDescriptionDisplay(transfer.description),
         amount: transferAmount,
         amountDisplay: this.formatter.currencyUsd(transferAmount),
         splits,
@@ -3685,6 +3748,15 @@ resolveTransferPropertyIds(
         modifiedBy: transfer.modifiedBy
       };
     });
+  }
+
+  formatTransferDescriptionDisplay(description: string | null | undefined): string {
+    const normalized = (description || '').trim();
+    if (!normalized || normalized.localeCompare('Transfer', undefined, { sensitivity: 'accent' }) === 0) {
+      return 'Transfer to Escrow Accounts';
+    }
+
+    return normalized;
   }
 
 buildTransferPropertyCodesDisplay(propertyIds: string[], splits: TransferSplit[]): string {
@@ -3768,10 +3840,10 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       });
 
       const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
-      const escrowDepositValue = rowTotalValue;
+      const escrowDepositValue = this.resolveTransferFlatReportEscrowDepositValue(group, rowTotalValue);
       const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
       const context = group[0];
-      const folio = (context.reservationCode || '').trim()
+      const reservationCode = (context.reservationCode || '').trim()
         || (transfer.transferCode || '').trim();
       const propertyCode = (context.propertyCode || '').trim();
       const contactName = (context.contactName || '').trim();
@@ -3780,8 +3852,10 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       return {
         transferDate,
         type: 'Transfer',
-        folio,
+        propertyId: (context.propertyId || transfer.propertyId || '').trim() || null,
         propertyCode,
+        reservationId: (context.reservationId || '').trim() || null,
+        reservationCode,
         dateRange: description || dateRange,
         escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
         escrowDepositValue,
@@ -3804,8 +3878,8 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
   }
 
 formatFlatReportAmount(value: number): string {
-    if (!Number.isFinite(value) || value === 0) {
-      return '-';
+    if (!Number.isFinite(value)) {
+      return this.formatter.currencyUsd(0);
     }
     return this.formatter.currencyUsd(value);
   }

@@ -13,6 +13,7 @@ export interface TransferSplit {
   journalEntryLineId?: string | null;
   chartOfAccountId?: number | null;
   chartOfAccountDisplayName?: string | null;
+  sourceJournalEntryLineAmount?: number | null;
 }
 
 export interface TransferSearchRequest {
@@ -72,7 +73,9 @@ export interface TransferDisplayList {
   officeName: string;
   propertyIds: string[];
   transferDate: string;
+  propertyId?: string | null;
   propertyCode?: string;
+  reservationId?: string | null;
   reservationCode?: string;
   contactName?: string;
   amount: number;
@@ -114,8 +117,10 @@ export interface TransferFlatReportAccountIds {
 export interface TransferFlatReportRowDisplay {
   transferDate: string;
   type: string;
-  folio: string;
+  propertyId?: string | null;
   propertyCode: string;
+  reservationId?: string | null;
+  reservationCode: string;
   dateRange: string;
   escrowDeposit: string;
   escrowDepositValue: number;

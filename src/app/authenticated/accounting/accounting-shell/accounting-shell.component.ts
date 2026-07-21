@@ -1878,11 +1878,6 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.selectBankActivity('transferReport');
   }
 
-  onTransferReportPosted(transfer: TransferResponse): void {
-    this.selectedTransferReport = transfer;
-    this.onJournalEntriesChanged();
-  }
-
   buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {
     const resolvedOfficeId = officeId ?? 0;
     const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';

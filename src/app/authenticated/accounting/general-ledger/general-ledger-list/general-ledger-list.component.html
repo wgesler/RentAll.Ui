@@ -31,17 +31,7 @@
                         [style.text-align]="activeDetailLineDisplayedColumns[columnName].alignment || 'left'"
                         [class.no-wrap]="!activeDetailLineDisplayedColumns[columnName].wrap">
                       @if (columnName === 'lineNo') {
-                        <span class="detail-line-no-cell">
-                          @if (showTableLineSelections) {
-                            <mat-checkbox
-                              [checked]="isDetailLineSelected(line)"
-                              [disabled]="line.disabled || !isDetailLineSelectable(line)"
-                              (click)="$event.stopPropagation()"
-                              (change)="onDetailLineSelectionChange(line, $event.checked)">
-                            </mat-checkbox>
-                          }
-                          {{ getDetailLineColumnValue(line, columnName, lineIndex) }}
-                        </span>
+                        {{ getDetailLineColumnValue(line, columnName, lineIndex) }}
                       } @else {
                         {{ getDetailLineColumnValue(line, columnName, lineIndex) }}
                       }
@@ -136,6 +126,8 @@
           [isAllExpanded]="isAllExpanded"
           [hasContactNameLink]="false"
           [hasSourceLink]="transferReportOnly"
+          [hasPropertyCodeLink]="transferReportOnly"
+          [hasReservationCodeLink]="transferReportOnly"
           [hasActionsRowClick]="!showDepositForm && !showTransferForm"
           [hasActionsEdit]="showGeneralLedgerRowEditAction"
           [hasActionsCopy]="showGeneralLedgerRowCopyAction"
@@ -150,7 +142,9 @@
           (copyEvent)="copyJournalEntry($event)"
           (deleteEvent)="deleteJournalEntryLine($event)"
           (sourceClickEvent)="onTransferReportSourceClick($event)"
-          (selectionSet)="onTableLineSelectionSet($event)">
+          (propertyCodeClickEvent)="goToProperty($event)"
+          (reservationCodeClickEvent)="goToReservation($event)"
+          (selectionSet)="onTableLineSelectionSet()">
           @if (showGeneralLedgerRetainedEarningsButton) {
             <div dataTableFilterActions>
               <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">

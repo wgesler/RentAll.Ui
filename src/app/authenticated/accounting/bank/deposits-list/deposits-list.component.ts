@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
@@ -41,6 +43,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('depositSplitsTemplate') depositSplitsTemplate?: TemplateRef<unknown>;
@@ -221,6 +224,44 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: selectedPropertyId,
       deposit
     });
+  }
+
+  goToProperty(event: DepositDisplayList): void {
+    const propertyId = (event?.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}`);
+  }
+
+  goToReservation(event: DepositDisplayList): void {
+    const reservationId = (event?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`);
+  }
+
+  goToPropertyFromSplit(event: Event, split: DepositSplit): void {
+    event.stopPropagation();
+    const propertyId = (split.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}`);
+  }
+
+  goToReservationFromSplit(event: Event, split: DepositSplit): void {
+    event.stopPropagation();
+    const reservationId = (split.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`);
   }
   //#endregion
 

@@ -1,28 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
-import { MaterialModule } from '../../../../material.module';
+import { RouterUrl } from '../../../../app.routes';import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { CommonMessage } from '../../../../enums/common-message.enum';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
-import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferResponse } from '../../models/transfer.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { TransferService } from '../../services/transfer.service';
-import { isJournalEntryHardClosed, isJournalEntrySoftClosed } from '../../models/accounting-enum';
-
 @Component({
   selector: 'app-transfer-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, MaterialModule, DataTableComponent],
   templateUrl: './transfer-report.component.html',
   styleUrls: ['./transfer-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -33,7 +29,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   @Input() transferId: string | null = null;
   @Input() prefetchedTransfer: TransferResponse | null = null;
   @Input() refreshTrigger = 0;
-  @Output() transferPosted = new EventEmitter<TransferResponse>();
 
   private transferService = inject(TransferService);
   private accountingOfficeService = inject(AccountingOfficeService);
@@ -41,11 +36,9 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
-  private toastr = inject(ToastrService);
+  private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
-
   isServiceError = false;
-  isPostingTransferReport = false;
   rowsDisplay: TransferFlatReportRowDisplay[] = [];
   noActivityMessage = 'No transfer detail lines for the selected transfer.';
   accountingOffices: AccountingOfficeResponse[] = [];
@@ -58,17 +51,19 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   isPageReady = false;
   destroy$ = new Subject<void>();
 
+  readonly transferReportAmountColumnWidth = '5.5rem';
+
   readonly transferReportDisplayedColumns: ColumnSet = {
     transferDate: { displayAs: 'Date', maxWidth: '12ch', wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '14ch', wrap: false },
-    folio: { displayAs: 'Reservation', maxWidth: '14ch', wrap: false, sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '14ch', wrap: false, sortType: 'natural' },
     dateRange: { displayAs: 'Description', maxWidth: '24ch', wrap: true },
     escrowDeposit: { displayAs: 'Escrow Deposits', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
-    business: { displayAs: 'Business', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
-    ownerEscrow: { displayAs: 'Owner Escrow', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
-    secDep: { displayAs: 'Sec Dep', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
-    sdw: { displayAs: 'SDW Escrow', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
-    rowTotal: { displayAs: 'Total', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
+    business: { displayAs: 'Business', maxWidth: this.transferReportAmountColumnWidth, alignment: 'center', headerAlignment: 'center', sort: false, wrap: false },
+    ownerEscrow: { displayAs: 'Owner Escrow', maxWidth: this.transferReportAmountColumnWidth, alignment: 'center', headerAlignment: 'center', sort: false, wrap: false },
+    secDep: { displayAs: 'Sec Dep', maxWidth: this.transferReportAmountColumnWidth, alignment: 'center', headerAlignment: 'center', sort: false, wrap: false },
+    sdw: { displayAs: 'SDW Escrow', maxWidth: this.transferReportAmountColumnWidth, alignment: 'center', headerAlignment: 'center', sort: false, wrap: false },
+    rowTotal: { displayAs: 'Total', maxWidth: this.transferReportAmountColumnWidth, alignment: 'center', headerAlignment: 'center', sort: false, wrap: false },
     outOfBalance: { displayAs: 'Out of Balance', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false }
   };
 
@@ -138,11 +133,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (this.prefetchedTransfer && (this.prefetchedTransfer.transferId || '').trim() === transferId) {
-      this.applyTransfer(this.prefetchedTransfer);
-      return;
-    }
-
     this.isServiceError = false;
     const loadId = ++this.transferReportLoadId;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'transferReport');
@@ -182,41 +172,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  postTransferReport(): void {
-    const transferId = (this.currentTransfer?.transferId || this.transferId || '').trim();
-    if (!transferId || !this.canPostTransferReport || this.isPostingTransferReport) {
-      return;
-    }
-
-    this.isPostingTransferReport = true;
-    this.markViewForCheck();
-
-    this.transferService.postTransferReport(transferId).pipe(take(1), finalize(() => {
-        this.isPostingTransferReport = false;
-        this.markViewForCheck();
-      })
-    ).subscribe({
-      next: transfer => {
-        this.applyTransfer(transfer);
-        this.transferPosted.emit(transfer);
-        this.toastr.success('Transfer journal entry posted.', CommonMessage.Success);
-        this.markViewForCheck();
-      },
-      error: (error: HttpErrorResponse) => {
-        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
-        if (closedPeriodMessage) {
-          this.toastr.error(closedPeriodMessage, CommonMessage.Error);
-          return;
-        }
-
-        const message = typeof error?.error === 'string'
-          ? error.error
-          : error.error?.title || error.error?.message || error.message || 'Unable to post transfer report.';
-        this.toastr.error(message, CommonMessage.Error);
-      }
-    });
-  }
-  
   applyTransfer(transfer: TransferResponse): void {
     this.currentTransfer = transfer;
     this.applyColumnHeaders(transfer);
@@ -336,6 +291,24 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
+  goToProperty(event: TransferFlatReportRowDisplay): void {
+    const propertyId = (event?.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}`);
+  }
+
+  goToReservation(event: TransferFlatReportRowDisplay): void {
+    const reservationId = (event?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`);
+  }
+
   //#region Get Methods
    get totalsRow(): { [key: string]: string } | undefined {
     if (this.rowsDisplay.length === 0) {
@@ -369,28 +342,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
       + this.sumColumn('secDepValue')
       + this.sumColumn('sdwValue');
     return { outOfBalance: this.roundCurrency(escrowDeposit - destinations) !== 0 };
-  }
-
-  get canPostTransferReport(): boolean {
-    if (this.isPostingTransferReport || !this.currentTransfer || this.rowsDisplay.length === 0) {
-      return false;
-    }
-
-    if (this.totalsRowAlerts['outOfBalance']) {
-      return false;
-    }
-
-    if (this.currentTransfer.hasBeenTransfered === true) {
-      return false;
-    }
-
-    const postingStatusId = this.currentTransfer.postingStatusId;
-    if (isJournalEntrySoftClosed(postingStatusId)
-      || isJournalEntryHardClosed(postingStatusId)) {
-      return false;
-    }
-
-    return true;
   }
    //#endregion
 

@@ -71,7 +71,9 @@ export interface DepositDisplayList {
   officeName: string;
   propertyIds: string[];
   depositDate: string;
+  propertyId?: string | null;
   propertyCode?: string;
+  reservationId?: string | null;
   reservationCode?: string;
   contactName?: string;
   amount: number;

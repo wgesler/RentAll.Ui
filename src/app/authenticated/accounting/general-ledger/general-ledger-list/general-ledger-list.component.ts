@@ -1,12 +1,13 @@
-import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, throwError, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
+import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { AuthService } from '../../../../services/auth.service';
 import { MaterialModule } from '../../../../material.module';
@@ -89,15 +90,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   private journalEntrySourceService = inject(JournalEntrySourceService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
   selectedJournalEntryLineIds = new Set<string>();
   selectedJournalEntryIds = new Set<string>();
   isPostingJournalEntries = false;
   isCreatingRetainedEarningsJournalEntry = false;
-  showDepositSelections = false;
   showDepositForm = false;
-  showTransferSelections = false;
   showTransferForm = false;
   showCheckPreview = false;
   isLoadingCheckPreview = false;
@@ -532,15 +532,15 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntryLines');
     this.markViewForCheck();
   }
-    onTableLineSelectionSet(selection: SelectionModel<unknown>): void {
+  onTableLineSelectionSet(): void {
     if (this.showDepositTableSelections) {
-      this.onDepositLineSelectionSet(selection);
+      this.onDepositLineSelectionSet();
     } else if (this.showTransferTableSelections) {
-      this.onTransferLineSelectionSet(selection);
+      this.onTransferLineSelectionSet();
     } else if (this.showPrintCheckTableSelections) {
-      this.onPrintCheckLineSelectionSet(selection);
+      this.onPrintCheckLineSelectionSet();
     } else if (this.showJournalEntryPostSelections) {
-      this.onPostJournalEntrySelectionSet(selection);
+      this.onPostJournalEntrySelectionSet();
     }
   }
 
@@ -741,14 +741,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return count === 1 ? 'Unable to post one journal entry.' : `Unable to post ${count} journal entries.`;
   }
 
-  onPostJournalEntrySelectionSet(selection: SelectionModel<unknown>): void {
+  onPostJournalEntrySelectionSet(): void {
     if (!this.showJournalEntryPostSelections) {
       return;
     }
 
-    const selectedRows = (selection?.selected ?? []) as GeneralLedgerEntryDisplay[];
     const nextSelectedIds = new Set(
-      selectedRows
+      this.entriesDisplay
+        .filter(row => !!row.selected && row.journalEntryId)
         .map(row => (row.journalEntryId || '').trim())
         .filter(id => id.length > 0)
     );
@@ -1016,6 +1016,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     if (this.usesGroupedJournalEntryDisplay) {
       this.entriesDisplay = this.buildJournalEntryGroups(this.linesDisplay);
+      if (this.showGroupedTableLineSelections) {
+        this.syncGroupedLineSelectionInPlace(line => this.isSelectableActionLine(line));
+      }
       this.updateIsAllExpanded();
       return;
     }
@@ -1058,10 +1061,14 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         balance: lastLine.balance,
         debitValue: totalDebit,
         creditValue: totalCredit,
-        disabled: this.showJournalEntryPostSelections
+        disabled: this.showGroupedTableLineSelections
+          ? !this.hasSelectableGroupedEntryLines(entryLines)
+          : this.showJournalEntryPostSelections
           ? !this.isPostJournalEntryLinesPostable(entryLines)
           : entryLines.every(line => line.disabled),
-        selected: this.showJournalEntryPostSelections && this.selectedJournalEntryIds.has(journalEntryId),
+        selected: this.showGroupedTableLineSelections
+          ? this.isGroupedEntrySelected(entryLines)
+          : this.showJournalEntryPostSelections && this.selectedJournalEntryIds.has(journalEntryId),
         journalEntryLines: entryLines,
         expand: journalEntryId,
         expanded: this.expandedJournalEntries.has(journalEntryId),
@@ -1150,16 +1157,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   }
 
   get activeDetailLineDisplayedColumns(): ColumnSet {
-    const columns = { ...this.detailLineDisplayedColumns };
-
-    if (this.showTableLineSelections) {
-      columns['lineNo'] = {
-        ...columns['lineNo'],
-        maxWidth: '9ch'
-      };
-    }
-
-    return columns;
+    return this.detailLineDisplayedColumns;
   }
 
   getDetailLineColumnValue(line: JournalEntryLineListDisplay, columnName: string, lineIndex: number): string {
@@ -1187,7 +1185,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
   }
 
-  isDetailLineSelectable(line: JournalEntryLineListDisplay): boolean {
+  isSelectableActionLine(line: JournalEntryLineListDisplay): boolean {
     if (this.showDepositTableSelections) {
       return this.getLineNetAmount(line) > 0;
     }
@@ -1203,61 +1201,79 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return false;
   }
 
-  isDetailLineSelected(line: JournalEntryLineListDisplay): boolean {
-    return this.selectedJournalEntryLineIds.has(line.journalEntryLineId);
-  }
-
-  onDetailLineSelectionChange(line: JournalEntryLineListDisplay, checked: boolean): void {
-    if (checked && !this.isDetailLineSelectable(line)) {
-      return;
-    }
-
-    if (checked) {
-      this.selectedJournalEntryLineIds.add(line.journalEntryLineId);
-    } else {
-      this.selectedJournalEntryLineIds.delete(line.journalEntryLineId);
-    }
-
-    this.applyLinesDisplay();
-
-    if (this.isDepositSelectionMode) {
-      this.syncDepositAmountFromLineSelection();
-    }
-
-    this.markViewForCheck();
-  }
-
-  applyLineSelectionSet(
-    selection: SelectionModel<unknown>,
+  syncLineSelectionFromGroupedEntries(
     isLineSelectable: (line: JournalEntryLineListDisplay) => boolean
   ): void {
-    const selectedRows = (selection?.selected ?? []) as JournalEntryLineListDisplay[];
-    let nextSelectedIds: Set<string>;
+    const nextSelectedIds = new Set<string>();
 
-    if (selectedRows.length > 0) {
-      nextSelectedIds = new Set(
-        selectedRows
-          .map(row => String(row.journalEntryLineId ?? '').trim())
-          .filter(id => id.length > 0)
-      );
-    } else {
-      const idsFromDisplay = this.linesDisplay
-        .filter(row => row.selected && row.journalEntryLineId)
-        .map(row => String(row.journalEntryLineId));
-      nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<string>();
-    }
+    for (const entry of this.entriesDisplay) {
+      if (!entry.selected) {
+        continue;
+      }
 
-    for (const lineId of [...nextSelectedIds]) {
-      const row = this.linesDisplay.find(line => line.journalEntryLineId === lineId);
-      if (!row || !isLineSelectable(row)) {
-        nextSelectedIds.delete(lineId);
-        if (row) {
-          row.selected = false;
-        }
+      const selectableLines = (entry.journalEntryLines || []).filter(isLineSelectable);
+      if (selectableLines.length === 0) {
+        entry.selected = false;
+        continue;
+      }
+
+      for (const line of selectableLines) {
+        nextSelectedIds.add(line.journalEntryLineId);
       }
     }
 
     this.selectedJournalEntryLineIds = nextSelectedIds;
+    this.syncGroupedLineSelectionInPlace(isLineSelectable);
+  }
+
+  syncLineSelectionFromFlatLines(
+    isLineSelectable: (line: JournalEntryLineListDisplay) => boolean
+  ): void {
+    const nextSelectedIds = new Set<string>();
+
+    for (const line of this.linesDisplay) {
+      if (!line.selected) {
+        continue;
+      }
+
+      if (!isLineSelectable(line)) {
+        line.selected = false;
+        continue;
+      }
+
+      nextSelectedIds.add(line.journalEntryLineId);
+    }
+
+    this.selectedJournalEntryLineIds = nextSelectedIds;
+    this.linesDisplay.forEach(line => {
+      line.selected = this.selectedJournalEntryLineIds.has(line.journalEntryLineId);
+    });
+  }
+
+  getSelectableGroupedEntryLines(lines: JournalEntryLineListDisplay[]): JournalEntryLineListDisplay[] {
+    return lines.filter(line => this.isSelectableActionLine(line));
+  }
+
+  hasSelectableGroupedEntryLines(lines: JournalEntryLineListDisplay[]): boolean {
+    return this.getSelectableGroupedEntryLines(lines).length > 0;
+  }
+
+  isGroupedEntrySelected(lines: JournalEntryLineListDisplay[]): boolean {
+    const selectableLines = this.getSelectableGroupedEntryLines(lines);
+    return selectableLines.length > 0
+      && selectableLines.every(line => this.selectedJournalEntryLineIds.has(line.journalEntryLineId));
+  }
+
+  syncGroupedLineSelectionInPlace(isLineSelectable: (line: JournalEntryLineListDisplay) => boolean): void {
+    this.entriesDisplay.forEach(entry => {
+      const selectableLines = (entry.journalEntryLines || []).filter(isLineSelectable);
+      entry.selected = selectableLines.length > 0
+        && selectableLines.every(line => this.selectedJournalEntryLineIds.has(line.journalEntryLineId));
+    });
+
+    this.linesDisplay.forEach(line => {
+      line.selected = this.selectedJournalEntryLineIds.has(line.journalEntryLineId);
+    });
   }
 
   getLineNetAmount(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): number {
@@ -1447,12 +1463,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   //#endregion
 
   //#region Deposit Dialog Methods
-  onDepositLineSelectionSet(selection: SelectionModel<unknown>): void {
+  onDepositLineSelectionSet(): void {
     if (!this.showDepositTableSelections) {
       return;
     }
 
-    this.applyLineSelectionSet(selection, line => this.getLineNetAmount(line) > 0);
+    this.syncLineSelectionFromGroupedEntries(line => this.getLineNetAmount(line) > 0);
 
     if (this.isDepositSelectionMode) {
       this.syncDepositAmountFromLineSelection();
@@ -1468,7 +1484,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
 
     this.depositOfficeId = this.officeId;
-    this.showDepositSelections = true;
     this.depositDate = this.depositDate ?? new Date();
     this.refreshDepositBankChartOfAccounts();
     this.showDepositForm = true;
@@ -1478,7 +1493,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   cancelDepositForm(): void {
     this.showDepositForm = false;
-    this.showDepositSelections = false;
     this.clearDepositForm();
     this.applyLinesDisplay();
     this.markViewForCheck();
@@ -1980,7 +1994,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
 
     this.transferOfficeId = this.officeId;
-    this.showTransferSelections = true;
     this.transferDate = this.transferDate ?? new Date();
     this.showTransferForm = true;
     this.applyLinesDisplay();
@@ -1989,7 +2002,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   cancelTransferForm(): void {
     this.showTransferForm = false;
-    this.showTransferSelections = false;
     this.clearTransferForm();
     this.applyLinesDisplay();
     this.markViewForCheck();
@@ -2076,7 +2088,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           transferDate,
           accountingPeriod: transferDate,
           amount: this.transferAmount,
-          description: 'Transfer',
+          description: 'Transfer to Escrow Accounts',
           bankAccountId: escrowDepositAccountId,
           propertyId: scaledSplits.find(split => (split.propertyId || '').trim().length > 0)?.propertyId ?? null,
           splits: scaledSplits,
@@ -2113,12 +2125,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     });
   }
 
-  onTransferLineSelectionSet(selection: SelectionModel<unknown>): void {
+  onTransferLineSelectionSet(): void {
     if (!this.showTransferTableSelections) {
       return;
     }
 
-    this.applyLineSelectionSet(selection, line => this.isUntransferredFundsLineSelectable(line));
+    this.syncLineSelectionFromGroupedEntries(line => this.isUntransferredFundsLineSelectable(line));
 
     if (this.isTransferSelectionMode) {
       this.syncTransferAmountFromLineSelection();
@@ -2487,7 +2499,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
 
     const source = (depositSplit?.description || contextLine.source || contextLine.description || '').trim();
-    const description = source ? `Transfer ${source}` : 'Transfer';
+    const description = source ? `Transfer to Escrow Accounts - ${source}` : 'Transfer to Escrow Accounts';
 
     return [{
       amount,
@@ -2532,7 +2544,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const contactId = (depositSplit?.contactId || contextLine.contactId || '').trim() || null;
     const journalEntryLineId = (contextLine.journalEntryLineId || depositSplit?.journalEntryLineId || '').trim() || null;
     const source = (recapRow.source || contextLine.source || '').trim();
-    const description = source ? `Transfer ${source}` : 'Transfer';
+    const description = source ? `Transfer to Escrow Accounts - ${source}` : 'Transfer to Escrow Accounts';
 
     const allocations: Array<{ amount: number; accountId: number | null }> = [
       { amount: ownerEscrow, accountId: accountIds.owners },
@@ -2623,7 +2635,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       contactId: split.contactId,
       contactName: contextLine.contactName,
       account: accountLabel,
-      description: (split.description || '').trim() || 'Transfer',
+      description: (split.description || '').trim() || 'Transfer to Escrow Accounts',
       journalEntryMemo: contextLine.journalEntryMemo,
       debit: this.formatter.currencyUsd(amount),
       credit: '',
@@ -2720,6 +2732,24 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return null;
   }
 
+  goToProperty(row: JournalEntryLineListDisplay): void {
+    const propertyId = (row?.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}`);
+  }
+
+  goToReservation(row: JournalEntryLineListDisplay): void {
+    const reservationId = (row?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`);
+  }
+
   onTransferReportSourceClick(row: JournalEntryLineListDisplay): void {
     if (!this.transferReportOnly || !row?.sourceLinkable || row.officeId == null) {
       return;
@@ -2798,13 +2828,13 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   //#endregion
 
   //#region Check Form Methods
-  onPrintCheckLineSelectionSet(selection: SelectionModel<unknown>): void {
+  onPrintCheckLineSelectionSet(): void {
     if (!this.showPrintCheckTableSelections) {
       return;
     }
 
     const previousSelectedIds = new Set(this.selectedJournalEntryLineIds);
-    this.applyLineSelectionSet(selection, line => this.isPrintCheckLineSelectable(line));
+    this.syncLineSelectionFromFlatLines(line => this.isPrintCheckLineSelectable(line));
     const rejectedDifferentVendor = this.rejectPrintCheckRowsWithDifferentVendor(previousSelectedIds);
 
     if (rejectedDifferentVendor) {
@@ -3140,7 +3170,7 @@ triggerCheckPrint(): void {
   }
 
   get showDepositTableSelections(): boolean {
-    return this.undepositedFundsOnly && this.showDepositSelections;
+    return this.undepositedFundsOnly;
   }
 
   get resolvedDepositOfficeId(): number | null {
@@ -3161,7 +3191,7 @@ triggerCheckPrint(): void {
   }
 
   get showTransferTableSelections(): boolean {
-    return this.untransferredFundsOnly && this.showTransferSelections;
+    return this.untransferredFundsOnly;
   }
 
   get resolvedTransferOfficeId(): number | null {
@@ -3246,9 +3276,12 @@ triggerCheckPrint(): void {
     return this.showDepositTableSelections || this.showTransferTableSelections || this.showPrintCheckTableSelections;
   }
 
+  get showGroupedTableLineSelections(): boolean {
+    return this.showTableLineSelections && this.usesGroupedJournalEntryDisplay;
+  }
+
   get hasActionsSelectInTable(): boolean {
-    return (this.showTableLineSelections && !this.usesGroupedJournalEntryDisplay)
-      || this.showJournalEntryPostSelections;
+    return this.showTableLineSelections || this.showJournalEntryPostSelections;
   }
 
   get hasButtonSelectAllInTable(): boolean {

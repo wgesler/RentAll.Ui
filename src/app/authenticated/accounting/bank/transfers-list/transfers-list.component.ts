@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
@@ -41,6 +43,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('transferSplitsTemplate') transferSplitsTemplate?: TemplateRef<unknown>;
@@ -73,7 +76,6 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
-    hasBeenTransfered: { displayAs: 'Transfered', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
@@ -222,6 +224,44 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: selectedPropertyId,
       transfer
     });
+  }
+
+  goToProperty(event: TransferDisplayList): void {
+    const propertyId = (event?.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}`);
+  }
+
+  goToReservation(event: TransferDisplayList): void {
+    const reservationId = (event?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`);
+  }
+
+  goToPropertyFromSplit(event: Event, split: TransferSplit): void {
+    event.stopPropagation();
+    const propertyId = (split.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}`);
+  }
+
+  goToReservationFromSplit(event: Event, split: TransferSplit): void {
+    event.stopPropagation();
+    const reservationId = (split.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`);
   }
   //#endregion
 

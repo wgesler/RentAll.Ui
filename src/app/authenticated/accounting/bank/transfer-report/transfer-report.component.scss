@@ -17,10 +17,112 @@
 }
 
 .transfer-report-flat {
-  :host ::ng-deep &,
   ::ng-deep {
     .mat-mdc-header-cell {
       font-weight: 700;
+    }
+
+    $transfer-report-group-border: rgba(112, 112, 112, 0.28);
+    $transfer-report-group-bg: rgba(244, 247, 252, 0.92);
+    $transfer-report-amount-column-width: 5.5rem;
+
+    @mixin transfer-report-escrow-arrow($visible: true) {
+      &::after {
+        content: '→';
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 28px;
+        font-weight: 900;
+        color: rgba(0, 0, 0, 0.78);
+        background-color: #fff;
+        padding: 0 2px;
+        line-height: 1;
+        pointer-events: none;
+        z-index: 2;
+
+        @if not $visible {
+          visibility: hidden;
+        }
+      }
+    }
+
+    table.data-table,
+    table.mat-mdc-table {
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    @each $column in business, ownerEscrow, secDep, sdw, rowTotal {
+      th.mat-column-#{$column},
+      td.mat-column-#{$column},
+      td.mat-column-#{$column}.mat-mdc-footer-cell,
+      th.mat-mdc-header-cell.mat-column-#{$column},
+      td.mat-mdc-cell.mat-column-#{$column},
+      td.mat-mdc-footer-cell.mat-column-#{$column} {
+        width: $transfer-report-amount-column-width !important;
+        min-width: $transfer-report-amount-column-width !important;
+        max-width: $transfer-report-amount-column-width !important;
+        box-sizing: border-box;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+        background-color: $transfer-report-group-bg;
+      }
+    }
+
+    th.mat-column-business,
+    td.mat-column-business,
+    td.mat-column-business.mat-mdc-footer-cell,
+    th.mat-mdc-header-cell.mat-column-business,
+    td.mat-mdc-cell.mat-column-business,
+    td.mat-mdc-footer-cell.mat-column-business {
+      padding-left: 0 !important;
+      border-left: 1px solid $transfer-report-group-border;
+    }
+
+    th.mat-column-rowTotal,
+    td.mat-column-rowTotal,
+    td.mat-column-rowTotal.mat-mdc-footer-cell,
+    th.mat-mdc-header-cell.mat-column-rowTotal,
+    td.mat-mdc-cell.mat-column-rowTotal,
+    td.mat-mdc-footer-cell.mat-column-rowTotal {
+      border-right: 1px solid $transfer-report-group-border;
+    }
+
+    th.mat-column-escrowDeposit,
+    td.mat-column-escrowDeposit,
+    td.mat-column-escrowDeposit.mat-mdc-footer-cell,
+    th.mat-mdc-header-cell.mat-column-escrowDeposit,
+    td.mat-mdc-cell.mat-column-escrowDeposit,
+    td.mat-mdc-footer-cell.mat-column-escrowDeposit {
+      position: relative;
+      overflow: visible;
+      padding-right: 34px !important;
+      background-color: #fff !important;
+    }
+
+    th.mat-column-escrowDeposit,
+    th.mat-mdc-header-cell.mat-column-escrowDeposit {
+      @include transfer-report-escrow-arrow($visible: true);
+    }
+
+    td.mat-column-escrowDeposit,
+    td.mat-column-escrowDeposit.mat-mdc-footer-cell,
+    td.mat-mdc-cell.mat-column-escrowDeposit,
+    td.mat-mdc-footer-cell.mat-column-escrowDeposit {
+      @include transfer-report-escrow-arrow($visible: false);
+    }
+
+    th.mat-column-outOfBalance,
+    td.mat-column-outOfBalance,
+    td.mat-column-outOfBalance.mat-mdc-footer-cell,
+    th.mat-mdc-header-cell.mat-column-outOfBalance,
+    td.mat-mdc-cell.mat-column-outOfBalance,
+    td.mat-mdc-footer-cell.mat-column-outOfBalance {
+      padding-left: 6px !important;
     }
   }
 }
