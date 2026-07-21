@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, catchError, concatMap, defaultIfEmpty, finalize, from, map, of, Subject, switchMap, take, takeUntil, toArray } from 'rxjs';
+import { BehaviorSubject, concatMap, defaultIfEmpty, finalize, from, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -97,7 +97,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
       this.emitUnsavedChangesState();
     }
 
-    if (changes['property']) {
+    // ngOnInit already loads for the initial property; only reload when property actually changes.
+    if (changes['property'] && !changes['property'].firstChange) {
       this.loadMaintenance();
       this.loadAppliances();
       this.loadUtilities();
@@ -258,31 +259,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    // List endpoint already includes decalFileDetails — do not N+1 getApplianceById.
     this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
-    this.applianceService.getAppliancesByPropertyId(propertyId).pipe(
-      switchMap((appliances: ApplianceResponse[]) => {
-        const source = appliances || [];
-        return from(source).pipe(
-          concatMap(appliance => {
-            if (!appliance?.applianceId) {
-              return of(appliance);
-            }
-            return this.applianceService.getApplianceById(appliance.applianceId).pipe(
-              map((details: ApplianceResponse) => ({
-                ...appliance,
-                ...details,
-                decalFileDetails: details?.decalFileDetails ?? appliance.decalFileDetails
-              })),
-              catchError(() => of(appliance))
-            );
-          }),
-          toArray()
-        );
-      }),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances'))
-    ).subscribe({
+    this.applianceService.getAppliancesByPropertyId(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances'))).subscribe({
       next: (appliances: ApplianceResponse[]) => {
-        this.appliances = appliances;
+        this.appliances = appliances || [];
       },
       error: () => {
         this.appliances = [];
