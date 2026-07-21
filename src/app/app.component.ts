@@ -87,7 +87,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadReservationCodes();
         this.loadPropertySelectionFilterState();
         if (this.authService.hasAccountingNavAccess()) {
-          this.securityDepositService.refreshSecurityDepositsOutstanding();
+          this.securityDepositService.scheduleSecurityDepositsOutstandingRefreshAfterLogin();
         }
       } else {
         this.organizationId = '';

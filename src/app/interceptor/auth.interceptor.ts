@@ -8,6 +8,7 @@ import { AuthService } from '../services/auth.service';
 import { LoadingBarService } from '../services/loading-bar.service';
 import { PurposefulAny } from '../shared/models/amorphous';
 import { ErrorResponseDto } from '../shared/models/error-response';
+import { SUPPRESS_GLOBAL_ERROR_TOAST } from './http-context';
 
 
 const tokenSubject$: BehaviorSubject<PurposefulAny> = new BehaviorSubject<PurposefulAny>(null);
@@ -75,6 +76,10 @@ function extractApiErrorMessage(error: HttpErrorResponse): string | null {
   return null;
 }
 
+function shouldSuppressGlobalErrorToast(req: HttpRequest<PurposefulAny>): boolean {
+  return req.context.get(SUPPRESS_GLOBAL_ERROR_TOAST);
+}
+
 function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, title: string = CommonMessage.Error, appendTryAgain: boolean = false): void {
   const apiMessage = extractApiErrorMessage(error);
   if (apiMessage) {
@@ -114,7 +119,9 @@ function logoutAndSuppress(authService: AuthService): Observable<HttpEvent<Purpo
 
 // 400 BadRequest: show API message globally when available
 function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  showErrorToast(error, toastrService, CommonMessage.Error, false);
+  if (!shouldSuppressGlobalErrorToast(req)) {
+    showErrorToast(error, toastrService, CommonMessage.Error, false);
+  }
   return throwError(() => error);
 }
 
@@ -195,7 +202,7 @@ function isAccountingPeriodClosedConflict(error: HttpErrorResponse): boolean {
 
 // 409 Conflict: show API message globally when available
 function handle409Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (!isAccountingPeriodClosedConflict(error)) {
+  if (!isAccountingPeriodClosedConflict(error) && !shouldSuppressGlobalErrorToast(req)) {
     showErrorToast(error, toastrService, CommonMessage.Error, false);
   }
   return throwError(() => error);
@@ -207,8 +214,10 @@ function handle404Error(error: HttpErrorResponse): Observable<HttpEvent<Purposef
 }
 
 // 500+ and other errors: show API message globally when available
-function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  showErrorToast(error, toastrService, CommonMessage.ServiceError, true);
+function handleDefaultError(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  if (!shouldSuppressGlobalErrorToast(req)) {
+    showErrorToast(error, toastrService, CommonMessage.ServiceError, true);
+  }
   return throwError(() => error);
 }
 
@@ -264,7 +273,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           case 409:
             return handle409Error(req, error, toastrService);
           default:
-            return handleDefaultError(error, toastrService);
+            return handleDefaultError(req, error, toastrService);
         }
       } else {
         loadingBarService.hide();

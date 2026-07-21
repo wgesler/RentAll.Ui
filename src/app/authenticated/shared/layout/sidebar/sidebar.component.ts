@@ -63,7 +63,6 @@ markViewForCheck(): void {
     this.filterNavItemsByRole();
     this.refreshAssignedTicketBadge();
     this.refreshLeadBadge();
-    this.refreshSecurityDepositsOutstandingBadge();
 
     this.securityDepositService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
       this.hasSecurityDepositsOutstanding = outstanding;
@@ -89,11 +88,13 @@ markViewForCheck(): void {
     });
     
     // Re-filter when login status changes
-    this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
       this.filterNavItemsByRole();
       this.refreshAssignedTicketBadge();
       this.refreshLeadBadge();
-      this.refreshSecurityDepositsOutstandingBadge();
+      if (isLoggedIn && this.authService.hasAccountingNavAccess()) {
+        this.securityDepositService.scheduleSecurityDepositsOutstandingRefreshAfterLogin();
+      }
       this.markViewForCheck();
     });
 
@@ -101,7 +102,6 @@ markViewForCheck(): void {
       this.filterNavItemsByRole();
       this.refreshAssignedTicketBadge();
       this.refreshLeadBadge();
-      this.refreshSecurityDepositsOutstandingBadge();
       this.markViewForCheck();
     });
 

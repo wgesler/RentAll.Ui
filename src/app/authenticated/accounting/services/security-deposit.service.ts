@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, take } from 'rxjs';
+import { BehaviorSubject, Observable, take } from 'rxjs';
+import { SUPPRESS_GLOBAL_ERROR_TOAST } from '../../../interceptor/http-context';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
 import {
@@ -9,6 +10,11 @@ import {
   SecurityDepositReturnRequest,
   UnreturnedSecurityDepositsResponse
 } from '../../reservations/models/reservation-model';
+
+export interface SecurityDepositsOutstandingRefreshOptions {
+  /** Wait before calling the API (used after login to avoid startup connection storms). */
+  delayMs?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -19,9 +25,11 @@ export class SecurityDepositService {
   private utility = inject(UtilityService);
 
   private readonly controller = this.configService.config().apiUrl + 'accounting/security-deposit/';
+  private readonly loginBadgeRefreshDelayMs = 3000;
   private readonly securityDepositsOutstandingSubject = new BehaviorSubject<boolean>(false);
   securityDepositsOutstanding$ = this.securityDepositsOutstandingSubject.asObservable();
   private securityDepositsOutstandingLoadId = 0;
+  private scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   getUnreturnedSecurityDeposits(officeId?: number | null): Observable<UnreturnedSecurityDepositsResponse> {
     const params: Record<string, string | number> = {};
@@ -44,10 +52,46 @@ export class SecurityDepositService {
     return this.http.get<Record<string, unknown>>(this.controller + reservationId + '/detail');
   }
 
-  refreshSecurityDepositsOutstanding(): void {
+  refreshSecurityDepositsOutstanding(options?: SecurityDepositsOutstandingRefreshOptions): void {
+    const delayMs = Math.max(0, options?.delayMs ?? 0);
+
+    if (this.scheduledRefreshTimer != null) {
+      return;
+    }
+
+    if (delayMs > 0) {
+      this.scheduledRefreshTimer = setTimeout(() => {
+        this.scheduledRefreshTimer = null;
+        this.executeSecurityDepositsOutstandingRefresh();
+      }, delayMs);
+      return;
+    }
+
+    this.executeSecurityDepositsOutstandingRefresh();
+  }
+
+  scheduleSecurityDepositsOutstandingRefreshAfterLogin(): void {
+    this.refreshSecurityDepositsOutstanding({ delayMs: this.loginBadgeRefreshDelayMs });
+  }
+
+  updateSecurityDepositsOutstandingBadge(rows: ReservationDepartureResponse[] | null | undefined): void {
+    this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(rows));
+  }
+
+  setSecurityDepositsOutstanding(outstanding: boolean): void {
+    this.securityDepositsOutstandingSubject.next(outstanding);
+  }
+
+  clearSecurityDepositsOutstanding(): void {
+    this.cancelScheduledSecurityDepositsOutstandingRefresh();
+    this.securityDepositsOutstandingLoadId++;
+    this.securityDepositsOutstandingSubject.next(false);
+  }
+
+  private executeSecurityDepositsOutstandingRefresh(): void {
     const loadId = ++this.securityDepositsOutstandingLoadId;
 
-    this.getUnreturnedSecurityDeposits().pipe(take(1)).subscribe({
+    this.getUnreturnedSecurityDepositsForBadge().pipe(take(1)).subscribe({
       next: response => {
         if (loadId !== this.securityDepositsOutstandingLoadId) {
           return;
@@ -65,17 +109,19 @@ export class SecurityDepositService {
     });
   }
 
-  updateSecurityDepositsOutstandingBadge(rows: ReservationDepartureResponse[] | null | undefined): void {
-    this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(rows));
+  private getUnreturnedSecurityDepositsForBadge(): Observable<UnreturnedSecurityDepositsResponse> {
+    return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned', {
+      context: new HttpContext().set(SUPPRESS_GLOBAL_ERROR_TOAST, true)
+    });
   }
 
-  setSecurityDepositsOutstanding(outstanding: boolean): void {
-    this.securityDepositsOutstandingSubject.next(outstanding);
-  }
+  private cancelScheduledSecurityDepositsOutstandingRefresh(): void {
+    if (this.scheduledRefreshTimer == null) {
+      return;
+    }
 
-  clearSecurityDepositsOutstanding(): void {
-    this.securityDepositsOutstandingLoadId++;
-    this.securityDepositsOutstandingSubject.next(false);
+    clearTimeout(this.scheduledRefreshTimer);
+    this.scheduledRefreshTimer = null;
   }
 
   private hasDepartedUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[] | null | undefined): boolean {
