@@ -1,6 +1,15 @@
 .maintenance-list-wrap {
   margin-top: 0;
 }
+.maintenance-shell-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #666;
+  text-align: center;
+}
+
 .loading-container,
 .error-container {
   display: flex;

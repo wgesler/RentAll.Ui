@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, filter, map, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -63,10 +63,13 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private cdr = inject(ChangeDetectorRef);
 
   readonly DocumentType = DocumentType;
 
   property: PropertyResponse | null = null;
+  routePropertyId: string | null = null;
+  isPropertyLoading = false;
   isServiceError = false;
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
@@ -188,15 +191,36 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       }
     });
 
-    this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
-      if (this.openWithAllSelections || this.clearPropertyOnOpen) {
+    this.route.paramMap.pipe(filter(params => params.has('id')), takeUntil(this.destroy$)).subscribe(params => {
+      const id = params.get('id')!;
+      if (id === 'all') {
+        if (this.openWithAllSelections || this.clearPropertyOnOpen) {
+          this.property = null;
+          this.shellReservations = [];
+          this.titleBarReservationId = null;
+          this.selectedPropertyId = null;
+          this.routePropertyId = null;
+          this.isPropertyLoading = false;
+        }
+        return;
+      }
+
+      if (this.clearPropertyOnOpen) {
         this.property = null;
         this.shellReservations = [];
         this.titleBarReservationId = null;
         this.selectedPropertyId = null;
         return;
       }
-      const id = params.get('id')!;
+
+      if (this.property?.propertyId === id) {
+        this.routePropertyId = id;
+        return;
+      }
+
+      this.openWithAllSelections = false;
+      this.routePropertyId = id;
+      this.isPropertyLoading = true;
       this.loadProperty(id);
     });
   }
@@ -204,8 +228,15 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   //#region Data Load Methods
   loadProperty(propertyId: string, onLoaded?: () => void, preferredReservationId?: string | null): void {
+    const normalizedPropertyId = (propertyId || '').trim();
+    if (!normalizedPropertyId) {
+      return;
+    }
+
     const loadVersion = ++this.propertyLoadVersion;
-    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),
+    this.routePropertyId = normalizedPropertyId;
+    this.isPropertyLoading = true;
+    this.propertyService.getPropertyByGuid(normalizedPropertyId).pipe(take(1),
       switchMap(property =>
         this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(take(1),
           map(reservations => ({ property, reservations: reservations || [] }))
@@ -216,11 +247,17 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         if (loadVersion !== this.propertyLoadVersion) {
           return;
         }
+        this.skipNextOfficeChange = true;
+        this.skipNextPropertyCodeChange = true;
         this.property = property;
+        this.selectedOfficeId = property.officeId ?? this.selectedOfficeId;
+        this.selectedPropertyId = property.propertyId ?? null;
         this.shellReservations = reservations;
-        this.syncTitleBarSelections();
         this.setTitleBarReservationForCurrentProperty(preferredReservationId ?? null);
+        this.syncTitleBarSelections();
         this.syncMaintenanceSearchRequests();
+        this.isPropertyLoading = false;
+        this.cdr.markForCheck();
         onLoaded?.();
       },
       error: () => {
@@ -231,6 +268,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.shellReservations = [];
         this.titleBarReservationId = null;
         this.isServiceError = true;
+        this.isPropertyLoading = false;
+        this.cdr.markForCheck();
         onLoaded?.();
       }
     });
@@ -251,7 +290,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            if (this.openWithAllSelections) {
+            if (this.property?.propertyId) {
+              this.skipNextOfficeChange = true;
+              this.applyPageOfficeScope(this.property.officeId ?? null);
+            } else if (this.openWithAllSelections) {
               this.applyPageOfficeScope(null);
             } else if (this.offices.length === 1) {
               this.applyPageOfficeScope(this.offices[0].officeId);
@@ -501,6 +543,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
+    this.openWithAllSelections = false;
+    this.routePropertyId = this.selectedPropertyId;
     this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
     this.syncMaintenanceSearchRequests();
@@ -604,7 +648,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
 
     if (this.selectedPropertyId && !this.availableProperties.some(property => property.propertyId === this.selectedPropertyId)) {
-      this.selectedPropertyId = null;
+      const keepRouteProperty = this.property?.propertyId === this.selectedPropertyId
+        || this.routePropertyId === this.selectedPropertyId
+        || (this.isPropertyLoading && this.routePropertyId === this.selectedPropertyId);
+      if (!keepRouteProperty && this.availableProperties.length > 0) {
+        this.selectedPropertyId = null;
+      }
     }
   }
 
@@ -644,6 +693,14 @@ applyPageOfficeChangeEffects(): void {
     const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     this.updateAvailableProperties();
     if (this.property && this.selectedOfficeId !== this.property.officeId) {
+      const keepLoadedProperty = this.selectedPropertyId === this.property.propertyId
+        || this.routePropertyId === this.property.propertyId;
+      if (keepLoadedProperty) {
+        this.skipNextOfficeChange = true;
+        this.applyPageOfficeScope(this.property.officeId ?? null);
+        this.syncMaintenanceSearchRequests();
+        return;
+      }
       this.selectedPropertyId = null;
       this.property = null;
       this.titleBarReservationId = null;
@@ -683,6 +740,45 @@ applyPageOfficeChangeEffects(): void {
   //#endregion
 
   //#region Tab Methods
+  resolveInspectionPropertyId(): string | null {
+    const candidates = [
+      this.selectedPropertyId,
+      this.routePropertyId,
+      this.property?.propertyId ?? null,
+      this.selectedWorkOrder?.propertyId ?? null,
+      this.workOrderCreateContext?.propertyId ?? null
+    ];
+
+    for (const candidate of candidates) {
+      const propertyId = (candidate || '').trim();
+      if (propertyId) {
+        return propertyId;
+      }
+    }
+
+    return null;
+  }
+
+  ensureInspectionTabReady(): void {
+    const propertyId = this.resolveInspectionPropertyId();
+    if (!propertyId) {
+      return;
+    }
+
+    if (this.property?.propertyId === propertyId) {
+      return;
+    }
+
+    if (this.isPropertyLoading && this.routePropertyId === propertyId) {
+      return;
+    }
+
+    this.openWithAllSelections = false;
+    this.routePropertyId = propertyId;
+    this.selectedPropertyId = propertyId;
+    this.loadProperty(propertyId);
+  }
+
   async onTabIndexChange(nextTabIndex: number): Promise<void> {
     if (this.isHandlingTabGuard || nextTabIndex === this.selectedTabIndex) {
       return;
@@ -700,6 +796,9 @@ applyPageOfficeChangeEffects(): void {
       }
 
       this.selectedTabIndex = nextTabIndex;
+      if (nextTabIndex === 0) {
+        this.ensureInspectionTabReady();
+      }
       if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
         this.titleBarReservationId = null;
       }
@@ -747,6 +846,8 @@ applyPageOfficeChangeEffects(): void {
 
     if (selectedPropertyId && selectedPropertyId !== this.selectedPropertyId) {
       this.skipNextPropertyCodeChange = true;
+      this.openWithAllSelections = false;
+      this.routePropertyId = selectedPropertyId;
       this.selectedPropertyId = selectedPropertyId;
       this.loadProperty(selectedPropertyId, () => openReceiptDetail(), null);
       return;
@@ -823,6 +924,8 @@ applyPageOfficeChangeEffects(): void {
 
     if (targetPropertyId && targetPropertyId !== this.selectedPropertyId) {
       this.skipNextPropertyCodeChange = true;
+      this.openWithAllSelections = false;
+      this.routePropertyId = targetPropertyId;
       this.selectedPropertyId = targetPropertyId;
       openWorkOrderDetail();
       this.loadProperty(targetPropertyId, null, null);
@@ -854,6 +957,8 @@ applyPageOfficeChangeEffects(): void {
     }
 
     this.skipNextPropertyCodeChange = true;
+    this.openWithAllSelections = false;
+    this.routePropertyId = targetPropertyId;
     this.selectedPropertyId = targetPropertyId;
     this.loadProperty(targetPropertyId, null, null);
   }

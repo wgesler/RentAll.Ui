@@ -149,6 +149,15 @@
                 (unsavedChangesChange)="onInspectionUnsavedChangesChange($event)"
                 (saveRequestCompleted)="onInspectionSaveRequestCompleted($event)"
                 (inspectionSubmitted)="onInspectionSubmitted()" />
+            } @else if (selectedTabIndex === 0 && isPropertyLoading) {
+              <div class="loading-container">
+                <mat-spinner [diameter]="40"></mat-spinner>
+                <p>Loading inspection...</p>
+              </div>
+            } @else if (selectedTabIndex === 0) {
+              <div class="maintenance-shell-empty-state">
+                Select a property code in the title bar to load inspection.
+              </div>
             }
           </mat-tab>
           <mat-tab label="Maintenance">

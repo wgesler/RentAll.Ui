@@ -633,6 +633,12 @@ refreshScheduleCalendarsAfterProviderFieldChange(): void {
 
   openMaintenanceShellAllSelections(): void {
     this.ngZone.run(() => {
+      const propertyId = (this.selectedPropertyFilterId || '').trim();
+      if (propertyId) {
+        this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId])}?tab=3`);
+        return;
+      }
+
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, ['all'])}?scope=all&tab=3`);
     });
   }
