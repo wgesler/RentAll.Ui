@@ -110,6 +110,11 @@
               frameborder="0">
             </iframe>
           </div>
+        } @else if (shellMode && openInViewOnTabSelect && isPreviewRefreshPending()) {
+          <div class="loading-container preview-loading-container">
+            <mat-spinner [diameter]="40"></mat-spinner>
+            <p>Loading preview...</p>
+          </div>
         } @else {
           <!-- Editor textarea when preview is not available -->
           <mat-form-field appearance="outline" class="full-width">

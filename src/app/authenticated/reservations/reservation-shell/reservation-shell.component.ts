@@ -132,6 +132,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       this.reservationsLoadedPropertyId = null;
       this.applyPropertyIdFromRouteQuery();
       this.loadOffices();
+      if (this.getTabIndexFromQueryParam(this.route.snapshot.queryParamMap.get('tab') ?? undefined) === this.getLeaseTabIndex()) {
+        this.ensureLeaseTabScopeFromRoute();
+      }
     });
 
   }
@@ -159,6 +162,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       }
 
       this.selectedTabIndex = requestedTabIndex;
+      if (requestedTabIndex === this.getLeaseTabIndex()) {
+        this.ensureLeaseTabScopeFromRoute();
+      }
       this.refreshHeaderReservationOptions();
       this.onHeaderReservationChange();
 
@@ -610,6 +616,18 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     }
 
     this.refreshHeaderReservationOptions();
+  }
+
+  /** Reservation-list → Lease tab: apply route/query scope before the lease child mounts. */
+  ensureLeaseTabScopeFromRoute(): void {
+    const reservationId = this.activeReservationId ?? this.routeReservationId;
+    const propertyId = this.selectedPropertyId;
+    const officeId = this.displayOfficeId;
+    if (!reservationId || !propertyId || officeId == null) {
+      return;
+    }
+
+    this.applyReservationScope(officeId, propertyId, reservationId);
   }
 
   clearReservationScope(): void {

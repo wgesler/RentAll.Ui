@@ -162,10 +162,21 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Lease
   ngOnInit(): void {
+    if (this.shellMode && this.openInViewOnTabSelect) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
+    }
+
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
+      if (this.shellMode) {
+        this.generatePreviewIframe();
+        if (this.openInViewOnTabSelect) {
+          this.switchToViewModeFromTabSelection();
+        }
+      } else {
+        this.getLease();
+      }
       this.cdr.markForCheck();
-      this.getLease();
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -183,6 +194,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.loadLeaseInformation();
     } else if (this.officeId != null && this.propertyId) {
       this.applyShellScopeFromInputs();
+      if (this.openInViewOnTabSelect) {
+        this.switchToViewModeFromTabSelection();
+      }
     } else {
       this.clearShellScopeLoadItems();
     }
@@ -200,6 +214,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     if (this.shellMode && (changes['officeId'] || changes['propertyId'] || changes['reservationId'])) {
       this.applyShellScopeFromInputs();
+      if (this.openInViewOnTabSelect) {
+        this.switchToViewModeFromTabSelection();
+      }
       return;
     }
 
@@ -264,6 +281,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.isEditMode = false;
       this.processAndSetHtml(htmlForView);
       this.pendingOpenInViewMode = false;
+      this.cdr.markForCheck();
       return;
     }
 
@@ -306,10 +324,15 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
          this.propertyHtml = response ?? null;
          this.invalidateCachedPropertyHtmlFiles();
          this.generatePreviewIframe();
+         if (this.shellMode && this.openInViewOnTabSelect) {
+           this.switchToViewModeFromTabSelection();
+         }
+         this.cdr.markForCheck();
        },
        error: () => {
          this.propertyHtml = null;
          this.generatePreviewIframe();
+         this.cdr.markForCheck();
        }
      });
   }
@@ -512,9 +535,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.syncSelectedOfficeFromContext();
         this.loadContact();
         this.generatePreviewIframe();
+        if (this.shellMode && this.openInViewOnTabSelect) {
+          this.switchToViewModeFromTabSelection();
+        }
+        this.cdr.markForCheck();
       },
       error: () => {
         this.generatePreviewIframe();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -593,7 +621,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     if (this.reservationId && this.reservationId !== 'new') {
       this.applyReservationSelectionFromInput(this.reservationId);
-      return;
+    } else {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
     }
 
     this.getLease();
@@ -702,12 +731,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.pendingOpenInViewMode = false;
       this.editableHtml = null;
       this.processAndSetHtml(normalizedHtml);
+      this.cdr.markForCheck();
       return;
     }
 
     this.setEditorHtml(normalizedHtml);
     this.resolvePreviewLoad();
     this.iframeKey++;
+    this.cdr.markForCheck();
   }
 
   getLeaseInformationScope(): { officeId: number | null; propertyId: string | null } {
@@ -1812,6 +1843,41 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Html Processing
+  /** Shell lease tab waits for property HTML before generating or clearing preview. */
+  isShellPropertyHtmlPending(): boolean {
+    return this.shellMode && !!this.propertyId && !this.debuggingHtml && !this.propertyHtml;
+  }
+
+  isPreviewRefreshPending(): boolean {
+    return this.itemsToLoad$.value.has('previewHtml');
+  }
+
+  holdPreviewRefreshUntilReady(): void {
+    if (this.shellMode && this.openInViewOnTabSelect) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
+    }
+  }
+
+  releasePreviewRefresh(): void {
+    this.resolvePreviewLoad();
+    this.cdr.markForCheck();
+  }
+
+  isMergedPreviewRefreshDeferred(): boolean {
+    if (this.isShellPropertyHtmlPending()) {
+      return true;
+    }
+
+    const formReservationId = this.form.get('selectedReservationId')?.value || this.reservationId;
+    const shouldMerge = !!formReservationId;
+    if (shouldMerge && !this.selectedReservation) {
+      const pendingReservationId = String(formReservationId || '').trim();
+      return !!pendingReservationId && pendingReservationId !== 'new';
+    }
+
+    return false;
+  }
+
   generatePreviewIframe(): void {
     const formReservationId = this.form.get('selectedReservationId')?.value;
     const shouldMerge = !!formReservationId;
@@ -1822,25 +1888,27 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.clearStoredLeaseDraft();
     }
 
+    if (this.isMergedPreviewRefreshDeferred()) {
+      this.holdPreviewRefreshUntilReady();
+      return;
+    }
+
     if (shouldMerge) {
       this.syncSelectedOfficeFromContext();
     }
 
-    if (shouldMerge && !this.selectedReservation) {
-      const pendingReservationId = this.form.get('selectedReservationId')?.value || this.reservationId;
-      if (pendingReservationId && pendingReservationId !== 'new') {
+    if (shouldMerge && !this.selectedOffice) {
+      if (this.officeId != null && this.offices.length === 0) {
+        this.holdPreviewRefreshUntilReady();
+        return;
+      }
+      if (!this.syncSelectedOfficeFromContext()) {
+        this.holdPreviewRefreshUntilReady();
         return;
       }
     }
 
-    if (shouldMerge && !this.selectedOffice) {
-      if (this.officeId != null && this.offices.length === 0) {
-        return;
-      }
-      if (!this.syncSelectedOfficeFromContext()) {
-        return;
-      }
-    }
+    this.holdPreviewRefreshUntilReady();
 
     const renderFromHtmlFiles = (htmlFiles: {
       lease: string;
@@ -1855,7 +1923,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       const selectionKey = this.getDocumentSelectionKey();
 
       if (selectedDocuments.length === 0) {
-        this.clearLeasePreviewDisplay();
+        if (!this.isShellPropertyHtmlPending()) {
+          this.clearLeasePreviewDisplay();
+        }
         return;
       }
 
@@ -2024,7 +2094,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.previewIframeStyles = `${result.extractedStyles}\n${leaseLogoStyles}`;
     const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
-    this.resolvePreviewLoad();
+    this.releasePreviewRefresh();
     this.iframeKey++; // Force iframe refresh
   }
 
