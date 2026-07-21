@@ -4524,20 +4524,21 @@ roundCurrency(value: number): number {
       plFilteredAccounts,
       'activity'
     );
-    const netIncome = this.roundFinancialReportAmount(
-      this.sumFinancialReportAmountsForAccountTypesAndColumn(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome)
-      - this.sumFinancialReportAmountsForAccountTypesAndColumn(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold)
-      - this.sumFinancialReportAmountsForAccountTypesAndColumn(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense)
-    );
-    const netIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(
+    // Balance-sheet Net Income is year-to-date through each column (as-of), not that period alone.
+    const netIncomeColumnAmounts = this.finalizeFinancialReportColumnAmounts(
       this.subtractFinancialReportColumnAmounts(
-        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome),
-        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold),
+        this.subtractFinancialReportColumnAmounts(
+          this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome),
+          this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold),
+          columnContext
+        ),
+        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense),
         columnContext
       ),
-      this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense),
-      columnContext
+      columnContext,
+      'balance'
     );
+    const netIncome = this.getFinancialReportTotalFromColumnAmounts(netIncomeColumnAmounts, columnContext);
 
     const assetAccounts = balanceAccounts.filter(account =>
       account.accountTypeId === AccountType.Bank
@@ -5063,6 +5064,7 @@ roundCurrency(value: number): number {
   ): Map<number, Map<string, { debit: number; credit: number }>> {
     const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
     const totals = new Map<number, Map<string, { debit: number; credit: number }>>();
+    const cumulativeBalanceSheetColumns = columnContext.balanceSheet && columnContext.isTimeBased;
 
     for (const line of lines || []) {
       if (accountTypeById.get(line.chartOfAccountId) === undefined) {
@@ -5076,17 +5078,25 @@ roundCurrency(value: number): number {
       }
 
       const accountId = accountIdRemap?.get(line.chartOfAccountId) ?? line.chartOfAccountId;
-      const columnId = this.resolveFinancialReportLineColumnId(line, columnContext, accounts);
-      if (!columnId) {
+      // P&L report: one period column. Balance sheet: roll into every column whose as-of end is on/after the line (YTD).
+      const targetColumnIds = cumulativeBalanceSheetColumns
+        ? columnContext.columns
+          .filter(column => this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate))
+          .map(column => column.columnId)
+        : [this.resolveFinancialReportLineColumnId(line, columnContext, accounts)].filter((columnId): columnId is string => !!columnId);
+
+      if (targetColumnIds.length === 0) {
         continue;
       }
 
-      const accountTotals = totals.get(accountId) || new Map<string, { debit: number; credit: number }>();
-      const columnTotals = accountTotals.get(columnId) || { debit: 0, credit: 0 };
-      columnTotals.debit += Number(line.debit) || 0;
-      columnTotals.credit += Number(line.credit) || 0;
-      accountTotals.set(columnId, columnTotals);
-      totals.set(accountId, accountTotals);
+      targetColumnIds.forEach(columnId => {
+        const accountTotals = totals.get(accountId) || new Map<string, { debit: number; credit: number }>();
+        const columnTotals = accountTotals.get(columnId) || { debit: 0, credit: 0 };
+        columnTotals.debit += Number(line.debit) || 0;
+        columnTotals.credit += Number(line.credit) || 0;
+        accountTotals.set(columnId, columnTotals);
+        totals.set(accountId, accountTotals);
+      });
     }
 
     return totals;
@@ -6168,14 +6178,17 @@ buildEscrowLastRecapAmountsByProperty(
     const isProfitLossAccount = this.isFinancialReportProfitLossAccountType(accountTypeId);
     const column = columnContext.columns.find(item => item.columnId === columnId);
 
-    if (columnContext.isTimeBased && columnContext.balanceSheet && spec.mode === 'balance') {
-      if (spec.includeProfitLossActivity && isProfitLossAccount) {
+    if (columnContext.isTimeBased && columnContext.balanceSheet) {
+      if (isProfitLossAccount && (spec.includeProfitLossActivity || spec.mode === 'activity')) {
         if (!column) {
           return false;
         }
-        return this.isJournalEntryLineInDateRange(line.transactionDate, column.periodStart, column.periodEnd);
+        // Match Net Income columns: YTD from report year start through this column's as-of end.
+        return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, column.periodEnd || endDate);
       }
-      return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column?.periodEnd || endDate);
+      if (spec.mode === 'balance') {
+        return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column?.periodEnd || endDate);
+      }
     }
 
     if (columnContext.isTimeBased) {
