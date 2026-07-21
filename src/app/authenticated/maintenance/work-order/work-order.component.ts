@@ -187,16 +187,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (this.isAddMode) {
       this.isWorkOrderContentReady = true;
       this.clearWorkOrderLoading();
-    } else if (this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
-      this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
     } else {
-      const prefetchedWorkOrder = this.resolvePrefetchedWorkOrder();
-      if (prefetchedWorkOrder) {
-        this.applyLoadedWorkOrder(prefetchedWorkOrder);
-      } else {
-        this.isWorkOrderContentReady = false;
-        this.loadWorkOrder();
-      }
+      this.isWorkOrderContentReady = false;
+      this.loadWorkOrder();
     }
     this.loadAccountingOfficeForWorkOrderCode();
     this.loadPropertyReservations();
@@ -228,8 +221,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (changes['prefetchedWorkOrder'] && !changes['prefetchedWorkOrder'].firstChange
-      && this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
-      this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
+      && this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId
+      && !this.isAddMode) {
+      this.isWorkOrderContentReady = false;
+      this.loadWorkOrder();
     }
 
     if (changes['officeId'] && this.embeddedInMaintenance && this.isAddMode && !this.property?.officeId) {
@@ -253,17 +248,8 @@ onWorkOrderIdChanged(): void {
     this.workOrder = null;
     this.workOrderItems = [];
     this.associatedWorkOrderReceiptIds.clear();
-    if (this.prefetchedWorkOrder && this.prefetchedWorkOrder.workOrderId === this.workOrderId) {
-      this.applyLoadedWorkOrder(this.prefetchedWorkOrder);
-    } else {
-      const prefetchedWorkOrder = this.resolvePrefetchedWorkOrder();
-      if (prefetchedWorkOrder) {
-        this.applyLoadedWorkOrder(prefetchedWorkOrder);
-      } else {
-        this.isWorkOrderContentReady = false;
-        this.loadWorkOrder();
-      }
-    }
+    this.isWorkOrderContentReady = false;
+    this.loadWorkOrder();
   }
 
   saveWorkOrder(): void {
@@ -1482,19 +1468,6 @@ onWorkOrderIdChanged(): void {
         this.tenantDamagesCcId = null;
       }
     });
-  }
-
-  resolvePrefetchedWorkOrder(): WorkOrderResponse | null {
-    if (this.prefetchedWorkOrder?.workOrderId === this.workOrderId) {
-      return this.prefetchedWorkOrder;
-    }
-
-    const stateWorkOrder = history.state?.prefetchedWorkOrder as WorkOrderResponse | undefined;
-    if (stateWorkOrder?.workOrderId === this.workOrderId) {
-      return stateWorkOrder;
-    }
-
-    return null;
   }
 
   loadWorkOrder(): void {

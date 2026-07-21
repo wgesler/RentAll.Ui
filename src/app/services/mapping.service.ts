@@ -2158,11 +2158,40 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   mapWorkOrderResponse(raw: WorkOrderResponse | Record<string, unknown>): WorkOrderResponse {
     const base = raw as WorkOrderResponse;
     const rawRecord = raw as Record<string, unknown>;
+    const workOrderItems = this.mapWorkOrderItemsFromApi(rawRecord, base.workOrderItems);
 
     return {
       ...base,
+      workOrderItems,
       journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),
       postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId)
+    };
+  }
+
+  mapWorkOrderItemsFromApi(
+    raw: Record<string, unknown>,
+    fallback: WorkOrderResponse['workOrderItems'] | undefined
+  ): WorkOrderResponse['workOrderItems'] {
+    const collection = raw['workOrderItems'] ?? raw['WorkOrderItems'];
+    if (!Array.isArray(collection)) {
+      return fallback ?? [];
+    }
+
+    return collection.map(item => this.mapWorkOrderItemFromApi(item as Record<string, unknown>));
+  }
+
+  mapWorkOrderItemFromApi(raw: Record<string, unknown>): WorkOrderResponse['workOrderItems'][number] {
+    return {
+      workOrderItemId: String(raw['workOrderItemId'] ?? raw['WorkOrderItemId'] ?? '').trim(),
+      workOrderId: String(raw['workOrderId'] ?? raw['WorkOrderId'] ?? '').trim(),
+      description: String(raw['description'] ?? raw['Description'] ?? '').trim(),
+      receiptId: (() => {
+        const value = String(raw['receiptId'] ?? raw['ReceiptId'] ?? '').trim();
+        return value.length > 0 ? value : undefined;
+      })(),
+      laborHours: Number(raw['laborHours'] ?? raw['LaborHours'] ?? 0) || 0,
+      laborCost: Number(raw['laborCost'] ?? raw['LaborCost'] ?? 0) || 0,
+      itemAmount: Number(raw['itemAmount'] ?? raw['ItemAmount'] ?? 0) || 0
     };
   }
 

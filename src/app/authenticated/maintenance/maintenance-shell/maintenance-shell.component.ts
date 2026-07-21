@@ -860,16 +860,17 @@ applyPageOfficeChangeEffects(): void {
 
   onWorkOrderBack(): void {
     this.propertyLoadVersion++;
-    this.showWorkOrderDetail = false;
-    this.selectedWorkOrderId = null;
-    this.selectedWorkOrder = null;
     this.workOrderSaveValidationAttempted = false;
     this.titleBarReservationId = null;
+    this.selectedWorkOrderId = null;
+    this.selectedWorkOrder = null;
     this.selectedPropertyId = null;
     this.property = null;
     this.shellReservations = [];
     this.updateAvailableProperties();
+    this.syncMaintenanceSearchRequests();
     this.isServiceError = false;
+    this.showWorkOrderDetail = false;
   }
 
   onWorkOrderPreviewOpen(selection: WorkOrderPreviewSelection): void {
@@ -926,7 +927,6 @@ applyPageOfficeChangeEffects(): void {
   }
 
   onWorkOrderSaved(): void {
-    this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.workOrderSaveValidationAttempted = false;
     this.selectedPropertyId = null;
@@ -934,7 +934,9 @@ applyPageOfficeChangeEffects(): void {
     this.titleBarReservationId = null;
     this.shellReservations = [];
     this.updateAvailableProperties();
+    this.syncMaintenanceSearchRequests();
     this.refreshReceiptsTrigger++;
+    this.showWorkOrderDetail = false;
   }
 
   onWorkOrderSaveValidationAttempted(): void {
