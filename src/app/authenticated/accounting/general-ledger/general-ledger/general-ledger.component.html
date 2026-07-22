@@ -9,18 +9,21 @@
         <mat-checkbox
           formControlName="isPosted"
           color="primary"
-          class="text-nowrap">
+          class="text-nowrap"
+          [disabled]="!canEditLines">
           Posted
         </mat-checkbox>
-        <button
-          mat-raised-button
-          type="submit"
-          color="primary"
-          class="text-nowrap flex-shrink-0"
-          [disabled]="isSaving">
-          <mat-icon>save</mat-icon>
-          Save
-        </button>
+        @if (isAddMode || canEditLines) {
+          <button
+            mat-raised-button
+            type="submit"
+            color="primary"
+            class="text-nowrap flex-shrink-0"
+            [disabled]="isSaving">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        }
       </div>
 
       <div class="grid grid-cols-4 form-standard-grid general-ledger-form-grid">
@@ -51,8 +54,14 @@
 
             <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">
               <mat-label>Posting Date</mat-label>
-              <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
-              <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+              @if (canEditLines) {
+                <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
+              } @else {
+                <input matInput [value]="formatter.formatDateString(journalEntry?.accountingPeriod)" readonly disabled class="readonly-field">
+              }
+              @if (canEditLines) {
+                <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+              }
               <mat-datepicker #accountingPeriodPicker></mat-datepicker>
             </mat-form-field>
           </div>
@@ -69,67 +78,6 @@
               [errorStateMatcher]="headerMemoErrorStateMatcher">
           </mat-form-field>
         </div>
-
-        @if (canEditLines && shouldShowEntryContextRow()) {
-          <div
-            class="col-span-4 general-ledger-context-row"
-            [class.general-ledger-context-row--vendor]="shouldShowEntryContact() && !shouldShowEntryProperty() && !shouldShowEntryReservation()"
-            [class.general-ledger-context-row--vendor-property]="shouldShowEntryContact() && shouldShowEntryProperty() && !shouldShowEntryReservation()">
-          @if (shouldShowEntryProperty()) {
-            <app-searchable-select
-              class="general-ledger-context-select"
-              [renderInFormField]="true"
-              formFieldLabel="Property Code"
-              [value]="entryPropertyId"
-              [options]="getEntryPropertyOptions()"
-              [required]="hasSelectedLineContextMode('accountsReceivable') || hasSelectedLineContextMode('ownerPayable')"
-              [showInstructionOption]="true"
-              [instructionOptionValue]="null"
-              [nullOptionLabel]="getEntryPropertyNullLabel()"
-              [showSearchInput]="true"
-              noResultsText="No properties match your search"
-              [selectClass]="getEntryContextSelectClass('property')"
-              [showError]="shouldShowEntryPropertyError()"
-              (valueChange)="onEntryPropertySelectionChange($event)" />
-          }
-
-          @if (shouldShowEntryContact()) {
-            <app-searchable-select
-              class="general-ledger-context-select"
-              [renderInFormField]="true"
-              [formFieldLabel]="getEntryContactLabel()"
-              [value]="entryContactId"
-              [options]="getEntryContactOptions()"
-              [required]="hasSelectedLineContextMode('accountsPayable')"
-              [showInstructionOption]="true"
-              [instructionOptionValue]="null"
-              [nullOptionLabel]="getEntryContactNullLabel()"
-              [showSearchInput]="true"
-              noResultsText="No vendors match your search"
-              [selectClass]="getEntryContextSelectClass('contact')"
-              [showError]="shouldShowEntryContactError()"
-              (valueChange)="onEntryContactSelectionChange($event)" />
-          }
-
-          @if (shouldShowEntryReservation()) {
-            <app-searchable-select
-              class="general-ledger-context-select"
-              [renderInFormField]="true"
-              formFieldLabel="Reservation"
-              [value]="entryReservationId"
-              [options]="getEntryReservationOptions()"
-              [required]="hasSelectedLineContextMode('accountsReceivable')"
-              [showInstructionOption]="true"
-              [instructionOptionValue]="null"
-              [nullOptionLabel]="getEntryReservationNullLabel()"
-              [showSearchInput]="true"
-              noResultsText="No reservations match your search"
-              [selectClass]="getEntryContextSelectClass('reservation')"
-              [showError]="shouldShowEntryReservationError()"
-              (valueChange)="onEntryReservationSelectionChange($event)" />
-          }
-          </div>
-        }
       </div>
 
       <div class="general-ledger-splits-section form-standard-section-gap">
@@ -150,7 +98,17 @@
                 <thead>
                   <tr>
                     <th class="split-col-no">No</th>
+                    @if (shouldShowLinePropertyColumn()) {
+                      <th class="split-col-property">Property</th>
+                    }
+                    @if (shouldShowLineReservationColumn()) {
+                      <th class="split-col-property">Reservation</th>
+                    }
+                    @if (shouldShowLineContactColumn()) {
+                      <th class="split-col-contact">Contact</th>
+                    }
                     <th class="split-col-account">Account</th>
+                    <th class="split-col-type">Type</th>
                     <th class="split-col-description">Memo</th>
                     <th class="split-col-amount split-col-amount--right">Debit</th>
                     <th class="split-col-amount split-col-amount--right">Credit</th>
@@ -161,6 +119,69 @@
                   @for (line of editableLines; track line.lineKey; let lineIndex = $index) {
                     <tr>
                       <td class="split-col-no">{{ lineIndex + 1 }}</td>
+                      @if (shouldShowLinePropertyColumn()) {
+                        <td class="split-col-property">
+                          @if (shouldShowLineProperty(line)) {
+                            <app-searchable-select
+                              class="split-account-select"
+                              [renderInFormField]="false"
+                              [value]="line.propertyId"
+                              [options]="getLinePropertyOptions(line)"
+                              [required]="getLineContextMode(line) === 'accountsReceivable' || getLineContextMode(line) === 'ownerPayable'"
+                              [showInstructionOption]="true"
+                              [instructionOptionValue]="null"
+                              [nullOptionLabel]="getLinePropertyNullLabel(line)"
+                              [showSearchInput]="true"
+                              searchPlaceholder="Type to filter properties..."
+                              noResultsText="No properties match your search"
+                              [selectClass]="getLineContextSelectClass(line, 'property')"
+                              [showError]="shouldShowLinePropertyError(line)"
+                              (valueChange)="onLinePropertySelectionChange(line.lineKey, $event)" />
+                          }
+                        </td>
+                      }
+                      @if (shouldShowLineReservationColumn()) {
+                        <td class="split-col-property">
+                          @if (shouldShowLineReservation(line)) {
+                            <app-searchable-select
+                              class="split-account-select"
+                              [renderInFormField]="false"
+                              [value]="line.reservationId"
+                              [options]="getLineReservationOptions(line)"
+                              [required]="true"
+                              [showInstructionOption]="true"
+                              [instructionOptionValue]="null"
+                              [nullOptionLabel]="getLineReservationNullLabel()"
+                              [showSearchInput]="true"
+                              searchPlaceholder="Type to filter reservations..."
+                              noResultsText="No reservations match your search"
+                              [selectClass]="getLineContextSelectClass(line, 'reservation')"
+                              [showError]="shouldShowLineReservationError(line)"
+                              (valueChange)="onLineReservationSelectionChange(line.lineKey, $event)" />
+                          }
+                        </td>
+                      }
+                      @if (shouldShowLineContactColumn()) {
+                        <td class="split-col-contact">
+                          @if (shouldShowLineContact(line)) {
+                            <app-searchable-select
+                              class="split-account-select"
+                              [renderInFormField]="false"
+                              [value]="line.contactId"
+                              [options]="getLineContactOptions(line)"
+                              [required]="true"
+                              [showInstructionOption]="true"
+                              [instructionOptionValue]="null"
+                              [nullOptionLabel]="getLineContactNullLabel()"
+                              [showSearchInput]="true"
+                              searchPlaceholder="Type to filter vendors..."
+                              noResultsText="No vendors match your search"
+                              [selectClass]="getLineContextSelectClass(line, 'contact')"
+                              [showError]="shouldShowLineContactError(line)"
+                              (valueChange)="onLineContactSelectionChange(line.lineKey, $event)" />
+                          }
+                        </td>
+                      }
                       <td class="split-col-account">
                         <app-searchable-select
                           class="split-account-select"
@@ -180,6 +201,16 @@
                           [selectClass]="getLineAccountSelectClass(line)"
                           [showError]="shouldShowLineAccountError(line)"
                           (valueChange)="onAccountSelectionChange(line.lineKey, $event)" />
+                      </td>
+                      <td class="split-col-type">
+                        <app-searchable-select
+                          class="split-account-select"
+                          [renderInFormField]="false"
+                          [value]="line.perspectiveId"
+                          [options]="perspectiveOptions"
+                          [required]="true"
+                          [showSearchInput]="false"
+                          (valueChange)="onLinePerspectiveSelectionChange(line.lineKey, $event)" />
                       </td>
                       <td class="split-col-description">
                         <input
@@ -238,6 +269,7 @@
                     <th class="split-col-property">Reservation</th>
                     <th class="split-col-contact">Contact</th>
                     <th class="split-col-account">Account</th>
+                    <th class="split-col-type">Type</th>
                     <th class="split-col-description">Memo</th>
                     <th class="split-col-amount split-col-amount--right">Debit</th>
                     <th class="split-col-amount split-col-amount--right">Credit</th>
@@ -251,6 +283,7 @@
                       <td class="split-col-property">{{ line.reservationCode }}</td>
                       <td class="split-col-contact">{{ line.contactName }}</td>
                       <td class="split-col-account">{{ line.account }}</td>
+                      <td class="split-col-type">{{ line.perspective }}</td>
                       <td class="split-col-description">{{ line.memo }}</td>
                       <td class="split-col-amount split-col-amount--right">{{ line.debit }}</td>
                       <td class="split-col-amount split-col-amount--right">{{ line.credit }}</td>

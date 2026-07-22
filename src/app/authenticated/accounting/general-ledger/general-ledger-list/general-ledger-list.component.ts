@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
-import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, throwError, toArray } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, throwError, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -23,9 +23,10 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, PostingStatus, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, SourceType, SourceTypeLabels } from '../../models/accounting-enum';
+import { AccountType, PostingStatus, SourceType, SourceTypeLabels, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isManualJournalEntry } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryRecapRowDisplay, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
@@ -88,6 +89,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   private transferService = inject(TransferService);
   private reportService = inject(ReportService);
   private journalEntrySourceService = inject(JournalEntrySourceService);
+  private journalEntryService = inject(JournalEntryService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
   private router = inject(Router);
@@ -132,6 +134,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   entriesDisplay: GeneralLedgerEntryDisplay[] = [];
   expandedJournalEntries = new Set<string>();
   isAllExpanded = false;
+  showManualOnly = false;
+  includeCashOnly = false;
   noActivityMessage = 'No general ledger activity for the selected office and date range.';
 
   @ViewChild('journalEntryLinesTemplate') journalEntryLinesTemplate?: TemplateRef<unknown>;
@@ -140,6 +144,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
+    isManual: { displayAs: 'Manual', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '10ch', sort: false },
+    perspective: { displayAs: 'Type', maxWidth: '12ch' },
     source: { displayAs: 'Source', maxWidth: '16ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
@@ -383,6 +389,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
       includeVoided: false,
       includeUnposted: true,
+      includeCashOnly: this.includeCashOnly,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
     }).pipe(takeUntil(loadUntil)).subscribe({
@@ -857,7 +864,20 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return;
     }
 
-    this.generalLedgerService.deleteJournalEntry(journalEntryId).pipe(take(1)).subscribe({
+    if (row.deleteDisabled) {
+      return;
+    }
+
+    this.journalEntryService.confirmDeleteIfAllowed(row.postingStatusId, 'Journal Entry').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        return this.generalLedgerService.deleteJournalEntry(journalEntryId).pipe(take(1));
+      })
+    ).subscribe({
       next: () => {
         this.toastr.success('Journal entry deleted successfully', CommonMessage.Success);
         this.journalEntryCreatedEvent.emit();
@@ -874,6 +894,35 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   openBlankCreateJournalEntry(): void {
     this.createJournalEntryEvent.emit(null);
     this.markViewForCheck();
+  }
+
+  toggleManualOnly(): void {
+    this.showManualOnly = !this.showManualOnly;
+    this.applyLinesDisplay();
+    this.markViewForCheck();
+  }
+
+  toggleIncludeCashOnly(): void {
+    this.includeCashOnly = !this.includeCashOnly;
+    this.loadJournalEntryLines();
+    this.markViewForCheck();
+  }
+
+  resolveJournalEntryActionFlags(line: Pick<JournalEntryLineListDisplay, 'sourceTypeId' | 'journalEntryKindId' | 'postingStatusId' | 'isManual'>): {
+    isManual: boolean;
+    editDisabled: boolean;
+    deleteDisabled: boolean;
+  } {
+    const isManual = line.isManual ?? isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId);
+    return {
+      isManual,
+      editDisabled: !isManual,
+      deleteDisabled: !this.journalEntryService.canDeleteManualJournalEntry(
+        line.sourceTypeId,
+        line.journalEntryKindId,
+        line.postingStatusId
+      )
+    };
   }
 
   createRetainedEarningsJournalEntryFor2024(): void {
@@ -1016,6 +1065,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     if (this.usesGroupedJournalEntryDisplay) {
       this.entriesDisplay = this.buildJournalEntryGroups(this.linesDisplay);
+      if (this.showManualOnly) {
+        this.entriesDisplay = this.entriesDisplay.filter(entry => entry.isManual);
+      }
       if (this.showGroupedTableLineSelections) {
         this.syncGroupedLineSelectionInPlace(line => this.isSelectableActionLine(line));
       }
@@ -1041,6 +1093,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     return Array.from(groupedLines.entries()).map(([journalEntryId, entryLines]) => {
       const firstLine = entryLines[0];
+      const actionFlags = this.resolveJournalEntryActionFlags(firstLine);
       const totalDebit = entryLines.reduce((sum, line) => sum + Number(line.debitValue || 0), 0);
       const totalCredit = entryLines.reduce((sum, line) => sum + Number(line.creditValue || 0), 0);
       const lastLine = entryLines[entryLines.length - 1];
@@ -1061,6 +1114,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         balance: lastLine.balance,
         debitValue: totalDebit,
         creditValue: totalCredit,
+        isManual: actionFlags.isManual,
+        postingStatusId: firstLine.postingStatusId,
+        editDisabled: actionFlags.editDisabled,
+        deleteDisabled: actionFlags.deleteDisabled,
         disabled: this.showGroupedTableLineSelections
           ? !this.hasSelectableGroupedEntryLines(entryLines)
           : this.showJournalEntryPostSelections
@@ -1288,19 +1345,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     left: JournalEntryLineSearchResponse,
     right: JournalEntryLineSearchResponse
   ): number {
-    const leftDate = String(left.transactionDate || '');
-    const rightDate = String(right.transactionDate || '');
-    if (leftDate !== rightDate) {
-      return leftDate.localeCompare(rightDate);
-    }
-
-    const leftCode = String(left.journalEntryCode || '');
-    const rightCode = String(right.journalEntryCode || '');
-    if (leftCode !== rightCode) {
-      return leftCode.localeCompare(rightCode, undefined, { sensitivity: 'base' });
-    }
-
-    return String(left.journalEntryLineId || '').localeCompare(String(right.journalEntryLineId || ''));
+    return this.mappingService.compareJournalEntryLinesForListDisplay(left, right, false);
   }
 
   normalizeLineContextId(value?: string | null): string {
@@ -3263,7 +3308,8 @@ triggerCheckPrint(): void {
 
   get activeDisplayedColumns(): ColumnSet {
     if (!this.usesGroupedJournalEntryDisplay) {
-      return this.displayedColumns;
+      const { isManual: _isManual, ...columnsWithoutManual } = this.displayedColumns;
+      return columnsWithoutManual;
     }
 
     return {

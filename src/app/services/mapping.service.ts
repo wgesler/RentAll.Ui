@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
@@ -655,7 +655,11 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
+      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? 0),
+      perspectiveId: Number(raw['perspectiveId'] ?? raw['PerspectiveId'] ?? base.perspectiveId ?? 2),
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
+      journalEntryCreatedOn: String(raw['journalEntryCreatedOn'] ?? raw['JournalEntryCreatedOn'] ?? base.journalEntryCreatedOn),
+      createdOn: String(raw['createdOn'] ?? raw['CreatedOn'] ?? base.createdOn),
       // IsCleared is the reconcile check mark. Do not derive it from ClearedOn.
       isCleared: this.resolveIsClearedFlag(raw['isCleared'] ?? raw['IsCleared'] ?? base.isCleared)
     };
@@ -663,15 +667,9 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
 
   mapReconcileLineDisplays(lines: JournalEntryLineSearchResponse[], side: 'debit' | 'credit'): ReconcileLineDisplay[] {
     const filteredLines = (lines ?? []).filter(line => side === 'debit' ? Number(line.debit || 0) > 0 : Number(line.credit || 0) > 0);
-    const sortedLines = [...filteredLines].sort((left, right) => {
-      const leftDate = left.transactionDate || '';
-      const rightDate = right.transactionDate || '';
-      if (leftDate !== rightDate) {
-        return leftDate.localeCompare(rightDate);
-      }
-
-      return (left.journalEntryCode || '').localeCompare(right.journalEntryCode || '');
-    });
+    const sortedLines = [...filteredLines].sort((left, right) =>
+      this.compareJournalEntryLinesForListDisplay(left, right, false)
+    );
 
     return sortedLines.map(line => {
       const amountValue = side === 'debit' ? Number(line.debit || 0) : Number(line.credit || 0);
@@ -703,6 +701,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
+      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? 0),
       isCashOnly: rawIsCashOnly === true || rawIsCashOnly === 1 || rawIsCashOnly === '1',
       memo: String(raw['memo'] ?? raw['Memo'] ?? base.memo ?? ''),
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
@@ -718,6 +717,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       debit: Number(raw['debit'] ?? raw['Debit'] ?? base.debit ?? 0),
       credit: Number(raw['credit'] ?? raw['Credit'] ?? base.credit ?? 0),
       memo: String(raw['memo'] ?? raw['Memo'] ?? base.memo ?? ''),
+      perspectiveId: Number(raw['perspectiveId'] ?? raw['PerspectiveId'] ?? base.perspectiveId ?? 2),
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? base.propertyCode ?? '').trim() || null,
       reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
       contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null
@@ -764,6 +764,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       payment: String(raw['payment'] ?? raw['Payment'] ?? ''),
       prePayment: String(raw['prePayment'] ?? raw['PrePayment'] ?? ''),
       unPaid: String(raw['unPaid'] ?? raw['UnPaid'] ?? ''),
+      ownerUnrec: String(raw['ownerUnrec'] ?? raw['OwnerUnrec'] ?? ''),
       ownerExpense: String(raw['ownerExpense'] ?? raw['OwnerExpense'] ?? ''),
       ownerPayment: this.formatter.currencyUsd(ownerPaymentValue),
       expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
@@ -776,6 +777,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       paymentValue: Number(raw['paymentValue'] ?? raw['PaymentValue'] ?? 0),
       prePaymentValue: Number(raw['prePaymentValue'] ?? raw['PrePaymentValue'] ?? 0),
       unPaidValue: Number(raw['unPaidValue'] ?? raw['UnPaidValue'] ?? 0),
+      ownerUnrecValue: Number(raw['ownerUnrecValue'] ?? raw['OwnerUnrecValue'] ?? 0),
       ownerExpenseValue: Number(raw['ownerExpenseValue'] ?? raw['OwnerExpenseValue'] ?? 0),
       ownerPaymentValue,
       sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
@@ -878,9 +880,8 @@ resolveJournalEntryLineSourceDisplay(
     displayNewestFirst = false
   ): JournalEntryLineListDisplay[] {
     const sourceLines = lines ?? [];
-    const journalEntryCreatedOn = this.buildJournalEntryCreatedOnLookup(sourceLines);
     const chronologicalLines = [...sourceLines].sort((left, right) =>
-      this.compareJournalEntryLinesForListDisplay(left, right, false, journalEntryCreatedOn)
+      this.compareJournalEntryLinesForListDisplay(left, right, false)
     );
 
     let runningBalance = 0;
@@ -893,7 +894,7 @@ resolveJournalEntryLineSourceDisplay(
       const description = lineMemo || journalEntryMemo;
       const debitValue = Number(line.debit) || 0;
       const creditValue = Number(line.credit) || 0;
-      const sortDateValue = transactionDate ? Date.parse(`${transactionDate}T00:00:00`) : 0;
+      const sortDateValue = Date.parse(line.journalEntryCreatedOn);
       const account = chartOfAccounts?.find(item =>
         item.accountId === line.chartOfAccountId &&
         item.officeId === line.officeId
@@ -932,12 +933,16 @@ resolveJournalEntryLineSourceDisplay(
         creditValue,
         balanceValue: runningBalance,
         postingStatusId: Number(line.postingStatusId ?? 0),
+        journalEntryKindId: Number(line.journalEntryKindId ?? 0),
+        perspectiveId: Number(line.perspectiveId ?? 2),
+        perspective: getPerspectiveLabel(line.perspectiveId),
+        isManual: isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId),
         sortDateValue
       });
     });
 
     const displayLines = [...sourceLines].sort((left, right) =>
-      this.compareJournalEntryLinesForListDisplay(left, right, displayNewestFirst, journalEntryCreatedOn)
+      this.compareJournalEntryLinesForListDisplay(left, right, displayNewestFirst)
     );
 
     return displayLines
@@ -945,54 +950,28 @@ resolveJournalEntryLineSourceDisplay(
       .filter((line): line is JournalEntryLineListDisplay => !!line);
   }
 
-buildJournalEntryCreatedOnLookup(lines: JournalEntryLineSearchResponse[]): Map<string, string> {
-    const journalEntryCreatedOn = new Map<string, string>();
-
-    lines.forEach(line => {
-      const journalEntryId = (line.journalEntryId || '').trim();
-      if (!journalEntryId) {
-        return;
-      }
-
-      const createdOn = (line.createdOn || '').trim();
-      const existing = journalEntryCreatedOn.get(journalEntryId) || '';
-      if (createdOn.localeCompare(existing) > 0) {
-        journalEntryCreatedOn.set(journalEntryId, createdOn);
-      }
-    });
-
-    return journalEntryCreatedOn;
-  }
-
-compareJournalEntryLinesForListDisplay(
+  compareJournalEntryLinesForListDisplay(
     left: JournalEntryLineSearchResponse,
     right: JournalEntryLineSearchResponse,
-    newestFirst: boolean,
-    journalEntryCreatedOn: Map<string, string>
+    newestFirst: boolean
   ): number {
     const direction = newestFirst ? -1 : 1;
-    const dateCompare = (left.transactionDate || '').localeCompare(right.transactionDate || '');
-    if (dateCompare !== 0) {
-      return dateCompare * direction;
-    }
 
-    if ((left.journalEntryId || '') !== (right.journalEntryId || '')) {
-      const leftEntryCreated = journalEntryCreatedOn.get(left.journalEntryId) || '';
-      const rightEntryCreated = journalEntryCreatedOn.get(right.journalEntryId) || '';
-      const entryCreatedCompare = leftEntryCreated.localeCompare(rightEntryCreated);
+    if (left.journalEntryId !== right.journalEntryId) {
+      const entryCreatedCompare = left.journalEntryCreatedOn.localeCompare(right.journalEntryCreatedOn);
       if (entryCreatedCompare !== 0) {
         return entryCreatedCompare * direction;
       }
 
-      return (left.journalEntryId || '').localeCompare(right.journalEntryId || '') * direction;
+      return left.journalEntryId.localeCompare(right.journalEntryId) * direction;
     }
 
-    const lineCreatedCompare = (left.createdOn || '').localeCompare(right.createdOn || '');
+    const lineCreatedCompare = left.createdOn.localeCompare(right.createdOn);
     if (lineCreatedCompare !== 0) {
-      return lineCreatedCompare;
+      return lineCreatedCompare * direction;
     }
 
-    return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '');
+    return left.journalEntryLineId.localeCompare(right.journalEntryLineId) * direction;
   }
 
   mapJournalEntryLineDetailDisplay(
@@ -1019,6 +998,7 @@ compareJournalEntryLinesForListDisplay(
         journalEntryLineId: line.journalEntryLineId,
         chartOfAccountId: line.chartOfAccountId,
         account: accountLabel,
+        perspective: getPerspectiveLabel(line.perspectiveId),
         propertyCode: (line.propertyCode || '').trim(),
         reservationCode: (line.reservationCode || '').trim(),
         contactName: (line.contactName || '').trim(),

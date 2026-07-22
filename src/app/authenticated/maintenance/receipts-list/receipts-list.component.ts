@@ -19,6 +19,7 @@ import { AccountingOfficeResponse } from '../../organizations/models/accounting-
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { AccountType, PaymentType, PaymentTypeLabels } from '../../accounting/models/accounting-enum';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { JournalEntryService } from '../../accounting/services/journal-entry.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -66,6 +67,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private router = inject(Router);
   private toastr = inject(ToastrService);
+  private journalEntryService = inject(JournalEntryService);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
@@ -335,10 +337,20 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   deleteReceipt(event: ReceiptDisplayList): void {
-    this.receiptService.deleteReceipt(event.receiptId).pipe(take(1)).subscribe({
+    const receipt = this.receipts.find(item => item.receiptId === event.receiptId);
+    this.journalEntryService.confirmDeleteIfAllowed(receipt?.postingStatusId, 'Receipt').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        return this.receiptService.deleteReceipt(event.receiptId).pipe(take(1));
+      })
+    ).subscribe({
       next: () => {
         this.toastr.success('Receipt deleted successfully', CommonMessage.Success);
-        this.receipts = this.receipts.filter(receipt => receipt.receiptId !== event.receiptId);
+        this.receipts = this.receipts.filter(item => item.receiptId !== event.receiptId);
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
         this.applyReceiptDisplayMappings();
         this.applyFilters();
@@ -1967,55 +1979,66 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.isSubmittingPayment = true;
     const selectedChartOfAccountId = this.resolveSelectedPaymentChartOfAccountId();
     if (!selectedChartOfAccountId) {
-      this.isSubmittingPayment = false;
       this.toastr.warning('Unable to apply payment: missing payment account.');
       return;
     }
+
+    const postingStatusIds = paymentData.map(({ receipt }) =>
+      this.receipts.find(item => item.receiptId === receipt.receiptId)?.postingStatusId
+    );
+
     let appliedPaymentCount = 0;
-    from(paymentData)
-      .pipe(
-        concatMap(({ billId, paidAmount }) => {
-          const paymentRequest: BillPaymentRequest = {
-            paymentDate:
-              this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
-            chartOfAccountId: selectedChartOfAccountId,
-            paymentTypeId: this.selectedPaymentTypeId,
-            description: paymentDescription,
-            amount: paidAmount,
-            bills: [billId]
-          };
-          return this.receiptService.applyBillPayment(paymentRequest).pipe(
-            take(1),
-            map((response: BillPaymentResponse) => ({ response, paidAmount }))
-          );
-        }),
-        finalize(() => {
-          this.isSubmittingPayment = false;
-          this.clearPaymentForm();
-          if (appliedPaymentCount > 0) {
-            this.journalEntriesChanged.emit();
-          }
-          this.markViewForCheck();
-        })
-      )
-      .subscribe({
-        next: ({ response, paidAmount }) => {
-          appliedPaymentCount++;
-          const updatedBills = response?.bills ?? [];
-          updatedBills.forEach(bill => {
-            this.syncReceiptRowFromServer(this.mappingService.mapReceiptResponse(bill));
-          });
-          this.toastr.success(`Payment of $${this.formatter.currency(paidAmount)} applied`, CommonMessage.Success);
-          this.markViewForCheck();
-        },
-        error: () => {
-          this.toastr.error('Failed to apply payment', CommonMessage.Error);
-          this.markViewForCheck();
+    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Receipt').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
         }
-      });
+
+        this.isSubmittingPayment = true;
+        return from(paymentData).pipe(
+          concatMap(({ billId, paidAmount }) => {
+            const paymentRequest: BillPaymentRequest = {
+              paymentDate:
+                this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
+              chartOfAccountId: selectedChartOfAccountId,
+              paymentTypeId: this.selectedPaymentTypeId,
+              description: paymentDescription,
+              amount: paidAmount,
+              bills: [billId]
+            };
+            return this.receiptService.applyBillPayment(paymentRequest).pipe(
+              take(1),
+              map((response: BillPaymentResponse) => ({ response, paidAmount }))
+            );
+          }),
+          finalize(() => {
+            this.isSubmittingPayment = false;
+            this.clearPaymentForm();
+            if (appliedPaymentCount > 0) {
+              this.journalEntriesChanged.emit();
+            }
+            this.markViewForCheck();
+          })
+        );
+      })
+    ).subscribe({
+      next: ({ response, paidAmount }) => {
+        appliedPaymentCount++;
+        const updatedBills = response?.bills ?? [];
+        updatedBills.forEach(bill => {
+          this.syncReceiptRowFromServer(this.mappingService.mapReceiptResponse(bill));
+        });
+        this.toastr.success(`Payment of $${this.formatter.currency(paidAmount)} applied`, CommonMessage.Success);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to apply payment', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
   }
 
   clearPaymentForm(): void {

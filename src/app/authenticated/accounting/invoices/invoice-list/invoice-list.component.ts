@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, concatMap, finalize, from, map, take, takeUntil, toArray} from 'rxjs';
+import {BehaviorSubject, Subject, concatMap, EMPTY, finalize, from, map, switchMap, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -34,6 +34,7 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceDocumentService } from '../../services/invoice-document.service';
 import { InvoiceIifExportService } from '../../services/invoice-iif-export.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 import { QbClassType, QbNameType } from '../../../organizations/models/qb-type-enum';
 
 type InvoiceLedgerLineLike = Pick<LedgerLineResponse, 'costCodeId' | 'amount'> & {
@@ -120,6 +121,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private utilityService = inject(UtilityService);
   private invoiceIifExportService = inject(InvoiceIifExportService);
   private invoiceDocumentService = inject(InvoiceDocumentService);
+  private journalEntryService = inject(JournalEntryService);
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
 
@@ -405,7 +407,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
+    this.journalEntryService.confirmDeleteIfAllowed(invoice.postingStatusId, 'Invoice').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        return this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1));
+      })
+    ).subscribe({
       next: () => {
         this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
         this.loadInvoicesForCurrentSearchCriteria(true);
@@ -1926,33 +1937,42 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       };
     });
 
-    this.isSubmittingPayment = true;
-    let appliedPaymentCount = 0;
+    const postingStatusIds = paymentData.map(({ invoice }) =>
+      this.allInvoices.find(item => item.invoiceId === invoice.invoiceId)?.postingStatusId
+    );
 
-    // Execute payments sequentially using concatMap
-    from(paymentData).pipe(
-      concatMap(({ paymentRequest, invoice }) => 
-        this.accountingService.applyPayment(paymentRequest).pipe(
-          take(1),
-          map(response => ({ response, paymentRequest, invoice }))
-        )
-      ),
-      finalize(() => {
-        this.isSubmittingPayment = false;
-        // Clear payment form after all payments are processed
-        this.clearPaymentForm();
-        this.loadInvoicesForCurrentSearchCriteria(true);
-        // Refresh the display to show updated paid amounts
-        this.applyFilters();
-        if (appliedPaymentCount > 0) {
-          this.journalEntriesChanged.emit();
+    let appliedPaymentCount = 0;
+    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Invoice').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
         }
-        this.markViewForCheck();
+
+        this.isSubmittingPayment = true;
+
+        return from(paymentData).pipe(
+          concatMap(({ paymentRequest, invoice }) =>
+            this.accountingService.applyPayment(paymentRequest).pipe(
+              take(1),
+              map(response => ({ response, paymentRequest, invoice }))
+            )
+          ),
+          finalize(() => {
+            this.isSubmittingPayment = false;
+            this.clearPaymentForm();
+            this.loadInvoicesForCurrentSearchCriteria(true);
+            this.applyFilters();
+            if (appliedPaymentCount > 0) {
+              this.journalEntriesChanged.emit();
+            }
+            this.markViewForCheck();
+          })
+        );
       })
     ).subscribe({
       next: ({ response, paymentRequest, invoice }) => {
         appliedPaymentCount++;
-        // Update invoice data from response
         response.invoices.forEach(i => {
           const invoiceToUpdate = this.allInvoices.find(r => r.invoiceId === i.invoiceId);
           if (invoiceToUpdate) {
@@ -1960,13 +1980,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           }
         });
 
-        // Show success message for each payment
         this.toastr.success(
           `Payment of $${this.formatter.currency(paymentRequest.amount)} applied to invoice ${invoice.invoiceNumber || invoice.invoiceId}`,
           CommonMessage.Success
         );
         this.markViewForCheck();
-
       },
       error: () => {
         this.markViewForCheck();
@@ -1987,12 +2005,25 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       invoices: invoiceIds
     };
 
-    this.isSubmittingPayment = true;
-    this.accountingService.applyPayment(paymentRequest).pipe(
+    const postingStatusIds = invoiceIds.map(invoiceId =>
+      this.allInvoices.find(invoice => invoice.invoiceId === invoiceId)?.postingStatusId
+    );
+
+    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Invoice').pipe(
       take(1),
-      finalize(() => {
-        this.isSubmittingPayment = false;
-        this.markViewForCheck();
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        this.isSubmittingPayment = true;
+        return this.accountingService.applyPayment(paymentRequest).pipe(
+          take(1),
+          finalize(() => {
+            this.isSubmittingPayment = false;
+            this.markViewForCheck();
+          })
+        );
       })
     ).subscribe({
       next: (response: InvoicePaymentResponse) => {

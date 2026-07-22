@@ -300,6 +300,182 @@ export function normalizeInvoiceMethodId(invoiceMethodId: number | null | undefi
 }
 //#endregion
 
+//#region Perspective
+/** Matches Maintenance.ReceiptType / WorkOrderType for Tenant, Owner, Company. System is internal-only. */
+export enum Perspective {
+  Tenant = 0,
+  Owner = 1,
+  Company = 2,
+  System = 3
+}
+
+export const PerspectiveLabels: { value: Perspective; label: string }[] = [
+  { value: Perspective.Tenant, label: 'Tenant' },
+  { value: Perspective.Owner, label: 'Owner' },
+  { value: Perspective.Company, label: 'Company' },
+];
+
+export function getPerspective(perspectiveId: number | undefined | null): string {
+  if (perspectiveId === undefined || perspectiveId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [Perspective.Tenant]: 'Tenant',
+    [Perspective.Owner]: 'Owner',
+    [Perspective.Company]: 'Company',
+    [Perspective.System]: 'System',
+  };
+
+  return typeMap[perspectiveId] || '';
+}
+
+export function getPerspectives(): { value: number; label: string }[] {
+  return PerspectiveLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function getPerspectiveLabel(
+  perspectiveId: number | undefined | null,
+  perspectives?: { value: number; label: string }[]
+): string {
+  if (perspectiveId === undefined || perspectiveId === null) {
+    return '';
+  }
+
+  if (perspectives && perspectives.length > 0) {
+    const found = perspectives.find(p => p.value === perspectiveId);
+    return found?.label || getPerspective(perspectiveId);
+  }
+
+  return getPerspective(perspectiveId);
+}
+//#endregion
+
+//#region JournalEntryKind
+export enum JournalEntryKind {
+  Manual = 0,
+  Charge = 1,
+  OwnerExpected = 2,
+  Payment = 3,
+  PrePaymentReceive = 4,
+  PrePaymentApply = 5,
+  OwnerActual = 6,
+  Bill = 10,
+  BillPayment = 11,
+  Receipt = 12,
+  OwnerUtility = 13,
+  CrossOfficeCreditCard = 14,
+  Expense = 20,
+  OwnerTransfer = 21,
+  Deposit = 30,
+  Transfer = 40,
+  DepartureFee = 50,
+  SecurityDepositReturn = 51,
+  SecurityDepositTransfer = 52,
+  LinenTowelFee = 60,
+  LinenTowelUnusedReversal = 61,
+  RetainedEarnings = 100,
+  OwnerStartingBalance = 110
+}
+
+export const JournalEntryKindLabels: { value: JournalEntryKind; label: string }[] = [
+  { value: JournalEntryKind.Manual, label: 'Manual' },
+  { value: JournalEntryKind.Charge, label: 'Invoice Charge' },
+  { value: JournalEntryKind.OwnerExpected, label: 'Owner Expected' },
+  { value: JournalEntryKind.Payment, label: 'Invoice Payment' },
+  { value: JournalEntryKind.PrePaymentReceive, label: 'Pre-Payment Receive' },
+  { value: JournalEntryKind.PrePaymentApply, label: 'Pre-Payment Apply' },
+  { value: JournalEntryKind.OwnerActual, label: 'Owner Actual' },
+  { value: JournalEntryKind.Bill, label: 'Bill' },
+  { value: JournalEntryKind.BillPayment, label: 'Bill Payment' },
+  { value: JournalEntryKind.Receipt, label: 'Receipt' },
+  { value: JournalEntryKind.OwnerUtility, label: 'Owner Utility' },
+  { value: JournalEntryKind.CrossOfficeCreditCard, label: 'Cross-Office Credit Card' },
+  { value: JournalEntryKind.Expense, label: 'Work Order Expense' },
+  { value: JournalEntryKind.OwnerTransfer, label: 'Owner Transfer' },
+  { value: JournalEntryKind.Deposit, label: 'Deposit' },
+  { value: JournalEntryKind.Transfer, label: 'Transfer' },
+  { value: JournalEntryKind.DepartureFee, label: 'Departure Fee' },
+  { value: JournalEntryKind.SecurityDepositReturn, label: 'Security Deposit Return' },
+  { value: JournalEntryKind.SecurityDepositTransfer, label: 'Security Deposit Transfer' },
+  { value: JournalEntryKind.LinenTowelFee, label: 'Linen & Towel Fee' },
+  { value: JournalEntryKind.LinenTowelUnusedReversal, label: 'Linen & Towel Unused Reversal' },
+  { value: JournalEntryKind.RetainedEarnings, label: 'Retained Earnings' },
+  { value: JournalEntryKind.OwnerStartingBalance, label: 'Owner Starting Balance' },
+];
+
+export function getJournalEntryKind(journalEntryKindId: number | undefined | null): string {
+  if (journalEntryKindId === undefined || journalEntryKindId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [JournalEntryKind.Manual]: 'Manual',
+    [JournalEntryKind.Charge]: 'Invoice Charge',
+    [JournalEntryKind.OwnerExpected]: 'Owner Expected',
+    [JournalEntryKind.Payment]: 'Invoice Payment',
+    [JournalEntryKind.PrePaymentReceive]: 'Pre-Payment Receive',
+    [JournalEntryKind.PrePaymentApply]: 'Pre-Payment Apply',
+    [JournalEntryKind.OwnerActual]: 'Owner Actual',
+    [JournalEntryKind.Bill]: 'Bill',
+    [JournalEntryKind.BillPayment]: 'Bill Payment',
+    [JournalEntryKind.Receipt]: 'Receipt',
+    [JournalEntryKind.OwnerUtility]: 'Owner Utility',
+    [JournalEntryKind.CrossOfficeCreditCard]: 'Cross-Office Credit Card',
+    [JournalEntryKind.Expense]: 'Work Order Expense',
+    [JournalEntryKind.OwnerTransfer]: 'Owner Transfer',
+    [JournalEntryKind.Deposit]: 'Deposit',
+    [JournalEntryKind.Transfer]: 'Transfer',
+    [JournalEntryKind.DepartureFee]: 'Departure Fee',
+    [JournalEntryKind.SecurityDepositReturn]: 'Security Deposit Return',
+    [JournalEntryKind.SecurityDepositTransfer]: 'Security Deposit Transfer',
+    [JournalEntryKind.LinenTowelFee]: 'Linen & Towel Fee',
+    [JournalEntryKind.LinenTowelUnusedReversal]: 'Linen & Towel Unused Reversal',
+    [JournalEntryKind.RetainedEarnings]: 'Retained Earnings',
+    [JournalEntryKind.OwnerStartingBalance]: 'Owner Starting Balance',
+  };
+
+  return typeMap[journalEntryKindId] || '';
+}
+
+export function getJournalEntryKinds(): { value: number; label: string }[] {
+  return JournalEntryKindLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function getJournalEntryKindLabel(
+  journalEntryKindId: number | undefined | null,
+  journalEntryKinds?: { value: number; label: string }[]
+): string {
+  if (journalEntryKindId === undefined || journalEntryKindId === null) {
+    return '';
+  }
+
+  if (journalEntryKinds && journalEntryKinds.length > 0) {
+    const found = journalEntryKinds.find(kind => kind.value === journalEntryKindId);
+    return found?.label || getJournalEntryKind(journalEntryKindId);
+  }
+
+  return getJournalEntryKind(journalEntryKindId);
+}
+
+export function isManualJournalEntry(
+  sourceTypeId: number | undefined | null,
+  journalEntryKindId: number | undefined | null
+): boolean {
+  return sourceTypeId === SourceType.Journal
+    && Number(journalEntryKindId ?? JournalEntryKind.Manual) === JournalEntryKind.Manual;
+}
+
+export function isDeletableManualJournalEntry(
+  sourceTypeId: number | undefined | null,
+  journalEntryKindId: number | undefined | null,
+  postingStatusId: number | undefined | null
+): boolean {
+  return isManualJournalEntry(sourceTypeId, journalEntryKindId)
+    && Number(postingStatusId ?? PostingStatus.Open) === PostingStatus.Open;
+}
+//#endregion
+
 //#region PostingStatus
 export enum PostingStatus {
   Open = 0,

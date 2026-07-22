@@ -18,7 +18,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
+import { ReceiptSelection } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';

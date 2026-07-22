@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, finalize, merge, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -18,6 +18,7 @@ import { DataTableFilterActionsDirective } from '../../../shared/data-table/data
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { DepositDisplayList, DepositResponse, DepositSearchRequest, DepositSelection, DepositSplit } from '../../models/deposit.model';
 import { DepositService } from '../../services/deposit.service';
+import { JournalEntryService } from '../../services/journal-entry.service';
 
 @Component({
   standalone: true,
@@ -43,6 +44,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private journalEntryService = inject(JournalEntryService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
@@ -196,7 +198,17 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   deleteDeposit(event: DepositDisplayList): void {
-    this.depositService.deleteDeposit(event.depositId).pipe(take(1)).subscribe({
+    const deposit = this.deposits.find(item => item.depositId === event.depositId);
+    this.journalEntryService.confirmDeleteIfAllowed(deposit?.postingStatusId, 'Deposit').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        return this.depositService.deleteDeposit(event.depositId).pipe(take(1));
+      })
+    ).subscribe({
       next: () => {
         this.toastr.success('Deposit deleted successfully', CommonMessage.Success);
         this.deposits = this.deposits.filter(deposit => deposit.depositId !== event.depositId);

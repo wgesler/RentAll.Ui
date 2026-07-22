@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, takeUntil, toArray } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, takeUntil, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -24,6 +24,7 @@ import { WorkOrderType } from '../models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
+import { JournalEntryService } from '../../accounting/services/journal-entry.service';
 
 export interface WorkOrderSelection {
   workOrderId: string | null;
@@ -66,6 +67,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private router = inject(Router);
   private toastr = inject(ToastrService);
+  private journalEntryService = inject(JournalEntryService);
   private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
@@ -241,13 +243,20 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       )
     );
 
-    this.collectReceiptIdsWithWorkOrderCode(workOrderCode, associatedReceiptIds)
-      .pipe(
-        switchMap((receiptIdsToUpdate: string[]) => this.removeWorkOrderAssociationsFromReceipts(workOrderCode, receiptIdsToUpdate)),
-        switchMap(() => this.workOrderService.deleteWorkOrder(id)),
-        take(1)
-      )
-      .subscribe({
+    this.journalEntryService.confirmDeleteIfAllowed(targetWorkOrder?.postingStatusId, 'Work Order').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        return this.collectReceiptIdsWithWorkOrderCode(workOrderCode, associatedReceiptIds).pipe(
+          switchMap((receiptIdsToUpdate: string[]) => this.removeWorkOrderAssociationsFromReceipts(workOrderCode, receiptIdsToUpdate)),
+          switchMap(() => this.workOrderService.deleteWorkOrder(id)),
+          take(1)
+        );
+      })
+    ).subscribe({
       next: () => {
         this.workOrders = this.workOrders.filter(workOrder => String(workOrder.workOrderId) !== String(event.workOrderId));
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);

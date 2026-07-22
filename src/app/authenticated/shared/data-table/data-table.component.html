@@ -190,7 +190,7 @@
                   } @case ('actions') {
                   <div class="flex items-center justify-start" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                     @for (button of buttons; track button.name) {
-                      @if (((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') && !(button.name === 'info' && item?.infoHidden === true)) {
+                      @if (!(button.name === 'info' && item?.infoHidden === true)) {
                         <span [matTooltip]="getButtonTooltip(button.name, button.tooltip, item)"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"
                           [matTooltipDisabled]="false"
@@ -198,8 +198,8 @@
                           <button mat-icon-button type="button"
                             id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
                             (click)="button.callback($event, item)"
-                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true) || (button.name === 'payable' && item?.payableDisabled === true) || (button.name === 'transfer' && item?.transferDisabled === true)"
-                            [style.color]="hasActionsEnabled && button.name !== 'transfer' && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) && !(button.name === 'payable' && item?.payableDisabled === true) ? button.color : ''"
+                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true) || (button.name === 'payable' && item?.payableDisabled === true) || (button.name === 'transfer' && item?.transferDisabled === true) || (button.name === 'delete' && item?.deleteDisabled === true) || (button.name === 'edit' && item?.editDisabled === true)"
+                            [style.color]="hasActionsEnabled && button.name !== 'transfer' && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) && !(button.name === 'payable' && item?.payableDisabled === true) && !(button.name === 'delete' && item?.deleteDisabled === true) && !(button.name === 'edit' && item?.editDisabled === true) ? button.color : ''"
                             [class.datatable-transfer-action-btn]="button.name === 'transfer'"
                             [color]="button.name === 'transfer' ? undefined : button.color">
                             @if (button.suspendOnUpdate && item?.updating) {

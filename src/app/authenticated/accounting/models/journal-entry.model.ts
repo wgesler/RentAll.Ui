@@ -44,6 +44,9 @@ export interface JournalEntryLineSearchResponse {
   checkNumber?: string | null;
   journalEntryMemo?: string | null;
   postingStatusId: number;
+  journalEntryKindId?: number | null;
+  perspectiveId?: number | null;
+  journalEntryCreatedOn: string;
   createdOn: string;
   createdBy: string;
   modifiedOn: string;
@@ -61,6 +64,7 @@ export interface JournalEntryLineRequest {
   debit: number;
   credit: number;
   memo?: string | null;
+  perspectiveId?: number | null;
 }
 
 export interface JournalEntryRequest {
@@ -92,6 +96,7 @@ export interface JournalEntryLineResponse {
   debit: number;
   credit: number;
   memo?: string | null;
+  perspectiveId?: number | null;
   createdOn: string;
   createdBy: string;
   modifiedOn: string;
@@ -110,6 +115,7 @@ export interface JournalEntryResponse {
   sourceCode?: string | null;
   memo?: string | null;
   postingStatusId: number;
+  journalEntryKindId?: number | null;
   isCashOnly: boolean;
   journalEntryLines: JournalEntryLineResponse[];
   createdOn: string;
@@ -158,7 +164,7 @@ export function buildJournalEntryFromSearchLines(
     memo: header.journalEntryMemo ?? null,
     postingStatusId: header.postingStatusId,
     isCashOnly: false,
-    createdOn: header.createdOn,
+    createdOn: header.journalEntryCreatedOn,
     createdBy: header.createdBy,
     modifiedOn: header.modifiedOn,
     modifiedBy: header.modifiedBy,
@@ -176,6 +182,7 @@ export function buildJournalEntryFromSearchLines(
       debit: line.debit,
       credit: line.credit,
       memo: line.memo ?? null,
+      perspectiveId: line.perspectiveId ?? 2,
       createdOn: line.createdOn,
       createdBy: line.createdBy,
       modifiedOn: line.modifiedOn,
@@ -201,6 +208,10 @@ export interface GeneralLedgerEntryDisplay {
   debitValue: number;
   creditValue: number;
   disabled?: boolean;
+  isManual?: boolean;
+  postingStatusId: number;
+  deleteDisabled?: boolean;
+  editDisabled?: boolean;
   selected?: boolean;
   journalEntryLines: JournalEntryLineListDisplay[];
   expand: string;
@@ -235,6 +246,12 @@ export interface JournalEntryLineListDisplay {
   creditValue: number;
   balanceValue: number;
   postingStatusId: number;
+  journalEntryKindId?: number | null;
+  perspectiveId?: number | null;
+  perspective?: string;
+  isManual?: boolean;
+  editDisabled?: boolean;
+  deleteDisabled?: boolean;
   sortDateValue: number;
   selected?: boolean;
   disabled?: boolean;
@@ -331,6 +348,7 @@ export interface JournalEntryRecapRowDisplay {
   payment: string;
   prePayment: string;
   unPaid: string;
+  ownerUnrec: string;
   ownerExpense: string;
   ownerPayment: string;
   expectedIncomeValue: number;
@@ -343,6 +361,7 @@ export interface JournalEntryRecapRowDisplay {
   paymentValue: number;
   prePaymentValue: number;
   unPaidValue: number;
+  ownerUnrecValue: number;
   ownerExpenseValue: number;
   ownerPaymentValue: number;
   sortDateValue: number;
@@ -355,6 +374,7 @@ export interface JournalEntryLineDetailDisplay {
   journalEntryLineId: string;
   chartOfAccountId: number;
   account: string;
+  perspective: string;
   propertyCode: string;
   reservationCode: string;
   contactName: string;

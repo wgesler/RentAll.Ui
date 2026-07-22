@@ -109,11 +109,11 @@
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasToggleTop]="false"
-          [hasButtonTop]="showGeneralLedgerAddButton"
+          [hasButtonTop]="!showGeneralLedgerRowActions && showGeneralLedgerAddButton"
           [buttonTextTop]="'Post'"
           [buttonColorTop]="'primary'"
           [buttonIconTop]="isPostingJournalEntries ? 'spinner' : 'publish'"
-          [hasButtonTopSecondary]="showGeneralLedgerAddButton"
+          [hasButtonTopSecondary]="!showGeneralLedgerRowActions && showGeneralLedgerAddButton"
           [buttonTextTopSecondary]="'Add'"
           [buttonColorTopSecondary]="'accent'"
           [buttonIconTopSecondary]="'add'"
@@ -145,18 +145,53 @@
           (propertyCodeClickEvent)="goToProperty($event)"
           (reservationCodeClickEvent)="goToReservation($event)"
           (selectionSet)="onTableLineSelectionSet()">
-          @if (showGeneralLedgerRetainedEarningsButton) {
-            <div dataTableFilterActions>
-              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+          @if (showGeneralLedgerRowActions) {
+            <div dataTableFilterActions class="general-ledger-toolbar">
+              <div class="general-ledger-toolbar__toggles table-filter-actions-group uniform-gap">
+                <mat-slide-toggle [checked]="showManualOnly" color="primary" (change)="toggleManualOnly()">
+                  Manual Only
+                </mat-slide-toggle>
+                <mat-slide-toggle [checked]="includeCashOnly" color="primary" (change)="toggleIncludeCashOnly()">
+                  Include Cash Only
+                </mat-slide-toggle>
+              </div>
+              <div class="general-ledger-toolbar__buttons table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                @if (showGeneralLedgerRetainedEarningsButton) {
+                  <button
+                    mat-raised-button
+                    type="button"
+                    color="accent"
+                    id="create-retained-earnings-button"
+                    class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                    (click)="createRetainedEarningsJournalEntryFor2024()"
+                    [disabled]="isCreatingRetainedEarningsJournalEntry">
+                    RE
+                  </button>
+                }
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="primary"
+                  id="general-ledger-post-button"
+                  class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                  (click)="postSelectedJournalEntries()"
+                  [disabled]="isPostingJournalEntries">
+                  @if (isPostingJournalEntries) {
+                    <mat-spinner diameter="15" />
+                  } @else {
+                    <mat-icon class="text-base">publish</mat-icon>
+                  }
+                  <span>Post</span>
+                </button>
                 <button
                   mat-raised-button
                   type="button"
                   color="accent"
-                  id="create-retained-earnings-button"
+                  id="general-ledger-add-button"
                   class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
-                  (click)="createRetainedEarningsJournalEntryFor2024()"
-                  [disabled]="isCreatingRetainedEarningsJournalEntry">
-                  RE
+                  (click)="openBlankCreateJournalEntry()">
+                  <mat-icon class="text-base">add</mat-icon>
+                  <span>Add</span>
                 </button>
               </div>
             </div>

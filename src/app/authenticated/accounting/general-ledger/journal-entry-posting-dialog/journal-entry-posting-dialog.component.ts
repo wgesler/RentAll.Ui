@@ -234,15 +234,12 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
   }
 
   compareEntries(left: JournalEntryLineSearchResponse, right: JournalEntryLineSearchResponse): number {
-    const leftPeriod = Date.parse(`${left.accountingPeriod}T00:00:00`);
-    const rightPeriod = Date.parse(`${right.accountingPeriod}T00:00:00`);
-    if (leftPeriod !== rightPeriod) {
-      return leftPeriod - rightPeriod;
+    const createdCompare = left.journalEntryCreatedOn.localeCompare(right.journalEntryCreatedOn);
+    if (createdCompare !== 0) {
+      return createdCompare;
     }
 
-    const leftCode = (left.journalEntryCode || '').trim();
-    const rightCode = (right.journalEntryCode || '').trim();
-    return leftCode.localeCompare(rightCode);
+    return (left.journalEntryCode || '').trim().localeCompare((right.journalEntryCode || '').trim());
   }
 
   resolveDateControlValue(controlName: 'startDate' | 'endDate'): string | null {
