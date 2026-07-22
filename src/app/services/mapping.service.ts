@@ -28,6 +28,8 @@ import { MaintenanceListSearchRequest } from '../authenticated/maintenance/model
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
+import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
+import { getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
@@ -3536,6 +3538,209 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       journalEntryId: deposit.journalEntryId ?? null,
       isActive
     };
+  }
+  //#endregion
+
+  //#region Payment Mapping
+  normalizePaymentTypeId(raw: unknown): number | null {
+    if (raw === null || raw === undefined || raw === '') {
+      return null;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  hasLinkedDeposit(depositId: string | null | undefined): boolean {
+    const normalizedDepositId = (depositId || '').trim();
+    return normalizedDepositId.length > 0
+      && normalizedDepositId !== '00000000-0000-0000-0000-000000000000';
+  }
+
+  mapPaymentResponse(raw: PaymentResponse | Record<string, unknown>): PaymentResponse {
+    const base = raw as PaymentResponse;
+    const rawRecord = raw as Record<string, unknown>;
+    const paymentDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['paymentDate'] ?? rawRecord['PaymentDate'] ?? base.paymentDate
+      ) ??
+      base.paymentDate ??
+      '';
+    const createdOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
+      ) ??
+      base.createdOn ??
+      '';
+    const modifiedOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['modifiedOn'] ?? rawRecord['ModifiedOn'] ?? base.modifiedOn
+      ) ??
+      base.modifiedOn ??
+      '';
+    const paymentId = String(rawRecord['paymentId'] ?? rawRecord['PaymentId'] ?? base.paymentId ?? '').trim();
+    const depositIdRaw = rawRecord['depositId'] ?? rawRecord['DepositId'] ?? base.depositId;
+    const depositId = depositIdRaw == null || String(depositIdRaw).trim().length === 0
+      ? null
+      : String(depositIdRaw).trim();
+    const paymentTypeIdRaw = rawRecord['paymentTypeId'] ?? rawRecord['PaymentTypeId'] ?? base.paymentTypeId;
+    const paymentTypeId = this.normalizePaymentTypeId(paymentTypeIdRaw);
+    const costCodeIdRaw = rawRecord['costCodeId'] ?? rawRecord['CostCodeId'] ?? base.costCodeId;
+    const costCodeId = Number(costCodeIdRaw ?? 0) || 0;
+    const createdBy = String(rawRecord['createdBy'] ?? rawRecord['CreatedBy'] ?? base.createdBy ?? base.createdByName ?? '').trim();
+    const createdByName = String(rawRecord['createdByName'] ?? rawRecord['CreatedByName'] ?? base.createdByName ?? createdBy).trim();
+    const modifiedBy = String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim();
+    const isActiveRaw = rawRecord['isActive'] ?? rawRecord['IsActive'] ?? base.isActive;
+    const isActive = isActiveRaw === true || isActiveRaw === 'true' || isActiveRaw === 1;
+    const ledgerLines = this.mapPaymentLedgerLinesFromApi(
+      (rawRecord['ledgerLines'] ?? rawRecord['LedgerLines'] ?? base.ledgerLines) as PaymentLedgerLine[] | undefined | null
+    );
+
+    return {
+      ...base,
+      paymentId,
+      organizationId: String(rawRecord['organizationId'] ?? rawRecord['OrganizationId'] ?? base.organizationId ?? '').trim(),
+      officeId: Number(rawRecord['officeId'] ?? rawRecord['OfficeId'] ?? base.officeId ?? 0) || 0,
+      officeName: String(rawRecord['officeName'] ?? rawRecord['OfficeName'] ?? base.officeName ?? '').trim(),
+      paymentDate,
+      amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,
+      costCodeId,
+      costCodeDescription: String(rawRecord['costCodeDescription'] ?? rawRecord['CostCodeDescription'] ?? base.costCodeDescription ?? '').trim(),
+      description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
+      paymentTypeId,
+      paymentTypeDescription: (String(rawRecord['paymentTypeDescription'] ?? rawRecord['PaymentTypeDescription'] ?? base.paymentTypeDescription ?? '').trim())
+        || getPaymentTypeLabel(paymentTypeId),
+      depositId,
+      depositCode: String(rawRecord['depositCode'] ?? rawRecord['DepositCode'] ?? base.depositCode ?? '').trim(),
+      postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId),
+      isActive,
+      ledgerLines,
+      createdOn,
+      createdBy: createdBy || createdByName,
+      createdByName: createdByName || createdBy,
+      modifiedOn,
+      modifiedBy
+    };
+  }
+
+  mapPaymentLedgerLinesFromApi(lines: PaymentLedgerLine[] | undefined | null): PaymentLedgerLine[] {
+    return (lines || []).map(line => this.mapPaymentLedgerLineFromApi(line));
+  }
+
+  mapPaymentLedgerLineFromApi(raw: PaymentLedgerLine | Record<string, unknown>): PaymentLedgerLine {
+    const base = raw as PaymentLedgerLine;
+    const rawRecord = raw as Record<string, unknown>;
+    const ledgerLineDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['ledgerLineDate'] ?? rawRecord['LedgerLineDate'] ?? base.ledgerLineDate
+      ) ??
+      base.ledgerLineDate ??
+      '';
+    const reservationIdRaw = rawRecord['reservationId'] ?? rawRecord['ReservationId'] ?? base.reservationId;
+    const reservationId = reservationIdRaw == null || String(reservationIdRaw).trim().length === 0
+      ? null
+      : String(reservationIdRaw).trim();
+
+    return {
+      ledgerLineId: String(rawRecord['ledgerLineId'] ?? rawRecord['LedgerLineId'] ?? base.ledgerLineId ?? '').trim(),
+      invoiceId: String(rawRecord['invoiceId'] ?? rawRecord['InvoiceId'] ?? base.invoiceId ?? '').trim(),
+      invoiceCode: String(rawRecord['invoiceCode'] ?? rawRecord['InvoiceCode'] ?? base.invoiceCode ?? '').trim(),
+      lineNumber: Number(rawRecord['lineNumber'] ?? rawRecord['LineNumber'] ?? base.lineNumber ?? 0) || 0,
+      reservationId,
+      costCodeId: Number(rawRecord['costCodeId'] ?? rawRecord['CostCodeId'] ?? base.costCodeId ?? 0) || 0,
+      amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,
+      description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
+      ledgerLineDate,
+      paymentId: String(rawRecord['paymentId'] ?? rawRecord['PaymentId'] ?? base.paymentId ?? '').trim(),
+      createdOn: this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
+      ) ?? base.createdOn,
+      createdBy: String(rawRecord['createdBy'] ?? rawRecord['CreatedBy'] ?? base.createdBy ?? '').trim() || undefined,
+      modifiedOn: this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['modifiedOn'] ?? rawRecord['ModifiedOn'] ?? base.modifiedOn
+      ) ?? base.modifiedOn,
+      modifiedBy: String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim() || undefined
+    };
+  }
+
+  mapPaymentDisplays(payments: PaymentResponse[]): PaymentDisplayList[] {
+    return (payments || []).map((payment: PaymentResponse): PaymentDisplayList => {
+      const ledgerLines = this.mapPaymentLedgerLinesFromApi(payment.ledgerLines);
+      const allocatedAmount = ledgerLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
+      const invoiceCodes = Array.from(
+        new Set(
+          ledgerLines
+            .map(line => (line.invoiceCode || '').trim())
+            .filter(code => code.length > 0)
+        )
+      );
+
+      return {
+        paymentId: payment.paymentId,
+        officeId: payment.officeId,
+        officeName: payment.officeName,
+        paymentDate: this.formatter.formatDateString(payment.paymentDate),
+        amount: Number(payment.amount) || 0,
+        amountDisplay: this.formatter.currencyUsd(Number(payment.amount) || 0),
+        costCodeId: payment.costCodeId,
+        costCodeDescription: (payment.costCodeDescription || '').trim(),
+        paymentTypeDescription: (payment.paymentTypeDescription || '').trim()
+          || getPaymentTypeLabel(this.normalizePaymentTypeId(payment.paymentTypeId)),
+        depositCode: (payment.depositCode || '').trim(),
+        hasDeposit: this.hasLinkedDeposit(payment.depositId),
+        descriptionDisplay: (payment.description || '').trim(),
+        invoiceSummaryDisplay: invoiceCodes.join(', '),
+        allocatedAmount,
+        allocatedAmountDisplay: this.formatter.currencyUsd(allocatedAmount),
+        ledgerLineSummaryDisplay: `${ledgerLines.length} line${ledgerLines.length === 1 ? '' : 's'}`,
+        ledgerLines,
+        isActive: payment.isActive,
+        createdBy: payment.createdBy ?? payment.createdByName ?? '',
+        createdByName: payment.createdByName ?? payment.createdBy ?? '',
+        modifiedOn: this.formatter.formatDateString(payment.modifiedOn),
+        modifiedBy: payment.modifiedBy
+      };
+    });
+  }
+
+  buildPaymentSaveRequest(
+    source: PaymentResponse | null | undefined,
+    organizationId: string,
+    shellOfficeId: number | null | undefined,
+    fields: {
+      paymentDate: string;
+      amount: number;
+      costCodeId: number;
+      description: string;
+      paymentTypeId: number | null;
+      isActive: boolean;
+    }
+  ): PaymentRequest {
+    const resolvedOfficeId = source?.officeId
+      ?? (shellOfficeId != null && Number.isFinite(shellOfficeId) && shellOfficeId > 0 ? shellOfficeId : 0);
+
+    return {
+      paymentId: source?.paymentId,
+      organizationId: (source?.organizationId || organizationId || '').trim(),
+      officeId: resolvedOfficeId,
+      paymentDate: fields.paymentDate,
+      amount: fields.amount,
+      costCodeId: fields.costCodeId,
+      description: fields.description,
+      paymentTypeId: fields.paymentTypeId,
+      depositId: source?.depositId ?? null,
+      isActive: fields.isActive
+    };
+  }
+
+  mapPaymentUpdateRequest(payment: PaymentResponse, isActive: boolean): PaymentRequest {
+    return this.buildPaymentSaveRequest(payment, payment.organizationId, payment.officeId, {
+      paymentDate: payment.paymentDate,
+      amount: Number(payment.amount) || 0,
+      costCodeId: payment.costCodeId,
+      description: (payment.description || '').trim(),
+      paymentTypeId: payment.paymentTypeId ?? null,
+      isActive
+    });
   }
   //#endregion
 

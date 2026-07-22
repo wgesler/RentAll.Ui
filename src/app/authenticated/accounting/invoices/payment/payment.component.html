@@ -1,0 +1,183 @@
+@if ((!isPageReady || !isPaymentContentReady) && paymentId) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading payment...</p>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="savePayment()" class="info-form pt-5 payment-embedded-form">
+          <div class="payment-shell payment-shell--accounting">
+            <div class="payment-status-row">
+              <span class="text-lg font-medium">Payment</span>
+              <div class="flex items-center gap-2">
+                <mat-checkbox formControlName="isActive" color="primary">
+                  IsActive
+                </mat-checkbox>
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="primary"
+                  (click)="savePayment()"
+                  [disabled]="isSubmitting"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-4 form-standard-grid payment-form-grid">
+              <div class="col-span-4 payment-overall-row payment-overall-primary-row">
+                <mat-form-field appearance="outline" class="payment-overall-date-field">
+                  <mat-label>Payment Date</mat-label>
+                  <input matInput [matDatepicker]="paymentDatePicker" formControlName="paymentDate" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #paymentDatePicker></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="payment-overall-type-field">
+                  <mat-label>Payment Type</mat-label>
+                  <mat-select formControlName="paymentTypeId" [compareWith]="comparePaymentTypeIds">
+                    <mat-option [value]="null">None</mat-option>
+                    @for (type of paymentTypeOptions; track type.value) {
+                      <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <app-searchable-select
+                  class="payment-overall-cost-code-field"
+                  [renderInFormField]="true"
+                  [formFieldClass]="'payment-overall-cost-code-field'"
+                  [formFieldLabel]="'Cost Code'"
+                  [value]="form.get('costCodeId')?.value ?? 0"
+                  [options]="costCodeOptions"
+                  [required]="true"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [searchPlaceholder]="'Type to filter cost codes...'"
+                  [showInstructionOption]="false"
+                  [noResultsText]="'No payment cost codes match your search'"
+                  [showError]="shouldShowControlError(form.get('costCodeId'))"
+                  errorText="Cost code is required"
+                  (valueChange)="onCostCodeSelectionChange($event)">
+                </app-searchable-select>
+
+                <mat-form-field appearance="outline" class="payment-overall-amount-field"
+                  [class.mat-form-field-invalid]="shouldShowControlError(form.get('amount'))"
+                  [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('amount'))">
+                  <mat-label>Amount</mat-label>
+                  <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()" required
+                    (focus)="onAmountFocus($event)"
+                    (blur)="onAmountBlur($event)"
+                    (input)="onAmountInput($event)"
+                    (keydown.enter)="onAmountKeydown($event)">
+                  @if (shouldShowControlError(form.get('amount'))) {
+                    <mat-error>Amount must be greater than zero</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="payment-overall-description-field">
+                  <mat-label>Description</mat-label>
+                  <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
+                </mat-form-field>
+              </div>
+
+              <div class="col-span-4 payment-overall-summary-row">
+                <div class="payment-overall-summary">
+                  <span class="payment-overall-summary-label">Ledger Total:</span>
+                  <span class="payment-overall-summary-value" [class.split-total-invalid]="isAllocationTotalOutOfBalance() || splitTotalValidationError">
+                    ${{ formatter.currency(getDisplayedSplitTotal()) }} / Payment: ${{ formatter.currency(getPaymentAmountValue()) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="col-span-4 payment-ledger-lines-section">
+              <div class="payment-ledger-lines-header">
+                <span class="text-lg font-medium">Payment Details</span>
+                <button type="button" mat-raised-button color="primary" (click)="addSplitLine()">
+                  <mat-icon>add</mat-icon>
+                  Add Line
+                </button>
+              </div>
+              <div class="payment-ledger-lines-list" formArrayName="splits">
+                <div class="payment-ledger-lines-table-wrap">
+                  <table class="split-lines-table split-lines-table--payment">
+                    <thead>
+                      <tr>
+                        <th class="split-col-no">No</th>
+                        <th class="split-col-invoice">Invoice</th>
+                        <th class="split-col-amount">Amount</th>
+                        <th class="split-col-description">Description</th>
+                        <th class="split-col-actions"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                        <tr [formGroupName]="splitIndex">
+                          <td class="split-col-no">{{ splitIndex + 1 }}</td>
+                          <td class="split-col-invoice">
+                            <app-searchable-select
+                              class="split-invoice-select"
+                              [renderInFormField]="false"
+                              [value]="splitGroup.get('invoiceId')?.value ?? ''"
+                              [options]="invoiceOptions"
+                              [required]="true"
+                              [showInstructionOption]="true"
+                              [instructionOptionValue]="''"
+                              nullOptionLabel="Select Invoice"
+                              [showSearchInput]="true"
+                              [hideSearchHint]="false"
+                              [hideSearchText]="false"
+                              searchPlaceholder="Type to filter invoices..."
+                              noResultsText="No invoices match your search"
+                              [selectClass]="getSplitInvoiceSelectClass(splitGroup)"
+                              [showError]="shouldShowSplitControlError(splitGroup, 'invoiceId')"
+                              errorText="Invoice is required"
+                              (valueChange)="onSplitInvoiceSelectionChange(splitIndex, $event)" />
+                          </td>
+                          <td class="split-col-amount">
+                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
+                              (focus)="onSplitAmountFocus($event, splitIndex)"
+                              (blur)="onSplitAmountBlur($event, splitIndex)"
+                              (input)="onSplitAmountInput($event, splitIndex)"
+                              (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
+                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'amount')">
+                          </td>
+                          <td class="split-col-description">
+                            <input type="text" formControlName="description" required class="split-editable-input"
+                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                          </td>
+                          <td class="split-col-actions">
+                            <button
+                              type="button"
+                              mat-icon-button
+                              color="accent"
+                              [disabled]="splitsFormArray.length <= 1"
+                              (click)="removeSplitLine(splitIndex)"
+                              matTooltip="Remove this ledger line">
+                              <mat-icon>close</mat-icon>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              @if (isAllocationTotalOutOfBalance() || splitTotalValidationError) {
+                <div class="split-total-error">
+                  Ledger line total must equal the payment amount.
+                </div>
+              }
+            </div>
+          </div>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

@@ -711,6 +711,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isPaymentDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onPaymentBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isGeneralLedgerDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onGeneralLedgerBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -822,6 +827,10 @@
               <div class="accounting-shell-subview-title">
                 Invoices
               </div>
+              } @else if (selectedInvoiceKind === 'payments') {
+              <div class="accounting-shell-subview-title">
+                Payments
+              </div>
               }
               @if (selectedInvoiceKind === 'invoices') {
             @if (showInvoiceCreate && invoiceCreateContext) {
@@ -897,7 +906,7 @@
                   (editInvoice)="onMissingInvoiceEditInvoice($event)">
                 </app-missing-invoice-report>
                 }
-              } @else {
+              } @else if (selectedInvoiceKind === 'preBillingReport') {
                 @if (showPreBillingInvoiceEditor && preBillingInvoiceDraft) {
                   @for (instance of [preBillingInvoiceEditorInstance]; track instance) {
                     <app-invoice
@@ -923,6 +932,27 @@
                   (invoicesCreated)="onPreBillingInvoicesCreated()"
                   (editInvoice)="onPreBillingEditInvoice($event)">
                 </app-pre-billing-report>
+                }
+              } @else if (selectedInvoiceKind === 'payments') {
+                @if (showPaymentsDetail) {
+                  @for (instance of [paymentDetailInstance]; track instance) {
+                    <app-payment
+                      [paymentId]="selectedPaymentId"
+                      [prefetchedPayment]="selectedPayment"
+                      [officeId]="selectedOfficeId"
+                      [invoiceSearchDateRange]="invoiceSearchDateRange"
+                      (backEvent)="onPaymentBack()"
+                      (savedEvent)="onPaymentSaved()" />
+                  }
+                } @else if (paymentsListEngaged) {
+                  <app-payment-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="paymentSearchRequest"
+                    [embeddedInAccounting]="true"
+                    [refreshTrigger]="paymentsRefreshTrigger"
+                    (paymentSelect)="onPaymentSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-payment-list>
                 }
               }
             }

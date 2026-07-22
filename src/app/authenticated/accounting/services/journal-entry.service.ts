@@ -21,6 +21,7 @@ export type JournalEntrySourceDocumentLabel =
   | 'Work Order'
   | 'Deposit'
   | 'Transfer'
+  | 'Payment'
   | 'Journal Entry';
 
 const POSTED_JOURNAL_ENTRY_EDIT_ROLES: UserGroups[] = [

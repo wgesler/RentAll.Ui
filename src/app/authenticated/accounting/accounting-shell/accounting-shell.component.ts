@@ -35,6 +35,9 @@ import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-
 import { DepositsListComponent } from '../bank/deposits-list/deposits-list.component';
 import { DepositComponent } from '../bank/deposit/deposit.component';
 import { DepositResponse, DepositSelection } from '../models/deposit.model';
+import { PaymentListComponent } from '../invoices/payment-list/payment-list.component';
+import { PaymentComponent } from '../invoices/payment/payment.component';
+import { PaymentResponse, PaymentSearchRequest, PaymentSelection } from '../models/payment.model';
 import { TransfersListComponent } from '../bank/transfers-list/transfers-list.component';
 import { TransferComponent } from '../bank/transfer/transfer.component';
 import { TransferReportComponent } from '../bank/transfer-report/transfer-report.component';
@@ -155,6 +158,8 @@ interface AccountingShellPinnedTopBarState {
     ReceiptComponent,
     DepositsListComponent,
     DepositComponent,
+    PaymentListComponent,
+    PaymentComponent,
     TransfersListComponent,
     TransferComponent,
     TransferReportComponent,
@@ -237,6 +242,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly tabMaxIndex = 5;
   readonly shellInvoiceMenuOptions: { kind: AccountingShellInvoiceKind; label: string }[] = [
     { kind: 'invoices', label: 'Invoices' },
+    { kind: 'payments', label: 'Payments' },
     { kind: 'missingInvoiceReport', label: 'Missing Invoice Report' },
     { kind: 'preBillingReport', label: 'Pre-Billing Report' }
   ];
@@ -275,6 +281,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'recap', label: 'Journal Entry Recap' }
   ];
   selectedInvoiceKind: AccountingShellInvoiceKind = 'invoices';
+  paymentsListEngaged = false;
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'undepositedFunds';
   selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
@@ -316,6 +323,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   missingInvoiceEditorInstance = 0;
   invoicesRefreshTrigger = 0;
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
+  paymentSearchRequest: PaymentSearchRequest = { officeIds: [] };
   billsRefreshTrigger = 0;
   receiptsRefreshTrigger = 0;
   rentRollRefreshTrigger = 0;
@@ -348,6 +356,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedDeposit: DepositResponse | null = null;
   depositsProperty: PropertyResponse | null = null;
   depositDetailInstance = 0;
+  showPaymentsDetail = false;
+  selectedPaymentId: string | null = null;
+  selectedPayment: PaymentResponse | null = null;
+  paymentDetailInstance = 0;
   showTransfersDetail = false;
   selectedTransferId: string | null = null;
   selectedTransfer: TransferResponse | null = null;
@@ -398,6 +410,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   undepositedFundsRefreshTrigger = 0;
   untransferredFundsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
+  paymentsRefreshTrigger = 0;
   transfersRefreshTrigger = 0;
   transferReportRefreshTrigger = 0;
   reconcileRefreshTrigger = 0;
@@ -1705,6 +1718,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.undepositedFundsRefreshTrigger++;
     this.untransferredFundsRefreshTrigger++;
     this.depositsRefreshTrigger++;
+    if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+      this.paymentsRefreshTrigger++;
+    }
     this.transfersRefreshTrigger++;
     this.transferReportRefreshTrigger++;
     this.printChecksRefreshTrigger++;
@@ -1855,6 +1871,44 @@ hydrateSelectedInvoiceForActiveId(): void {
   onDepositSaved(): void {
     this.onDepositBack();
     this.depositsRefreshTrigger++;
+    this.onJournalEntriesChanged();
+  }
+
+  onPaymentSelect(selection: PaymentSelection): void {
+    const paymentId = selection?.paymentId ?? null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+    }
+    this.syncInvoiceSearchDateRange();
+
+    this.selectedPayment = selection?.payment ?? null;
+    this.selectedTabIndex = this.tabInvoices;
+    this.selectedInvoiceKind = 'payments';
+    this.paymentsListEngaged = true;
+    const reopeningPaymentAdd = paymentId === 'new'
+      && this.showPaymentsDetail
+      && this.selectedPaymentId === 'new';
+    this.selectedPaymentId = paymentId;
+    if (reopeningPaymentAdd) {
+      this.paymentDetailInstance++;
+    }
+    this.showPaymentsDetail = true;
+  }
+
+  onPaymentBack(): void {
+    this.showPaymentsDetail = false;
+    this.selectedPaymentId = null;
+    this.selectedPayment = null;
+  }
+
+  onPaymentSaved(): void {
+    this.onPaymentBack();
+    this.paymentsRefreshTrigger++;
     this.onJournalEntriesChanged();
   }
 
@@ -2453,6 +2507,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       || !!this.route.snapshot.paramMap.get('id'));
 
     if (leavingInvoicesTab) {
+      this.paymentsListEngaged = false;
       this.clearInvoiceShellDetailState();
     }
 
@@ -2471,6 +2526,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
       this.onDepositBack();
+      this.onPaymentBack();
       this.onTransferBack();
       this.onTransferReportBack();
       this.onSecurityDepositReportBack();
@@ -2549,7 +2605,19 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       this.closeMissingInvoiceEditor(false);
     }
 
+    if (kindChanged && this.selectedInvoiceKind === 'payments') {
+      this.onPaymentBack();
+    }
+
     this.selectedInvoiceKind = kind;
+    if (kind === 'payments') {
+      this.paymentsListEngaged = true;
+      if (kindChanged) {
+        this.paymentsRefreshTrigger++;
+      }
+    } else {
+      this.paymentsListEngaged = false;
+    }
     if (kind === 'preBillingReport') {
       this.ensurePreBillingMonthDefault();
       this.syncPreBillingOfficeIds();
@@ -2629,6 +2697,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     if (kindChanged) {
       this.onGeneralLedgerBack();
       this.onDepositBack();
+      this.onPaymentBack();
       this.onTransferBack();
       this.onTransferReportBack();
       this.onSecurityDepositReportBack();
@@ -3251,6 +3320,30 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
+    this.syncPaymentSearchRequest();
+  }
+
+  syncPaymentSearchRequest(): void {
+    const nextRequest: PaymentSearchRequest = {
+      officeIds: this.resolveOfficeIdsForBillsSearch(),
+      startDate: this.invoiceSearchDateRange.startDate,
+      endDate: this.invoiceSearchDateRange.endDate
+    };
+    if (
+      this.paymentSearchRequest.startDate === nextRequest.startDate
+      && this.paymentSearchRequest.endDate === nextRequest.endDate
+      && this.areOfficeIdListsEqual(this.paymentSearchRequest.officeIds, nextRequest.officeIds)
+    ) {
+      return;
+    }
+    this.paymentSearchRequest = nextRequest;
+  }
+
+  areOfficeIdListsEqual(left: number[], right: number[]): boolean {
+    if (left.length !== right.length) {
+      return false;
+    }
+    return left.every((officeId, index) => officeId === right[index]);
   }
 
   resolveOfficeIdsForBillsSearch(): number[] {
@@ -3278,6 +3371,9 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       this.asOfDate = this.cloneShellDate(this.endDate);
       this.normalizeAsOfDateValue();
       this.normalizeAsOfStartValue();
+    }
+    if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+      this.paymentsRefreshTrigger++;
     }
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
@@ -3331,7 +3427,7 @@ persistPinnedTopBarIfActive(): void {
 
 applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
     this.selectedTabIndex = stored.selectedTabIndex ?? this.selectedTabIndex;
-    if (stored.selectedInvoiceKind) {
+    if (stored.selectedInvoiceKind && stored.selectedInvoiceKind !== 'payments') {
       this.selectedInvoiceKind = stored.selectedInvoiceKind;
       if (stored.selectedInvoiceKind === 'preBillingReport') {
         this.ensurePreBillingMonthDefault();
@@ -3655,6 +3751,7 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
       && !this.isReceiptsReceiptDetailActive
       && !this.isBillsReceiptsWorkOrderDetailActive
       && !this.isDepositDetailActive
+      && !this.isPaymentDetailActive
       && !this.isTransferDetailActive
       && !this.isOwnersUtilityReceiptDetailActive
       && !this.isOwnersWorkOrderDetailActive
@@ -4021,6 +4118,12 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind === 'deposits'
       && this.showDepositsDetail;
+  }
+
+  get isPaymentDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabInvoices
+      && this.selectedInvoiceKind === 'payments'
+      && this.showPaymentsDetail;
   }
 
   get isTransferDetailActive(): boolean {
@@ -4767,6 +4870,9 @@ captureOwnerStatementReturnContext(): void {
             this.undepositedFundsRefreshTrigger++;
             this.untransferredFundsRefreshTrigger++;
             this.depositsRefreshTrigger++;
+            if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+              this.paymentsRefreshTrigger++;
+            }
             this.transfersRefreshTrigger++;
             this.transferReportRefreshTrigger++;
             this.reconcileRefreshTrigger++;

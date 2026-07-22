@@ -1,0 +1,96 @@
+<ng-template #paymentLedgerLinesTemplate let-payment>
+  <div class="detail-lines-wrapper detail-lines-align-amount">
+    @if (payment?.ledgerLines?.length) {
+      <table>
+        <thead>
+          <tr>
+            @for (columnName of getPaymentLedgerLineColumnNames(); track columnName) {
+              @if (paymentLedgerLineDisplayedColumns[columnName]) {
+                <th [style.max-width]="getPaymentLedgerLineColumnWidth(columnName)"
+                    [style.width]="getPaymentLedgerLineColumnWidth(columnName)"
+                    [style.min-width]="getPaymentLedgerLineColumnMinWidth(columnName)"
+                    [style.text-align]="paymentLedgerLineDisplayedColumns[columnName].headerAlignment || paymentLedgerLineDisplayedColumns[columnName].alignment || 'left'">
+                  {{ paymentLedgerLineDisplayedColumns[columnName].displayAs }}
+                </th>
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of payment.ledgerLines; track $index; let lineIndex = $index) {
+            <tr>
+              @for (columnName of getPaymentLedgerLineColumnNames(); track columnName) {
+                @if (paymentLedgerLineDisplayedColumns[columnName]) {
+                  <td [style.max-width]="getPaymentLedgerLineColumnWidth(columnName)"
+                      [style.width]="getPaymentLedgerLineColumnWidth(columnName)"
+                      [style.min-width]="getPaymentLedgerLineColumnMinWidth(columnName)"
+                      [style.text-align]="paymentLedgerLineDisplayedColumns[columnName].alignment || 'left'"
+                      [class.no-wrap]="true">
+                    @if (columnName === 'invoiceCode' && (line.invoiceId || '').trim()) {
+                      <span class="text-blue-700 underline cursor-pointer"
+                            (click)="goToInvoice($event, line)">
+                        {{ getPaymentLedgerLineColumnValue(line, columnName, lineIndex) }}
+                      </span>
+                    } @else {
+                      {{ getPaymentLedgerLineColumnValue(line, columnName, lineIndex) }}
+                    }
+                  </td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="no-lines">No invoice allocations linked to this payment.</p>
+    }
+  </div>
+</ng-template>
+
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading payments...</p>
+  </div>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="payment-list"
+        [data]="paymentsDisplay"
+        [columns]="activePaymentDisplayedColumns"
+        noDataMessage="No payments"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasDetailRow]="true"
+        [detailRowTemplate]="paymentLedgerLinesTemplate"
+        [includeDetailRowHeader]="false"
+        [expandAllCallback]="toggleExpandAll.bind(this)"
+        [isAllExpanded]="isAllExpanded"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="true"
+        deleteConfirmTitle="Delete Payment"
+        deleteConfirmMessage="Are you sure you want to delete this payment?"
+        [itemsPerPage]="10"
+        (editEvent)="goToPayment($event)"
+        (rowClickEvent)="goToPayment($event)"
+        (deleteEvent)="deletePayment($event)"
+        (checkboxChangeEvent)="onPaymentCheckboxChange($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
+              InActive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="primary" id="add-payment-button" class="text-nowrap flex-shrink-0" (click)="addPayment()">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          </div>
+        </div>
+      </app-data-table>
+    </div>
+  </div>
+}

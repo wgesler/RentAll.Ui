@@ -136,19 +136,6 @@ export interface BillingMonthlyDataResponse {
   organizationId: string;
   ledgerLines: LedgerLineResponse[];
 }
-export interface InvoicePaymentRequest {
-  paymentDate: CalendarDateString;
-  costCodeId: number;
-  description: string;
-  amount: number;
-  invoices: string[];
-}
-
-export interface InvoicePaymentResponse {
-  invoices: InvoiceResponse[];
-}
-
-// LedgerLine models
 export interface LedgerLineRequest {
   ledgerLineId?: string;
   invoiceId?: string | null;

@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, concatMap, EMPTY, finalize, from, map, switchMap, take, takeUntil, toArray} from 'rxjs';
+import {BehaviorSubject, Subject, EMPTY, concatMap, finalize, from, switchMap, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -25,11 +25,13 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { UserGroups } from '../../../users/models/user-enums';
-import { TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels, PaymentType } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, LedgerLineResponse } from '../../models/invoice.model';
+import { InvoiceGetRequest, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, LedgerLineResponse } from '../../models/invoice.model';
+import { ApplyInvoicePaymentRequest } from '../../models/payment.model';
 import { InvoiceService } from '../../services/invoice.service';
+import { PaymentService } from '../../services/payment.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceDocumentService } from '../../services/invoice-document.service';
@@ -107,6 +109,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() invoiceSelect = new EventEmitter<InvoiceSelection>();
   @Output() previewAllRequested = new EventEmitter<void>();
   accountingService = inject(InvoiceService);
+  private paymentService = inject(PaymentService);
   toastr = inject(ToastrService);
   router = inject(Router);
   mappingService = inject(MappingService);
@@ -1496,6 +1499,74 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return `Payment ${isoStamp}`;
   }
 
+  resolveApplyPaymentOrganizationId(): string {
+    return (this.organizationId || this.authService.getUser()?.organizationId || '').trim();
+  }
+
+  buildApplyInvoicePaymentRequest(
+    amount: number,
+    options?: { invoiceIds?: string[]; allocations?: ApplyInvoicePaymentRequest['allocations'] }
+  ): ApplyInvoicePaymentRequest | null {
+    const organizationId = this.resolveApplyPaymentOrganizationId();
+    const officeId = this.resolvedPaymentOfficeId;
+    const paymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString();
+
+    if (!organizationId || !officeId || !this.selectedPaymentCostCodeId) {
+      return null;
+    }
+
+    return {
+      organizationId,
+      officeId,
+      paymentDate,
+      amount,
+      costCodeId: this.selectedPaymentCostCodeId,
+      description: this.getPaymentRequestDescription(),
+      paymentTypeId: PaymentType.Check,
+      isActive: true,
+      invoices: options?.invoiceIds,
+      allocations: options?.allocations
+    };
+  }
+
+  submitApplyInvoicePaymentRequest(
+    request: ApplyInvoicePaymentRequest,
+    postingStatusIds: Array<number | null | undefined>,
+    successMessage: string
+  ): void {
+    if (this.isSubmittingPayment) {
+      return;
+    }
+
+    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Invoice').pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
+
+        this.isSubmittingPayment = true;
+        return this.paymentService.applyPaymentToInvoices(request).pipe(
+          take(1),
+          finalize(() => {
+            this.isSubmittingPayment = false;
+            this.markViewForCheck();
+          })
+        );
+      })
+    ).subscribe({
+      next: () => {
+        this.handleApplyPaymentResponse(successMessage);
+        this.clearPaymentForm();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to apply payment', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
+
   getCompanyIdToApply(): string | null {
     if (this.companyId !== null && this.companyId !== undefined && this.companyId !== '') {
       return this.companyId;
@@ -1902,7 +1973,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // Find all invoices that have an apply amount entered
     const invoicesWithPayments = this.invoicesDisplay.filter(invoice => {
       const applyAmountValue = invoice.applyAmountValue || 0;
       return applyAmountValue !== 0 && invoice.invoiceId;
@@ -1913,129 +1983,51 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // Validate that remaining amount is 0
     if (!this.isRemainingAmountZero()) {
       this.toastr.warning(`Remaining amount must be $0.00 before submitting. Current remaining: ${this.remainingAmountDisplay}`);
       return;
     }
 
-    // Process payments sequentially to avoid race conditions
-    // Create an array of payment data
     const paymentDescription = this.getPaymentRequestDescription();
-    const paymentData = invoicesWithPayments.map(invoice => {
-      const paidAmount = Number(invoice.applyAmountValue || 0);
-      return {
-        invoice,
-        paidAmount,
-        paymentRequest: {
-          paymentDate: this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
-          costCodeId: this.selectedPaymentCostCodeId!,
-          description: paymentDescription,
-          amount: paidAmount,
-          invoices: [invoice.invoiceId] // Single invoice per request
-        } as InvoicePaymentRequest
-      };
-    });
-
-    const postingStatusIds = paymentData.map(({ invoice }) =>
-      this.allInvoices.find(item => item.invoiceId === invoice.invoiceId)?.postingStatusId
-    );
-
-    let appliedPaymentCount = 0;
-    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Invoice').pipe(
-      take(1),
-      switchMap(canProceed => {
-        if (!canProceed) {
-          return EMPTY;
-        }
-
-        this.isSubmittingPayment = true;
-
-        return from(paymentData).pipe(
-          concatMap(({ paymentRequest, invoice }) =>
-            this.accountingService.applyPayment(paymentRequest).pipe(
-              take(1),
-              map(response => ({ response, paymentRequest, invoice }))
-            )
-          ),
-          finalize(() => {
-            this.isSubmittingPayment = false;
-            this.clearPaymentForm();
-            this.loadInvoicesForCurrentSearchCriteria(true);
-            this.applyFilters();
-            if (appliedPaymentCount > 0) {
-              this.journalEntriesChanged.emit();
-            }
-            this.markViewForCheck();
-          })
-        );
-      })
-    ).subscribe({
-      next: ({ response, paymentRequest, invoice }) => {
-        appliedPaymentCount++;
-        response.invoices.forEach(i => {
-          const invoiceToUpdate = this.allInvoices.find(r => r.invoiceId === i.invoiceId);
-          if (invoiceToUpdate) {
-            invoiceToUpdate.paidAmount = i.paidAmount;
-          }
-        });
-
-        this.toastr.success(
-          `Payment of $${this.formatter.currency(paymentRequest.amount)} applied to invoice ${invoice.invoiceNumber || invoice.invoiceId}`,
-          CommonMessage.Success
-        );
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  applyPayment(invoiceIds: string[]): void {
-    if (this.isSubmittingPayment) {
+    const allocations = invoicesWithPayments.map(invoice => ({
+      invoiceId: invoice.invoiceId,
+      amount: Number(invoice.applyAmountValue || 0),
+      description: paymentDescription
+    }));
+    const totalAmount = allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+    const request = this.buildApplyInvoicePaymentRequest(totalAmount, { allocations });
+    if (!request) {
+      this.toastr.warning('Unable to build payment request');
       return;
     }
 
-    const paymentRequest: InvoicePaymentRequest = {
-      paymentDate: this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
-      costCodeId: this.selectedPaymentCostCodeId!,
-      description: this.getPaymentRequestDescription(),
-      amount: this.paymentAmount,
-      invoices: invoiceIds
-    };
+    const postingStatusIds = invoicesWithPayments.map(invoice =>
+      this.allInvoices.find(item => item.invoiceId === invoice.invoiceId)?.postingStatusId
+    );
+
+    this.submitApplyInvoicePaymentRequest(
+      request,
+      postingStatusIds,
+      `Payment of $${this.formatter.currency(totalAmount)} applied`
+    );
+  }
+
+  applyPayment(invoiceIds: string[]): void {
+    const request = this.buildApplyInvoicePaymentRequest(this.paymentAmount, { invoiceIds });
+    if (!request) {
+      this.toastr.warning('Unable to build payment request');
+      return;
+    }
 
     const postingStatusIds = invoiceIds.map(invoiceId =>
       this.allInvoices.find(invoice => invoice.invoiceId === invoiceId)?.postingStatusId
     );
 
-    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Invoice').pipe(
-      take(1),
-      switchMap(canProceed => {
-        if (!canProceed) {
-          return EMPTY;
-        }
-
-        this.isSubmittingPayment = true;
-        return this.accountingService.applyPayment(paymentRequest).pipe(
-          take(1),
-          finalize(() => {
-            this.isSubmittingPayment = false;
-            this.markViewForCheck();
-          })
-        );
-      })
-    ).subscribe({
-      next: (response: InvoicePaymentResponse) => {
-        this.handlePaymentResponse(response, paymentRequest);
-        this.clearPaymentForm();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.toastr.error('Failed to apply payment', CommonMessage.Error);
-        this.markViewForCheck();
-      }
-    });
+    this.submitApplyInvoicePaymentRequest(
+      request,
+      postingStatusIds,
+      `Payment of $${this.formatter.currency(request.amount)} applied`
+    );
   }
 
   onApplyAmountInput(invoice: InvoiceListDisplayRow, event: Event): void {
@@ -2147,18 +2139,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  handlePaymentResponse(response: InvoicePaymentResponse, paymentRequest: InvoicePaymentRequest): void {
-    this.toastr.success(`Payment of $${this.formatter.currency(paymentRequest.amount)} applied`, CommonMessage.Success);
-    response.invoices.forEach(i => {
-      const invoice = this.allInvoices.find(r => r.invoiceId === i.invoiceId);
-      if (invoice) {
-        invoice.paidAmount = i.paidAmount;
-      }
-    });
-    
-    // Refresh the display to show updated paid amounts
-    this.applyFilters();
+  handleApplyPaymentResponse(successMessage: string): void {
+    this.toastr.success(successMessage, CommonMessage.Success);
     this.loadInvoicesForCurrentSearchCriteria(true);
+    this.applyFilters();
     this.journalEntriesChanged.emit();
   }
   //#endregion

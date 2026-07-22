@@ -6,7 +6,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse, MissingInvoiceSearchRequest, PreBillingInvoiceSearchRequest, ReservationInvoicePreviewSearchRequest } from '../models/invoice.model';
+import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, MissingInvoiceSearchRequest, PreBillingInvoiceSearchRequest, ReservationInvoicePreviewSearchRequest } from '../models/invoice.model';
 import { InvoiceDocumentService } from './invoice-document.service';
 
 @Injectable({
@@ -82,19 +82,6 @@ export class InvoiceService {
   getBillingMonthlyLedgerLines(request: BillingMonthlyDataRequest): Observable<BillingMonthlyDataResponse> {
     return this.http.post<BillingMonthlyDataResponse>(this.controller + 'invoice/ledger-line/organization', request);
   }
-
-  // PUT: Apply payment to invoices
-  applyPayment(payment: InvoicePaymentRequest): Observable<InvoicePaymentResponse> {
-    return this.http.put<InvoicePaymentResponse>(this.controller + 'invoice/payment', payment).pipe(
-      map(response => ({
-        ...response,
-        invoices: (response.invoices ?? []).map(inv =>
-          this.mappingService.mapInvoiceResponse(inv as unknown as Record<string, unknown>)
-        )
-      }))
-    );
-  }
-
 
   // Helper Methods
   normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
