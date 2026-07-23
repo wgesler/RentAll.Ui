@@ -348,6 +348,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.splitsFormArray.removeAt(index);
+    this.syncPaymentAmountFromSplits();
     this.cdr.markForCheck();
   }
 
@@ -437,9 +438,35 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   onSplitInvoiceSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
     const invoiceId = (value ?? '').toString().trim();
-    this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.setValue(invoiceId);
-    this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.markAsTouched();
+    const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
+    splitGroup?.get('invoiceId')?.setValue(invoiceId);
+    splitGroup?.get('invoiceId')?.markAsTouched();
+    if (invoiceId.length > 0) {
+      const balanceDue = this.getInvoiceBalanceDue(invoiceId);
+      splitGroup?.get('amount')?.setValue(balanceDue.toFixed(2), { emitEvent: false });
+      splitGroup?.get('amount')?.markAsTouched();
+      splitGroup?.get('amount')?.updateValueAndValidity({ emitEvent: false });
+    }
+    this.syncPaymentAmountFromSplits();
     this.cdr.markForCheck();
+  }
+
+  getInvoiceBalanceDue(invoiceId: string): number {
+    const invoice = this.invoices.find(item => item.invoiceId === invoiceId);
+    if (!invoice) {
+      return 0;
+    }
+
+    const balance = Math.round(((Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0)) * 100) / 100;
+    return balance > 0 ? balance : 0;
+  }
+
+  syncPaymentAmountFromSplits(): void {
+    const splitTotal = this.getDisplayedSplitTotal();
+    this.form.get('amount')?.setValue(splitTotal.toFixed(2), { emitEvent: false });
+    this.form.get('amount')?.markAsTouched();
+    this.form.get('amount')?.updateValueAndValidity({ emitEvent: false });
+    this.splitTotalValidationError = false;
   }
 
   getSplitInvoiceSelectClass(splitGroup: AbstractControl): string {

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -70,6 +70,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
   ledgerLines: LedgerLineListDisplay[] = [];
+  ledgerLineDatesFormArray!: FormArray<FormControl<Date | null>>;
   originalLedgerLines: LedgerLineListDisplay[] = []; // Store original state for comparison
   originalNotes: string | null = null; // Store original notes for comparison
 
@@ -240,7 +241,7 @@ export class BillingComponent implements OnInit, OnDestroy {
           transactionTypeId: (line as any).transactionTypeId,
           amount: line.amount || 0,
           description: line.description || '',
-          ledgerLineDate: line.ledgerLineDate || invoiceDateString
+          ledgerLineDate: this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(index).value) ?? line.ledgerLineDate ?? invoiceDateString
         };
         return ledgerLine;
       });
@@ -340,6 +341,7 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   //#region Form methods
   buildForm(): void {
+    this.ledgerLineDatesFormArray = this.fb.array<FormControl<Date | null>>([]);
     const user = this.authService.getUser();
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day for consistency
@@ -636,6 +638,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
     
     this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+    this.syncLedgerLineDatesFormArray();
     this.recomputeLedgerLineNumbers();
     this.ledgerLines.forEach(line => {
       if (line.isNew === undefined) {
@@ -711,41 +714,20 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
   }
 
-  private readonly ledgerDateCache = new WeakMap<object, { key: string; date: Date | null }>();
-
-  getLedgerLineDateValue(line: LedgerLineListDisplay): Date | null {
-    const key = String(line?.ledgerLineDate || '');
-    const cached = this.ledgerDateCache.get(line);
-    if (cached && cached.key === key) {
-      return cached.date;
-    }
-
-    const date = this.utilityService.parseCalendarDateInput(line?.ledgerLineDate);
-    this.ledgerDateCache.set(line, { key, date });
-    return date;
+  getLedgerLineDateControl(index: number): FormControl<Date | null> {
+    return this.ledgerLineDatesFormArray.at(index) as FormControl<Date | null>;
   }
 
-  onLedgerLineDateChange(index: number, value: Date | string | null): void {
-    const line = this.ledgerLines[index];
-    if (!line) {
+  syncLedgerLineDatesFormArray(): void {
+    if (!this.ledgerLineDatesFormArray) {
       return;
     }
 
-    const next = this.utilityService.toDateOnlyJsonString(value) ?? '';
-    if ((line.ledgerLineDate || '') === next) {
-      return;
-    }
-
-    const stableDate = value instanceof Date && !isNaN(value.getTime())
-      ? new Date(value.getFullYear(), value.getMonth(), value.getDate())
-      : this.utilityService.parseCalendarDateInput(next);
-    this.ledgerDateCache.set(line, { key: next, date: stableDate });
-    this.updateLedgerLineField(index, 'ledgerLineDate', next);
-  }
-
-  selectLedgerDateOnFocus(event: FocusEvent): void {
-    const input = event.target as HTMLInputElement | null;
-    queueMicrotask(() => input?.select());
+    this.ledgerLineDatesFormArray.clear({ emitEvent: false });
+    this.ledgerLines.forEach(line => {
+      const date = this.utilityService.parseCalendarDateInput(line.ledgerLineDate);
+      this.ledgerLineDatesFormArray.push(new FormControl<Date | null>(date), { emitEvent: false });
+    });
   }
 
   onTransactionTypeChange(index: number, transactionTypeId: number | null): void {
@@ -980,7 +962,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       // Compare key fields
       if (current.ledgerLineId !== original.ledgerLineId ||
           current.lineNumber !== original.lineNumber ||
-          current.ledgerLineDate !== original.ledgerLineDate ||
+          (this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(i).value) ?? current.ledgerLineDate ?? '') !== (original.ledgerLineDate ?? '') ||
           current.costCodeId !== original.costCodeId ||
           (current as any).transactionTypeId !== (original as any).transactionTypeId ||
           current.description !== original.description ||
@@ -1115,6 +1097,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       next: (response: BillingMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+    this.syncLedgerLineDatesFormArray();
         this.recomputeLedgerLineNumbers();
         this.normalizePaymentLineSigns();
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
@@ -1147,6 +1130,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"
     (newLine as any).transactionTypeId = undefined;
     this.ledgerLines.push(newLine);
+    this.syncLedgerLineDatesFormArray();
     this.updateTotalAmount();
   }
 
@@ -1154,6 +1138,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     if (index >= 0 && index < this.ledgerLines.length) {
       this.ledgerLines.splice(index, 1);
       this.recomputeLedgerLineNumbers();
+      this.syncLedgerLineDatesFormArray();
       this.updateTotalAmount();
     }
   }

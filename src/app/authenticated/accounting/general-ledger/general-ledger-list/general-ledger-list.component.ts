@@ -144,8 +144,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
-    isManual: { displayAs: 'Manual', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '10ch', sort: false },
-    perspective: { displayAs: 'Type', maxWidth: '12ch' },
     source: { displayAs: 'Source', maxWidth: '16ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
@@ -1107,7 +1105,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         propertyCode: this.summarizeGroupedField(entryLines.map(line => line.propertyCode)),
         reservationCode: this.summarizeGroupedField(entryLines.map(line => line.reservationCode)),
         contactName: this.summarizeGroupedField(entryLines.map(line => line.contactName)),
-        account: (firstLine.account || '').trim() || '—',
+        account: this.summarizeGroupedField(entryLines.map(line => (line.account || '').trim()).filter(account => account.length > 0)),
         description: (firstLine.journalEntryMemo || '').trim() || '—',
         debit: this.formatGroupedAmount(totalDebit),
         credit: this.formatGroupedAmount(totalCredit),
@@ -3308,8 +3306,7 @@ triggerCheckPrint(): void {
 
   get activeDisplayedColumns(): ColumnSet {
     if (!this.usesGroupedJournalEntryDisplay) {
-      const { isManual: _isManual, ...columnsWithoutManual } = this.displayedColumns;
-      return columnsWithoutManual;
+      return this.displayedColumns;
     }
 
     return {

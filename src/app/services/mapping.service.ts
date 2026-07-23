@@ -860,6 +860,13 @@ resolveJournalEntryLineSourceDisplay(
     line: JournalEntryLineSearchResponse,
     sourceTypes?: { value: number; label: string }[]
   ): string {
+    if (line.sourceTypeId === SourceType.InvoicePayment) {
+      const invoiceCodeFromMemo = this.tryParseInvoiceCodeFromJournalEntryLineMemo(line.memo);
+      if (invoiceCodeFromMemo) {
+        return invoiceCodeFromMemo;
+      }
+    }
+
     const sourceCode = (line.sourceCode || '').trim();
     if (sourceCode) {
       return sourceCode;
@@ -873,6 +880,16 @@ resolveJournalEntryLineSourceDisplay(
     }
 
     return getSourceTypeLabel(line.sourceTypeId, sourceTypes);
+  }
+
+  private tryParseInvoiceCodeFromJournalEntryLineMemo(memo: string | null | undefined): string | null {
+    const normalized = (memo || '').trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const match = normalized.match(/^(R-\d+(?:-\d+)*):/i);
+    return match?.[1]?.trim() || null;
   }
 
   mapJournalEntryLineListDisplay(
