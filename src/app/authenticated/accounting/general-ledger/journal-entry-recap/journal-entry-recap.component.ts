@@ -8,6 +8,8 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PostingStatus, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
 import { JournalEntryLineListDisplay, JournalEntryRecapRowDisplay } from '../../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
+import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
+import { MappingService } from '../../../../services/mapping.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 
@@ -25,12 +27,14 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   @Input() propertyId: string | null = null;
   @Input() reservationId: string | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
+  @Input() bundleSearchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private journalEntrySourceService = inject(JournalEntrySourceService);
+  private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -75,7 +79,11 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
+    if (
+      changes['isLoading']
+      || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
+      || (changes['bundleSearchRequest'] && !changes['bundleSearchRequest'].firstChange)
+    ) {
       this.loadRecapLines();
     }
   }
@@ -187,17 +195,8 @@ toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLin
       return;
     }
 
-    const recapRequest = {
-      officeIds,
-      propertyId: this.propertyId?.trim() || null,
-      reservationId: this.reservationId?.trim() || null,
-      includeVoided: false,
-      includeUnposted: true,
-      startDate: this.searchDateRange?.startDate ?? null,
-      endDate: this.searchDateRange?.endDate ?? null
-    };
-
-    if (!this.ownerReportsCacheService.matchesRecapSearchRequest(recapRequest)) {
+    const bundleRequest = this.mappingService.mapOwnerReportSearchRequest(this.bundleSearchRequest);
+    if (!this.ownerReportsCacheService.matchesOwnerReportSearchRequest(bundleRequest)) {
       this.isServiceError = false;
       this.rowsDisplay = [];
       this.noActivityMessage = 'Press Go to run the report.';
@@ -225,6 +224,11 @@ applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowD
 
     if (this.officeId != null && this.officeId > 0) {
       filtered = filtered.filter(row => row.officeId === this.officeId);
+    }
+
+    const propertyId = (this.propertyId || '').trim();
+    if (propertyId) {
+      filtered = filtered.filter(row => (row.propertyId || '').trim() === propertyId);
     }
 
     const reservationId = (this.reservationId || '').trim();

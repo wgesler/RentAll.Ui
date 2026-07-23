@@ -6077,7 +6077,6 @@ roundCurrency(value: number): number {
 
   buildEscrowReport(request: EscrowReportBuildRequest): EscrowReportResult {
     const selectedPropertyId = (request.propertyId || '').trim() || null;
-    const lastRecapByProperty = this.buildEscrowLastRecapAmountsByProperty(request.recapRows || []);
     const rows: EscrowReportRow[] = (request.accrualRows || [])
       .filter(row => {
         const propertyId = String(row.propertyId || '').trim();
@@ -6085,12 +6084,9 @@ roundCurrency(value: number): number {
       })
       .map(row => {
         const propertyId = String(row.propertyId || '').trim();
-        const recapAmounts = lastRecapByProperty.get(propertyId);
-        const arBalance = this.roundFinancialReportAmount(Number(row.unpaidIncome) || 0);
-        const prepaids = this.roundFinancialReportAmount(
-          recapAmounts?.prepaids ?? (Number(row.prepaidIncome) || 0)
-        );
-        const notCollected = this.roundFinancialReportAmount(recapAmounts?.notCollected ?? 0);
+        const arBalance = this.roundFinancialReportAmount(Number(row.invoicedIncome) || 0);
+        const prepaids = this.roundFinancialReportAmount(Math.max(0, Number(row.prepaidIncome) || 0));
+        const notCollected = this.roundFinancialReportAmount(Number(row.unpaidIncome) || 0);
         const total = this.roundFinancialReportAmount(arBalance - prepaids - notCollected);
         const e2 = total < 0 ? 0 : total;
         return {

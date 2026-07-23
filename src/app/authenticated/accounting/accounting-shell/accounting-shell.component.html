@@ -700,6 +700,26 @@
               (click)="toggleDateRangePin()">
               <mat-icon>push_pin</mat-icon>
             </button>
+            @if (showOwnerReportGoButton) {
+              <button
+                mat-mini-fab
+                type="button"
+                color="primary"
+                class="accounting-shell-owner-report-go-btn"
+                (click)="onOwnerReportGoClick()"
+                [disabled]="isOwnerReportsLoading"
+                aria-label="Run reports"
+                matTooltip="Run reports">
+                @if (isOwnerReportsLoading) {
+                  <mat-spinner class="accounting-shell-owner-report-go-spinner" [diameter]="20"></mat-spinner>
+                } @else {
+                  <span class="accounting-shell-owner-report-go-content">
+                    <span class="accounting-shell-owner-report-go-label">Go</span>
+                    <mat-icon class="accounting-shell-owner-report-go-arrow">arrow_forward</mat-icon>
+                  </span>
+                }
+              </button>
+            }
           </div>
         </ng-template>
       </div>
@@ -1462,6 +1482,7 @@
               } @else if (selectedOwnerKind === 'escrow') {
                 <app-escrow-report
                   [officeId]="selectedOfficeId"
+                  [searchRequest]="billsSearchRequest"
                   [asOfDate]="shellAsOfDateApi"
                   [asOfStart]="shellAsOfStartApi"
                   [propertyId]="selectedBillsPropertyId"
@@ -1638,6 +1659,7 @@
                   [propertyId]="selectedGlPropertyId"
                   [reservationId]="selectedGlReservationId"
                   [searchDateRange]="invoiceSearchDateRange"
+                  [bundleSearchRequest]="billsSearchRequest"
                   [refreshTrigger]="generalLedgerRefreshTrigger"
                   [isLoading]="isOwnerReportsLoading"
                   (lineSelectEvent)="onGeneralLedgerLineSelect($event)"

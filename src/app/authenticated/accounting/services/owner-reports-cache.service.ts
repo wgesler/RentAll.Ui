@@ -92,6 +92,27 @@ export class OwnerReportsCacheService {
     return this.escrowReport;
   }
 
+  isBundleLoaded(): boolean {
+    return this.cacheCriteria != null
+      && (this.cashReport != null
+        || this.accrualReport != null
+        || this.recapReport != null
+        || this.escrowReport != null);
+  }
+
+  getBundleSearchRequest(): OwnerReportSearchRequest | null {
+    if (!this.cacheCriteria) {
+      return null;
+    }
+
+    return {
+      officeIds: [...this.cacheCriteria.officeIds],
+      propertyId: this.cacheCriteria.propertyId,
+      startDate: this.cacheCriteria.startDate,
+      endDate: this.cacheCriteria.endDate
+    };
+  }
+
   matchesOwnerReportSearchRequest(request: OwnerReportSearchRequest): boolean {
     if (!this.cacheCriteria) {
       return false;

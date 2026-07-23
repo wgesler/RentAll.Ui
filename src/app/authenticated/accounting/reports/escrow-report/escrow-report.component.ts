@@ -6,6 +6,7 @@ import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
+import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
 import { EscrowReportResult } from '../../models/escrow-report.model';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 
@@ -20,6 +21,7 @@ import { OwnerReportsCacheService } from '../../services/owner-reports-cache.ser
 export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
+  @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() asOfDate: string | null = null;
   @Input() asOfStart: string | null = null;
   @Input() propertyId: string | null = null;
@@ -62,7 +64,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   hasFilterInputChange(changes: SimpleChanges): boolean {
-    return ['officeId', 'asOfDate', 'asOfStart', 'propertyId'].some(key => {
+    return ['officeId', 'asOfDate', 'asOfStart', 'propertyId', 'searchRequest'].some(key => {
       const change = changes[key];
       return !!change && !change.firstChange;
     });
@@ -85,31 +87,16 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const officeIds = this.resolveOfficeIds();
-    if (officeIds.length === 0) {
+    const request = this.buildOwnerReportSearchRequest();
+    if (request.officeIds.length === 0) {
       this.reportResult = null;
       this.noDataMessage = 'Select an office, then press Go to run the report.';
       this.markViewForCheck();
       return;
     }
 
-    const endDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
-    const searchRequest = {
-      officeIds,
-      propertyId: this.propertyId,
-      startDate: this.asOfStart,
-      endDate
-    };
-
-    if (!this.ownerReportsCacheService.matchesOwnerReportSearchRequest(searchRequest)) {
-      this.reportResult = null;
-      this.noDataMessage = 'Press Go to run the report.';
-      this.markViewForCheck();
-      return;
-    }
-
     const cachedReport = this.ownerReportsCacheService.getEscrowReport();
-    if (!cachedReport) {
+    if (!cachedReport || !this.ownerReportsCacheService.matchesOwnerReportSearchRequest(request)) {
       this.reportResult = null;
       this.noDataMessage = 'Press Go to run the report.';
       this.markViewForCheck();
@@ -120,6 +107,20 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     this.cushionInput = cachedReport.cushion;
     this.noDataMessage = this.emptyResultMessage;
     this.markViewForCheck();
+  }
+
+  buildOwnerReportSearchRequest() {
+    if (this.searchRequest?.officeIds?.length) {
+      return this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
+    }
+
+    const officeIds = this.resolveOfficeIds();
+    return this.mappingService.mapOwnerReportSearchRequest({
+      officeIds,
+      propertyId: this.propertyId ?? null,
+      startDate: this.asOfStart,
+      endDate: this.asOfDate
+    });
   }
 
   onCushionChange(value: number | string | null): void {

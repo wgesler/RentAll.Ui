@@ -179,6 +179,13 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    if (!this.ownerReportsCacheService.matchesOwnerReportSearchRequest(request)) {
+      this.clearOwnerReportData();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
+      this.markViewForCheck();
+      return;
+    }
+
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReports');
 

@@ -2744,6 +2744,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     if (kindChanged && kind === 'escrow') {
+      this.syncEscrowDatesFromBillsSearchRequest();
       this.ensureDefaultAsOfDates();
     }
 
@@ -2786,6 +2787,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     this.selectedGeneralLedgerKind = kind;
+
+    if (kindChanged && kind === 'recap') {
+      this.generalLedgerRefreshTrigger++;
+    }
 
     if (previousTab !== this.tabGeneralLedger) {
       this.onTabChange({ index: this.tabGeneralLedger });
@@ -2947,10 +2952,12 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.financialReportsRefreshTrigger++;
       return;
     }
-    if (this.selectedOwnerKind === 'escrow') {
-      return;
-    }
-    if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements') {
+    if (this.selectedOwnerKind === 'escrow'
+      || this.isOwnerReportView(this.selectedOwnerKind)
+      || this.selectedOwnerKind === 'ownerStatements') {
+      if (this.ownerReportsCacheService.isBundleLoaded()) {
+        this.ownersStatementsRefreshTrigger++;
+      }
       return;
     }
     this.ownersStatementsRefreshTrigger++;
@@ -3004,6 +3011,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       take(1),
       finalize(() => {
         this.isOwnerReportsLoading = false;
+        this.syncEscrowDatesFromBillsSearchRequest();
         this.ownersStatementsRefreshTrigger++;
         this.generalLedgerRefreshTrigger++;
         this.cdr.markForCheck();
@@ -3026,27 +3034,59 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
   }
 
   syncOwnerReportsBundleSearchRequest(): void {
-    this.syncInvoiceSearchDateRange();
-    const propertyId = this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap'
-      ? this.selectedGlPropertyId
-      : this.selectedBillsPropertyId;
-
     if (this.isOwnerEscrowViewActive) {
-      this.billsSearchRequest = {
-        officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
-        propertyId: propertyId || null,
-        startDate: this.utilityService.formatDateOnlyForApi(this.asOfStart),
-        endDate: this.utilityService.formatDateOnlyForApi(this.asOfDate)
-      };
-      return;
+      this.syncAsOfStartFromAsOfDate();
+      if (this.asOfDate) {
+        this.endDate = this.cloneShellDate(this.asOfDate);
+      }
+      if (this.asOfStart) {
+        this.startDate = this.cloneShellDate(this.asOfStart);
+      }
     }
+
+    this.syncInvoiceSearchDateRange();
 
     this.billsSearchRequest = {
       officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
-      propertyId: propertyId || null,
+      propertyId: this.resolveOwnerReportsBundlePropertyId(),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
+
+    if (!this.isOwnerEscrowViewActive) {
+      this.syncEscrowDatesFromBillsSearchRequest();
+    }
+  }
+
+  resolveOwnerReportsBundlePropertyId(): string | null {
+    if (this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap') {
+      return this.selectedGlPropertyId || null;
+    }
+
+    return this.selectedBillsPropertyId || null;
+  }
+
+  syncEscrowDatesFromBillsSearchRequest(): void {
+    const endDate = this.billsSearchRequest?.endDate;
+    if (endDate) {
+      const parsedEndDate = this.utilityService.parseDateOnlyStringToDate(endDate);
+      if (parsedEndDate) {
+        this.asOfDate = parsedEndDate;
+        this.normalizeAsOfDateValue();
+      }
+    }
+
+    const startDate = this.billsSearchRequest?.startDate;
+    if (startDate) {
+      const parsedStartDate = this.utilityService.parseDateOnlyStringToDate(startDate);
+      if (parsedStartDate) {
+        this.asOfStart = parsedStartDate;
+        this.normalizeAsOfStartValue();
+        return;
+      }
+    }
+
+    this.syncAsOfStartFromAsOfDate();
   }
 
   resolveOfficeIdsForOwnerReportsSearch(): number[] {
@@ -3311,11 +3351,35 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
   }
 
   syncBillsSearchRequest(): void {
+    const officeIds = this.resolveOfficeIdsForBillsSearch();
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    let propertyId: string | null = null;
+
+    if (this.selectedTabIndex === this.tabBillsReceipts || this.selectedTabIndex === this.tabOwners) {
+      propertyId = this.selectedBillsPropertyId;
+    } else if (this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap') {
+      propertyId = this.selectedGlPropertyId;
+    }
+
+    const bundleRequest = this.ownerReportsCacheService.getBundleSearchRequest();
+    const preserveBundleScope = this.ownerReportsCacheService.isBundleLoaded() && bundleRequest
+      && startDate === bundleRequest.startDate
+      && endDate === bundleRequest.endDate
+      && (this.selectedTabIndex === this.tabOwners
+        || (this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap'))
+      && (this.selectedTabIndex !== this.tabOwners
+        || (this.selectedBillsPropertyId || null) === bundleRequest.propertyId);
+
+    if (preserveBundleScope) {
+      propertyId = bundleRequest.propertyId;
+    }
+
     this.billsSearchRequest = {
-      officeIds: this.resolveOfficeIdsForBillsSearch(),
-      propertyId: (this.selectedTabIndex === this.tabBillsReceipts || this.selectedTabIndex === this.tabOwners) ? this.selectedBillsPropertyId : null,
-      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
-      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+      officeIds,
+      propertyId: propertyId || null,
+      startDate,
+      endDate
     };
     this.syncPaymentSearchRequest();
   }
