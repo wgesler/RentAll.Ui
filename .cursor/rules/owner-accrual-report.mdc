@@ -10,8 +10,8 @@ Business logic lives in `RentAll.Api/.cursor/rules/owner-accrual-report.mdc`. Re
 
 ## Display mapping
 
-- Property summary **Paid Income** = API `paidIncome` (sum of activity `receivedIncome`).
-- Activity **Invoiced** = `expectedIncome`; **Paid** = `receivedIncome`; **Unpaid** = `max(0, expected − paid)` in `mapOwnerReportPropertyActivityDisplays` — never negative unpaid on payment-only lines.
+- Property summary **Invoiced Income** = API `invoicedIncome`; **Owner Profit** = API `ownerProfit`.
+- Activity **Invoiced** = `expectedIncome`; **Owner Profit** (line) = `max(0, expected − expenses)` — no unpaid/outstanding on accrual.
 - Accrual activity primary label = `accountingPeriod` (not cash, which uses `activityDate`).
 - Preserve API activity line order — do not re-sort in UI unless the API sort rules in the Api rule file change.
 

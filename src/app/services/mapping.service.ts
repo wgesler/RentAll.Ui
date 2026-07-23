@@ -2567,14 +2567,20 @@ resolveWorkOrderTitle(
     return officeGroups.sort((a, b) => a.officeName.localeCompare(b.officeName));
   }
 
-  mapOwnerReportPropertyActivityDisplays(propertyRowId: string, lines: OwnerStatementPropertyActivityLineResponse[]): OwnerStatementPropertyActivityLineDisplay[] {
+  mapOwnerReportPropertyActivityDisplays(
+    propertyRowId: string,
+    lines: OwnerStatementPropertyActivityLineResponse[],
+    reportKind: 'accrual' | 'cash' = 'accrual'
+  ): OwnerStatementPropertyActivityLineDisplay[] {
     return (lines || []).map((line, index) => {
       const expectedIncomeValue = Number(line.expectedIncome) || 0;
       const paidIncomeValue = Number(line.receivedIncome) || 0;
       const prePaidValue = Number(line.prepaidIncome) || 0;
       const expensesValue = Number(line.expenses) || 0;
-      const unpaidValue = Math.max(0, expectedIncomeValue - paidIncomeValue);
-      const ownerProfitValue = paidIncomeValue - expensesValue;
+      const unpaidValue = reportKind === 'accrual'
+        ? 0
+        : Math.max(0, expectedIncomeValue - paidIncomeValue);
+      const ownerProfitValue = Math.max(0, expectedIncomeValue - expensesValue);
 
       return {
         rowId: `${propertyRowId}:activity:${index}`,
@@ -2637,7 +2643,7 @@ resolveWorkOrderTitle(
       }
 
       const sortedLines = this.sortOwnerReportPropertyActivityLines(filteredLines, reportKind);
-      result.set(propertyRowId, this.mapOwnerReportPropertyActivityDisplays(propertyRowId, sortedLines));
+      result.set(propertyRowId, this.mapOwnerReportPropertyActivityDisplays(propertyRowId, sortedLines, reportKind));
     });
 
     return result;
