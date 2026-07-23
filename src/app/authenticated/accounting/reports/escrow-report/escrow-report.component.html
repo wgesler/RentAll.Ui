@@ -1,4 +1,4 @@
-@if (!isPageReady && reportResult == null) {
+@if (isLoading) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading…</p>
@@ -23,11 +23,7 @@
 
     <div class="financial-report-panel dbg-band-main">
       <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
-        @if (isServiceError) {
-          <div class="financial-report-empty-state">
-            <p>Unable to load Escrow report.</p>
-          </div>
-        } @else if (!reportResult || reportResult.rows.length === 0) {
+        @if (!reportResult || reportResult.rows.length === 0) {
           <div class="financial-report-empty-state">
             <p>{{ noDataMessage }}</p>
           </div>

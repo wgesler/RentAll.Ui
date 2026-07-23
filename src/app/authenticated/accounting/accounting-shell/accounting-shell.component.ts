@@ -1221,9 +1221,6 @@ hydrateSelectedInvoiceForActiveId(): void {
 
     if (this.usesAccountingShellAsOfDate) {
       this.financialReportsRefreshTrigger++;
-      if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'escrow') {
-        this.ownersStatementsRefreshTrigger++;
-      }
     }
 
     this.router.navigate([], {
@@ -2951,10 +2948,9 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       return;
     }
     if (this.selectedOwnerKind === 'escrow') {
-      this.ownersStatementsRefreshTrigger++;
       return;
     }
-    if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements') {
+    if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements' || this.selectedOwnerKind === 'escrow') {
       return;
     }
     this.ownersStatementsRefreshTrigger++;
@@ -4230,7 +4226,8 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
 
     if (this.selectedTabIndex === this.tabOwners
       && (this.isOwnerReportView(this.selectedOwnerKind)
-        || this.selectedOwnerKind === 'ownerStatements')) {
+        || this.selectedOwnerKind === 'ownerStatements'
+        || this.selectedOwnerKind === 'escrow')) {
       return true;
     }
 

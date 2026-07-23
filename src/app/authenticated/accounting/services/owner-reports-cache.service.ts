@@ -2,8 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
+import { EscrowReportResult } from '../models/escrow-report.model';
 import { JournalEntryRecapSearchRequest, RecapReportResponse } from '../models/journal-entry.model';
-import { OwnerAccrualReportResponse, OwnerCashReportResponse, OwnerReportsBundleResponse } from '../models/owner-report.model';
+import { OwnerAccrualReportResponse, OwnerCashReportResponse, OwnerReportSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
 import { ReportService } from './report.service';
 
 interface OwnerReportsCacheCriteria {
@@ -12,6 +13,24 @@ interface OwnerReportsCacheCriteria {
   startDate: string | null;
   endDate: string | null;
 }
+
+const emptyEscrowReport = (): EscrowReportResult => ({
+  reportTitle: 'Escrow Report',
+  periodLabel: '',
+  entityLineLabel: null,
+  rows: [],
+  totals: {
+    arBalance: 0,
+    prepaids: 0,
+    notCollected: 0,
+    total: 0,
+    e2: 0
+  },
+  cushion: 0,
+  escrowBankBalance: 0,
+  escrowBankAccountLabel: 'Escrow Owners',
+  transfer: 0
+});
 
 @Injectable({
   providedIn: 'root'
@@ -23,6 +42,7 @@ export class OwnerReportsCacheService {
   private cashReport: OwnerCashReportResponse | null = null;
   private accrualReport: OwnerAccrualReportResponse | null = null;
   private recapReport: RecapReportResponse | null = null;
+  private escrowReport: EscrowReportResult | null = null;
   private cacheCriteria: OwnerReportsCacheCriteria | null = null;
 
   load(searchRequest?: MaintenanceListSearchRequest | null): Observable<OwnerReportsBundleResponse> {
@@ -33,7 +53,8 @@ export class OwnerReportsCacheService {
         observer.next({
           cash: { rows: [], propertyActivityLines: [] },
           accrual: { rows: [], propertyActivityLines: [] },
-          recap: { rows: [] }
+          recap: { rows: [] },
+          escrow: emptyEscrowReport()
         });
         observer.complete();
       });
@@ -44,6 +65,7 @@ export class OwnerReportsCacheService {
         this.cashReport = bundle.cash;
         this.accrualReport = bundle.accrual;
         this.recapReport = bundle.recap;
+        this.escrowReport = bundle.escrow;
         this.cacheCriteria = {
           officeIds: [...request.officeIds].sort((left, right) => left - right),
           propertyId: (request.propertyId || '').trim() || null,
@@ -64,6 +86,35 @@ export class OwnerReportsCacheService {
 
   getRecapReport(): RecapReportResponse | null {
     return this.recapReport;
+  }
+
+  getEscrowReport(): EscrowReportResult | null {
+    return this.escrowReport;
+  }
+
+  matchesOwnerReportSearchRequest(request: OwnerReportSearchRequest): boolean {
+    if (!this.cacheCriteria) {
+      return false;
+    }
+
+    const officeIds = [...(request.officeIds || [])].filter(id => id > 0).sort((left, right) => left - right);
+    if (officeIds.length === 0) {
+      return false;
+    }
+
+    if (officeIds.length !== this.cacheCriteria.officeIds.length
+      || !officeIds.every((id, index) => id === this.cacheCriteria!.officeIds[index])) {
+      return false;
+    }
+
+    const propertyId = (request.propertyId || '').trim() || null;
+    if (propertyId !== this.cacheCriteria.propertyId) {
+      return false;
+    }
+
+    const startDate = request.startDate || null;
+    const endDate = request.endDate || null;
+    return startDate === this.cacheCriteria.startDate && endDate === this.cacheCriteria.endDate;
   }
 
   matchesRecapSearchRequest(request: JournalEntryRecapSearchRequest): boolean {
@@ -106,6 +157,7 @@ export class OwnerReportsCacheService {
     this.cashReport = null;
     this.accrualReport = null;
     this.recapReport = null;
+    this.escrowReport = null;
     this.cacheCriteria = null;
   }
 }

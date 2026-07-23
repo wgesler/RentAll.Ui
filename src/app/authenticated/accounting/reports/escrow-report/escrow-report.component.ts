@@ -1,18 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { OfficeResponse } from '../../../organizations/models/office.model';
-import { OfficeService } from '../../../organizations/services/office.service';
-import { AuthService } from '../../../../services/auth.service';
 import { EscrowReportResult } from '../../models/escrow-report.model';
-import { ReportService } from '../../services/report.service';
+import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 
 @Component({
   selector: 'app-escrow-report',
@@ -29,41 +24,34 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   @Input() asOfStart: string | null = null;
   @Input() propertyId: string | null = null;
   @Input() refreshTrigger = 0;
+  @Input() isLoading = false;
   @Output() transferNavigate = new EventEmitter<void>();
 
-  private authService = inject(AuthService);
-  private officeService = inject(OfficeService);
-  private reportService = inject(ReportService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
-  private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
-  isServiceError = false;
-  organizationId = '';
-  offices: OfficeResponse[] = [];
   reportResult: EscrowReportResult | null = null;
   cushionInput = 0;
-  noDataMessage = 'No escrow activity for the selected office, property, and as-of date.';
+  noDataMessage = 'Press Go to run the report.';
+  private readonly emptyResultMessage = 'No escrow activity for the selected office, property, and as-of date.';
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['escrowReport']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-  private reportLoadId = 0;
 
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.loadOffices();
+    this.loadReport();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
+    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
       this.loadReport();
       return;
     }
@@ -87,91 +75,51 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
-  loadOffices(): void {
-    if (!this.organizationId) {
-      this.offices = [];
-      this.loadReport();
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: offices => {
-            this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
-            this.loadReport();
-            this.markViewForCheck();
-          },
-          error: () => {
-            this.offices = [];
-            this.loadReport();
-            this.markViewForCheck();
-          }
-        });
-      },
-      error: () => {
-        this.offices = [];
-        this.loadReport();
-        this.markViewForCheck();
-      }
-    });
-  }
-
   loadReport(): void {
-    const officeIds = this.resolveOfficeIds();
-    const endDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
-    if (officeIds.length === 0) {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
+
+    if (this.isLoading) {
       this.reportResult = null;
-      this.isServiceError = false;
-      this.noDataMessage = 'Select an office to view the Escrow report.';
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
+      this.noDataMessage = 'Press Go to run the report.';
       this.markViewForCheck();
       return;
     }
 
-    const loadId = ++this.reportLoadId;
-    if (!this.itemsToLoad$.value.has('escrowReport')) {
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'escrowReport');
+    const officeIds = this.resolveOfficeIds();
+    if (officeIds.length === 0) {
+      this.reportResult = null;
+      this.noDataMessage = 'Select an office, then press Go to run the report.';
+      this.markViewForCheck();
+      return;
     }
 
-    this.reportService.searchEscrowReport({
+    const endDate = this.asOfDate || this.utilityService.formatDateOnlyForApi(new Date());
+    const searchRequest = {
       officeIds,
       propertyId: this.propertyId,
       startDate: this.asOfStart,
-      endDate,
-      cushion: this.cushionInput
-    }).pipe(
-      take(1),
-      finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
-        this.markViewForCheck();
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: report => {
-        if (this.reportLoadId !== loadId) {
-          return;
-        }
+      endDate
+    };
 
-        this.isServiceError = false;
-        this.reportResult = report;
-        this.cushionInput = report.cushion;
-        this.markViewForCheck();
-      },
-      error: (error: HttpErrorResponse) => {
-        if (this.reportLoadId !== loadId) {
-          return;
-        }
+    if (!this.ownerReportsCacheService.matchesOwnerReportSearchRequest(searchRequest)) {
+      this.reportResult = null;
+      this.noDataMessage = 'Press Go to run the report.';
+      this.markViewForCheck();
+      return;
+    }
 
-        this.reportResult = null;
-        this.isServiceError = true;
-        const message = typeof error?.error === 'string'
-          ? error.error
-          : error.error?.title || error.error?.message || error.message || 'Unable to load Escrow report.';
-        this.toastr.error(message, 'Escrow');
-        this.markViewForCheck();
-      }
-    });
+    const cachedReport = this.ownerReportsCacheService.getEscrowReport();
+    if (!cachedReport) {
+      this.reportResult = null;
+      this.noDataMessage = 'Press Go to run the report.';
+      this.markViewForCheck();
+      return;
+    }
+
+    this.reportResult = cachedReport;
+    this.cushionInput = cachedReport.cushion;
+    this.noDataMessage = this.emptyResultMessage;
+    this.markViewForCheck();
   }
 
   onCushionChange(value: number | string | null): void {
@@ -196,7 +144,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return [this.officeId];
     }
 
-    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    return [];
   }
 
   markViewForCheck(): void {

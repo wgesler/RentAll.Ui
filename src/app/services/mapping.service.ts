@@ -2456,10 +2456,12 @@ resolveWorkOrderTitle(
     const cashRaw = (raw['cash'] ?? raw['Cash'] ?? {}) as Record<string, unknown>;
     const accrualRaw = (raw['accrual'] ?? raw['Accrual'] ?? {}) as Record<string, unknown>;
     const recapRaw = (raw['recap'] ?? raw['Recap'] ?? {}) as Record<string, unknown>;
+    const escrowRaw = (raw['escrow'] ?? raw['Escrow'] ?? {}) as Record<string, unknown>;
     return {
       cash: this.mapOwnerCashReportResponse(cashRaw),
       accrual: this.mapOwnerAccrualReportResponse(accrualRaw),
-      recap: this.mapRecapReportResponse(recapRaw)
+      recap: this.mapRecapReportResponse(recapRaw),
+      escrow: this.mapEscrowReportResponse(escrowRaw)
     };
   }
 
