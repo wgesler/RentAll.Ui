@@ -94,6 +94,7 @@ import { OwnerReportsCacheService } from '../services/owner-reports-cache.servic
 
 type JournalEntrySyncProgressKey =
   | 'invoice'
+  | 'payment'
   | 'bill'
   | 'receipt'
   | 'workOrder'
@@ -3886,6 +3887,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   initializeJournalEntrySyncProgress(): void {
     this.syncProgressRows = [
       { key: 'invoice', label: 'Invoices', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'payment', label: 'Payments', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'bill', label: 'Bills', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'receipt', label: 'Receipts', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },

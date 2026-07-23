@@ -181,7 +181,23 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === tabInvoices && selectedInvoiceKind !== 'invoices' && !activeInvoiceId && !isInvoiceCreateActive) {
+        } @else if (isPaymentDetailActive) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+            @if (showShellOfficeDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="shellOfficeTitleBarOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onShellOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            </div>
+          </div>
+        } @else if (selectedTabIndex === tabInvoices && selectedInvoiceKind !== 'invoices' && !activeInvoiceId && !isInvoiceCreateActive && !isPaymentDetailActive) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -940,7 +956,6 @@
                       [paymentId]="selectedPaymentId"
                       [prefetchedPayment]="selectedPayment"
                       [officeId]="selectedOfficeId"
-                      [invoiceSearchDateRange]="invoiceSearchDateRange"
                       (backEvent)="onPaymentBack()"
                       (savedEvent)="onPaymentSaved()" />
                   }

@@ -31,7 +31,6 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() paymentId: string | null = null;
   @Input() prefetchedPayment: PaymentResponse | null = null;
-  @Input() invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<PaymentResponse>();
@@ -135,9 +134,6 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.loadCostCodesForOffice();
-      this.loadInvoicesForOffice();
-    }
-    if (changes['invoiceSearchDateRange'] && !changes['invoiceSearchDateRange'].firstChange) {
       this.loadInvoicesForOffice();
     }
   }
@@ -526,20 +522,50 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     return this.shouldShowControlError((splitGroup as FormGroup).get(controlName));
   }
 
-  buildInvoiceOptions(invoices: InvoiceResponse[]): SearchableSelectOption<string>[] {
-    return (invoices || [])
-      .map(invoice => {
-        const balance = Math.round(((Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0)) * 100) / 100;
-        const party = (invoice.responsibleParty || invoice.companyName || invoice.contactName || '').trim();
-        const balanceLabel = this.formatter.currencyUsd(balance);
-        const labelParts = [(invoice.invoiceCode || '').trim(), party, `Bal ${balanceLabel}`].filter(part => part.length > 0);
-        return {
-          value: invoice.invoiceId,
-          label: labelParts.join(' — ')
-        };
-      })
-      .filter(option => option.value.length > 0)
-      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  buildInvoiceOptions(
+    invoices: InvoiceResponse[],
+    allocatedLedgerLines: PaymentLedgerLine[] = []
+  ): SearchableSelectOption<string>[] {
+    const sourceInvoices = this.isAddMode
+      ? (invoices || []).filter(invoice => this.getInvoiceBalanceDueAmount(invoice) > 0.005)
+      : (invoices || []);
+
+    const options = sourceInvoices
+      .map(invoice => ({
+        value: invoice.invoiceId,
+        label: this.buildInvoiceOptionLabel(invoice)
+      }))
+      .filter(option => option.value.length > 0);
+
+    const existingValues = new Set(options.map(option => option.value));
+    if (!this.isAddMode) {
+      (allocatedLedgerLines || []).forEach(line => {
+        const invoiceId = (line.invoiceId || '').trim();
+        if (!invoiceId || existingValues.has(invoiceId)) {
+          return;
+        }
+        existingValues.add(invoiceId);
+        const invoiceCode = (line.invoiceCode || '').trim();
+        options.push({
+          value: invoiceId,
+          label: invoiceCode.length > 0 ? `${invoiceCode} — Bal $0.00` : invoiceId
+        });
+      });
+    }
+
+    return options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }
+
+  private buildInvoiceOptionLabel(invoice: InvoiceResponse): string {
+    const balance = this.getInvoiceBalanceDueAmount(invoice);
+    const party = (invoice.responsibleParty || invoice.companyName || invoice.contactName || '').trim();
+    const balanceLabel = this.formatter.currencyUsd(balance);
+    const labelParts = [(invoice.invoiceCode || '').trim(), party, `Bal ${balanceLabel}`].filter(part => part.length > 0);
+    return labelParts.join(' — ');
+  }
+
+  private getInvoiceBalanceDueAmount(invoice: InvoiceResponse): number {
+    return Math.round(((Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0)) * 100) / 100;
   }
   //#endregion
 
@@ -614,13 +640,14 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.invoiceService.searchInvoices({
       officeIds: [officeId],
       includeInactive: false,
-      includePaid: true,
-      startDate: this.invoiceSearchDateRange?.startDate ?? null,
-      endDate: this.invoiceSearchDateRange?.endDate ?? null
+      includePaid: false,
+      startDate: null,
+      endDate: null
     }).pipe(take(1)).subscribe({
       next: (invoices: InvoiceResponse[]) => {
         this.invoices = invoices || [];
-        this.invoiceOptions = this.buildInvoiceOptions(this.invoices);
+        const allocatedLedgerLines = this.isAddMode ? [] : (this.payment?.ledgerLines || []);
+        this.invoiceOptions = this.buildInvoiceOptions(this.invoices, allocatedLedgerLines);
         this.cdr.markForCheck();
       },
       error: () => {
