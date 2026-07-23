@@ -2950,7 +2950,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     if (this.selectedOwnerKind === 'escrow') {
       return;
     }
-    if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements' || this.selectedOwnerKind === 'escrow') {
+    if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements') {
       return;
     }
     this.ownersStatementsRefreshTrigger++;
