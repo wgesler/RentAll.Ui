@@ -30,29 +30,34 @@
 
 :host ::ng-deep .detail-lines-wrapper {
   display: block;
-  margin: 0;
+  margin: 0 250px 0 40px;
   padding: 12px 0 12px 24px;
   background-color: #f9f9f9;
   border-left: 2px solid #e0e0e0;
   box-sizing: border-box;
 
   table {
-    width: 100% !important;
+    width: 100%;
     min-width: 0 !important;
     max-width: 100%;
-    table-layout: fixed !important;
+    table-layout: fixed;
     border-collapse: collapse;
     background-color: white;
 
     thead tr {
+      height: 16px;
       background-color: transparent;
     }
 
     thead th {
       background-color: #d0d0d0;
+      border-bottom: 1px solid #bbb;
+      font-weight: 500;
+      color: #333;
     }
 
     tbody tr {
+      height: 16px;
       background-color: white;
       border-bottom: 1px solid #e0e0e0;
     }
@@ -62,20 +67,6 @@
       padding: 0 10px;
       box-sizing: border-box;
     }
-  }
-
-  &:not(.detail-lines-with-actions):not(.detail-lines-align-amount) {
-    width: 100%;
-  }
-
-  &.detail-lines-with-actions {
-    width: calc(100% - 120px) !important;
-    max-width: calc(100% - 120px) !important;
-  }
-
-  &.detail-lines-align-amount {
-    width: calc(100% - 10ch - 120px) !important;
-    max-width: calc(100% - 10ch - 120px) !important;
   }
 }
 

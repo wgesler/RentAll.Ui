@@ -1,6 +1,6 @@
 @if (isPageReady) {
   <ng-template #journalEntryLinesTemplate let-entry>
-    <div class="detail-lines-wrapper" [class.detail-lines-with-actions]="showGeneralLedgerDetailActionsPadding">
+    <div class="detail-lines-wrapper">
       @if (entry?.journalEntryLines?.length) {
         <table>
           <thead>

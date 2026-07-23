@@ -3282,12 +3282,6 @@ triggerCheckPrint(): void {
       && !this.printChecksOnly;
   }
 
-  get showGeneralLedgerDetailActionsPadding(): boolean {
-    return this.showGeneralLedgerRowEditAction
-      || this.showGeneralLedgerRowCopyAction
-      || this.showGeneralLedgerRowDeleteAction;
-  }
-
   get showGeneralLedgerRowActions(): boolean {
     return this.showGeneralLedgerRowDeleteAction;
   }
