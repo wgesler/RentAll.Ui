@@ -12,7 +12,7 @@
   <p class="owner-statement-empty-msg">Unable to load owner statements.</p>
 } @else {
   <div
-    class="mat list-layout-standard dbg-band-main owner-statement-layout"
+    class="mat list-layout-standard owner-statement-layout"
     [class.owner-statement-layout--accrual]="reportKind === 'accrual'"
     [class.owner-statement-layout--cash]="reportKind === 'cash'">
     <div class="owner-statement-context-band property-tab-actions-band dbg-band-actions">
@@ -36,7 +36,8 @@
         </div>
       </div>
     </div>
-    <div class="owner-statement-panel">
+    <div class="owner-statement-panel dbg-band-main">
+      <div class="owner-statement-panel-inner owner-statement-panel-inner--content-sized">
       @if (visibleRows.length === 0) {
         <div class="owner-statement-empty-state">
           <p>No owner statement activity for the selected filters.</p>
@@ -75,24 +76,6 @@
                   <th class="owner-statement-col-amount">
                     <div class="owner-statement-header-two-line">
                       <span>Invoiced</span>
-                      <span>Income</span>
-                    </div>
-                  </th>
-                  <th class="owner-statement-col-amount">
-                    <div class="owner-statement-header-two-line">
-                      <span>Paid</span>
-                      <span>Income</span>
-                    </div>
-                  </th>
-                  <th class="owner-statement-col-amount">
-                    <div class="owner-statement-header-two-line">
-                      <span>Prepaid</span>
-                      <span>Income</span>
-                    </div>
-                  </th>
-                  <th class="owner-statement-col-amount">
-                    <div class="owner-statement-header-two-line">
-                      <span>Unpaid</span>
                       <span>Income</span>
                     </div>
                   </th>
@@ -215,27 +198,6 @@
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>
                     </td>
                     <td class="owner-statement-col-amount">
-                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'paidIncome')" [disabled]="!canDrillDownAmount(row, 'paidIncome')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'paidIncome')">{{ row.paidIncome }}</button>
-                    </td>
-                    <td class="owner-statement-col-amount">
-                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'prePaid')" [disabled]="!canDrillDownAmount(row, 'prePaid')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'prePaid')">{{ row.prePaid }}</button>
-                    </td>
-                    <td class="owner-statement-col-amount">
-                      @if (row.kind === 'propertyActivity') {
-                        {{ row.outstanding }}
-                      } @else {
-                        <button
-                          type="button"
-                          class="owner-statement-amount-link"
-                          [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'outstanding')"
-                          [class.owner-statement-amount-link--unpaid-due]="row.outstandingValue > 0"
-                          [disabled]="!canDrillDownAmount(row, 'outstanding')"
-                          (click)="$event.stopPropagation(); onAmountCellClick(row, 'outstanding')">
-                          {{ row.outstanding }}
-                        </button>
-                      }
-                    </td>
-                    <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
                     </td>
                     <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
@@ -258,6 +220,7 @@
           </table>
         </div>
       }
+      </div>
     </div>
   </div>
 }

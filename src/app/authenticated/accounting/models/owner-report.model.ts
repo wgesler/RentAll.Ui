@@ -60,9 +60,6 @@ export interface OwnerAccrualReportRowResponse {
   ownerNameLine: string;
   startingBalance: number;
   invoicedIncome: number;
-  prepaidIncome: number;
-  paidIncome: number;
-  unpaidIncome: number;
   ownerExpenses: number;
   ownerProfit: number;
 }

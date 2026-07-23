@@ -2478,9 +2478,6 @@ resolveWorkOrderTitle(
       ownerNameLine: String(raw['ownerNameLine'] ?? raw['OwnerNameLine'] ?? ''),
       startingBalance: Number(raw['startingBalance'] ?? raw['StartingBalance'] ?? 0),
       invoicedIncome: Number(raw['invoicedIncome'] ?? raw['InvoicedIncome'] ?? 0),
-      prepaidIncome: Number(raw['prepaidIncome'] ?? raw['PrepaidIncome'] ?? 0),
-      paidIncome: Number(raw['paidIncome'] ?? raw['PaidIncome'] ?? 0),
-      unpaidIncome: Number(raw['unpaidIncome'] ?? raw['UnpaidIncome'] ?? 0),
       ownerExpenses: Number(raw['ownerExpenses'] ?? raw['OwnerExpenses'] ?? 0),
       ownerProfit: Number(raw['ownerProfit'] ?? raw['OwnerProfit'] ?? 0)
     };
@@ -2498,10 +2495,10 @@ resolveWorkOrderTitle(
         ownerNames: row.ownerNames,
         ownerNameLine: row.ownerNameLine,
         expected: row.invoicedIncome,
-        prePaid: row.prepaidIncome,
-        paidIncome: row.paidIncome,
-        outstanding: row.unpaidIncome,
-        income: row.paidIncome,
+        prePaid: 0,
+        paidIncome: 0,
+        outstanding: 0,
+        income: 0,
         expenses: row.ownerExpenses,
         balance: row.ownerProfit,
         startingBalance: row.startingBalance,
@@ -6077,6 +6074,7 @@ roundCurrency(value: number): number {
 
   buildEscrowReport(request: EscrowReportBuildRequest): EscrowReportResult {
     const selectedPropertyId = (request.propertyId || '').trim() || null;
+    const recapAmountsByProperty = this.buildEscrowLastRecapAmountsByProperty(request.recapRows || []);
     const rows: EscrowReportRow[] = (request.accrualRows || [])
       .filter(row => {
         const propertyId = String(row.propertyId || '').trim();
@@ -6085,8 +6083,9 @@ roundCurrency(value: number): number {
       .map(row => {
         const propertyId = String(row.propertyId || '').trim();
         const arBalance = this.roundFinancialReportAmount(Number(row.invoicedIncome) || 0);
-        const prepaids = this.roundFinancialReportAmount(Math.max(0, Number(row.prepaidIncome) || 0));
-        const notCollected = this.roundFinancialReportAmount(Number(row.unpaidIncome) || 0);
+        const recapAmounts = recapAmountsByProperty.get(propertyId) || { prepaids: 0, notCollected: 0 };
+        const prepaids = this.roundFinancialReportAmount(Math.max(0, recapAmounts.prepaids));
+        const notCollected = this.roundFinancialReportAmount(recapAmounts.notCollected);
         const total = this.roundFinancialReportAmount(arBalance - prepaids - notCollected);
         const e2 = total < 0 ? 0 : total;
         return {
