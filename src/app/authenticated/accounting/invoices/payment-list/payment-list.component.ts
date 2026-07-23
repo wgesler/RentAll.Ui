@@ -63,29 +63,27 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   private cancelPaymentsLoad$ = new Subject<void>();
 
   readonly paymentDisplayedColumns: ColumnSet = {
-    paymentDate: { displayAs: 'Payment Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '20ch' },
+    paymentDate: { displayAs: 'Payment Date', wrap: false, maxWidth: '14ch', alignment: 'center' },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
-    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '20ch' },
+    costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '20ch' },
+    invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
+    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   activePaymentDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-    paymentDate: { displayAs: 'Payment Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '20ch' },
+    paymentDate: { displayAs: 'Payment Date', wrap: false, maxWidth: '14ch', alignment: 'center' },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
-    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '20ch' },
+    costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '20ch' },
+    invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
+    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
