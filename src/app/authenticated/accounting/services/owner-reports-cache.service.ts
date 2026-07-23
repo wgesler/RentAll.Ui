@@ -14,24 +14,6 @@ interface OwnerReportsCacheCriteria {
   endDate: string | null;
 }
 
-const emptyEscrowReport = (): EscrowReportResult => ({
-  reportTitle: 'Escrow Report',
-  periodLabel: '',
-  entityLineLabel: null,
-  rows: [],
-  totals: {
-    arBalance: 0,
-    prepaids: 0,
-    notCollected: 0,
-    total: 0,
-    e2: 0
-  },
-  cushion: 0,
-  escrowBankBalance: 0,
-  escrowBankAccountLabel: 'Escrow Owners',
-  transfer: 0
-});
-
 @Injectable({
   providedIn: 'root'
 })
@@ -42,7 +24,6 @@ export class OwnerReportsCacheService {
   private cashReport: OwnerCashReportResponse | null = null;
   private accrualReport: OwnerAccrualReportResponse | null = null;
   private recapReport: RecapReportResponse | null = null;
-  private escrowReport: EscrowReportResult | null = null;
   private cacheCriteria: OwnerReportsCacheCriteria | null = null;
 
   load(searchRequest?: MaintenanceListSearchRequest | null): Observable<OwnerReportsBundleResponse> {
@@ -53,8 +34,7 @@ export class OwnerReportsCacheService {
         observer.next({
           cash: { rows: [], propertyActivityLines: [] },
           accrual: { rows: [], propertyActivityLines: [] },
-          recap: { rows: [] },
-          escrow: emptyEscrowReport()
+          recap: { rows: [] }
         });
         observer.complete();
       });
@@ -65,7 +45,6 @@ export class OwnerReportsCacheService {
         this.cashReport = bundle.cash;
         this.accrualReport = bundle.accrual;
         this.recapReport = bundle.recap;
-        this.escrowReport = bundle.escrow;
         this.cacheCriteria = {
           officeIds: [...request.officeIds].sort((left, right) => left - right),
           propertyId: (request.propertyId || '').trim() || null,
@@ -88,16 +67,11 @@ export class OwnerReportsCacheService {
     return this.recapReport;
   }
 
-  getEscrowReport(): EscrowReportResult | null {
-    return this.escrowReport;
-  }
-
   isBundleLoaded(): boolean {
     return this.cacheCriteria != null
       && (this.cashReport != null
         || this.accrualReport != null
-        || this.recapReport != null
-        || this.escrowReport != null);
+        || this.recapReport != null);
   }
 
   getBundleSearchRequest(): OwnerReportSearchRequest | null {
@@ -178,7 +152,91 @@ export class OwnerReportsCacheService {
     this.cashReport = null;
     this.accrualReport = null;
     this.recapReport = null;
-    this.escrowReport = null;
+    this.cacheCriteria = null;
+  }
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class EscrowReportCacheService {
+  private reportService = inject(ReportService);
+
+  private report: EscrowReportResult | null = null;
+  private cacheCriteria: {
+    officeIds: number[];
+    propertyId: string | null;
+    endDate: string | null;
+  } | null = null;
+
+  load(request: {
+    officeIds: number[];
+    propertyId?: string | null;
+    endDate: string | null;
+    cushion?: number;
+  }): Observable<EscrowReportResult> {
+    const officeIds = [...(request.officeIds || [])].filter(id => id > 0);
+    const endDate = (request.endDate || '').trim() || null;
+    if (officeIds.length === 0 || !endDate) {
+      this.clear();
+      return new Observable(observer => {
+        observer.error(new Error('Office and as-of date are required to search the escrow report.'));
+      });
+    }
+
+    return this.reportService.searchEscrowReport({
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      startDate: null,
+      endDate,
+      cushion: request.cushion ?? 0
+    }).pipe(
+      tap(report => {
+        this.report = report;
+        this.cacheCriteria = {
+          officeIds: [...officeIds].sort((left, right) => left - right),
+          propertyId: (request.propertyId || '').trim() || null,
+          endDate
+        };
+      })
+    );
+  }
+
+  getReport(): EscrowReportResult | null {
+    return this.report;
+  }
+
+  isLoaded(): boolean {
+    return this.report != null && this.cacheCriteria != null;
+  }
+
+  matchesSearchRequest(request: {
+    officeIds: number[];
+    propertyId?: string | null;
+    endDate: string | null;
+  }): boolean {
+    if (!this.cacheCriteria || !this.report) {
+      return false;
+    }
+
+    const officeIds = [...(request.officeIds || [])].filter(id => id > 0).sort((left, right) => left - right);
+    if (officeIds.length === 0
+      || officeIds.length !== this.cacheCriteria.officeIds.length
+      || !officeIds.every((id, index) => id === this.cacheCriteria!.officeIds[index])) {
+      return false;
+    }
+
+    const propertyId = (request.propertyId || '').trim() || null;
+    if (propertyId !== this.cacheCriteria.propertyId) {
+      return false;
+    }
+
+    const endDate = (request.endDate || '').trim() || null;
+    return endDate === this.cacheCriteria.endDate;
+  }
+
+  clear(): void {
+    this.report = null;
     this.cacheCriteria = null;
   }
 }

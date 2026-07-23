@@ -469,9 +469,9 @@
                 (valueChange)="onShellApAgingSortByChange($event)">
               </app-title-bar-select>
             }
-            @if (showAccountingShellAsOfDate) {
+            @if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
-                <ng-container [ngTemplateOutlet]="accountingShellAsOfDateField" />
+                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
               </div>
             }
             </div>
@@ -606,39 +606,32 @@
           </div>
         }
         <ng-template #accountingShellDateFields>
-          @if (showAccountingShellRangeDates) {
-            <ng-container [ngTemplateOutlet]="accountingShellRangeDateFields" />
-          }
-          @if (showAccountingShellAsOfDate) {
-            <ng-container [ngTemplateOutlet]="accountingShellAsOfDateField" />
-          }
+          <ng-container [ngTemplateOutlet]="accountingShellRangeDateFields" />
         </ng-template>
         <ng-template #accountingShellRangeDateFields>
           @if (showAccountingShellStartDate) {
-            <mat-form-field appearance="outline" class="titlebar-field-office">
+            <mat-form-field appearance="outline" [class]="accountingShellStartDateFieldClass">
               <mat-label>Start Date</mat-label>
               <input
                 matInput
                 [matDatepicker]="accountingStartPicker"
                 [(ngModel)]="startDate"
                 [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onDateRangeChange()"
-                [max]="endDate" />
+                (dateChange)="onShellStartDateChange()" />
               <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker"></mat-datepicker-toggle>
               <mat-datepicker #accountingStartPicker></mat-datepicker>
             </mat-form-field>
           }
           @if (showAccountingShellEndDate) {
             <div class="accounting-shell-end-date-wrap">
-              <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-form-field appearance="outline" [class]="accountingShellEndDateFieldClass">
                 <mat-label>{{ accountingShellEndDateLabel }}</mat-label>
                 <input
                   matInput
                   [matDatepicker]="accountingEndPicker"
                   [(ngModel)]="endDate"
                   [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onDateRangeChange()"
-                  [min]="showAccountingShellStartDate ? startDate : null" />
+                  (dateChange)="onShellEndDateChange()" />
                 <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker"></mat-datepicker-toggle>
                 <mat-datepicker #accountingEndPicker></mat-datepicker>
               </mat-form-field>
@@ -675,52 +668,6 @@
               }
             </div>
           }
-        </ng-template>
-        <ng-template #accountingShellAsOfDateField>
-          <div class="accounting-shell-end-date-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>As of</mat-label>
-              <input
-                matInput
-                [matDatepicker]="accountingAsOfPicker"
-                [(ngModel)]="asOfDate"
-                [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onAsOfDateChange()" />
-              <mat-datepicker-toggle matIconSuffix [for]="accountingAsOfPicker"></mat-datepicker-toggle>
-              <mat-datepicker #accountingAsOfPicker></mat-datepicker>
-            </mat-form-field>
-            <button
-              mat-icon-button
-              type="button"
-              class="accounting-shell-date-pin-btn"
-              [class.accounting-shell-date-pin-btn--active]="dateRangePinned"
-              [attr.aria-pressed]="dateRangePinned"
-              [attr.aria-label]="dateRangePinned ? 'Unpin dates' : 'Pin dates'"
-              [matTooltip]="dateRangePinned ? 'Unpin dates' : 'Keep dates fixed'"
-              (click)="toggleDateRangePin()">
-              <mat-icon>push_pin</mat-icon>
-            </button>
-            @if (showOwnerReportGoButton) {
-              <button
-                mat-mini-fab
-                type="button"
-                color="primary"
-                class="accounting-shell-owner-report-go-btn"
-                (click)="onOwnerReportGoClick()"
-                [disabled]="isOwnerReportsLoading"
-                aria-label="Run reports"
-                matTooltip="Run reports">
-                @if (isOwnerReportsLoading) {
-                  <mat-spinner class="accounting-shell-owner-report-go-spinner" [diameter]="20"></mat-spinner>
-                } @else {
-                  <span class="accounting-shell-owner-report-go-content">
-                    <span class="accounting-shell-owner-report-go-label">Go</span>
-                    <mat-icon class="accounting-shell-owner-report-go-arrow">arrow_forward</mat-icon>
-                  </span>
-                }
-              </button>
-            }
-          </div>
         </ng-template>
       </div>
       <div class="form-titlebar-actions-wrap">
@@ -1482,9 +1429,7 @@
               } @else if (selectedOwnerKind === 'escrow') {
                 <app-escrow-report
                   [officeId]="selectedOfficeId"
-                  [searchRequest]="billsSearchRequest"
-                  [asOfDate]="shellAsOfDateApi"
-                  [asOfStart]="shellAsOfStartApi"
+                  [asOfDate]="shellEndDateApi"
                   [propertyId]="selectedBillsPropertyId"
                   [refreshTrigger]="ownersStatementsRefreshTrigger"
                   [isLoading]="isOwnerReportsLoading"

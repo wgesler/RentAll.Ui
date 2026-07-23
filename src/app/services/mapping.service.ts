@@ -2456,12 +2456,10 @@ resolveWorkOrderTitle(
     const cashRaw = (raw['cash'] ?? raw['Cash'] ?? {}) as Record<string, unknown>;
     const accrualRaw = (raw['accrual'] ?? raw['Accrual'] ?? {}) as Record<string, unknown>;
     const recapRaw = (raw['recap'] ?? raw['Recap'] ?? {}) as Record<string, unknown>;
-    const escrowRaw = (raw['escrow'] ?? raw['Escrow'] ?? {}) as Record<string, unknown>;
     return {
       cash: this.mapOwnerCashReportResponse(cashRaw),
       accrual: this.mapOwnerAccrualReportResponse(accrualRaw),
-      recap: this.mapRecapReportResponse(recapRaw),
-      escrow: this.mapEscrowReportResponse(escrowRaw)
+      recap: this.mapRecapReportResponse(recapRaw)
     };
   }
 
@@ -4657,7 +4655,7 @@ roundCurrency(value: number): number {
     const asOfDate = this.resolveFinancialReportBalanceSheetAsOfDate(request.endDate);
     request = {
       ...request,
-      startDate: this.resolveAsOfReportYearStartDate(asOfDate),
+      startDate: null,
       endDate: asOfDate
     };
 
@@ -4936,7 +4934,7 @@ roundCurrency(value: number): number {
   ): FinancialReportColumnContext {
     const normalizedReportClass = this.normalizeFinancialReportClass(reportClass);
     const columnStartDate = balanceSheet
-      ? this.resolveFinancialReportBalanceSheetColumnStartDate(startDate, endDate, normalizedReportClass)
+      ? this.resolveFinancialReportBalanceSheetColumnStartDate(endDate, normalizedReportClass)
       : startDate;
     const columnEndDate = endDate;
 
@@ -5958,17 +5956,11 @@ roundCurrency(value: number): number {
   }
 
   resolveFinancialReportBalanceSheetColumnStartDate(
-    startDate: string | null,
     endDate: string | null,
     reportClass: Class
   ): string | null {
     if (!this.isFinancialReportTimeBasedClass(reportClass)) {
       return null;
-    }
-
-    const normalizedStartDate = this.normalizeFinancialReportDate(startDate);
-    if (normalizedStartDate) {
-      return normalizedStartDate;
     }
 
     return this.resolveAsOfReportYearStartDate(endDate);
@@ -6357,10 +6349,6 @@ buildEscrowLastRecapAmountsByProperty(
       return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
     }
     if (spec.mode === 'balance') {
-      // When a start is present (BS drill-down Start/End), show JE activity in that window.
-      if (startDate) {
-        return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
-      }
       return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, endDate);
     }
     return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
@@ -6386,15 +6374,11 @@ buildEscrowLastRecapAmountsByProperty(
         if (!column) {
           return false;
         }
-        // Match Net Income columns: YTD from report year start through this column's as-of end.
-        return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, column.periodEnd || endDate);
+        return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate);
       }
       if (spec.mode === 'balance') {
         if (!column) {
           return false;
-        }
-        if (startDate) {
-          return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, column.periodEnd || endDate);
         }
         return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate);
       }

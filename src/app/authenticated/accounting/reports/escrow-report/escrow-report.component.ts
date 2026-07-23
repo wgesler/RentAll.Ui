@@ -6,9 +6,8 @@ import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
 import { EscrowReportResult } from '../../models/escrow-report.model';
-import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
+import { EscrowReportCacheService } from '../../services/owner-reports-cache.service';
 
 @Component({
   selector: 'app-escrow-report',
@@ -21,15 +20,13 @@ import { OwnerReportsCacheService } from '../../services/owner-reports-cache.ser
 export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
-  @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() asOfDate: string | null = null;
-  @Input() asOfStart: string | null = null;
   @Input() propertyId: string | null = null;
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
   @Output() transferNavigate = new EventEmitter<void>();
 
-  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private escrowReportCacheService = inject(EscrowReportCacheService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
@@ -64,7 +61,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   hasFilterInputChange(changes: SimpleChanges): boolean {
-    return ['officeId', 'asOfDate', 'asOfStart', 'propertyId', 'searchRequest'].some(key => {
+    return ['officeId', 'asOfDate', 'propertyId'].some(key => {
       const change = changes[key];
       return !!change && !change.firstChange;
     });
@@ -87,7 +84,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const request = this.buildOwnerReportSearchRequest();
+    const request = this.buildEscrowSearchRequest();
     if (request.officeIds.length === 0) {
       this.reportResult = null;
       this.noDataMessage = 'Select an office, then press Go to run the report.';
@@ -95,8 +92,8 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const cachedReport = this.ownerReportsCacheService.getEscrowReport();
-    if (!cachedReport || !this.ownerReportsCacheService.matchesOwnerReportSearchRequest(request)) {
+    const cachedReport = this.escrowReportCacheService.getReport();
+    if (!cachedReport || !this.escrowReportCacheService.matchesSearchRequest(request)) {
       this.reportResult = null;
       this.noDataMessage = 'Press Go to run the report.';
       this.markViewForCheck();
@@ -109,18 +106,12 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  buildOwnerReportSearchRequest() {
-    if (this.searchRequest?.officeIds?.length) {
-      return this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
-    }
-
-    const officeIds = this.resolveOfficeIds();
-    return this.mappingService.mapOwnerReportSearchRequest({
-      officeIds,
+  buildEscrowSearchRequest() {
+    return {
+      officeIds: this.resolveOfficeIds(),
       propertyId: this.propertyId ?? null,
-      startDate: this.asOfStart,
       endDate: this.asOfDate
-    });
+    };
   }
 
   onCushionChange(value: number | string | null): void {

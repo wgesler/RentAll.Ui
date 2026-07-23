@@ -997,7 +997,7 @@ clearPrintableHtml(): void {
 
   resolveReportStartDate(): string | null {
     if (this.reportKind === 'balanceSheet') {
-      return this.asOfDateRange?.asOfStart ?? null;
+      return null;
     }
 
     return this.searchDateRange?.startDate ?? null;
@@ -1042,6 +1042,10 @@ clearPrintableHtml(): void {
   hasAsOfDateRangeChanged(change: SimpleChanges['asOfDateRange']): boolean {
     const previous = change?.previousValue as AsOfReportDateRange | null | undefined;
     const current = change?.currentValue as AsOfReportDateRange | null | undefined;
+    if (this.reportKind === 'balanceSheet') {
+      return (previous?.asOfDate ?? null) !== (current?.asOfDate ?? null);
+    }
+
     return (previous?.asOfStart ?? null) !== (current?.asOfStart ?? null)
       || (previous?.asOfDate ?? null) !== (current?.asOfDate ?? null);
   }

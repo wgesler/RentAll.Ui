@@ -73,5 +73,4 @@ export interface OwnerReportsBundleResponse {
   cash: OwnerCashReportResponse;
   accrual: OwnerAccrualReportResponse;
   recap: RecapReportResponse;
-  escrow: EscrowReportResult;
 }
