@@ -23,12 +23,13 @@
 
     <div class="financial-report-panel dbg-band-main">
       <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
-        @if (!reportResult || reportResult.rows.length === 0) {
+        @if (!reportResult || !hasEscrowReportContent(reportResult)) {
           <div class="financial-report-empty-state">
             <p>{{ noDataMessage }}</p>
           </div>
         } @else {
           <div class="escrow-report-body">
+          @if (reportResult.rows.length > 0) {
           <div class="escrow-report-toolbar">
             <button
               mat-raised-button
@@ -96,6 +97,7 @@
               </tbody>
             </table>
           </div>
+          }
 
           <div class="escrow-report-summary">
             <div class="escrow-report-summary-row">

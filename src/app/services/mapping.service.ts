@@ -12,7 +12,7 @@ import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, Recon
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
-import { EscrowReportBuildRequest, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
+import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
@@ -6159,6 +6159,7 @@ roundCurrency(value: number): number {
       cushion,
       escrowBankBalance,
       escrowBankAccountLabel: (request.escrowBankAccountLabel || '').trim() || 'Escrow Owners',
+      escrowOfficeBalances: [],
       transfer: this.roundFinancialReportAmount(escrowBankBalance + totals.total - cushion)
     };
   }
@@ -6197,8 +6198,26 @@ roundCurrency(value: number): number {
       cushion: this.roundFinancialReportAmount(Number(raw['cushion'] ?? raw['Cushion'] ?? 0)),
       escrowBankBalance: this.roundFinancialReportAmount(Number(raw['escrowBankBalance'] ?? raw['EscrowBankBalance'] ?? 0)),
       escrowBankAccountLabel: String(raw['escrowBankAccountLabel'] ?? raw['EscrowBankAccountLabel'] ?? 'Escrow Owners').trim() || 'Escrow Owners',
+      escrowOfficeBalances: this.mapEscrowOfficeBalances(raw['escrowOfficeBalances'] ?? raw['EscrowOfficeBalances']),
       transfer: this.roundFinancialReportAmount(Number(raw['transfer'] ?? raw['Transfer'] ?? 0))
     };
+  }
+
+  mapEscrowOfficeBalances(raw: unknown): EscrowOfficeBalance[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(item => {
+      const balance = item as Record<string, unknown>;
+      return {
+        officeId: Number(balance['officeId'] ?? balance['OfficeId'] ?? 0),
+        accountId: Number(balance['accountId'] ?? balance['AccountId'] ?? 0),
+        accountNo: String(balance['accountNo'] ?? balance['AccountNo'] ?? '').trim(),
+        accountName: String(balance['accountName'] ?? balance['AccountName'] ?? '').trim(),
+        balance: this.roundFinancialReportAmount(Number(balance['balance'] ?? balance['Balance'] ?? 0))
+      };
+    });
   }
 
   mapEscrowReportRow(raw: Record<string, unknown>): EscrowReportRow {

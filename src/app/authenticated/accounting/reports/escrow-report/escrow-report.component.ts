@@ -167,4 +167,18 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   canDrillDownAmount(metric: EscrowReportDrillDownMetric, amount: number): boolean {
     return Math.abs(Number(amount) || 0) > 0.005;
   }
+
+  hasEscrowReportContent(result: EscrowReportResult | null): boolean {
+    if (!result) {
+      return false;
+    }
+
+    if ((result.rows || []).length > 0) {
+      return true;
+    }
+
+    return Math.abs(result.escrowBankBalance) > 0.005
+      || Math.abs(result.transfer) > 0.005
+      || Math.abs(result.cushion) > 0.005;
+  }
 }

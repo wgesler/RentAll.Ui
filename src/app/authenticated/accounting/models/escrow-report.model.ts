@@ -29,7 +29,16 @@ export interface EscrowReportResult {
   cushion: number;
   escrowBankBalance: number;
   escrowBankAccountLabel: string;
+  escrowOfficeBalances: EscrowOfficeBalance[];
   transfer: number;
+}
+
+export interface EscrowOfficeBalance {
+  officeId: number;
+  accountId: number;
+  accountNo: string;
+  accountName: string;
+  balance: number;
 }
 
 export interface EscrowReportBuildRequest {
