@@ -60,7 +60,6 @@ export interface OwnerApAgingReportBuildRequest {
   lines: JournalEntryLineSearchResponse[];
   propertyCodeByPropertyId: ReadonlyMap<string, string>;
   ownerIdByPropertyId?: ReadonlyMap<string, string>;
-  openingBalanceCutoffByPropertyKey?: ReadonlyMap<string, string>;
   paymentTermsByContactId?: ReadonlyMap<string, number | null>;
   contactNameByContactId?: ReadonlyMap<string, string>;
   asOfDate: string | null;

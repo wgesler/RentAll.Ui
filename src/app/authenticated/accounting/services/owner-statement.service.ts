@@ -112,15 +112,14 @@ export class OwnerStatementService {
   }
 
   getOwnerStatementStartingBalance(officeId: number, ownerId: string, propertyId: string): Observable<OwnerStatementStartingBalanceResponse | null> {
-    const ownerIdTrimmed = (ownerId || '').trim();
     const propertyIdTrimmed = (propertyId || '').trim();
-    if (officeId <= 0 || !ownerIdTrimmed || !propertyIdTrimmed) {
-      throw new Error('Office, owner, and property are required to retrieve owner starting balance.');
+    if (officeId <= 0 || !propertyIdTrimmed) {
+      throw new Error('Office and property are required to retrieve owner starting balance.');
     }
 
     return this.http.post<OwnerStatementStartingBalanceResponse | null>(`${this.controller}owner-statement/starting-balance/get`, {
       officeId,
-      ownerId: ownerIdTrimmed,
+      ownerId: (ownerId || '').trim() || '00000000-0000-0000-0000-000000000000',
       propertyId: propertyIdTrimmed
     });
   }

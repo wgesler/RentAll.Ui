@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
@@ -7317,20 +7317,13 @@ buildEscrowLastRecapAmountsByProperty(
 
   buildOwnerApAgingReport(request: OwnerApAgingReportBuildRequest): ApAgingReportResult {
     const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
-    const openingBalanceCutoffByPropertyKey = this.mergeOwnerApOpeningBalanceCutoffMaps(
-      this.buildOwnerApOpeningBalanceCutoffDateByPropertyKey(request.lines || []),
-      request.openingBalanceCutoffByPropertyKey
-    );
-    const agedLines = (request.lines || []).filter(line =>
-      this.shouldIncludeOwnerApAgingLine(line, asOfDate, openingBalanceCutoffByPropertyKey)
-    );
     const bucketDefinitions = buildApAgingBucketDefinitions(
       request.intervalDays ?? 30,
       request.throughDays !== undefined ? request.throughDays : 90
     );
     const bucketIds = bucketDefinitions.map(bucket => bucket.id);
     const billDetails = this.buildOwnerApAgingBillDetails(
-      agedLines,
+      request.lines || [],
       asOfDate,
       request.propertyCodeByPropertyId,
       request.paymentTermsByContactId || new Map<string, number | null>(),
@@ -7560,85 +7553,6 @@ buildEscrowLastRecapAmountsByProperty(
     });
 
     return billDetails;
-  }
-
-  private static readonly OwnerStartingBalanceMemoPattern = /: Owner: BAL-\d{2}-\d{4}$/;
-
-  isOwnerStartingBalanceJournalEntryLine(line: Pick<JournalEntryLineSearchResponse, 'journalEntryKindId' | 'journalEntryMemo' | 'memo'>): boolean {
-    if (Number(line.journalEntryKindId) === JournalEntryKind.OwnerStartingBalance) {
-      return true;
-    }
-
-    const memo = (line.journalEntryMemo || line.memo || '').trim();
-    return MappingService.OwnerStartingBalanceMemoPattern.test(memo);
-  }
-
-  buildOwnerApOpeningBalanceCutoffDateByPropertyKey(lines: JournalEntryLineSearchResponse[]): Map<string, string> {
-    const cutoffs = new Map<string, string>();
-    (lines || []).forEach(line => {
-      if (!this.isOwnerStartingBalanceJournalEntryLine(line)) {
-        return;
-      }
-
-      const propertyId = (line.propertyId || '').trim();
-      if (!propertyId) {
-        return;
-      }
-
-      const propertyKey = this.buildOwnerApAgingPropertyKey(Number(line.officeId) || 0, propertyId);
-      const transactionDate = this.toDateOnlyJsonString(line.transactionDate);
-      if (!transactionDate) {
-        return;
-      }
-
-      const existing = cutoffs.get(propertyKey);
-      if (!existing || transactionDate > existing) {
-        cutoffs.set(propertyKey, transactionDate);
-      }
-    });
-    return cutoffs;
-  }
-
-  mergeOwnerApOpeningBalanceCutoffMaps(
-    primary: ReadonlyMap<string, string>,
-    secondary?: ReadonlyMap<string, string>
-  ): Map<string, string> {
-    const merged = new Map(primary);
-    (secondary || new Map<string, string>()).forEach((date, key) => {
-      const existing = merged.get(key);
-      if (!existing || date > existing) {
-        merged.set(key, date);
-      }
-    });
-    return merged;
-  }
-
-  buildOwnerApAgingPropertyKey(officeId: number, propertyId: string): string {
-    return `${officeId}|${propertyId}`;
-  }
-
-  /** Include opening balance and later; exclude only JEs before the property's Owner SB date. */
-  shouldIncludeOwnerApAgingLine(
-    line: JournalEntryLineSearchResponse,
-    asOfDate: string,
-    openingBalanceCutoffByPropertyKey: ReadonlyMap<string, string>
-  ): boolean {
-    const transactionDate = this.toDateOnlyJsonString(line.transactionDate);
-    if (!transactionDate || transactionDate > asOfDate) {
-      return false;
-    }
-
-    const propertyId = (line.propertyId || '').trim();
-    if (!propertyId) {
-      return true;
-    }
-
-    const cutoff = openingBalanceCutoffByPropertyKey.get(this.buildOwnerApAgingPropertyKey(Number(line.officeId) || 0, propertyId));
-    if (!cutoff) {
-      return true;
-    }
-
-    return transactionDate >= cutoff;
   }
 
   buildStandardApAgingBillDetailsFromJournalLines(
