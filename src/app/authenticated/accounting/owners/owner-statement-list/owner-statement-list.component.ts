@@ -1,24 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
-import { CommonMessage } from '../../../../enums/common-message.enum';
-import { AuthService } from '../../../../services/auth.service';
+import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
-import { PropertyAgreementService } from '../../../properties/services/property-agreement.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
-import { OwnerStatementService } from '../../services/owner-statement.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
-import { PasswordCheckDialogService } from '../../../shared/modals/password-check-dialog/password-check-dialog.service';
-import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult } from './owner-statement-starting-balance-dialog.component';
 
 @Component({
   selector: 'app-owner-statement-list',
@@ -35,16 +27,10 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Input() isLoading = false;
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
   private commonService = inject(CommonService);
-  private ownerStatementService = inject(OwnerStatementService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
-  private propertyAgreementService = inject(PropertyAgreementService);
-  private authService = inject(AuthService);
-  private passwordCheckDialogService = inject(PasswordCheckDialogService);
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
-  private dialog = inject(MatDialog);
-  private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
@@ -84,39 +70,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   onViewStatement(row: OwnerStatementMonthLineListDisplay): void {
     this.viewStatement.emit(row);
-  }
-
-  openStartingBalanceDialog(row: OwnerStatementMonthLineListDisplay): void {
-    this.ownerStatementService.getOwnerStatementStartingBalance(row.officeId, row.ownerId, row.propertyId).pipe(take(1)).subscribe({
-      next: existingStartingBalance => {
-        const hasExistingStartingBalance = !!existingStartingBalance;
-        if (hasExistingStartingBalance && !this.authService.isAdmin()) {
-          this.toastr.warning('Only Admin users can change an existing starting balance.', 'Owner Statements');
-          return;
-        }
-
-        const startingBalanceAmount = existingStartingBalance?.amount ?? this.mappingService.parseCurrencyValue(row.startingBalance);
-        if (Math.abs(startingBalanceAmount) > 0.005) {
-          this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, startingBalanceAmount);
-          return;
-        }
-
-        this.propertyAgreementService.getPropertyAgreement(row.propertyId).pipe(take(1)).subscribe({
-          next: agreement => {
-            const workingCapital = Number(agreement?.workingCapitalBalance);
-            const defaultAmount = Number.isFinite(workingCapital) ? workingCapital : startingBalanceAmount;
-            this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, defaultAmount);
-          },
-          error: () => {
-            this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, startingBalanceAmount);
-          }
-        });
-      },
-      error: () => {
-        this.toastr.error('Unable to load current starting balance.', CommonMessage.Error);
-        this.markViewForCheck();
-      }
-    });
   }
   //#endregion
 
@@ -228,59 +181,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Utility Methods
-  openStartingBalanceDialogWithAmount(row: OwnerStatementMonthLineListDisplay, existingTransactionDate: string | null, existingAmount: number | null, hasExistingStartingBalance: boolean, defaultAmount: number | null): void {
-    const defaultDateValue = existingTransactionDate || row.monthDate || null;
-    const defaultDate = this.utilityService.parseCalendarDateInput(defaultDateValue) ?? new Date();
-    this.dialog.open(OwnerStatementStartingBalanceDialogComponent, {
-      width: '34rem',
-      data: {
-        defaultDate,
-        defaultAmount
-      }
-    }).afterClosed().pipe(take(1)).subscribe((result?: OwnerStatementStartingBalanceDialogResult) => {
-      if (!result) {
-        return;
-      }
-
-      const changedExistingValue = hasExistingStartingBalance
-        && ((existingTransactionDate || '') !== result.transactionDate || Math.abs((Number(existingAmount) || 0) - (Number(result.amount) || 0)) > 0.005);
-      const createStartingBalance = (currentPassword: string | null) => {
-        this.ownerStatementService.createOwnerStatementStartingBalance({
-          officeId: row.officeId,
-          ownerId: row.ownerId,
-          propertyId: row.propertyId,
-          transactionDate: result.transactionDate,
-          amount: result.amount,
-          currentPassword
-        }).pipe(take(1)).subscribe({
-          next: () => {
-            this.toastr.success('Starting balance journal entry saved and posted.', CommonMessage.Success);
-            this.loadOwnerStatementList();
-          },
-          error: () => {
-            this.toastr.error('Unable to save starting balance journal entry.', CommonMessage.Error);
-            this.markViewForCheck();
-          }
-        });
-      };
-
-      if (!changedExistingValue) {
-        createStartingBalance(null);
-        return;
-      }
-
-      this.passwordCheckDialogService.confirm({
-        hint: 'Required when changing an existing starting balance.'
-      }).pipe(take(1)).subscribe(currentPassword => {
-        if (!currentPassword) {
-          return;
-        }
-
-        createStartingBalance(currentPassword);
-      });
-    });
-  }
-
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

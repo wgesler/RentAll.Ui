@@ -89,6 +89,7 @@ export interface JournalEntryRequest {
   memo?: string | null;
   postingStatusId: number;
   isCashOnly: boolean;
+  journalEntryKindId?: number | null;
   journalEntryLines: JournalEntryLineRequest[];
 }
 

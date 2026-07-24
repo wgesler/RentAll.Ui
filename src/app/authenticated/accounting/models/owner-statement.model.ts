@@ -98,26 +98,6 @@ export interface OwnerStatementMonthLineSelection {
   monthDate: string;
 }
 
-export interface OwnerStatementStartingBalanceRequest {
-  officeId: number;
-  ownerId: string;
-  propertyId: string;
-  transactionDate: string;
-  amount: number;
-  currentPassword?: string | null;
-}
-
-export interface OwnerStatementStartingBalanceResponse {
-  journalEntryId: string;
-  officeId: number;
-  ownerId: string;
-  propertyId: string;
-  transactionDate: string;
-  amount: number;
-  memo: string;
-  isPosted: boolean;
-}
-
 export interface OwnerStatementJournalEntryLineSearchRequest {
   officeIds: number[];
   ownerId: string;

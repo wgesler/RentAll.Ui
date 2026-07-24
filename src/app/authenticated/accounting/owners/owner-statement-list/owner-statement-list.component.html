@@ -37,12 +37,10 @@
         [hasFilter]="true"
         [hasActionsView]="true"
         [hasActionsRowClick]="true"
-        [hasActionsStartingBalance]="true"
         [noDataMessage]="noDataMessage"
         [itemsPerPage]="10"
         (rowClickEvent)="onViewStatement($event)"
-        (viewEvent)="onViewStatement($event)"
-        (startingBalanceEvent)="openStartingBalanceDialog($event)">
+        (viewEvent)="onViewStatement($event)">
         </app-data-table>
       </div>
     </div>

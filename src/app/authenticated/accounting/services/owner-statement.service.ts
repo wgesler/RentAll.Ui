@@ -1,10 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable, of } from 'rxjs';
-import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
-import { JournalEntryResponse } from '../models/journal-entry.model';
+import { OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
 import { OwnerReportsCacheService } from './owner-reports-cache.service';
 import { ReportService } from './report.service';
 
@@ -12,13 +9,9 @@ import { ReportService } from './report.service';
   providedIn: 'root'
 })
 export class OwnerStatementService {
-  private http = inject(HttpClient);
-  private configService = inject(ConfigService);
   private reportService = inject(ReportService);
   private mappingService = inject(MappingService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
-
-  private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
   searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
@@ -91,36 +84,5 @@ export class OwnerStatementService {
     }).pipe(
       map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.accrual.propertyActivityLines ?? [], request))
     );
-  }
-
-  createOwnerStatementStartingBalance(request: OwnerStatementStartingBalanceRequest): Observable<JournalEntryResponse> {
-    const ownerId = (request.ownerId || '').trim();
-    const propertyId = (request.propertyId || '').trim();
-    const transactionDate = (request.transactionDate || '').trim();
-    if (request.officeId <= 0 || !ownerId || !propertyId || !transactionDate || Number(request.amount) === 0) {
-      throw new Error('Office, owner, property, transaction date, and non-zero amount are required to create owner starting balance.');
-    }
-
-    return this.http.post<JournalEntryResponse>(`${this.controller}owner-statement/starting-balance`, {
-      officeId: request.officeId,
-      ownerId,
-      propertyId,
-      transactionDate,
-      amount: Number(request.amount),
-      currentPassword: (request.currentPassword || '').trim()
-    });
-  }
-
-  getOwnerStatementStartingBalance(officeId: number, ownerId: string, propertyId: string): Observable<OwnerStatementStartingBalanceResponse | null> {
-    const propertyIdTrimmed = (propertyId || '').trim();
-    if (officeId <= 0 || !propertyIdTrimmed) {
-      throw new Error('Office and property are required to retrieve owner starting balance.');
-    }
-
-    return this.http.post<OwnerStatementStartingBalanceResponse | null>(`${this.controller}owner-statement/starting-balance/get`, {
-      officeId,
-      ownerId: (ownerId || '').trim() || '00000000-0000-0000-0000-000000000000',
-      propertyId: propertyIdTrimmed
-    });
   }
 }

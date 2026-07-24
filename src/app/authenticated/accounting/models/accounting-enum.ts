@@ -354,32 +354,34 @@ export function getPerspectiveLabel(
 //#region JournalEntryKind
 export enum JournalEntryKind {
   Manual = 0,
-  Charge = 1,
-  OwnerExpected = 2,
-  Payment = 3,
-  PrePaymentReceive = 4,
-  PrePaymentApply = 5,
-  OwnerActual = 6,
-  Bill = 10,
-  BillPayment = 11,
-  Receipt = 12,
-  OwnerUtility = 13,
-  CrossOfficeCreditCard = 14,
-  Expense = 20,
-  OwnerTransfer = 21,
+  OpeningBalanceSheet = 1,
+  RetainedEarnings = 2,
+  Charge = 11,
+  OwnerExpected = 12,
+  Payment = 13,
+  PrePaymentReceive = 14,
+  PrePaymentApply = 15,
+  OwnerActual = 16,
+  Bill = 20,
+  BillPayment = 21,
+  Receipt = 22,
+  OwnerUtility = 23,
+  CrossOfficeCreditCard = 24,
   Deposit = 30,
   Transfer = 40,
-  DepartureFee = 50,
-  SecurityDepositReturn = 51,
-  SecurityDepositTransfer = 52,
-  LinenTowelFee = 60,
-  LinenTowelUnusedReversal = 61,
-  RetainedEarnings = 100,
-  OwnerStartingBalance = 110
+  Expense = 50,
+  OwnerTransfer = 51,
+  DepartureFee = 60,
+  SecurityDepositReturn = 61,
+  SecurityDepositTransfer = 62,
+  LinenTowelFee = 70,
+  LinenTowelUnusedReversal = 71
 }
 
 export const JournalEntryKindLabels: { value: JournalEntryKind; label: string }[] = [
   { value: JournalEntryKind.Manual, label: 'Manual' },
+  { value: JournalEntryKind.OpeningBalanceSheet, label: 'Opening Balance Sheet' },
+  { value: JournalEntryKind.RetainedEarnings, label: 'Retained Earnings' },
   { value: JournalEntryKind.Charge, label: 'Invoice Charge' },
   { value: JournalEntryKind.OwnerExpected, label: 'Owner Expected' },
   { value: JournalEntryKind.Payment, label: 'Invoice Payment' },
@@ -400,8 +402,6 @@ export const JournalEntryKindLabels: { value: JournalEntryKind; label: string }[
   { value: JournalEntryKind.SecurityDepositTransfer, label: 'Security Deposit Transfer' },
   { value: JournalEntryKind.LinenTowelFee, label: 'Linen & Towel Fee' },
   { value: JournalEntryKind.LinenTowelUnusedReversal, label: 'Linen & Towel Unused Reversal' },
-  { value: JournalEntryKind.RetainedEarnings, label: 'Retained Earnings' },
-  { value: JournalEntryKind.OwnerStartingBalance, label: 'Owner Starting Balance' },
 ];
 
 export function getJournalEntryKind(journalEntryKindId: number | undefined | null): string {
@@ -411,6 +411,8 @@ export function getJournalEntryKind(journalEntryKindId: number | undefined | nul
 
   const typeMap: { [key: number]: string } = {
     [JournalEntryKind.Manual]: 'Manual',
+    [JournalEntryKind.OpeningBalanceSheet]: 'Opening Balance Sheet',
+    [JournalEntryKind.RetainedEarnings]: 'Retained Earnings',
     [JournalEntryKind.Charge]: 'Invoice Charge',
     [JournalEntryKind.OwnerExpected]: 'Owner Expected',
     [JournalEntryKind.Payment]: 'Invoice Payment',
@@ -431,8 +433,6 @@ export function getJournalEntryKind(journalEntryKindId: number | undefined | nul
     [JournalEntryKind.SecurityDepositTransfer]: 'Security Deposit Transfer',
     [JournalEntryKind.LinenTowelFee]: 'Linen & Towel Fee',
     [JournalEntryKind.LinenTowelUnusedReversal]: 'Linen & Towel Unused Reversal',
-    [JournalEntryKind.RetainedEarnings]: 'Retained Earnings',
-    [JournalEntryKind.OwnerStartingBalance]: 'Owner Starting Balance',
   };
 
   return typeMap[journalEntryKindId] || '';
