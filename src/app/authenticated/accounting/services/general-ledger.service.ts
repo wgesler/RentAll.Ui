@@ -21,30 +21,56 @@ export class GeneralLedgerService {
   private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
   searchJournalEntryLines(request: JournalEntryLineSearchRequest): Observable<JournalEntryLineSearchResponse[]> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    const officeIds = (request.officeIds ?? [])
+      .map(id => Number(id))
+      .filter(id => Number.isFinite(id) && id > 0);
     if (officeIds.length === 0) {
       throw new Error('At least one office ID is required to search journal entry lines.');
     }
 
-    const chartOfAccountId = request.chartOfAccountId != null && request.chartOfAccountId > 0
-      ? request.chartOfAccountId
+    const chartOfAccountId = request.chartOfAccountId != null && Number(request.chartOfAccountId) > 0
+      ? Number(request.chartOfAccountId)
       : null;
+    const sourceTypeId = request.sourceTypeId != null && Number(request.sourceTypeId) > 0
+      ? Number(request.sourceTypeId)
+      : null;
+    const sourceId = this.normalizeOptionalGuid(request.sourceId);
+    const reservationId = this.normalizeOptionalGuid(request.reservationId);
+    const propertyId = this.normalizeOptionalGuid(request.propertyId);
+    const contactId = this.normalizeOptionalGuid(request.contactId);
+    const startDate = this.utilityService.toDateOnlyJsonString(request.startDate);
+    const endDate = this.utilityService.toDateOnlyJsonString(request.endDate);
 
     const body: Record<string, unknown> = {
       officeIds,
-      sourceTypeId: request.sourceTypeId ?? null,
-      sourceId: request.sourceId ?? null,
-      reservationId: request.reservationId ?? null,
-      propertyId: request.propertyId ?? null,
-      contactId: request.contactId ?? null,
-      includeVoided: request.includeVoided,
-      includeUnposted: request.includeUnposted,
-      startDate: request.startDate || null,
-      endDate: request.endDate || null
+      includeVoided: request.includeVoided === true,
+      includeUnposted: request.includeUnposted !== false,
+      startDate,
+      endDate
     };
 
     if (chartOfAccountId != null) {
       body['chartOfAccountId'] = chartOfAccountId;
+    }
+
+    if (sourceTypeId != null) {
+      body['sourceTypeId'] = sourceTypeId;
+    }
+
+    if (sourceId) {
+      body['sourceId'] = sourceId;
+    }
+
+    if (reservationId) {
+      body['reservationId'] = reservationId;
+    }
+
+    if (propertyId) {
+      body['propertyId'] = propertyId;
+    }
+
+    if (contactId) {
+      body['contactId'] = contactId;
     }
 
     if (request.unclearedOnly) {
@@ -62,6 +88,11 @@ export class GeneralLedgerService {
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/search`, body).pipe(
       map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
     );
+  }
+
+  private normalizeOptionalGuid(value: string | null | undefined): string | null {
+    const trimmed = (value ?? '').trim();
+    return trimmed || null;
   }
 
   /** Owner AP Aging: all owner A/P lines through endDate; API drops lines before each property's starting balance. */

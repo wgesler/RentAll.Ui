@@ -2681,6 +2681,12 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
 
     this.selectedOwnerKind = kind;
 
+    if (kindChanged && this.usesAccountingShellAsOfDateReport()) {
+      this.clearAsOfShellDateValidation();
+      this.syncInvoiceSearchDateRange();
+      this.syncBillsSearchRequest();
+    }
+
     if (kindChanged && kind === 'statements') {
       this.selectedOwnerStatementReportKind = 'accrual';
     }
@@ -2753,6 +2759,12 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.reconcileAccountReportContext = null;
     }
     this.selectedReportKind = kind;
+
+    if (kindChanged && this.usesAccountingShellAsOfDateReport()) {
+      this.clearAsOfShellDateValidation();
+      this.syncInvoiceSearchDateRange();
+      this.syncBillsSearchRequest();
+    }
 
     if (previousTab !== this.tabReports) {
       this.onTabChange({ index: this.tabReports });
@@ -3014,9 +3026,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     this.billsSearchRequest = {
       officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
       propertyId: this.resolveOwnerReportsBundlePropertyId(),
-      startDate: this.selectedTabIndex === this.tabOwners && this.usesAccountingShellAsOfDateReport()
-        ? null
-        : this.utilityService.formatDateOnlyForApi(this.startDate),
+      startDate: this.resolveShellSearchStartDateApi(),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
 
@@ -3307,16 +3317,28 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
   //#endregion
 
   //#region Date Range
+  resolveShellSearchStartDateApi(): string | null {
+    if (this.usesAccountingShellAsOfDateReport()) {
+      return null;
+    }
+
+    return this.utilityService.formatDateOnlyForApi(this.startDate);
+  }
+
+  clearAsOfShellDateValidation(): void {
+    this.shellStartDateNeedsEntry = false;
+  }
+
   syncInvoiceSearchDateRange(): void {
     this.invoiceSearchDateRange = {
-      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      startDate: this.resolveShellSearchStartDateApi(),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
   }
 
   syncBillsSearchRequest(): void {
     const officeIds = this.resolveOfficeIdsForBillsSearch();
-    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const startDate = this.resolveShellSearchStartDateApi();
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
     let propertyId: string | null = null;
 
@@ -3435,6 +3457,13 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
   }
 
   buildRangeQueryParams(): Record<string, string | null> {
+    if (this.usesAccountingShellAsOfDateReport()) {
+      return {
+        startDate: null,
+        endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+      };
+    }
+
     return {
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
@@ -3580,9 +3609,13 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
       return;
     }
 
-    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const startDate = this.resolveShellSearchStartDateApi();
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-    if (!startDate || !endDate) {
+    if (this.usesAccountingShellAsOfDateReport()) {
+      if (!endDate) {
+        return;
+      }
+    } else if (!startDate || !endDate) {
       return;
     }
 
@@ -3634,7 +3667,8 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
 
       const hasRange = !!parsed.startDate && !!parsed.endDate;
       const hasAsOf = !!parsed.asOfDate;
-      if (!hasRange && !hasAsOf) {
+      const hasEndOnly = !!parsed.endDate && !parsed.startDate;
+      if (!hasRange && !hasAsOf && !hasEndOnly) {
         return null;
       }
 
@@ -4454,7 +4488,15 @@ captureOwnerStatementReturnContext(): void {
   }
 
   get accountingShellEndDateLabel(): string {
-    return this.isReconcileBankActivityActive ? 'Statement Date' : 'End Date';
+    if (this.isReconcileBankActivityActive) {
+      return 'Statement Date';
+    }
+
+    if (this.usesAccountingShellAsOfDateReport()) {
+      return 'As Of';
+    }
+
+    return 'End Date';
   }
 
   get asOfReportSearchDateRange(): { asOfStart: string | null; asOfDate: string | null } {
@@ -5026,6 +5068,7 @@ captureOwnerStatementReturnContext(): void {
     }
 
     if (this.usesAccountingShellAsOfDateReport()) {
+      this.clearAsOfShellDateValidation();
       if (this.startDate) {
         this.startDate.setHours(0, 0, 0, 0);
       }

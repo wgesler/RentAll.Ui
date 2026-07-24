@@ -264,14 +264,15 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
-        console.error('Financial Report - error loading journal entry lines:', error);
+        const validationErrors = error.error?.errors;
+        console.error('Financial Report - error loading journal entry lines:', error, validationErrors ?? error.error);
         this.isServiceError = true;
         this.allLines = [];
         this.reportResult = null;
         this.visibleRows = [];
         const apiMessage = typeof error.error === 'string'
           ? error.error
-          : error.error?.title || error.error?.message || error.message;
+          : this.formatApiValidationMessage(error.error) || error.error?.title || error.error?.message || error.message;
         this.noActivityMessage = apiMessage
           ? `Unable to load financial report data: ${apiMessage}`
           : 'Unable to load financial report data.';
@@ -1023,10 +1024,12 @@ clearPrintableHtml(): void {
   }
 
   resolveOfficeIds(): number[] {
-    if (this.officeId != null && this.officeId > 0) {
-      return [this.officeId];
+    if (this.officeId != null && Number(this.officeId) > 0) {
+      return [Number(this.officeId)];
     }
-    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    return (this.offices || [])
+      .map(office => Number(office.officeId))
+      .filter(id => Number.isFinite(id) && id > 0);
   }
 
   hasSearchDateRangeChanged(change: SimpleChanges['searchDateRange']): boolean {
@@ -1051,6 +1054,24 @@ clearPrintableHtml(): void {
   //#region Utility Methods
   markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  private formatApiValidationMessage(errorBody: unknown): string | null {
+    if (!errorBody || typeof errorBody !== 'object') {
+      return null;
+    }
+
+    const errors = (errorBody as { errors?: Record<string, string[] | string> }).errors;
+    if (!errors) {
+      return null;
+    }
+
+    const messages = Object.entries(errors).flatMap(([field, value]) => {
+      const items = Array.isArray(value) ? value : [value];
+      return items.filter(Boolean).map(message => `${field}: ${message}`);
+    });
+
+    return messages.length > 0 ? messages.join('; ') : null;
   }
 
   ngOnDestroy(): void {
