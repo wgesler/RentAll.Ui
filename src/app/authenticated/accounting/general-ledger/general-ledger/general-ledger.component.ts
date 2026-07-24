@@ -1097,8 +1097,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.form.get('transactionDate')?.setValidators(Validators.required);
     this.form.get('memo')?.clearValidators();
     this.applyAccountingPeriodValidators();
-    this.form.updateValueAndValidity({ emitEvent: false });
-    this.form.enable();
+    this.updateFormEditability();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
     this.markViewForCheck();
   }
@@ -1130,10 +1129,19 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.form.get('transactionDate')?.setValidators(Validators.required);
     this.form.get('memo')?.clearValidators();
     this.applyAccountingPeriodValidators();
-    this.form.updateValueAndValidity({ emitEvent: false });
-    this.form.enable();
+    this.updateFormEditability();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
     this.markViewForCheck();
+  }
+
+  updateFormEditability(): void {
+    if (this.canEditLines) {
+      this.form.enable({ emitEvent: false });
+    } else {
+      this.form.disable({ emitEvent: false });
+    }
+
+    this.form.updateValueAndValidity({ emitEvent: false });
   }
 
   setupFormSubscriptions(): void {
@@ -1436,11 +1444,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       isPosted: isJournalEntryPosted(this.journalEntry.postingStatusId)
     });
 
-    if (this.canEdit) {
-      this.form.enable();
-    } else {
-      this.form.disable();
-    }
+    this.updateFormEditability();
   }
 
   applyLineDisplay(): void {

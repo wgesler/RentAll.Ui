@@ -714,6 +714,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isEscrowJournalEntryLineListActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onEscrowJournalEntryLinesBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isBillsReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onBillsReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -1427,14 +1432,30 @@
                   (journalEntriesChanged)="onApAgingJournalEntriesChanged()">
                 </app-ap-aging-report>
               } @else if (selectedOwnerKind === 'escrow') {
-                <app-escrow-report
-                  [officeId]="selectedOfficeId"
-                  [asOfDate]="shellEndDateApi"
-                  [propertyId]="selectedBillsPropertyId"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger"
-                  [isLoading]="isOwnerReportsLoading"
-                  (transferNavigate)="onEscrowTransferNavigate()">
-                </app-escrow-report>
+                @if (showGeneralLedgerDetail && activeJournalEntryId && showEscrowJournalEntryLines) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else if (showEscrowJournalEntryLines && escrowJournalEntryLineRequest) {
+                  <app-owner-report-details
+                    [escrowRequest]="escrowJournalEntryLineRequest"
+                    [refreshTrigger]="escrowJournalEntryLinesRefreshTrigger"
+                    (lineSelectEvent)="onOwnerStatementJournalEntryLineSelect($event)">
+                  </app-owner-report-details>
+                } @else {
+                  <app-escrow-report
+                    [officeId]="selectedOfficeId"
+                    [asOfDate]="shellEndDateApi"
+                    [propertyId]="selectedBillsPropertyId"
+                    [refreshTrigger]="ownersStatementsRefreshTrigger"
+                    [isLoading]="isOwnerReportsLoading"
+                    (transferNavigate)="onEscrowTransferNavigate()"
+                    (amountDrillDownSelect)="onEscrowAmountDrillDownSelect($event)">
+                  </app-escrow-report>
+                }
               } @else if (isOwnerReportViewActive) {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger

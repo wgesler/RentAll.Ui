@@ -91,6 +91,7 @@ import { SecurityDepositsListComponent } from '../bank/security-deposits-list/se
 import { SecurityDepositReportComponent } from '../bank/security-deposit-report/security-deposit-report.component';
 import { SecurityDepositReportSelection } from '../models/security-deposit-report.model';
 import { OwnerReportsCacheService, EscrowReportCacheService } from '../services/owner-reports-cache.service';
+import { EscrowReportAmountDrillDownSelection, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 type JournalEntrySyncProgressKey =
   | 'invoice'
@@ -443,6 +444,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   showOwnerStatementJournalEntryLines = false;
   ownerStatementJournalEntryLineRequest: OwnerStatementJournalEntryLineSearchRequest | null = null;
   ownerStatementJournalEntryLinesRefreshTrigger = 0;
+  showEscrowJournalEntryLines = false;
+  escrowJournalEntryLineRequest: EscrowReportJournalEntryLineSearchRequest | null = null;
+  escrowJournalEntryLinesRefreshTrigger = 0;
   ownersStatementViewState: OwnerStatementListViewState | null = null;
   selectedOwnerStatementMonthLine: OwnerStatementMonthLineListDisplay | null = null;
   showInvoiceCreate = false;
@@ -532,6 +536,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       });
     }
     this.applyQueryParamState(this.route.snapshot.queryParams);
+    if (!this.startDate && !this.endDate) {
+      this.applyDefaultDateRangeIfBothEmpty();
+      this.publishDateRangeState();
+    }
 
     this.syncArAgingReportFilters();
 
@@ -735,6 +743,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     const shouldRefreshOwnerStatements = this.selectedTabIndex === this.tabOwners
       && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines;
+    const shouldRefreshEscrowReport = this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'escrow'
+      && this.showEscrowJournalEntryLines;
     const shouldRefreshSecurityDeposits = this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind === 'securityDeposits';
     this.showGeneralLedgerOfficeValidationError = false;
@@ -743,6 +754,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.selectedJournalEntryLineId = null;
     this.copyFromJournalEntry = null;
     if (shouldRefreshOwnerStatements) {
+      this.ownersStatementsRefreshTrigger++;
+    }
+    if (shouldRefreshEscrowReport) {
       this.ownersStatementsRefreshTrigger++;
     }
     if (shouldRefreshSecurityDeposits) {
@@ -2219,10 +2233,38 @@ openOwnerStatementJournalEntryByCode(journalEntryCode: string, journalEntryLineI
       endDate: this.billsSearchRequest.endDate ?? null
     };
     this.showOwnerStatementJournalEntryLines = true;
+    this.showEscrowJournalEntryLines = false;
+    this.escrowJournalEntryLineRequest = null;
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
     this.ownerStatementJournalEntryLinesRefreshTrigger++;
+  }
+
+  onEscrowAmountDrillDownSelect(selection: EscrowReportAmountDrillDownSelection): void {
+    this.selectedTabIndex = this.tabOwners;
+    this.escrowJournalEntryLineRequest = {
+      officeIds: [...(selection.officeIds || [])],
+      propertyId: selection.propertyId ?? null,
+      metric: selection.metric,
+      endDate: this.billsSearchRequest.endDate ?? this.shellEndDateApi
+    };
+    this.showEscrowJournalEntryLines = true;
+    this.showOwnerStatementJournalEntryLines = false;
+    this.ownerStatementJournalEntryLineRequest = null;
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+    this.escrowJournalEntryLinesRefreshTrigger++;
+  }
+
+  onEscrowJournalEntryLinesBack(): void {
+    this.showEscrowJournalEntryLines = false;
+    this.escrowJournalEntryLineRequest = null;
+    this.escrowJournalEntryLinesRefreshTrigger = 0;
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
   }
 
   onOwnerStatementJournalEntryLinesBack(): void {
@@ -4172,7 +4214,8 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return (this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind !== 'reconcile'
       || this.selectedTabIndex === this.tabGeneralLedger
-      || this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines)
+      || this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines
+      || this.selectedTabIndex === this.tabOwners && this.isOwnerEscrowViewActive && this.showEscrowJournalEntryLines)
       && this.showGeneralLedgerDetail;
   }
 
@@ -4180,6 +4223,13 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.selectedTabIndex === this.tabOwners
       && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines
+      && !this.showGeneralLedgerDetail;
+  }
+
+  get isEscrowJournalEntryLineListActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners
+      && this.isOwnerEscrowViewActive
+      && this.showEscrowJournalEntryLines
       && !this.showGeneralLedgerDetail;
   }
 
@@ -4942,6 +4992,20 @@ captureOwnerStatementReturnContext(): void {
     }
 
     return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  applyDefaultDateRangeIfBothEmpty(): void {
+    if (this.startDate || this.endDate) {
+      return;
+    }
+
+    const today = new Date();
+    this.startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    this.endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    this.startDate.setHours(0, 0, 0, 0);
+    this.endDate.setHours(0, 0, 0, 0);
+    this.shellStartDateNeedsEntry = false;
+    this.shellEndDateNeedsEntry = false;
   }
 
   normalizeDateRangeValues(changedField?: 'start' | 'end'): void {

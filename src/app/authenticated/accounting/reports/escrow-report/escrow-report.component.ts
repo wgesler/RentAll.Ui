@@ -6,7 +6,7 @@ import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { EscrowReportResult } from '../../models/escrow-report.model';
+import { EscrowReportResult, EscrowReportAmountDrillDownSelection, EscrowReportDrillDownMetric } from '../../models/escrow-report.model';
 import { EscrowReportCacheService } from '../../services/owner-reports-cache.service';
 
 @Component({
@@ -25,6 +25,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
   @Output() transferNavigate = new EventEmitter<void>();
+  @Output() amountDrillDownSelect = new EventEmitter<EscrowReportAmountDrillDownSelection>();
 
   private escrowReportCacheService = inject(EscrowReportCacheService);
   private mappingService = inject(MappingService);
@@ -145,5 +146,25 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
   openTransferReports(): void {
     this.transferNavigate.emit();
+  }
+
+  onAmountCellClick(
+    metric: EscrowReportDrillDownMetric,
+    amount: number,
+    propertyId?: string | null
+  ): void {
+    if (!this.canDrillDownAmount(metric, amount)) {
+      return;
+    }
+
+    this.amountDrillDownSelect.emit({
+      officeIds: this.resolveOfficeIds(),
+      propertyId: propertyId ?? null,
+      metric
+    });
+  }
+
+  canDrillDownAmount(metric: EscrowReportDrillDownMetric, amount: number): boolean {
+    return Math.abs(Number(amount) || 0) > 0.005;
   }
 }

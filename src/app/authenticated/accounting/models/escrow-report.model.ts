@@ -50,3 +50,25 @@ export interface EscrowReportSearchRequest {
   endDate: string;
   cushion?: number;
 }
+
+export type EscrowReportDrillDownMetric =
+  | 'arBalance'
+  | 'prepaids'
+  | 'notCollected'
+  | 'total'
+  | 'e2'
+  | 'escrowBankBalance'
+  | 'transfer';
+
+export interface EscrowReportJournalEntryLineSearchRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  metric: EscrowReportDrillDownMetric;
+  endDate: string | null;
+}
+
+export interface EscrowReportAmountDrillDownSelection {
+  officeIds: number[];
+  propertyId?: string | null;
+  metric: EscrowReportDrillDownMetric;
+}

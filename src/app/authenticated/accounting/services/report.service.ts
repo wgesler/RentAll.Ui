@@ -5,7 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
-import { EscrowReportResult, EscrowReportSearchRequest } from '../models/escrow-report.model';
+import { EscrowReportResult, EscrowReportSearchRequest, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 @Injectable({
   providedIn: 'root'
@@ -134,6 +134,28 @@ export class ReportService {
 
     return this.http.post<EscrowReportResult>(`${this.controller}escrow/search`, body).pipe(
       map(report => this.mappingService.mapEscrowReportResponse(report as unknown as Record<string, unknown>))
+    );
+  }
+
+  searchEscrowReportJournalEntryLines(request: EscrowReportJournalEntryLineSearchRequest): Observable<OwnerReportJournalEntryLineResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search escrow report journal entry lines.');
+    }
+
+    const endDate = (request.endDate || '').trim();
+    if (!endDate) {
+      throw new Error('As-of date is required to search escrow report journal entry lines.');
+    }
+
+    return this.http.post<OwnerReportJournalEntryLineResponse[]>(`${this.controller}escrow/journal-entry-line/search`, {
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      metric: request.metric,
+      endDate,
+      includeUnposted: true
+    }).pipe(
+      map(rows => rows ?? [])
     );
   }
 

@@ -5,7 +5,9 @@ import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { UtilityService } from '../../../../services/utility.service';
 import { OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportJournalEntryLineSelection } from '../../models/owner-report.model';
+import { EscrowReportJournalEntryLineSearchRequest } from '../../models/escrow-report.model';
 import { OwnerReportService } from '../../services/owner-report.service';
+import { ReportService } from '../../services/report.service';
 
 @Component({
   selector: 'app-owner-report-details',
@@ -18,9 +20,11 @@ import { OwnerReportService } from '../../services/owner-report.service';
 export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() request: OwnerReportJournalEntryLineSearchRequest | null = null;
+  @Input() escrowRequest: EscrowReportJournalEntryLineSearchRequest | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<OwnerReportJournalEntryLineSelection>();
   private ownerReportService = inject(OwnerReportService);
+  private reportService = inject(ReportService);
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
@@ -43,7 +47,9 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if ((changes['request'] && !changes['request'].firstChange) || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
+    if ((changes['request'] && !changes['request'].firstChange)
+      || (changes['escrowRequest'] && !changes['escrowRequest'].firstChange)
+      || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
       this.loadLines();
     }
   }
@@ -70,6 +76,11 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
 
   //#region Data Loading Methods
   loadLines(): void {
+    if (this.escrowRequest) {
+      this.loadEscrowLines();
+      return;
+    }
+
     if (!this.request || !this.request.officeIds?.length || !(this.request.ownerId || '').trim() || !this.request.metric) {
       this.lines = [];
       this.isServiceError = false;
@@ -81,6 +92,31 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReportJournalEntryLines');
     this.ownerReportService.searchOwnerReportJournalEntryLines(this.request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReportJournalEntryLines'))).subscribe({
+      next: lines => {
+        this.lines = lines || [];
+        this.isServiceError = false;
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.lines = [];
+        this.isServiceError = true;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadEscrowLines(): void {
+    if (!this.escrowRequest || !this.escrowRequest.officeIds?.length || !this.escrowRequest.metric || !(this.escrowRequest.endDate || '').trim()) {
+      this.lines = [];
+      this.isServiceError = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReportJournalEntryLines');
+      this.markViewForCheck();
+      return;
+    }
+
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReportJournalEntryLines');
+    this.reportService.searchEscrowReportJournalEntryLines(this.escrowRequest).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReportJournalEntryLines'))).subscribe({
       next: lines => {
         this.lines = lines || [];
         this.isServiceError = false;

@@ -27,10 +27,8 @@
 }
 
 .owner-statement-layout {
-  --owner-report-panel-max-width: 72rem;
-  --owner-report-panel-min-width: 48rem;
   --owner-report-label-col-width: 11rem;
-  --owner-report-description-col-width: 18rem;
+  --owner-report-description-col-min-width: 16rem;
   --owner-report-amount-col-width: 7.5rem;
   display: flex;
   flex-direction: column;
@@ -51,23 +49,14 @@
 
 .owner-statement-layout--accrual {
   --owner-report-label-col-width: 11rem;
-  --owner-report-description-col-width: 18rem;
+  --owner-report-description-col-min-width: 16rem;
   --owner-report-amount-col-width: 7.5rem;
 }
 
 .owner-statement-layout--cash {
   --owner-report-label-col-width: 11rem;
-  --owner-report-description-col-width: 18rem;
+  --owner-report-description-col-min-width: 16rem;
   --owner-report-amount-col-width: 7.5rem;
-}
-
-:host-context(.shell-tabs) .owner-statement-layout .owner-statement-context-band__row.property-tab-actions-band__row,
-.owner-statement-layout .owner-statement-context-band__row.property-tab-actions-band__row {
-  width: 100%;
-  max-width: var(--owner-report-panel-max-width);
-  min-width: min(100%, var(--owner-report-panel-min-width));
-  margin-inline: auto;
-  box-sizing: border-box;
 }
 
 .owner-statement-panel {
@@ -82,15 +71,15 @@
 
 .owner-statement-panel-inner {
   width: 100%;
-  max-width: var(--owner-report-panel-max-width);
-  min-width: min(100%, var(--owner-report-panel-min-width));
+  max-width: 48rem;
+  min-width: 0;
   margin-inline: auto;
   box-sizing: border-box;
 }
 
 .owner-statement-panel-inner--content-sized {
-  width: 100%;
-  max-width: var(--owner-report-panel-max-width);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .owner-statement-empty-state {
@@ -123,19 +112,30 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 0.5rem;
   background: #fff;
-  margin-inline: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .owner-statement-table {
   width: 100%;
-  min-width: 48rem;
+  table-layout: auto;
   border-collapse: collapse;
-  table-layout: fixed;
   font-size: 0.875rem;
+}
+
+.owner-statement-table--content-sized {
+  width: max-content;
+  min-width: 0;
+}
+
+.owner-statement-table--content-sized .owner-statement-col-item-description {
+  width: max-content;
+  min-width: var(--owner-report-description-col-min-width);
+  max-width: none;
+  white-space: nowrap;
 }
 
 .owner-statement-table thead th {
@@ -268,8 +268,7 @@
 .owner-statement-item-description-wrap {
   display: block;
   line-height: 1.35;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .owner-statement-item-description-wrap--nested {
@@ -283,10 +282,10 @@
 }
 
 .owner-statement-col-item-description {
-  width: var(--owner-report-description-col-width);
-  min-width: var(--owner-report-description-col-width);
+  width: auto;
+  min-width: var(--owner-report-description-col-min-width);
   max-width: none;
-  white-space: normal;
+  white-space: nowrap;
   overflow: visible;
   text-overflow: clip;
 }
@@ -298,8 +297,8 @@
 
 .owner-statement-table th.owner-statement-col-item-description,
 .owner-statement-table td.owner-statement-col-item-description {
-  width: var(--owner-report-description-col-width);
-  min-width: var(--owner-report-description-col-width);
+  width: auto;
+  min-width: var(--owner-report-description-col-min-width);
   max-width: none;
   padding-left: 0.65rem;
 }

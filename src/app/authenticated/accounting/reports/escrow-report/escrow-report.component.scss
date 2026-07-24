@@ -186,3 +186,41 @@
   line-height: 1.35;
   white-space: nowrap;
 }
+
+.escrow-report-amount-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  text-align: right;
+  width: 100%;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.escrow-report-amount-link--active {
+  color: #1d4ed8;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.escrow-report-summary-value.escrow-report-amount-link {
+  width: 100%;
+  max-width: 100%;
+  min-width: 10rem;
+  text-align: right;
+  justify-self: stretch;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-sizing: border-box;
+}
+
+.escrow-report-summary-value--bank.escrow-report-amount-link--active,
+.escrow-report-summary-value--transfer.escrow-report-amount-link--active {
+  color: #1d4ed8;
+}

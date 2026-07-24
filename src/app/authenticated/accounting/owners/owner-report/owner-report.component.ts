@@ -760,6 +760,10 @@ seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse 
       : 'Owner Accrual Report';
   }
 
+  get panelMaxWidthCss(): string {
+    return this.visibleRows.length > 0 ? '100%' : '48rem';
+  }
+
   onCashReportToggleChange(checked: boolean): void {
     this.reportKindChange.emit(checked ? 'cash' : 'accrual');
   }

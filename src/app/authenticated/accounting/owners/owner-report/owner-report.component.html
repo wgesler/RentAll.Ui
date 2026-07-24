@@ -37,7 +37,10 @@
       </div>
     </div>
     <div class="owner-statement-panel dbg-band-main">
-      <div class="owner-statement-panel-inner owner-statement-panel-inner--content-sized">
+      <div
+        class="owner-statement-panel-inner"
+        [class.owner-statement-panel-inner--content-sized]="visibleRows.length > 0"
+        [style.max-width]="panelMaxWidthCss">
       @if (visibleRows.length === 0) {
         <div class="owner-statement-empty-state">
           <p>No owner statement activity for the selected filters.</p>
@@ -47,7 +50,7 @@
           #ownerReportTableWrap
           class="owner-statement-table-wrap"
           [style.min-height.px]="ownerReportFixedHeightPx > 0 ? ownerReportFixedHeightPx : null">
-          <table class="owner-statement-table">
+          <table class="owner-statement-table owner-statement-table--content-sized">
             <thead>
               <tr>
                 <th class="owner-statement-col-label">
