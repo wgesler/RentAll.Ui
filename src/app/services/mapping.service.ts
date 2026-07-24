@@ -6109,8 +6109,8 @@ roundCurrency(value: number): number {
         const recapAmounts = recapAmountsByProperty.get(propertyId) || { prepaids: 0, notCollected: 0 };
         const prepaids = this.roundFinancialReportAmount(Math.max(0, recapAmounts.prepaids));
         const notCollected = this.roundFinancialReportAmount(recapAmounts.notCollected);
-        const total = this.roundFinancialReportAmount(arBalance - prepaids - notCollected);
-        const e2 = total < 0 ? 0 : total;
+        const total = this.roundFinancialReportAmount(arBalance + prepaids - notCollected);
+        const e2 = total > 0 ? total : 0;
         return {
           rowId: `${row.officeId}-${propertyId || row.propertyCode}`,
           ownerName: (row.ownerNames || row.ownerNameLine || row.companyName || '').trim() || '—',
