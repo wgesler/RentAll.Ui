@@ -42,6 +42,7 @@ import { InvoiceResponse } from '../../models/invoice.model';
 import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
+import { InvoiceService } from '../../services/invoice.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
