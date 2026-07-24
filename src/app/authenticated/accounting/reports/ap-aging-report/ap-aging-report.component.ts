@@ -42,7 +42,7 @@ import { InvoiceResponse } from '../../models/invoice.model';
 import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
-import { InvoiceService } from '../../services/invoice.service';
+import { OwnerStatementService } from '../../services/owner-statement.service';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
 import { WorkOrderComponent } from '../../../maintenance/work-order/work-order.component';
@@ -79,6 +79,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   private commonService = inject(CommonService);
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
+  private ownerStatementService = inject(OwnerStatementService);
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
@@ -131,6 +132,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   contactNameByContactId = new Map<string, string>();
   propertyCodeByPropertyId = new Map<string, string>();
   ownerIdByPropertyId = new Map<string, string>();
+  openingBalanceCutoffByPropertyKey = new Map<string, string>();
 
   readonly detailDisplayedColumns: ColumnSet = {
     name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
@@ -448,7 +450,13 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
               seen.add(lineId);
               return true;
             });
-          })
+          }),
+          switchMap(lines => this.loadOwnerApOpeningBalanceCutoffs(lines).pipe(
+            map(cutoffs => {
+              this.openingBalanceCutoffByPropertyKey = cutoffs;
+              return lines;
+            })
+          ))
         );
       }),
       take(1)
@@ -462,6 +470,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       error: (error: HttpErrorResponse) => {
         this.allOwnerApLines = [];
         this.ownerIdByPropertyId = new Map();
+        this.openingBalanceCutoffByPropertyKey = new Map();
         this.paymentTermsByContactId = new Map();
         this.contactNameByContactId = new Map();
         this.isServiceError = true;
@@ -471,6 +480,53 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         this.markViewForCheck();
       }
     });
+  }
+
+  private loadOwnerApOpeningBalanceCutoffs(lines: JournalEntryLineSearchResponse[]) {
+    const requestsByKey = new Map<string, { officeId: number; ownerId: string; propertyId: string }>();
+    (lines || []).forEach(line => {
+      const propertyId = (line.propertyId || '').trim();
+      if (!propertyId) {
+        return;
+      }
+
+      const officeId = Number(line.officeId) || 0;
+      const ownerId = (this.ownerIdByPropertyId.get(propertyId) || line.contactId || '').trim();
+      if (officeId <= 0 || !ownerId) {
+        return;
+      }
+
+      const propertyKey = this.mappingService.buildOwnerApAgingPropertyKey(officeId, propertyId);
+      if (!requestsByKey.has(propertyKey)) {
+        requestsByKey.set(propertyKey, { officeId, ownerId, propertyId });
+      }
+    });
+
+    const lineCutoffs = this.mappingService.buildOwnerApOpeningBalanceCutoffDateByPropertyKey(lines || []);
+    if (requestsByKey.size === 0) {
+      return of(lineCutoffs);
+    }
+
+    return forkJoin([...requestsByKey.entries()].map(([propertyKey, request]) =>
+      this.ownerStatementService.getOwnerStatementStartingBalance(request.officeId, request.ownerId, request.propertyId).pipe(
+        catchError(() => of(null)),
+        map(startingBalance => ({
+          propertyKey,
+          transactionDate: startingBalance?.transactionDate ?? null
+        }))
+      )
+    )).pipe(
+      map(results => {
+        const apiCutoffs = new Map<string, string>();
+        results.forEach(result => {
+          const transactionDate = this.utilityService.toDateOnlyJsonString(result.transactionDate);
+          if (transactionDate) {
+            apiCutoffs.set(result.propertyKey, transactionDate);
+          }
+        });
+        return this.mappingService.mergeOwnerApOpeningBalanceCutoffMaps(lineCutoffs, apiCutoffs);
+      })
+    );
   }
 
   /** Default Owner A/P (accounting office) plus chart account No 2001 when present. */
@@ -526,6 +582,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
           lines: this.allOwnerApLines,
           propertyCodeByPropertyId: this.propertyCodeByPropertyId,
           ownerIdByPropertyId: this.ownerIdByPropertyId,
+          openingBalanceCutoffByPropertyKey: this.openingBalanceCutoffByPropertyKey,
           paymentTermsByContactId: this.paymentTermsByContactId,
           contactNameByContactId: this.contactNameByContactId,
           asOfDate,

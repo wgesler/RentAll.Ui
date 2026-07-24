@@ -658,6 +658,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
       journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? 0),
+      journalEntryMemo: String(raw['journalEntryMemo'] ?? raw['JournalEntryMemo'] ?? base.journalEntryMemo ?? '').trim() || null,
       perspectiveId: Number(raw['perspectiveId'] ?? raw['PerspectiveId'] ?? base.perspectiveId ?? 2),
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
       journalEntryCreatedOn: String(raw['journalEntryCreatedOn'] ?? raw['JournalEntryCreatedOn'] ?? base.journalEntryCreatedOn),
@@ -7316,7 +7317,10 @@ buildEscrowLastRecapAmountsByProperty(
 
   buildOwnerApAgingReport(request: OwnerApAgingReportBuildRequest): ApAgingReportResult {
     const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
-    const openingBalanceCutoffByPropertyKey = this.buildOwnerApOpeningBalanceCutoffDateByPropertyKey(request.lines || []);
+    const openingBalanceCutoffByPropertyKey = this.mergeOwnerApOpeningBalanceCutoffMaps(
+      this.buildOwnerApOpeningBalanceCutoffDateByPropertyKey(request.lines || []),
+      request.openingBalanceCutoffByPropertyKey
+    );
     const agedLines = (request.lines || []).filter(line =>
       this.shouldIncludeOwnerApAgingLine(line, asOfDate, openingBalanceCutoffByPropertyKey)
     );
@@ -7593,6 +7597,20 @@ buildEscrowLastRecapAmountsByProperty(
       }
     });
     return cutoffs;
+  }
+
+  mergeOwnerApOpeningBalanceCutoffMaps(
+    primary: ReadonlyMap<string, string>,
+    secondary?: ReadonlyMap<string, string>
+  ): Map<string, string> {
+    const merged = new Map(primary);
+    (secondary || new Map<string, string>()).forEach((date, key) => {
+      const existing = merged.get(key);
+      if (!existing || date > existing) {
+        merged.set(key, date);
+      }
+    });
+    return merged;
   }
 
   buildOwnerApAgingPropertyKey(officeId: number, propertyId: string): string {
