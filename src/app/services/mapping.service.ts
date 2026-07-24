@@ -7369,6 +7369,7 @@ buildEscrowLastRecapAmountsByProperty(
   ): ApAgingBillDetail[] {
     type OwnerApLot = {
       journalEntryLineId: string;
+      journalEntryId: string | null;
       transactionDate: string;
       remaining: number;
       contactId: string | null;
@@ -7440,6 +7441,7 @@ buildEscrowLastRecapAmountsByProperty(
         const sourceId = (line.sourceId || '').trim() || null;
         const reservationId = (line.reservationId || '').trim() || null;
         const journalEntryCode = (line.journalEntryCode || '').trim() || sourceCode || line.journalEntryLineId;
+        const journalEntryId = (line.journalEntryId || '').trim() || null;
         const memo = (line.journalEntryMemo || line.memo || '').trim() || null;
 
         if (amount > 0.005) {
@@ -7457,6 +7459,7 @@ buildEscrowLastRecapAmountsByProperty(
           if (credit > 0.005) {
             lots.push({
               journalEntryLineId: line.journalEntryLineId,
+              journalEntryId,
               transactionDate,
               remaining: credit,
               contactId,
@@ -7490,6 +7493,7 @@ buildEscrowLastRecapAmountsByProperty(
         if (apply > 0.005) {
           lots.push({
             journalEntryLineId: line.journalEntryLineId,
+            journalEntryId,
             transactionDate,
             remaining: this.roundFinancialReportAmount(-apply),
             contactId,
@@ -7565,6 +7569,7 @@ buildEscrowLastRecapAmountsByProperty(
   ): ApAgingBillDetail[] {
     type ApLot = {
       journalEntryLineId: string;
+      journalEntryId: string | null;
       transactionDate: string;
       remaining: number;
       contactId: string | null;
@@ -7636,6 +7641,7 @@ buildEscrowLastRecapAmountsByProperty(
         const sourceId = (line.sourceId || '').trim() || null;
         const reservationId = (line.reservationId || '').trim() || null;
         const journalEntryCode = (line.journalEntryCode || '').trim() || sourceCode || line.journalEntryLineId;
+        const journalEntryId = (line.journalEntryId || '').trim() || null;
         const memo = (line.journalEntryMemo || line.memo || '').trim() || null;
 
         if (amount > 0.005) {
@@ -7653,6 +7659,7 @@ buildEscrowLastRecapAmountsByProperty(
           if (credit > 0.005) {
             lots.push({
               journalEntryLineId: line.journalEntryLineId,
+              journalEntryId,
               transactionDate,
               remaining: credit,
               contactId,
@@ -7686,6 +7693,7 @@ buildEscrowLastRecapAmountsByProperty(
         if (apply > 0.005) {
           lots.push({
             journalEntryLineId: line.journalEntryLineId,
+            journalEntryId,
             transactionDate,
             remaining: this.roundFinancialReportAmount(-apply),
             contactId,
@@ -7744,7 +7752,9 @@ buildEscrowLastRecapAmountsByProperty(
           officeId: lot.officeId,
           sourceTypeId: lot.sourceTypeId,
           sourceId: lot.sourceId,
-          reservationId: lot.reservationId
+          reservationId: lot.reservationId,
+          journalEntryId: lot.journalEntryId,
+          journalEntryLineId: lot.journalEntryLineId
         });
       });
     });
@@ -7802,7 +7812,9 @@ buildEscrowLastRecapAmountsByProperty(
         officeId: detail.officeId,
         sourceTypeId: detail.sourceTypeId ?? null,
         sourceId: detail.sourceId ?? null,
-        reservationId: detail.reservationId ?? null
+        reservationId: detail.reservationId ?? null,
+        journalEntryId: detail.journalEntryId ?? null,
+        journalEntryLineId: detail.journalEntryLineId ?? detail.receiptId ?? null
       });
     });
 

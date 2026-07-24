@@ -34,7 +34,8 @@ import {
   ApAgingDrillDownView,
   ApAgingReportFilters,
   ApAgingReportResult,
-  ApAgingVisibleRow
+  ApAgingVisibleRow,
+  isApAgingJournalEntryReferenceNo
 } from '../../models/ap-aging-report.model';
 import { AccountType, PostingStatus, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
 import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
@@ -48,11 +49,12 @@ import { ReportHtmlBuilderService } from '../../services/report-html-builder.ser
 import { WorkOrderComponent } from '../../../maintenance/work-order/work-order.component';
 import { WorkOrderResponse } from '../../../maintenance/models/work-order.model';
 import { WorkOrderService } from '../../../maintenance/services/work-order.service';
+import { GeneralLedgerComponent } from '../../general-ledger/general-ledger/general-ledger.component';
 
 @Component({
   selector: 'app-ap-aging-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, ReceiptComponent, InvoiceComponent, WorkOrderComponent],
+  imports: [CommonModule, MaterialModule, ReceiptComponent, InvoiceComponent, WorkOrderComponent, GeneralLedgerComponent],
   templateUrl: './ap-aging-report.component.html',
   styleUrls: ['./ap-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -121,6 +123,8 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   activeWorkOrderId: string | null = null;
   selectedWorkOrder: WorkOrderResponse | null = null;
   drillDownWorkOrderProperty: PropertyResponse | null = null;
+  activeJournalEntryId: string | null = null;
+  selectedJournalEntryLineId: string | null = null;
 
   companyName = '';
   organizationId = '';
@@ -715,6 +719,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.closeReceiptDetail();
     this.closeInvoiceDetail();
     this.closeWorkOrderDetail();
+    this.closeJournalEntryDetail();
     this.drillDownView = null;
     this.detailReport = null;
     this.drillDownActiveChange.emit(false);
@@ -737,6 +742,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     if (this.activeWorkOrderId) {
       this.closeWorkOrderDetail();
       this.loadReportSourceData();
+      return;
+    }
+
+    if (this.activeJournalEntryId) {
+      this.closeJournalEntryDetail();
       return;
     }
 
@@ -886,16 +896,10 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       return false;
     }
 
-    if (this.isOwnerPayableMode) {
-      return isJournalEntrySourceNavigable(row.sourceTypeId)
-        || row.sourceTypeId === SourceType.WorkOrder
-        || /^WO/i.test(row.referenceNo || '')
-        || /^RC/i.test(row.referenceNo || '')
-        || /^R-\d+/i.test(row.referenceNo || '');
-    }
-
     return isJournalEntrySourceNavigable(row.sourceTypeId)
       || row.sourceTypeId === SourceType.WorkOrder
+      || isApAgingJournalEntryReferenceNo(row.referenceNo)
+      || !!(row.journalEntryId || '').trim()
       || /^WO/i.test(row.referenceNo || '')
       || /^RC/i.test(row.referenceNo || '')
       || /^R-\d+/i.test(row.referenceNo || '');
@@ -913,6 +917,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   openOwnerSourceDocument(row: ApAgingDetailRow): void {
     const referenceNo = (row.referenceNo || '').trim();
     if (!referenceNo) {
+      return;
+    }
+
+    if (isApAgingJournalEntryReferenceNo(referenceNo) || (row.journalEntryId || '').trim()) {
+      this.openJournalEntryDetail(row);
       return;
     }
 
@@ -1048,7 +1057,68 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.toastr.error('Unable to open supporting document for this Ref No.', 'Owner AP Aging');
+    if (isApAgingJournalEntryReferenceNo(referenceNo)) {
+      this.openJournalEntryDetail(row);
+      return;
+    }
+
+    this.toastr.error('Unable to open supporting document for this Ref No.', this.detailReportToastTitle);
+  }
+
+  get detailReportToastTitle(): string {
+    return this.isOwnerPayableMode ? 'Owner AP Aging' : 'AP Aging';
+  }
+
+  openJournalEntryDetail(row: ApAgingDetailRow): void {
+    const journalEntryLineId = (row.journalEntryLineId || '').trim() || null;
+    const journalEntryId = (row.journalEntryId || '').trim();
+    const referenceNo = (row.referenceNo || '').trim();
+
+    if (journalEntryId) {
+      this.setActiveJournalEntry(journalEntryId, journalEntryLineId);
+      return;
+    }
+
+    if (!isApAgingJournalEntryReferenceNo(referenceNo)) {
+      return;
+    }
+
+    this.generalLedgerService.getJournalEntryByCode(referenceNo).pipe(take(1)).subscribe({
+      next: journalEntry => {
+        if (!journalEntry?.journalEntryId) {
+          this.toastr.error('Unable to locate journal entry by Ref No.', this.detailReportToastTitle);
+          return;
+        }
+        this.setActiveJournalEntry(journalEntry.journalEntryId, journalEntryLineId);
+      },
+      error: () => this.toastr.error('Unable to locate journal entry by Ref No.', this.detailReportToastTitle)
+    });
+  }
+
+  setActiveJournalEntry(journalEntryId: string, journalEntryLineId: string | null): void {
+    this.closeReceiptDetail();
+    this.closeInvoiceDetail();
+    this.closeWorkOrderDetail();
+    this.activeJournalEntryId = journalEntryId;
+    this.selectedJournalEntryLineId = journalEntryLineId;
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
+  }
+
+  closeJournalEntryDetail(): void {
+    if (!this.activeJournalEntryId) {
+      return;
+    }
+
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+    this.markViewForCheck();
+  }
+
+  onJournalEntrySaved(): void {
+    this.closeJournalEntryDetail();
+    this.journalEntriesChanged.emit();
+    this.loadReportSourceData();
   }
 
   openWorkOrderById(workOrderId: string, row: ApAgingDetailRow): void {
@@ -1067,6 +1137,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   openWorkOrderDetail(workOrder: WorkOrderResponse): void {
     this.closeReceiptDetail();
     this.closeInvoiceDetail();
+    this.closeJournalEntryDetail();
     this.selectedWorkOrder = workOrder;
     this.activeWorkOrderId = workOrder.workOrderId;
     const propertyId = (workOrder.propertyId || '').trim();
@@ -1080,6 +1151,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   openInvoiceDetail(invoice: InvoiceResponse): void {
     this.closeReceiptDetail();
     this.closeWorkOrderDetail();
+    this.closeJournalEntryDetail();
     this.selectedInvoice = invoice;
     this.activeInvoiceId = invoice.invoiceId;
     this.activeInvoiceOfficeId = invoice.officeId ?? null;
@@ -1091,6 +1163,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 setActiveReceipt(receipt: ReceiptResponse, property: PropertyResponse | null): void {
     this.closeInvoiceDetail();
     this.closeWorkOrderDetail();
+    this.closeJournalEntryDetail();
     this.activeReceiptId = receipt.receiptId;
     this.activeReceiptOfficeId = receipt.officeId;
     this.drillDownReceiptProperty = property;

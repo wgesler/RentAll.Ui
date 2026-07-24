@@ -93,6 +93,8 @@ export interface ApAgingBillDetail {
   sourceTypeId?: number | null;
   sourceId?: string | null;
   reservationId?: string | null;
+  journalEntryId?: string | null;
+  journalEntryLineId?: string | null;
 }
 
 export interface ApAgingPropertyRow {
@@ -170,6 +172,8 @@ export interface ApAgingDetailRow {
   sourceTypeId?: number | null;
   sourceId?: string | null;
   reservationId?: string | null;
+  journalEntryId?: string | null;
+  journalEntryLineId?: string | null;
 }
 
 export interface ApAgingDetailReportResult {
@@ -212,6 +216,10 @@ export function buildApAgingVendorSortKey(
     return vendorName;
   }
   return (receipt.vendorId || '').trim();
+}
+
+export function isApAgingJournalEntryReferenceNo(referenceNo: string | null | undefined): boolean {
+  return /^JE-/i.test((referenceNo || '').trim());
 }
 
 export function compareApAgingVendorSortKeys(

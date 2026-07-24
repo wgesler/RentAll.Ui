@@ -66,6 +66,13 @@
       (backEvent)="drillDownBack()"
       (savedEvent)="onWorkOrderSaved()">
     </app-work-order>
+  } @else if (activeJournalEntryId) {
+    <app-general-ledger
+      [journalEntryId]="activeJournalEntryId"
+      [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+      (backEvent)="drillDownBack()"
+      (savedEvent)="onJournalEntrySaved()">
+    </app-general-ledger>
   } @else if (detailReport && drillDownView) {
     <div class="mat list-layout-standard financial-report-layout ap-aging-detail-layout">
       <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
