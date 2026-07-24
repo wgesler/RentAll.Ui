@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, catchError, firstValueFrom, forkJoin, map, of, Subject, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, firstValueFrom, forkJoin, map, of, Subject, switchMap, take, takeUntil, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
@@ -21,7 +21,7 @@ import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { ContactService } from '../../../contacts/services/contact.service';
-import { PropertyResponse } from '../../../properties/models/property.model';
+import { PropertyListResponse, PropertyResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../../maintenance/receipt/receipt.component';
@@ -130,6 +130,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   paymentTermsByContactId = new Map<string, number | null>();
   contactNameByContactId = new Map<string, string>();
   propertyCodeByPropertyId = new Map<string, string>();
+  ownerIdByPropertyId = new Map<string, string>();
 
   readonly detailDisplayedColumns: ColumnSet = {
     name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
@@ -398,6 +399,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       take(1),
       switchMap(() => this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))),
       switchMap(() => this.contactService.ensureContactsLoaded().pipe(take(1))),
+      switchMap(() => this.propertyService.getPropertyList().pipe(
+        catchError(() => of([] as PropertyListResponse[])),
+        tap(properties => {
+          this.ownerIdByPropertyId = this.mappingService.buildPropertyPrimaryOwnerIdByPropertyId(properties || []);
+        })
+      )),
       switchMap(() => {
         const contacts = this.contactService.getAllContactsValue();
         this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
@@ -454,6 +461,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       },
       error: (error: HttpErrorResponse) => {
         this.allOwnerApLines = [];
+        this.ownerIdByPropertyId = new Map();
         this.paymentTermsByContactId = new Map();
         this.contactNameByContactId = new Map();
         this.isServiceError = true;
@@ -517,6 +525,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         ? this.mappingService.buildOwnerApAgingReport({
           lines: this.allOwnerApLines,
           propertyCodeByPropertyId: this.propertyCodeByPropertyId,
+          ownerIdByPropertyId: this.ownerIdByPropertyId,
           paymentTermsByContactId: this.paymentTermsByContactId,
           contactNameByContactId: this.contactNameByContactId,
           asOfDate,

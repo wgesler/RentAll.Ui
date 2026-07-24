@@ -1908,6 +1908,24 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     };
   }
 
+  buildPropertyPrimaryOwnerIdByPropertyId(properties: PropertyListResponse[]): Map<string, string> {
+    const ownerIdByPropertyId = new Map<string, string>();
+    (properties || []).forEach(property => {
+      const propertyId = String(property.propertyId || '').trim();
+      if (!propertyId) {
+        return;
+      }
+
+      const leaseTypeId = Number(property.propertyLeaseTypeId);
+      const isVendorLeaseType = leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+      const ownerId = String(isVendorLeaseType ? property.vendorId : property.owner1Id || '').trim();
+      if (ownerId) {
+        ownerIdByPropertyId.set(propertyId, ownerId);
+      }
+    });
+    return ownerIdByPropertyId;
+  }
+
   resolvePropertyListContactName(property: PropertyListResponse): string {
     const contactName = String(property.contactName || '').trim();
     const leaseTypeId = Number(property.propertyLeaseTypeId);
@@ -7309,7 +7327,8 @@ buildEscrowLastRecapAmountsByProperty(
       request.propertyCodeByPropertyId,
       request.paymentTermsByContactId || new Map<string, number | null>(),
       request.contactNameByContactId || new Map<string, string>(),
-      bucketDefinitions
+      bucketDefinitions,
+      request.ownerIdByPropertyId
     ).sort((a, b) => compareApAgingBillSortKeys(a, b));
 
     const vendorRows = sortApAgingVendorRows(
@@ -7344,7 +7363,8 @@ buildEscrowLastRecapAmountsByProperty(
     propertyCodeByPropertyId: ReadonlyMap<string, string>,
     paymentTermsByContactId: ReadonlyMap<string, number | null>,
     contactNameByContactId: ReadonlyMap<string, string>,
-    bucketDefinitions: ApAgingBucketDefinition[]
+    bucketDefinitions: ApAgingBucketDefinition[],
+    ownerIdByPropertyId?: ReadonlyMap<string, string>
   ): ApAgingBillDetail[] {
     type OwnerApLot = {
       journalEntryLineId: string;
@@ -7407,7 +7427,10 @@ buildEscrowLastRecapAmountsByProperty(
         const propertyCode = propertyId
           ? (propertyCodeByPropertyId.get(propertyId) || line.propertyCode || null)
           : (line.propertyCode || null);
-        const contactId = (line.contactId || '').trim() || null;
+        let contactId = (line.contactId || '').trim() || null;
+        if (!contactId && propertyId && ownerIdByPropertyId?.size) {
+          contactId = (ownerIdByPropertyId.get(propertyId) || '').trim() || null;
+        }
         const contactName = (line.contactName || '').trim()
           || (contactId ? (contactNameByContactId.get(contactId) || '').trim() : '')
           || 'Unknown Owner';
