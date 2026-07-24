@@ -383,6 +383,35 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
   onPreviewIframeLoad(): void {
     this.injectStylesIntoIframe();
+    this.resizePreviewIframeToContent();
+    window.setTimeout(() => this.resizePreviewIframeToContent(), 150);
+    window.setTimeout(() => this.resizePreviewIframeToContent(), 500);
+  }
+
+  resizePreviewIframeToContent(): void {
+    const iframe = this.previewIframe?.nativeElement;
+    if (!iframe) {
+      return;
+    }
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) {
+      return;
+    }
+
+    const body = doc.body;
+    const html = doc.documentElement;
+    const contentHeight = Math.max(
+      body?.scrollHeight || 0,
+      body?.offsetHeight || 0,
+      html?.clientHeight || 0,
+      html?.scrollHeight || 0,
+      html?.offsetHeight || 0
+    );
+
+    if (contentHeight > 0) {
+      iframe.style.height = `${contentHeight + 12}px`;
+    }
   }
 
   clearPreview(): void {

@@ -2636,7 +2636,7 @@ resolveWorkOrderTitle(
           return receivedIncome !== 0 || ownerPayment !== 0 || expenses !== 0;
         }
 
-        return expectedIncome !== 0 || receivedIncome !== 0 || prepaidIncome !== 0 || expenses !== 0;
+        return expectedIncome !== 0 || prepaidIncome !== 0 || expenses !== 0;
       });
       if (filteredLines.length === 0) {
         return;
@@ -2819,8 +2819,8 @@ resolveWorkOrderTitle(
       return '';
     }
 
-    const date = new Date(raw);
-    if (Number.isNaN(date.getTime())) {
+    const date = this.utility.parseCalendarDateInput(raw);
+    if (!date) {
       return raw;
     }
 

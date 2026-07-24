@@ -10,8 +10,10 @@ Business logic lives in `RentAll.Api/.cursor/rules/owner-accrual-report.mdc`. Re
 
 ## Display mapping
 
-- Property summary **Invoiced Income** = API `invoicedIncome`; **Owner Profit** = API `ownerProfit`.
-- Activity **Invoiced** = `expectedIncome`; **Owner Profit** (line) = `max(0, expected − expenses)` — no unpaid/outstanding on accrual.
+- Property summary **Invoiced Income** = API `invoicedIncome` (`OwnerRent` only). **Received Income** on cash = `OwnerRentActual` only.
+- Activity **Invoiced** = `expectedIncome` (`OwnerRent`). Cash **Received** = `receivedIncome` (`OwnerRentActual`). Do **not** map `Payment` / tenant business categories to owner income columns.
+- Accrual filter: show OwnerRent, prepaid activity, and expenses — **not** received-income-only lines.
+- Do **not** remove `Payment` / `PrePayment` / `ExpectedIncome` from API rollup — recap and other calculations still need them.
 - Accrual activity primary label = `accountingPeriod` (not cash, which uses `activityDate`).
 - Preserve API activity line order — do not re-sort in UI unless the API sort rules in the Api rule file change.
 
