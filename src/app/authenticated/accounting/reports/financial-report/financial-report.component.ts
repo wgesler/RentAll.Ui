@@ -323,10 +323,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   }
 
   initializeExpandedNodes(sections: FinancialReportTreeNode[]): void {
-    const topLevelSectionNodeIds = (sections || [])
-      .filter(node => node.rowKind === 'section' && node.childNodes.length > 0)
-      .map(node => node.nodeId);
-    this.expandedNodeIds = new Set(topLevelSectionNodeIds);
+    this.expandedNodeIds = new Set(this.collectExpandableNodeIds(sections || []));
   }
 
   collectExpandableNodeIds(nodes: FinancialReportTreeNode[]): string[] {

@@ -6463,6 +6463,8 @@ buildEscrowLastRecapAmountsByProperty(
     );
     const bucketIds = bucketDefinitions.map(bucket => bucket.id);
     const contactNameByContactId = request.contactNameByContactId || new Map<string, string>();
+    const contactsByContactId = request.contactsByContactId || new Map<string, ContactResponse>();
+    const reservationsByReservationId = request.reservationsByReservationId || new Map<string, ReservationCodeResponse>();
     const paymentTermsByContactId = request.paymentTermsByContactId || new Map<string, number | null>();
     const invoiceDetails = this.buildArAgingInvoiceDetailsFromJournalLines(
       request.lines || [],
@@ -6470,7 +6472,9 @@ buildEscrowLastRecapAmountsByProperty(
       request.propertyCodeByPropertyId,
       paymentTermsByContactId,
       contactNameByContactId,
-      bucketDefinitions
+      bucketDefinitions,
+      contactsByContactId,
+      reservationsByReservationId
     ).sort((a, b) => compareArAgingInvoiceSortKeys(a, b));
 
     const customerRows = sortArAgingCustomerRows(
@@ -6595,11 +6599,10 @@ buildEscrowLastRecapAmountsByProperty(
     contactsByContactId: ReadonlyMap<string, ContactResponse> = new Map<string, ContactResponse>(),
     reservationsByReservationId: ReadonlyMap<string, ReservationCodeResponse> = new Map()
   ): string {
-    const contactId = (invoice.contactId || '').trim();
-    const contact = contactId ? contactsByContactId.get(contactId) : undefined;
     const reservationId = (invoice.reservationId || '').trim();
     const reservation = reservationId ? reservationsByReservationId.get(reservationId) : null;
     const reservationContext = reservation ?? this.buildArAgingReservationStub(invoice);
+    const contact = this.resolveArAgingResponsibleContact(invoice, contactsByContactId, reservation);
 
     try {
       const reservationLabel = this.utility.getReservationDropdownLabel(reservationContext, contact ?? null).trim();
@@ -6634,6 +6637,52 @@ buildEscrowLastRecapAmountsByProperty(
       tenantName: invoice.contactName ?? '',
       reservationTypeId: 0,
       isActive: true
+    };
+  }
+
+  buildArAgingJeInvoiceStub(
+    lot: {
+      journalEntryLineId: string;
+      transactionDate: string;
+      contactId: string | null;
+      contactName: string;
+      reservationId: string | null;
+      reservationCode: string | null;
+      propertyCode: string | null;
+      sourceCode: string | null;
+      journalEntryCode: string;
+      officeId: number;
+    },
+    reservation: ReservationCodeResponse | null | undefined
+  ): InvoiceResponse {
+    return {
+      invoiceId: lot.journalEntryLineId,
+      organizationId: '',
+      officeId: lot.officeId,
+      officeName: '',
+      invoiceCode: lot.sourceCode || lot.journalEntryCode || lot.journalEntryLineId,
+      reservationId: lot.reservationId,
+      reservationCode: lot.reservationCode ?? reservation?.reservationCode ?? null,
+      propertyId: reservation?.propertyId ?? null,
+      propertyCode: lot.propertyCode,
+      contactId: lot.contactId ?? reservation?.contactId ?? null,
+      contactName: lot.contactName || reservation?.contactName || reservation?.tenantName || null,
+      companyId: reservation?.companyId ?? null,
+      companyName: reservation?.companyName ?? null,
+      responsibleParty: lot.contactName || null,
+      startDate: lot.transactionDate,
+      endDate: lot.transactionDate,
+      invoiceDate: lot.transactionDate,
+      dueDate: lot.transactionDate,
+      accountingPeriod: lot.transactionDate,
+      totalAmount: 0,
+      paidAmount: 0,
+      ledgerLines: [],
+      isActive: true,
+      createdOn: '',
+      createdBy: '',
+      modifiedOn: '',
+      modifiedBy: ''
     };
   }
 
@@ -6813,7 +6862,9 @@ buildEscrowLastRecapAmountsByProperty(
     propertyCodeByPropertyId: ReadonlyMap<string, string>,
     paymentTermsByContactId: ReadonlyMap<string, number | null>,
     contactNameByContactId: ReadonlyMap<string, string>,
-    bucketDefinitions: ArAgingBucketDefinition[]
+    bucketDefinitions: ArAgingBucketDefinition[],
+    contactsByContactId: ReadonlyMap<string, ContactResponse> = new Map<string, ContactResponse>(),
+    reservationsByReservationId: ReadonlyMap<string, ReservationCodeResponse> = new Map()
   ): ArAgingInvoiceDetail[] {
     type ArLot = {
       journalEntryLineId: string;
@@ -6880,7 +6931,6 @@ buildEscrowLastRecapAmountsByProperty(
           || 'Unknown Customer';
         const reservationId = (line.reservationId || '').trim() || null;
         const reservationCode = (line.reservationCode || '').trim() || null;
-        const reservationLabel = reservationCode || reservationId || 'No Reservation';
         const reservationKey = reservationId || reservationCode || `line:${line.journalEntryLineId}`;
         const propertyId = (line.propertyId || '').trim() || null;
         const propertyCode = propertyId
@@ -6912,7 +6962,7 @@ buildEscrowLastRecapAmountsByProperty(
               contactName,
               reservationId,
               reservationCode,
-              reservationLabel,
+              reservationLabel: '',
               reservationKey,
               propertyCode,
               sourceCode,
@@ -6945,7 +6995,7 @@ buildEscrowLastRecapAmountsByProperty(
             contactName,
             reservationId,
             reservationCode,
-            reservationLabel,
+            reservationLabel: '',
             reservationKey,
             propertyCode,
             sourceCode,
@@ -6962,11 +7012,25 @@ buildEscrowLastRecapAmountsByProperty(
           return;
         }
 
-        const customerLabel = (lot.contactName || '').trim()
-          || (lot.contactId ? (contactNameByContactId.get(lot.contactId) || '').trim() : '')
-          || 'Unknown Customer';
-        const customerKey = `${lot.contactId || ''}|${customerLabel.toLowerCase()}`;
-        const paymentTermsId = lot.contactId ? (paymentTermsByContactId.get(lot.contactId) ?? null) : null;
+        const reservation = lot.reservationId ? reservationsByReservationId.get(lot.reservationId) : null;
+        const invoiceStub = this.buildArAgingJeInvoiceStub(lot, reservation);
+        const customerLabel = this.buildArAgingCustomerLabel(
+          invoiceStub,
+          contactsByContactId,
+          reservationsByReservationId,
+          contactNameByContactId
+        );
+        const reservationLabel = this.buildArAgingReservationLabel(
+          invoiceStub,
+          contactsByContactId,
+          reservationsByReservationId
+        );
+        const responsibleContact = this.resolveArAgingResponsibleContact(invoiceStub, contactsByContactId, reservation);
+        const contactId = (responsibleContact?.contactId || lot.contactId || '').trim() || null;
+        const companySortKey = buildArAgingCompanySortKey(invoiceStub, customerLabel);
+        const contactSortKey = buildArAgingContactSortKey(invoiceStub);
+        const customerKey = `${contactId || ''}|${companySortKey.toLowerCase()}|${contactSortKey.toLowerCase()}`;
+        const paymentTermsId = contactId ? (paymentTermsByContactId.get(contactId) ?? null) : null;
         const dueDate = this.addOwnerApAgingTermsToDate(lot.transactionDate, paymentTermsId);
         const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
 
@@ -6975,12 +7039,12 @@ buildEscrowLastRecapAmountsByProperty(
           invoiceCode: lot.sourceCode || lot.journalEntryCode,
           customerKey,
           customerLabel,
-          companySortKey: customerLabel.toLowerCase(),
-          contactSortKey: customerLabel.toLowerCase(),
-          contactId: lot.contactId,
+          companySortKey,
+          contactSortKey,
+          contactId,
           reservationKey: lot.reservationKey,
           reservationId: lot.reservationId,
-          reservationLabel: lot.reservationLabel,
+          reservationLabel,
           invoiceDate: lot.transactionDate,
           dueDate,
           daysPastDue,

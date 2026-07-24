@@ -100,6 +100,8 @@ export interface ArAgingReportBuildRequest {
   lines: import('./journal-entry.model').JournalEntryLineSearchResponse[];
   propertyCodeByPropertyId: ReadonlyMap<string, string>;
   contactNameByContactId?: ReadonlyMap<string, string>;
+  contactsByContactId?: ReadonlyMap<string, ContactResponse>;
+  reservationsByReservationId?: ReadonlyMap<string, ReservationCodeResponse>;
   paymentTermsByContactId?: ReadonlyMap<string, number | null>;
   asOfDate: string | null;
   intervalDays?: number;

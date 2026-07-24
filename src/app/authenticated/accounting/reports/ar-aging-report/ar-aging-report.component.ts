@@ -32,6 +32,9 @@ import { InvoiceComponent } from '../../invoices/invoice/invoice.component';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyResponse } from '../../../properties/models/property.model';
+import { ReservationService } from '../../../reservations/services/reservation.service';
+import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
+import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../../maintenance/receipt/receipt.component';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
@@ -69,6 +72,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   private commonService = inject(CommonService);
   private utilityService = inject(UtilityService);
   private contactService = inject(ContactService);
+  private reservationService = inject(ReservationService);
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
@@ -102,6 +106,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   offices: OfficeResponse[] = [];
   allArLines: JournalEntryLineSearchResponse[] = [];
   contactNameByContactId = new Map<string, string>();
+  contactsByContactId = new Map<string, ContactResponse>();
+  reservationsByReservationId = new Map<string, ReservationCodeResponse>();
   paymentTermsByContactId = new Map<string, number | null>();
   propertyCodeByPropertyId = new Map<string, string>();
 
@@ -246,13 +252,24 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       take(1),
       switchMap(() => this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))),
       switchMap(() => this.contactService.ensureContactsLoaded().pipe(take(1))),
+      switchMap(() => this.reservationService.ensureReservationCodesLoaded().pipe(take(1))),
       switchMap(() => {
         const contacts = this.contactService.getAllContactsValue();
+        this.contactsByContactId = new Map<string, ContactResponse>(
+          contacts
+            .map((contact): [string, ContactResponse] => [String(contact.contactId || '').trim(), contact])
+            .filter((entry): entry is [string, ContactResponse] => !!entry[0])
+        );
         this.contactNameByContactId = this.mappingService.buildContactDisplayNameById(contacts);
         this.paymentTermsByContactId = new Map<string, number | null>(
           contacts
             .map((contact): [string, number | null] => [String(contact.contactId || '').trim(), contact.paymentTermsId ?? null])
             .filter((entry): entry is [string, number | null] => !!entry[0])
+        );
+        this.reservationsByReservationId = new Map<string, ReservationCodeResponse>(
+          this.reservationService.getAllReservationCodesValue()
+            .map((reservation): [string, ReservationCodeResponse] => [String(reservation.reservationId || '').trim(), reservation])
+            .filter((entry): entry is [string, ReservationCodeResponse] => !!entry[0])
         );
 
         const accountRequests: Array<{ officeId: number; chartOfAccountId: number }> = [];
@@ -303,6 +320,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         this.allArLines = [];
         this.paymentTermsByContactId = new Map();
         this.contactNameByContactId = new Map();
+        this.contactsByContactId = new Map();
+        this.reservationsByReservationId = new Map();
         this.isServiceError = true;
         this.reportResult = null;
         const message = typeof error?.error === 'string' ? error.error : 'Unable to load AR journal lines.';
@@ -345,6 +364,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         lines: this.allArLines,
         propertyCodeByPropertyId: this.propertyCodeByPropertyId,
         contactNameByContactId: this.contactNameByContactId,
+        contactsByContactId: this.contactsByContactId,
+        reservationsByReservationId: this.reservationsByReservationId,
         paymentTermsByContactId: this.paymentTermsByContactId,
         asOfDate,
         intervalDays: this.reportFilters?.intervalDays ?? 30,
