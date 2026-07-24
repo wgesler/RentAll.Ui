@@ -20,6 +20,14 @@ export interface JournalEntryLineSearchRequest {
   endDate?: string | null;
 }
 
+/** Body for POST accounting/owner-ap-aging/journal-entry-lines */
+export interface OwnerApAgingJournalEntryLineSearchRequest {
+  officeIds: number[];
+  includeVoided: boolean;
+  includeUnposted: boolean;
+  endDate?: string | null;
+}
+
 export interface JournalEntryLineSearchResponse {
   journalEntryLineId: string;
   journalEntryId: string;

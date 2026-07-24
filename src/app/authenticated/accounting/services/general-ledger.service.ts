@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus, CloseAccountingPeriodRequest, CloseAccountingPeriodResult } from '../models/journal-entry.model';
+import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus, CloseAccountingPeriodRequest, CloseAccountingPeriodResult, OwnerApAgingJournalEntryLineSearchRequest } from '../models/journal-entry.model';
 import { CompleteReconcileRequest, SaveReconcileMarksRequest } from '../models/reconcile.model';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -59,6 +59,23 @@ export class GeneralLedgerService {
     }
 
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/search`, body).pipe(
+      map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
+    );
+  }
+
+  /** Owner AP Aging: all owner A/P lines through endDate; API drops lines before each property's starting balance. */
+  searchOwnerApAgingJournalEntryLines(request: OwnerApAgingJournalEntryLineSearchRequest): Observable<JournalEntryLineSearchResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search owner AP aging lines.');
+    }
+
+    return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}owner-ap-aging/journal-entry-lines`, {
+      officeIds,
+      includeVoided: request.includeVoided,
+      includeUnposted: request.includeUnposted,
+      endDate: request.endDate || null
+    }).pipe(
       map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
     );
   }

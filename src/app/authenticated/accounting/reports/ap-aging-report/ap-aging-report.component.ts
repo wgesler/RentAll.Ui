@@ -428,43 +428,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
             .filter((entry): entry is [string, number | null] => !!entry[0])
         );
 
-        const accountRequests: Array<{ officeId: number; chartOfAccountId: number }> = [];
-        officeIds.forEach(officeId => {
-          this.resolveOwnerApAccountIds(officeId).forEach(chartOfAccountId => {
-            accountRequests.push({ officeId, chartOfAccountId });
-          });
-        });
-
-        if (accountRequests.length === 0) {
-          return of([] as JournalEntryLineSearchResponse[]);
-        }
-
-        const requests = accountRequests.map(({ officeId, chartOfAccountId }) =>
-          this.generalLedgerService.searchJournalEntryLines({
-            officeIds: [officeId],
-            chartOfAccountId,
-            includeVoided: false,
-            includeUnposted: true,
-            includeCashOnly: true,
-            excludeBeforeOwnerStartingBalance: true,
-            startDate: null,
-            endDate: asOfDate
-          }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])))
-        );
-
-        return forkJoin(requests).pipe(
-          map(results => {
-            const seen = new Set<string>();
-            return results.flatMap(lines => lines || []).filter(line => {
-              const lineId = String(line.journalEntryLineId || '').trim();
-              if (!lineId || seen.has(lineId)) {
-                return false;
-              }
-              seen.add(lineId);
-              return true;
-            });
-          })
-        );
+        return this.generalLedgerService.searchOwnerApAgingJournalEntryLines({
+          officeIds,
+          includeVoided: false,
+          includeUnposted: true,
+          endDate: asOfDate
+        }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])));
       }),
       take(1)
     ).subscribe({
