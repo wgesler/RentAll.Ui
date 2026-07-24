@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { AccountType, Class, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
@@ -657,7 +657,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
-      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? 0),
+      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? JournalEntryKind.Manual),
       journalEntryMemo: String(raw['journalEntryMemo'] ?? raw['JournalEntryMemo'] ?? base.journalEntryMemo ?? '').trim() || null,
       perspectiveId: Number(raw['perspectiveId'] ?? raw['PerspectiveId'] ?? base.perspectiveId ?? 2),
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
@@ -704,7 +704,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
-      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? 0),
+      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? JournalEntryKind.Manual),
       isCashOnly: rawIsCashOnly === true || rawIsCashOnly === 1 || rawIsCashOnly === '1',
       memo: String(raw['memo'] ?? raw['Memo'] ?? base.memo ?? ''),
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
