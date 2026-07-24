@@ -466,6 +466,27 @@ export function isManualJournalEntry(
     && Number(journalEntryKindId ?? JournalEntryKind.Manual) === JournalEntryKind.Manual;
 }
 
+/** GL-editable journal entries: Manual, Opening Balance Sheet, and Retained Earnings (Source = Journal). */
+export function isUserEditableJournalEntry(
+  sourceTypeId: number | undefined | null,
+  journalEntryKindId: number | undefined | null
+): boolean {
+  if (sourceTypeId !== SourceType.Journal) {
+    return false;
+  }
+
+  const kind = Number(journalEntryKindId ?? JournalEntryKind.Manual);
+  return kind === JournalEntryKind.Manual
+    || kind === JournalEntryKind.OpeningBalanceSheet
+    || kind === JournalEntryKind.RetainedEarnings;
+}
+
+export function getUserEditableJournalEntryKinds(): { value: number; label: string }[] {
+  return JournalEntryKindLabels
+    .filter(({ value }) => isUserEditableJournalEntry(SourceType.Journal, value))
+    .map(({ value, label }) => ({ value, label }));
+}
+
 export function isDeletableManualJournalEntry(
   sourceTypeId: number | undefined | null,
   journalEntryKindId: number | undefined | null,

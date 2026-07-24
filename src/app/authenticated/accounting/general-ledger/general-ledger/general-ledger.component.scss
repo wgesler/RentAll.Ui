@@ -36,14 +36,15 @@
   align-items: center;
   gap: var(--global-form-field-gap-x);
   grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(0, 1.5fr)
     minmax(0, 2fr)
     minmax(0, 2fr)
-    minmax(0, 3fr)
-    minmax(0, 3fr);
+    minmax(0, 2fr);
   min-width: 0;
 }
 
-.general-ledger-posted-row {
+.general-ledger-save-row {
   display: flex;
   justify-content: flex-end;
   align-items: center;

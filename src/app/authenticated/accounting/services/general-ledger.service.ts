@@ -5,6 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus, CloseAccountingPeriodRequest, CloseAccountingPeriodResult, OwnerApAgingJournalEntryLineSearchRequest } from '../models/journal-entry.model';
+import { JournalEntryKind } from '../models/accounting-enum';
 import { CompleteReconcileRequest, SaveReconcileMarksRequest } from '../models/reconcile.model';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -319,6 +320,7 @@ export class GeneralLedgerService {
       sourceTypeId: journalEntry.sourceTypeId ?? null,
       sourceId: journalEntry.sourceId || null,
       postingStatusId: Number(journalEntry.postingStatusId ?? 0),
+      journalEntryKindId: Number(journalEntry.journalEntryKindId ?? JournalEntryKind.Manual),
       isCashOnly: journalEntry.isCashOnly === true,
       journalEntryLines
     };

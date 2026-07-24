@@ -5,14 +5,8 @@
     </div>
   } @else {
     <form [formGroup]="form" class="info-form mb-8 form-standard-top-padding general-ledger-form" (ngSubmit)="saveJournalEntry()">
-      <div class="general-ledger-posted-row">
-        <mat-checkbox
-          formControlName="isPosted"
-          color="primary"
-          class="text-nowrap">
-          Posted
-        </mat-checkbox>
-        @if (isAddMode || canEditLines) {
+      @if (isAddMode || canEditLines) {
+        <div class="general-ledger-save-row">
           <button
             mat-raised-button
             type="submit"
@@ -22,8 +16,8 @@
             <mat-icon>save</mat-icon>
             Save
           </button>
-        }
-      </div>
+        </div>
+      }
 
       <div class="grid grid-cols-4 form-standard-grid general-ledger-form-grid">
         <div class="col-span-4 general-ledger-header-row">
@@ -36,6 +30,19 @@
             <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-source w-full">
               <mat-label>Source</mat-label>
               <input matInput [value]="getSourceTypeLabel()" readonly disabled class="readonly-field">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-kind w-full" subscriptSizing="dynamic">
+              <mat-label>Kind</mat-label>
+              @if (canEditJournalEntryKind) {
+                <mat-select formControlName="journalEntryKindId">
+                  @for (kind of journalEntryKindOptions; track kind.value) {
+                    <mat-option [value]="kind.value">{{ kind.label }}</mat-option>
+                  }
+                </mat-select>
+              } @else {
+                <input matInput [value]="getJournalEntryKindDisplayLabel()" readonly disabled class="readonly-field">
+              }
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">

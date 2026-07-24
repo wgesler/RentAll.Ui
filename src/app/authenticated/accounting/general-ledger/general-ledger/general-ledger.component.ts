@@ -21,7 +21,7 @@ import { PropertyCodeResponse } from '../../../properties/models/property.model'
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { Perspective, PostingStatus, SourceType, SourceTypeLabels, getPerspectiveLabel, getPerspectives, getSourceTypeLabel, isJournalEntryPosted, isManualJournalEntry } from '../../models/accounting-enum';
+import { JournalEntryKind, Perspective, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryKindLabel, getPerspectiveLabel, getPerspectives, getSourceTypeLabel, getUserEditableJournalEntryKinds, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
@@ -92,6 +92,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   organizationId = '';
   chartOfAccounts: ChartOfAccountResponse[] = [];
   perspectiveOptions = getPerspectives();
+  journalEntryKindOptions = getUserEditableJournalEntryKinds();
   properties: PropertyCodeResponse[] = [];
   reservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
@@ -110,7 +111,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     transactionDate: this.formBuilder.control<Date | null>(null),
     accountingPeriod: this.formBuilder.control<Date | null>(null),
     memo: this.formBuilder.control<string>(''),
-    isPosted: this.formBuilder.control<boolean>(false)
+    journalEntryKindId: this.formBuilder.control<number>(JournalEntryKind.Manual)
   });
 
   isPageReady = false;
@@ -161,16 +162,20 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return false;
     }
 
-    if (!isManualJournalEntry(this.journalEntry.sourceTypeId, this.journalEntry.journalEntryKindId)) {
+    if (!isUserEditableJournalEntry(this.journalEntry.sourceTypeId, this.journalEntry.journalEntryKindId)) {
       return false;
     }
 
     return this.journalEntryService.canUpdateJournalEntry(this.journalEntry.postingStatusId);
   }
 
-  /** Create and editable manual entries use the editable lines grid. */
+  /** Create and editable journal (Source = Journal) entries use the editable lines grid. */
   get canEditLines(): boolean {
     return this.canEdit;
+  }
+
+  get canEditJournalEntryKind(): boolean {
+    return this.isAddMode || this.canEditLines;
   }
 
   get chartOfAccountOptions(): { value: number; label: string }[] {
@@ -575,6 +580,13 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     return getSourceTypeLabel(this.journalEntry?.sourceTypeId, SourceTypeLabels);
   }
 
+  getJournalEntryKindDisplayLabel(): string {
+    const kindId = this.isAddMode
+      ? Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual)
+      : Number(this.journalEntry?.journalEntryKindId ?? JournalEntryKind.Manual);
+    return getJournalEntryKindLabel(kindId);
+  }
+
   getTotalDebitDisplay(): string {
     if (this.canEditLines) {
       return this.formatter.currency(this.getEditableTotalDebit());
@@ -638,21 +650,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
           return EMPTY;
         }
 
-        const shouldPost = !!this.form.getRawValue().isPosted;
         this.isSaving = true;
         this.markViewForCheck();
 
         return this.generalLedgerService.updateJournalEntry(request).pipe(
-          switchMap(updated => {
-            if (shouldPost && !isJournalEntryPosted(updated.postingStatusId)) {
-              const accountingPeriod = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().accountingPeriod) ?? updated.accountingPeriod;
-              return this.generalLedgerService.postJournalEntry(updated.journalEntryId, accountingPeriod);
-            }
-            if (!shouldPost && isJournalEntryPosted(updated.postingStatusId)) {
-              return this.generalLedgerService.unpostJournalEntry(updated.journalEntryId);
-            }
-            return of(updated);
-          }),
           finalize(() => {
             this.isSaving = false;
             this.markViewForCheck();
@@ -798,17 +799,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyAccountingPeriodValidators(): void {
-    const accountingPeriodControl = this.form.get('accountingPeriod');
-    if (!accountingPeriodControl) {
-      return;
-    }
-
-    if (this.form.getRawValue().isPosted) {
-      accountingPeriodControl.setValidators(Validators.required);
-    } else {
-      accountingPeriodControl.clearValidators();
-    }
-    accountingPeriodControl.updateValueAndValidity({ emitEvent: false });
+    this.form.get('accountingPeriod')?.clearValidators();
+    this.form.get('accountingPeriod')?.updateValueAndValidity({ emitEvent: false });
   }
 
   shouldShowControlError(control: AbstractControl | null | undefined): boolean {
@@ -905,18 +897,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const shouldPost = !!this.form.getRawValue().isPosted;
     this.isSaving = true;
     this.markViewForCheck();
 
     this.generalLedgerService.createJournalEntry(request).pipe(
-      switchMap(created => {
-        if (shouldPost && !isJournalEntryPosted(created.postingStatusId)) {
-          const accountingPeriod = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().accountingPeriod) ?? created.accountingPeriod;
-          return this.generalLedgerService.postJournalEntry(created.journalEntryId, accountingPeriod);
-        }
-        return of(created);
-      }),
       finalize(() => {
         this.isSaving = false;
         this.markViewForCheck();
@@ -981,6 +965,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       sourceTypeId: this.journalEntry.sourceTypeId ?? null,
       sourceId: this.journalEntry.sourceId ?? null,
       memo: this.form.getRawValue().memo?.trim() || null,
+      journalEntryKindId: Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual),
       postingStatusId: this.journalEntry.postingStatusId,
       isCashOnly: this.journalEntry.isCashOnly,
       journalEntryLines
@@ -994,10 +979,9 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const transactionDate = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().transactionDate);
-    const shouldPost = !!this.form.getRawValue().isPosted;
     const accountingPeriodFromForm = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().accountingPeriod);
-    const accountingPeriod = accountingPeriodFromForm ?? (shouldPost ? null : transactionDate);
-    if (!transactionDate || (shouldPost && !accountingPeriod)) {
+    const accountingPeriod = accountingPeriodFromForm ?? transactionDate;
+    if (!transactionDate) {
       return null;
     }
 
@@ -1021,6 +1005,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       sourceTypeId: SourceType.Journal,
       sourceId: null,
       memo: this.form.getRawValue().memo?.trim() || null,
+      journalEntryKindId: Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual),
       postingStatusId: PostingStatus.Open,
       isCashOnly: false,
       journalEntryLines
@@ -1092,7 +1077,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       transactionDate: today,
       accountingPeriod: null,
       memo: '',
-      isPosted: false
+      journalEntryKindId: JournalEntryKind.Manual
     });
     this.form.get('transactionDate')?.setValidators(Validators.required);
     this.form.get('memo')?.clearValidators();
@@ -1124,7 +1109,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       transactionDate: this.utilityService.parseDateOnlyStringToDate(source.transactionDate) ?? new Date(),
       accountingPeriod: this.utilityService.parseDateOnlyStringToDate(source.accountingPeriod),
       memo: source.memo ?? '',
-      isPosted: false
+      journalEntryKindId: Number(source.journalEntryKindId ?? JournalEntryKind.Manual)
     });
     this.form.get('transactionDate')?.setValidators(Validators.required);
     this.form.get('memo')?.clearValidators();
@@ -1149,11 +1134,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     this.formSubscriptionsInitialized = true;
-
-    this.form.get('isPosted')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.applyAccountingPeriodValidators();
-      this.markViewForCheck();
-    });
 
     this.form.get('memo')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(memo => {
       if (!this.isAddMode) {
@@ -1432,7 +1412,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         transactionDate: null,
         accountingPeriod: null,
         memo: '',
-        isPosted: false
+        journalEntryKindId: JournalEntryKind.Manual
       });
       return;
     }
@@ -1441,7 +1421,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       transactionDate: this.utilityService.parseDateOnlyStringToDate(this.journalEntry.transactionDate),
       accountingPeriod: this.utilityService.parseDateOnlyStringToDate(this.journalEntry.accountingPeriod),
       memo: this.journalEntry.memo ?? '',
-      isPosted: isJournalEntryPosted(this.journalEntry.postingStatusId)
+      journalEntryKindId: Number(this.journalEntry.journalEntryKindId ?? JournalEntryKind.Manual)
     });
 
     this.updateFormEditability();
