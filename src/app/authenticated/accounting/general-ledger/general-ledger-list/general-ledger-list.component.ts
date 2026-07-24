@@ -168,8 +168,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntryLines']));
   destroy$ = new Subject<void>();
+  private readonly journalEntryLinesLoadKey = 'journalEntryLines';
   private journalEntryLinesLoadId = 0;
   private cancelJournalEntryLinesLoad$ = new Subject<void>();
 
@@ -307,6 +308,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       } else if (this.printChecksOnly) {
         this.clearPrintCheckLineSelection();
       }
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.journalEntryLinesLoadKey);
       this.markViewForCheck();
       return;
     }
@@ -345,6 +347,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           : this.depositsOnly
             ? 'No Bank account is configured for the selected office.'
             : 'No Bank account is configured for the selected office.';
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.journalEntryLinesLoadKey);
       this.markViewForCheck();
       return;
     }
@@ -372,7 +375,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     this.cancelJournalEntryLinesLoad$.next();
     const loadId = ++this.journalEntryLinesLoadId;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'journalEntryLines');
+    this.utilityService.addLoadItem(this.itemsToLoad$, this.journalEntryLinesLoadKey);
     const loadUntil = merge(this.cancelJournalEntryLinesLoad$, this.destroy$);
 
     this.generalLedgerService.searchJournalEntryLines({
@@ -534,7 +537,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntryLines');
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.journalEntryLinesLoadKey);
     this.markViewForCheck();
   }
   onTableLineSelectionSet(): void {
@@ -3334,6 +3337,7 @@ triggerCheckPrint(): void {
   ngOnDestroy(): void {
     this.cancelJournalEntryLinesLoad$.next();
     this.cancelJournalEntryLinesLoad$.complete();
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.journalEntryLinesLoadKey);
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

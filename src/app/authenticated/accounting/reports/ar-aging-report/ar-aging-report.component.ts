@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Subject, catchError, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
@@ -123,17 +123,14 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
+  private readonly reportDataLoadKey = 'reportData';
 
   //#region AR-Aging-Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
-      if (!wasReady && this.isPageReady) {
-        this.loadArLines();
-      }
       this.markViewForCheck();
     });
 
@@ -234,9 +231,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   loadArLines(): void {
-    if (!this.isPageReady) {
-      return;
-    }
+    this.utilityService.addLoadItem(this.itemsToLoad$, this.reportDataLoadKey);
 
     const officeIds = this.resolveOfficeIds();
     const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
@@ -244,6 +239,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
       this.allArLines = [];
       this.isServiceError = false;
       this.applyReportDisplay();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
       this.markViewForCheck();
       return;
     }
@@ -308,7 +304,8 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
           })
         );
       }),
-      take(1)
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey))
     ).subscribe({
       next: lines => {
         this.allArLines = lines || [];
@@ -1130,6 +1127,7 @@ clearPrintableHtml(): void {
   }
 
   ngOnDestroy(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

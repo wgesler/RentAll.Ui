@@ -1,21 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, filter, finalize, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, firstValueFrom, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
-import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { FormatterService } from '../../../../services/formatter-service';
-import { DocumentExportService } from '../../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
-import { DocumentService } from '../../../documents/services/document.service';
-import { EmailService } from '../../../email/services/email.service';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
@@ -33,7 +28,7 @@ import {
   FinancialReportResult,
   FinancialReportTreeNode
 } from '../../models/financial-report.model';
-import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryResponse } from '../../models/journal-entry.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
@@ -131,17 +126,14 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   allLines: JournalEntryLineSearchResponse[] = [];
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
+  private readonly reportDataLoadKey = 'reportData';
 
   //#region Financial-Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
-      if (!wasReady && this.isPageReady) {
-        this.loadJournalEntryLines();
-      }
       this.markViewForCheck();
     });
 
@@ -225,15 +217,14 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   }
 
   loadJournalEntryLines(): void {
-    if (!this.isPageReady) {
-      return;
-    }
+    this.utilityService.addLoadItem(this.itemsToLoad$, this.reportDataLoadKey);
 
     const officeIds = this.resolveOfficeIds();
     if (officeIds.length === 0) {
       this.allLines = [];
       this.isServiceError = false;
       this.applyReportDisplay();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
       this.markViewForCheck();
       return;
     }
@@ -252,7 +243,8 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       startDate,
       endDate
     }).pipe(
-      takeUntil(this.destroy$)
+      takeUntil(this.destroy$),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey))
     ).subscribe({
       next: lines => {
         this.allLines = lines || [];
@@ -1075,6 +1067,7 @@ clearPrintableHtml(): void {
   }
 
   ngOnDestroy(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
