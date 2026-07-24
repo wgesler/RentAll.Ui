@@ -1,5 +1,9 @@
 @import '../../bank/reconcile/begin-reconciliation-dialog.component.scss';
 
+.begin-reconciliation-dialog-wrap {
+  min-width: min(100%, 72rem);
+}
+
 .journal-entry-posting-dialog__form {
   display: flex;
   flex-direction: column;
@@ -60,22 +64,43 @@
 }
 
 .journal-entry-posting-dialog__table-wrap {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   max-height: 18rem;
 }
 
 .journal-entry-posting-dialog__table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 12px;
+  line-height: 1.25;
+  table-layout: auto;
 }
 
 .journal-entry-posting-dialog__table th,
 .journal-entry-posting-dialog__table td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.3rem 0.5rem;
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.journal-entry-posting-dialog__col-code {
+  min-width: 8rem;
+}
+
+.journal-entry-posting-dialog__col-date {
+  min-width: 7.5rem;
+}
+
+.journal-entry-posting-dialog__col-description {
+  min-width: 16rem;
+}
+
+.journal-entry-posting-dialog__col-status {
+  min-width: 6.5rem;
 }
 
 .journal-entry-posting-dialog__table th {
@@ -84,6 +109,7 @@
   background: #fff;
   color: #334155;
   font-weight: 600;
+  font-size: 11px;
 }
 
 ::ng-deep .journal-entry-posting-dialog__date-field--error .mdc-notched-outline__leading,

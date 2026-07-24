@@ -63,21 +63,21 @@
             <table class="journal-entry-posting-dialog__table">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Transaction Date</th>
-                  <th>Accounting Period</th>
-                  <th>Description</th>
-                  <th>Status</th>
+                  <th class="journal-entry-posting-dialog__col-code">Code</th>
+                  <th class="journal-entry-posting-dialog__col-date">Transaction Date</th>
+                  <th class="journal-entry-posting-dialog__col-date">Accounting Period</th>
+                  <th class="journal-entry-posting-dialog__col-description">Description</th>
+                  <th class="journal-entry-posting-dialog__col-status">Status</th>
                 </tr>
               </thead>
               <tbody>
                 @for (entry of displayedEntries; track entry.journalEntryId) {
                   <tr>
-                    <td>{{ entry.journalEntryCode }}</td>
-                    <td>{{ entry.transactionDate }}</td>
-                    <td>{{ entry.accountingPeriod }}</td>
-                    <td>{{ entry.description }}</td>
-                    <td>{{ entry.postingStatusLabel }}</td>
+                    <td class="journal-entry-posting-dialog__col-code">{{ entry.journalEntryCode }}</td>
+                    <td class="journal-entry-posting-dialog__col-date">{{ entry.transactionDate }}</td>
+                    <td class="journal-entry-posting-dialog__col-date">{{ entry.accountingPeriod }}</td>
+                    <td class="journal-entry-posting-dialog__col-description">{{ entry.description }}</td>
+                    <td class="journal-entry-posting-dialog__col-status">{{ entry.postingStatusLabel }}</td>
                   </tr>
                 }
               </tbody>

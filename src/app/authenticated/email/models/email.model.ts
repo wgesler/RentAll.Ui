@@ -47,12 +47,20 @@ export interface EmailResponse {
   plainTextContent: string;
   htmlContent: string;
   documentId?: string | null;
+  attachmentDocumentId?: string | null;
   attachmentName: string;
   attachmentPath: string;
   fileDetails?: FileDetails | null;
   emailTypeId: number;
   emailStatusId: number;
   documentTypeId?: number;
+  /** Enriched on some list/search responses. */
+  officeName?: string | null;
+  /** Legacy flat recipient fields when toRecipients is empty. */
+  toEmail?: string | null;
+  toName?: string | null;
+  fromEmail?: string | null;
+  fromName?: string | null;
   attemptCount: number;
   lastError: string;
   lastAttemptedOn?: string | null;

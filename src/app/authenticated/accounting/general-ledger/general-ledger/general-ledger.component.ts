@@ -21,7 +21,7 @@ import { PropertyCodeResponse } from '../../../properties/models/property.model'
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { JournalEntryKind, Perspective, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryKindLabel, getPerspectiveLabel, getPerspectives, getSourceTypeLabel, getUserEditableJournalEntryKinds, isUserEditableJournalEntry } from '../../models/accounting-enum';
+import { JournalEntryKind, Perspective, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryKindLabel, getPerspectiveLabel, getPerspectives, getSourceTypeLabel, getPostingStatusLabel, getUserEditableJournalEntryKinds, isJournalEntryHardClosed, isJournalEntrySoftClosed, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
@@ -111,7 +111,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     transactionDate: this.formBuilder.control<Date | null>(null),
     accountingPeriod: this.formBuilder.control<Date | null>(null),
     memo: this.formBuilder.control<string>(''),
-    journalEntryKindId: this.formBuilder.control<number>(JournalEntryKind.Manual)
+    journalEntryKindId: this.formBuilder.control<number>(JournalEntryKind.Manual),
+    isPosted: this.formBuilder.control<boolean>(false)
   });
 
   isPageReady = false;
@@ -196,6 +197,39 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   get effectiveOfficeId(): number | null {
     return this.officeId ?? this.journalEntry?.officeId ?? null;
   }
+
+  get canEditPostCheckbox(): boolean {
+    if (this.isAddMode) {
+      return true;
+    }
+
+    if (this.isJournalEntryPeriodClosed()) {
+      return false;
+    }
+
+    return this.canEditLines;
+  }
+
+  resolvePostingStatusIdFromForm(): number {
+    if (this.journalEntry && this.isJournalEntryPeriodClosed()) {
+      return Number(this.journalEntry.postingStatusId ?? PostingStatus.Open);
+    }
+
+    return this.form.getRawValue().isPosted ? PostingStatus.Posted : PostingStatus.Open;
+  }
+
+  isJournalEntryPostIndicatorChecked(): boolean {
+    return Number(this.journalEntry?.postingStatusId ?? PostingStatus.Open) > 0;
+  }
+
+  isJournalEntryPeriodClosed(): boolean {
+    const postingStatusId = Number(this.journalEntry?.postingStatusId ?? PostingStatus.Open);
+    return isJournalEntrySoftClosed(postingStatusId) || isJournalEntryHardClosed(postingStatusId);
+  }
+
+  getJournalEntryPostingStatusLabel(): string {
+    return getPostingStatusLabel(this.journalEntry?.postingStatusId);
+  }
   //#endregion
 
   //#region Line Context Dropdowns
@@ -235,16 +269,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     return this.getLineContextMode(line) === 'accountsReceivable';
   }
 
-  shouldShowLinePropertyColumn(): boolean {
-    return this.editableLines.some(line => this.shouldShowLineProperty(line));
-  }
-
   shouldShowLineContactColumn(): boolean {
     return this.editableLines.some(line => this.shouldShowLineContact(line));
-  }
-
-  shouldShowLineReservationColumn(): boolean {
-    return this.editableLines.some(line => this.shouldShowLineReservation(line));
   }
 
   getLineContactLabel(): string {
@@ -419,12 +445,24 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   getLineContextSelectClass(line: EditableJournalEntryLine, field: 'property' | 'reservation' | 'contact'): string {
     const baseClass = 'split-editable-input split-account-select-control';
-    const hasError = field === 'property'
+    const enabled = field === 'property'
+      ? this.shouldShowLineProperty(line)
+      : field === 'reservation'
+        ? this.shouldShowLineReservation(line)
+        : this.shouldShowLineContact(line);
+    const hasError = enabled && (field === 'property'
       ? this.shouldShowLinePropertyError(line)
       : field === 'reservation'
         ? this.shouldShowLineReservationError(line)
-        : this.shouldShowLineContactError(line);
-    return hasError ? `${baseClass} split-input-invalid` : baseClass;
+        : this.shouldShowLineContactError(line));
+    const classes = [baseClass];
+    if (!enabled) {
+      classes.push('split-context-disabled');
+    }
+    if (hasError) {
+      classes.push('split-input-invalid');
+    }
+    return classes.join(' ');
   }
 
   applyLineContextVisibilityRules(line: EditableJournalEntryLine): void {
@@ -966,7 +1004,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       sourceId: this.journalEntry.sourceId ?? null,
       memo: this.form.getRawValue().memo?.trim() || null,
       journalEntryKindId: Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual),
-      postingStatusId: this.journalEntry.postingStatusId,
+      postingStatusId: this.resolvePostingStatusIdFromForm(),
       isCashOnly: this.journalEntry.isCashOnly,
       journalEntryLines
     };
@@ -1006,7 +1044,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       sourceId: null,
       memo: this.form.getRawValue().memo?.trim() || null,
       journalEntryKindId: Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual),
-      postingStatusId: PostingStatus.Open,
+      postingStatusId: this.resolvePostingStatusIdFromForm(),
       isCashOnly: false,
       journalEntryLines
     };
@@ -1077,7 +1115,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       transactionDate: today,
       accountingPeriod: null,
       memo: '',
-      journalEntryKindId: JournalEntryKind.Manual
+      journalEntryKindId: JournalEntryKind.Manual,
+      isPosted: false
     });
     this.form.get('transactionDate')?.setValidators(Validators.required);
     this.form.get('memo')?.clearValidators();
@@ -1109,7 +1148,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       transactionDate: this.utilityService.parseDateOnlyStringToDate(source.transactionDate) ?? new Date(),
       accountingPeriod: this.utilityService.parseDateOnlyStringToDate(source.accountingPeriod),
       memo: source.memo ?? '',
-      journalEntryKindId: Number(source.journalEntryKindId ?? JournalEntryKind.Manual)
+      journalEntryKindId: Number(source.journalEntryKindId ?? JournalEntryKind.Manual),
+      isPosted: false
     });
     this.form.get('transactionDate')?.setValidators(Validators.required);
     this.form.get('memo')?.clearValidators();
@@ -1124,6 +1164,12 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       this.form.enable({ emitEvent: false });
     } else {
       this.form.disable({ emitEvent: false });
+    }
+
+    if (this.canEditPostCheckbox) {
+      this.form.get('isPosted')?.enable({ emitEvent: false });
+    } else {
+      this.form.get('isPosted')?.disable({ emitEvent: false });
     }
 
     this.form.updateValueAndValidity({ emitEvent: false });
@@ -1412,7 +1458,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         transactionDate: null,
         accountingPeriod: null,
         memo: '',
-        journalEntryKindId: JournalEntryKind.Manual
+        journalEntryKindId: JournalEntryKind.Manual,
+        isPosted: false
       });
       return;
     }
@@ -1421,7 +1468,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       transactionDate: this.utilityService.parseDateOnlyStringToDate(this.journalEntry.transactionDate),
       accountingPeriod: this.utilityService.parseDateOnlyStringToDate(this.journalEntry.accountingPeriod),
       memo: this.journalEntry.memo ?? '',
-      journalEntryKindId: Number(this.journalEntry.journalEntryKindId ?? JournalEntryKind.Manual)
+      journalEntryKindId: Number(this.journalEntry.journalEntryKindId ?? JournalEntryKind.Manual),
+      isPosted: Number(this.journalEntry.postingStatusId ?? PostingStatus.Open) > 0
     });
 
     this.updateFormEditability();

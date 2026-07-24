@@ -23,7 +23,7 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, PostingStatus, SourceType, SourceTypeLabels, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isManualJournalEntry } from '../../models/accounting-enum';
+import { AccountType, PostingStatus, SourceType, SourceTypeLabels, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -565,7 +565,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     this.dialog.open(JournalEntryPostingDialogComponent, {
       width: '95vw',
-      maxWidth: '56rem',
+      maxWidth: '72rem',
       maxHeight: '95vh',
       panelClass: 'accounting-form-dialog-panel',
       data: {
@@ -914,7 +914,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     editDisabled: boolean;
     deleteDisabled: boolean;
   } {
-    const isManual = line.isManual ?? isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId);
+    const isManual = isUserEditableJournalEntry(line.sourceTypeId, line.journalEntryKindId);
     return {
       isManual,
       editDisabled: !isManual,

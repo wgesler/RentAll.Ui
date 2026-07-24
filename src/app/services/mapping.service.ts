@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeCode, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
@@ -15,12 +15,12 @@ import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashRep
 import { EscrowReportBuildRequest, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
-import { EntityType, getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
+import { getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
-import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
+import { EmailListDisplay, EmailResponse, EmailAddress } from '../authenticated/email/models/email.model';
 import { getEmailType } from '../authenticated/email/models/email.enum';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
@@ -271,7 +271,6 @@ export class MappingService {
       ? parsedOfficeId
       : (officeAccess[0] ?? 0);
     const base = raw as unknown as ContactResponse;
-    const parsedEntityTypeId = Number(raw['entityTypeId']);
     const rawOwnerTypeId = raw['ownerTypeId'];
     const rawVendorTypeId = raw['vendorTypeId'];
     const ownerTypeId = Number.isFinite(Number(rawOwnerTypeId)) ? Number(rawOwnerTypeId) : 0;
@@ -297,7 +296,9 @@ export class MappingService {
     contact: ContactResponse,
     overrides: Partial<ContactRequest> = {}
   ): ContactRequest {
-    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
+    const requestBase = { ...contact };
+    delete (requestBase as Partial<ContactResponse>).fullName;
+    delete (requestBase as Partial<ContactResponse>).officeName;
     const officeAccess = this.normalizeOfficeAccessNumbers(contact.officeAccess);
     const resolvedOfficeAccess = officeAccess.length > 0
       ? officeAccess
@@ -521,7 +522,7 @@ groupCardNumber(value: string): string {
   
   mapCostCodes(
     costCodes: CostCodesResponse[],
-    offices?: any[],
+    offices?: OfficeResponse[],
     transactionTypes?: { value: number, label: string }[],
     chartOfAccounts?: ChartOfAccountResponse[]
   ): CostCodesListDisplay[] {
@@ -1230,7 +1231,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     });
   }
 
-  mapEmailHtml(emailHtml: any): EmailHtmlResponse {
+  mapEmailHtml(emailHtml: Partial<EmailHtmlResponse> | null | undefined): EmailHtmlResponse {
     return {
       organizationId: emailHtml?.organizationId ?? '',
       welcomeLetter: emailHtml?.welcomeLetter ?? '',
@@ -1249,13 +1250,13 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     };
   }
 
-  mapEmailListDisplays(emails: any): EmailListDisplay[] {
+  mapEmailListDisplays(emails: EmailResponse | EmailResponse[] | null | undefined): EmailListDisplay[] {
     if (!emails) {
       return [];
     }
 
     const emailArray = Array.isArray(emails) ? emails : [emails];
-    return emailArray.map<EmailListDisplay>((email: EmailResponse | any) => ({
+    return emailArray.map<EmailListDisplay>((email: EmailResponse) => ({
       // Treat attachmentPath as the linked document identifier/path.
       // Rows without attachments cannot open a document preview.
       emailId: email?.emailId ?? '',
@@ -1288,7 +1289,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     }));
   }
 
-  getPrimaryRecipientEmail(recipients: any, fallback: string = ''): string {
+  getPrimaryRecipientEmail(recipients: EmailAddress[] | null | undefined, fallback: string = ''): string {
     if (Array.isArray(recipients) && recipients.length > 0) {
       const first = recipients[0];
       return first?.email ?? fallback ?? '';
@@ -1297,7 +1298,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     return fallback ?? '';
   }
 
-  getPrimaryRecipientName(recipients: any, fallback: string = ''): string {
+  getPrimaryRecipientName(recipients: EmailAddress[] | null | undefined, fallback: string = ''): string {
     if (Array.isArray(recipients) && recipients.length > 0) {
       const first = recipients[0];
       return first?.name ?? fallback ?? '';
@@ -1321,12 +1322,12 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     }));
   }
 
-  mapAlertListDisplays(alerts: any): AlertListDisplay[] {
+  mapAlertListDisplays(alerts: AlertResponse | AlertResponse[] | null | undefined): AlertListDisplay[] {
     if (!alerts) {
       return [];
     }
     const alertArray = Array.isArray(alerts) ? alerts : [alerts];
-    return alertArray.map<AlertListDisplay>((alert: AlertResponse | any) => ({
+    return alertArray.map<AlertListDisplay>((alert: AlertResponse) => ({
       alertId: alert?.alertId ?? '',
       officeId: String(alert?.officeId ?? ''),
       propertyId: alert?.propertyId ?? undefined,
@@ -1484,7 +1485,11 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   }
 
   mapLeadGeneralListRowToUpdateRequest(row: LeadGeneralListDisplay, isActive: boolean): LeadGeneralUpdateRequest {
-    const { fullName, messagePreview, leadAttentionDot, leadStateDropdown, ...rest } = row;
+    const rest = { ...row };
+    delete (rest as Partial<LeadGeneralListDisplay>).fullName;
+    delete (rest as Partial<LeadGeneralListDisplay>).messagePreview;
+    delete (rest as Partial<LeadGeneralListDisplay>).leadAttentionDot;
+    delete (rest as Partial<LeadGeneralListDisplay>).leadStateDropdown;
     return {
       ...rest,
       isActive
@@ -1630,7 +1635,10 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   }
 
   mapLeadRentalListRowToUpdateRequest(row: LeadRentalListDisplay, isActive: boolean): LeadRentalRequest {
-    const { fullName, leadAttentionDot, leadStateDropdown, ...rest } = row;
+    const rest = { ...row };
+    delete (rest as Partial<LeadRentalListDisplay>).fullName;
+    delete (rest as Partial<LeadRentalListDisplay>).leadAttentionDot;
+    delete (rest as Partial<LeadRentalListDisplay>).leadStateDropdown;
     return {
       ...rest,
       quotePath: rest.quotePath ?? null,
@@ -1675,7 +1683,10 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   }
 
   mapLeadOwnerListRowToUpdateRequest(row: LeadOwnerListDisplay, isActive: boolean): LeadOwnerUpdateRequest {
-    const { fullName, leadAttentionDot, leadStateDropdown, ...rest } = row;
+    const rest = { ...row };
+    delete (rest as Partial<LeadOwnerListDisplay>).fullName;
+    delete (rest as Partial<LeadOwnerListDisplay>).leadAttentionDot;
+    delete (rest as Partial<LeadOwnerListDisplay>).leadStateDropdown;
     return {
       ...rest,
       isActive,
@@ -4610,8 +4621,7 @@ roundCurrency(value: number): number {
       rawAmountsByAccountId,
       accountIdRemap,
       columnContext.columnIds,
-      filteredAccounts,
-      'activity'
+      filteredAccounts
     );
     const incomeAccounts = accounts.filter(account => account.accountTypeId === AccountType.Income || account.accountTypeId === AccountType.OtherIncome);
     const cogsAccounts = accounts.filter(account => account.accountTypeId === AccountType.CostOfGoodsSold);
@@ -4719,8 +4729,7 @@ roundCurrency(value: number): number {
       rawBalanceAmountsByAccountId,
       accountIdRemap,
       columnContext.columnIds,
-      balanceFilteredAccounts,
-      'balance'
+      balanceFilteredAccounts
     );
     const plFilteredAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
       AccountType.Income,
@@ -4745,8 +4754,7 @@ roundCurrency(value: number): number {
       rawProfitLossAmountsByAccountId,
       plAccountIdRemap,
       columnContext.columnIds,
-      plFilteredAccounts,
-      'activity'
+      plFilteredAccounts
     );
     // Balance-sheet Net Income is year-to-date through each column (as-of), not that period alone.
     const netIncomeColumnAmounts = this.finalizeFinancialReportColumnAmounts(
@@ -5372,8 +5380,7 @@ roundCurrency(value: number): number {
     rawTotals: Map<number, Map<string, { debit: number; credit: number }>>,
     accountIdRemap: Map<number, number>,
     columnIds: string[],
-    accounts: ChartOfAccountResponse[],
-    mode: 'activity' | 'balance'
+    accounts: ChartOfAccountResponse[]
   ): Map<number, Map<string, number>> {
     const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
     const consolidated = new Map<number, Map<string, number>>();
@@ -5390,7 +5397,7 @@ roundCurrency(value: number): number {
         if (!columnIds.includes(columnId)) {
           return;
         }
-        const signedAmount = this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit, mode);
+        const signedAmount = this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit);
         accountAmounts.set(columnId, this.roundFinancialReportAmount((accountAmounts.get(columnId) || 0) + signedAmount));
       });
       consolidated.set(canonicalAccountId, accountAmounts);
@@ -5561,7 +5568,7 @@ roundCurrency(value: number): number {
       if (accountTypeId === undefined) {
         return;
       }
-      amounts.set(accountId, this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit, 'activity'));
+      amounts.set(accountId, this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit));
     });
     return amounts;
   }
@@ -5595,7 +5602,7 @@ roundCurrency(value: number): number {
       if (accountTypeId === undefined) {
         return;
       }
-      amounts.set(accountId, this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit, 'balance'));
+      amounts.set(accountId, this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit));
     });
     return amounts;
   }
@@ -5901,8 +5908,7 @@ roundCurrency(value: number): number {
   signedFinancialReportAmount(
     accountTypeId: number,
     debit: number,
-    credit: number,
-    mode: 'activity' | 'balance'
+    credit: number
   ): number {
     const normalizedDebit = Number(debit) || 0;
     const normalizedCredit = Number(credit) || 0;
@@ -6389,7 +6395,7 @@ buildEscrowLastRecapAmountsByProperty(
       return true;
     }
 
-    const { columnContext, scopedAccounts, startDate, endDate } = context;
+    const { columnContext, scopedAccounts, endDate } = context;
     const accountTypeId = scopedAccounts.find(account => account.accountId === line.chartOfAccountId)?.accountTypeId;
     const isProfitLossAccount = this.isFinancialReportProfitLossAccountType(accountTypeId);
     const column = columnContext.columns.find(item => item.columnId === columnId);

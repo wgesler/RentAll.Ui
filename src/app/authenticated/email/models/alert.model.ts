@@ -40,6 +40,13 @@ export interface AlertResponse {
   reservationId: string | null;
   reservationCode: string | null; 
   ticketId: string | null;
+  /** Enriched on some list/search responses. */
+  officeName?: string | null;
+  /** Legacy flat recipient fields when toRecipients is empty. */
+  toEmail?: string | null;
+  toName?: string | null;
+  fromEmail?: string | null;
+  fromName?: string | null;
   toRecipients: EmailAddress[];
   ccRecipients: EmailAddress[];
   bccRecipients: EmailAddress[];
