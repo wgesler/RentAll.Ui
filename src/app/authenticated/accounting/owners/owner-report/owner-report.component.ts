@@ -760,8 +760,21 @@ seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse 
       : 'Owner Accrual Report';
   }
 
+  get showCashReportToggle(): boolean {
+    const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
+    if (request.officeIds.length === 0) {
+      return false;
+    }
+
+    return this.ownerReportsCacheService.isBundleLoaded()
+      && this.ownerReportsCacheService.matchesOwnerReportSearchRequest(request);
+  }
+
   get panelMaxWidthCss(): string {
-    return this.visibleRows.length > 0 ? '100%' : '48rem';
+    if (this.visibleRows.length === 0) {
+      return '48rem';
+    }
+    return '78rem';
   }
 
   onCashReportToggleChange(checked: boolean): void {

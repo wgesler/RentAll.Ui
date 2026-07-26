@@ -47,16 +47,21 @@
   box-sizing: border-box;
 }
 
-.owner-statement-layout--accrual {
-  --owner-report-label-col-width: 11rem;
-  --owner-report-description-col-min-width: 16rem;
+.owner-statement-layout--accrual,
+.owner-statement-layout--cash {
+  --owner-report-label-col-width: 14.5rem;
+  --owner-report-description-col-min-width: 22rem;
   --owner-report-amount-col-width: 7.5rem;
+  --owner-report-label-description-gap: 2.25rem;
 }
 
 .owner-statement-layout--cash {
-  --owner-report-label-col-width: 11rem;
-  --owner-report-description-col-min-width: 16rem;
-  --owner-report-amount-col-width: 7.5rem;
+  --owner-report-panel-max-width: 78rem;
+}
+
+.owner-statement-layout--cash .owner-statement-col-item-description,
+.owner-statement-layout--cash .owner-statement-table--content-sized .owner-statement-col-item-description {
+  max-width: var(--owner-report-description-col-min-width);
 }
 
 .owner-statement-panel {
@@ -98,13 +103,68 @@
   }
 }
 
-.owner-statement-cash-toggle-wrap {
-  grid-column: 3;
-  justify-self: end;
-  align-self: end;
-  display: flex;
-  align-items: flex-end;
+.owner-statement-report-frame {
+  width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.owner-statement-report-frame--content-sized {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.owner-statement-report-frame--content-sized .owner-statement-context-band__header {
+  width: 100%;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.owner-statement-report-frame .owner-statement-context-band {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.owner-statement-report-frame .owner-statement-panel {
+  width: 100%;
+}
+
+.owner-statement-report-frame--content-sized .owner-statement-panel-inner {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.owner-statement-report-frame--content-sized .owner-statement-panel-toolbar {
   padding-right: 1rem;
+  box-sizing: border-box;
+}
+
+.owner-statement-context-band__header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.375rem;
+  width: 100%;
+}
+
+.owner-statement-context-band__header .owner-statement-context-band__titles {
+  width: 100%;
+}
+
+.owner-statement-panel-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box;
+}
+
+.owner-statement-cash-toggle-wrap {
+  display: flex;
+  align-items: center;
+  width: auto;
+  padding-right: 0;
 }
 
 .owner-statement-table-wrap {
@@ -233,9 +293,10 @@
 
 .owner-statement-activity-label {
   display: inline-grid;
-  grid-template-columns: 2.75rem 1fr;
+  grid-template-columns: 2.75rem max-content;
   column-gap: 0.25rem;
-  align-items: start;
+  align-items: baseline;
+  white-space: nowrap;
 }
 
 .owner-statement-activity-date {
@@ -257,7 +318,7 @@
   cursor: pointer;
   font: inherit;
   font-variant-numeric: tabular-nums;
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 .owner-statement-item-description-link {
@@ -295,12 +356,31 @@
   padding-right: 0.15rem;
 }
 
+.owner-statement-layout--accrual .owner-statement-table th.owner-statement-col-label,
+.owner-statement-layout--accrual .owner-statement-table td.owner-statement-col-label,
+.owner-statement-layout--cash .owner-statement-table th.owner-statement-col-label,
+.owner-statement-layout--cash .owner-statement-table td.owner-statement-col-label {
+  padding-right: var(--owner-report-label-description-gap, 2.25rem);
+}
+
 .owner-statement-table th.owner-statement-col-item-description,
 .owner-statement-table td.owner-statement-col-item-description {
   width: auto;
   min-width: var(--owner-report-description-col-min-width);
   max-width: none;
   padding-left: 0.65rem;
+}
+
+.owner-statement-layout--accrual .owner-statement-table th.owner-statement-col-item-description,
+.owner-statement-layout--accrual .owner-statement-table td.owner-statement-col-item-description,
+.owner-statement-layout--cash .owner-statement-table th.owner-statement-col-item-description,
+.owner-statement-layout--cash .owner-statement-table td.owner-statement-col-item-description {
+  padding-left: var(--owner-report-label-description-gap, 2.25rem);
+}
+
+.owner-statement-layout--accrual .owner-statement-item-description-wrap--nested,
+.owner-statement-layout--cash .owner-statement-item-description-wrap--nested {
+  padding-left: 0;
 }
 
 .owner-statement-col-amount {
@@ -349,6 +429,11 @@
   align-items: flex-start;
   gap: 0.15rem;
   min-width: 0;
+}
+
+.owner-statement-row-property-activity .owner-statement-label {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .owner-statement-label {
