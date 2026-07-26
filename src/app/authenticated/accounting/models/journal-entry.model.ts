@@ -9,7 +9,6 @@ export interface JournalEntryLineSearchRequest {
   reservationId?: string | null;
   propertyId?: string | null;
   contactId?: string | null;
-  includeVoided: boolean;
   includeUnposted: boolean;
   unclearedOnly?: boolean;
   /** When true, include IsCashOnly journal entries (Owner AP Aging). Default false for GL / financial reports. */
@@ -23,7 +22,6 @@ export interface JournalEntryLineSearchRequest {
 /** Body for POST accounting/owner-ap-aging/journal-entry-lines */
 export interface OwnerApAgingJournalEntryLineSearchRequest {
   officeIds: number[];
-  includeVoided: boolean;
   includeUnposted: boolean;
   endDate?: string | null;
 }
@@ -273,7 +271,6 @@ export interface JournalEntryRecapSearchRequest {
   officeIds: number[];
   propertyId?: string | null;
   reservationId?: string | null;
-  includeVoided: boolean;
   includeUnposted: boolean;
   startDate?: string | null;
   endDate?: string | null;

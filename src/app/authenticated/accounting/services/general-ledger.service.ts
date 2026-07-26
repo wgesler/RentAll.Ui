@@ -43,7 +43,6 @@ export class GeneralLedgerService {
 
     const body: Record<string, unknown> = {
       officeIds,
-      includeVoided: request.includeVoided === true,
       includeUnposted: request.includeUnposted !== false,
       startDate,
       endDate
@@ -104,7 +103,6 @@ export class GeneralLedgerService {
 
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}owner-ap-aging/journal-entry-lines`, {
       officeIds,
-      includeVoided: request.includeVoided,
       includeUnposted: request.includeUnposted,
       endDate: request.endDate || null
     }).pipe(

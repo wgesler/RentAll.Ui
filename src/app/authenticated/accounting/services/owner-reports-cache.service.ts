@@ -121,10 +121,6 @@ export class OwnerReportsCacheService {
       return false;
     }
 
-    if (request.includeVoided) {
-      return false;
-    }
-
     if (!request.includeUnposted) {
       return false;
     }

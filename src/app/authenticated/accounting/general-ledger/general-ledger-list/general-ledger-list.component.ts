@@ -388,7 +388,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           : null,
       propertyId: usesFixedAccountFilter ? null : (this.propertyId?.trim() || null),
       reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
-      includeVoided: false,
       includeUnposted: true,
       includeCashOnly: this.includeCashOnly,
       startDate: this.searchDateRange?.startDate ?? null,
@@ -2269,7 +2268,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   buildTransferRecapSearchRequest(officeIds: number[], startDate: string | null, endDate: string | null) {
     return {
       officeIds,
-      includeVoided: false,
       includeUnposted: true,
       startDate,
       endDate

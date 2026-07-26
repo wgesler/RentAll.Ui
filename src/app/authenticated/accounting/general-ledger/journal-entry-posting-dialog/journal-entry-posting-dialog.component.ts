@@ -171,7 +171,6 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
     this.isLoadingEntries = true;
     this.generalLedgerService.searchJournalEntryLines({
       officeIds: this.data.officeIds,
-      includeVoided: true,
       includeUnposted: true
     }).pipe(
       take(1),

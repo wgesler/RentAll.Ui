@@ -27,7 +27,6 @@ export class ReportService {
       officeIds,
       propertyId: request.propertyId ?? null,
       reservationId: request.reservationId ?? null,
-      includeVoided: request.includeVoided,
       includeUnposted: request.includeUnposted,
       startDate: request.startDate || null,
       endDate: request.endDate || null,

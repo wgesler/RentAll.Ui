@@ -367,7 +367,6 @@ loadReportData(): void {
       lines: this.generalLedgerService.searchJournalEntryLines({
         officeIds: [officeId],
         chartOfAccountId: account.accountId,
-        includeVoided: false,
         includeUnposted: true,
         endDate: statementDate
       })

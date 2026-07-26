@@ -283,7 +283,6 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
           this.generalLedgerService.searchJournalEntryLines({
             officeIds: [officeId],
             chartOfAccountId,
-            includeVoided: false,
             includeUnposted: true,
             startDate: null,
             endDate: asOfDate

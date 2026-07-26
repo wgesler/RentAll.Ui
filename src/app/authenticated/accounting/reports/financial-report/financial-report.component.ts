@@ -238,7 +238,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       chartOfAccountId: null,
       propertyId: null,
       reservationId: null,
-      includeVoided: false,
       includeUnposted: true,
       startDate,
       endDate

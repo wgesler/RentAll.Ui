@@ -326,7 +326,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
           this.generalLedgerService.searchJournalEntryLines({
             officeIds: [officeId],
             chartOfAccountId,
-            includeVoided: false,
             includeUnposted: true,
             startDate: null,
             endDate: asOfDate
@@ -431,7 +430,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
         return this.generalLedgerService.searchOwnerApAgingJournalEntryLines({
           officeIds,
-          includeVoided: false,
           includeUnposted: true,
           endDate: asOfDate
         }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])));
