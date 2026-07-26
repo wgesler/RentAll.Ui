@@ -36,6 +36,8 @@ interface EditableJournalEntryLine {
   chartOfAccountId: number | null;
   debit: number;
   credit: number;
+  debitInput: string;
+  creditInput: string;
   memo: string;
   perspectiveId: number;
   costCodeId?: number | null;
@@ -85,8 +87,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   journalEntry: JournalEntryResponse | null = null;
   lineRows: JournalEntryLineDetailDisplay[] = [];
   editableLines: EditableJournalEntryLine[] = [];
-  focusedLineAmount: { lineKey: string; field: 'debit' | 'credit' } | null = null;
-  lineAmountEditValue = '';
+  skipAmountSelectAll = false;
   saveValidationHighlightActive = false;
   linesBalanceValidationError = false;
   organizationId = '';
@@ -654,6 +655,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    this.commitAllLineAmountInputs();
     this.saveValidationHighlightActive = true;
     this.linesBalanceValidationError = false;
     this.form.markAllAsTouched();
@@ -1081,19 +1083,25 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.editableLines = lines.map(line => ({
-      lineKey: `line-${++this.editableLineKeyCounter}`,
-      journalEntryLineId: line.journalEntryLineId,
-      chartOfAccountId: Number(line.chartOfAccountId) || null,
-      debit: this.roundCurrencyValue(Number(line.debit || 0)),
-      credit: this.roundCurrencyValue(Number(line.credit || 0)),
-      memo: (line.memo || '').toString(),
-      perspectiveId: Number(line.perspectiveId ?? Perspective.Company),
-      costCodeId: line.costCodeId ?? null,
-      propertyId: line.propertyId ?? null,
-      reservationId: line.reservationId ?? null,
-      contactId: line.contactId ?? null
-    }));
+    this.editableLines = lines.map(line => {
+      const debit = this.roundCurrencyValue(Number(line.debit || 0));
+      const credit = this.roundCurrencyValue(Number(line.credit || 0));
+      return {
+        lineKey: `line-${++this.editableLineKeyCounter}`,
+        journalEntryLineId: line.journalEntryLineId,
+        chartOfAccountId: Number(line.chartOfAccountId) || null,
+        debit,
+        credit,
+        debitInput: this.formatLineAmountInput(debit),
+        creditInput: this.formatLineAmountInput(credit),
+        memo: (line.memo || '').toString(),
+        perspectiveId: Number(line.perspectiveId ?? Perspective.Company),
+        costCodeId: line.costCodeId ?? null,
+        propertyId: line.propertyId ?? null,
+        reservationId: line.reservationId ?? null,
+        contactId: line.contactId ?? null
+      };
+    });
   }
 
   resetForm(): void {
@@ -1130,18 +1138,24 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   applyCreateFormFromCopy(source: JournalEntryResponse): void {
     const lines = source.journalEntryLines ?? [];
     this.editableLines = lines.length > 0
-      ? lines.map(line => ({
-          lineKey: `line-${++this.editableLineKeyCounter}`,
-          chartOfAccountId: Number(line.chartOfAccountId) || null,
-          debit: this.roundCurrencyValue(Number(line.debit || 0)),
-          credit: this.roundCurrencyValue(Number(line.credit || 0)),
-          memo: (line.memo || '').toString(),
-          perspectiveId: Number(line.perspectiveId ?? Perspective.Company),
-          costCodeId: line.costCodeId ?? null,
-          propertyId: line.propertyId ?? null,
-          reservationId: line.reservationId ?? null,
-          contactId: line.contactId ?? null
-        }))
+      ? lines.map(line => {
+          const debit = this.roundCurrencyValue(Number(line.debit || 0));
+          const credit = this.roundCurrencyValue(Number(line.credit || 0));
+          return {
+            lineKey: `line-${++this.editableLineKeyCounter}`,
+            chartOfAccountId: Number(line.chartOfAccountId) || null,
+            debit,
+            credit,
+            debitInput: this.formatLineAmountInput(debit),
+            creditInput: this.formatLineAmountInput(credit),
+            memo: (line.memo || '').toString(),
+            perspectiveId: Number(line.perspectiveId ?? Perspective.Company),
+            costCodeId: line.costCodeId ?? null,
+            propertyId: line.propertyId ?? null,
+            reservationId: line.reservationId ?? null,
+            contactId: line.contactId ?? null
+          };
+        })
       : [this.createEditableLine(), this.createEditableLine()];
 
     this.form.reset({
@@ -1201,6 +1215,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       chartOfAccountId: null,
       debit: 0,
       credit: 0,
+      debitInput: '',
+      creditInput: '',
       memo: (this.form.getRawValue().memo || '').toString(),
       perspectiveId: Perspective.Company
     };
@@ -1220,22 +1236,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.markViewForCheck();
   }
 
-  onEditableDebitChange(line: EditableJournalEntryLine, value: string | number): void {
-    line.debit = this.roundCurrencyValue(Number(value || 0));
-    if (line.debit > 0) {
-      line.credit = 0;
-    }
-    this.markViewForCheck();
-  }
-
-  onEditableCreditChange(line: EditableJournalEntryLine, value: string | number): void {
-    line.credit = this.roundCurrencyValue(Number(value || 0));
-    if (line.credit > 0) {
-      line.debit = 0;
-    }
-    this.markViewForCheck();
-  }
-
   onAccountSelectionChange(lineKey: string, value: string | number | null | undefined): void {
     const line = this.editableLines.find(item => item.lineKey === lineKey);
     if (!line) {
@@ -1248,46 +1248,70 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.markViewForCheck();
   }
 
-  isLineAmountFocused(lineKey: string, field: 'debit' | 'credit'): boolean {
-    return this.focusedLineAmount?.lineKey === lineKey && this.focusedLineAmount?.field === field;
+  formatLineAmountInput(amount: number): string {
+    const normalized = this.roundCurrencyValue(Number(amount) || 0);
+    return normalized > 0 ? normalized.toFixed(2) : '';
   }
 
-  getLineAmountDisplay(line: EditableJournalEntryLine, field: 'debit' | 'credit'): string {
-    const amount = field === 'debit' ? line.debit : line.credit;
-    if (this.isLineAmountFocused(line.lineKey, field)) {
-      return this.lineAmountEditValue;
+  parseLineAmountInput(value: string): number {
+    return this.roundCurrencyValue(parseFloat(this.sanitizeDecimalInput(value)) || 0);
+  }
+
+  onLineAmountMouseDown(event: MouseEvent): void {
+    const input = event.target as HTMLInputElement;
+    if (document.activeElement === input) {
+      this.skipAmountSelectAll = true;
+    }
+  }
+
+  onLineAmountFocus(event: FocusEvent): void {
+    if (this.skipAmountSelectAll) {
+      this.skipAmountSelectAll = false;
+      return;
     }
 
-    const num = Number(amount) || 0;
-    return num > 0 ? `$${this.formatter.currency(num)}` : '';
-  }
-
-  onLineAmountFocus(event: Event, line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
-    const amount = field === 'debit' ? line.debit : line.credit;
-    this.focusedLineAmount = { lineKey: line.lineKey, field };
-    this.lineAmountEditValue = amount > 0 ? amount.toFixed(2) : '';
-    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
-  }
-
-  onLineAmountInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.lineAmountEditValue = this.sanitizeDecimalInput(input?.value ?? '');
+    setTimeout(() => input.select(), 0);
   }
 
-  onLineAmountBlur(event: Event, line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
-    const input = event.target as HTMLInputElement;
-    const raw = this.sanitizeDecimalInput(input?.value ?? '');
-    const amount = this.roundCurrencyValue(parseFloat(raw) || 0);
+  onLineAmountInputChange(line: EditableJournalEntryLine, field: 'debit' | 'credit', value: string): void {
+    const sanitized = this.sanitizeDecimalInput(value);
     if (field === 'debit') {
-      this.onEditableDebitChange(line, amount);
+      line.debitInput = sanitized;
     } else {
-      this.onEditableCreditChange(line, amount);
+      line.creditInput = sanitized;
+    }
+  }
+
+  commitLineAmountInput(line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
+    if (field === 'debit') {
+      line.debit = this.parseLineAmountInput(line.debitInput);
+      line.debitInput = this.formatLineAmountInput(line.debit);
+      if (line.debit > 0) {
+        line.credit = 0;
+        line.creditInput = '';
+      }
+      return;
     }
 
-    if (this.isLineAmountFocused(line.lineKey, field)) {
-      this.focusedLineAmount = null;
-      this.lineAmountEditValue = '';
+    line.credit = this.parseLineAmountInput(line.creditInput);
+    line.creditInput = this.formatLineAmountInput(line.credit);
+    if (line.credit > 0) {
+      line.debit = 0;
+      line.debitInput = '';
     }
+  }
+
+  commitAllLineAmountInputs(): void {
+    this.editableLines.forEach(line => {
+      this.commitLineAmountInput(line, 'debit');
+      this.commitLineAmountInput(line, 'credit');
+    });
+  }
+
+  onLineAmountBlur(line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
+    this.commitLineAmountInput(line, field);
+    this.markViewForCheck();
   }
 
   onLineAmountKeydown(event: Event, line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
@@ -1297,16 +1321,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     keyboardEvent.preventDefault();
-    const raw = this.sanitizeDecimalInput(this.lineAmountEditValue);
-    const amount = this.roundCurrencyValue(parseFloat(raw) || 0);
-    if (field === 'debit') {
-      this.onEditableDebitChange(line, amount);
-    } else {
-      this.onEditableCreditChange(line, amount);
-    }
-
-    this.focusedLineAmount = null;
-    this.lineAmountEditValue = '';
+    this.commitLineAmountInput(line, field);
+    this.markViewForCheck();
     (event.target as HTMLInputElement)?.blur();
   }
 
@@ -1321,7 +1337,13 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getActiveEditableLines(): EditableJournalEntryLine[] {
-    return this.editableLines.filter(line => line.chartOfAccountId && (line.debit > 0 || line.credit > 0));
+    return this.editableLines.filter(line => {
+      if (line.journalEntryLineId) {
+        return !!line.chartOfAccountId;
+      }
+
+      return !!line.chartOfAccountId && (line.debit > 0 || line.credit > 0);
+    });
   }
 
   getEditableTotalDebit(): number {

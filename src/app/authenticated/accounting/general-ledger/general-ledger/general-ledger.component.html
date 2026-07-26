@@ -242,10 +242,12 @@
                           inputmode="decimal"
                           class="split-editable-input split-editable-input--amount"
                           [class.split-input-invalid]="shouldShowLineDebitError(line)"
-                          [value]="getLineAmountDisplay(line, 'debit')"
-                          (focus)="onLineAmountFocus($event, line, 'debit')"
-                          (blur)="onLineAmountBlur($event, line, 'debit')"
-                          (input)="onLineAmountInput($event)"
+                          [ngModel]="line.debitInput"
+                          [ngModelOptions]="{ standalone: true }"
+                          (ngModelChange)="onLineAmountInputChange(line, 'debit', $event)"
+                          (mousedown)="onLineAmountMouseDown($event)"
+                          (focus)="onLineAmountFocus($event)"
+                          (blur)="onLineAmountBlur(line, 'debit')"
                           (keydown.enter)="onLineAmountKeydown($event, line, 'debit')">
                       </td>
                       <td class="split-col-amount split-col-amount--right">
@@ -254,10 +256,12 @@
                           inputmode="decimal"
                           class="split-editable-input split-editable-input--amount"
                           [class.split-input-invalid]="shouldShowLineCreditError(line)"
-                          [value]="getLineAmountDisplay(line, 'credit')"
-                          (focus)="onLineAmountFocus($event, line, 'credit')"
-                          (blur)="onLineAmountBlur($event, line, 'credit')"
-                          (input)="onLineAmountInput($event)"
+                          [ngModel]="line.creditInput"
+                          [ngModelOptions]="{ standalone: true }"
+                          (ngModelChange)="onLineAmountInputChange(line, 'credit', $event)"
+                          (mousedown)="onLineAmountMouseDown($event)"
+                          (focus)="onLineAmountFocus($event)"
+                          (blur)="onLineAmountBlur(line, 'credit')"
                           (keydown.enter)="onLineAmountKeydown($event, line, 'credit')">
                       </td>
                       <td class="split-col-actions">
