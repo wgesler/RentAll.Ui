@@ -103,11 +103,15 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 0.5rem;
   background: #fff;
+}
+
+.financial-report-table-wrap:has(.financial-report-table--multi-column) {
+  overflow-x: auto;
+  overflow-y: clip;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -305,6 +309,16 @@
   display: inline-block;
   width: 20px;
   flex: 0 0 auto;
+}
+
+.financial-report-row-supporting-line td {
+  background-color: #fff;
+  font-size: 0.8125rem;
+  color: rgba(15, 23, 42, 0.52);
+}
+
+.financial-report-row-supporting-line .financial-report-label {
+  white-space: normal;
 }
 
 .financial-report-label {

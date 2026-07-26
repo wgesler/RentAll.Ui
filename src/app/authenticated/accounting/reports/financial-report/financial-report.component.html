@@ -168,7 +168,8 @@
                     [class.financial-report-row-double-underline]="row.showDoubleUnderlineBeforeTotal"
                     [class.financial-report-row-total]="row.rowKind === 'total'"
                     [class.financial-report-row-summary]="row.rowKind === 'summary'"
-                    [class.financial-report-row-account]="row.rowKind === 'account'">
+                    [class.financial-report-row-account]="row.rowKind === 'account'"
+                    [class.financial-report-row-supporting-line]="row.displayKind === 'supportingLine'">
                     <td class="financial-report-col-label">
                       <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
                         @if (row.expandable) {
@@ -178,8 +179,19 @@
                             class="financial-report-expand-btn financial-report-icon-expand-btn"
                             [attr.aria-expanded]="row.expanded"
                             [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
-                            (click)="toggleNodeExpansion(row.nodeId)">
+                            (click)="toggleRowExpansion(row)">
                             <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
+                          </button>
+                        } @else if (isDrillDownExpander(row)) {
+                          <button
+                            type="button"
+                            mat-icon-button
+                            class="financial-report-expand-btn financial-report-icon-expand-btn"
+                            matTooltip="Show supporting lines"
+                            [attr.aria-expanded]="isSupportingLinesExpanded(row.nodeId)"
+                            [attr.aria-label]="isSupportingLinesExpanded(row.nodeId) ? 'Hide supporting lines for ' + row.label : 'Show supporting lines for ' + row.label"
+                            (click)="toggleSupportingLinesExpansion(row.nodeId)">
+                            <mat-icon>{{ getDrillDownExpanderIcon(row) }}</mat-icon>
                           </button>
                         } @else {
                           <span class="financial-report-expand-spacer"></span>
@@ -195,9 +207,9 @@
                         [attr.role]="canDrillDownAmount(row, columnId) ? 'button' : null"
                         [attr.tabindex]="canDrillDownAmount(row, columnId) ? 0 : null"
                         [attr.aria-label]="canDrillDownAmount(row, columnId) ? 'View general ledger lines for ' + row.label : null"
-                        (click)="openDrillDown(row, columnId)"
-                        (keydown.enter)="openDrillDown(row, columnId)"
-                        (keydown.space)="$event.preventDefault(); openDrillDown(row, columnId)">
+                        (click)="canDrillDownAmount(row, columnId) && openDrillDown(row, columnId)"
+                        (keydown.enter)="canDrillDownAmount(row, columnId) && openDrillDown(row, columnId)"
+                        (keydown.space)="$event.preventDefault(); canDrillDownAmount(row, columnId) && openDrillDown(row, columnId)">
                         {{ row.columnAmountDisplays[columnId] || '' }}
                       </td>
                     }

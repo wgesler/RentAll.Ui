@@ -443,8 +443,7 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   overflow-y: hidden;
 }
 
-.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel,
-.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel {
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -454,6 +453,17 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   box-sizing: border-box;
   overflow-x: auto;
   overflow-y: visible;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  padding-bottom: var(--global-page-inner-padding);
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner {

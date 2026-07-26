@@ -47,9 +47,11 @@ interface FinancialReportVisibleRow {
   columnAmountDisplays: Record<string, string>;
   depth: number;
   rowKind: FinancialReportTreeNode['rowKind'];
+  displayKind: 'node' | 'supportingLine';
   expandable: boolean;
   expanded: boolean;
   showDoubleUnderlineBeforeTotal: boolean;
+  supportingLine?: JournalEntryLineListDisplay;
 }
 
 @Component({
@@ -117,6 +119,8 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     balance: { displayAs: 'Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
   expandedNodeIds = new Set<string>();
+  expandedSupportingLineNodeIds = new Set<string>();
+  nestedExpansionPhases = new Map<string, number>();
   isServiceError = false;
   noActivityMessage = 'No activity for the selected filters and date range.';
   companyName = '';
@@ -274,20 +278,124 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   //#endregion
 
   //#region Expand All Methods
+  isTotalOrSummaryRowKind(rowKind: FinancialReportTreeNode['rowKind']): boolean {
+    return rowKind === 'total' || rowKind === 'summary';
+  }
+
+  isTotalOrSummaryTreeNode(node: FinancialReportTreeNode): boolean {
+    return this.isTotalOrSummaryRowKind(node.rowKind);
+  }
+
+  isTotalOrSummaryVisibleRow(row: FinancialReportVisibleRow): boolean {
+    return this.isTotalOrSummaryRowKind(row.rowKind);
+  }
+
+  usesNestedExpansionCycle(nodeId: string): boolean {
+    const node = this.findFinancialReportNodeById(this.reportResult?.sections || [], nodeId);
+    if (!node?.childNodes.length) {
+      return false;
+    }
+    if (node.rowKind === 'section') {
+      return true;
+    }
+    return node.childNodes.some(child => child.childNodes.length > 0);
+  }
+
+  toggleRowExpansion(row: FinancialReportVisibleRow): void {
+    if (this.usesNestedExpansionCycle(row.nodeId)) {
+      this.toggleNestedExpansion(row.nodeId);
+      return;
+    }
+    this.toggleNodeExpansion(row.nodeId);
+  }
+
+  collectDescendantLeafDrillDownNodeIds(node: FinancialReportTreeNode): string[] {
+    const nodeIds: string[] = [];
+    const visit = (current: FinancialReportTreeNode) => {
+      if (this.isTotalOrSummaryTreeNode(current)) {
+        return;
+      }
+      if (current.childNodes.length === 0) {
+        const hasAmount = Object.values(current.columnAmounts || {}).some(amount => Number(amount) !== 0);
+        if (hasAmount) {
+          nodeIds.push(current.nodeId);
+        }
+        return;
+      }
+      current.childNodes.forEach(visit);
+    };
+    node.childNodes.forEach(visit);
+    return nodeIds;
+  }
+
+  collectDirectChildExpandableNodeIds(node: FinancialReportTreeNode): string[] {
+    return (node.childNodes || [])
+      .filter(child => child.childNodes.length > 0)
+      .map(child => child.nodeId);
+  }
+
+  collectDirectChildLeafDrillDownNodeIds(node: FinancialReportTreeNode): string[] {
+    return (node.childNodes || [])
+      .filter(child => !this.isTotalOrSummaryTreeNode(child))
+      .filter(child => child.childNodes.length === 0)
+      .filter(child => Object.values(child.columnAmounts || {}).some(amount => Number(amount) !== 0))
+      .map(child => child.nodeId);
+  }
+
+  clearNestedDescendantExpansion(_nodeId: string, descendantNodeIds: string[], supportingLineNodeIds: string[]): void {
+    descendantNodeIds.forEach(descendantId => this.expandedNodeIds.delete(descendantId));
+    supportingLineNodeIds.forEach(supportingNodeId => this.expandedSupportingLineNodeIds.delete(supportingNodeId));
+  }
+
+  toggleNestedExpansion(nodeId: string): void {
+    const node = this.findFinancialReportNodeById(this.reportResult?.sections || [], nodeId);
+    if (!node) {
+      return;
+    }
+
+    const allDescendantNodeIds = this.collectDescendantNodeIds(nodeId);
+    const allSupportingLineNodeIds = this.collectDescendantLeafDrillDownNodeIds(node);
+    const directChildExpandableIds = this.collectDirectChildExpandableNodeIds(node);
+    const directChildLeafSupportingIds = this.collectDirectChildLeafDrillDownNodeIds(node);
+    const phase = this.nestedExpansionPhases.get(nodeId) ?? 0;
+
+    switch (phase) {
+      case 0:
+        // 1. Open this row.
+        this.expandedNodeIds.add(nodeId);
+        this.clearNestedDescendantExpansion(nodeId, allDescendantNodeIds, allSupportingLineNodeIds);
+        break;
+      case 1:
+        // 2. Open direct child rows and their leaf supporting lines.
+        this.expandedNodeIds.add(nodeId);
+        this.clearNestedDescendantExpansion(nodeId, allDescendantNodeIds, allSupportingLineNodeIds);
+        directChildExpandableIds.forEach(descendantId => this.expandedNodeIds.add(descendantId));
+        directChildLeafSupportingIds.forEach(supportingNodeId => this.expandedSupportingLineNodeIds.add(supportingNodeId));
+        break;
+      case 2:
+        // 3. Close child rows while this row stays open.
+        this.expandedNodeIds.add(nodeId);
+        this.clearNestedDescendantExpansion(nodeId, allDescendantNodeIds, allSupportingLineNodeIds);
+        break;
+      case 3:
+        // 4. Close this row.
+        this.expandedNodeIds.delete(nodeId);
+        this.clearNestedDescendantExpansion(nodeId, allDescendantNodeIds, allSupportingLineNodeIds);
+        break;
+    }
+
+    this.nestedExpansionPhases.set(nodeId, (phase + 1) % 4);
+    this.rebuildVisibleRows();
+    this.markViewForCheck();
+  }
+
   toggleNodeExpansion(nodeId: string): void {
     const descendantNodeIds = this.collectDescendantNodeIds(nodeId);
-    const hasExpandedDescendants = descendantNodeIds.some(descendantId => this.expandedNodeIds.has(descendantId));
     if (this.expandedNodeIds.has(nodeId)) {
-      if (hasExpandedDescendants) {
-        // First click collapses descendants but keeps this node open.
-        descendantNodeIds.forEach(descendantId => this.expandedNodeIds.delete(descendantId));
-      } else {
-        // Next click toggles this node closed.
-        this.expandedNodeIds.delete(nodeId);
-      }
+      this.expandedNodeIds.delete(nodeId);
+      descendantNodeIds.forEach(descendantId => this.expandedNodeIds.delete(descendantId));
     } else {
       this.expandedNodeIds.add(nodeId);
-      // QuickBooks-style behavior: when opening a section, start with all descendants collapsed.
       descendantNodeIds.forEach(descendantId => this.expandedNodeIds.delete(descendantId));
     }
     this.rebuildVisibleRows();
@@ -303,19 +411,42 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   }
 
   expandAllNodes(): void {
-    this.collectExpandableNodeIds(this.reportResult?.sections || []).forEach(nodeId => this.expandedNodeIds.add(nodeId));
+    (this.reportResult?.sections || []).forEach(section => this.expandNodeFully(section));
+    this.nestedExpansionPhases.clear();
     this.rebuildVisibleRows();
     this.markViewForCheck();
   }
 
+  expandNodeFully(node: FinancialReportTreeNode): void {
+    if (node.childNodes.length > 0) {
+      this.expandedNodeIds.add(node.nodeId);
+      node.childNodes.forEach(childNode => this.expandNodeFully(childNode));
+      return;
+    }
+
+    if (this.isTotalOrSummaryTreeNode(node)) {
+      return;
+    }
+
+    const hasAmount = Object.values(node.columnAmounts || {}).some(amount => Number(amount) !== 0);
+    if (hasAmount) {
+      this.expandedSupportingLineNodeIds.add(node.nodeId);
+    }
+  }
+
   collapseAllNodes(): void {
     this.expandedNodeIds.clear();
+    this.expandedSupportingLineNodeIds.clear();
+    this.nestedExpansionPhases.clear();
     this.rebuildVisibleRows();
     this.markViewForCheck();
   }
 
   initializeExpandedNodes(sections: FinancialReportTreeNode[]): void {
-    this.expandedNodeIds = new Set(this.collectExpandableNodeIds(sections || []));
+    this.expandedNodeIds = new Set();
+    this.expandedSupportingLineNodeIds.clear();
+    this.nestedExpansionPhases.clear();
+    (sections || []).forEach(section => this.expandNodeFully(section));
   }
 
   collectExpandableNodeIds(nodes: FinancialReportTreeNode[]): string[] {
@@ -372,8 +503,54 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   //#endregion
 
   //#region Drill-Down
+  getRowTreeNode(row: FinancialReportVisibleRow): FinancialReportTreeNode | null {
+    return this.findFinancialReportNodeById(this.reportResult?.sections || [], row.nodeId);
+  }
+
+  getRowColumnAmount(row: FinancialReportVisibleRow, columnId: string): number {
+    const node = this.getRowTreeNode(row);
+    return Number(node?.columnAmounts?.[columnId]) || 0;
+  }
+
   canDrillDownAmount(row: FinancialReportVisibleRow, columnId: string): boolean {
-    return !!row.columnAmountDisplays[columnId]?.trim();
+    return row.displayKind === 'node'
+      && !this.isTotalOrSummaryVisibleRow(row)
+      && this.getRowColumnAmount(row, columnId) !== 0
+      && !!row.columnAmountDisplays[columnId]?.trim();
+  }
+
+  getDrillDownColumnId(row: FinancialReportVisibleRow): string | null {
+    for (const columnId of this.getAmountColumnIds()) {
+      if (this.canDrillDownAmount(row, columnId)) {
+        return columnId;
+      }
+    }
+    return null;
+  }
+
+  isDrillDownExpander(row: FinancialReportVisibleRow): boolean {
+    return row.displayKind === 'node'
+      && !this.isTotalOrSummaryVisibleRow(row)
+      && !row.expandable
+      && this.getDrillDownColumnId(row) != null;
+  }
+
+  isSupportingLinesExpanded(nodeId: string): boolean {
+    return this.expandedSupportingLineNodeIds.has(nodeId);
+  }
+
+  getDrillDownExpanderIcon(row: FinancialReportVisibleRow): string {
+    return this.isSupportingLinesExpanded(row.nodeId) ? 'expand_less' : 'chevron_right';
+  }
+
+  toggleSupportingLinesExpansion(nodeId: string): void {
+    if (this.expandedSupportingLineNodeIds.has(nodeId)) {
+      this.expandedSupportingLineNodeIds.delete(nodeId);
+    } else {
+      this.expandedSupportingLineNodeIds.add(nodeId);
+    }
+    this.rebuildVisibleRows();
+    this.markViewForCheck();
   }
 
   openDrillDown(row: FinancialReportVisibleRow, columnId: string): void {
@@ -716,16 +893,109 @@ refreshDrillDownView(): void {
           : this.formatColumnAmountDisplays(node.columnAmounts, node.rowKind),
       depth: node.depth,
       rowKind: node.rowKind,
+      displayKind: 'node',
       expandable,
       expanded,
       showDoubleUnderlineBeforeTotal: false
     });
+
+    this.appendSupportingLineRows(node, rows);
 
     if (!expandable || !expanded) {
       return;
     }
 
     node.childNodes.forEach(childNode => this.appendVisibleRows(childNode, rows));
+  }
+
+  appendSupportingLineRows(node: FinancialReportTreeNode, rows: FinancialReportVisibleRow[]): void {
+    if (this.isTotalOrSummaryTreeNode(node) || node.childNodes.length > 0 || !this.expandedSupportingLineNodeIds.has(node.nodeId)) {
+      return;
+    }
+
+    const columnId = this.resolvePrimaryDrillDownColumnId(node);
+    if (!columnId || !this.reportResult?.drillDownContext) {
+      return;
+    }
+
+    const filteredLines = this.mappingService.filterFinancialReportDrillDownLines(
+      this.allLines,
+      node.nodeId,
+      columnId,
+      this.reportResult.drillDownContext,
+      this.reportResult.sections
+    );
+    const chartOfAccounts = this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds());
+    const linesDisplay = this.mappingService.mapJournalEntryLineListDisplay(
+      filteredLines,
+      chartOfAccounts,
+      SourceTypeLabels
+    );
+    const lineById = new Map(filteredLines.map(line => [line.journalEntryLineId, line]));
+
+    linesDisplay.forEach(line => {
+      const sourceLine = lineById.get(line.journalEntryLineId);
+      rows.push({
+        nodeId: `${node.nodeId}::supporting::${line.journalEntryLineId}`,
+        label: this.formatSupportingLineLabel(line),
+        columnAmountDisplays: sourceLine
+          ? this.formatSupportingLineAmountDisplays(sourceLine, line, chartOfAccounts)
+          : {},
+        depth: node.depth + 1,
+        rowKind: 'account',
+        displayKind: 'supportingLine',
+        expandable: false,
+        expanded: false,
+        showDoubleUnderlineBeforeTotal: false,
+        supportingLine: line
+      });
+    });
+  }
+
+  resolvePrimaryDrillDownColumnId(node: FinancialReportTreeNode): string | null {
+    for (const columnId of this.getAmountColumnIds()) {
+      const amount = Number(node.columnAmounts?.[columnId]) || 0;
+      if (amount !== 0) {
+        return columnId;
+      }
+    }
+    return null;
+  }
+
+  formatSupportingLineLabel(line: JournalEntryLineListDisplay): string {
+    return (line.description || line.journalEntryMemo || '').trim();
+  }
+
+  formatSupportingLineAmountDisplays(
+    sourceLine: JournalEntryLineSearchResponse,
+    line: JournalEntryLineListDisplay,
+    chartOfAccounts: ChartOfAccountResponse[]
+  ): Record<string, string> {
+    if (!this.reportResult?.drillDownContext) {
+      return {};
+    }
+
+    const accountTypeId = chartOfAccounts.find(account => account.accountId === sourceLine.chartOfAccountId)?.accountTypeId;
+    const signedAmount = accountTypeId === undefined
+      ? (line.debitValue || 0) - (line.creditValue || 0)
+      : this.mappingService.signedFinancialReportAmount(accountTypeId, line.debitValue, line.creditValue);
+    const displays: Record<string, string> = {};
+    const columnContext = this.reportResult.drillDownContext.columnContext;
+
+    this.getAmountColumnIds().forEach(columnId => {
+      if (columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID) {
+        displays[columnId] = this.formatter.currencyUsd(signedAmount);
+        return;
+      }
+
+      const resolvedColumnId = this.mappingService.resolveFinancialReportLineColumnId(
+        sourceLine,
+        columnContext,
+        chartOfAccounts
+      );
+      displays[columnId] = resolvedColumnId === columnId ? this.formatter.currencyUsd(signedAmount) : '';
+    });
+    return displays;
   }
 
   formatColumnAmountDisplays(
