@@ -1103,16 +1103,21 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
 
     return Array.from(groupedLines.entries()).map(([journalEntryId, entryLines]) => {
-      const firstLine = entryLines[0];
+      const sortedEntryLines = [...entryLines].sort((left, right) =>
+        this.compareJournalEntryLinesWithinGroup(left, right)
+      );
+      const firstLine = sortedEntryLines[0];
       const actionFlags = this.resolveJournalEntryActionFlags(firstLine);
-      const totalDebit = entryLines.reduce((sum, line) => sum + Number(line.debitValue || 0), 0);
-      const totalCredit = entryLines.reduce((sum, line) => sum + Number(line.creditValue || 0), 0);
-      const lastLine = entryLines[entryLines.length - 1];
+      const totalDebit = sortedEntryLines.reduce((sum, line) => sum + Number(line.debitValue || 0), 0);
+      const totalCredit = sortedEntryLines.reduce((sum, line) => sum + Number(line.creditValue || 0), 0);
+      const lastLine = sortedEntryLines[sortedEntryLines.length - 1];
 
       return {
         journalEntryId,
         journalEntryLineId: firstLine.journalEntryLineId,
         transactionDate: firstLine.transactionDate,
+        transactionDateSortKey: firstLine.transactionDateSortKey ?? '',
+        journalEntryCreatedOnSortKey: firstLine.journalEntryCreatedOnSortKey ?? '',
         journalEntryCode: firstLine.journalEntryCode,
         source: firstLine.source,
         propertyCode: this.summarizeGroupedField(entryLines.map(line => line.propertyCode)),
@@ -1130,14 +1135,14 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         editDisabled: actionFlags.editDisabled,
         deleteDisabled: actionFlags.deleteDisabled,
         disabled: this.showGroupedTableLineSelections
-          ? !this.hasSelectableGroupedEntryLines(entryLines)
+          ? !this.hasSelectableGroupedEntryLines(sortedEntryLines)
           : this.showJournalEntryPostSelections
-          ? !this.isPostJournalEntryLinesPostable(entryLines)
-          : entryLines.every(line => line.disabled),
+          ? !this.isPostJournalEntryLinesPostable(sortedEntryLines)
+          : sortedEntryLines.every(line => line.disabled),
         selected: this.showGroupedTableLineSelections
-          ? this.isGroupedEntrySelected(entryLines)
+          ? this.isGroupedEntrySelected(sortedEntryLines)
           : this.showJournalEntryPostSelections && this.selectedJournalEntryIds.has(journalEntryId),
-        journalEntryLines: entryLines,
+        journalEntryLines: sortedEntryLines,
         expand: journalEntryId,
         expanded: this.expandedJournalEntries.has(journalEntryId),
         expandClick: (event: Event, item: GeneralLedgerEntryDisplay) => {
@@ -1150,7 +1155,45 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           this.applyLinesDisplay();
         }
       };
-    });
+    }).sort((left, right) => this.compareGroupedJournalEntriesForDisplay(left, right));
+  }
+
+  compareGroupedJournalEntriesForDisplay(
+    left: GeneralLedgerEntryDisplay,
+    right: GeneralLedgerEntryDisplay
+  ): number {
+    const dateCompare = (right.transactionDateSortKey ?? '').localeCompare(left.transactionDateSortKey ?? '');
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    const createdCompare = (left.journalEntryCreatedOnSortKey ?? '').localeCompare(right.journalEntryCreatedOnSortKey ?? '');
+    if (createdCompare !== 0) {
+      return createdCompare;
+    }
+
+    const codeCompare = (left.journalEntryCode || '').localeCompare(
+      right.journalEntryCode || '',
+      undefined,
+      { numeric: true, sensitivity: 'base' }
+    );
+    if (codeCompare !== 0) {
+      return codeCompare;
+    }
+
+    return (left.journalEntryId || '').localeCompare(right.journalEntryId || '');
+  }
+
+  compareJournalEntryLinesWithinGroup(
+    left: JournalEntryLineListDisplay,
+    right: JournalEntryLineListDisplay
+  ): number {
+    const createdCompare = (left.lineCreatedOnSortKey ?? '').localeCompare(right.lineCreatedOnSortKey ?? '');
+    if (createdCompare !== 0) {
+      return createdCompare;
+    }
+
+    return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '');
   }
 
   summarizeGroupedField(values: string[]): string {

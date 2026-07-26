@@ -164,6 +164,8 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() totalsLabel?: string = 'Total'; // Label for the totals row
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
   @Input() initialFilterVal: string = '';
+  @Input() initialSortColumn = '';
+  @Input() initialSortDirection: 'asc' | 'desc' = 'asc';
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
   @Input() hasReservationCodeLink: boolean = false;
@@ -257,6 +259,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   private readonly destroy$ = new Subject<void>();
   private pendingStickySort: { sortColumn: string; sortDirection: DataTableStickySortDirection } | null = null;
   private stickySortApplied = false;
+  private initialSortApplied = false;
   
   isDateColumn(column: ColumnData): boolean {
     const target = `${column?.name ?? ''} ${column?.displayAs ?? ''}`.toLowerCase();
@@ -419,6 +422,12 @@ markViewForCheck(): void {
       }
       if (column === 'credit' && item['creditValue'] !== undefined && item['creditValue'] !== null) {
         return Number(item['creditValue']) || 0;
+      }
+      if (column === 'transactionDate') {
+        const sortKey = item['transactionDateSortKey'];
+        if (typeof sortKey === 'string' && sortKey.trim()) {
+          return sortKey.trim();
+        }
       }
 
       // Check if this column should use natural sorting (for codes with numbers)
@@ -1520,6 +1529,24 @@ attachTableSortAndPaginator(): void {
 
     this.dataSource.sort = this.sort;
     this.applyStickySortIfNeeded();
+    this.applyInitialSortIfNeeded();
+  }
+
+  applyInitialSortIfNeeded(): void {
+    if (this.initialSortApplied || this.stickySortApplied || !this.initialSortColumn?.trim()) {
+      return;
+    }
+    if (!this.sort || !this.displayedColumns.includes(this.initialSortColumn.trim())) {
+      return;
+    }
+
+    this.initialSortApplied = true;
+    this.sort.sort({
+      id: this.initialSortColumn.trim(),
+      start: this.initialSortDirection,
+      disableClear: false
+    });
+    this.dataSource.sort = this.sort;
   }
 
 applyStickySortIfNeeded(): void {

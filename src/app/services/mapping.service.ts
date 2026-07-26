@@ -944,7 +944,7 @@ resolveJournalEntryLineSourceDisplay(
     runningBalance: number,
     includeRunningBalance: boolean
   ): JournalEntryLineListDisplay {
-    const transactionDate = line.transactionDate || '';
+    const rawTransactionDate = (line.transactionDate || '').trim();
     const lineMemo = (line.memo || '').trim();
     const journalEntryMemo = (line.journalEntryMemo || '').trim();
     const description = lineMemo || journalEntryMemo;
@@ -964,7 +964,7 @@ resolveJournalEntryLineSourceDisplay(
       journalEntryLineId: line.journalEntryLineId,
       journalEntryId: line.journalEntryId,
       officeId: line.officeId,
-      transactionDate: this.formatter.formatDateString(transactionDate),
+      transactionDate: this.formatter.formatDateString(rawTransactionDate),
       journalEntryCode: (line.journalEntryCode || '').trim(),
       checkNumber: (line.checkNumber || '').trim() || undefined,
       source: this.resolveJournalEntryLineSourceDisplay(line, sourceTypes),
@@ -991,7 +991,10 @@ resolveJournalEntryLineSourceDisplay(
       perspectiveId: Number(line.perspectiveId ?? 2),
       perspective: getPerspectiveLabel(line.perspectiveId),
       isManual: isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId),
-      sortDateValue: Date.parse(line.journalEntryCreatedOn)
+      sortDateValue: Date.parse(line.journalEntryCreatedOn),
+      transactionDateSortKey: rawTransactionDate,
+      journalEntryCreatedOnSortKey: (line.journalEntryCreatedOn || '').trim(),
+      lineCreatedOnSortKey: (line.createdOn || '').trim()
     };
   }
 

@@ -223,6 +223,8 @@ export interface GeneralLedgerEntryDisplay {
   editDisabled?: boolean;
   selected?: boolean;
   journalEntryLines: JournalEntryLineListDisplay[];
+  transactionDateSortKey?: string;
+  journalEntryCreatedOnSortKey?: string;
   expand: string;
   expanded: boolean;
   expandClick: (event: Event, item: GeneralLedgerEntryDisplay) => void;
@@ -262,6 +264,9 @@ export interface JournalEntryLineListDisplay {
   editDisabled?: boolean;
   deleteDisabled?: boolean;
   sortDateValue: number;
+  transactionDateSortKey?: string;
+  journalEntryCreatedOnSortKey?: string;
+  lineCreatedOnSortKey?: string;
   selected?: boolean;
   disabled?: boolean;
 }
