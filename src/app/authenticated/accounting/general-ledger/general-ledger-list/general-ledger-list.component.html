@@ -110,8 +110,6 @@
           tableName="general-ledger-list"
           [data]="tableDisplayData"
           [columns]="activeDisplayedColumns"
-          [initialSortColumn]="usesGroupedJournalEntryDisplay ? 'transactionDate' : ''"
-          [initialSortDirection]="'desc'"
           [totalsRow]="totalsRow"
           [noDataMessage]="undepositedFundsOnly || untransferredFundsOnly || transferReportOnly || depositsOnly || printChecksOnly || showGeneralLedgerAddButton ? noActivityMessage : null"
           [hasColumnIndex]="true"
