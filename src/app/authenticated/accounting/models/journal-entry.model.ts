@@ -13,8 +13,8 @@ export interface JournalEntryLineSearchRequest {
   unclearedOnly?: boolean;
   /** When true, include IsCashOnly journal entries (Owner AP Aging). Default false for GL / financial reports. */
   includeCashOnly?: boolean;
-  /** Owner AP Aging: exclude JEs before each property's owner starting balance. */
-  excludeBeforeOwnerStartingBalance?: boolean;
+  /** When true, honor startDate. When false (default), floor at office start and ignore startDate. */
+  showAll?: boolean;
   startDate?: string | null;
   endDate?: string | null;
 }

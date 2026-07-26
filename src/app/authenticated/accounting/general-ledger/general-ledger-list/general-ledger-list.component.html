@@ -10,15 +10,20 @@
                   <th [style.max-width]="getDetailLineColumnWidth(columnName)"
                       [style.width]="getDetailLineColumnWidth(columnName)"
                       [style.min-width]="getDetailLineColumnMinWidth(columnName)"
-                      [style.text-align]="activeDetailLineDisplayedColumns[columnName].headerAlignment || activeDetailLineDisplayedColumns[columnName].alignment || 'left'">
+                      [style.text-align]="activeDetailLineDisplayedColumns[columnName].headerAlignment || activeDetailLineDisplayedColumns[columnName].alignment || 'left'"
+                      class="detail-line-sort-header"
+                      (click)="onDetailLineColumnSort(columnName)">
                     {{ activeDetailLineDisplayedColumns[columnName].displayAs }}
+                    @if (getDetailLineSortIndicator(columnName)) {
+                      <span class="detail-line-sort-indicator">{{ getDetailLineSortIndicator(columnName) }}</span>
+                    }
                   </th>
                 }
               }
             </tr>
           </thead>
           <tbody>
-            @for (line of entry.journalEntryLines; track line.journalEntryLineId; let lineIndex = $index) {
+            @for (line of getSortedDetailLines(entry.journalEntryLines); track line.journalEntryLineId; let lineIndex = $index) {
               <tr
                 [class.detail-row-disabled]="line.disabled"
                 [class.detail-row-clickable]="!showDepositForm && !showTransferForm && !showCheckPreview"
@@ -105,6 +110,7 @@
           tableName="general-ledger-list"
           [data]="tableDisplayData"
           [columns]="activeDisplayedColumns"
+          [totalsRow]="totalsRow"
           [noDataMessage]="undepositedFundsOnly || untransferredFundsOnly || transferReportOnly || depositsOnly || printChecksOnly || showGeneralLedgerAddButton ? noActivityMessage : null"
           [hasColumnIndex]="true"
           [hasFilter]="true"
@@ -153,6 +159,9 @@
                 </mat-slide-toggle>
                 <mat-slide-toggle [checked]="includeCashOnly" color="primary" (change)="toggleIncludeCashOnly()">
                   Include Cash Only
+                </mat-slide-toggle>
+                <mat-slide-toggle [checked]="includeAll" color="primary" (change)="toggleIncludeAll()">
+                  Include All
                 </mat-slide-toggle>
               </div>
               <div class="general-ledger-toolbar__buttons table-filter-actions-group form-titlebar-actions-wrap uniform-gap">

@@ -243,6 +243,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       propertyId: null,
       reservationId: null,
       includeUnposted: true,
+      showAll: this.reportKind !== 'balanceSheet',
       startDate,
       endDate
     }).pipe(

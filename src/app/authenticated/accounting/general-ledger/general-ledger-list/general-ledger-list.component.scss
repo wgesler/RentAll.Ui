@@ -560,6 +560,16 @@
       color: #333;
     }
 
+    thead th.detail-line-sort-header {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .detail-line-sort-indicator {
+      margin-left: 0.25rem;
+      font-size: 0.65rem;
+    }
+
     tbody tr {
       height: 16px;
       background-color: white;

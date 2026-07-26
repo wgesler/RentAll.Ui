@@ -136,12 +136,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   isAllExpanded = false;
   showManualOnly = false;
   includeCashOnly = false;
+  includeAll = false;
   noActivityMessage = 'No general ledger activity for the selected office and date range.';
 
   @ViewChild('journalEntryLinesTemplate') journalEntryLinesTemplate?: TemplateRef<unknown>;
 
   displayedColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
     source: { displayAs: 'Source', maxWidth: '16ch' },
@@ -150,22 +151,23 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '28ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
-    debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    balance: { displayAs: 'Balance', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
 
   detailLineDisplayedColumns: ColumnSet = {
-    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '42ch', wrap: false },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
-    debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    balance: { displayAs: 'Balance', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
+
+  detailLineSortColumn: string | null = null;
+  detailLineSortDirection: 'asc' | 'desc' = 'asc';
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntryLines']));
@@ -390,6 +392,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
       includeUnposted: true,
       includeCashOnly: this.includeCashOnly,
+      showAll: this.includeAll,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
     }).pipe(takeUntil(loadUntil)).subscribe({
@@ -908,6 +911,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     this.markViewForCheck();
   }
 
+  toggleIncludeAll(): void {
+    this.includeAll = !this.includeAll;
+    this.loadJournalEntryLines();
+    this.markViewForCheck();
+  }
+
   resolveJournalEntryActionFlags(line: Pick<JournalEntryLineListDisplay, 'sourceTypeId' | 'journalEntryKindId' | 'postingStatusId' | 'isManual'>): {
     isManual: boolean;
     editDisabled: boolean;
@@ -1045,7 +1054,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const mappedLines = this.mappingService.mapJournalEntryLineListDisplay(
       this.allLines,
       this.chartOfAccounts,
-      SourceTypeLabels
+      SourceTypeLabels,
+      false,
+      true
     );
 
     if (this.transferReportOnly) {
@@ -1235,10 +1246,73 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         return line.debit || '';
       case 'credit':
         return line.credit || '';
-      case 'balance':
-        return line.balance || '';
       default:
         return '—';
+    }
+  }
+
+  onDetailLineColumnSort(columnName: string): void {
+    if (this.detailLineSortColumn === columnName) {
+      this.detailLineSortDirection = this.detailLineSortDirection === 'asc' ? 'desc' : 'asc';
+      return;
+    }
+
+    this.detailLineSortColumn = columnName;
+    this.detailLineSortDirection = 'asc';
+  }
+
+  getDetailLineSortIndicator(columnName: string): string {
+    if (this.detailLineSortColumn !== columnName) {
+      return '';
+    }
+
+    return this.detailLineSortDirection === 'asc' ? '▲' : '▼';
+  }
+
+  getSortedDetailLines(lines: JournalEntryLineListDisplay[]): JournalEntryLineListDisplay[] {
+    if (!this.detailLineSortColumn || !lines?.length) {
+      return lines ?? [];
+    }
+
+    const direction = this.detailLineSortDirection === 'asc' ? 1 : -1;
+    const columnName = this.detailLineSortColumn;
+
+    return [...lines].sort((left, right) => {
+      if (columnName === 'lineNo') {
+        return (lines.indexOf(left) - lines.indexOf(right)) * direction;
+      }
+
+      const leftValue = this.getDetailLineSortValue(left, columnName);
+      const rightValue = this.getDetailLineSortValue(right, columnName);
+
+      if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+        return (leftValue - rightValue) * direction;
+      }
+
+      return String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' }) * direction;
+    });
+  }
+
+  private getDetailLineSortValue(line: JournalEntryLineListDisplay, columnName: string): string | number {
+    switch (columnName) {
+      case 'lineNo':
+        return 0;
+      case 'propertyCode':
+        return line.propertyCode || '';
+      case 'reservationCode':
+        return line.reservationCode || '';
+      case 'contactName':
+        return line.contactName || '';
+      case 'account':
+        return line.account || '';
+      case 'description':
+        return line.description || '';
+      case 'debit':
+        return line.debitValue ?? 0;
+      case 'credit':
+        return line.creditValue ?? 0;
+      default:
+        return '';
     }
   }
 
@@ -3297,6 +3371,27 @@ triggerCheckPrint(): void {
 
   get tableRowCount(): number {
     return this.tableDisplayData.length;
+  }
+
+  get totalsRow(): { [key: string]: string } | undefined {
+    if (this.linesDisplay.length === 0) {
+      return undefined;
+    }
+
+    const totalDebit = this.linesDisplay.reduce(
+      (sum, line) => this.roundCurrencyValue(sum + Number(line.debitValue || 0)),
+      0
+    );
+    const totalCredit = this.linesDisplay.reduce(
+      (sum, line) => this.roundCurrencyValue(sum + Number(line.creditValue || 0)),
+      0
+    );
+
+    return {
+      description: 'Totals:',
+      debit: this.formatGroupedAmount(totalDebit),
+      credit: this.formatGroupedAmount(totalCredit)
+    };
   }
 
   get activeDisplayedColumns(): ColumnSet {

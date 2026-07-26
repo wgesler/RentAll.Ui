@@ -898,9 +898,21 @@ resolveJournalEntryLineSourceDisplay(
     lines: JournalEntryLineSearchResponse[],
     chartOfAccounts?: ChartOfAccountResponse[],
     sourceTypes?: { value: number; label: string }[],
-    displayNewestFirst = false
+    displayNewestFirst = false,
+    preserveSourceOrder = false
   ): JournalEntryLineListDisplay[] {
     const sourceLines = lines ?? [];
+
+    if (preserveSourceOrder) {
+      return sourceLines.map(line => this.buildJournalEntryLineListDisplayItem(
+        line,
+        chartOfAccounts,
+        sourceTypes,
+        0,
+        false
+      ));
+    }
+
     const chronologicalLines = [...sourceLines].sort((left, right) =>
       this.compareJournalEntryLinesForListDisplay(left, right, false)
     );
@@ -909,57 +921,11 @@ resolveJournalEntryLineSourceDisplay(
     const mappedByLineId = new Map<string, JournalEntryLineListDisplay>();
 
     chronologicalLines.forEach(line => {
-      const transactionDate = line.transactionDate || '';
-      const lineMemo = (line.memo || '').trim();
-      const journalEntryMemo = (line.journalEntryMemo || '').trim();
-      const description = lineMemo || journalEntryMemo;
-      const debitValue = Number(line.debit) || 0;
-      const creditValue = Number(line.credit) || 0;
-      const sortDateValue = Date.parse(line.journalEntryCreatedOn);
-      const account = chartOfAccounts?.find(item =>
-        item.accountId === line.chartOfAccountId &&
-        item.officeId === line.officeId
+      runningBalance += (Number(line.debit) || 0) - (Number(line.credit) || 0);
+      mappedByLineId.set(
+        line.journalEntryLineId,
+        this.buildJournalEntryLineListDisplayItem(line, chartOfAccounts, sourceTypes, runningBalance, true)
       );
-      const accountNo = (account?.accountNo || '').trim();
-      const accountName = (account?.name || '').trim();
-      const accountLabel = accountNo && accountName
-        ? `${accountNo}:${accountName}`
-        : accountNo || accountName || String(line.chartOfAccountId);
-      runningBalance += debitValue - creditValue;
-
-      mappedByLineId.set(line.journalEntryLineId, {
-        journalEntryLineId: line.journalEntryLineId,
-        journalEntryId: line.journalEntryId,
-        officeId: line.officeId,
-        transactionDate: this.formatter.formatDateString(transactionDate),
-        journalEntryCode: (line.journalEntryCode || '').trim(),
-        checkNumber: (line.checkNumber || '').trim() || undefined,
-        source: this.resolveJournalEntryLineSourceDisplay(line, sourceTypes),
-        sourceTypeId: line.sourceTypeId ?? null,
-        sourceId: line.sourceId ?? null,
-        sourceLinkable: isJournalEntrySourceNavigable(line.sourceTypeId) && !!(line.sourceId || '').trim(),
-        propertyId: line.propertyId ?? null,
-        propertyCode: (line.propertyCode || '').trim(),
-        reservationId: line.reservationId ?? null,
-        reservationCode: (line.reservationCode || '').trim(),
-        contactId: line.contactId ?? null,
-        contactName: (line.contactName || '').trim(),
-        account: accountLabel,
-        description,
-        journalEntryMemo,
-        debit: debitValue ? this.formatter.currency(debitValue) : '',
-        credit: creditValue ? this.formatter.currency(creditValue) : '',
-        balance: this.formatter.currency(runningBalance),
-        debitValue,
-        creditValue,
-        balanceValue: runningBalance,
-        postingStatusId: Number(line.postingStatusId ?? 0),
-        journalEntryKindId: Number(line.journalEntryKindId ?? 0),
-        perspectiveId: Number(line.perspectiveId ?? 2),
-        perspective: getPerspectiveLabel(line.perspectiveId),
-        isManual: isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId),
-        sortDateValue
-      });
     });
 
     const displayLines = [...sourceLines].sort((left, right) =>
@@ -971,6 +937,64 @@ resolveJournalEntryLineSourceDisplay(
       .filter((line): line is JournalEntryLineListDisplay => !!line);
   }
 
+  buildJournalEntryLineListDisplayItem(
+    line: JournalEntryLineSearchResponse,
+    chartOfAccounts: ChartOfAccountResponse[] | undefined,
+    sourceTypes: { value: number; label: string }[] | undefined,
+    runningBalance: number,
+    includeRunningBalance: boolean
+  ): JournalEntryLineListDisplay {
+    const transactionDate = line.transactionDate || '';
+    const lineMemo = (line.memo || '').trim();
+    const journalEntryMemo = (line.journalEntryMemo || '').trim();
+    const description = lineMemo || journalEntryMemo;
+    const debitValue = Number(line.debit) || 0;
+    const creditValue = Number(line.credit) || 0;
+    const account = chartOfAccounts?.find(item =>
+      item.accountId === line.chartOfAccountId &&
+      item.officeId === line.officeId
+    );
+    const accountNo = (account?.accountNo || '').trim();
+    const accountName = (account?.name || '').trim();
+    const accountLabel = accountNo && accountName
+      ? `${accountNo}:${accountName}`
+      : accountNo || accountName || String(line.chartOfAccountId);
+
+    return {
+      journalEntryLineId: line.journalEntryLineId,
+      journalEntryId: line.journalEntryId,
+      officeId: line.officeId,
+      transactionDate: this.formatter.formatDateString(transactionDate),
+      journalEntryCode: (line.journalEntryCode || '').trim(),
+      checkNumber: (line.checkNumber || '').trim() || undefined,
+      source: this.resolveJournalEntryLineSourceDisplay(line, sourceTypes),
+      sourceTypeId: line.sourceTypeId ?? null,
+      sourceId: line.sourceId ?? null,
+      sourceLinkable: isJournalEntrySourceNavigable(line.sourceTypeId) && !!(line.sourceId || '').trim(),
+      propertyId: line.propertyId ?? null,
+      propertyCode: (line.propertyCode || '').trim(),
+      reservationId: line.reservationId ?? null,
+      reservationCode: (line.reservationCode || '').trim(),
+      contactId: line.contactId ?? null,
+      contactName: (line.contactName || '').trim(),
+      account: accountLabel,
+      description,
+      journalEntryMemo,
+      debit: debitValue ? this.formatter.currency(debitValue) : '',
+      credit: creditValue ? this.formatter.currency(creditValue) : '',
+      balance: includeRunningBalance ? this.formatter.currency(runningBalance) : '',
+      debitValue,
+      creditValue,
+      balanceValue: includeRunningBalance ? runningBalance : 0,
+      postingStatusId: Number(line.postingStatusId ?? 0),
+      journalEntryKindId: Number(line.journalEntryKindId ?? 0),
+      perspectiveId: Number(line.perspectiveId ?? 2),
+      perspective: getPerspectiveLabel(line.perspectiveId),
+      isManual: isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId),
+      sortDateValue: Date.parse(line.journalEntryCreatedOn)
+    };
+  }
+
   compareJournalEntryLinesForListDisplay(
     left: JournalEntryLineSearchResponse,
     right: JournalEntryLineSearchResponse,
@@ -978,12 +1002,17 @@ resolveJournalEntryLineSourceDisplay(
   ): number {
     const direction = newestFirst ? -1 : 1;
 
-    if (left.journalEntryId !== right.journalEntryId) {
-      const entryCreatedCompare = left.journalEntryCreatedOn.localeCompare(right.journalEntryCreatedOn);
-      if (entryCreatedCompare !== 0) {
-        return entryCreatedCompare * direction;
-      }
+    const transactionDateCompare = (left.transactionDate || '').trim().localeCompare((right.transactionDate || '').trim());
+    if (transactionDateCompare !== 0) {
+      return transactionDateCompare * direction;
+    }
 
+    const entryCreatedCompare = left.journalEntryCreatedOn.localeCompare(right.journalEntryCreatedOn);
+    if (entryCreatedCompare !== 0) {
+      return entryCreatedCompare * direction;
+    }
+
+    if (left.journalEntryId !== right.journalEntryId) {
       return left.journalEntryId.localeCompare(right.journalEntryId) * direction;
     }
 

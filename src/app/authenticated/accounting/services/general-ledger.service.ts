@@ -80,8 +80,8 @@ export class GeneralLedgerService {
       body['includeCashOnly'] = true;
     }
 
-    if (request.excludeBeforeOwnerStartingBalance) {
-      body['excludeBeforeOwnerStartingBalance'] = true;
+    if (request.showAll) {
+      body['showAll'] = true;
     }
 
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/search`, body).pipe(

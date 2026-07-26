@@ -414,6 +414,13 @@ markViewForCheck(): void {
       const columnData = this.columns[column];
       const value = item[column];
       
+      if (column === 'debit' && item['debitValue'] !== undefined && item['debitValue'] !== null) {
+        return Number(item['debitValue']) || 0;
+      }
+      if (column === 'credit' && item['creditValue'] !== undefined && item['creditValue'] !== null) {
+        return Number(item['creditValue']) || 0;
+      }
+
       // Check if this column should use natural sorting (for codes with numbers)
       if (columnData?.sortType === 'natural' && typeof value === 'string') {
         return this.naturalSortKey(value);
