@@ -5685,38 +5685,73 @@ roundCurrency(value: number): number {
       .map(childAccount => this.buildFinancialReportAccountNode(childAccount, childrenByParentId, amountsByAccountIdAndColumn, columnContext, depth + 1))
       .filter(node => node.amount !== 0 || node.childNodes.length > 0);
     const ownColumnAmounts = this.getFinancialReportAccountColumnAmounts(amountsByAccountIdAndColumn.get(account.accountId), columnContext);
-    const columnAmounts = this.addFinancialReportColumnAmounts(
+    const rolledUpColumnAmounts = this.addFinancialReportColumnAmounts(
       ownColumnAmounts,
       this.sumFinancialReportTreeColumnAmounts(childNodes, columnContext),
       columnContext
     );
-    const amount = this.getFinancialReportTotalFromColumnAmounts(columnAmounts, columnContext);
-    const accountIds = this.collectFinancialReportAccountIdsFromTree([
-      {
+    const amount = this.getFinancialReportTotalFromColumnAmounts(rolledUpColumnAmounts, columnContext);
+    const drillDownMode = columnContext.balanceSheet ? 'balance' : 'activity';
+    const displayChildNodes = [...childNodes];
+
+    if (!columnContext.balanceSheet && childNodes.length > 0) {
+      const groupAccountIds = this.collectFinancialReportAccountGroupIds(account.accountId, childNodes);
+      const groupDrillDownSpec: FinancialReportDrillDownSpec = {
+        accountIds: groupAccountIds,
+        mode: drillDownMode
+      };
+
+      if (this.hasNonZeroFinancialReportColumnAmounts(ownColumnAmounts, columnContext)) {
+        displayChildNodes.push(this.buildFinancialReportLineItemNode(
+          `account-${account.accountId}-other`,
+          this.formatFinancialReportAccountOtherLabel(account),
+          this.getFinancialReportTotalFromColumnAmounts(ownColumnAmounts, columnContext),
+          ownColumnAmounts,
+          depth + 1,
+          {
+            accountIds: [account.accountId],
+            mode: drillDownMode
+          }
+        ));
+      }
+
+      displayChildNodes.push(this.buildFinancialReportLineItemNode(
+        `account-${account.accountId}-total`,
+        'Total',
+        amount,
+        rolledUpColumnAmounts,
+        depth + 1,
+        groupDrillDownSpec
+      ));
+
+      return {
         nodeId: `account-${account.accountId}`,
-        label: '',
-        amount: 0,
-        columnAmounts: {},
-        depth: 0,
+        label: this.formatFinancialReportAccountLabel(account),
+        amount,
+        columnAmounts: rolledUpColumnAmounts,
+        depth,
         rowKind: 'account',
         accountId: account.accountId,
-        childNodes
-      }
-    ]);
+        drillDownSpec: groupDrillDownSpec,
+        childNodes: displayChildNodes
+      };
+    }
+
+    const accountIds = this.collectFinancialReportAccountGroupIds(account.accountId, childNodes);
 
     return {
       nodeId: `account-${account.accountId}`,
       label: this.formatFinancialReportAccountLabel(account),
       amount,
-      columnAmounts,
+      columnAmounts: rolledUpColumnAmounts,
       depth,
       rowKind: 'account',
       accountId: account.accountId,
       drillDownSpec: {
         accountIds,
-        mode: columnContext.balanceSheet ? 'balance' : 'activity'
+        mode: drillDownMode
       },
-      childNodes
+      childNodes: displayChildNodes
     };
   }
 
@@ -6089,6 +6124,9 @@ roundCurrency(value: number): number {
       const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
       const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
       const endYear = end.getFullYear();
+      if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${endMonth} ${endYear}`;
+      }
       if (start.getFullYear() !== endYear) {
         return `${startMonth} ${start.getFullYear()} - ${endMonth} ${endYear}`;
       }
@@ -6112,6 +6150,44 @@ roundCurrency(value: number): number {
       return `${accountNo} - ${name}`;
     }
     return accountNo || name || 'Account';
+  }
+
+  formatFinancialReportAccountOtherLabel(account: ChartOfAccountResponse): string {
+    const accountNo = (account.accountNo || '').trim();
+    const name = (account.name || '').trim();
+    if (accountNo && name) {
+      return `${accountNo} - ${name} - Other`;
+    }
+    if (accountNo) {
+      return `${accountNo} - Other`;
+    }
+
+    return name ? `${name} - Other` : 'Other';
+  }
+
+  hasNonZeroFinancialReportColumnAmounts(
+    columnAmounts: Record<string, number>,
+    columnContext: FinancialReportColumnContext
+  ): boolean {
+    if (Math.abs(this.getFinancialReportTotalFromColumnAmounts(columnAmounts, columnContext)) > 0.005) {
+      return true;
+    }
+
+    return columnContext.columnIds.some(columnId => Math.abs(Number(columnAmounts[columnId] || 0)) > 0.005);
+  }
+
+  collectFinancialReportAccountGroupIds(
+    parentAccountId: number,
+    childNodes: FinancialReportTreeNode[]
+  ): number[] {
+    const accountIds = new Set<number>([parentAccountId]);
+    (childNodes || []).forEach(childNode => {
+      if (childNode.accountId != null) {
+        accountIds.add(childNode.accountId);
+      }
+      this.collectFinancialReportAccountIdsFromTree(childNode.childNodes).forEach(accountId => accountIds.add(accountId));
+    });
+    return [...accountIds];
   }
 
   compareFinancialReportAccounts(left: ChartOfAccountResponse, right: ChartOfAccountResponse): number {

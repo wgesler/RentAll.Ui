@@ -255,6 +255,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
         this.noActivityMessage = this.reportKind === 'balanceSheet'
           ? 'No balance sheet activity for the selected filters.'
           : 'No profit and loss activity for the selected filters and date range.';
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
         this.applyReportDisplay();
         this.refreshDrillDownView();
         this.markViewForCheck();
@@ -371,7 +372,9 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
         this.expandedNodeIds.add(nodeId);
         this.clearNestedDescendantExpansion(nodeId, allDescendantNodeIds, allSupportingLineNodeIds);
         directChildExpandableIds.forEach(descendantId => this.expandedNodeIds.add(descendantId));
-        directChildLeafSupportingIds.forEach(supportingNodeId => this.expandedSupportingLineNodeIds.add(supportingNodeId));
+        if (this.supportsInlineSupportingLineExpansion) {
+          directChildLeafSupportingIds.forEach(supportingNodeId => this.expandedSupportingLineNodeIds.add(supportingNodeId));
+        }
         break;
       case 2:
         // 3. Close child rows while this row stays open.
@@ -430,7 +433,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     }
 
     const hasAmount = Object.values(node.columnAmounts || {}).some(amount => Number(amount) !== 0);
-    if (hasAmount) {
+    if (hasAmount && this.supportsInlineSupportingLineExpansion) {
       this.expandedSupportingLineNodeIds.add(node.nodeId);
     }
   }
@@ -447,7 +450,23 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.expandedNodeIds = new Set();
     this.expandedSupportingLineNodeIds.clear();
     this.nestedExpansionPhases.clear();
-    (sections || []).forEach(section => this.expandNodeFully(section));
+    if (this.reportKind === 'balanceSheet') {
+      (sections || []).forEach(section => this.expandSectionNodes(section));
+      return;
+    }
+
+    (sections || []).forEach(section => {
+      if (section.childNodes.length > 0) {
+        this.expandedNodeIds.add(section.nodeId);
+      }
+    });
+  }
+
+  expandSectionNodes(node: FinancialReportTreeNode): void {
+    if (node.rowKind === 'section' && node.childNodes.length > 0) {
+      this.expandedNodeIds.add(node.nodeId);
+    }
+    (node.childNodes || []).forEach(childNode => this.expandSectionNodes(childNode));
   }
 
   collectExpandableNodeIds(nodes: FinancialReportTreeNode[]): string[] {
@@ -504,6 +523,10 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   //#endregion
 
   //#region Drill-Down
+  get supportsInlineSupportingLineExpansion(): boolean {
+    return false;
+  }
+
   getRowTreeNode(row: FinancialReportVisibleRow): FinancialReportTreeNode | null {
     return this.findFinancialReportNodeById(this.reportResult?.sections || [], row.nodeId);
   }
@@ -530,6 +553,10 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   }
 
   isDrillDownExpander(row: FinancialReportVisibleRow): boolean {
+    if (!this.supportsInlineSupportingLineExpansion) {
+      return false;
+    }
+
     return row.displayKind === 'node'
       && !this.isTotalOrSummaryVisibleRow(row)
       && !row.expandable
@@ -910,6 +937,10 @@ refreshDrillDownView(): void {
   }
 
   appendSupportingLineRows(node: FinancialReportTreeNode, rows: FinancialReportVisibleRow[]): void {
+    if (!this.supportsInlineSupportingLineExpansion) {
+      return;
+    }
+
     if (this.isTotalOrSummaryTreeNode(node) || node.childNodes.length > 0 || !this.expandedSupportingLineNodeIds.has(node.nodeId)) {
       return;
     }
@@ -1040,13 +1071,27 @@ refreshDrillDownView(): void {
     return this.amountColumnCount > 1;
   }
 
-  isTotalColumn(columnId: string): boolean {
-    return columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID;
+  /** Months and other wide period sets fill the page; quarters stay content-width. */
+  get fillsAvailableWidth(): boolean {
+    return this.amountColumnCount > 4;
   }
 
-  /** Multi-column panels size to content and cap at the viewport. */
-  get panelMaxWidthCss(): string {
-    return this.hasMultipleAmountColumns ? '100%' : '48rem';
+  get reportTableMinWidth(): string {
+    const labelMinRem = 12;
+    const amountMinRem = 10;
+    const minRem = Math.max(48, labelMinRem + this.amountColumnCount * amountMinRem);
+    return `${minRem}rem`;
+  }
+
+  get frameMinWidth(): string | null {
+    if (this.fillsAvailableWidth || !this.hasMultipleAmountColumns) {
+      return null;
+    }
+    return this.reportTableMinWidth;
+  }
+
+  isTotalColumn(columnId: string): boolean {
+    return columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID;
   }
 
   get displayOfficeName(): string {

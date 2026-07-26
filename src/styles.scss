@@ -466,6 +466,13 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   overflow: visible;
 }
 
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel.financial-report-panel--content-sized {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+
 .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner {
   width: 100%;
   max-width: 48rem;
@@ -477,6 +484,15 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
 .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner.financial-report-panel-inner--content-sized {
   width: fit-content;
   max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner.financial-report-panel-inner--fill-width {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .accounting-shell-subview-title,

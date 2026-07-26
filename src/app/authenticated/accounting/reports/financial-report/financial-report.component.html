@@ -101,7 +101,7 @@
     </div>
     }
   } @else {
-    <div class="mat list-layout-standard financial-report-layout">
+    <div class="mat list-layout-standard financial-report-layout" [class.financial-report-layout--stretch]="fillsAvailableWidth">
       <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
         <div class="property-tab-actions-band__row financial-report-context-band__row">
           <div class="financial-report-context-band__titles">
@@ -120,11 +120,15 @@
           </div>
         </div>
       </div>
-      <div class="financial-report-panel dbg-band-main">
+      <div
+        class="financial-report-frame"
+        [class.financial-report-frame--stretch]="fillsAvailableWidth"
+        [style.min-width]="frameMinWidth">
+      <div class="financial-report-panel dbg-band-main" [class.financial-report-panel--content-sized]="hasMultipleAmountColumns && !fillsAvailableWidth">
         <div
           class="financial-report-panel-inner"
-          [class.financial-report-panel-inner--content-sized]="hasMultipleAmountColumns"
-          [style.max-width]="panelMaxWidthCss">
+          [class.financial-report-panel-inner--content-sized]="hasMultipleAmountColumns && !fillsAvailableWidth"
+          [class.financial-report-panel-inner--fill-width]="fillsAvailableWidth">
           @if (isServiceError) {
             <div class="financial-report-empty-state">
               <p>{{ noActivityMessage }}</p>
@@ -135,7 +139,12 @@
             </div>
           } @else {
             <div class="financial-report-table-wrap">
-            <table class="financial-report-table" [class.financial-report-table--multi-column]="hasMultipleAmountColumns">
+            <table
+              class="financial-report-table"
+              [class.financial-report-table--multi-column]="hasMultipleAmountColumns"
+              [class.financial-report-table--sticky-columns]="fillsAvailableWidth"
+              [class.financial-report-table--stretch]="fillsAvailableWidth"
+              [style.min-width]="hasMultipleAmountColumns ? reportTableMinWidth : null">
               <thead>
                 <tr>
                   <th class="financial-report-col-label">
@@ -220,6 +229,7 @@
             </div>
           }
         </div>
+      </div>
       </div>
     </div>
   }

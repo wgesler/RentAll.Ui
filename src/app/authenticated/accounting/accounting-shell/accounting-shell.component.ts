@@ -537,7 +537,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.applyQueryParamState(this.route.snapshot.queryParams);
     if (!this.startDate && !this.endDate) {
-      this.applyDefaultDateRangeIfBothEmpty();
+      if (
+        this.selectedTabIndex === this.tabReports
+        && this.selectedReportKind === 'balanceSheet'
+        && !this.dateRangePinned
+      ) {
+        this.applyBalanceSheetReportDefaults();
+      } else {
+        this.applyDefaultDateRangeIfBothEmpty();
+      }
       this.publishDateRangeState();
     }
 
@@ -2760,6 +2768,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
     this.selectedReportKind = kind;
 
+    if (kindChanged && kind === 'balanceSheet' && !this.dateRangePinned) {
+      this.applyBalanceSheetReportDefaults();
+    }
+
     if (kindChanged && this.usesAccountingShellAsOfDateReport()) {
       this.clearAsOfShellDateValidation();
       this.syncInvoiceSearchDateRange();
@@ -4697,6 +4709,7 @@ captureOwnerStatementReturnContext(): void {
     if (this.dateRangePinned) {
       return;
     }
+    let activateBalanceSheetDefaults = false;
     let tabIndex = getNumberQueryParam(params, 'tab', 0, this.tabMaxIndex + 3);
     if (tabIndex !== null) {
       if ('report' in params && params['report'] === 'ownerApAging') {
@@ -4714,6 +4727,9 @@ captureOwnerStatementReturnContext(): void {
       } else if (tabIndex === 6) {
         tabIndex = this.tabReports;
         this.selectedReportKind = 'balanceSheet';
+        if (!this.dateRangePinned) {
+          this.applyBalanceSheetReportDefaults();
+        }
       } else if (tabIndex === 5) {
         tabIndex = this.tabReports;
       } else if (tabIndex === 4) {
@@ -4806,7 +4822,11 @@ captureOwnerStatementReturnContext(): void {
         || report === 'reconcileAccountSummary'
         || report === 'reconcileAccountDetail'
       ) {
+        const reportChanged = this.selectedReportKind !== report;
         this.selectedReportKind = report;
+        if (reportChanged && report === 'balanceSheet') {
+          activateBalanceSheetDefaults = true;
+        }
       }
     }
 
@@ -4982,6 +5002,10 @@ captureOwnerStatementReturnContext(): void {
       this.syncArAgingReportFilters();
       this.financialReportsRefreshTrigger++;
     }
+
+    if (activateBalanceSheetDefaults) {
+      this.applyBalanceSheetReportDefaults();
+    }
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
@@ -5048,6 +5072,18 @@ captureOwnerStatementReturnContext(): void {
     this.endDate.setHours(0, 0, 0, 0);
     this.shellStartDateNeedsEntry = false;
     this.shellEndDateNeedsEntry = false;
+  }
+
+  applyBalanceSheetReportDefaults(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    this.startDate = null;
+    this.endDate = new Date(today);
+    this.selectedFinancialReportClass = Class.TotalOnly;
+    this.shellStartDateNeedsEntry = false;
+    this.shellEndDateNeedsEntry = false;
+    this.clearAsOfShellDateValidation();
+    this.syncInvoiceSearchDateRange();
   }
 
   normalizeDateRangeValues(changedField?: 'start' | 'end'): void {
