@@ -191,7 +191,15 @@
       </div>
     }
     @if (isPropertyManagementLease) {
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 mb-4">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Payment Type</mat-label>
+          <mat-select formControlName="ownerPaymentTypeId">
+            @for (option of ownerPaymentTypeOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Bank Name</mat-label>
           <input matInput formControlName="bankName" />

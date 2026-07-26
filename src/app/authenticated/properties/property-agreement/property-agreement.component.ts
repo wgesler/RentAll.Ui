@@ -13,7 +13,7 @@ import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { FileDetails } from '../../documents/models/document.model';
-import { ManagementFeeType, PropertyLeaseType, normalizeManagementFeeTypeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
+import { ManagementFeeType, OwnerPaymentType, PropertyLeaseType, getOwnerPaymentTypes, normalizeManagementFeeTypeId, normalizeOwnerPaymentTypeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
 import { AgreementLineDisplay, PropertyAgreementLineRequest, PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 import { PropertyAgreementService } from '../services/property-agreement.service';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -60,6 +60,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   private newContactDialogService = inject(NewContactDialogService);
 
   readonly ManagementFeeType = ManagementFeeType;
+  readonly OwnerPaymentType = OwnerPaymentType;
+  readonly ownerPaymentTypeOptions = getOwnerPaymentTypes();
   agreementForm: FormGroup | null = null;
   agreementExists = false;
   isAgreementSaving = false;
@@ -282,6 +284,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: new FormControl(''),
       routingNumber: new FormControl(''),
       accountNumber: new FormControl(''),
+      ownerPaymentTypeId: new FormControl<OwnerPaymentType>(OwnerPaymentType.Ach),
       notes: new FormControl(''),
       insuranceExpiration: new FormControl<Date | null>(null),
       managementFeeMode: new FormControl<ManagementFeeType>(ManagementFeeType.FlatRate),
@@ -311,6 +314,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: '',
       routingNumber: '',
       accountNumber: '',
+      ownerPaymentTypeId: OwnerPaymentType.Ach,
       notes: '',
       insuranceExpiration: null,
       managementFeeMode: ManagementFeeType.FlatRate,
@@ -339,6 +343,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: data.bankName ?? '',
       routingNumber: data.routingNumber ?? '',
       accountNumber: data.accountNumber ?? '',
+      ownerPaymentTypeId: normalizeOwnerPaymentTypeId(data.ownerPaymentTypeId),
       notes: data.notes ?? '',
       insuranceExpiration: insuranceExpirationDate,
       managementFeeMode: this.mappingService.mapManagementFeeTypeIdFromApi(data.managementFeeTypeId),
@@ -704,6 +709,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: (v?.bankName || '').trim() || null,
       routingNumber: (v?.routingNumber || '').trim() || null,
       accountNumber: (v?.accountNumber || '').trim() || null,
+      ownerPaymentTypeId: normalizeOwnerPaymentTypeId(v?.ownerPaymentTypeId),
       agreementLines: this.mapAgreementLinesToRequest(),
       notes: (v?.notes || '').trim() || null,
       managementFeeTypeId: normalizeManagementFeeTypeId(v?.managementFeeMode),

@@ -376,3 +376,45 @@ export function normalizeManagementFeeTypeId(value: number | null | undefined): 
   return ManagementFeeType.FlatRate;
 }
 //#endregion
+
+//#region OwnerPaymentType
+export enum OwnerPaymentType {
+  Ach = 0,
+  Check = 1
+}
+
+export function getOwnerPaymentType(ownerPaymentTypeId: number | undefined): string {
+  if (ownerPaymentTypeId === undefined || ownerPaymentTypeId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [OwnerPaymentType.Ach]: 'ACH',
+    [OwnerPaymentType.Check]: 'Check'
+  };
+
+  return typeMap[ownerPaymentTypeId] || '';
+}
+
+export function getOwnerPaymentTypes(): { value: number; label: string }[] {
+  return Object.keys(OwnerPaymentType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: OwnerPaymentType[key as keyof typeof OwnerPaymentType],
+      label: getOwnerPaymentType(OwnerPaymentType[key as keyof typeof OwnerPaymentType])
+    }));
+}
+
+export function normalizeOwnerPaymentTypeId(value: number | null | undefined): OwnerPaymentType {
+  if (value === null || value === undefined) {
+    return OwnerPaymentType.Ach;
+  }
+
+  const n = Number(value);
+  if (n === OwnerPaymentType.Check) {
+    return OwnerPaymentType.Check;
+  }
+
+  return OwnerPaymentType.Ach;
+}
+//#endregion

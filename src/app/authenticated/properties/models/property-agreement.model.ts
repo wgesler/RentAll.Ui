@@ -72,6 +72,7 @@ export interface PropertyAgreementRequest {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  ownerPaymentTypeId: number;
   agreementLines?: PropertyAgreementLineRequest[] | null;
   notes?: string | null;
 }
@@ -98,6 +99,7 @@ export interface PropertyAgreementResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  ownerPaymentTypeId: number;
   agreementLines?: PropertyAgreementLineResponse[] | null;
   notes?: string | null;
 }

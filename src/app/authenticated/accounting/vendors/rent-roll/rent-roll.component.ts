@@ -21,7 +21,7 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PropertyAgreementLineResponse } from '../../../properties/models/property-agreement.model';
 import { PropertyAgreementLineRequest, PropertyAgreementRequest } from '../../../properties/models/property-agreement.model';
 import { PropertyAgreementService } from '../../../properties/services/property-agreement.service';
-import { ManagementFeeType } from '../../../properties/models/property-enums';
+import { ManagementFeeType, OwnerPaymentType } from '../../../properties/models/property-enums';
 import { RentRollCreateBillRequest, RentRollPropertyAgreement, RentRollRow, RentRollRowDisplay } from '../../models/rent-roll.model';
 import { RentRollEditLineDialogComponent, RentRollEditLineDialogData, RentRollEditLineDialogResult } from './rent-roll-edit-line-dialog.component';
 
@@ -424,6 +424,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
             propertyId,
             managementFeeTypeId: ManagementFeeType.FlatRate,
             flatRateAmount: 0,
+            ownerPaymentTypeId: OwnerPaymentType.Ach,
             agreementLines: [newLine]
           };
           this.propertyAgreementService.createPropertyAgreement(createPayload).pipe(take(1)).subscribe({
