@@ -620,13 +620,37 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   getUnpaidAccrualEntries(): { line: OwnerStatementPropertyActivityLineResponse; unpaidAmount: number }[] {
+    const collectedIncomeBySourceRef = this.buildCollectedIncomeBySourceRef();
+
     return (this.statementAccrualActivityLines || [])
-      .map(line => ({
-        line,
-        unpaidAmount: Math.max(0, (Number(line.expectedIncome) || 0) - (Number(line.receivedIncome) || 0))
-      }))
+      .map(line => {
+        const sourceRef = (line.sourceDocumentCode || '').trim().toLowerCase();
+        const expectedIncome = Number(line.expectedIncome) || 0;
+        const receivedIncome = Number(line.receivedIncome) || 0;
+        const collectedOnCash = sourceRef ? (collectedIncomeBySourceRef.get(sourceRef) || 0) : 0;
+        const unpaidAmount = Math.max(0, expectedIncome - Math.max(receivedIncome, collectedOnCash));
+        return { line, unpaidAmount };
+      })
       .filter(entry => entry.unpaidAmount > 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.line.activityDate, b.line.activityDate));
+  }
+
+  private buildCollectedIncomeBySourceRef(): Map<string, number> {
+    const collectedIncomeBySourceRef = new Map<string, number>();
+    (this.statementActivityLines || []).forEach(line => {
+      const sourceRef = (line.sourceDocumentCode || '').trim().toLowerCase();
+      const receivedIncome = Number(line.receivedIncome) || 0;
+      if (!sourceRef || receivedIncome === 0) {
+        return;
+      }
+
+      collectedIncomeBySourceRef.set(
+        sourceRef,
+        (collectedIncomeBySourceRef.get(sourceRef) || 0) + receivedIncome
+      );
+    });
+
+    return collectedIncomeBySourceRef;
   }
 
   buildChargeRow(
