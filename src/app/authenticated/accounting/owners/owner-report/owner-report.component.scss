@@ -51,14 +51,49 @@
 .owner-statement-layout--cash {
   --owner-report-label-col-width: 14.5rem;
   --owner-report-description-col-min-width: 28rem;
-  --owner-report-amount-col-width: 8.25rem;
+  --owner-report-amount-col-width: 10rem;
   --owner-report-label-description-gap: 2.5rem;
-  --owner-report-amount-col-padding-inline: 0.6rem;
-  --owner-report-panel-max-width: 88rem;
+  --owner-report-amount-col-padding-inline: 0.75rem;
+
+  .owner-statement-report-frame {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .owner-statement-panel {
+    justify-content: stretch;
+  }
+
+  .owner-statement-panel-inner {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .owner-statement-table-wrap {
+    overflow-x: hidden;
+  }
+
+  .owner-statement-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .owner-statement-col-item-description {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .owner-statement-item-description-wrap {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
-.owner-statement-layout--cash .owner-statement-col-item-description,
-.owner-statement-layout--cash .owner-statement-table--content-sized .owner-statement-col-item-description {
+.owner-statement-layout--cash .owner-statement-col-item-description {
   max-width: none;
 }
 

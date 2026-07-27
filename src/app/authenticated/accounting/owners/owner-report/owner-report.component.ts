@@ -792,13 +792,6 @@ seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse 
       && this.ownerReportsCacheService.matchesOwnerReportSearchRequest(request);
   }
 
-  get panelMaxWidthCss(): string {
-    if (this.visibleRows.length === 0) {
-      return '48rem';
-    }
-    return '88rem';
-  }
-
   onCashReportToggleChange(checked: boolean): void {
     this.reportKindChange.emit(checked ? 'cash' : 'accrual');
   }
