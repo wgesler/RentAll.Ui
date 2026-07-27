@@ -50,7 +50,7 @@
       }
       @if (visibleRows.length === 0) {
         <div class="owner-statement-empty-state">
-          <p>No owner statement activity for the selected filters.</p>
+          <p>{{ emptyStateMessage }}</p>
         </div>
       } @else {
         <div

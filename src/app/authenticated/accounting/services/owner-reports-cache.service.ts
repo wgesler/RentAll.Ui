@@ -40,14 +40,19 @@ export class OwnerReportsCacheService {
       });
     }
 
-    return this.reportService.searchOwnerReports(request).pipe(
+    const apiRequest: OwnerReportSearchRequest = {
+      ...request,
+      propertyId: null
+    };
+
+    return this.reportService.searchOwnerReports(apiRequest).pipe(
       tap(bundle => {
         this.cashReport = bundle.cash;
         this.accrualReport = bundle.accrual;
         this.recapReport = bundle.recap;
         this.cacheCriteria = {
           officeIds: [...request.officeIds].sort((left, right) => left - right),
-          propertyId: (request.propertyId || '').trim() || null,
+          propertyId: null,
           startDate: request.startDate || null,
           endDate: request.endDate || null
         };
@@ -87,7 +92,7 @@ export class OwnerReportsCacheService {
     };
   }
 
-  matchesOwnerReportSearchRequest(request: OwnerReportSearchRequest): boolean {
+  matchesOwnerReportBundleScope(request: OwnerReportSearchRequest): boolean {
     if (!this.cacheCriteria) {
       return false;
     }
@@ -102,14 +107,13 @@ export class OwnerReportsCacheService {
       return false;
     }
 
-    const propertyId = (request.propertyId || '').trim() || null;
-    if (propertyId !== this.cacheCriteria.propertyId) {
-      return false;
-    }
-
     const startDate = request.startDate || null;
     const endDate = request.endDate || null;
     return startDate === this.cacheCriteria.startDate && endDate === this.cacheCriteria.endDate;
+  }
+
+  matchesOwnerReportSearchRequest(request: OwnerReportSearchRequest): boolean {
+    return this.matchesOwnerReportBundleScope(request);
   }
 
   matchesRecapSearchRequest(request: JournalEntryRecapSearchRequest): boolean {
@@ -131,11 +135,6 @@ export class OwnerReportsCacheService {
     }
 
     if (!officeIds.every(id => this.cacheCriteria!.officeIds.includes(id))) {
-      return false;
-    }
-
-    const propertyId = (request.propertyId || '').trim() || null;
-    if (propertyId !== this.cacheCriteria.propertyId) {
       return false;
     }
 
@@ -182,7 +181,7 @@ export class EscrowReportCacheService {
 
     return this.reportService.searchEscrowReport({
       officeIds,
-      propertyId: request.propertyId ?? null,
+      propertyId: null,
       startDate: null,
       endDate,
       cushion: request.cushion ?? 0
@@ -191,7 +190,7 @@ export class EscrowReportCacheService {
         this.report = report;
         this.cacheCriteria = {
           officeIds: [...officeIds].sort((left, right) => left - right),
-          propertyId: (request.propertyId || '').trim() || null,
+          propertyId: null,
           endDate
         };
       })
@@ -219,11 +218,6 @@ export class EscrowReportCacheService {
     if (officeIds.length === 0
       || officeIds.length !== this.cacheCriteria.officeIds.length
       || !officeIds.every((id, index) => id === this.cacheCriteria!.officeIds[index])) {
-      return false;
-    }
-
-    const propertyId = (request.propertyId || '').trim() || null;
-    if (propertyId !== this.cacheCriteria.propertyId) {
       return false;
     }
 

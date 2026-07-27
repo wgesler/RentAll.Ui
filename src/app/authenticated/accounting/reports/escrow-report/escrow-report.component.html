@@ -107,6 +107,7 @@
                 class="escrow-report-summary-input escrow-report-summary-input--cushion"
                 type="number"
                 step="0.01"
+                min="0"
                 [ngModel]="cushionInput"
                 (ngModelChange)="onCushionChange($event)">
             </div>

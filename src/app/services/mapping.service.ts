@@ -2571,6 +2571,30 @@ resolveWorkOrderTitle(
     };
   }
 
+  filterOwnerReportSummariesByProperty(
+    summaries: OwnerStatementResponse[],
+    propertyId?: string | null
+  ): OwnerStatementResponse[] {
+    const selectedPropertyId = (propertyId || '').trim();
+    if (!selectedPropertyId) {
+      return summaries || [];
+    }
+
+    return (summaries || []).filter(row => (row.propertyId || '').trim() === selectedPropertyId);
+  }
+
+  filterOwnerReportPropertyActivityLinesByProperty(
+    lines: OwnerStatementPropertyActivityLineResponse[],
+    propertyId?: string | null
+  ): OwnerStatementPropertyActivityLineResponse[] {
+    const selectedPropertyId = (propertyId || '').trim();
+    if (!selectedPropertyId) {
+      return lines || [];
+    }
+
+    return (lines || []).filter(line => (line.propertyId || '').trim() === selectedPropertyId);
+  }
+
   mapOwnerReportOfficeGroups(reports: OwnerStatementResponse[]): OwnerStatementOfficeGroup[] {
     const officeMap = new Map<string, { officeId: number; officeName: string; properties: OwnerStatementPropertyRow[] }>();
     (reports || []).forEach(report => {
@@ -6254,8 +6278,8 @@ roundCurrency(value: number): number {
       { arBalance: 0, prepaids: 0, notCollected: 0, total: 0, e2: 0 }
     );
 
-    const cushion = this.roundFinancialReportAmount(Number(request.cushion) || 0);
-    const escrowBankBalance = this.roundFinancialReportAmount(Number(request.escrowBankBalance) || 0);
+    const cushion = this.normalizeEscrowOwnerEscrowAmount(Number(request.cushion) || 0);
+    const escrowBankBalance = this.normalizeEscrowOwnerEscrowAmount(Number(request.escrowBankBalance) || 0);
     const officeName = (request.officeName || '').trim();
 
     return {
@@ -6268,16 +6292,60 @@ roundCurrency(value: number): number {
       escrowBankBalance,
       escrowBankAccountLabel: (request.escrowBankAccountLabel || '').trim() || 'Escrow Owners',
       escrowOfficeBalances: [],
-      transfer: this.roundFinancialReportAmount(escrowBankBalance + totals.total - cushion)
+      transfer: this.calculateEscrowTransferAmount(escrowBankBalance, totals.e2, cushion)
     };
   }
 
   recalculateEscrowTransfer(result: EscrowReportResult, cushion: number): EscrowReportResult {
-    const nextCushion = this.roundFinancialReportAmount(Number(cushion) || 0);
+    const nextCushion = this.normalizeEscrowOwnerEscrowAmount(cushion);
+    const ownerEscrowBalance = this.normalizeEscrowOwnerEscrowAmount(result.escrowBankBalance);
     return {
       ...result,
       cushion: nextCushion,
-      transfer: this.roundFinancialReportAmount(result.escrowBankBalance + result.totals.total - nextCushion)
+      escrowBankBalance: ownerEscrowBalance,
+      transfer: this.calculateEscrowTransferAmount(ownerEscrowBalance, result.totals.e2, nextCushion)
+    };
+  }
+
+  normalizeEscrowOwnerEscrowAmount(value: number): number {
+    return this.roundFinancialReportAmount(Math.abs(Number(value) || 0));
+  }
+
+  calculateEscrowTransferAmount(escrowBankBalance: number, e2Total: number, cushion: number): number {
+    const ownerEscrow = this.normalizeEscrowOwnerEscrowAmount(escrowBankBalance);
+    const e2 = this.roundFinancialReportAmount(Number(e2Total) || 0);
+    const ownerEscrowReserve = this.normalizeEscrowOwnerEscrowAmount(cushion);
+    return this.roundFinancialReportAmount(ownerEscrow - (e2 + ownerEscrowReserve));
+  }
+
+  filterEscrowReportByProperty(report: EscrowReportResult, propertyId?: string | null): EscrowReportResult {
+    const selectedPropertyId = (propertyId || '').trim();
+    if (!selectedPropertyId) {
+      return report;
+    }
+
+    const rows = (report.rows || []).filter(row => (row.propertyId || '').trim() === selectedPropertyId);
+    const totals = rows.reduce(
+      (acc, row) => ({
+        arBalance: this.roundFinancialReportAmount(acc.arBalance + row.arBalance),
+        prepaids: this.roundFinancialReportAmount(acc.prepaids + row.prepaids),
+        notCollected: this.roundFinancialReportAmount(acc.notCollected + row.notCollected),
+        total: this.roundFinancialReportAmount(acc.total + row.total),
+        e2: this.roundFinancialReportAmount(acc.e2 + row.e2)
+      }),
+      { arBalance: 0, prepaids: 0, notCollected: 0, total: 0, e2: 0 }
+    );
+
+    const ownerEscrowBalance = this.normalizeEscrowOwnerEscrowAmount(report.escrowBankBalance);
+    const cushion = this.normalizeEscrowOwnerEscrowAmount(report.cushion);
+
+    return {
+      ...report,
+      rows,
+      totals,
+      escrowBankBalance: ownerEscrowBalance,
+      cushion,
+      transfer: this.calculateEscrowTransferAmount(ownerEscrowBalance, totals.e2, cushion)
     };
   }
 
@@ -6292,6 +6360,16 @@ roundCurrency(value: number): number {
     );
     const totalsRaw = (raw['totals'] ?? raw['Totals'] ?? {}) as Record<string, unknown>;
 
+    const totals = {
+        arBalance: this.roundFinancialReportAmount(Number(totalsRaw['arBalance'] ?? totalsRaw['ArBalance'] ?? 0)),
+        prepaids: this.roundFinancialReportAmount(Number(totalsRaw['prepaids'] ?? totalsRaw['Prepaids'] ?? 0)),
+        notCollected: this.roundFinancialReportAmount(Number(totalsRaw['notCollected'] ?? totalsRaw['NotCollected'] ?? 0)),
+        total: this.roundFinancialReportAmount(Number(totalsRaw['total'] ?? totalsRaw['Total'] ?? 0)),
+        e2: this.roundFinancialReportAmount(Number(totalsRaw['e2'] ?? totalsRaw['E2'] ?? 0))
+      };
+    const cushion = this.normalizeEscrowOwnerEscrowAmount(Number(raw['cushion'] ?? raw['Cushion'] ?? 0));
+    const escrowBankBalance = this.normalizeEscrowOwnerEscrowAmount(Number(raw['escrowBankBalance'] ?? raw['EscrowBankBalance'] ?? 0));
+
     return {
       reportTitle: String(raw['reportTitle'] ?? raw['ReportTitle'] ?? 'Escrow Report'),
       periodLabel: String(raw['periodLabel'] ?? raw['PeriodLabel'] ?? ''),
@@ -6300,18 +6378,12 @@ roundCurrency(value: number): number {
         return value || null;
       })(),
       rows,
-      totals: {
-        arBalance: this.roundFinancialReportAmount(Number(totalsRaw['arBalance'] ?? totalsRaw['ArBalance'] ?? 0)),
-        prepaids: this.roundFinancialReportAmount(Number(totalsRaw['prepaids'] ?? totalsRaw['Prepaids'] ?? 0)),
-        notCollected: this.roundFinancialReportAmount(Number(totalsRaw['notCollected'] ?? totalsRaw['NotCollected'] ?? 0)),
-        total: this.roundFinancialReportAmount(Number(totalsRaw['total'] ?? totalsRaw['Total'] ?? 0)),
-        e2: this.roundFinancialReportAmount(Number(totalsRaw['e2'] ?? totalsRaw['E2'] ?? 0))
-      },
-      cushion: this.roundFinancialReportAmount(Number(raw['cushion'] ?? raw['Cushion'] ?? 0)),
-      escrowBankBalance: this.roundFinancialReportAmount(Number(raw['escrowBankBalance'] ?? raw['EscrowBankBalance'] ?? 0)),
+      totals,
+      cushion,
+      escrowBankBalance,
       escrowBankAccountLabel: String(raw['escrowBankAccountLabel'] ?? raw['EscrowBankAccountLabel'] ?? 'Escrow Owners').trim() || 'Escrow Owners',
       escrowOfficeBalances: this.mapEscrowOfficeBalances(raw['escrowOfficeBalances'] ?? raw['EscrowOfficeBalances']),
-      transfer: this.roundFinancialReportAmount(Number(raw['transfer'] ?? raw['Transfer'] ?? 0))
+      transfer: this.calculateEscrowTransferAmount(escrowBankBalance, totals.e2, cushion)
     };
   }
 
@@ -6327,7 +6399,7 @@ roundCurrency(value: number): number {
         accountId: Number(balance['accountId'] ?? balance['AccountId'] ?? 0),
         accountNo: String(balance['accountNo'] ?? balance['AccountNo'] ?? '').trim(),
         accountName: String(balance['accountName'] ?? balance['AccountName'] ?? '').trim(),
-        balance: this.roundFinancialReportAmount(Number(balance['balance'] ?? balance['Balance'] ?? 0))
+        balance: this.normalizeEscrowOwnerEscrowAmount(Number(balance['balance'] ?? balance['Balance'] ?? 0))
       };
     });
   }

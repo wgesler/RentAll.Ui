@@ -39,7 +39,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   isPageReady = false;
   isServiceError = false;
   companyName = '';
-  noDataMessage = 'No owner statement lines matched the current filters.';
+  noDataMessage = 'Press Go to run the report.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
   readonly ownerStatementDisplayedColumns: ColumnSet = {
@@ -67,7 +67,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
+    if (changes['isLoading'] || changes['refreshTrigger']
+      || (changes['searchRequest'] && !changes['searchRequest'].firstChange)) {
       this.loadOwnerStatementList();
     }
   }
@@ -111,7 +112,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   loadOwnerStatementList(): void {
     if (this.isLoading) {
-      this.clearOwnerStatementDisplay();
+      this.markViewForCheck();
       return;
     }
 
@@ -124,19 +125,35 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
-    const cashReport = this.ownerReportsCacheService.getCashReport();
-    if (!cashReport) {
+    if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(
+      this.mappingService.mapOwnerReportSearchRequest(this.searchRequest)
+    )) {
       this.lines = [];
+      this.noDataMessage = 'Press Go to run the report.';
       this.isServiceError = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
       this.markViewForCheck();
       return;
     }
 
+    const cashReport = this.ownerReportsCacheService.getCashReport();
+    if (!cashReport) {
+      this.lines = [];
+      this.noDataMessage = 'Press Go to run the report.';
+      this.isServiceError = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
+      this.markViewForCheck();
+      return;
+    }
+
+    this.noDataMessage = 'No owner statement lines matched the current filters.';
     this.isServiceError = false;
-    this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(
-      this.mappingService.mapOwnerCashReportToMonthLines(cashReport, request)
-    );
+    let monthLines = this.mappingService.mapOwnerCashReportToMonthLines(cashReport, request);
+    const propertyId = (request.propertyId || '').trim();
+    if (propertyId) {
+      monthLines = monthLines.filter(line => (line.propertyId || '').trim() === propertyId);
+    }
+    this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(monthLines);
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
     this.markViewForCheck();
   }

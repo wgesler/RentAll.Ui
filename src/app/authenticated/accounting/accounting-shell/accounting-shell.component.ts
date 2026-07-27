@@ -65,7 +65,7 @@ import { EscrowReportComponent } from '../reports/escrow-report/escrow-report.co
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { AP_AGING_SORT_BY_OPTIONS, ApAgingReportFilters, ApAgingSortBy, normalizeApAgingThroughDays, resolveApAgingAsOfDate } from '../models/ap-aging-report.model';
 import { RentRollComponent } from '../vendors/rent-roll/rent-roll.component';
-import { OwnerReportComponent } from '../owners/owner-report/owner-report.component';
+import { OwnerReportComponent, clearOwnerReportKindCache } from '../owners/owner-report/owner-report.component';
 import { OwnerStatementCreateComponent } from '../owners/owner-statement-create/owner-statement-create.component';
 import { OwnerStatementListComponent } from '../owners/owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellInvoiceKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
@@ -91,6 +91,7 @@ import { SecurityDepositsListComponent } from '../bank/security-deposits-list/se
 import { SecurityDepositReportComponent } from '../bank/security-deposit-report/security-deposit-report.component';
 import { SecurityDepositReportSelection } from '../models/security-deposit-report.model';
 import { OwnerReportsCacheService, EscrowReportCacheService } from '../services/owner-reports-cache.service';
+import { OwnerReportSearchRequest } from '../models/owner-report.model';
 import { EscrowReportAmountDrillDownSelection, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 type JournalEntrySyncProgressKey =
@@ -476,6 +477,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   isArAgingDrillDownActive = false;
   isApAgingDrillDownActive = false;
   isOwnerReportsLoading = false;
+  private isOwnerReportsApiLoading = false;
+  private ownerBundleAwaitingManualGo = false;
+  private escrowReportAwaitingManualGo = false;
+  private ownerViewLoadingFlashTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private readonly ownerViewLoadingFlashMs = 350;
 
   destroy$ = new Subject<void>();
 
@@ -536,17 +542,22 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       });
     }
     this.applyQueryParamState(this.route.snapshot.queryParams);
-    if (!this.startDate && !this.endDate) {
+    if (!this.dateRangePinned) {
       if (
         this.selectedTabIndex === this.tabReports
         && this.selectedReportKind === 'balanceSheet'
-        && !this.dateRangePinned
+        && !this.startDate
+        && !this.endDate
       ) {
         this.applyBalanceSheetReportDefaults();
+        this.publishDateRangeState();
       } else {
-        this.applyDefaultDateRangeIfBothEmpty();
+        const snapshotParams = this.route.snapshot.queryParams;
+        const urlHadExplicitDates = 'startDate' in snapshotParams || 'endDate' in snapshotParams;
+        if (!urlHadExplicitDates && this.startDate && this.endDate) {
+          this.publishDateRangeState();
+        }
       }
-      this.publishDateRangeState();
     }
 
     this.syncArAgingReportFilters();
@@ -2544,6 +2555,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       queryParamsHandling: 'merge'
     });
     this.persistPinnedTopBarIfActive();
+    this.tryAutoRunOwnerReportIfEmpty();
   }
 
   selectInvoiceKind(kind: AccountingShellInvoiceKind): void {
@@ -2704,11 +2716,17 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     if (previousTab !== this.tabOwners) {
+      if (this.shouldFlashOwnerViewLoading(kind)) {
+        this.flashOwnerViewLoading();
+      }
       this.onTabChange({ index: this.tabOwners });
       return;
     }
 
     if (kindChanged) {
+      if (this.shouldFlashOwnerViewLoading(kind)) {
+        this.flashOwnerViewLoading();
+      }
       this.refreshActiveOwnerView();
       this.router.navigate([], {
         relativeTo: this.route,
@@ -2746,6 +2764,9 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
 
     if (kind !== 'recap') {
       this.refreshGeneralLedgerListView();
+    } else {
+      this.generalLedgerRefreshTrigger++;
+      this.tryAutoRunOwnerReportIfEmpty();
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -2888,6 +2909,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     if (this.usesGeneralLedgerTitleBarFilters()) {
       this.refreshGeneralLedgerListView();
     }
+    this.tryAutoRunOwnerReportIfEmpty();
     this.cdr.markForCheck();
   }
 
@@ -2909,6 +2931,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       if (this.escrowReportCacheService.isLoaded()) {
         this.ownersStatementsRefreshTrigger++;
       }
+      this.tryAutoRunOwnerReportIfEmpty();
       return;
     }
     if (this.isOwnerReportView(this.selectedOwnerKind)
@@ -2916,9 +2939,50 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       if (this.ownerReportsCacheService.isBundleLoaded()) {
         this.ownersStatementsRefreshTrigger++;
       }
+      this.tryAutoRunOwnerReportIfEmpty();
       return;
     }
     this.ownersStatementsRefreshTrigger++;
+    this.tryAutoRunOwnerReportIfEmpty();
+  }
+
+  isOwnerReportGoViewEmpty(): boolean {
+    if (this.isOwnerEscrowViewActive) {
+      return !this.escrowReportCacheService.isLoaded();
+    }
+
+    return !this.ownerReportsCacheService.isBundleLoaded();
+  }
+
+  hasOwnerReportGoRunCriteria(): boolean {
+    this.syncOwnerReportsBundleSearchRequest();
+
+    if (this.billsSearchRequest.officeIds.length === 0) {
+      return false;
+    }
+
+    const startDate = this.billsSearchRequest.startDate;
+    const endDate = this.billsSearchRequest.endDate;
+    if (this.selectedTabIndex === this.tabOwners && this.usesAccountingShellAsOfDateReport()) {
+      return !!endDate;
+    }
+
+    return !!(startDate && endDate && startDate <= endDate);
+  }
+
+  tryAutoRunOwnerReportIfEmpty(): void {
+    const awaitingManualGo = this.isOwnerEscrowViewActive
+      ? this.escrowReportAwaitingManualGo
+      : this.ownerBundleAwaitingManualGo;
+    if (!this.showOwnerReportGoButton
+      || awaitingManualGo
+      || this.isOwnerReportsApiLoading
+      || !this.isOwnerReportGoViewEmpty()
+      || !this.hasOwnerReportGoRunCriteria()) {
+      return;
+    }
+
+    this.onOwnerReportGoClick();
   }
 
   onOwnerStatementReportKindChange(kind: OwnerStatementReportKind): void {
@@ -2927,6 +2991,8 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     this.selectedOwnerStatementReportKind = kind;
+    this.flashOwnerViewLoading();
+    this.refreshActiveOwnerView();
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.buildShellQueryParams({ ownerReport: kind }),
@@ -2935,7 +3001,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
   }
 
   onOwnerReportGoClick(): void {
-    if (!this.showOwnerReportGoButton || this.isOwnerReportsLoading) {
+    if (!this.showOwnerReportGoButton || this.isOwnerReportsApiLoading) {
       return;
     }
     this.syncOwnerReportsBundleSearchRequest();
@@ -2953,6 +3019,8 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
         this.cdr.markForCheck();
         return;
       }
+      this.ownerBundleAwaitingManualGo = false;
+      this.escrowReportAwaitingManualGo = false;
       this.loadEscrowReport();
       return;
     } else if (!startDate || !endDate || startDate > endDate) {
@@ -2962,7 +3030,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       return;
     }
 
+    this.ownerBundleAwaitingManualGo = false;
     this.ownerReportsCacheService.clear();
+    clearOwnerReportKindCache();
+    this.isOwnerReportsApiLoading = true;
     this.isOwnerReportsLoading = true;
     this.ownersStatementsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
@@ -2970,6 +3041,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     this.ownerReportsCacheService.load(this.billsSearchRequest).pipe(
       take(1),
       finalize(() => {
+        this.isOwnerReportsApiLoading = false;
         this.isOwnerReportsLoading = false;
         this.syncEscrowDatesFromBillsSearchRequest();
         this.ownersStatementsRefreshTrigger++;
@@ -2979,6 +3051,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     ).subscribe({
       error: (error: HttpErrorResponse) => {
         this.ownerReportsCacheService.clear();
+        this.ownerBundleAwaitingManualGo = true;
         const message = this.utilityService.extractApiErrorMessage(error);
         if (/timeout/i.test(message)) {
           this.toastr.error(
@@ -3001,6 +3074,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     this.escrowReportCacheService.clear();
+    this.isOwnerReportsApiLoading = true;
     this.isOwnerReportsLoading = true;
     this.ownersStatementsRefreshTrigger++;
     this.cdr.markForCheck();
@@ -3011,13 +3085,19 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }).pipe(
       take(1),
       finalize(() => {
+        this.isOwnerReportsApiLoading = false;
         this.isOwnerReportsLoading = false;
         this.ownersStatementsRefreshTrigger++;
         this.cdr.markForCheck();
       })
     ).subscribe({
+      next: () => {
+        this.ownersStatementsRefreshTrigger++;
+        this.cdr.markForCheck();
+      },
       error: (error: HttpErrorResponse) => {
         this.escrowReportCacheService.clear();
+        this.escrowReportAwaitingManualGo = true;
         const message = this.utilityService.extractApiErrorMessage(error);
         if (/timeout/i.test(message)) {
           this.toastr.error(
@@ -3348,9 +3428,21 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
     };
   }
 
-  syncBillsSearchRequest(): void {
-    const officeIds = this.resolveOfficeIdsForBillsSearch();
-    const startDate = this.resolveShellSearchStartDateApi();
+  usesOwnerReportsBundleOfficeScope(): boolean {
+    return (this.selectedTabIndex === this.tabOwners
+      && (this.isOwnerReportView(this.selectedOwnerKind)
+        || this.selectedOwnerKind === 'ownerStatements'
+        || this.selectedOwnerKind === 'escrow'))
+      || (this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap');
+  }
+
+  syncBillsSearchRequest(options?: { ownerBundleInvalidateRequiresManualGo?: boolean }): void {
+    const officeIds = this.usesOwnerReportsBundleOfficeScope()
+      ? this.resolveOfficeIdsForOwnerReportsSearch()
+      : this.resolveOfficeIdsForBillsSearch();
+    const startDate = this.usesOwnerReportsBundleOfficeScope()
+      ? this.utilityService.formatDateOnlyForApi(this.startDate)
+      : this.resolveShellSearchStartDateApi();
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
     let propertyId: string | null = null;
 
@@ -3360,19 +3452,6 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       propertyId = this.selectedGlPropertyId;
     }
 
-    const bundleRequest = this.ownerReportsCacheService.getBundleSearchRequest();
-    const preserveBundleScope = this.ownerReportsCacheService.isBundleLoaded() && bundleRequest
-      && startDate === bundleRequest.startDate
-      && endDate === bundleRequest.endDate
-      && (this.selectedTabIndex === this.tabOwners
-        || (this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap'))
-      && (this.selectedTabIndex !== this.tabOwners
-        || (this.selectedBillsPropertyId || null) === bundleRequest.propertyId);
-
-    if (preserveBundleScope) {
-      propertyId = bundleRequest.propertyId;
-    }
-
     this.billsSearchRequest = {
       officeIds,
       propertyId: propertyId || null,
@@ -3380,6 +3459,82 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       endDate
     };
     this.syncPaymentSearchRequest();
+    this.invalidateOwnerReportCachesIfNeeded(options);
+  }
+
+  buildOwnerReportsBundleScopeRequest(): OwnerReportSearchRequest {
+    return {
+      officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
+      propertyId: null,
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  buildEscrowReportScopeRequest(): { officeIds: number[]; endDate: string | null } {
+    return {
+      officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  invalidateOwnerReportCachesIfNeeded(options?: { ownerBundleInvalidateRequiresManualGo?: boolean }): void {
+    let invalidatedOwnerBundle = false;
+    let invalidatedEscrow = false;
+
+    if (this.ownerReportsCacheService.isBundleLoaded()) {
+      if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(this.buildOwnerReportsBundleScopeRequest())) {
+        this.ownerReportsCacheService.clear();
+        clearOwnerReportKindCache();
+        invalidatedOwnerBundle = true;
+      }
+    }
+
+    if (this.escrowReportCacheService.isLoaded()) {
+      if (!this.escrowReportCacheService.matchesSearchRequest(this.buildEscrowReportScopeRequest())) {
+        this.escrowReportCacheService.clear();
+        invalidatedEscrow = true;
+      }
+    }
+
+    if (invalidatedOwnerBundle && (options?.ownerBundleInvalidateRequiresManualGo ?? true)) {
+      this.ownerBundleAwaitingManualGo = true;
+    }
+    if (invalidatedEscrow && (options?.ownerBundleInvalidateRequiresManualGo ?? true)) {
+      this.escrowReportAwaitingManualGo = true;
+    }
+    if (invalidatedOwnerBundle || invalidatedEscrow) {
+      this.ownersStatementsRefreshTrigger++;
+      this.cdr.markForCheck();
+    }
+  }
+
+  shouldFlashOwnerViewLoading(kind: AccountingShellOwnerKind): boolean {
+    return kind === 'ownerStatements'
+      || kind === 'escrow'
+      || this.isOwnerReportView(kind);
+  }
+
+  flashOwnerViewLoading(): void {
+    if (this.isOwnerReportsApiLoading) {
+      return;
+    }
+
+    if (this.ownerViewLoadingFlashTimeoutId != null) {
+      clearTimeout(this.ownerViewLoadingFlashTimeoutId);
+      this.ownerViewLoadingFlashTimeoutId = null;
+    }
+
+    this.isOwnerReportsLoading = true;
+    this.cdr.markForCheck();
+    this.ownerViewLoadingFlashTimeoutId = setTimeout(() => {
+      this.ownerViewLoadingFlashTimeoutId = null;
+      if (!this.isOwnerReportsApiLoading) {
+        this.isOwnerReportsLoading = false;
+        this.cdr.markForCheck();
+      }
+      this.tryAutoRunOwnerReportIfEmpty();
+    }, this.ownerViewLoadingFlashMs);
   }
 
   syncPaymentSearchRequest(): void {
@@ -4941,11 +5096,17 @@ captureOwnerStatementReturnContext(): void {
     const endDateParam = getStringQueryParam(params, 'endDate');
     const asOfDateParam = getStringQueryParam(params, 'asOfDate');
     const asOfStartParam = getStringQueryParam(params, 'asOfStart');
-    if (startDateParam || endDateParam) {
+    const hasStartDateParam = 'startDate' in params;
+    const hasEndDateParam = 'endDate' in params;
+    if (hasStartDateParam || hasEndDateParam) {
       const previousStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
       const previousEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-      this.startDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(startDateParam));
-      this.endDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(endDateParam));
+      if (hasStartDateParam) {
+        this.startDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(startDateParam));
+      }
+      if (hasEndDateParam) {
+        this.endDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(endDateParam));
+      }
       this.normalizeDateRangeValues();
       if (this.dateRangePinned) {
         this.persistPinnedDateRange();
@@ -4955,7 +5116,7 @@ captureOwnerStatementReturnContext(): void {
       const datesChanged = previousStartDate !== nextStartDate || previousEndDate !== nextEndDate;
       if (datesChanged) {
         this.syncInvoiceSearchDateRange();
-        this.syncBillsSearchRequest();
+        this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
         if (this.selectedTabIndex >= 1 && this.selectedTabIndex <= this.tabGeneralLedger) {
           queueMicrotask(() => {
             this.billsRefreshTrigger++;
@@ -5005,7 +5166,13 @@ captureOwnerStatementReturnContext(): void {
 
     if (activateBalanceSheetDefaults) {
       this.applyBalanceSheetReportDefaults();
+      this.publishDateRangeState();
+    } else if (this.applyShellInitialDateRangeDefaults()) {
+      this.syncInvoiceSearchDateRange();
+      this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
     }
+
+    this.tryAutoRunOwnerReportIfEmpty();
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
@@ -5060,18 +5227,39 @@ captureOwnerStatementReturnContext(): void {
     return new Date(value.getFullYear(), value.getMonth(), value.getDate());
   }
 
-  applyDefaultDateRangeIfBothEmpty(): void {
-    if (this.startDate || this.endDate) {
-      return;
+  shouldApplyShellCurrentMonthDateDefaults(): boolean {
+    if (this.dateRangePinned) {
+      return false;
+    }
+
+    if (this.selectedTabIndex === this.tabReports && this.selectedReportKind === 'balanceSheet') {
+      return false;
+    }
+
+    return !this.startDate || !this.endDate;
+  }
+
+  applyShellInitialDateRangeDefaults(): boolean {
+    if (!this.shouldApplyShellCurrentMonthDateDefaults()) {
+      return false;
     }
 
     const today = new Date();
-    this.startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    this.endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    this.startDate.setHours(0, 0, 0, 0);
-    this.endDate.setHours(0, 0, 0, 0);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    monthStart.setHours(0, 0, 0, 0);
+    monthEnd.setHours(0, 0, 0, 0);
+
+    if (!this.startDate) {
+      this.startDate = monthStart;
+    }
+    if (!this.endDate) {
+      this.endDate = monthEnd;
+    }
+
     this.shellStartDateNeedsEntry = false;
     this.shellEndDateNeedsEntry = false;
+    return true;
   }
 
   applyBalanceSheetReportDefaults(): void {
@@ -5438,6 +5626,10 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
   }
 
   ngOnDestroy(): void {
+    if (this.ownerViewLoadingFlashTimeoutId != null) {
+      clearTimeout(this.ownerViewLoadingFlashTimeoutId);
+      this.ownerViewLoadingFlashTimeoutId = null;
+    }
     this.releaseRentRollTransitionLock();
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();

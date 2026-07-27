@@ -81,8 +81,11 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   ngOnChanges(changes: SimpleChanges): void {
     if (
       changes['isLoading']
-      || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
+      || changes['refreshTrigger']
       || (changes['bundleSearchRequest'] && !changes['bundleSearchRequest'].firstChange)
+      || (changes['propertyId'] && !changes['propertyId'].firstChange)
+      || (changes['officeId'] && !changes['officeId'].firstChange)
+      || (changes['reservationId'] && !changes['reservationId'].firstChange)
     ) {
       this.loadRecapLines();
     }
@@ -196,7 +199,7 @@ toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLin
     }
 
     const bundleRequest = this.mappingService.mapOwnerReportSearchRequest(this.bundleSearchRequest);
-    if (!this.ownerReportsCacheService.matchesOwnerReportSearchRequest(bundleRequest)) {
+    if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(bundleRequest)) {
       this.isServiceError = false;
       this.rowsDisplay = [];
       this.noActivityMessage = 'Press Go to run the report.';

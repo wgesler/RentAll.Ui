@@ -22,6 +22,10 @@ interface OwnerReportKindCache {
 
 const ownerReportKindCache = new Map<OwnerReportKind, OwnerReportKindCache>();
 
+export function clearOwnerReportKindCache(): void {
+  ownerReportKindCache.clear();
+}
+
 @Component({
   selector: 'app-owner-report',
   standalone: true,
@@ -52,6 +56,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   isPageReady = false;
   isServiceError = false;
+  awaitingGoRun = false;
+  emptyStateMessage = 'No owner statement activity for the selected filters.';
   companyName = '';
   ownerReports: OwnerReportResponse[] = [];
   ownerReportOfficeGroups: OwnerReportOfficeGroup[] = [];
@@ -77,7 +83,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
+    if (changes['isLoading'] || changes['refreshTrigger']
+      || (changes['searchRequest'] && !changes['searchRequest'].firstChange)) {
       this.loadOwnerReports();
     }
 
@@ -112,9 +119,13 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   writeOwnerReportCache(kind: OwnerReportKind): void {
+    const existing = ownerReportKindCache.get(kind);
+    if (!existing) {
+      return;
+    }
+
     ownerReportKindCache.set(kind, {
-      ownerReports: [...this.ownerReports],
-      propertyActivityLinesRaw: [...this.propertyActivityLinesRaw],
+      ...existing,
       expandedRowIds: Array.from(this.expandedRowIds),
       officeReadyToCloseRowIds: Array.from(this.officeReadyToCloseRowIds),
       isServiceError: this.isServiceError,
@@ -131,9 +142,16 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.ownerReports = [...cached.ownerReports];
+    const propertyId = this.getSelectedPropertyId();
+    const ownerReports = this.mappingService.filterOwnerReportSummariesByProperty(cached.ownerReports, propertyId);
+    const propertyActivityLinesRaw = this.mappingService.filterOwnerReportPropertyActivityLinesByProperty(
+      cached.propertyActivityLinesRaw,
+      propertyId
+    );
+
+    this.ownerReports = ownerReports;
     this.ownerReportOfficeGroups = this.mappingService.mapOwnerReportOfficeGroups(this.ownerReports);
-    this.propertyActivityLinesRaw = [...cached.propertyActivityLinesRaw];
+    this.propertyActivityLinesRaw = propertyActivityLinesRaw;
     this.applyPropertyActivityLines(this.propertyActivityLinesRaw);
     this.expandedRowIds = new Set(cached.expandedRowIds);
     this.officeReadyToCloseRowIds = new Set(cached.officeReadyToCloseRowIds);
@@ -159,8 +177,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   loadOwnerReports(): void {
     if (this.isLoading) {
-      ownerReportKindCache.clear();
-      this.clearOwnerReportData();
+      this.markViewForCheck();
       return;
     }
 
@@ -179,12 +196,17 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (!this.ownerReportsCacheService.matchesOwnerReportSearchRequest(request)) {
+    if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(request)) {
+      this.awaitingGoRun = true;
+      this.emptyStateMessage = 'Press Go to run the report.';
       this.clearOwnerReportData();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
       this.markViewForCheck();
       return;
     }
+
+    this.awaitingGoRun = false;
+    this.emptyStateMessage = 'No owner statement activity for the selected filters.';
 
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReports');
@@ -826,6 +848,10 @@ seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse 
   //#endregion
 
   //#region Utility Methods
+  getSelectedPropertyId(): string | null {
+    return (this.searchRequest?.propertyId || '').trim() || null;
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
     this.scheduleOwnerReportDimensionLockUpdate();

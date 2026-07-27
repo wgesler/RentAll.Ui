@@ -79,8 +79,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
 
     if (this.isLoading) {
-      this.reportResult = null;
-      this.noDataMessage = 'Press Go to run the report.';
       this.markViewForCheck();
       return;
     }
@@ -101,8 +99,9 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.reportResult = cachedReport;
+    this.reportResult = this.mappingService.filterEscrowReportByProperty(cachedReport, this.propertyId);
     this.cushionInput = cachedReport.cushion;
+    this.reportResult = this.mappingService.recalculateEscrowTransfer(this.reportResult, this.cushionInput);
     this.noDataMessage = this.emptyResultMessage;
     this.markViewForCheck();
   }
@@ -110,7 +109,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   buildEscrowSearchRequest() {
     return {
       officeIds: this.resolveOfficeIds(),
-      propertyId: this.propertyId ?? null,
       endDate: this.asOfDate
     };
   }
@@ -122,7 +120,7 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
 
     const parsed = Number(value);
     this.cushionInput = Number.isFinite(parsed)
-      ? this.mappingService.roundFinancialReportAmount(parsed)
+      ? this.mappingService.normalizeEscrowOwnerEscrowAmount(parsed)
       : 0;
     this.reportResult = this.mappingService.recalculateEscrowTransfer(this.reportResult, this.cushionInput);
     this.markViewForCheck();
