@@ -436,8 +436,13 @@
                         (blur)="emitInlineEditChangeEvent(item, column.name ?? '', item[column.name] ?? ''); item[(column.name ?? '') + 'Editing'] = false"
                         (click)="$event.stopPropagation()"
                         (mousedown)="$event.stopPropagation()"
+                        (mouseup)="$event.stopPropagation()"
+                        (pointerdown)="$event.stopPropagation()"
+                        (pointerup)="$event.stopPropagation()"
+                        (focus)="$event.stopPropagation()"
                         class="editable-apply-amount"
-                        style="text-align: left; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                        [style.text-align]="getColumnAlignment(column) === 'right' ? 'right' : (getColumnAlignment(column) === 'center' ? 'center' : 'left')"
+                        style="width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                     }
                   } @else if (column.editableType === 'text' && !(item[column.name]?.options?.length || column.options?.length)) {
                     @if (item[column.name] !== 'NONE') { {{item[column.name]}} }

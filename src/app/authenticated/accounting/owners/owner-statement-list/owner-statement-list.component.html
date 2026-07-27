@@ -38,15 +38,16 @@
         [hasActionsSelect]="true"
         [hasButtonSelectAll]="true"
         [hasActionsView]="true"
-        [hasActionsRowClick]="true"
+        [hasActionsRowClick]="!showToBePaidColumn"
         [noDataMessage]="noDataMessage"
         [itemsPerPage]="10"
         (rowClickEvent)="onViewStatement($event)"
         (viewEvent)="onViewStatement($event)"
-        (selectionSet)="onSelectionSet($event)">
+        (selectionSet)="onSelectionSet($event)"
+        (inlineEditChangeEvent)="onInlineToBePaidChange($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-              <button mat-raised-button type="button" color="accent" id="pay-owners-button" class="whitespace-nowrap items-center flex gap-1" (click)="onPayOwners()" [disabled]="selectedOwnerStatementLines.length === 0 || isPayingOwners">
+              <button mat-raised-button type="button" color="accent" id="pay-owners-button" class="whitespace-nowrap items-center flex gap-1" (click)="onPayOwners()" [disabled]="isPayingOwners">
                 <mat-icon class="text-base">attach_money</mat-icon>
                 <span>Pay Owners</span>
               </button>

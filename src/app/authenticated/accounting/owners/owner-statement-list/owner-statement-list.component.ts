@@ -50,7 +50,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   noDataMessage = 'Press Go to run the report.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
-  readonly ownerStatementDisplayedColumns: ColumnSet = {
+  private customToBePaidByLineId = new Map<string, string>();
+  private readonly ownerStatementBaseColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '14ch' },
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '35ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
@@ -61,6 +62,17 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     ownerPaymentPaid: { displayAs: 'Paid', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
+  };
+  private readonly ownerStatementToBePaidColumn: ColumnSet = {
+    toBePaid: {
+      displayAs: 'To Be Paid',
+      wrap: false,
+      maxWidth: '16ch',
+      alignment: 'right',
+      headerAlignment: 'right',
+      editableType: 'text',
+      suppressRowClick: true
+    }
   };
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
@@ -87,11 +99,48 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   onSelectionSet(selection: SelectionModel<unknown>): void {
     this.selectedOwnerStatementLines = (selection?.selected ?? []) as OwnerStatementMonthLineListDisplay[];
+    this.syncToBePaidColumns();
     this.markViewForCheck();
   }
 
+  onInlineToBePaidChange(row: OwnerStatementMonthLineListDisplay & { __changedInlineColumn?: string }): void {
+    if (row.__changedInlineColumn !== 'toBePaid') {
+      return;
+    }
+
+    const amount = this.mappingService.parseCurrencyValue(row.toBePaid);
+    row.toBePaid = this.formatter.currencyUsd(amount);
+    this.customToBePaidByLineId.set(row.ownerStatementLineId, row.toBePaid);
+    this.markViewForCheck();
+  }
+
+  syncToBePaidColumns(): void {
+    const selectedLineIds = new Set(
+      this.selectedOwnerStatementLines.map(line => line.ownerStatementLineId)
+    );
+
+    for (const line of this.lines) {
+      const isSelected = selectedLineIds.has(line.ownerStatementLineId);
+      line.toBePaidReadOnly = !isSelected;
+
+      if (!isSelected) {
+        line.toBePaid = '';
+        line.toBePaidEditing = false;
+        continue;
+      }
+
+      const customAmount = this.customToBePaidByLineId.get(line.ownerStatementLineId);
+      line.toBePaid = customAmount ?? line.ownerPayment;
+    }
+  }
+
   onPayOwners(): void {
-    if (this.isPayingOwners || this.selectedOwnerStatementLines.length === 0) {
+    if (this.isPayingOwners) {
+      return;
+    }
+
+    if (this.selectedOwnerStatementLines.length === 0) {
+      this.toastr.error('Select owners to be paid.', CommonMessage.Error);
       return;
     }
 
@@ -114,6 +163,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         const paymentLabel = paymentCount === 1 ? 'owner payment' : 'owner payments';
         this.toastr.success(`${paymentCount} ${paymentLabel} applied`, CommonMessage.Success);
         this.selectedOwnerStatementLines = [];
+        this.customToBePaidByLineId.clear();
+        this.syncToBePaidColumns();
         this.ownersPaid.emit();
         this.markViewForCheck();
       },
@@ -134,7 +185,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         ownerId: line.ownerId,
         propertyId: line.propertyId,
         paymentTypeId: PaymentType.Ach,
-        amount: this.mappingService.parseCurrencyValue(line.ownerPayment)
+        amount: this.mappingService.parseCurrencyValue(line.toBePaid || line.ownerPayment)
       }))
       .filter(payment => payment.officeId > 0
         && !!payment.ownerId
@@ -157,6 +208,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   clearOwnerStatementDisplay(): void {
     this.lines = [];
     this.selectedOwnerStatementLines = [];
+    this.customToBePaidByLineId.clear();
     this.isServiceError = false;
     this.markViewForCheck();
   }
@@ -174,11 +226,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   loadOwnerStatementList(): void {
-    if (this.isLoading) {
-      this.markViewForCheck();
-      return;
-    }
-
     const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
       this.lines = [];
@@ -217,11 +264,31 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       monthLines = monthLines.filter(line => (line.propertyId || '').trim() === propertyId);
     }
     this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(monthLines);
+    this.customToBePaidByLineId.clear();
+    this.syncToBePaidColumns();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
     this.markViewForCheck();
   }
 
   //#endregion
+
+  get showToBePaidColumn(): boolean {
+    return this.selectedOwnerStatementLines.length > 0;
+  }
+
+  get ownerStatementDisplayedColumns(): ColumnSet {
+    if (!this.showToBePaidColumn) {
+      return this.ownerStatementBaseColumns;
+    }
+
+    const { ownerPaymentPaid, endingBalance, ...leadingColumns } = this.ownerStatementBaseColumns;
+    return {
+      ...leadingColumns,
+      ...this.ownerStatementToBePaidColumn,
+      ownerPaymentPaid,
+      endingBalance
+    };
+  }
 
   get reportTitle(): string {
     return 'Owner Statements';
@@ -263,11 +330,15 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     if (this.lines.length === 0) {
       return undefined;
     }
+
     return {
       startingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('startingBalance')),
       income: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('income')),
       expenses: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('expenses')),
       ownerPayment: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPayment')),
+      ...(this.showToBePaidColumn
+        ? { toBePaid: this.formatter.currencyUsd(this.getOwnerStatementToBePaidSum()) }
+        : {}),
       ownerPaymentPaid: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPaymentPaid')),
       endingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('endingBalance'))
     };
@@ -275,6 +346,15 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   getOwnerStatementAmountSum(columnName: 'startingBalance' | 'income' | 'expenses' | 'ownerPayment' | 'ownerPaymentPaid' | 'endingBalance'): number {
     return this.lines.reduce((sum, line) => sum + this.mappingService.parseCurrencyValue(line[columnName]), 0);
+  }
+
+  getOwnerStatementToBePaidSum(): number {
+    return this.lines.reduce((sum, line) => {
+      if (!(line.toBePaid || '').trim()) {
+        return sum;
+      }
+      return sum + this.mappingService.parseCurrencyValue(line.toBePaid);
+    }, 0);
   }
   //#endregion
 

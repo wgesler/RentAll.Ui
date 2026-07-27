@@ -86,6 +86,10 @@ export interface OwnerStatementMonthLineListDisplay {
   income: string;
   expenses: string;
   ownerPayment: string;
+  toBePaid?: string;
+  toBePaidReadOnly?: boolean;
+  toBePaidClickToEdit?: boolean;
+  toBePaidEditing?: boolean;
   ownerPaymentPaid: string;
   endingBalance: string;
   workingCapital: string;

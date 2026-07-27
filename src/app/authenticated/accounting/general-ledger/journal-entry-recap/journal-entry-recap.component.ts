@@ -184,11 +184,6 @@ toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLin
   }
 
   loadRecapLines(): void {
-    if (this.isLoading) {
-      this.clearRecapDisplay();
-      return;
-    }
-
     const officeIds = this.officeId != null && this.officeId > 0 ? [this.officeId] : [];
     if (officeIds.length === 0) {
       this.rowsDisplay = [];

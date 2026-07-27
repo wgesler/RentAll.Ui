@@ -176,11 +176,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOwnerReports(): void {
-    if (this.isLoading) {
-      this.markViewForCheck();
-      return;
-    }
-
     const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
       this.ownerReports = [];

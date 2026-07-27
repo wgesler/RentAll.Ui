@@ -11,3 +11,21 @@
   color: rgba(15, 23, 42, 0.72);
   text-align: center;
 }
+
+:host ::ng-deep .mat-column-toBePaid .editable-apply-amount,
+:host ::ng-deep .mat-column-toBePaid .owner-statement-to-be-paid-input {
+  display: block;
+  width: 100%;
+  text-align: right !important;
+  border: 1px solid rgba(15, 23, 42, 0.28);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+:host ::ng-deep .mat-column-toBePaid.mat-mdc-cell,
+:host ::ng-deep .mat-column-toBePaid.mat-cell {
+  cursor: text;
+}

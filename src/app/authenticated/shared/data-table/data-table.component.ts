@@ -720,7 +720,7 @@ markViewForCheck(): void {
       return;
     }
 
-    if (event && this.isSelectColumnInteraction(event)) {
+    if (event && (this.isSelectColumnInteraction(event) || this.isRowClickSuppressedInteraction(event))) {
       return;
     }
 
@@ -1066,15 +1066,52 @@ markViewForCheck(): void {
     return !!target.closest('.mat-column-select, mat-checkbox, .mdc-checkbox, .mdc-form-field');
   }
 
+  isRowClickSuppressedInteraction(event: MouseEvent): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return false;
+    }
+
+    if (target.closest('input.editable-apply-amount, textarea.editable-apply-amount, .datatable-inline-edit-trigger, .datatable-editable-date-field, .datatable-editable-date-input')) {
+      return true;
+    }
+
+    const cell = target.closest('td.mat-mdc-cell, td.mat-cell');
+    if (!cell) {
+      return false;
+    }
+
+    for (const column of this.tableColumns) {
+      const columnName = column.name || '';
+      if (!columnName || column.suppressRowClick !== true) {
+        continue;
+      }
+
+      if (cell.classList.contains(`mat-column-${columnName}`) || cell.classList.contains(`cdk-column-${columnName}`)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   onTableCellClick(event: MouseEvent, item: PurposefulAny, column: ColumnData): void {
     if (!this.shouldSuppressRowClickForCell(item, column)) {
       return;
     }
     event.stopPropagation();
+    const currentTarget = event.currentTarget as HTMLElement | null;
+    if (column.editableType === 'text' && item[(column.name ?? '') + 'ReadOnly'] !== true) {
+      const textInput = currentTarget?.querySelector('input.editable-apply-amount') as HTMLInputElement | null;
+      if (textInput) {
+        textInput.focus();
+        textInput.select();
+      }
+      return;
+    }
     if (column.editableType !== 'date' || item[(column.name ?? '') + 'ReadOnly'] === true) {
       return;
     }
-    const currentTarget = event.currentTarget as HTMLElement | null;
     const dateInput = currentTarget?.querySelector('input.datatable-editable-date-input') as HTMLInputElement | null;
     if (!dateInput) {
       return;

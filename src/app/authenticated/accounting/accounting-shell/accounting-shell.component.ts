@@ -3070,8 +3070,6 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     clearOwnerReportKindCache();
     this.isOwnerReportsApiLoading = true;
     this.isOwnerReportsLoading = true;
-    this.ownersStatementsRefreshTrigger++;
-    this.generalLedgerRefreshTrigger++;
     this.cdr.markForCheck();
     this.ownerReportsCacheService.load(this.billsSearchRequest).pipe(
       take(1),
@@ -3111,7 +3109,6 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     this.escrowReportCacheService.clear();
     this.isOwnerReportsApiLoading = true;
     this.isOwnerReportsLoading = true;
-    this.ownersStatementsRefreshTrigger++;
     this.cdr.markForCheck();
     this.escrowReportCacheService.load({
       officeIds,
@@ -3574,6 +3571,7 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       this.ownerViewLoadingFlashTimeoutId = null;
       if (!this.isOwnerReportsApiLoading) {
         this.isOwnerReportsLoading = false;
+        this.ownersStatementsRefreshTrigger++;
         this.cdr.markForCheck();
       }
       this.tryAutoRunOwnerReportIfEmpty();

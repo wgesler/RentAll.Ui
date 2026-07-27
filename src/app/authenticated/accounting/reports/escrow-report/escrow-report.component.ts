@@ -78,11 +78,6 @@ export class EscrowReportComponent implements OnInit, OnChanges, OnDestroy {
   loadReport(): void {
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'escrowReport');
 
-    if (this.isLoading) {
-      this.markViewForCheck();
-      return;
-    }
-
     const request = this.buildEscrowSearchRequest();
     if (request.officeIds.length === 0) {
       this.reportResult = null;
