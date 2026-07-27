@@ -796,7 +796,7 @@ seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse 
     if (this.visibleRows.length === 0) {
       return '48rem';
     }
-    return '78rem';
+    return '88rem';
   }
 
   onCashReportToggleChange(checked: boolean): void {
