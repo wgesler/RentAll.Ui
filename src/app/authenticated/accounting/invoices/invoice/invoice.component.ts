@@ -1164,13 +1164,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (!this.isAddMode && !this.isPaymentMode) {
-      const chargePaymentAndDeposit = this.officeCostCodes.filter(
+      const chargePaymentDepositAndSdw = this.officeCostCodes.filter(
         c => c.isActive
           && (c.transactionTypeId === TransactionType.Charge
             || c.transactionTypeId === TransactionType.Payment
-            || c.transactionTypeId === TransactionType.Deposit)
+            || c.transactionTypeId === TransactionType.Deposit
+            || c.transactionTypeId === TransactionType.SDW)
       );
-      return chargePaymentAndDeposit.map(c => ({
+      return chargePaymentDepositAndSdw.map(c => ({
         value: c.costCodeId,
         label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
