@@ -62,6 +62,7 @@ export interface OwnerStatementMonthLineResponse {
   balance: number;
   startingBalance?: number;
   ownerPayment?: number;
+  ownerPaymentPaid?: number;
   endingBalance?: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
@@ -85,6 +86,7 @@ export interface OwnerStatementMonthLineListDisplay {
   income: string;
   expenses: string;
   ownerPayment: string;
+  ownerPaymentPaid: string;
   endingBalance: string;
   workingCapital: string;
   notes?: string;
@@ -310,4 +312,21 @@ export interface OwnerStatementListViewState {
 export interface OwnerStatementJournalEntryLineSelection {
   journalEntryId: string;
   journalEntryLineId: string;
+}
+
+export interface OwnerPaymentRequest {
+  officeId: number;
+  ownerId: string;
+  propertyId: string;
+  paymentTypeId: number;
+  amount: number;
+}
+
+export interface OwnerPaymentsRequest {
+  paymentDate: string;
+  payments: OwnerPaymentRequest[];
+}
+
+export interface OwnerPaymentResponse {
+  journalEntries: unknown[];
 }

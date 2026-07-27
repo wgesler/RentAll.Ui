@@ -1533,7 +1533,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   private isExpectedManualJournalEntryGuardMessage(message: string | null | undefined): boolean {
     const normalized = (message || '').trim().toLowerCase();
     return normalized.includes('only manual journal entries can be updated')
-      || normalized.includes('only open manual journal entries can be deleted');
+      || normalized.includes('only open manual journal entries can be deleted')
+      || normalized.includes('only open journal entries can be deleted');
   }
 
   markViewForCheck(): void {

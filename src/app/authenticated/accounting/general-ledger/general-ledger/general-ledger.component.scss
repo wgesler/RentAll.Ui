@@ -210,18 +210,14 @@
 }
 
 .split-lines-table--general-ledger {
-  .split-col-description {
-    width: auto;
-  }
-
   .split-col-property {
     width: 20ch;
     min-width: 20ch;
   }
 
   .split-col-reservation {
-    width: 19rem;
-    min-width: 19rem;
+    width: 15rem;
+    min-width: 15rem;
   }
 
   .split-col-type {
@@ -236,8 +232,22 @@
   }
 
   .split-col-account {
-    width: 26rem;
-    min-width: 26rem;
+    width: 23rem;
+    min-width: 23rem;
+  }
+
+  .split-col-description {
+    width: auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .split-col-description .split-editable-input {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

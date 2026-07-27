@@ -1,7 +1,10 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
-import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
 import { FormatterService } from '../../../../services/formatter-service';
@@ -11,8 +14,10 @@ import { MaintenanceListSearchRequest } from '../../../maintenance/models/mainte
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
+import { PaymentType } from '../../models/accounting-enum';
+import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
+import { OwnerStatementService } from '../../services/owner-statement.service';
 
 @Component({
   selector: 'app-owner-statement-list',
@@ -28,29 +33,33 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
-  @Output() payOwners = new EventEmitter<OwnerStatementMonthLineListDisplay[]>();
+  @Output() ownersPaid = new EventEmitter<void>();
   private commonService = inject(CommonService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private ownerStatementService = inject(OwnerStatementService);
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
   isServiceError = false;
+  isPayingOwners = false;
   companyName = '';
   noDataMessage = 'Press Go to run the report.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
   readonly ownerStatementDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '14ch' },
-    ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '20ch' },
+    ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '35ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '18ch', alignment: 'center' },
     startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     income: { displayAs: 'Income', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    ownerPaymentPaid: { displayAs: 'Paid', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
@@ -82,10 +91,65 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   onPayOwners(): void {
-    if (this.selectedOwnerStatementLines.length === 0) {
+    if (this.isPayingOwners || this.selectedOwnerStatementLines.length === 0) {
       return;
     }
-    this.payOwners.emit([...this.selectedOwnerStatementLines]);
+
+    const paymentRequest = this.buildOwnerPaymentsRequest(this.selectedOwnerStatementLines);
+    if (!paymentRequest) {
+      return;
+    }
+
+    this.isPayingOwners = true;
+    this.markViewForCheck();
+    this.ownerStatementService.applyOwnerPayments(paymentRequest).pipe(
+      take(1),
+      finalize(() => {
+        this.isPayingOwners = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: () => {
+        const paymentCount = paymentRequest.payments.length;
+        const paymentLabel = paymentCount === 1 ? 'owner payment' : 'owner payments';
+        this.toastr.success(`${paymentCount} ${paymentLabel} applied`, CommonMessage.Success);
+        this.selectedOwnerStatementLines = [];
+        this.ownersPaid.emit();
+        this.markViewForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        const message = this.utilityService.extractApiErrorMessage(error);
+        this.toastr.error(message || 'Failed to apply owner payments', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  buildOwnerPaymentsRequest(lines: OwnerStatementMonthLineListDisplay[]): OwnerPaymentsRequest | null {
+    const paymentDate = this.utilityService.toDateOnlyJsonString(this.searchRequest?.endDate)
+      ?? this.utilityService.todayAsCalendarDateString();
+    const payments = lines
+      .map(line => ({
+        officeId: line.officeId,
+        ownerId: line.ownerId,
+        propertyId: line.propertyId,
+        paymentTypeId: PaymentType.Ach,
+        amount: this.mappingService.parseCurrencyValue(line.ownerPayment)
+      }))
+      .filter(payment => payment.officeId > 0
+        && !!payment.ownerId
+        && !!payment.propertyId
+        && payment.amount !== 0);
+
+    if (payments.length === 0) {
+      this.toastr.warning('Selected lines have no payment amount to apply.', CommonMessage.Error);
+      return null;
+    }
+
+    return {
+      paymentDate,
+      payments
+    };
   }
   //#endregion
 
@@ -204,11 +268,12 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       income: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('income')),
       expenses: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('expenses')),
       ownerPayment: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPayment')),
+      ownerPaymentPaid: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPaymentPaid')),
       endingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('endingBalance'))
     };
   }
 
-  getOwnerStatementAmountSum(columnName: 'startingBalance' | 'income' | 'expenses' | 'ownerPayment' | 'endingBalance'): number {
+  getOwnerStatementAmountSum(columnName: 'startingBalance' | 'income' | 'expenses' | 'ownerPayment' | 'ownerPaymentPaid' | 'endingBalance'): number {
     return this.lines.reduce((sum, line) => sum + this.mappingService.parseCurrencyValue(line[columnName]), 0);
   }
   //#endregion

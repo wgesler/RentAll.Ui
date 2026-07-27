@@ -1418,7 +1418,8 @@
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
                     [isLoading]="isOwnerReportsLoading"
-                    (viewStatement)="onOwnerStatementMonthLineView($event)">
+                    (viewStatement)="onOwnerStatementMonthLineView($event)"
+                    (ownersPaid)="onOwnerReportGoClick()">
                   </app-owner-statement-list>
                 }
               } @else if (selectedOwnerKind === 'apAging') {

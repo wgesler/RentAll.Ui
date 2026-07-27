@@ -40,6 +40,7 @@ export interface OwnerCashReportRowResponse {
   receivedIncome: number;
   ownerExpenses: number;
   ownerPayment: number;
+  ownerPaymentPaid: number;
   endingBalance: number;
   workingCapital: number;
 }

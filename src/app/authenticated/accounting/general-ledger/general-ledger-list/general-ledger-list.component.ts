@@ -887,8 +887,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         this.loadJournalEntryLines();
         this.markViewForCheck();
       },
-      error: () => {
-        this.toastr.error('Unable to delete journal entry.', 'Error');
+      error: (error: HttpErrorResponse) => {
+        const message = this.utilityService.extractApiErrorMessage(error);
+        this.toastr.error(message || 'Unable to delete journal entry.', CommonMessage.Error);
         this.markViewForCheck();
       }
     });
@@ -926,11 +927,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return {
       isManual,
       editDisabled: !isManual,
-      deleteDisabled: !this.journalEntryService.canDeleteManualJournalEntry(
-        line.sourceTypeId,
-        line.journalEntryKindId,
-        line.postingStatusId
-      )
+      deleteDisabled: !this.journalEntryService.canDeleteJournalEntry(line.postingStatusId)
     };
   }
 

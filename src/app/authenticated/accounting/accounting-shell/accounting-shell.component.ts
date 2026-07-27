@@ -1676,6 +1676,28 @@ hydrateSelectedInvoiceForActiveId(): void {
     }
     this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
+    this.refreshOwnerReportsBundleAfterJournalEntryChange();
+  }
+
+  private refreshOwnerReportsBundleAfterJournalEntryChange(): void {
+    if (!this.ownerReportsCacheService.isBundleLoaded()) {
+      return;
+    }
+
+    this.ownerReportsCacheService.clear();
+    if (this.selectedTabIndex !== this.tabOwners) {
+      return;
+    }
+
+    if (this.selectedOwnerKind !== 'ownerStatements' && !this.isOwnerReportView(this.selectedOwnerKind)) {
+      return;
+    }
+
+    if (this.billsSearchRequest.officeIds.length === 0) {
+      return;
+    }
+
+    this.onOwnerReportGoClick();
   }
 
   onReceiptsReceiptSelect(selection: ReceiptSelection): void {

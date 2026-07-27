@@ -2447,6 +2447,7 @@ resolveWorkOrderTitle(
       receivedIncome: Number(raw['receivedIncome'] ?? raw['ReceivedIncome'] ?? 0),
       ownerExpenses: Number(raw['ownerExpenses'] ?? raw['OwnerExpenses'] ?? 0),
       ownerPayment: Number(raw['ownerPayment'] ?? raw['OwnerPayment'] ?? 0),
+      ownerPaymentPaid: Number(raw['ownerPaymentPaid'] ?? raw['OwnerPaymentPaid'] ?? 0),
       endingBalance: Number(raw['endingBalance'] ?? raw['EndingBalance'] ?? 0),
       workingCapital: Number(raw['workingCapital'] ?? raw['WorkingCapital'] ?? 0)
     };
@@ -2827,6 +2828,7 @@ resolveWorkOrderTitle(
         expenses: row.ownerExpenses,
         balance: row.receivedIncome - row.ownerExpenses,
         ownerPayment: row.ownerPayment,
+        ownerPaymentPaid: row.ownerPaymentPaid,
         endingBalance: row.endingBalance,
         workingCapital: row.workingCapital,
         workingCapitalBalanceDue: row.receivedIncome - row.ownerExpenses
@@ -2853,6 +2855,7 @@ resolveWorkOrderTitle(
       income: this.formatter.currencyUsd(Number(row.income) || 0),
       expenses: this.formatter.currencyUsd(Number(row.expenses) || 0),
       ownerPayment: this.formatter.currencyUsd(Number(row.ownerPayment) || 0),
+      ownerPaymentPaid: this.formatter.currencyUsd(Number(row.ownerPaymentPaid) || 0),
       endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0),
       workingCapital: this.formatter.currencyUsd(Number(row.workingCapital) || 0)
     }));

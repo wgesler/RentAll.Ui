@@ -1,7 +1,9 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable, of } from 'rxjs';
+import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
+import { OwnerPaymentResponse, OwnerPaymentsRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
 import { OwnerReportsCacheService } from './owner-reports-cache.service';
 import { ReportService } from './report.service';
 
@@ -9,9 +11,12 @@ import { ReportService } from './report.service';
   providedIn: 'root'
 })
 export class OwnerStatementService {
+  private http = inject(HttpClient);
+  private configService = inject(ConfigService);
   private reportService = inject(ReportService);
   private mappingService = inject(MappingService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private readonly ownerPaymentUrl = this.configService.config().apiUrl + 'accounting/owner/payment';
 
   searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
@@ -84,5 +89,9 @@ export class OwnerStatementService {
     }).pipe(
       map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.accrual.propertyActivityLines ?? [], request))
     );
+  }
+
+  applyOwnerPayments(request: OwnerPaymentsRequest): Observable<OwnerPaymentResponse> {
+    return this.http.put<OwnerPaymentResponse>(this.ownerPaymentUrl, request);
   }
 }

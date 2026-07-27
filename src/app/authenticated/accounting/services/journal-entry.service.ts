@@ -93,16 +93,18 @@ export class JournalEntryService {
       return true;
     }
 
-    if (isJournalEntryPosted(status)) {
-      return false;
-    }
-
-    if (isJournalEntrySoftClosed(status)) {
-      const groups = userGroups ?? this.authService.getUser()?.userGroups;
-      return this.hasAnyRole(groups, SOFT_CLOSED_JOURNAL_ENTRY_EDIT_ROLES);
+    if (isJournalEntryPosted(status) || isJournalEntrySoftClosed(status)) {
+      return this.canDeleteWithElevatedPostingStatus(userGroups);
     }
 
     return false;
+  }
+
+  canDeleteJournalEntry(
+    postingStatusId: number | null | undefined,
+    userGroups?: UserGroupInput
+  ): boolean {
+    return this.canDeleteApplicationObject(postingStatusId, userGroups);
   }
 
   canDeleteManualJournalEntry(
@@ -120,12 +122,16 @@ export class JournalEntryService {
       return true;
     }
 
-    if (isJournalEntrySoftClosed(status)) {
-      const groups = userGroups ?? this.authService.getUser()?.userGroups;
-      return this.hasAnyRole(groups, SOFT_CLOSED_JOURNAL_ENTRY_EDIT_ROLES);
+    if (isJournalEntryPosted(status) || isJournalEntrySoftClosed(status)) {
+      return this.canDeleteWithElevatedPostingStatus(userGroups);
     }
 
     return false;
+  }
+
+  private canDeleteWithElevatedPostingStatus(userGroups?: UserGroupInput): boolean {
+    const groups = userGroups ?? this.authService.getUser()?.userGroups;
+    return this.hasAnyRole(groups, SOFT_CLOSED_JOURNAL_ENTRY_EDIT_ROLES);
   }
 
   getUpdateBlockedMessage(
@@ -151,7 +157,7 @@ export class JournalEntryService {
 
     if (isJournalEntryPosted(postingStatusId)) {
       if (action === 'delete') {
-        return `This ${documentName} has already been posted and may not be deleted.`;
+        return `This ${documentName} has been posted and can only be deleted by an Administrator.`;
       }
 
       return `This ${documentName} has already been posted and can only be edited by an Accountant or an Administrator.`;
