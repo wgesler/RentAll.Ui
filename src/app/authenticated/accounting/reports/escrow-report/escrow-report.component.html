@@ -121,8 +121,8 @@
             <div class="escrow-report-summary-row escrow-report-summary-row--transfer">
               <span class="escrow-report-summary-label">Transfer</span>
               <span class="escrow-report-summary-instructions escrow-report-summary-hint">
-                <span class="escrow-report-summary-hint-line">*pos number = transfer OUT</span>
-                <span class="escrow-report-summary-hint-line">neg number = transfer IN</span>
+                <span class="escrow-report-summary-hint-line">neg number = transfer OUT</span>
+                <span class="escrow-report-summary-hint-line">*pos number = transfer IN</span>
               </span>
               <button type="button" class="escrow-report-summary-value escrow-report-summary-value--transfer escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('transfer', reportResult.transfer)" [disabled]="!canDrillDownAmount('transfer', reportResult.transfer)" (click)="onAmountCellClick('transfer', reportResult.transfer)">
                 {{ formatAmount(reportResult.transfer) }}
