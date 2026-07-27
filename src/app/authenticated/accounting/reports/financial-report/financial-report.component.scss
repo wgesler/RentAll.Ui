@@ -168,6 +168,12 @@
   width: min(28rem, 32%);
 }
 
+.financial-report-table--stretch.financial-report-table--multi-column.financial-report-table--sticky-columns .financial-report-col-label {
+  width: 22rem;
+  min-width: 22rem;
+  max-width: 32rem;
+}
+
 .financial-report-table--stretch.financial-report-table--multi-column .financial-report-col-total {
   width: 10rem;
   min-width: 10rem;
@@ -185,8 +191,8 @@
 
 .financial-report-table--multi-column:not(.financial-report-table--sticky-columns) .financial-report-col-label {
   width: max-content;
-  min-width: 12rem;
-  max-width: 28rem;
+  min-width: 18rem;
+  max-width: 32rem;
   white-space: nowrap;
 }
 
@@ -194,10 +200,12 @@
   position: sticky;
   left: 0;
   z-index: 3;
-  width: max-content;
-  min-width: 12rem;
-  max-width: 28rem;
+  width: 22rem;
+  min-width: 22rem;
+  max-width: 32rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background-color: #fff;
   box-shadow: 6px 0 8px -4px rgba(15, 23, 42, 0.14);
 }
@@ -248,7 +256,7 @@
 
 .financial-report-col-label {
   width: auto;
-  min-width: 14rem;
+  min-width: 18rem;
 }
 
 .financial-report-table:not(.financial-report-table--multi-column) .financial-report-col-label {
@@ -320,6 +328,16 @@
 .financial-report-row-total td,
 .financial-report-row-summary td {
   border-top: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.financial-report-table--sticky-columns .financial-report-label-wrap {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.financial-report-table--sticky-columns .financial-report-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .financial-report-label-wrap {

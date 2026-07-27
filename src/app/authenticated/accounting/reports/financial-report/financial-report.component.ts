@@ -1077,7 +1077,7 @@ refreshDrillDownView(): void {
   }
 
   get reportTableMinWidth(): string {
-    const labelMinRem = 12;
+    const labelMinRem = 22;
     const amountMinRem = 10;
     const minRem = Math.max(48, labelMinRem + this.amountColumnCount * amountMinRem);
     return `${minRem}rem`;

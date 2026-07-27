@@ -80,3 +80,41 @@
 .ap-aging-detail-row-transaction td.financial-report-col-amount {
   font-variant-numeric: tabular-nums;
 }
+
+.financial-report-table--owner-ap {
+  .financial-report-col-label {
+    min-width: 8rem;
+    white-space: nowrap;
+  }
+
+  .financial-report-col-owner {
+    min-width: 12rem;
+    white-space: nowrap;
+  }
+
+  .financial-report-header-two-line {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.15;
+    font-size: 0.8125rem;
+  }
+
+  .financial-report-header-label--office {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  tbody tr.financial-report-row-office td {
+    font-weight: 600;
+    background-color: #faf6ef !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.12);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  }
+
+  tbody tr.financial-report-row-account td.financial-report-col-label .financial-report-label,
+  tbody tr.financial-report-row-account td.financial-report-col-owner .financial-report-label {
+    font-weight: 600;
+  }
+}

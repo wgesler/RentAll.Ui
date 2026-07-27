@@ -18,7 +18,7 @@ import {
 export type ApAgingBucketId = ArAgingBucketId;
 export type ApAgingDatePreset = ArAgingDatePreset;
 export type ApAgingSortBy = 'default' | 'name' | 'balance' | 'total' | 'vendor' | 'class';
-export type ApAgingVisibleRowKind = 'vendor' | 'property' | 'vendorTotal';
+export type ApAgingVisibleRowKind = 'office' | 'vendor' | 'property' | 'vendorTotal';
 
 export const AP_AGING_THROUGH_ALL_VALUE = AR_AGING_THROUGH_ALL_VALUE;
 export const AP_AGING_DATE_PRESET_OPTIONS = AR_AGING_DATE_PRESET_OPTIONS;
@@ -60,6 +60,7 @@ export interface OwnerApAgingReportBuildRequest {
   lines: JournalEntryLineSearchResponse[];
   propertyCodeByPropertyId: ReadonlyMap<string, string>;
   ownerIdByPropertyId?: ReadonlyMap<string, string>;
+  officeNameByOfficeId?: ReadonlyMap<number, string>;
   paymentTermsByContactId?: ReadonlyMap<string, number | null>;
   contactNameByContactId?: ReadonlyMap<string, string>;
   asOfDate: string | null;
@@ -69,6 +70,15 @@ export interface OwnerApAgingReportBuildRequest {
   companyName?: string;
   officeName?: string;
   reportTitle?: string;
+}
+
+export interface ApAgingOfficeRow {
+  officeId: number;
+  officeName: string;
+  officeKey: string;
+  bucketAmounts: Record<ApAgingBucketId, number>;
+  total: number;
+  vendorRows: ApAgingVendorRow[];
 }
 
 export interface ApAgingBillDetail {
@@ -118,11 +128,15 @@ export interface ApAgingVendorRow {
   bills: ApAgingBillDetail[];
 }
 
+export type ApAgingReportLayoutMode = 'vendor' | 'propertyOwner';
+
 export interface ApAgingReportResult {
   reportTitle: string;
   periodLabel: string;
   entityLineLabel: string | null;
+  layoutMode?: ApAgingReportLayoutMode;
   bucketColumns: { id: ApAgingBucketId; label: string }[];
+  officeRows?: ApAgingOfficeRow[];
   vendorRows: ApAgingVendorRow[];
   totals: Record<ApAgingBucketId, number>;
   grandTotal: number;
@@ -132,6 +146,7 @@ export interface ApAgingReportResult {
 export interface ApAgingDrillDownView {
   title: string;
   subtitle: string;
+  officeId: number | null;
   vendorKey: string | null;
   propertyKey: string | null;
   bucketId: ApAgingBucketId | null;
@@ -188,7 +203,10 @@ export interface ApAgingDetailReportResult {
 export interface ApAgingVisibleRow {
   rowId: string;
   label: string;
+  secondaryLabel?: string | null;
   kind: ApAgingVisibleRowKind;
+  officeId?: number | null;
+  officeKey?: string | null;
   vendorKey: string;
   propertyKey: string | null;
   bucketAmounts: Record<ApAgingBucketId, number>;

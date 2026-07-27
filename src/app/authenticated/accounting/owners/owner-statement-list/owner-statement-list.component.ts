@@ -1,3 +1,4 @@
+import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
@@ -8,6 +9,7 @@ import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
@@ -15,7 +17,7 @@ import { OwnerReportsCacheService } from '../../services/owner-reports-cache.ser
 @Component({
   selector: 'app-owner-statement-list',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './owner-statement-list.component.html',
   styleUrls: ['./owner-statement-list.component.scss', '../owner-report/owner-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -26,6 +28,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Input() refreshTrigger = 0;
   @Input() isLoading = false;
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
+  @Output() payOwners = new EventEmitter<OwnerStatementMonthLineListDisplay[]>();
   private commonService = inject(CommonService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private formatter = inject(FormatterService);
@@ -38,6 +41,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   companyName = '';
   noDataMessage = 'No owner statement lines matched the current filters.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
+  selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
   readonly ownerStatementDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '14ch' },
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '20ch' },
@@ -71,11 +75,24 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   onViewStatement(row: OwnerStatementMonthLineListDisplay): void {
     this.viewStatement.emit(row);
   }
+
+  onSelectionSet(selection: SelectionModel<unknown>): void {
+    this.selectedOwnerStatementLines = (selection?.selected ?? []) as OwnerStatementMonthLineListDisplay[];
+    this.markViewForCheck();
+  }
+
+  onPayOwners(): void {
+    if (this.selectedOwnerStatementLines.length === 0) {
+      return;
+    }
+    this.payOwners.emit([...this.selectedOwnerStatementLines]);
+  }
   //#endregion
 
   //#region Data Loading Methods
   clearOwnerStatementDisplay(): void {
     this.lines = [];
+    this.selectedOwnerStatementLines = [];
     this.isServiceError = false;
     this.markViewForCheck();
   }

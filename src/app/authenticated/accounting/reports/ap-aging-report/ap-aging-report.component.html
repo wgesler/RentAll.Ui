@@ -197,29 +197,56 @@
             <div class="financial-report-empty-state">
               <p>{{ noDataMessage }}</p>
             </div>
-          } @else if (!reportResult || (reportResult.vendorRows.length === 0 && visibleRows.length === 0)) {
+          } @else if (!reportResult || visibleRows.length === 0) {
             <div class="financial-report-empty-state">
               <p>{{ noDataMessage }}</p>
             </div>
           } @else {
             <div class="financial-report-table-wrap">
-              <table class="financial-report-table financial-report-table--multi-column">
+              <table
+                class="financial-report-table financial-report-table--multi-column"
+                [class.financial-report-table--owner-ap]="isOwnerPayableMode">
                 <thead>
                   <tr>
-                    <th class="financial-report-col-label">
-                      <div class="financial-report-header-label">
-                        <button
-                          mat-icon-button
-                          type="button"
-                          class="financial-report-expand-all-btn financial-report-icon-expand-btn"
-                          [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'"
-                          [attr.aria-label]="isAllExpanded ? 'Collapse all' : 'Expand all'"
-                          (click)="toggleExpandAll()">
-                          <mat-icon>{{ getExpandAllIcon() }}</mat-icon>
-                        </button>
-                        <span>{{ isOwnerPayableMode ? 'Owner' : 'Vendor' }}</span>
-                      </div>
-                    </th>
+                    @if (isOwnerPayableMode) {
+                      <th class="financial-report-col-label">
+                        <div class="financial-report-header-label financial-report-header-label--office">
+                          <button
+                            mat-icon-button
+                            type="button"
+                            class="financial-report-expand-all-btn financial-report-icon-expand-btn"
+                            [matTooltip]="isAllExpanded ? 'Collapse all offices' : 'Expand all offices'"
+                            [attr.aria-label]="isAllExpanded ? 'Collapse all offices' : 'Expand all offices'"
+                            (click)="toggleExpandAll()">
+                            <mat-icon>{{ getExpandAllIcon() }}</mat-icon>
+                          </button>
+                          <div class="financial-report-header-two-line financial-report-header-two-line--left">
+                            <span>Office</span>
+                            <span>Property</span>
+                          </div>
+                        </div>
+                      </th>
+                      <th class="financial-report-col-owner">
+                        <div class="financial-report-header-two-line financial-report-header-two-line--left">
+                          <span>Owner</span>
+                        </div>
+                      </th>
+                    } @else {
+                      <th class="financial-report-col-label">
+                        <div class="financial-report-header-label">
+                          <button
+                            mat-icon-button
+                            type="button"
+                            class="financial-report-expand-all-btn financial-report-icon-expand-btn"
+                            [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                            [attr.aria-label]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                            (click)="toggleExpandAll()">
+                            <mat-icon>{{ getExpandAllIcon() }}</mat-icon>
+                          </button>
+                          <span>Vendor</span>
+                        </div>
+                      </th>
+                    }
                     @for (column of reportResult.bucketColumns; track column.id) {
                       <th class="financial-report-col-amount">{{ column.label }}</th>
                     }
@@ -229,27 +256,54 @@
                 <tbody>
                   @for (row of visibleRows; track row.rowId) {
                     <tr
-                      [class.financial-report-row-expandable]="row.kind === 'vendor' || row.kind === 'property'"
-                      [class.financial-report-row-account]="row.kind === 'property'"
-                      [class.financial-report-row-total]="row.kind === 'vendor' || row.kind === 'vendorTotal'">
-                      <td class="financial-report-col-label">
-                        <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
-                          @if (row.expandable) {
-                            <button
-                              type="button"
-                              mat-icon-button
-                              class="financial-report-expand-btn financial-report-icon-expand-btn"
-                              [attr.aria-expanded]="row.expanded"
-                              [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
-                              (click)="toggleVendorExpansion(row.vendorKey)">
-                              <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
-                            </button>
-                          } @else {
-                            <span class="financial-report-expand-spacer"></span>
+                      [class.financial-report-row-expandable]="row.expandable"
+                      [class.financial-report-row-office]="isOwnerPayableMode && row.kind === 'office'"
+                      [class.financial-report-row-account]="isOwnerPayableMode ? row.kind === 'property' : row.kind === 'property'"
+                      [class.financial-report-row-total]="!isOwnerPayableMode && (row.kind === 'vendor' || row.kind === 'vendorTotal')">
+                      @if (isOwnerPayableMode) {
+                        <td class="financial-report-col-label">
+                          <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
+                            @if (row.expandable) {
+                              <button
+                                type="button"
+                                mat-icon-button
+                                class="financial-report-expand-btn financial-report-icon-expand-btn"
+                                [attr.aria-expanded]="row.expanded"
+                                [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
+                                (click)="toggleVendorExpansion(row.vendorKey)">
+                                <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
+                              </button>
+                            } @else {
+                              <span class="financial-report-expand-spacer"></span>
+                            }
+                            <span class="financial-report-label">{{ row.label }}</span>
+                          </div>
+                        </td>
+                        <td class="financial-report-col-owner">
+                          @if (row.secondaryLabel) {
+                            <span class="financial-report-label">{{ row.secondaryLabel }}</span>
                           }
-                          <span class="financial-report-label">{{ row.label }}</span>
-                        </div>
-                      </td>
+                        </td>
+                      } @else {
+                        <td class="financial-report-col-label">
+                          <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
+                            @if (row.expandable) {
+                              <button
+                                type="button"
+                                mat-icon-button
+                                class="financial-report-expand-btn financial-report-icon-expand-btn"
+                                [attr.aria-expanded]="row.expanded"
+                                [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
+                                (click)="toggleVendorExpansion(row.vendorKey)">
+                                <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
+                              </button>
+                            } @else {
+                              <span class="financial-report-expand-spacer"></span>
+                            }
+                            <span class="financial-report-label">{{ row.label }}</span>
+                          </div>
+                        </td>
+                      }
                       @for (column of reportResult.bucketColumns; track column.id) {
                         <td
                           class="financial-report-col-amount"
@@ -275,12 +329,18 @@
                     </tr>
                   }
                   <tr class="financial-report-row-total">
-                    <td class="financial-report-col-label">
-                      <div class="financial-report-label-wrap">
-                        <span class="financial-report-expand-spacer"></span>
+                    @if (isOwnerPayableMode) {
+                      <td class="financial-report-col-label" colspan="2">
                         <span class="financial-report-label">Total</span>
-                      </div>
-                    </td>
+                      </td>
+                    } @else {
+                      <td class="financial-report-col-label">
+                        <div class="financial-report-label-wrap">
+                          <span class="financial-report-expand-spacer"></span>
+                          <span class="financial-report-label">Total</span>
+                        </div>
+                      </td>
+                    }
                     @for (column of reportResult.bucketColumns; track column.id) {
                       <td
                         class="financial-report-col-amount"

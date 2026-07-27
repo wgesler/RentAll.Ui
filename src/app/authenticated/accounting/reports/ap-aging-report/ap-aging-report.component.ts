@@ -516,6 +516,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
           lines: this.allOwnerApLines,
           propertyCodeByPropertyId: this.propertyCodeByPropertyId,
           ownerIdByPropertyId: this.ownerIdByPropertyId,
+          officeNameByOfficeId: this.buildOfficeNameByOfficeId(),
           paymentTermsByContactId: this.paymentTermsByContactId,
           contactNameByContactId: this.contactNameByContactId,
           asOfDate,
@@ -582,10 +583,20 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
 
   //#region Expand All Methods
   initializeExpandedVendors(): void {
+    if (this.isOwnerPayableMode) {
+      this.expandedVendorKeys = new Set((this.reportResult?.officeRows || []).map(row => row.officeKey));
+      return;
+    }
+
     this.expandedVendorKeys = new Set((this.reportResult?.vendorRows || []).map(row => row.vendorKey));
   }
 
   rebuildVisibleRows(): void {
+    if (this.isOwnerPayableMode) {
+      this.rebuildOwnerApVisibleRows();
+      return;
+    }
+
     const rows: ApAgingVisibleRow[] = [];
     (this.reportResult?.vendorRows || []).forEach(vendorRow => {
       const propertyRows = vendorRow.propertyRows ?? [];
@@ -629,6 +640,60 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.visibleRows = rows;
   }
 
+  rebuildOwnerApVisibleRows(): void {
+    const rows: ApAgingVisibleRow[] = [];
+    (this.reportResult?.officeRows || []).forEach(officeRow => {
+      const propertyOwnerCount = (officeRow.vendorRows || []).reduce(
+        (count, propertyRow) => count + (propertyRow.propertyRows?.length || 0),
+        0
+      );
+      const expandable = propertyOwnerCount > 0;
+      const expanded = expandable && this.expandedVendorKeys.has(officeRow.officeKey);
+
+      rows.push({
+        rowId: officeRow.officeKey,
+        label: officeRow.officeName,
+        secondaryLabel: null,
+        kind: 'office',
+        officeId: officeRow.officeId,
+        officeKey: officeRow.officeKey,
+        vendorKey: officeRow.officeKey,
+        propertyKey: null,
+        bucketAmounts: officeRow.bucketAmounts,
+        total: officeRow.total,
+        depth: 0,
+        expandable,
+        expanded
+      });
+
+      if (!expanded) {
+        return;
+      }
+
+      officeRow.vendorRows.forEach(propertyRow => {
+        (propertyRow.propertyRows ?? []).forEach(ownerRow => {
+          rows.push({
+            rowId: `owner-ap:${officeRow.officeId}:${propertyRow.vendorKey}:${ownerRow.propertyKey}`,
+            label: propertyRow.vendorLabel,
+            secondaryLabel: ownerRow.propertyLabel,
+            kind: 'property',
+            officeId: officeRow.officeId,
+            officeKey: officeRow.officeKey,
+            vendorKey: propertyRow.vendorKey,
+            propertyKey: ownerRow.propertyKey,
+            bucketAmounts: ownerRow.bucketAmounts,
+            total: ownerRow.total,
+            depth: 1,
+            expandable: false,
+            expanded: false
+          });
+        });
+      });
+    });
+
+    this.visibleRows = rows;
+  }
+
   toggleVendorExpansion(vendorKey: string): void {
     if (this.expandedVendorKeys.has(vendorKey)) {
       this.expandedVendorKeys.delete(vendorKey);
@@ -650,6 +715,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   }
 
   get isAllExpanded(): boolean {
+    if (this.isOwnerPayableMode) {
+      const officeKeys = (this.reportResult?.officeRows || []).map(row => row.officeKey);
+      return officeKeys.length > 0 && officeKeys.every(officeKey => this.expandedVendorKeys.has(officeKey));
+    }
+
     const vendorKeys = (this.reportResult?.vendorRows || []).map(row => row.vendorKey);
     return vendorKeys.length > 0 && vendorKeys.every(vendorKey => this.expandedVendorKeys.has(vendorKey));
   }
@@ -664,12 +734,17 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   //#endregion
 
   //#region Drill-Down
-  openDrillDown(vendorKey: string | null, bucketId: ApAgingBucketId | null, propertyKey: string | null = null): void {
+  openDrillDown(
+    vendorKey: string | null,
+    bucketId: ApAgingBucketId | null,
+    propertyKey: string | null = null,
+    officeId: number | null = null
+  ): void {
     if (!this.reportResult) {
       return;
     }
 
-    const bills = this.filterDrillDownBills(vendorKey, bucketId, propertyKey);
+    const bills = this.filterDrillDownBills(vendorKey, bucketId, propertyKey, officeId);
     if (bills.length === 0) {
       return;
     }
@@ -677,11 +752,19 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const vendorRow = vendorKey
       ? this.reportResult.vendorRows.find(row => row.vendorKey === vendorKey)
       : null;
-    const propertyLabel = propertyKey
+    const ownerLabel = propertyKey
       ? vendorRow?.propertyRows.find(row => row.propertyKey === propertyKey)?.propertyLabel
       : null;
-    const vendorLabel = vendorRow?.vendorLabel || vendorKey || (this.isOwnerPayableMode ? 'All Owners' : 'All Vendors');
-    const title = propertyLabel || vendorLabel;
+    const propertyLabel = vendorRow?.vendorLabel || vendorKey || null;
+    const officeLabel = officeId != null
+      ? (this.reportResult.officeRows || []).find(row => row.officeId === officeId)?.officeName
+        || this.offices.find(office => office.officeId === officeId)?.name
+        || `Office ${officeId}`
+      : null;
+    const vendorLabel = vendorRow?.vendorLabel || vendorKey || (this.isOwnerPayableMode ? 'All Properties' : 'All Vendors');
+    const title = this.isOwnerPayableMode
+      ? (ownerLabel || propertyLabel || officeLabel || vendorLabel)
+      : (ownerLabel || vendorLabel);
     const bucketLabel = bucketId
       ? this.reportResult.bucketColumns.find(column => column.id === bucketId)?.label || bucketId
       : 'All Buckets';
@@ -689,6 +772,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.drillDownView = {
       title,
       subtitle: `${bucketLabel} · ${this.reportResult.periodLabel}`,
+      officeId,
       vendorKey,
       propertyKey,
       bucketId,
@@ -708,7 +792,12 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.openDrillDown(row.vendorKey, bucketId, row.propertyKey);
+    this.openDrillDown(
+      row.kind === 'office' ? null : row.vendorKey,
+      bucketId,
+      row.propertyKey,
+      row.officeId ?? null
+    );
   }
 
   closeDrillDown(): void {
@@ -757,17 +846,38 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     this.openOwnerSourceDocument(row);
   }
 
-  filterDrillDownBills(vendorKey: string | null, bucketId: ApAgingBucketId | null, propertyKey: string | null = null): ApAgingBillDetail[] {
+  filterDrillDownBills(
+    vendorKey: string | null,
+    bucketId: ApAgingBucketId | null,
+    propertyKey: string | null = null,
+    officeId: number | null = null
+  ): ApAgingBillDetail[] {
     if (!this.reportResult) {
       return [];
     }
 
     return this.reportResult.billDetails.filter(bill => {
-      if (vendorKey && bill.vendorKey !== vendorKey) {
-        return false;
-      }
-      if (propertyKey && bill.propertyKey !== propertyKey) {
-        return false;
+      if (this.isOwnerPayableMode) {
+        if (officeId != null && Number(bill.officeId) !== officeId) {
+          return false;
+        }
+        if (propertyKey) {
+          if (vendorKey && bill.propertyKey !== vendorKey) {
+            return false;
+          }
+          if (bill.vendorKey !== propertyKey) {
+            return false;
+          }
+        } else if (vendorKey && bill.propertyKey !== vendorKey) {
+          return false;
+        }
+      } else {
+        if (vendorKey && bill.vendorKey !== vendorKey) {
+          return false;
+        }
+        if (propertyKey && bill.propertyKey !== propertyKey) {
+          return false;
+        }
       }
       if (bucketId && bill.bucketId !== bucketId) {
         return false;
@@ -784,7 +894,8 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     const bills = this.filterDrillDownBills(
       this.drillDownView.vendorKey,
       this.drillDownView.bucketId,
-      this.drillDownView.propertyKey
+      this.drillDownView.propertyKey,
+      this.drillDownView.officeId
     );
 
     if (bills.length === 0) {
@@ -1325,8 +1436,10 @@ resolveDocumentOfficeId(): number | null {
     return null;
   }
 
-refreshPrintableHtml(): void {
-    if (!this.reportResult || this.reportResult.vendorRows.length === 0) {
+  refreshPrintableHtml(): void {
+    const hasOwnerApRows = (this.reportResult?.officeRows?.length ?? 0) > 0;
+    const hasStandardRows = (this.reportResult?.vendorRows.length ?? 0) > 0;
+    if (!this.reportResult || (this.isOwnerPayableMode ? !hasOwnerApRows : !hasStandardRows)) {
       this.clearPrintableHtml();
       return;
     }
@@ -1417,6 +1530,16 @@ clearPrintableHtml(): void {
       return [this.officeId];
     }
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+  }
+
+  buildOfficeNameByOfficeId(): Map<number, string> {
+    const namesByOfficeId = new Map<number, string>();
+    (this.offices || []).forEach(office => {
+      if (office.officeId > 0) {
+        namesByOfficeId.set(office.officeId, (office.name || '').trim());
+      }
+    });
+    return namesByOfficeId;
   }
 
   hasReportFiltersChanged(change: { previousValue: unknown; currentValue: unknown }): boolean {

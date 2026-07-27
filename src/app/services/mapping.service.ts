@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
-import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
+import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingOfficeRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingSortBy, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
@@ -6239,8 +6239,8 @@ roundCurrency(value: number): number {
         || Math.abs(row.total) > 0.005
       )
       .sort((left, right) =>
-        left.ownerName.localeCompare(right.ownerName, undefined, { sensitivity: 'base' })
-        || left.propertyCode.localeCompare(right.propertyCode, undefined, { sensitivity: 'base' })
+        left.propertyCode.localeCompare(right.propertyCode, undefined, { numeric: true, sensitivity: 'base' })
+        || left.ownerName.localeCompare(right.ownerName, undefined, { sensitivity: 'base' })
       );
 
     const totals = rows.reduce(
@@ -6286,6 +6286,10 @@ roundCurrency(value: number): number {
     const rows = Array.isArray(rowsRaw)
       ? rowsRaw.map(row => this.mapEscrowReportRow(row as Record<string, unknown>))
       : [];
+    rows.sort((left, right) =>
+      left.propertyCode.localeCompare(right.propertyCode, undefined, { numeric: true, sensitivity: 'base' })
+      || left.ownerName.localeCompare(right.ownerName, undefined, { sensitivity: 'base' })
+    );
     const totalsRaw = (raw['totals'] ?? raw['Totals'] ?? {}) as Record<string, unknown>;
 
     return {
@@ -7466,8 +7470,14 @@ buildEscrowLastRecapAmountsByProperty(
     ).sort((a, b) => compareApAgingBillSortKeys(a, b));
 
     const vendorRows = sortApAgingVendorRows(
-      this.buildApAgingVendorRows(billDetails, bucketIds),
+      this.buildOwnerApAgingPropertyFirstVendorRows(billDetails, bucketIds),
       request.sortBy ?? 'default'
+    );
+    const officeRows = this.buildOwnerApAgingOfficeRows(
+      billDetails,
+      bucketIds,
+      request.sortBy ?? 'default',
+      request.officeNameByOfficeId || new Map<number, string>()
     );
     const totals = createEmptyApAgingBucketAmounts(bucketIds);
     billDetails.forEach(bill => {
@@ -7483,7 +7493,9 @@ buildEscrowLastRecapAmountsByProperty(
       reportTitle: (request.reportTitle || '').trim() || 'Owner A/P Aging Summary',
       periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
       entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      layoutMode: 'propertyOwner',
       bucketColumns: bucketDefinitions.map(bucket => ({ id: bucket.id, label: bucket.label })),
+      officeRows,
       vendorRows,
       totals,
       grandTotal,
@@ -8050,6 +8062,103 @@ buildEscrowLastRecapAmountsByProperty(
     };
   }
 
+  buildOwnerApAgingPropertyFirstVendorRows(billDetails: ApAgingBillDetail[], bucketIds: ApAgingBucketId[]): ApAgingVendorRow[] {
+    const rowsByProperty = new Map<string, ApAgingVendorRow>();
+    billDetails.forEach(bill => {
+      let row = rowsByProperty.get(bill.propertyKey);
+      if (!row) {
+        row = {
+          vendorKey: bill.propertyKey,
+          vendorLabel: bill.propertyLabel,
+          vendorSortKey: (bill.propertyCode || bill.propertyLabel || bill.propertyKey).trim(),
+          vendorId: bill.propertyId,
+          bucketAmounts: createEmptyApAgingBucketAmounts(bucketIds),
+          total: 0,
+          propertyRows: [],
+          bills: []
+        };
+        rowsByProperty.set(bill.propertyKey, row);
+      }
+      row.bucketAmounts[bill.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[bill.bucketId] || 0) + bill.balanceDue);
+      row.total = this.roundFinancialReportAmount(row.total + bill.balanceDue);
+      row.bills.push(bill);
+    });
+
+    rowsByProperty.forEach(row => {
+      row.propertyRows = this.buildOwnerApAgingOwnerRows(row.bills, bucketIds);
+    });
+
+    return Array.from(rowsByProperty.values());
+  }
+
+  buildOwnerApAgingOwnerRows(bills: ApAgingBillDetail[], bucketIds: ApAgingBucketId[]): ApAgingPropertyRow[] {
+    const rowsByOwner = new Map<string, ApAgingPropertyRow>();
+    bills.forEach(bill => {
+      let row = rowsByOwner.get(bill.vendorKey);
+      if (!row) {
+        row = {
+          propertyKey: bill.vendorKey,
+          propertyId: bill.vendorId,
+          propertyLabel: bill.vendorLabel,
+          propertyCode: null,
+          bucketAmounts: createEmptyApAgingBucketAmounts(bucketIds),
+          total: 0,
+          bills: []
+        };
+        rowsByOwner.set(bill.vendorKey, row);
+      }
+      row.bucketAmounts[bill.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[bill.bucketId] || 0) + bill.balanceDue);
+      row.total = this.roundFinancialReportAmount(row.total + bill.balanceDue);
+      row.bills.push(bill);
+    });
+
+    return Array.from(rowsByOwner.values()).sort((a, b) =>
+      a.propertyLabel.localeCompare(b.propertyLabel, undefined, { sensitivity: 'base' })
+    );
+  }
+
+  buildOwnerApAgingOfficeRows(
+    billDetails: ApAgingBillDetail[],
+    bucketIds: ApAgingBucketId[],
+    sortBy: ApAgingSortBy,
+    officeNameByOfficeId: ReadonlyMap<number, string>
+  ): ApAgingOfficeRow[] {
+    const billsByOffice = new Map<number, ApAgingBillDetail[]>();
+    (billDetails || []).forEach(bill => {
+      const officeId = Number(bill.officeId) || 0;
+      const bucket = billsByOffice.get(officeId) ?? [];
+      bucket.push(bill);
+      billsByOffice.set(officeId, bucket);
+    });
+
+    return Array.from(billsByOffice.entries())
+      .map(([officeId, bills]) => {
+        const vendorRows = sortApAgingVendorRows(
+          this.buildOwnerApAgingPropertyFirstVendorRows(bills, bucketIds),
+          sortBy
+        );
+        const bucketAmounts = createEmptyApAgingBucketAmounts(bucketIds);
+        bills.forEach(bill => {
+          bucketAmounts[bill.bucketId] = this.roundFinancialReportAmount((bucketAmounts[bill.bucketId] || 0) + bill.balanceDue);
+        });
+        const total = bucketIds.reduce(
+          (sum, bucketId) => this.roundFinancialReportAmount(sum + (bucketAmounts[bucketId] || 0)),
+          0
+        );
+        const officeName = (officeNameByOfficeId.get(officeId) || '').trim() || `Office ${officeId}`;
+
+        return {
+          officeId,
+          officeName,
+          officeKey: `office:${officeId}`,
+          bucketAmounts,
+          total,
+          vendorRows
+        };
+      })
+      .sort((left, right) => left.officeName.localeCompare(right.officeName, undefined, { sensitivity: 'base' }));
+  }
+
   buildApAgingVendorRows(billDetails: ApAgingBillDetail[], bucketIds: ApAgingBucketId[]): ApAgingVendorRow[] {
     const rowsByVendor = new Map<string, ApAgingVendorRow>();
     billDetails.forEach(bill => {
@@ -8278,27 +8387,66 @@ buildEscrowLastRecapAmountsByProperty(
 
   mapApAgingReportToPrintableDocument(result: ApAgingReportResult): PrintableReportDocument {
     const bucketIds = (result.bucketColumns || []).map(column => column.id);
-    const columns: PrintableReportDocument['columns'] = [
-      { label: 'Vendor', align: 'left' },
-      ...(result.bucketColumns || []).map(column => ({ label: column.label, align: 'right' as const })),
-      { label: 'Total', align: 'right' }
-    ];
-    const rows: PrintableReportRow[] = (result.vendorRows || []).map(vendor => ({
-      kind: 'line',
-      cells: [
-        vendor.vendorLabel,
-        ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(vendor.bucketAmounts[bucketId])),
-        this.formatter.currencyUsd(vendor.total)
+    const isPropertyOwnerLayout = result.layoutMode === 'propertyOwner';
+    const columns: PrintableReportDocument['columns'] = isPropertyOwnerLayout
+      ? [
+        { label: 'Office / Property', align: 'left' },
+        { label: 'Owner', align: 'left' },
+        ...(result.bucketColumns || []).map(column => ({ label: column.label, align: 'right' as const })),
+        { label: 'Total', align: 'right' }
       ]
-    }));
+      : [
+        { label: 'Vendor', align: 'left' },
+        ...(result.bucketColumns || []).map(column => ({ label: column.label, align: 'right' as const })),
+        { label: 'Total', align: 'right' }
+      ];
+    const rows: PrintableReportRow[] = isPropertyOwnerLayout
+      ? (result.officeRows || []).flatMap(officeRow => {
+        const officeLine: PrintableReportRow = {
+          kind: 'line',
+          cells: [
+            officeRow.officeName,
+            '',
+            ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(officeRow.bucketAmounts[bucketId])),
+            this.formatter.currencyUsd(officeRow.total)
+          ]
+        };
+        const propertyOwnerLines = (officeRow.vendorRows || []).flatMap(propertyRow =>
+          (propertyRow.propertyRows || []).map(ownerRow => ({
+            kind: 'line' as const,
+            cells: [
+              propertyRow.vendorLabel,
+              ownerRow.propertyLabel,
+              ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(ownerRow.bucketAmounts[bucketId])),
+              this.formatter.currencyUsd(ownerRow.total)
+            ]
+          }))
+        );
+        return [officeLine, ...propertyOwnerLines];
+      })
+      : (result.vendorRows || []).map(vendor => ({
+        kind: 'line',
+        cells: [
+          vendor.vendorLabel,
+          ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(vendor.bucketAmounts[bucketId])),
+          this.formatter.currencyUsd(vendor.total)
+        ]
+      }));
 
     rows.push({
       kind: 'total',
-      cells: [
-        'Total',
-        ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(result.totals[bucketId])),
-        this.formatter.currencyUsd(result.grandTotal)
-      ]
+      cells: isPropertyOwnerLayout
+        ? [
+          'Total',
+          '',
+          ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(result.totals[bucketId])),
+          this.formatter.currencyUsd(result.grandTotal)
+        ]
+        : [
+          'Total',
+          ...bucketIds.map(bucketId => this.formatArAgingPrintableBucketAmount(result.totals[bucketId])),
+          this.formatter.currencyUsd(result.grandTotal)
+        ]
     });
 
     return {
