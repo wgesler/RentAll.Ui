@@ -2555,7 +2555,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       queryParamsHandling: 'merge'
     });
     this.persistPinnedTopBarIfActive();
-    this.tryAutoRunOwnerReportIfEmpty();
+    this.scheduleOwnerReportAutoRunIfEmpty();
   }
 
   selectInvoiceKind(kind: AccountingShellInvoiceKind): void {
@@ -2704,7 +2704,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     if (kindChanged && this.usesAccountingShellAsOfDateReport()) {
       this.clearAsOfShellDateValidation();
       this.syncInvoiceSearchDateRange();
-      this.syncBillsSearchRequest();
+    }
+
+    if (kindChanged && (this.usesOwnerReportsBundleOfficeScope() || this.usesAccountingShellAsOfDateReport())) {
+      this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
     }
 
     if (kindChanged && kind === 'statements') {
@@ -2909,7 +2912,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     if (this.usesGeneralLedgerTitleBarFilters()) {
       this.refreshGeneralLedgerListView();
     }
-    this.tryAutoRunOwnerReportIfEmpty();
+    this.scheduleOwnerReportAutoRunIfEmpty();
     this.cdr.markForCheck();
   }
 
@@ -2983,6 +2986,16 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     this.onOwnerReportGoClick();
+  }
+
+  scheduleOwnerReportAutoRunIfEmpty(): void {
+    this.tryAutoRunOwnerReportIfEmpty();
+    if (this.selectedTabIndex === this.tabOwners
+      && this.shouldFlashOwnerViewLoading(this.selectedOwnerKind)
+      && this.isOwnerReportGoViewEmpty()
+      && !this.isOwnerReportsApiLoading) {
+      this.flashOwnerViewLoading();
+    }
   }
 
   onOwnerStatementReportKindChange(kind: OwnerStatementReportKind): void {
@@ -3118,7 +3131,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     this.billsSearchRequest = {
       officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
       propertyId: this.resolveOwnerReportsBundlePropertyId(),
-      startDate: this.resolveShellSearchStartDateApi(),
+      startDate: this.resolveOwnerReportsBundleStartDateApi(),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
 
@@ -3417,6 +3430,14 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
     return this.utilityService.formatDateOnlyForApi(this.startDate);
   }
 
+  resolveOwnerReportsBundleStartDateApi(): string | null {
+    if (this.usesOwnerReportsBundleOfficeScope()) {
+      return this.utilityService.formatDateOnlyForApi(this.startDate);
+    }
+
+    return this.resolveShellSearchStartDateApi();
+  }
+
   clearAsOfShellDateValidation(): void {
     this.shellStartDateNeedsEntry = false;
   }
@@ -3441,7 +3462,7 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       ? this.resolveOfficeIdsForOwnerReportsSearch()
       : this.resolveOfficeIdsForBillsSearch();
     const startDate = this.usesOwnerReportsBundleOfficeScope()
-      ? this.utilityService.formatDateOnlyForApi(this.startDate)
+      ? this.resolveOwnerReportsBundleStartDateApi()
       : this.resolveShellSearchStartDateApi();
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
     let propertyId: string | null = null;
@@ -3466,7 +3487,7 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
     return {
       officeIds: this.resolveOfficeIdsForOwnerReportsSearch(),
       propertyId: null,
-      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      startDate: this.resolveOwnerReportsBundleStartDateApi(),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
   }
@@ -5170,9 +5191,11 @@ captureOwnerStatementReturnContext(): void {
     } else if (this.applyShellInitialDateRangeDefaults()) {
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
+    } else if (this.selectedTabIndex === this.tabOwners && this.usesOwnerReportsBundleOfficeScope()) {
+      this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
     }
 
-    this.tryAutoRunOwnerReportIfEmpty();
+    this.scheduleOwnerReportAutoRunIfEmpty();
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {

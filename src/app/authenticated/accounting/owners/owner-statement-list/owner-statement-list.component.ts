@@ -67,8 +67,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isLoading'] || changes['refreshTrigger']
-      || (changes['searchRequest'] && !changes['searchRequest'].firstChange)) {
+    if (changes['isLoading'] || changes['refreshTrigger'] || changes['searchRequest']) {
       this.loadOwnerStatementList();
     }
   }
