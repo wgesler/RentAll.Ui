@@ -1336,7 +1336,7 @@ buildWorkOrderPropertyStub(workOrder: WorkOrderResponse): PropertyResponse {
   override async onDownload(): Promise<void> {
     const downloadConfig: DownloadConfig = {
       fileName: this.buildReportFileName(),
-      documentType: DocumentType.ApAging,
+      documentType: this.resolveReportDocumentType(),
       noPreviewMessage: 'No AP aging report is available to download.',
       noSelectionMessage: 'Organization or office is not available.'
     };
@@ -1380,7 +1380,7 @@ buildWorkOrderPropertyStub(workOrder: WorkOrderResponse): PropertyResponse {
         officeName: config.selectedOfficeName || '',
         propertyId: null,
         reservationId: null,
-        documentTypeId: Number(DocumentType.ApAging),
+        documentTypeId: Number(this.resolveReportDocumentType()),
         fileName: this.buildReportFileName(),
         generatePdf: true
       };
@@ -1423,7 +1423,12 @@ buildReportFileName(): string {
     const dateStamp = this.utilityService.sanitizeFileNameSegment(
       this.reportFilters?.asOfDate || this.utilityService.todayAsCalendarDateString()
     );
-    return `${officeSegment}_ApAging_${dateStamp}.pdf`;
+    const reportSegment = this.isOwnerPayableMode ? 'OwnerApAging' : 'ApAging';
+    return `${officeSegment}_${reportSegment}_${dateStamp}.pdf`;
+  }
+
+  resolveReportDocumentType(): DocumentType {
+    return this.isOwnerPayableMode ? DocumentType.OwnerApAging : DocumentType.ApAging;
   }
 
 resolveDocumentOfficeId(): number | null {

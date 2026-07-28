@@ -6352,6 +6352,68 @@ roundCurrency(value: number): number {
     };
   }
 
+  mapEscrowReportToPrintableDocument(result: EscrowReportResult): PrintableReportDocument {
+    const columns: PrintableReportDocument['columns'] = [
+      { label: 'Property', align: 'left' },
+      { label: 'Owner', align: 'left' },
+      { label: 'AP Balance', align: 'right' },
+      { label: 'PrePaids', align: 'right' },
+      { label: 'Not Collected', align: 'right' },
+      { label: 'Total', align: 'right' },
+      { label: 'E2', align: 'right' }
+    ];
+    const formatAmount = (value: number) => this.formatter.currencyUsd(value);
+    const rows: PrintableReportRow[] = (result.rows || []).map(row => ({
+      kind: 'line',
+      cells: [
+        row.propertyCode,
+        row.ownerName,
+        formatAmount(row.arBalance),
+        formatAmount(row.prepaids),
+        formatAmount(row.notCollected),
+        formatAmount(row.total),
+        formatAmount(row.e2)
+      ]
+    }));
+
+    if (rows.length > 0) {
+      rows.push({
+        kind: 'total',
+        cells: [
+          'Totals',
+          '',
+          formatAmount(result.totals.arBalance),
+          formatAmount(result.totals.prepaids),
+          formatAmount(result.totals.notCollected),
+          formatAmount(result.totals.total),
+          formatAmount(result.totals.e2)
+        ]
+      });
+    }
+
+    rows.push(
+      {
+        kind: 'summary',
+        cells: ['Cushion', '', '', '', '', '', formatAmount(result.cushion)]
+      },
+      {
+        kind: 'summary',
+        cells: [result.escrowBankAccountLabel || 'Escrow Owners', '', '', '', '', '', formatAmount(result.escrowBankBalance)]
+      },
+      {
+        kind: 'summary',
+        cells: ['Transfer', '', '', '', '', '', formatAmount(result.transfer)]
+      }
+    );
+
+    return {
+      title: result.reportTitle,
+      subtitleLines: [result.entityLineLabel, result.periodLabel].filter(line => !!line?.trim()),
+      columns,
+      rows
+    };
+  }
+
   mapEscrowReportResponse(raw: Record<string, unknown>): EscrowReportResult {
     const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
     const rows = Array.isArray(rowsRaw)

@@ -12,7 +12,6 @@ import { CommonService } from '../../../../services/common.service';
 import { DocumentExportService } from '../../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { FormatterService } from '../../../../services/formatter-service';
-import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
@@ -34,7 +33,9 @@ import { PropertyHtmlResponse } from '../../../properties/models/property-html.m
 import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyHtmlService } from '../../../properties/services/property-html.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
+import { OwnerStatementPrintContext } from '../../models/owner-statement-print-context.model';
 import { OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from '../../models/owner-statement.model';
+import { OwnerStatementHtmlBuilderService } from '../../services/owner-statement-html-builder.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 import { DocumentService } from '../../../documents/services/document.service';
 import { EmailService } from '../../../email/services/email.service';
@@ -57,7 +58,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   private fb = inject(FormBuilder);
   private utilityService = inject(UtilityService);
   private formatterService = inject(FormatterService);
-  private mappingService = inject(MappingService);
+  private htmlBuilder = inject(OwnerStatementHtmlBuilderService);
   private commonService = inject(CommonService);
   private contactService = inject(ContactService);
   private propertyService = inject(PropertyService);
@@ -338,12 +339,14 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
   loadOwnerStatementHtml(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
+    const finishPreviewLoad = () => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
 
     if (this.debuggingHtml) {
-      this.http.get(`assets/owner-statement.html?ts=${Date.now()}`, { responseType: 'text' }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml'))).subscribe({
+      this.http.get(`assets/owner-statement.html?ts=${Date.now()}`, { responseType: 'text' }).pipe(take(1), finalize(finishPreviewLoad)).subscribe({
         next: html => {
-          const processedHtml = this.replacePlaceholders(html || '');
-          this.processAndSetHtml(processedHtml);
+          const ctx = this.buildPrintContext();
+          const { previewIframeHtml, previewIframeStyles } = this.htmlBuilder.buildProcessedPreview(html || '', ctx);
+          this.processAndSetHtml(previewIframeHtml, previewIframeStyles);
         },
         error: () => {
           this.clearPreview();
@@ -354,25 +357,38 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
     if (!this.property?.propertyId) {
       this.clearPreview();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      finishPreviewLoad();
       return;
     }
 
     const templateHtml = (this.propertyHtml?.ownerStatement || '').trim();
     if (templateHtml) {
-      const processedHtml = this.replacePlaceholders(templateHtml);
-      this.processAndSetHtml(processedHtml);
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      const ctx = this.buildPrintContext();
+      const { previewIframeHtml, previewIframeStyles } = this.htmlBuilder.buildProcessedPreview(templateHtml, ctx);
+      this.processAndSetHtml(previewIframeHtml, previewIframeStyles);
+      finishPreviewLoad();
       return;
     }
 
     this.clearPreview();
     this.toastr.warning('No owner statement HTML template found for this property.', 'No Template');
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+    finishPreviewLoad();
   }
 
-  processAndSetHtml(html: string): void {
-    const { processedHtml, extractedStyles } = this.documentHtmlService.processHtml(html, true);
+  buildPrintContext(): OwnerStatementPrintContext {
+    return {
+      line: this.line!,
+      organization: this.organization,
+      selectedOffice: this.selectedOffice,
+      selectedAccountingOffice: this.selectedAccountingOffice,
+      ownerContact: this.ownerContact,
+      property: this.property,
+      statementActivityLines: this.statementActivityLines,
+      statementAccrualActivityLines: this.statementAccrualActivityLines
+    };
+  }
+
+  processAndSetHtml(processedHtml: string, extractedStyles: string): void {
     this.previewIframeHtml = processedHtml;
     this.previewIframeStyles = extractedStyles;
     const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(processedHtml, extractedStyles);
@@ -420,400 +436,6 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
     this.iframeKey++;
     this.cdr.markForCheck();
-  }
-  //#endregion
-
-  //#region Template Merge
-  replacePlaceholders(html: string): string {
-    if (!this.line) {
-      return html;
-    }
-
-    const periodStartDate = (this.line.periodStartDate || this.line.monthDate || '').trim();
-    const periodEndDate = (this.line.periodEndDate || this.line.monthDate || '').trim();
-    const periodDisplay = this.line.monthDisplay || '';
-    const periodTitle = this.mappingService.formatOwnerStatementPeriodTitle(periodStartDate, periodEndDate) || periodDisplay;
-    const openingBalanceDate = this.formatPreviousMonthEndDate(periodStartDate);
-    const closingBalanceDate = this.formatReportingMonthEndDate(periodEndDate) || this.formatFullDate(periodEndDate);
-    const startingBalance = this.mappingService.parseCurrencyValue(this.line.startingBalance);
-    const income = this.mappingService.parseCurrencyValue(this.line.income);
-    const expenses = this.mappingService.parseCurrencyValue(this.line.expenses);
-    const ownerPayment = this.mappingService.parseCurrencyValue(this.line.ownerPayment);
-    const endingBalance = this.mappingService.parseCurrencyValue(this.line.endingBalance);
-    const incomeActivities = (this.statementActivityLines || [])
-      .filter(activity => Number(activity.receivedIncome) !== 0)
-      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
-    const expenseActivities = (this.statementActivityLines || [])
-      .filter(activity => Number(activity.expenses) !== 0)
-      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
-
-    let runningTotal = startingBalance;
-    const openingBalanceRows = [
-      this.buildSummaryBalanceRow('Starting Balance', openingBalanceDate, runningTotal, false)
-    ].join('\n');
-
-    let incomeRows = '';
-    const unpaidIncomeEntries = this.getUnpaidAccrualEntries();
-    const incomeLineRows: { sortDate: string; html: string }[] = [];
-
-    if (incomeActivities.length > 0) {
-      incomeActivities.forEach(activity => {
-        const amount = Number(activity.receivedIncome) || 0;
-        runningTotal += amount;
-        const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Income');
-        incomeLineRows.push({
-          sortDate: activity.activityDate,
-          html: this.buildChargeRow(
-            this.formatActivityDateForStatement(activity, closingBalanceDate),
-            refNo,
-            description,
-            amount,
-            runningTotal)
-        });
-      });
-    } else if (income !== 0) {
-      runningTotal += income;
-      incomeLineRows.push({
-        sortDate: periodEndDate,
-        html: this.buildChargeRow(closingBalanceDate, '', 'Income', income, runningTotal)
-      });
-    }
-
-    unpaidIncomeEntries.forEach(entry => {
-      const { refNo, description } = this.parseActivityRefAndDescription(entry.line, 'Income');
-      incomeLineRows.push({
-        sortDate: entry.line.activityDate,
-        html: this.buildChargeRow(
-          this.formatActivityDateForStatement(entry.line, closingBalanceDate),
-          refNo,
-          description,
-          entry.unpaidAmount,
-          runningTotal,
-          true)
-      });
-    });
-
-    incomeLineRows.sort((a, b) => this.utilityService.compareCalendarDateStrings(a.sortDate, b.sortDate));
-    incomeRows = incomeLineRows.map(row => row.html).join('\n');
-    if (!incomeRows) {
-      incomeRows = this.buildBlankLedgerRow();
-    }
-
-    let chargesRows = '';
-    if (expenseActivities.length > 0) {
-      chargesRows = expenseActivities.map(activity => {
-        const amount = Number(activity.expenses) || 0;
-        runningTotal -= amount;
-        const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Expense');
-        return this.buildChargeRow(
-          this.formatActivityDateForStatement(activity, closingBalanceDate),
-          refNo,
-          description,
-          amount,
-          runningTotal);
-      }).join('\n');
-    } else if (expenses !== 0) {
-      runningTotal -= expenses;
-      chargesRows = this.buildChargeRow(closingBalanceDate, '', 'Expenses', expenses, runningTotal);
-    }
-    if (!chargesRows) {
-      chargesRows = this.buildBlankLedgerRow();
-    }
-
-    let paymentsRows = '';
-    if (ownerPayment !== 0) {
-      runningTotal -= ownerPayment;
-      paymentsRows = this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPayment, runningTotal);
-    }
-    if (!paymentsRows) {
-      paymentsRows = this.buildBlankLedgerRow();
-    }
-
-    const closingBalanceRows = [
-      this.buildSummaryBalanceRow('Ending Balance', closingBalanceDate, endingBalance, true)
-    ].join('\n');
-
-    const companyName = this.escapeHtml(this.organization?.name || '');
-    const accountingOfficeName = this.escapeHtml(this.selectedAccountingOffice?.name || this.selectedOffice?.name || '');
-    const accountingOfficeAddress = this.escapeHtml(this.getAccountingOfficeAddress());
-    const accountingOfficeAddressSingleLine = this.escapeHtml(this.getAccountingOfficeAddressSingleLine());
-    const accountingOfficeCityStateZip = this.escapeHtml(this.getAccountingOfficeCityStateZip());
-    const accountingOfficeEmail = this.escapeHtml(this.selectedAccountingOffice?.email || '');
-    const accountingOfficePhone = this.escapeHtml(this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '');
-    const accountingOfficeWebsite = this.escapeHtml(this.selectedAccountingOffice?.website || '');
-    const accountingOfficeBank = this.escapeHtml(this.selectedAccountingOffice?.bankName || '');
-    const accountingOfficeBankRouting = this.escapeHtml(this.selectedAccountingOffice?.bankRouting || '');
-    const accountingOfficeBankAccount = this.escapeHtml(this.selectedAccountingOffice?.bankAccount || '');
-    const accountingOfficeSwithCode = this.escapeHtml(this.selectedAccountingOffice?.bankSwiftCode || '');
-    const accountingOfficeBankAddress = this.escapeHtml(this.selectedAccountingOffice?.bankAddress || '');
-    const accountingOfficeBankPhone = this.escapeHtml(this.formatterService.phoneNumber(this.selectedAccountingOffice?.bankPhone) || '');
-    const officeLogoBase64 = this.resolveOfficeLogo();
-    const responsiblePartiesBlock = this.buildResponsiblePartiesBlock();
-    const propertySideBlock = this.buildPropertySideBlock();
-    const statementSubtitle = this.escapeHtml(periodTitle);
-
-    let result = html;
-    result = result.replace(/\{\{statementSubtitle\}\}/g, statementSubtitle);
-    result = result.replace(/\{\{statementPeriodTitle\}\}/g, this.escapeHtml(periodTitle));
-    result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, responsiblePartiesBlock);
-    result = result.replace(/\{\{propertySideBlock\}\}/g, propertySideBlock);
-    result = result.replace(/\{\{openingBalanceLedgerLineRows\}\}/g, openingBalanceRows);
-    result = result.replace(/\{\{incomeLedgerLineRows\}\}/g, incomeRows);
-    result = result.replace(/\{\{chargesLedgerLineRows\}\}/g, chargesRows);
-    result = result.replace(/\{\{paymentsLedgerLineRows\}\}/g, paymentsRows);
-    result = result.replace(/\{\{closingBalanceLedgerLineRows\}\}/g, closingBalanceRows);
-    result = result.replace(/\{\{statementNotes\}\}/g, this.buildStatementNotesContent());
-    result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, '');
-    result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currencyUsd(endingBalance));
-    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currencyUsd(0));
-    result = result.replace(/\{\{statementBalanceDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
-    result = result.replace(/\{\{totalChargesRowStyle\}\}/g, 'display: none;');
-    result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, '');
-    result = result.replace(/\{\{paymentsSectionStyle\}\}/g, 'display: none;');
-    result = result.replace(/\{\{paymentsTotalRowStyle\}\}/g, 'display: none;');
-    result = result.replace(/\{\{balanceDueBottomSectionStyle\}\}/g, 'display: none;');
-    result = result.replace(/\{\{companyName\}\}/g, companyName);
-    result = result.replace(/\{\{accountingOfficeName\}\}/g, accountingOfficeName);
-    result = result.replace(/\{\{accountingOfficeAddress\}\}/g, accountingOfficeAddress);
-    result = result.replace(/\{\{accountingOfficeAddressSingleLine\}\}/g, accountingOfficeAddressSingleLine);
-    result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, accountingOfficeCityStateZip);
-    result = result.replace(/\{\{accountingOfficeEmail\}\}/g, accountingOfficeEmail);
-    result = result.replace(/\{\{accountingOfficePhone\}\}/g, accountingOfficePhone);
-    result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, accountingOfficeWebsite);
-    result = result.replace(/\{\{accountingOfficeBank\}\}/g, accountingOfficeBank);
-    result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, accountingOfficeBankRouting);
-    result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, accountingOfficeBankAccount);
-    result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, accountingOfficeSwithCode);
-    result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, accountingOfficeBankAddress);
-    result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, accountingOfficeBankPhone);
-    result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoBase64);
-    result = result.replace(/\{\{orgLogoBase64\}\}/g, officeLogoBase64);
-    result = result.replace(/\{\{startDate\}\}/g, this.escapeHtml(periodTitle) || '');
-    result = result.replace(/\{\{endDate\}\}/g, this.escapeHtml(periodTitle) || '');
-    result = result.replace(/\{\{statementDate\}\}/g, this.utilityService.todayAsCalendarDateString());
-    result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currencyUsd(0));
-    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
-    return result.replace(/\{\{[^}]+\}\}/g, '');
-  }
-
-  buildStatementNotesContent(): string {
-    const unpaidEntries = this.getUnpaidAccrualEntries();
-    const blocks: string[] = [];
-
-    if (unpaidEntries.length > 0) {
-      const lines = unpaidEntries.map(({ line, unpaidAmount }, index) => {
-        const { description } = this.parseActivityRefAndDescription(line, 'Income');
-        const amount = this.formatterService.currencyUsd(unpaidAmount);
-        const intro = index === 0 ? `${this.escapeHtml('* Funds not yet collected:')}\t` : '';
-        return `<div class="statement-notes-unpaid-line">${intro}${this.escapeHtml(description)}\t${this.escapeHtml(amount)}</div>`;
-      }).join('\n');
-
-      blocks.push(`<div class="statement-notes-unpaid-block">${lines}</div>`);
-    }
-
-    const manualNotes = (this.line?.notes || '').trim();
-    if (manualNotes) {
-      blocks.push(`<div class="statement-notes-manual">${this.escapeHtml(manualNotes)}</div>`);
-    }
-
-    return blocks.join('\n');
-  }
-
-  getUnpaidAccrualEntries(): { line: OwnerStatementPropertyActivityLineResponse; unpaidAmount: number }[] {
-    const collectedIncomeBySourceRef = this.buildCollectedIncomeBySourceRef();
-
-    return (this.statementAccrualActivityLines || [])
-      .map(line => {
-        const sourceRef = (line.sourceDocumentCode || '').trim().toLowerCase();
-        const expectedIncome = Number(line.expectedIncome) || 0;
-        const receivedIncome = Number(line.receivedIncome) || 0;
-        const collectedOnCash = sourceRef ? (collectedIncomeBySourceRef.get(sourceRef) || 0) : 0;
-        const unpaidAmount = Math.max(0, expectedIncome - Math.max(receivedIncome, collectedOnCash));
-        return { line, unpaidAmount };
-      })
-      .filter(entry => entry.unpaidAmount > 0)
-      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.line.activityDate, b.line.activityDate));
-  }
-
-  private buildCollectedIncomeBySourceRef(): Map<string, number> {
-    const collectedIncomeBySourceRef = new Map<string, number>();
-    (this.statementActivityLines || []).forEach(line => {
-      const sourceRef = (line.sourceDocumentCode || '').trim().toLowerCase();
-      const receivedIncome = Number(line.receivedIncome) || 0;
-      if (!sourceRef || receivedIncome === 0) {
-        return;
-      }
-
-      collectedIncomeBySourceRef.set(
-        sourceRef,
-        (collectedIncomeBySourceRef.get(sourceRef) || 0) + receivedIncome
-      );
-    });
-
-    return collectedIncomeBySourceRef;
-  }
-
-  buildChargeRow(
-    date: string,
-    refNo: string,
-    description: string,
-    amount: number | null,
-    total: number | null,
-    isUnpaidAmount = false
-  ): string {
-    const amountCell = amount == null ? '' : this.formatStatementAmount(amount, isUnpaidAmount);
-    const totalCell = total == null ? '' : this.formatterService.currencyUsd(total);
-    return `              <tr class="ledger-line-row"><td>${this.escapeHtml(date)}</td><td>${this.escapeHtml(refNo)}</td><td>${this.escapeHtml(description)}</td><td class="amount-col">${amountCell}</td><td class="amount-col">${totalCell}</td></tr>`;
-  }
-
-  formatStatementAmount(amount: number, isUnpaid = false): string {
-    const formatted = this.formatterService.currencyUsd(amount);
-    return isUnpaid ? `${formatted} *` : formatted;
-  }
-
-  buildBlankLedgerRow(): string {
-    return '              <tr class="ledger-line-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="amount-col">&nbsp;</td><td class="amount-col">&nbsp;</td></tr>';
-  }
-
-  buildSummaryBalanceRow(label: string, date: string, total: number, isEnding: boolean): string {
-    const totalCell = this.formatterService.currencyUsd(total);
-    const rowClass = isEnding
-      ? 'ledger-line-row ledger-summary-balance-row ledger-summary-balance-row--ending'
-      : 'ledger-line-row ledger-summary-balance-row ledger-summary-balance-row--opening';
-    return `              <tr class="${rowClass}"><td>${this.escapeHtml(date)}</td><td></td><td>${this.escapeHtml(`${label}:`)}</td><td class="amount-col"></td><td class="amount-col">${totalCell}</td></tr>`;
-  }
-
-  parseActivityRefAndDescription(
-    activity: OwnerStatementPropertyActivityLineResponse,
-    fallbackLabel: string
-  ): { refNo: string; description: string } {
-    const rawDescription = (activity.description || '').trim();
-
-    if (this.isLinenAndTowelActivity(activity)) {
-      return {
-        refNo: this.formatTransactionDateAsMonthYear(activity.activityDate),
-        description: rawDescription || fallbackLabel
-      };
-    }
-
-    const sourceRef = (activity.sourceDocumentCode || '').trim();
-
-    if (sourceRef) {
-      const prefixPattern = new RegExp(`^${this.escapeRegExp(sourceRef)}\\s*:\\s*`, 'i');
-      const description = prefixPattern.test(rawDescription)
-        ? rawDescription.replace(prefixPattern, '').trim() || fallbackLabel
-        : rawDescription || fallbackLabel;
-
-      return { refNo: sourceRef, description };
-    }
-
-    const colonSplitMatch = rawDescription.match(
-      /^((?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*))\s*:\s*(.+)$/i
-    );
-    if (colonSplitMatch) {
-      return {
-        refNo: colonSplitMatch[1].trim(),
-        description: colonSplitMatch[2].trim()
-      };
-    }
-
-    return {
-      refNo: '',
-      description: rawDescription || fallbackLabel
-    };
-  }
-
-  isLinenAndTowelActivity(activity: OwnerStatementPropertyActivityLineResponse): boolean {
-    if ((activity.activityType || '').trim().toLowerCase() === 'linensandtowels') {
-      return true;
-    }
-
-    return /(Monthly|Annual).*Linen\s*&\s*Towe/i.test((activity.description || '').trim());
-  }
-
-  formatTransactionDateAsMonthYear(value: string): string {
-    const date = this.utilityService.parseCalendarDateInput(value);
-    if (!date) {
-      return '';
-    }
-
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear() % 100).padStart(2, '0');
-    return `${month}.${year}`;
-  }
-
-  formatActivityDateForStatement(
-    activity: OwnerStatementPropertyActivityLineResponse,
-    fallbackDate: string
-  ): string {
-    const activityDate = this.formatFullDate(activity.activityDate);
-    if (activityDate) {
-      return activityDate;
-    }
-
-    const accountingPeriodDate = this.formatAccountingPeriodAsFullDate(activity.accountingPeriod);
-    if (accountingPeriodDate) {
-      return accountingPeriodDate;
-    }
-
-    return fallbackDate;
-  }
-
-  formatAccountingPeriodAsFullDate(accountingPeriod: string | undefined): string {
-    const trimmed = (accountingPeriod || '').trim();
-    if (!trimmed) {
-      return '';
-    }
-
-    const monthYearMatch = trimmed.match(/^(\d{2})\.(\d{2})$/);
-    if (monthYearMatch) {
-      const month = Number(monthYearMatch[1]);
-      const year = 2000 + Number(monthYearMatch[2]);
-      if (month >= 1 && month <= 12) {
-        const lastDay = new Date(year, month, 0);
-        return this.formatFullDateFromDate(lastDay);
-      }
-    }
-
-    return this.formatFullDate(trimmed);
-  }
-
-  buildResponsiblePartiesBlock(): string {
-    const companyName = (this.line?.companyName || '').trim();
-    const ownerNames = (this.line?.ownerNames || this.line?.ownerName || '').trim();
-    const address1 = this.escapeHtml(this.ownerContact?.address1 || '');
-    const address2 = this.escapeHtml(this.ownerContact?.address2 || '');
-    const cityStateZip = this.escapeHtml(this.formatAddress2(this.ownerContact));
-
-    const clientLines: string[] = [];
-    if (companyName) {
-      clientLines.push(`<span style="font-weight: bold">Client:</span> ${this.escapeHtml(companyName)}`);
-      if (ownerNames) {
-        clientLines.push(`&nbsp;&nbsp;&nbsp;&nbsp;${this.escapeHtml(ownerNames)}`);
-      }
-    } else if (ownerNames) {
-      clientLines.push(`<span style="font-weight: bold">Client:</span> ${this.escapeHtml(ownerNames)}`);
-    }
-
-    return [
-      ...clientLines,
-      address1 ? `<span style="font-weight: bold">Address:</span> ${address1}` : '',
-      address2 ? `&nbsp;&nbsp;&nbsp;&nbsp;${address2}` : '',
-      cityStateZip ? `&nbsp;&nbsp;&nbsp;&nbsp;${cityStateZip}` : '',
-      `<span style="font-weight: bold">Statement Month:</span> ${this.escapeHtml(this.getStatementMonthLabel())}`
-    ].filter(Boolean).join('<br>');
-  }
-
-  buildPropertySideBlock(): string {
-    const propertyCode = this.escapeHtml(this.line?.propertyCode || '');
-    const propertyAddress1 = this.escapeHtml([this.property?.address1, this.property?.suite].filter(part => !!part).join(' '));
-    const propertyAddress2 = this.escapeHtml(this.formatPropertyAddress2());
-    return [
-      `<span style="font-weight: bold">Property Code:</span> ${propertyCode}`,
-      propertyAddress1 ? `<span style="font-weight: bold">Property Address:</span> ${propertyAddress1}` : '',
-      propertyAddress2 ? `&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}` : '',
-      `<span style="font-weight: bold">Working Capital:</span> ${this.escapeHtml(this.line?.workingCapital || this.formatterService.currencyUsd(0))}`
-    ].filter(Boolean).join('<br>');
   }
   //#endregion
 
@@ -910,9 +532,10 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   getOwnerStatementFileName(): string {
-    const propertyCode = (this.line?.propertyCode || 'OwnerStatement').replace(/[^a-zA-Z0-9-]/g, '');
-    const month = (this.line?.monthDisplay || '').replace(/[^a-zA-Z0-9-]/g, '');
-    return `OwnerStatement_${propertyCode}_${month || this.utilityService.todayAsCalendarDateString()}.pdf`;
+    if (!this.line) {
+      return 'OwnerStatement.pdf';
+    }
+    return this.htmlBuilder.buildOwnerStatementFileName(this.line);
   }
 
   getOwnerEmail(): string {
@@ -939,11 +562,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     if (!this.line) {
       return '';
     }
-
-    const periodStartDate = (this.line.periodStartDate || this.line.monthDate || '').trim();
-    const periodEndDate = (this.line.periodEndDate || this.line.monthDate || periodStartDate).trim();
-    return this.mappingService.formatOwnerStatementPeriodMonthLabel(periodStartDate, periodEndDate)
-      || (this.line.monthDisplay || '').trim();
+    return this.htmlBuilder.getStatementMonthLabel(this.line);
   }
 
   buildForm(): FormGroup {
@@ -954,129 +573,6 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       statementMonth: new FormControl(''),
       ownerStatement: new FormControl('')
     });
-  }
-
-  formatAddress2(contact: ContactResponse | null): string {
-    if (!contact) {
-      return '';
-    }
-    const city = String(contact.city || '').trim();
-    const state = String(contact.state || '').trim();
-    const zip = String(contact.zip || '').trim();
-    if (city && state) {
-      return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
-    }
-    return [city, state, zip].filter(part => !!part).join(' ');
-  }
-
-  formatFullDate(value: string): string {
-    const date = this.utilityService.parseCalendarDateInput(value);
-    if (!date) {
-      return '';
-    }
-
-    return this.formatFullDateFromDate(date);
-  }
-
-  formatFullDateFromDate(date: Date): string {
-    if (!date || Number.isNaN(date.getTime())) {
-      return '';
-    }
-
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${month}/${day}/${year}`;
-  }
-
-  formatReportingMonthEndDate(value: string): string {
-    const parsed = this.utilityService.parseCalendarDateInput(value);
-    if (!parsed) {
-      return '';
-    }
-
-    const lastDay = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0);
-    return this.formatFullDateFromDate(lastDay);
-  }
-
-  formatPreviousMonthEndDate(value: string): string {
-    const parsed = this.utilityService.parseCalendarDateInput(value);
-    if (!parsed) {
-      return '';
-    }
-
-    const lastDay = new Date(parsed.getFullYear(), parsed.getMonth(), 0);
-    return this.formatFullDateFromDate(lastDay);
-  }
-
-  formatMonthDay(value: string): string {
-    const date = this.utilityService.parseCalendarDateInput(value);
-    if (!date) {
-      return '';
-    }
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${month}/${day}`;
-  }
-
-  formatPropertyAddress2(): string {
-    const city = String(this.property?.city || '').trim();
-    const state = String(this.property?.state || '').trim();
-    const zip = String(this.property?.zip || '').trim();
-    if (city && state) {
-      return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
-    }
-    return [city, state, zip].filter(part => !!part).join(' ');
-  }
-
-  getAccountingOfficeAddress(): string {
-    return [this.selectedAccountingOffice?.address1, this.selectedAccountingOffice?.suite, this.selectedAccountingOffice?.address2]
-      .map(part => String(part || '').trim())
-      .filter(part => part.length > 0)
-      .join(' ');
-  }
-
-  getAccountingOfficeAddressSingleLine(): string {
-    const street = this.getAccountingOfficeAddress();
-    const cityStateZip = this.getAccountingOfficeCityStateZip();
-    return [street, cityStateZip].filter(part => part.length > 0).join(', ');
-  }
-
-  getAccountingOfficeCityStateZip(): string {
-    const city = String(this.selectedAccountingOffice?.city || '').trim();
-    const state = String(this.selectedAccountingOffice?.state || '').trim();
-    const zip = String(this.selectedAccountingOffice?.zip || '').trim();
-    if (city && state) {
-      return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
-    }
-    return [city, state, zip].filter(part => !!part).join(' ');
-  }
-
-  resolveOfficeLogo(): string {
-    const details = this.selectedAccountingOffice?.fileDetails || this.selectedOffice?.fileDetails || this.organization?.fileDetails;
-    if (!details) {
-      return '';
-    }
-    if (details.dataUrl) {
-      return details.dataUrl;
-    }
-    if (details.file && details.contentType) {
-      return `data:${details.contentType};base64,${details.file}`;
-    }
-    return '';
-  }
-
-  escapeRegExp(value: string): string {
-    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  escapeHtml(value: string): string {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   ngOnDestroy(): void {

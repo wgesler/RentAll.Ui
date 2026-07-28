@@ -858,7 +858,7 @@ initializeInvoicePreview(): void {
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
-      documentType: DocumentType.Other,
+      documentType: DocumentType.Invoice,
       noPreviewMessage: 'Please select an Office, Reservation, and Invoice to generate the invoice',
       noSelectionMessage: 'Organization, Office, or Invoice not available'
     };

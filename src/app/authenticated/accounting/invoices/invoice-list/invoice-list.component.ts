@@ -1123,6 +1123,30 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.markViewForCheck();
   }
 
+  downloadSelectedInvoices(): void {
+    const invoiceIds = Array.from(this.selectedInvoiceIds);
+    if (invoiceIds.length === 0) {
+      this.toastr.warning('Select one or more invoices to download.', 'Download');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoiceDownload');
+    from(invoiceIds).pipe(
+      concatMap(invoiceId => this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1))),
+      concatMap(invoice => this.invoiceDocumentService.downloadInvoicePdf(invoice).pipe(take(1))),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoiceDownload'))
+    ).subscribe({
+      complete: () => {
+        this.toastr.success(`Downloaded ${invoiceIds.length} invoice(s).`, CommonMessage.Success);
+        this.markViewForCheck();
+      },
+      error: (err: Error) => {
+        this.toastr.error(err?.message || 'Failed to download invoices.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
+
   exportInvoicesToIif(): void {
     if (!this.hasQuickBooksAccess) {
       return;

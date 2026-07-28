@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, concatMap, finalize, from, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
@@ -16,6 +16,7 @@ import { DataTableFilterActionsDirective } from '../../../shared/data-table/data
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PaymentType } from '../../models/accounting-enum';
 import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
+import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 
@@ -37,6 +38,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private commonService = inject(CommonService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private ownerStatementService = inject(OwnerStatementService);
+  private ownerStatementDocumentService = inject(OwnerStatementDocumentService);
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -46,22 +48,22 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   isPageReady = false;
   isServiceError = false;
   isPayingOwners = false;
+  isDownloadingOwnerStatements = false;
   companyName = '';
   noDataMessage = 'Press Go to run the report.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
   private customToBePaidByLineId = new Map<string, string>();
   private readonly ownerStatementBaseColumns: ColumnSet = {
-    officeName: { displayAs: 'Office', wrap: false, maxWidth: '14ch' },
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '35ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '18ch', alignment: 'center' },
-    startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
-    income: { displayAs: 'Income', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
-    expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
-    ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
-    ownerPaymentPaid: { displayAs: 'Paid', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
-    endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
+    monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '15ch', alignment: 'center' },
+    startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    income: { displayAs: 'Income', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    ownerPaymentPaid: { displayAs: 'Paid', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
   private readonly ownerStatementToBePaidColumn: ColumnSet = {
     toBePaid: {
@@ -95,6 +97,33 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   onViewStatement(row: OwnerStatementMonthLineListDisplay): void {
     this.viewStatement.emit(row);
+  }
+
+  printOwnerStatement(row: OwnerStatementMonthLineListDisplay): void {
+    if (!row?.ownerStatementLineId) {
+      return;
+    }
+
+    this.ownerStatementDocumentService.printOwnerStatement(row).pipe(take(1)).subscribe({
+      error: (err: Error) => {
+        this.toastr.error(err?.message || 'Failed to print owner statement.', CommonMessage.Error);
+      }
+    });
+  }
+
+  downloadOwnerStatement(row: OwnerStatementMonthLineListDisplay): void {
+    if (!row?.ownerStatementLineId) {
+      return;
+    }
+
+    this.ownerStatementDocumentService.downloadOwnerStatementPdf(row).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Owner statement downloaded.', CommonMessage.Success);
+      },
+      error: (err: Error) => {
+        this.toastr.error(err?.message || 'Failed to download owner statement.', CommonMessage.Error);
+      }
+    });
   }
 
   onSelectionSet(selection: SelectionModel<unknown>): void {
@@ -132,6 +161,33 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       const customAmount = this.customToBePaidByLineId.get(line.ownerStatementLineId);
       line.toBePaid = customAmount ?? line.ownerPayment;
     }
+  }
+
+  downloadSelectedOwnerStatements(): void {
+    if (this.selectedOwnerStatementLines.length === 0) {
+      this.toastr.warning('Select one or more owner statements to download.', 'Download');
+      return;
+    }
+
+    const lineCount = this.selectedOwnerStatementLines.length;
+    this.isDownloadingOwnerStatements = true;
+    this.markViewForCheck();
+    from(this.selectedOwnerStatementLines).pipe(
+      concatMap(line => this.ownerStatementDocumentService.downloadOwnerStatementPdf(line).pipe(take(1))),
+      finalize(() => {
+        this.isDownloadingOwnerStatements = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      complete: () => {
+        this.toastr.success(`Downloaded ${lineCount} owner statement(s).`, CommonMessage.Success);
+        this.markViewForCheck();
+      },
+      error: (err: Error) => {
+        this.toastr.error(err?.message || 'Failed to download owner statements.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
   }
 
   onPayOwners(): void {

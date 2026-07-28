@@ -101,7 +101,7 @@ export class InvoiceDocumentService {
           officeName: data.office.name || '',
           propertyId: data.property.propertyId,
           reservationId: data.reservation.reservationId,
-          documentTypeId: Number(DocumentType.Other),
+          documentTypeId: Number(DocumentType.Invoice),
           fileName
         };
 

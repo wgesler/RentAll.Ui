@@ -38,11 +38,17 @@
         [hasActionsSelect]="true"
         [hasButtonSelectAll]="true"
         [hasActionsView]="true"
+        [hasActionsPrint]="true"
+        [hasActionsDownload]="true"
+        [downloadActionColor]="'#FFC107'"
+        [downloadActionTooltip]="'Download'"
         [hasActionsRowClick]="!showToBePaidColumn"
         [noDataMessage]="noDataMessage"
         [itemsPerPage]="10"
         (rowClickEvent)="onViewStatement($event)"
         (viewEvent)="onViewStatement($event)"
+        (printEvent)="printOwnerStatement($event)"
+        (downloadEvent)="downloadOwnerStatement($event)"
         (selectionSet)="onSelectionSet($event)"
         (inlineEditChangeEvent)="onInlineToBePaidChange($event)">
           <div dataTableFilterActions>
@@ -50,6 +56,10 @@
               <button mat-raised-button type="button" color="accent" id="pay-owners-button" class="whitespace-nowrap items-center flex gap-1" (click)="onPayOwners()" [disabled]="isPayingOwners">
                 <mat-icon class="text-base">attach_money</mat-icon>
                 <span>Pay Owners</span>
+              </button>
+              <button mat-raised-button type="button" color="primary" id="download-owner-statements-button" class="whitespace-nowrap items-center flex gap-1" (click)="downloadSelectedOwnerStatements()" [disabled]="selectedOwnerStatementLines.length === 0 || isDownloadingOwnerStatements">
+                <mat-icon class="text-base">file_download</mat-icon>
+                <span>{{ isDownloadingOwnerStatements ? 'Downloading...' : 'Download' }}</span>
               </button>
             </div>
           </div>

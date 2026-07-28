@@ -111,6 +111,10 @@
                   <mat-icon class="text-base">download</mat-icon>
                   <span>Export</span>
                 </button>
+                <button mat-raised-button type="button" color="accent" id="download-invoices-button" (click)="downloadSelectedInvoices()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
+                  <mat-icon class="text-base">file_download</mat-icon>
+                  <span>Download</span>
+                </button>
               }
               @if (source === 'reservation') {
                 <button mat-raised-button type="button" color="primary" id="preview-all-invoices-button" (click)="previewAllInvoices()" class="whitespace-nowrap items-center flex gap-1">
