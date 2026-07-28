@@ -2536,7 +2536,14 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     }
     this.clearInactiveDropdownSelections(event.index);
     this.selectedTabIndex = event.index;
-    this.syncBillsSearchRequest();
+    if (this.showOwnerReportGoButton) {
+      this.ensureOwnerReportGoDefaultCriteria();
+    }
+    this.syncBillsSearchRequest(
+      this.showOwnerReportGoButton
+        ? { ownerBundleInvalidateRequiresManualGo: false }
+        : undefined
+    );
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
     }
@@ -2996,18 +3003,28 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
   }
 
   tryAutoRunOwnerReportIfEmpty(): void {
-    const awaitingManualGo = this.isOwnerEscrowViewActive
-      ? this.escrowReportAwaitingManualGo
-      : this.ownerBundleAwaitingManualGo;
     if (!this.showOwnerReportGoButton
-      || awaitingManualGo
       || this.isOwnerReportsApiLoading
-      || !this.isOwnerReportGoViewEmpty()
-      || !this.hasOwnerReportGoRunCriteria()) {
+      || !this.isOwnerReportGoViewEmpty()) {
+      return;
+    }
+
+    this.ensureOwnerReportGoDefaultCriteria();
+
+    if (!this.hasOwnerReportGoRunCriteria()) {
       return;
     }
 
     this.onOwnerReportGoClick();
+  }
+
+  ensureOwnerReportGoDefaultCriteria(): void {
+    if (!this.applyShellInitialDateRangeDefaults()) {
+      return;
+    }
+
+    this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
   }
 
   scheduleOwnerReportAutoRunIfEmpty(): void {
@@ -5208,6 +5225,8 @@ captureOwnerStatementReturnContext(): void {
     if (activateBalanceSheetDefaults) {
       this.applyBalanceSheetReportDefaults();
       this.publishDateRangeState();
+    } else if (this.showOwnerReportGoButton) {
+      this.ensureOwnerReportGoDefaultCriteria();
     } else if (this.applyShellInitialDateRangeDefaults()) {
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
@@ -5240,7 +5259,14 @@ captureOwnerStatementReturnContext(): void {
   applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = officeId;
     this.refreshBillsPropertyOptions();
-    this.syncBillsSearchRequest();
+    this.syncBillsSearchRequest(
+      this.showOwnerReportGoButton
+        ? { ownerBundleInvalidateRequiresManualGo: false }
+        : undefined
+    );
+    if (this.showOwnerReportGoButton) {
+      this.scheduleOwnerReportAutoRunIfEmpty();
+    }
   }
 
   onShellBillsPropertyDropdownChange(value: string | number | null): void {
@@ -5543,7 +5569,14 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
             } else {
               this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
             }
-            this.syncBillsSearchRequest();
+            if (this.showOwnerReportGoButton) {
+              this.ensureOwnerReportGoDefaultCriteria();
+            }
+            this.syncBillsSearchRequest(
+              this.showOwnerReportGoButton
+                ? { ownerBundleInvalidateRequiresManualGo: false }
+                : undefined
+            );
             this.refreshListsForActiveTab();
           }
         });
