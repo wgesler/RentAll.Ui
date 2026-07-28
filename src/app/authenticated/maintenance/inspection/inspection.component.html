@@ -182,8 +182,29 @@
                   @if (getSetInstruction(section.key, repeatIndex)) {
                     <p class="set-instruction">{{ getSetInstruction(section.key, repeatIndex) }}</p>
                   }
+                  <div
+                    class="checklist-set-items"
+                    cdkDropList
+                    [cdkDropListDisabled]="!isTemplateMode"
+                    [cdkDropListData]="getSetItems(section.key, repeatIndex)"
+                    (cdkDropListDropped)="onTemplateItemDrop(section.key, repeatIndex, $event)">
                   @for (item of getSetItems(section.key, repeatIndex); track item.id) {
-                    <div class="checklist-row">
+                    <div
+                      class="checklist-row"
+                      [class.checklist-row--template]="isTemplateMode"
+                      cdkDrag
+                      [cdkDragDisabled]="!isTemplateMode"
+                      [cdkDragData]="item">
+                      @if (isTemplateMode) {
+                        <button
+                          mat-icon-button
+                          type="button"
+                          class="row-drag-handle"
+                          aria-label="Reorder item"
+                          (click)="$event.stopPropagation()">
+                          <mat-icon>drag_indicator</mat-icon>
+                        </button>
+                      }
                       @if (item.isEditable && isTemplateMode) {
                         <div class="editable-row-content">
                           <mat-checkbox
@@ -197,6 +218,7 @@
                             type="text"
                             placeholder="Enter checklist item"
                             [value]="item.text"
+                            (mousedown)="stopTemplateRowDrag($event)"
                             (input)="updateEditableRowText(item, $any($event.target).value)" />
                           @if (item.requiresPhoto && !isReadonlyMode) {
                             @if (!getItemPhotoSrc(item)) {
@@ -221,6 +243,7 @@
                               inputmode="numeric"
                               pattern="[0-9]*"
                               class="row-count-input"
+                              (mousedown)="stopTemplateRowDrag($event)"
                               [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
                           }
                         </div>
@@ -353,6 +376,7 @@
                           [color]="item.requiresPhoto ? 'primary' : undefined"
                           [style.opacity]="item.requiresPhoto ? '1' : '0.35'"
                           [attr.aria-label]="item.requiresPhoto ? 'Photo required' : 'Photo not required'"
+                          (mousedown)="stopTemplateRowDrag($event)"
                           (click)="toggleRequiresPhoto(item, $event)">
                           <mat-icon>photo_camera</mat-icon>
                         </button>
@@ -363,6 +387,7 @@
                           [color]="item.requiresCount ? 'primary' : undefined"
                           [style.opacity]="item.requiresCount ? '1' : '0.35'"
                           [attr.aria-label]="item.requiresCount ? 'Count required' : 'Count not required'"
+                          (mousedown)="stopTemplateRowDrag($event)"
                           (click)="toggleRequiresCount(item, $event)">
                           <mat-icon>pin</mat-icon>
                         </button>
@@ -380,12 +405,14 @@
                           mat-button
                           type="button"
                           class="row-action-btn"
+                          (mousedown)="stopTemplateRowDrag($event)"
                           (click)="removeRow(section.key, repeatIndex, item.id, $event)">
                           -
                         </button>
                       }
                     </div>
                   }
+                  </div>
 
                   @if (isTemplateMode) {
                     <div class="row-actions-wrap">

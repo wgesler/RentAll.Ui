@@ -1,3 +1,4 @@
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
@@ -1832,6 +1833,20 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.form.removeControl(this.itemControlNameById(sectionKey, repeatIndex, itemId));
     this.form.removeControl(this.countControlNameById(sectionKey, repeatIndex, itemId));
     this.form.removeControl(this.issueControlNameById(sectionKey, repeatIndex, itemId));
+  }
+
+  onTemplateItemDrop(sectionKey: string, repeatIndex: number, event: CdkDragDrop<ChecklistItem[]>): void {
+    if (!this.isTemplateMode || event.previousIndex === event.currentIndex) {
+      return;
+    }
+
+    const setItems = this.getSetItems(sectionKey, repeatIndex);
+    moveItemInArray(setItems, event.previousIndex, event.currentIndex);
+    this.cdr.markForCheck();
+  }
+
+  stopTemplateRowDrag(event: Event): void {
+    event.stopPropagation();
   }
 
   updateEditableRowText(item: ChecklistItem, value: string): void {
