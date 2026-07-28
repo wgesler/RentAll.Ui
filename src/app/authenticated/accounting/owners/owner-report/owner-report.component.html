@@ -15,34 +15,38 @@
     class="mat list-layout-standard owner-statement-layout"
     [class.owner-statement-layout--accrual]="reportKind === 'accrual'"
     [class.owner-statement-layout--cash]="reportKind === 'cash'">
-    <div class="owner-statement-report-frame">
     <div class="owner-statement-context-band property-tab-actions-band dbg-band-actions">
-        <div class="owner-statement-context-band__header">
-          <div class="owner-statement-context-band__titles">
-            <p class="owner-statement-report-title">{{ reportTitle }}</p>
-            <button type="button" class="owner-statement-context-btn">
-              @if (headerEntityLine) {
-                <span class="owner-statement-context-btn__entity">{{ headerEntityLine }}</span>
-              }
-              <span class="owner-statement-context-btn__period">{{ headerPeriodLine }}</span>
-            </button>
-          </div>
+      <div class="owner-statement-context-band__header">
+        <div class="owner-statement-context-band__titles">
+          <p class="owner-statement-report-title">{{ reportTitle }}</p>
+          <button type="button" class="owner-statement-context-btn">
+            @if (headerEntityLine) {
+              <span class="owner-statement-context-btn__entity">{{ headerEntityLine }}</span>
+            }
+            <span class="owner-statement-context-btn__period">{{ headerPeriodLine }}</span>
+          </button>
         </div>
+      </div>
     </div>
-    <div class="owner-statement-panel dbg-band-main">
-      <div class="owner-statement-panel-inner">
+    <div class="owner-statement-report-frame">
       @if (showCashReportToggle) {
-        <div class="owner-statement-panel-toolbar">
-          <div class="owner-statement-cash-toggle-wrap">
-            <mat-slide-toggle
-              [checked]="reportKind === 'cash'"
-              color="primary"
-              (change)="onCashReportToggleChange($event.checked)">
-              Cash
-            </mat-slide-toggle>
+        <div class="owner-statement-actions-band property-tab-actions-band dbg-band-actions">
+          <div class="property-tab-actions-band__row">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <div class="owner-statement-cash-toggle-wrap">
+                <mat-slide-toggle
+                  [checked]="reportKind === 'cash'"
+                  color="primary"
+                  (change)="onCashReportToggleChange($event.checked)">
+                  Cash
+                </mat-slide-toggle>
+              </div>
+            </div>
           </div>
         </div>
       }
+      <div class="owner-statement-panel dbg-band-main">
+        <div class="owner-statement-panel-inner">
       @if (visibleRows.length === 0) {
         <div class="owner-statement-empty-state">
           <p>{{ emptyStateMessage }}</p>

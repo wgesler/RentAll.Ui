@@ -61,7 +61,26 @@
       </div>
     </div>
 
-    <div class="financial-report-panel dbg-band-main">
+    <div class="financial-report-frame escrow-report-frame">
+      @if (reportResult && hasEscrowReportContent(reportResult) && reportResult.rows.length > 0) {
+        <div class="escrow-report-actions-band property-tab-actions-band dbg-band-actions">
+          <div class="property-tab-actions-band__row">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <button
+                mat-raised-button
+                type="button"
+                color="primary"
+                class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                (click)="openTransferReports()">
+                <mat-icon class="text-base">swap_horiz</mat-icon>
+                <span>Transfer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="financial-report-panel dbg-band-main">
       <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
         @if (!reportResult || !hasEscrowReportContent(reportResult)) {
           <div class="financial-report-empty-state">
@@ -70,17 +89,6 @@
         } @else {
           <div class="escrow-report-body">
           @if (reportResult.rows.length > 0) {
-          <div class="escrow-report-toolbar">
-            <button
-              mat-raised-button
-              type="button"
-              color="primary"
-              class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
-              (click)="openTransferReports()">
-              <mat-icon class="text-base">swap_horiz</mat-icon>
-              <span>Transfer</span>
-            </button>
-          </div>
           <div class="financial-report-table-wrap">
             <table class="financial-report-table escrow-report-table">
               <thead>
@@ -172,6 +180,7 @@
           </div>
         }
       </div>
+    </div>
     </div>
   </div>
 }

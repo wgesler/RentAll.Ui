@@ -1071,6 +1071,10 @@ refreshDrillDownView(): void {
     return this.amountColumnCount > 1;
   }
 
+  get panelMaxWidthCss(): string {
+    return this.hasMultipleAmountColumns ? '100%' : '48rem';
+  }
+
   /** Months and other wide period sets fill the page; quarters stay content-width. */
   get fillsAvailableWidth(): boolean {
     return this.amountColumnCount > 4;

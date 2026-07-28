@@ -95,7 +95,7 @@
   }
 
   .financial-report-layout
-    .financial-report-context-band__row:not(:has(.financial-report-actions-wrap, .reconcile-account-report-controls-wrap))
+    .financial-report-context-band__row:not(:has(.financial-report-actions-wrap))
     .financial-report-context-band__titles,
   .owner-statement-layout
     .owner-statement-context-band__row:not(:has(.owner-statement-cash-toggle-wrap))
@@ -104,7 +104,7 @@
   }
 
   .financial-report-layout
-    .financial-report-context-band__row:has(.financial-report-actions-wrap, .reconcile-account-report-controls-wrap)
+    .financial-report-context-band__row:has(.financial-report-actions-wrap)
     .financial-report-context-band__titles,
   .owner-statement-layout
     .owner-statement-context-band__row:has(.owner-statement-cash-toggle-wrap)

@@ -5,27 +5,21 @@
   box-sizing: border-box;
 }
 
-.reconcile-account-report-controls-wrap {
-  grid-column: 3;
-  justify-self: end;
-  align-self: end;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 1rem;
-  flex-wrap: wrap;
+:host .financial-report-layout > .reconcile-account-report-actions-band,
+:host .financial-report-layout > .financial-report-panel {
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+:host-context(.shell-tabs) .financial-report-layout > .reconcile-account-report-actions-band.property-tab-actions-band {
+  padding-right: var(--global-page-inner-padding);
 }
 
 .reconcile-account-report-detail-toggle-wrap {
   display: flex;
-  align-items: flex-end;
-}
-
-.reconcile-account-report-actions-wrap {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  align-items: center;
 }
 
 .reconcile-account-report-panel-inner--detail {

@@ -2278,8 +2278,9 @@ mat-form-field input,
   margin-top: 1.5rem !important;
 }
 
-/* Orange debug (and real layout) wraps filter+table; top margin would sit inside that box and read as orange strip. */
-.list-layout-standard.dbg-band-main app-data-table .datatable-search-wrap {
+/* Filter sits above orange table block; drop top margin so it aligns with the purple actions band. */
+.list-layout-standard.dbg-band-main app-data-table .datatable-search-wrap,
+.list-layout-standard app-data-table:has(.datatable-main-block.dbg-band-main) .datatable-search-wrap {
   margin-top: 0 !important;
 }
 
@@ -2289,7 +2290,9 @@ mat-form-field input,
  * Lists that render .list-top-controls above .tableDiv keep the default margin from :not(.dbg-band-main) above.
  */
 .shell-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.shell-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap {
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table:has(.datatable-main-block.dbg-band-main) .datatable-search-wrap,
+.shell-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.shell-tabs .mat-mdc-tab-body-content .owner-statement-layout--list > .tableDiv:first-child app-data-table .datatable-search-wrap {
   margin-top: 0 !important;
 }
 
@@ -2304,6 +2307,15 @@ app-data-table .datatable-search-wrap {
 
 .list-layout-standard .reconcile-layout .datatable-search-wrap__actions .table-filter-actions-group {
   gap: 0.75rem !important;
+  align-self: center;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .reconcile-layout .datatable-search-wrap__row {
+  align-items: flex-end;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .reconcile-layout .datatable-search-wrap__actions .table-filter-actions-group {
+  align-self: center;
 }
 
 .list-layout-standard app-data-table .datatable-search-wrap__actions {

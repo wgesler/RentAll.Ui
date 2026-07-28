@@ -155,6 +155,23 @@ body.dbg-page-debug-on {
     border-radius: 0;
   }
 
+  .list-layout-standard.dbg-band-main:has(app-data-table .datatable-main-block.dbg-band-main),
+  .tableDiv.dbg-band-main:has(app-data-table .datatable-main-block.dbg-band-main),
+  .owner-statement-panel.dbg-band-main:has(app-data-table .datatable-main-block.dbg-band-main) {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  app-data-table .datatable-main-block.dbg-band-main {
+    @include dbg-band-main-visual;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
   .shell-tabs .mat-mdc-tab-body-content:has(.list-layout-standard) {
     border: none;
     background: transparent;
@@ -169,6 +186,22 @@ body.dbg-page-debug-on {
   }
 
   .shell-tabs .mat-mdc-tab-body-content .owner-statement-layout .owner-statement-context-band.dbg-band-actions {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .owner-statement-layout .owner-statement-actions-band.property-tab-actions-band.dbg-band-actions {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .reconcile-account-report-actions-band.property-tab-actions-band.dbg-band-actions {
     @include dbg-band-actions-visual;
     @include dbg-band-actions-spacing;
     width: 100%;
@@ -192,8 +225,17 @@ body.dbg-page-debug-on {
     box-sizing: border-box;
   }
 
+  .shell-tabs .mat-mdc-tab-body-content .escrow-report-layout .escrow-report-actions-band.property-tab-actions-band.dbg-band-actions {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-main-block.dbg-band-main,
   .shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-main-block,
-  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel,
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel:not(:has(app-data-table)),
   .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .reconcile-panel {
     @include dbg-band-main-visual;
     width: 100%;

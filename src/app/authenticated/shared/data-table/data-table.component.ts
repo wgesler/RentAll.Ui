@@ -178,7 +178,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   /** When true, clicking the subheader label toggles visibility of the table body. */
   @Input() subheaderCollapsible = false;
   /** When true, layout-debug orange band wraps only the table/paginator block (below the purple filter row). */
-  @Input() dbgBandMainBelowFilter = false;
+  @Input() dbgBandMainBelowFilter = true;
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() calendarEvent = new EventEmitter<PurposefulAny>();

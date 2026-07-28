@@ -77,13 +77,28 @@
   min-width: 0;
 }
 
-.escrow-report-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 0.75rem;
+.escrow-report-frame {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
   box-sizing: border-box;
+}
+
+.escrow-report-frame .financial-report-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
+.escrow-report-frame .escrow-report-actions-band {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+:host-context(.shell-tabs) .escrow-report-frame .escrow-report-actions-band.property-tab-actions-band {
+  padding-right: var(--global-page-inner-padding);
 }
 
 .escrow-report-summary {

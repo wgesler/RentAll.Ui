@@ -2,8 +2,8 @@
   padding-top: 0;
 }
 
-:host .list-layout-standard.owner-statement-layout .owner-statement-panel.dbg-band-main {
-  padding-top: 1.25rem;
+:host .list-layout-standard.owner-statement-layout:not(.owner-statement-layout--list) .owner-statement-panel.dbg-band-main {
+  padding-top: 0;
 }
 
 .loading-container {
@@ -47,6 +47,14 @@
   box-sizing: border-box;
 }
 
+.owner-statement-report-frame {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
 .owner-statement-layout--accrual,
 .owner-statement-layout--cash {
   --owner-report-label-col-width: 14.5rem;
@@ -62,6 +70,8 @@
 
   .owner-statement-panel {
     justify-content: stretch;
+    width: 100%;
+    margin-inline: 0;
   }
 
   .owner-statement-panel-inner {
@@ -91,6 +101,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+.owner-statement-report-frame .owner-statement-actions-band {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+:host-context(.shell-tabs) .owner-statement-report-frame .owner-statement-actions-band.property-tab-actions-band {
+  padding-right: var(--global-page-inner-padding);
 }
 
 .owner-statement-layout--cash .owner-statement-col-item-description {
@@ -136,12 +155,6 @@
   }
 }
 
-.owner-statement-report-frame {
-  width: 100%;
-  margin-inline: auto;
-  box-sizing: border-box;
-}
-
 .owner-statement-report-frame--content-sized {
   width: fit-content;
   max-width: 100%;
@@ -150,11 +163,6 @@
 .owner-statement-report-frame--content-sized .owner-statement-context-band__header {
   width: 100%;
   min-width: 100%;
-  box-sizing: border-box;
-}
-
-.owner-statement-report-frame .owner-statement-context-band {
-  width: 100%;
   box-sizing: border-box;
 }
 
@@ -167,11 +175,6 @@
   max-width: 100%;
 }
 
-.owner-statement-report-frame--content-sized .owner-statement-panel-toolbar {
-  padding-right: 1rem;
-  box-sizing: border-box;
-}
-
 .owner-statement-context-band__header {
   display: flex;
   flex-direction: column;
@@ -182,15 +185,6 @@
 
 .owner-statement-context-band__header .owner-statement-context-band__titles {
   width: 100%;
-}
-
-.owner-statement-panel-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 0.5rem;
-  box-sizing: border-box;
 }
 
 .owner-statement-cash-toggle-wrap {
