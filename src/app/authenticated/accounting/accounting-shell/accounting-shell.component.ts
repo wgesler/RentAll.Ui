@@ -1653,7 +1653,6 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   onJournalEntriesChanged(): void {
-    this.syncGlFiltersFromInvoiceContext();
     this.billsRefreshTrigger++;
     this.receiptsRefreshTrigger++;
     this.undepositedFundsRefreshTrigger++;
@@ -2490,6 +2489,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       return;
     }
 
+    const previousTabIndex = this.selectedTabIndex;
     const leavingInvoicesTab = event.index !== this.tabInvoices;
     const hadInvoiceDetail = this.selectedTabIndex === this.tabInvoices
       && this.selectedInvoiceKind === 'invoices'
@@ -2566,7 +2566,9 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
         this.selectedChartOfAccountId = null;
       }
-      this.syncGlFiltersFromInvoiceContext();
+      if (previousTabIndex === this.tabInvoices) {
+        this.syncGlFiltersFromInvoiceContext();
+      }
       this.refreshPropertyOptions();
       this.refreshReservationOptions();
       this.refreshGeneralLedgerListView();
@@ -5135,13 +5137,10 @@ captureOwnerStatementReturnContext(): void {
 
       if ('glReservationId' in params) {
         this.selectedGlReservationId = params['glReservationId'] ? String(params['glReservationId']) : null;
-      } else if ('reservationId' in params) {
-        this.selectedGlReservationId = params['reservationId'] ? String(params['reservationId']) : null;
       } else {
         this.selectedGlReservationId = null;
       }
 
-      this.syncGlFiltersFromInvoiceContext();
       this.refreshPropertyOptions();
       this.refreshReservationOptions();
 
@@ -5431,6 +5430,7 @@ captureOwnerStatementReturnContext(): void {
         : null,
       propertyId: this.usesGeneralLedgerTitleBarFilters() ? this.selectedGlPropertyId : null,
       glReservationId: this.usesGeneralLedgerTitleBarFilters() ? this.selectedGlReservationId : null,
+      reservationId: this.selectedTabIndex === this.tabInvoices ? this.selectedReservationId : null,
       ...overrides
     };
   }

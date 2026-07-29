@@ -58,7 +58,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
               [class.searchable-trigger-value--clickable]="triggerValueClickable && hasConcreteSelection"
               (mousedown)="onTriggerValueMouseDown($event)"
               (click)="onTriggerValueClick($event)">
-              {{ selectedOptionLabel || nullOptionLabel }}
+              {{ triggerDisplayLabel }}
             </span>
           </mat-select-trigger>
           @if (allowSearchInput && !(hideSearchHint && hideSearchText)) {
@@ -111,7 +111,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
             [class.searchable-trigger-value--clickable]="triggerValueClickable && hasConcreteSelection"
             (mousedown)="onTriggerValueMouseDown($event)"
             (click)="onTriggerValueClick($event)">
-            {{ selectedOptionLabel || nullOptionLabel }}
+            {{ triggerDisplayLabel }}
           </span>
         </mat-select-trigger>
         @if (allowSearchInput && !(hideSearchHint && hideSearchText)) {
@@ -221,8 +221,29 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
   }
 
   get selectedOptionLabel(): string {
+    if (this.showInstructionOption && this.nullOptionLabel && this.isInstructionOptionValue(this.normalizedValue)) {
+      return this.nullOptionLabel;
+    }
+
     const selected = this.options.find(option => this.compareValues(option.value, this.normalizedValue));
     return selected?.label ?? '';
+  }
+
+  get triggerDisplayLabel(): string {
+    const selectedLabel = this.selectedOptionLabel;
+    if (selectedLabel) {
+      return selectedLabel;
+    }
+
+    if (this.showInstructionOption && this.nullOptionLabel && this.isInstructionOptionValue(this.normalizedValue)) {
+      return this.nullOptionLabel;
+    }
+
+    return this.showInstructionOption ? (this.nullOptionLabel || '') : '';
+  }
+
+  private isInstructionOptionValue(value: string | number | null | undefined): boolean {
+    return this.compareValues(value ?? null, this.instructionOptionValue);
   }
   compareValues = (left: string | number | null, right: string | number | null): boolean => {
     if (left === right) {
