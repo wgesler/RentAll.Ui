@@ -26,6 +26,19 @@ type FileDetailsLike = {
   dataUrl?: string;
 };
 
+export class ImageOptimizationFailedError extends Error {
+  readonly fileName: string;
+
+  constructor(fileName: string, cause?: unknown) {
+    super(`Image optimization failed for ${fileName}`);
+    this.name = 'ImageOptimizationFailedError';
+    this.fileName = fileName;
+    if (cause instanceof Error) {
+      this.cause = cause;
+    }
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -941,6 +954,10 @@ export class UtilityService {
     return input.files && input.files.length > 0 ? input.files[0] : null;
   }
 
+  getImageCompressionFailureMessage(fileName: string): string {
+    return `Unable to compress ${fileName}. Please resize the image or choose a different file.`;
+  }
+
   async buildOptimizedUploadPayload(
     file: File,
     options?: {
@@ -975,19 +992,8 @@ export class UtilityService {
           || uploadFile.type !== file.type
           || uploadFile.size !== file.size
       };
-    } catch {
-      const originalDataUrl = await this.fileToDataUrl(file);
-      const base64String = originalDataUrl.includes(',') ? originalDataUrl.split(',')[1] : originalDataUrl;
-      return {
-        uploadFile: file,
-        fileDetails: {
-          contentType: file.type || fallbackContentType,
-          fileName: file.name,
-          file: base64String,
-          dataUrl: originalDataUrl
-        },
-        wasOptimized: false
-      };
+    } catch (error) {
+      throw new ImageOptimizationFailedError(file.name, error);
     }
   }
   //#endregion

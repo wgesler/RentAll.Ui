@@ -9,7 +9,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { UtilityService } from '../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
@@ -895,6 +895,10 @@ quotePastePlainToHtml(plain: string): string {
       this.logoPath = null;
       this.hasNewFileUpload = true;
       this.fileDetails = payload.fileDetails;
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      }
     } finally {
       this.isUploadingLogo = false;
     }

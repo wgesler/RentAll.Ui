@@ -12,7 +12,7 @@ import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { UtilityService } from '../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
@@ -682,6 +682,10 @@ parseOfficeId(id: string | number | null): number | null {
       this.logoPath = null;
       this.hasNewFileUpload = true;
       this.fileDetails = payload.fileDetails;
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      }
     } finally {
       this.isUploadingLogo = false;
     }
@@ -742,8 +746,12 @@ parseOfficeId(id: string | number | null): number | null {
       this.form.get('checkStockUpload')?.updateValueAndValidity();
       this.setCheckStockPdfThumbnail(this.checkStockPreviewDataUrl, payload.fileDetails.contentType || file.type || 'application/pdf');
       this.cdr.detectChanges();
-    } catch {
-      this.toastr.error('Unable to prepare check stock.', CommonMessage.Error);
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      } else {
+        this.toastr.error('Unable to prepare check stock.', CommonMessage.Error);
+      }
     } finally {
       this.isUploadingCheckStock = false;
       this.cdr.detectChanges();

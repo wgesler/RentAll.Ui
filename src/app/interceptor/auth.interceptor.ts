@@ -8,7 +8,7 @@ import { AuthService } from '../services/auth.service';
 import { LoadingBarService } from '../services/loading-bar.service';
 import { PurposefulAny } from '../shared/models/amorphous';
 import { ErrorResponseDto } from '../shared/models/error-response';
-import { SUPPRESS_GLOBAL_ERROR_TOAST } from './http-context';
+import { SUPPRESS_AUTH_LOGOUT_ON_ERROR, SUPPRESS_GLOBAL_ERROR_TOAST } from './http-context';
 
 
 const tokenSubject$: BehaviorSubject<PurposefulAny> = new BehaviorSubject<PurposefulAny>(null);
@@ -80,6 +80,18 @@ function shouldSuppressGlobalErrorToast(req: HttpRequest<PurposefulAny>): boolea
   return req.context.get(SUPPRESS_GLOBAL_ERROR_TOAST);
 }
 
+function shouldSuppressAuthLogoutOnError(req: HttpRequest<PurposefulAny>): boolean {
+  return req.context.get(SUPPRESS_AUTH_LOGOUT_ON_ERROR);
+}
+
+function suppressOrLogout(req: HttpRequest<PurposefulAny>, authService: AuthService, error: unknown): Observable<HttpEvent<PurposefulAny>> {
+  if (shouldSuppressAuthLogoutOnError(req)) {
+    return throwError(() => error);
+  }
+
+  return logoutAndSuppress(authService);
+}
+
 function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, title: string = CommonMessage.Error, appendTryAgain: boolean = false): void {
   const apiMessage = extractApiErrorMessage(error);
   if (apiMessage) {
@@ -135,7 +147,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
   // If we just refreshed and still get 401, it's an unauthorized action
   if (justRefreshed) {
     justRefreshed = false;
-    return logoutAndSuppress(authService);
+    return suppressOrLogout(req, authService, err);
   }
   
   if (!isRefreshingToken) {
@@ -154,7 +166,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
               if (retryError instanceof HttpErrorResponse && retryError.status === 401) {
                 tokenSubject$.next(refreshFailedToken);
                 justRefreshed = false;
-                return logoutAndSuppress(authService);
+                return suppressOrLogout(req, authService, retryError);
               }
               return throwError(() => retryError);
             })
@@ -162,13 +174,15 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
         }
         // If refresh response is invalid, release waiting requests and logout.
         tokenSubject$.next(refreshFailedToken);
+        if (shouldSuppressAuthLogoutOnError(req)) {
+          return throwError(() => err);
+        }
         return logoutUser(authService);
       }),
       catchError(error => {
         // Release waiting requests when refresh fails.
         tokenSubject$.next(refreshFailedToken);
-        // Always logout on refresh failure to return to login screen
-        return logoutAndSuppress(authService);
+        return suppressOrLogout(req, authService, error);
       }),
       finalize(() => {
         isRefreshingToken = false;
@@ -258,6 +272,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     catchError(error => {
       if (error instanceof HttpErrorResponse) {
         if (shouldForceLogoutForTransportError(error)) {
+          if (shouldSuppressAuthLogoutOnError(req)) {
+            return throwError(() => error);
+          }
           return logoutAndSuppress(authService);
         }
         if (req.url.includes('/organization/branding')) {

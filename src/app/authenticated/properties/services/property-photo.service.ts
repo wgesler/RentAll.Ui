@@ -1,7 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { SUPPRESS_AUTH_LOGOUT_ON_ERROR, SUPPRESS_GLOBAL_ERROR_TOAST } from '../../../interceptor/http-context';
 import { PropertyPhotoRequest, PropertyPhotoResponse, UpdatePropertyPhotoOrderRequest } from '../models/property-photo.model';
 
 @Injectable({
@@ -12,13 +13,16 @@ export class PropertyPhotoService {
   private configService = inject(ConfigService);
 
   private readonly controller = this.configService.config().apiUrl + 'property/';
+  private readonly uploadHttpContext = new HttpContext()
+    .set(SUPPRESS_AUTH_LOGOUT_ON_ERROR, true)
+    .set(SUPPRESS_GLOBAL_ERROR_TOAST, true);
 
   getPropertyPhotosByPropertyId(propertyId: string): Observable<PropertyPhotoResponse[]> {
     return this.http.get<PropertyPhotoResponse[]>(this.controller + propertyId + '/photos');
   }
 
   addPropertyPhoto(propertyId: string, photo: PropertyPhotoRequest): Observable<PropertyPhotoResponse> {
-    return this.http.post<PropertyPhotoResponse>(this.controller + propertyId + '/photo', photo);
+    return this.http.post<PropertyPhotoResponse>(this.controller + propertyId + '/photo', photo, { context: this.uploadHttpContext });
   }
 
   updatePropertyPhotoOrder(request: UpdatePropertyPhotoOrderRequest): Observable<PropertyPhotoResponse> {

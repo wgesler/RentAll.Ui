@@ -8,7 +8,9 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
-import { UtilityService } from '../../../services/utility.service';
+import { ToastrService } from 'ngx-toastr';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 
 interface ApplianceEditRow {
   rowId: number;
@@ -41,6 +43,7 @@ export class MaintenanceApplianceListComponent implements OnChanges {
   @Output() deleteExisting = new EventEmitter<number>();
   private dialog = inject(MatDialog);
   private utilityService = inject(UtilityService);
+  private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   rows: ApplianceEditRow[] = [];
@@ -142,6 +145,10 @@ markViewForCheck(): void {
       row.hasNewFileUpload = true;
       row.decalPath = null;
       row.decalPreviewDataUrl = payload.fileDetails.dataUrl;
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      }
     } finally {
       target.value = '';
       this.markViewForCheck();

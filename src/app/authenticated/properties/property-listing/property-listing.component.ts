@@ -20,7 +20,7 @@ import { BehaviorSubject, Observable, Subject, firstValueFrom } from 'rxjs';
 import { finalize, map, take, takeUntil } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
-import { UtilityService } from '../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
@@ -573,9 +573,13 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
           }
           : photo
       );
-    } catch {
+    } catch (error) {
       this.listingPhotos = this.listingPhotos.filter(photo => photo.id !== tempId);
-      this.toastr.error(`Unable to upload ${file.name}.`, CommonMessage.Error);
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      } else {
+        this.toastr.error(`Unable to upload ${file.name}.`, CommonMessage.Error);
+      }
     } finally {
       URL.revokeObjectURL(previewUrl);
       this.cdr.markForCheck();

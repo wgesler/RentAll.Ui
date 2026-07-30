@@ -11,7 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { UtilityService } from '../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -1103,6 +1103,10 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       this.profilePath = null;
       this.hasNewFileUpload = true;
       this.fileDetails = payload.fileDetails;
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      }
     } finally {
       this.isUploadingProfilePicture = false;
     }

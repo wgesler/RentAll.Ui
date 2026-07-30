@@ -13,7 +13,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
-import { UtilityService } from '../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { getReceiptTypes, ReceiptType } from '../models/maintenance-enums';
 import { EntityType, getPaymentTermDays } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -973,15 +973,29 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.cdr.detectChanges();
     }
 
-    const payload = await this.utilityService.buildOptimizedUploadPayload(file);
-    this.receiptFileDetails = payload.fileDetails;
-    this.receiptPreviewDataUrl = payload.fileDetails.dataUrl;
-    this.setReceiptPdfThumbnail(payload.fileDetails.dataUrl, payload.fileDetails.contentType || file.type || '');
-    this.receiptFileName = payload.fileDetails.fileName;
-    this.hasNewReceiptUpload = true;
-    this.receiptFileValidationError = false;
-    this.form.patchValue({ receiptPath: '' });
-    this.cdr.detectChanges();
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      this.receiptFileDetails = payload.fileDetails;
+      this.receiptPreviewDataUrl = payload.fileDetails.dataUrl;
+      this.setReceiptPdfThumbnail(payload.fileDetails.dataUrl, payload.fileDetails.contentType || file.type || '');
+      this.receiptFileName = payload.fileDetails.fileName;
+      this.hasNewReceiptUpload = true;
+      this.receiptFileValidationError = false;
+      this.form.patchValue({ receiptPath: '' });
+      this.cdr.detectChanges();
+    } catch (error) {
+      this.receiptFileDetails = null;
+      this.receiptPreviewDataUrl = null;
+      this.receiptFileName = null;
+      this.hasNewReceiptUpload = false;
+      this.receiptFileValidationError = true;
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      } else {
+        this.toastr.error(`Unable to prepare ${file.name}.`, CommonMessage.Error);
+      }
+      this.cdr.detectChanges();
+    }
 
     const inputElement = event.target as HTMLInputElement | null;
     if (inputElement) {

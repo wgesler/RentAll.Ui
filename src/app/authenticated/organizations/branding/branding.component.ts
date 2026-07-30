@@ -8,7 +8,7 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { BrandingService } from '../../../services/branding.service';
 import { AuthService } from '../../../services/auth.service';
-import { UtilityService } from '../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { BrandingRequest, BrandingResponse } from '../models/branding.model';
@@ -191,6 +191,10 @@ export class BrandingComponent implements OnInit, OnDestroy {
         this.logoPath = null;
         this.hasNewFileUpload = true;
         this.fileDetails = payload.fileDetails;
+      }
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
       }
     } finally {
       if (isCollapsed) {
