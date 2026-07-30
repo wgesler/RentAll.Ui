@@ -1,7 +1,7 @@
 import { InvoiceResponse } from './invoice.model';
 import { CostCodesResponse } from './cost-codes.model';
 import { ContactResponse } from '../../contacts/models/contact.model';
-import { TermType, getTermType } from '../../contacts/models/contact-enum';
+import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
 import { ReservationType } from '../../reservations/models/reservation-enum';
 import { ReservationCodeResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 
@@ -456,6 +456,83 @@ export function resolveArAgingAsOfDate(preset: ArAgingDatePreset, customAsOfDate
 //#endregion
 
 //#region Sort Helpers
+export function normalizeArAgingCompanyKey(value: string | null | undefined): string {
+  return (value || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+export interface ArAgingCustomerGroupContext {
+  invoice: Pick<InvoiceResponse, 'contactId' | 'contactName' | 'companyName' | 'companyId' | 'responsibleParty'>;
+  reservation?: Pick<ReservationCodeResponse, 'companyId' | 'companyName' | 'contactId' | 'reservationTypeId'> | null;
+  responsibleContact?: Pick<ContactResponse, 'contactId' | 'entityTypeId' | 'companyName' | 'displayName' | 'firstName' | 'lastName'> | null;
+  customerLabel?: string;
+}
+
+export function resolveArAgingCompanyName(context: ArAgingCustomerGroupContext): string {
+  const { invoice, reservation, responsibleContact, customerLabel } = context;
+  if (responsibleContact?.entityTypeId === EntityType.Company) {
+    return (responsibleContact.companyName || responsibleContact.displayName || '').trim();
+  }
+
+  const reservationTypeId = Number(reservation?.reservationTypeId ?? 0);
+  if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+    if (responsibleContact) {
+      const responsibleCompanyName = (responsibleContact.companyName || responsibleContact.displayName || '').trim();
+      if (responsibleCompanyName) {
+        return responsibleCompanyName;
+      }
+    }
+  }
+
+  const companyName = (invoice.companyName || reservation?.companyName || '').trim();
+  if (companyName) {
+    return companyName;
+  }
+
+  if (
+    reservationTypeId === ReservationType.Corporate
+    || reservationTypeId === ReservationType.Platform
+  ) {
+    return (customerLabel || invoice.responsibleParty || '').trim();
+  }
+
+  return '';
+}
+
+export function isArAgingCompanyCustomer(context: ArAgingCustomerGroupContext): boolean {
+  const reservationTypeId = Number(context.reservation?.reservationTypeId ?? 0);
+  if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+    return true;
+  }
+  if (context.responsibleContact?.entityTypeId === EntityType.Company) {
+    return true;
+  }
+  if ((context.reservation?.companyId || context.invoice.companyId || '').trim()) {
+    return true;
+  }
+  return false;
+}
+
+export function buildArAgingCustomerGroupKey(context: ArAgingCustomerGroupContext): string {
+  const contactId = (
+    context.responsibleContact?.contactId
+    || context.invoice.contactId
+    || context.reservation?.contactId
+    || ''
+  ).trim();
+
+  if (isArAgingCompanyCustomer(context)) {
+    const companyName = resolveArAgingCompanyName(context)
+      || (context.customerLabel || '').trim()
+      || (context.invoice.responsibleParty || '').trim();
+    const normalized = normalizeArAgingCompanyKey(companyName);
+    if (normalized) {
+      return `company:${normalized}`;
+    }
+  }
+
+  return `contact:${contactId || 'unknown'}`;
+}
+
 export function buildArAgingCompanySortKey(
   invoice: Pick<InvoiceResponse, 'companyName' | 'responsibleParty' | 'contactName'>,
   customerLabel?: string

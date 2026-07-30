@@ -222,6 +222,17 @@
                 (valueChange)="onAccountingOrganizationDropdownChange($event)">
               </app-title-bar-select>
             }
+            @if (selectedInvoiceKind === 'payments') {
+              <app-title-bar-select
+                [label]="'Companies'"
+                [formFieldClass]="'titlebar-field-company'"
+                [value]="selectedCompanyId"
+                [options]="getAccountingCompanyOptions(accountingPaymentList?.companyContacts, selectedOfficeId)"
+                [nullOptionLabel]="'All Companies'"
+                [noResultsText]="'No companies match your search'"
+                (valueChange)="onAccountingInvoiceCompanyDropdownChange($event)">
+              </app-title-bar-select>
+            }
             @if (selectedInvoiceKind === 'preBillingReport') {
               <app-title-bar-select
                 [label]="'Month'"
@@ -934,6 +945,7 @@
                 } @else if (paymentsListEngaged) {
                   <app-payment-list
                     [officeId]="selectedOfficeId"
+                    [companyId]="selectedCompanyId"
                     [searchRequest]="paymentSearchRequest"
                     [embeddedInAccounting]="true"
                     [refreshTrigger]="paymentsRefreshTrigger"

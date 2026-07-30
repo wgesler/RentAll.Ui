@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingOfficeRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingSortBy, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
@@ -6813,6 +6813,13 @@ buildEscrowLastRecapAmountsByProperty(
           invoices: []
         };
         rowsByCustomer.set(invoice.customerKey, row);
+      } else {
+        const nextCompanySortKey = (invoice.companySortKey || invoice.customerLabel || '').trim();
+        const currentCompanySortKey = (row.companySortKey || row.customerLabel || '').trim();
+        if (nextCompanySortKey.length > currentCompanySortKey.length) {
+          row.companySortKey = invoice.companySortKey || nextCompanySortKey;
+          row.customerLabel = invoice.customerLabel || nextCompanySortKey;
+        }
       }
       row.bucketAmounts[invoice.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[invoice.bucketId] || 0) + invoice.balanceDue);
       row.total = this.roundFinancialReportAmount(row.total + invoice.balanceDue);
@@ -7023,6 +7030,49 @@ buildEscrowLastRecapAmountsByProperty(
       || 'Unknown Customer';
   }
 
+  buildArAgingCustomerGrouping(
+    invoice: InvoiceResponse,
+    contactsByContactId: ReadonlyMap<string, ContactResponse>,
+    reservationsByReservationId: ReadonlyMap<string, ReservationCodeResponse>,
+    contactNameByContactId: ReadonlyMap<string, string> = new Map<string, string>()
+  ): Pick<ArAgingInvoiceDetail, 'customerKey' | 'customerLabel' | 'companySortKey' | 'contactSortKey' | 'contactId'> {
+    const reservationId = (invoice.reservationId || '').trim();
+    const reservation = reservationId ? reservationsByReservationId.get(reservationId) : null;
+    const responsibleContact = this.resolveArAgingResponsibleContact(invoice, contactsByContactId, reservation);
+    const customerLabel = this.buildArAgingCustomerLabel(
+      invoice,
+      contactsByContactId,
+      reservationsByReservationId,
+      contactNameByContactId
+    );
+    const groupContext: ArAgingCustomerGroupContext = {
+      invoice,
+      reservation,
+      responsibleContact,
+      customerLabel
+    };
+    const customerKey = buildArAgingCustomerGroupKey(groupContext);
+    const resolvedCompanyName = resolveArAgingCompanyName(groupContext);
+    const companySortKey = isArAgingCompanyCustomer(groupContext)
+      ? (resolvedCompanyName || buildArAgingCompanySortKey(invoice, customerLabel))
+      : buildArAgingCompanySortKey(invoice, customerLabel);
+    const contactSortKey = isArAgingCompanyCustomer(groupContext)
+      ? companySortKey
+      : buildArAgingContactSortKey(invoice);
+    const contactId = (responsibleContact?.contactId || invoice.contactId || '').trim() || null;
+    const displayLabel = isArAgingCompanyCustomer(groupContext)
+      ? (companySortKey || customerLabel)
+      : customerLabel;
+
+    return {
+      customerKey,
+      customerLabel: displayLabel,
+      companySortKey,
+      contactSortKey,
+      contactId
+    };
+  }
+
   buildArAgingInvoiceDetail(
     invoice: InvoiceResponse,
     asOfDate: string,
@@ -7050,26 +7100,21 @@ buildEscrowLastRecapAmountsByProperty(
     const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
     const reservationId = (invoice.reservationId || '').trim();
     const reservation = reservationId ? reservationsByReservationId.get(reservationId) : null;
-    const responsibleContact = this.resolveArAgingResponsibleContact(invoice, contactsByContactId, reservation);
-    const contactId = (responsibleContact?.contactId || invoice.contactId || '').trim() || null;
-    const customerLabel = this.buildArAgingCustomerLabel(
+    const customerGrouping = this.buildArAgingCustomerGrouping(
       invoice,
       contactsByContactId,
       reservationsByReservationId,
       contactNameByContactId
     );
-    const companySortKey = buildArAgingCompanySortKey(invoice, customerLabel);
-    const contactSortKey = buildArAgingContactSortKey(invoice);
-    const customerKey = `${contactId || ''}|${companySortKey.toLowerCase()}|${contactSortKey.toLowerCase()}`;
 
     return {
       invoiceId: invoice.invoiceId,
       invoiceCode: invoice.invoiceCode,
-      customerKey,
-      customerLabel,
-      companySortKey,
-      contactSortKey,
-      contactId,
+      customerKey: customerGrouping.customerKey,
+      customerLabel: customerGrouping.customerLabel,
+      companySortKey: customerGrouping.companySortKey,
+      contactSortKey: customerGrouping.contactSortKey,
+      contactId: customerGrouping.contactId,
       reservationKey: this.buildArAgingReservationKey(invoice),
       reservationId: invoice.reservationId,
       reservationLabel: this.buildArAgingReservationLabel(invoice, contactsByContactId, reservationsByReservationId),
@@ -7184,9 +7229,29 @@ buildEscrowLastRecapAmountsByProperty(
         return;
       }
 
-      const contactId = (line.contactId || '').trim() || 'no-contact';
       const reservationId = (line.reservationId || '').trim() || 'no-reservation';
-      const groupKey = `${contactId}|${reservationId}`;
+      const reservation = reservationId !== 'no-reservation'
+        ? reservationsByReservationId.get(reservationId) ?? null
+        : null;
+      const invoiceStub = this.buildArAgingJeInvoiceStub({
+        journalEntryLineId: line.journalEntryLineId,
+        transactionDate,
+        contactId: (line.contactId || '').trim() || null,
+        contactName: (line.contactName || '').trim(),
+        reservationId: reservationId !== 'no-reservation' ? reservationId : null,
+        reservationCode: (line.reservationCode || '').trim() || null,
+        propertyCode: (line.propertyCode || '').trim() || null,
+        sourceCode: (line.sourceCode || '').trim() || null,
+        journalEntryCode: (line.journalEntryCode || '').trim() || line.journalEntryLineId,
+        officeId: Number(line.officeId) || 0
+      }, reservation);
+      const customerGroupKey = this.buildArAgingCustomerGrouping(
+        invoiceStub,
+        contactsByContactId,
+        reservationsByReservationId,
+        contactNameByContactId
+      ).customerKey;
+      const groupKey = `${customerGroupKey}|${reservationId}`;
       const bucket = linesByGroup.get(groupKey) ?? [];
       bucket.push(line);
       linesByGroup.set(groupKey, bucket);
@@ -7307,7 +7372,7 @@ buildEscrowLastRecapAmountsByProperty(
 
         const reservation = lot.reservationId ? reservationsByReservationId.get(lot.reservationId) : null;
         const invoiceStub = this.buildArAgingJeInvoiceStub(lot, reservation);
-        const customerLabel = this.buildArAgingCustomerLabel(
+        const customerGrouping = this.buildArAgingCustomerGrouping(
           invoiceStub,
           contactsByContactId,
           reservationsByReservationId,
@@ -7318,23 +7383,18 @@ buildEscrowLastRecapAmountsByProperty(
           contactsByContactId,
           reservationsByReservationId
         );
-        const responsibleContact = this.resolveArAgingResponsibleContact(invoiceStub, contactsByContactId, reservation);
-        const contactId = (responsibleContact?.contactId || lot.contactId || '').trim() || null;
-        const companySortKey = buildArAgingCompanySortKey(invoiceStub, customerLabel);
-        const contactSortKey = buildArAgingContactSortKey(invoiceStub);
-        const customerKey = `${contactId || ''}|${companySortKey.toLowerCase()}|${contactSortKey.toLowerCase()}`;
-        const paymentTermsId = contactId ? (paymentTermsByContactId.get(contactId) ?? null) : null;
+        const paymentTermsId = customerGrouping.contactId ? (paymentTermsByContactId.get(customerGrouping.contactId) ?? null) : null;
         const dueDate = this.addOwnerApAgingTermsToDate(lot.transactionDate, paymentTermsId);
         const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
 
         invoiceDetails.push({
           invoiceId: lot.journalEntryLineId,
           invoiceCode: lot.sourceCode || lot.journalEntryCode,
-          customerKey,
-          customerLabel,
-          companySortKey,
-          contactSortKey,
-          contactId,
+          customerKey: customerGrouping.customerKey,
+          customerLabel: customerGrouping.customerLabel,
+          companySortKey: customerGrouping.companySortKey,
+          contactSortKey: customerGrouping.contactSortKey,
+          contactId: customerGrouping.contactId,
           reservationKey: lot.reservationKey,
           reservationId: lot.reservationId,
           reservationLabel,

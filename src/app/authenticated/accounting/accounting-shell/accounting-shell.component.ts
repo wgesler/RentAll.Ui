@@ -221,6 +221,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
+  @ViewChild(PaymentListComponent) accountingPaymentList?: PaymentListComponent;
   @ViewChild('preBillingInvoiceEditor') preBillingInvoiceEditor?: InvoiceComponent;
   @ViewChild('missingInvoiceEditor') missingInvoiceEditor?: InvoiceComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;

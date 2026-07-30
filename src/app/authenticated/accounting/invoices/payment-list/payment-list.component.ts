@@ -15,6 +15,10 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PaymentDisplayList, PaymentResponse, PaymentSearchRequest, PaymentSelection, PaymentLedgerLine } from '../../models/payment.model';
+import { ContactResponse } from '../../../contacts/models/contact.model';
+import { ContactService } from '../../../contacts/services/contact.service';
+import { ReservationListResponse } from '../../../reservations/models/reservation-model';
+import { ReservationService } from '../../../reservations/services/reservation.service';
 import { PaymentService } from '../../services/payment.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
 
@@ -29,6 +33,7 @@ import { JournalEntryService } from '../../services/journal-entry.service';
 export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
+  @Input() companyId: string | null = null;
   @Input() searchRequest?: PaymentSearchRequest | null;
   @Input() embeddedInAccounting = false;
   @Input() refreshTrigger = 0;
@@ -41,6 +46,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
   private journalEntryService = inject(JournalEntryService);
+  private contactService = inject(ContactService);
+  private reservationService = inject(ReservationService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
@@ -52,6 +59,9 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   showInactive = false;
   isAdmin = false;
   canEditIsActiveCheckbox = false;
+  companyContacts: ContactResponse[] = [];
+  selectedCompanyContact: ContactResponse | null = null;
+  reservations: ReservationListResponse[] = [];
   payments: PaymentResponse[] = [];
   paymentsDisplay: PaymentDisplayList[] = [];
   allPayments: PaymentDisplayList[] = [];
@@ -104,11 +114,41 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
+    if (this.embeddedInAccounting) {
+      this.itemsToLoad$.next(new Set(['payments', 'companies', 'reservations']));
+      this.loadCompanyContacts();
+      this.loadReservations();
+    }
     this.loadPaymentsForCurrentSearchCriteria(true);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['companyId']) {
+      const newCompanyId = changes['companyId'].currentValue;
+      const previousCompanyId = changes['companyId'].previousValue;
+      if (previousCompanyId === undefined || newCompanyId !== previousCompanyId) {
+        if (this.companyContacts.length > 0) {
+          if (!newCompanyId) {
+            if (this.selectedCompanyContact !== null) {
+              this.selectedCompanyContact = null;
+              this.applyFilters();
+            }
+          } else {
+            const matching = this.companyContacts.find(c =>
+              c.contactId === newCompanyId &&
+              this.contactHasOfficeAccess(c, this.officeId)
+            ) || null;
+            if (matching !== this.selectedCompanyContact) {
+              this.selectedCompanyContact = matching;
+              this.applyFilters();
+            }
+          }
+        }
+      }
+    }
+
     if (changes['officeId'] && !changes['officeId'].firstChange) {
+      this.syncSelectedCompanyContact();
       this.applyFilters();
       this.loadPaymentsForCurrentSearchCriteria();
     }
@@ -254,6 +294,47 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
+  loadCompanyContacts(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'companies');
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
+          next: (contacts) => {
+            this.companyContacts = contacts || [];
+            this.syncSelectedCompanyContact();
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.companyContacts = [];
+            this.markViewForCheck();
+          }
+        });
+      },
+      error: () => {
+        this.companyContacts = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadReservations(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        if (this.selectedCompanyContact) {
+          this.applyFilters();
+        }
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.reservations = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
   loadPaymentsForCurrentSearchCriteria(force = false): void {
     if (!this.embeddedInAccounting) {
       this.getPayments(force);
@@ -397,9 +478,13 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    const filtered = this.showInactive
+    let filtered = this.showInactive
       ? this.allPayments.filter(row => row.isActive === false)
       : this.allPayments.filter(row => row.isActive !== false);
+
+    if (this.selectedCompanyContact) {
+      filtered = filtered.filter(row => this.paymentMatchesCompanyFilter(row.paymentId));
+    }
 
     this.paymentsDisplay = filtered.map(payment => ({
       ...payment,
@@ -524,6 +609,86 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  syncSelectedCompanyContact(): void {
+    const companyIdToApply = this.getCompanyIdToApply();
+    if (!companyIdToApply) {
+      if (this.selectedCompanyContact !== null) {
+        this.selectedCompanyContact = null;
+        this.applyFilters();
+      }
+      return;
+    }
+
+    const matching = this.companyContacts.find(c =>
+      c.contactId === companyIdToApply &&
+      this.contactHasOfficeAccess(c, this.officeId)
+    ) || null;
+    if (matching !== this.selectedCompanyContact) {
+      this.selectedCompanyContact = matching;
+      this.applyFilters();
+    }
+  }
+
+  getCompanyIdToApply(): string | null {
+    if (this.companyId !== null && this.companyId !== undefined && this.companyId !== '') {
+      return this.companyId;
+    }
+
+    return this.selectedCompanyContact?.contactId ?? null;
+  }
+
+  contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
+    if (officeId == null) {
+      return true;
+    }
+
+    if (contact.officeId === officeId) {
+      return true;
+    }
+
+    const officeAccess = Array.isArray(contact.officeAccess) ? contact.officeAccess : [];
+    return officeAccess.some(id => Number(id) === officeId);
+  }
+
+  reservationMatchesCompanyFilter(reservation: ReservationListResponse): boolean {
+    if (!this.selectedCompanyContact) {
+      return true;
+    }
+
+    const companyName = this.selectedCompanyContact.companyName;
+    const relatedCompanyContacts = this.companyContacts.filter(contact => contact.isActive && contact.companyName === companyName);
+    const companyContactIds = relatedCompanyContacts.map(contact => contact.contactId);
+    return companyContactIds.includes(reservation.contactId)
+      || (!!reservation.companyId && companyContactIds.includes(reservation.companyId))
+      || relatedCompanyContacts.some(contact => contact.companyName === reservation.companyName || contact.displayName === reservation.companyName);
+  }
+
+  paymentMatchesCompanyFilter(paymentId: string): boolean {
+    if (!this.selectedCompanyContact) {
+      return true;
+    }
+
+    const payment = this.payments.find(item => item.paymentId === paymentId);
+    if (!payment) {
+      return false;
+    }
+
+    const ledgerLines = payment.ledgerLines || [];
+    if (ledgerLines.length === 0) {
+      return false;
+    }
+
+    return ledgerLines.some(line => {
+      const reservationId = (line.reservationId || '').trim();
+      if (!reservationId) {
+        return false;
+      }
+
+      const reservation = this.reservations.find(item => item.reservationId === reservationId);
+      return !!reservation && this.reservationMatchesCompanyFilter(reservation);
+    });
+  }
+
   private buildPaymentDisplayList(payments: PaymentResponse[]): PaymentDisplayList[] {
     const paymentById = new Map(payments.map(payment => [payment.paymentId, payment]));
     return this.mappingService.mapPaymentDisplays(payments).map(display => {
