@@ -917,11 +917,14 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
 
   syncPageReadyFromLoadItems(): void {
     this.isPageReady = this.itemsToLoad$.value.size === 0;
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

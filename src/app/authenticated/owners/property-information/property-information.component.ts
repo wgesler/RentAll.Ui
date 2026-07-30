@@ -129,7 +129,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
     this.hasLoadStateSubscription = true;
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
   }
 
@@ -299,6 +299,10 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   onInventoryPhoneInput(
     controlName: 'onSiteComplexManagementPhone' | 'cablePhone' | 'electricPhone' | 'internetPhone',
     event: Event

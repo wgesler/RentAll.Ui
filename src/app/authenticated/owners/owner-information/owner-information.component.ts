@@ -58,10 +58,11 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Owner-Information
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.isPageReady = this.itemsToLoad$.value.size === 0;
-      this.cdr.markForCheck();
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
+
     this.resetOwnerInformationState();
     this.loadOwnerForm();
     this.loadOwnerLead();
@@ -581,6 +582,10 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

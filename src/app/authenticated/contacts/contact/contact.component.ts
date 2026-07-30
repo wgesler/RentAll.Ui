@@ -138,7 +138,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
@@ -1805,6 +1805,9 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion 
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   back(): void {
     if (this.isEmbedded) {
       this.closed.emit({});

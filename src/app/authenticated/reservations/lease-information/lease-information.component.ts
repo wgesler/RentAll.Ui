@@ -49,8 +49,9 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     this.getLeaseInformation(true);
   }
 
@@ -276,6 +277,10 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   } //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   onScopeSelectionChange(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
     this.getLeaseInformation(false);

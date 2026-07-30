@@ -67,8 +67,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     this.debugLayoutBandsService.setEnabled(false);
 
     // Load anonymous data on app startup
@@ -327,6 +328,10 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       });
     }
+  }
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

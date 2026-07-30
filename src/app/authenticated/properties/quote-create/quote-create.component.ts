@@ -481,7 +481,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   syncPageReadyFromLoadItems(): void {
     this.isPageReady = this.itemsToLoad$.value.size === 0;
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
   //#endregion
 
@@ -957,6 +957,10 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   getQuoteEmailRecipientFirstName(preparedForDisplayName: string): string {
     const trimmed = String(preparedForDisplayName || '').trim();
     if (!trimmed) {

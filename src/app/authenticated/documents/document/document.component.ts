@@ -66,7 +66,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
@@ -284,6 +284,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
    getMaintenanceShellDocumentsTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;

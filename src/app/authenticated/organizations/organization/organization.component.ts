@@ -71,8 +71,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
     this.loadStates();
     const routeId = this.route.snapshot.paramMap.get('id');
@@ -523,6 +524,10 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }

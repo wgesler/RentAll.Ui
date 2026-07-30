@@ -164,7 +164,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
 
     this.itemsToLoad$.pipe(filter(items => items.size === 1 && items.has('previewHtml')),take(1),takeUntil(this.destroy$)).subscribe(() => {
@@ -925,6 +925,9 @@ initializeInvoicePreview(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   goBack(): void {
     if (this.shellMode) {
       this.backEvent.emit();

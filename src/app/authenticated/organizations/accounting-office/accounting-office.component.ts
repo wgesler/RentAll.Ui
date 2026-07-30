@@ -155,8 +155,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadStates();
     this.loadOffices();
@@ -726,7 +727,7 @@ parseOfficeId(id: string | number | null): number | null {
         this.hasNewCheckStockUpload = true;
         this.checkStockRemoved = false;
         this.setCheckStockPdfThumbnail(immediatePreviewDataUrl, file.type || 'application/pdf');
-        this.cdr.detectChanges();
+        this.markViewForCheck();
       }
 
       // Reduce/optimize before save (same utility path as receipts/logos).
@@ -1522,6 +1523,10 @@ clearCheckStockLocal(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   selectAllOnFocus(event: Event): void {
     (event.target as HTMLInputElement).select();
   }

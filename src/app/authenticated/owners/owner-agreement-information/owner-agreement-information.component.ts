@@ -43,7 +43,7 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
 
     this.getAgreementInformation(true);
@@ -300,6 +300,10 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

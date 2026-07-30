@@ -91,12 +91,13 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   constructor() {
     super();
     }
-    //#region Dynamic-Form-Create
-    ngOnInit(): void {
+
+  //#region Dynamic-Form-Create
+  ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-    this.isPageReady = items.size === 0;
-    this.cdr.markForCheck();
-  });
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
 
     if (this.sharedContext$) {
       this.loadFromSharedContext(this.sharedContext$);
@@ -633,6 +634,9 @@ htmlNeedsTokenReplacement(html: string): boolean {
     return this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, suffix || 'Form');
   }
 
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

@@ -219,7 +219,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
@@ -2472,6 +2472,9 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   syncDescriptionEditorFromForm(): void {
     const editor = this.descriptionEditor?.nativeElement;
     if (!editor) {

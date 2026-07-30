@@ -145,7 +145,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
 
     this.loadOffices();
@@ -2282,6 +2282,10 @@ recomputeLedgerLineNumbers(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   back(formValue?: any): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];

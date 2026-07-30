@@ -59,8 +59,9 @@ iframeLoadHandler?: () => void;
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     const queryParams = this.route.snapshot.queryParams;
     this.returnTo = queryParams['returnTo'];
     this.propertyId = queryParams['propertyId'];
@@ -424,6 +425,9 @@ iframeLoadHandler?: () => void;
   }
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   getInlineDocumentFromState(): { dataUrl: string; contentType?: string; fileName?: string } | null {
     const state = history.state as { inlineDocument?: { dataUrl?: string; contentType?: string; fileName?: string } };
     const dataUrl = String(state?.inlineDocument?.dataUrl || '').trim();

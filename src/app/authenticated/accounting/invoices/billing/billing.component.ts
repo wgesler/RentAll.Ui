@@ -82,7 +82,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.isPaymentMode = false;
     this.loadCostCodes();
@@ -1215,6 +1215,10 @@ recomputeLedgerLineNumbers(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'] || 'accounting';

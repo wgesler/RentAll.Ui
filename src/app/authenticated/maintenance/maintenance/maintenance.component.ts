@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, concatMap, defaultIfEmpty, finalize, from, Subject, switchMap, take, takeUntil } from 'rxjs';
@@ -46,6 +46,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private cdr = inject(ChangeDetectorRef);
   form: FormGroup;
   isSaving = false;
   isSavingAppliances = false;
@@ -74,8 +75,9 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageLoading = items.size > 0;
+      this.markViewForCheck();
     });
-  
+
     this.loadMaintenance();
     this.loadAppliances();
     this.loadUtilities();
@@ -512,7 +514,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-    ngOnDestroy(): void {
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

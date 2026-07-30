@@ -114,7 +114,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
 
     this.itemsToLoad$.pipe(
@@ -1211,6 +1211,10 @@ initializeWorkOrderPreview(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   goBack(): void {
     if (this.shellMode) {
       this.backEvent.emit();

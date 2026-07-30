@@ -60,8 +60,9 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     // Use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new';
@@ -312,6 +313,10 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   back(): void {
     this.backEvent.emit();
   }

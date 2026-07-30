@@ -64,8 +64,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     
@@ -361,6 +362,10 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('emergencyPhone'));
   }

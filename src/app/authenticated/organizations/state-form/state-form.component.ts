@@ -61,8 +61,9 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     this.buildForm();
     this.loadStates();
     this.handleIdChange(this.id);
@@ -386,6 +387,10 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   normalizeStateCodes(stateCodes: string[]): string[] {
     return [this.allStatesCode, ...(stateCodes || [])]
       .map(stateCode => String(stateCode || '').trim().toUpperCase())

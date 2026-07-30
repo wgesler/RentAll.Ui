@@ -1,32 +1,22 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { BehaviorSubject, finalize, firstValueFrom, forkJoin, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
-import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
-import { DocumentExportService } from '../../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
-import { DocumentService } from '../../../documents/services/document.service';
-import { EmailService } from '../../../email/services/email.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
-import {
-  ReconcileAccountReportContext,
-  ReconcileAccountReportResult,
-  ReconcileAccountReportRow,
-  ReconcileAccountReportView
-} from '../../models/reconcile-account-report.model';
+import { ReconcileAccountReportContext, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../../models/reconcile-account-report.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
@@ -51,6 +41,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   @Input() reportContext: ReconcileAccountReportContext | null = null;
   @Input() refreshTrigger = 0;
   @Output() viewChange = new EventEmitter<ReconcileAccountReportView>();
+
   formatter = inject(FormatterService);
   private generalLedgerService = inject(GeneralLedgerService);
   private mappingService = inject(MappingService);
@@ -63,6 +54,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   private cdr = inject(ChangeDetectorRef);
   override toastr: ToastrService;
 
+  readonly reportDataLoadKey = 'reportData';
   reportResult: ReconcileAccountReportResult | null = null;
   previewIframeHtml = '';
   previewIframeStyles = '';
@@ -79,16 +71,14 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   beginningBalance = 0;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
+ 
 
+  //#region Reconcile-Account-Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
-      if (!wasReady && this.isPageReady) {
-        this.loadReportData();
-      }
       this.markViewForCheck();
     });
 
@@ -118,11 +108,6 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     }
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
   onDetailToggleChange(checked: boolean): void {
     this.onViewToggle(checked ? 'detail' : 'summary');
   }
@@ -133,12 +118,13 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     }
     this.viewChange.emit(view);
   }
+  //#endregion
 
+  //#region Get Methods
   get isDetailView(): boolean {
     return this.reportView === 'detail';
   }
 
-  /** Panel max-width grows for detail columns and caps at the viewport. */
   get panelMaxWidthCss(): string {
     if (this.isDetailView) {
       return '100%';
@@ -186,7 +172,9 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   isTotalRow(row: ReconcileAccountReportRow): boolean {
     return row.rowKind === 'total' || row.rowKind === 'summary' || row.rowKind === 'ending' || row.rowKind === 'beginning';
   }
+  //#endregion
 
+  //#region Document Actions
   override onPrint(): void {
     super.onPrint('No reconciliation report is available to print.');
   }
@@ -277,7 +265,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     this.markViewForCheck();
   }
 
-buildReportFileName(): string {
+  buildReportFileName(): string {
     const account = this.resolveSelectedAccount();
     const officeSegment = this.utilityService.sanitizeFileNameSegment(this.officeName || 'Office');
     const accountNo = this.utilityService.sanitizeFileNameSegment(account?.accountNo || 'Account');
@@ -288,13 +276,15 @@ buildReportFileName(): string {
     return `${officeSegment}_${accountSegment}_${viewLabel}_${dateStamp}.pdf`;
   }
 
-resolveReportDocumentType(): DocumentType {
+  resolveReportDocumentType(): DocumentType {
     return this.isDetailView
       ? DocumentType.ReconcileAccountDetail
       : DocumentType.ReconcileAccountSummary;
   }
+  //#endregion
 
-loadOrganization(): void {
+  //#region Data Loading Methods
+  loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
       this.companyName = cachedOrganization.name.trim();
@@ -307,7 +297,7 @@ loadOrganization(): void {
     });
   }
 
-loadOffices(): void {
+  loadOffices(): void {
     if (!this.organizationId) {
       return;
     }
@@ -329,20 +319,17 @@ loadOffices(): void {
     });
   }
 
-loadChartOfAccounts(): void {
+  loadChartOfAccounts(): void {
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
-        this.applyReportDisplay();
-        this.markViewForCheck();
+        this.loadReportData();
       });
     });
   }
 
-loadReportData(): void {
-    if (!this.isPageReady) {
-      return;
-    }
+  loadReportData(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, this.reportDataLoadKey);
 
     const account = this.resolveSelectedAccount();
     const officeId = this.resolveOfficeId(account);
@@ -355,6 +342,7 @@ loadReportData(): void {
       this.reportResult = null;
       this.clearPrintableHtml();
       this.noActivityMessage = 'Select a bank account and statement date to view the reconciliation report.';
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
       this.markViewForCheck();
       return;
     }
@@ -370,7 +358,10 @@ loadReportData(): void {
         includeUnposted: true,
         endDate: statementDate
       })
-    }).pipe(takeUntil(this.destroy$)).subscribe({
+    }).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey))
+    ).subscribe({
       next: ({ beginningBalance, lines }) => {
         this.beginningBalance = Number(beginningBalance || 0);
         this.allLines = lines || [];
@@ -393,8 +384,10 @@ loadReportData(): void {
       }
     });
   }
+  //#endregion
 
-applyReportDisplay(): void {
+  //#region Report Display Methods
+  applyReportDisplay(): void {
     const account = this.resolveSelectedAccount();
     const statementDate = String(this.statementDate || '').trim();
     if (!account || !statementDate) {
@@ -417,7 +410,7 @@ applyReportDisplay(): void {
     this.refreshPrintableHtml();
   }
 
-refreshPrintableHtml(): void {
+  refreshPrintableHtml(): void {
     if (!this.reportResult) {
       this.clearPrintableHtml();
       return;
@@ -429,12 +422,14 @@ refreshPrintableHtml(): void {
     this.previewIframeStyles = preview.previewIframeStyles;
   }
 
-clearPrintableHtml(): void {
+  clearPrintableHtml(): void {
     this.previewIframeHtml = '';
     this.previewIframeStyles = '';
   }
+  //#endregion
 
-resolveSelectedAccount(): ChartOfAccountResponse | null {
+  //#region Utility Methods
+  resolveSelectedAccount(): ChartOfAccountResponse | null {
     if (this.chartOfAccountId == null) {
       return null;
     }
@@ -442,14 +437,14 @@ resolveSelectedAccount(): ChartOfAccountResponse | null {
     return this.chartOfAccounts.find(account => account.accountId === this.chartOfAccountId) ?? null;
   }
 
-resolveOfficeId(account: ChartOfAccountResponse | null): number | null {
+  resolveOfficeId(account: ChartOfAccountResponse | null): number | null {
     if (this.officeId != null) {
       return this.officeId;
     }
     return account?.officeId ?? null;
   }
 
-syncOfficeName(): void {
+  syncOfficeName(): void {
     const officeId = this.resolveOfficeId(this.resolveSelectedAccount());
     if (officeId == null) {
       this.officeName = '';
@@ -459,7 +454,13 @@ syncOfficeName(): void {
     this.officeName = this.offices.find(office => office.officeId === officeId)?.name?.trim() || '';
   }
 
-markViewForCheck(): void {
+  markViewForCheck(): void {
     this.cdr.markForCheck();
   }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+  //#endregion
 }

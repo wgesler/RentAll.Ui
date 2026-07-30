@@ -147,7 +147,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.fallbackIframeHtml = this.sanitizer.bypassSecurityTrustHtml(fallbackDocument);
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
     this.isPageReady = items.size === 0;
-    this.cdr.markForCheck();
+    this.markViewForCheck();
     if (this.isPageReady && !this.hasAttemptedPreviewRender) {
     this.hasAttemptedPreviewRender = true;
     this.generatePreview();
@@ -2404,6 +2404,10 @@ normalizeTemplateAssetPath(assetPath: string): string {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   formatAgreementPercentPlain(value: number | string | null | undefined): string {
     if (value == null || value === '') {
       return '';

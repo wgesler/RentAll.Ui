@@ -110,7 +110,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.loadOffices();
     this.loadAccountingOffices();
@@ -575,6 +575,9 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     });
   }
 
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

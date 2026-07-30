@@ -77,8 +77,9 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
+
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.buildForm();
     this.applyStickySelectionFromStorage();
@@ -529,6 +530,10 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   numbersOnly(event: KeyboardEvent): void {
     const allowedKeys = [
       'Backspace',

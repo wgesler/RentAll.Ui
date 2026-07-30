@@ -157,7 +157,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
-      this.cdr.detectChanges();
+      this.markViewForCheck();
     });
 
     // Only Tenant types have reservations...
@@ -662,7 +662,7 @@ onWorkOrderIdChanged(): void {
       this.loadPropertyAgreement();
     }
     this.emitPropertySelectionRequiredState();
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
   //#endregion
 
@@ -2112,6 +2112,14 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
   //#endregion
   
   //#region Utility Methods
+  isValidReceiptId(receiptId: string | null | undefined): boolean {
+    return !!(receiptId && String(receiptId).trim());
+  }
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   back(): void {
     if (this.embeddedInMaintenance) {
       this.backEvent.emit();
@@ -2130,10 +2138,6 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-isValidReceiptId(receiptId: string | null | undefined): boolean {
-    return !!(receiptId && String(receiptId).trim());
   }
   //#endregion
 }

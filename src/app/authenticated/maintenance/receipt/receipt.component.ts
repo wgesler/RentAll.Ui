@@ -2327,7 +2327,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   syncPageReadyFromLoadItems(): void {
     this.isPageReady = this.itemsToLoad$.value.size === 0;
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
   //#endregion
 
@@ -2472,6 +2472,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
   
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   toCurrencyCents(value: unknown): number {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {

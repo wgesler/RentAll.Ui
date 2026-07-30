@@ -103,6 +103,8 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   isDownloading = false;
   isSubmitting = false;
   debuggingHtml = environment.local || environment.dev;
+  
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['detail', 'template', 'organization']));
   destroy$ = new Subject<void>();
 
@@ -112,8 +114,12 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }
 
+  //#region Security-Deposit-Report
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.cdr.markForCheck());
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
     this.loadOrganization();
     this.loadContacts();
     this.loadOffices();
@@ -127,43 +133,30 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
       this.loadReport();
     }
   }
+  //#endregion
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
+  //#region Build Form
   buildForm(): FormGroup {
     return this.fb.group({
       reportHtml: new FormControl('')
     });
   }
+  //#endregion
 
-  onBack(): void {
-    this.backEvent.emit();
-  }
-
+  //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: contacts => {
         this.contacts = contacts || [];
         this.syncPrimaryContact();
         this.renderPreview();
-        this.cdr.markForCheck();
+        this.markViewForCheck();
       },
       error: () => {
         this.contacts = [];
-        this.cdr.markForCheck();
+        this.markViewForCheck();
       }
     });
-  }
-
-  syncPrimaryContact(): void {
-    const reservationContactId = String(this.reservation?.contactIds?.[0] || this.detail?.reservation.contactId || '').trim();
-    this.contact = reservationContactId
-      ? this.contacts.find(item => item.contactId === reservationContactId) || this.contact
-      : this.contact;
   }
 
   loadEmailHtml(): void {
@@ -173,38 +166,17 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     });
   }
 
-  getRecipientEmail(): string {
-    if (!this.contact) {
-      return '';
-    }
-
-    const email = this.contact.entityTypeId === EntityType.Company
-      ? this.contact.companyEmail
-      : this.contact.email;
-    return String(email || '').trim();
-  }
-
-  getRecipientName(): string {
-    if (!this.contact) {
-      return '';
-    }
-
-    const name = this.contact.entityTypeId === EntityType.Company
-      ? this.contact.companyName
-      : this.contact.fullName;
-    return String(name || '').trim();
-  }
-
   loadOrganization(): void {
-    this.commonService.getOrganization().pipe(take(1)).subscribe({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'organization');
+    this.commonService.getOrganization().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+    })).subscribe({
       next: organization => {
         this.organization = organization;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
         this.renderPreview();
       },
       error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-        this.cdr.markForCheck();
+        this.organization = null;
       }
     });
   }
@@ -212,6 +184,9 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   loadReport(): void {
     const reservationId = String(this.reservationIdInput || '').trim();
     if (!reservationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'detail');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template');
+      this.markViewForCheck();
       return;
     }
 
@@ -231,7 +206,8 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
         this.detail = null;
         this.clearPreview();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'detail');
-        this.cdr.markForCheck();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template');
+        this.markViewForCheck();
       }
     });
   }
@@ -240,6 +216,8 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     const reservationId = String(this.reservationId || '').trim();
     if (!reservationId || !this.detail) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'detail');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template');
+      this.markViewForCheck();
       return;
     }
 
@@ -301,7 +279,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
         if (this.detail) {
           this.renderPreview();
         }
-        this.cdr.markForCheck();
+        this.markViewForCheck();
       }
     });
   }
@@ -313,7 +291,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
           this.accountingOffices = accountingOffices || [];
           this.selectedAccountingOffice = this.accountingOffices.find(office => Number(office.officeId) === Number(this.officeId)) || null;
           this.updateAccountingOfficeLogo();
-          this.cdr.markForCheck();
+          this.markViewForCheck();
         });
       }
     });
@@ -323,8 +301,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.utilityService.addLoadItem(this.itemsToLoad$, 'template');
 
     if (this.debuggingHtml) {
-      this.http.get(`assets/security-deposit-report.html?ts=${Date.now()}`, { responseType: 'text' }).pipe(
-        take(1),
+      this.http.get(`assets/security-deposit-report.html?ts=${Date.now()}`, { responseType: 'text' }).pipe(take(1),
         finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template'))
       ).subscribe({
         next: html => {
@@ -335,7 +312,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
         error: () => {
           this.form.patchValue({ reportHtml: '' }, { emitEvent: false });
           this.clearPreview();
-          this.cdr.markForCheck();
+          this.markViewForCheck();
         }
       });
       return;
@@ -353,7 +330,16 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.clearPreview();
     this.toastr.warning('No security deposit report HTML template found for this property.', 'No Template');
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template');
-    this.cdr.markForCheck();
+    this.markViewForCheck();
+  }
+  //#endregion
+
+  //#region Preview Methods
+  syncPrimaryContact(): void {
+    const reservationContactId = String(this.reservation?.contactIds?.[0] || this.detail?.reservation.contactId || '').trim();
+    this.contact = reservationContactId
+      ? this.contacts.find(item => item.contactId === reservationContactId) || this.contact
+      : this.contact;
   }
 
   renderPreview(): void {
@@ -381,7 +367,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(srcdoc);
     this.iframeKey++;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'detail');
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
 
   clearPreview(): void {
@@ -447,7 +433,9 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
       securityDepositReturnDate: this.securityDepositReturnDate
     };
   }
+  //#endregion
 
+  //#region Document Actions
   async saveReport(): Promise<void> {
     if (!this.detail || !this.selectedOffice || !this.previewIframeHtml) {
       this.toastr.warning('Security deposit report is not ready to save.', 'Missing Selection');
@@ -455,14 +443,13 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
     }
 
     this.isSubmitting = true;
-    this.cdr.markForCheck();
+    this.markViewForCheck();
 
     try {
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
         this.previewIframeHtml,
         this.previewIframeStyles
       );
-      const reservationCode = this.detail.reservation.reservationCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.reservationId || 'Report';
       const fileName = this.buildReportFileName('pdf');
 
       const generateDto: GenerateDocumentFromHtmlDto = {
@@ -484,14 +471,8 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
       console.error('Security deposit report save error:', error);
     } finally {
       this.isSubmitting = false;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     }
-  }
-
-  buildReportFileName(extension: 'pdf'): string {
-    const reservationCode = this.detail?.reservation.reservationCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.reservationId || 'Report';
-    const dateStamp = this.utilityService.todayAsCalendarDateString();
-    return `SecurityDeposit_${reservationCode}_${dateStamp}.${extension}`;
   }
 
   protected getDocumentConfig(): DocumentConfig {
@@ -510,7 +491,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
 
   protected setDownloading(value: boolean): void {
     this.isDownloading = value;
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
 
   override async onEmail(): Promise<void> {
@@ -592,8 +573,49 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   override onPrint(): void {
     super.onPrint('Security deposit report is not ready to print.');
   }
+  //#endregion
 
-  get isPageReady(): boolean {
-    return this.itemsToLoad$.value.size === 0;
+  //#region Utility Methods
+  getRecipientEmail(): string {
+    if (!this.contact) {
+      return '';
+    }
+
+    const email = this.contact.entityTypeId === EntityType.Company
+      ? this.contact.companyEmail
+      : this.contact.email;
+    return String(email || '').trim();
   }
+
+  getRecipientName(): string {
+    if (!this.contact) {
+      return '';
+    }
+
+    const name = this.contact.entityTypeId === EntityType.Company
+      ? this.contact.companyName
+      : this.contact.fullName;
+    return String(name || '').trim();
+  }
+
+  buildReportFileName(extension: 'pdf'): string {
+    const reservationCode = this.detail?.reservation.reservationCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.reservationId || 'Report';
+    const dateStamp = this.utilityService.todayAsCalendarDateString();
+    return `SecurityDeposit_${reservationCode}_${dateStamp}.${extension}`;
+  }
+
+  onBack(): void {
+    this.backEvent.emit();
+  }
+  
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
+  //#endregion
 }

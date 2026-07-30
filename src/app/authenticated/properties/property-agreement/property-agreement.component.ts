@@ -123,9 +123,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   //#region Property Agreement
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.isPageReady = this.itemsToLoad$.value.size === 0;
-      this.cdr.markForCheck();
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
 
     this.buildAgreementForm();
@@ -1477,6 +1477,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   setAgreementPdfThumbnail(dataUrl: string | null, contentType: string | null, setter: (url: string | null) => void): void {
     if (!dataUrl || !contentType?.toLowerCase().includes('pdf')) {
       setter(null);
