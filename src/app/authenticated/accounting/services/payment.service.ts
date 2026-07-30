@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { PaymentRequest, PaymentResponse, CreatePaymentWithAllocationsRequest, ApplyInvoicePaymentRequest } from '../models/payment.model';
+import { PaymentRequest, PaymentResponse, CreatePaymentWithAllocationsRequest, UpdatePaymentWithAllocationsRequest, ApplyInvoicePaymentRequest } from '../models/payment.model';
 
 @Injectable({
   providedIn: 'root'
@@ -50,6 +50,11 @@ export class PaymentService {
 
   updatePayment(request: PaymentRequest): Observable<PaymentResponse> {
     return this.http.put<PaymentResponse>(this.controller, request)
+      .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
+  }
+
+  updatePaymentWithAllocations(request: UpdatePaymentWithAllocationsRequest): Observable<PaymentResponse> {
+    return this.http.put<PaymentResponse>(this.controller + 'allocations', request)
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 

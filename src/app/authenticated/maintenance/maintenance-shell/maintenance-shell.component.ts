@@ -521,7 +521,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     if (keepReceiptAddDetailOpen) {
       this.showReceiptDetail = true;
       this.selectedReceiptId = 'new';
-      this.receiptDetailInstance++;
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
         return;

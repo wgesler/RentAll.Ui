@@ -162,13 +162,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.normalizeAccountingCompanyPropertySelection(value, previous);
       this.lastPropertyIdsValue = this.getFormPropertyIds();
       this.syncSelectedPropertyIdFromForm();
-      this.syncReceiptOfficeFromSelectedProperties();
       this.updatePropertyRequirementByReceiptType();
       this.syncSplitPropertySelectionsToCurrentScope();
       this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) }, { emitEvent: false });
-      if (!this.isAllOfficesShellScope()) {
-        this.loadBankCardsAndVendors();
-      }
     });
 
     this.loadOffices();
@@ -812,7 +808,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   loadBankCardsAndVendors(): void {
     this.syncBankCardOptionsForCurrentContext();
     this.loadSplitAccountsForCurrentOffice();
-    this.applyPropertyInputToForm();
     this.cdr.markForCheck();
   }
 
@@ -2055,17 +2050,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Property Selection Methods
-  syncReceiptOfficeFromSelectedProperties(): void {
-    const propertyIds = this.getSelectedPropertyIds();
-    const firstProperty = propertyIds
-      .map(propertyId => this.propertyOptions.find(property => property.propertyId === propertyId))
-      .find(property => !!property);
-    const propertyOfficeId = this.normalizeOfficeId(firstProperty?.officeId ?? this.property?.officeId);
-    if (propertyOfficeId) {
-      this.setReceiptOfficeId(propertyOfficeId);
-    }
-  }
-
   applyPropertyInputToForm(): void {
     if (this.property?.propertyId) {
       this.selectedPropertyId = this.property.propertyId;
@@ -2077,7 +2061,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
       return;
     }
-    this.syncReceiptOfficeFromSelectedProperties();
     if (!this.isAddMode) {
       return;
     }

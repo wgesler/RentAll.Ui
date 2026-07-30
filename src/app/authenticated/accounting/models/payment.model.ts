@@ -33,6 +33,11 @@ export interface CreatePaymentWithAllocationsRequest extends PaymentRequest {
   allocations: PaymentInvoiceAllocationRequest[];
 }
 
+export interface UpdatePaymentWithAllocationsRequest extends PaymentRequest {
+  paymentId: string;
+  allocations: PaymentInvoiceAllocationRequest[];
+}
+
 export interface ApplyInvoicePaymentRequest {
   organizationId: string;
   officeId: number;

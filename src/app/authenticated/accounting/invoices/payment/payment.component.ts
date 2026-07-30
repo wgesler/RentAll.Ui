@@ -13,7 +13,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../../shar
 import { PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
-import { CreatePaymentWithAllocationsRequest, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../../models/payment.model';
+import { CreatePaymentWithAllocationsRequest, UpdatePaymentWithAllocationsRequest, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../../models/payment.model';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -242,7 +242,12 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
     const savePayment = () => {
       this.isSubmitting = true;
-      this.paymentService.updatePayment(payload).pipe(take(1), finalize(() => {
+      const updatePayload: UpdatePaymentWithAllocationsRequest = {
+        ...payload,
+        paymentId: this.payment!.paymentId,
+        allocations
+      };
+      this.paymentService.updatePaymentWithAllocations(updatePayload).pipe(take(1), finalize(() => {
         this.isSubmitting = false;
         this.cdr.markForCheck();
       })).subscribe({
