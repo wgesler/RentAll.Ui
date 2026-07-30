@@ -771,8 +771,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const paidAmount = this.resolveInvoicePaidAmount(invoice);
       
       // Calculate due amount: Total - Paid
-      const dueAmount = totalAmount - paidAmount;
-      const dueAmountValue = dueAmount; // Store raw value for validation
+      const dueAmountValue = this.roundCurrencyValue(totalAmount - paidAmount);
       
       // Store original due amount value when entering manual mode (for editability check)
       // If already in manual mode and originalDueAmountValue exists, preserve it
@@ -805,7 +804,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       paidAmount: '$' + this.formatter.currency(paidAmount), // Always display as formatted (read-only)
       paidAmountValue: paidAmount, // Store raw value (read-only, never changes during manual entry)
       paidAmountDisplay: '$' + this.formatter.currency(paidAmount), // Display value (read-only)
-      dueAmount: '$' + this.formatter.currency(dueAmount),
+      dueAmount: '$' + this.formatter.currency(dueAmountValue),
       dueAmountValue: dueAmountValue, // Store raw value for validation (current due amount)
       originalDueAmountValue: originalDueAmountValue, // Store original due amount (for editability check)
       applyAmount: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
@@ -957,7 +956,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get resolvedPaymentOfficeId(): number | null {
-    return this.paymentOfficeId ?? this.selectedOffice?.officeId ?? null;
+    return this.paymentOfficeId ?? this.selectedOffice?.officeId ?? this.officeId ?? null;
   }
 
   refreshPaymentCostCodesForResolvedOffice(): void {
@@ -1473,7 +1472,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Get Methods
   get showInvoiceTableSelections(): boolean {
-    return this.source === 'accounting';
+    return this.source === 'accounting' || this.source === 'reservation';
   }
 
   rebuildInvoicesDisplayedColumns(): void {
@@ -1543,7 +1542,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       organizationId,
       officeId,
       paymentDate,
-      amount,
+      amount: this.roundCurrencyValue(amount),
       costCodeId: this.selectedPaymentCostCodeId,
       description: this.getPaymentRequestDescription(),
       paymentTypeId: PaymentType.Check,
@@ -1694,7 +1693,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getInvoiceBalanceDue(invoice: InvoiceResponse): number {
     const totalAmount = invoice.totalAmount || 0;
-    return totalAmount - this.resolveInvoicePaidAmount(invoice);
+    return this.roundCurrencyValue(totalAmount - this.resolveInvoicePaidAmount(invoice));
   }
 
   getInvoiceDueAmountValue(invoiceId: string): number {
@@ -1826,10 +1825,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     this.paymentAmountDisplay = input.value;
-    if (this.isRowScopedPaymentMode) {
+    if (this.isManualApplyMode || this.isRowScopedPaymentMode) {
       const parsed = parseFloat(input.value.replace(/[^0-9.-]/g, '').trim());
-      this.paymentAmount = isNaN(parsed) ? 0 : parsed;
-      this.syncRowApplyAmountFromDialog();
+      this.paymentAmount = isNaN(parsed) ? 0 : this.roundCurrencyValue(parsed);
+      if (this.isRowScopedPaymentMode) {
+        this.syncRowApplyAmountFromDialog();
+      }
+      this.updateRemainingAmount();
     }
   }
 
@@ -1840,11 +1842,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (rawValue !== '' && rawValue !== null) {
       const parsed = parseFloat(rawValue);
       if (!isNaN(parsed)) {
-        const finalValue = parsed;
+        const finalValue = this.roundCurrencyValue(parsed);
         this.paymentAmount = finalValue;
-        this.paymentAmountDisplay = finalValue < 0
-          ? '-$' + this.formatter.currency(-finalValue)
-          : '$' + this.formatter.currency(finalValue);
+        this.paymentAmountDisplay = this.formatApplyAmountDisplay(finalValue);
         input.value = this.paymentAmountDisplay;
         this.syncRowApplyAmountFromDialog();
         this.updateRemainingAmount();
@@ -1881,11 +1881,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!isRowScopedApply) {
       // Toolbar "Apply Payment" requires explicit office scope from the top bar.
       this.paymentOfficeId = null;
-      if (!this.selectedOffice?.officeId) {
+      const officeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
+      if (!officeId) {
         this.toastr.warning('Please select an office first');
         return;
       }
-      this.paymentOfficeId = this.selectedOffice.officeId;
+      this.paymentOfficeId = officeId;
     } else if (!this.paymentOfficeId) {
       // Row-level "$" applies against that invoice's office context.
       this.toastr.warning('Unable to determine office for selected invoice.');
@@ -1908,9 +1909,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   syncPaymentHeaderFromDisplayApplyAmounts(): void {
-    const total = this.invoicesDisplay.reduce(
-      (sum, row) => this.roundCurrencyValue(sum + Number(row.applyAmountValue || 0)),
-      0
+    const total = this.sumCurrencyValues(
+      this.invoicesDisplay.map(row => Number(row.applyAmountValue || 0))
     );
     this.paymentAmount = total;
     this.paymentAmountDisplay = this.formatApplyAmountDisplay(total);
@@ -2007,6 +2007,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    this.syncPaymentHeaderFromDisplayApplyAmounts();
+
     if (!this.isRemainingAmountZero()) {
       this.toastr.warning(`Remaining amount must be $0.00 before submitting. Current remaining: ${this.remainingAmountDisplay}`);
       return;
@@ -2015,10 +2017,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const paymentDescription = this.getPaymentRequestDescription();
     const allocations = invoicesWithPayments.map(invoice => ({
       invoiceId: invoice.invoiceId,
-      amount: Number(invoice.applyAmountValue || 0),
+      amount: this.roundCurrencyValue(Number(invoice.applyAmountValue || 0)),
       description: paymentDescription
     }));
-    const totalAmount = allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+    const totalAmount = this.sumCurrencyValues(allocations.map(allocation => allocation.amount));
     const request = this.buildApplyInvoicePaymentRequest(totalAmount, { allocations });
     if (!request) {
       this.toastr.warning('Unable to build payment request');
@@ -2037,7 +2039,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyPayment(invoiceIds: string[]): void {
-    const request = this.buildApplyInvoicePaymentRequest(this.paymentAmount, { invoiceIds });
+    const request = this.buildApplyInvoicePaymentRequest(this.roundCurrencyValue(this.paymentAmount), { invoiceIds });
     if (!request) {
       this.toastr.warning('Unable to build payment request');
       return;
@@ -2086,34 +2088,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const normalizedValue = parts.length > 2
       ? `${parts[0]}.${parts.slice(1).join('')}`
       : normalizedSign;
-    
+
     if (normalizedValue !== '' && normalizedValue !== null && normalizedValue !== '-') {
       const parsed = parseFloat(normalizedValue);
       if (!isNaN(parsed)) {
-        const finalValue = parsed;
-        invoice.applyAmountValue = finalValue;
-        invoice.applyAmountDisplay = finalValue < 0
-          ? '-$' + this.formatter.currency(-finalValue)
-          : '$' + this.formatter.currency(finalValue);
-        invoice.applyAmount = invoice.applyAmountDisplay;
-        input.value = invoice.applyAmountDisplay;
-        
+        this.setInvoiceApplyAmount(invoice, parsed);
       } else {
-        invoice.applyAmountValue = invoice.applyAmountValue || 0;
-        invoice.applyAmountDisplay = (invoice.applyAmountValue || 0) < 0
-          ? '-$' + this.formatter.currency(-(invoice.applyAmountValue || 0))
-          : '$' + this.formatter.currency(invoice.applyAmountValue || 0);
-        invoice.applyAmount = invoice.applyAmountDisplay;
-        input.value = invoice.applyAmountDisplay;
+        this.setInvoiceApplyAmount(invoice, Number(invoice.applyAmountValue || 0));
       }
     } else {
-      invoice.applyAmountValue = invoice.applyAmountValue || 0;
-      invoice.applyAmountDisplay = (invoice.applyAmountValue || 0) < 0
-        ? '-$' + this.formatter.currency(-(invoice.applyAmountValue || 0))
-        : '$' + this.formatter.currency(invoice.applyAmountValue || 0);
-      invoice.applyAmount = invoice.applyAmountDisplay;
-      input.value = invoice.applyAmountDisplay;
+      this.setInvoiceApplyAmount(invoice, Number(invoice.applyAmountValue || 0));
     }
+
+    input.value = invoice.applyAmountDisplay ?? '';
 
     const appliedAmount = this.roundCurrencyValue(Number(invoice.applyAmountValue || 0));
     this.ensureInvoiceApplyLineSelected(invoice, appliedAmount);
@@ -2291,6 +2278,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return Math.round(amount * 100) / 100;
   }
 
+  sumCurrencyValues(values: number[]): number {
+    return this.roundCurrencyValue(
+      values.reduce((sum, value) => sum + this.roundCurrencyValue(value), 0)
+    );
+  }
+
   isRemainingAmountZero(): boolean {
     return this.remainingAmount > -0.005 && this.remainingAmount < 0.005;
   }
@@ -2306,8 +2299,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const totalApplied = this.roundCurrencyValue(this.invoicesDisplay
-      .reduce((sum, inv) => sum + Number(inv.applyAmountValue || 0), 0));
+    const totalApplied = this.sumCurrencyValues(
+      this.invoicesDisplay.map(inv => Number(inv.applyAmountValue || 0))
+    );
 
     const remaining = this.roundCurrencyValue(this.roundCurrencyValue(this.paymentAmount) - totalApplied);
     this.remainingAmount = (remaining > -0.005 && remaining < 0.005) ? 0 : remaining;
