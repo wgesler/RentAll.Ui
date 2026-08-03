@@ -260,6 +260,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   private pendingStickySort: { sortColumn: string; sortDirection: DataTableStickySortDirection } | null = null;
   private stickySortApplied = false;
   private initialSortApplied = false;
+  private lastUserSort: { sortColumn: string; sortDirection: 'asc' | 'desc' } | null = null;
   
   isDateColumn(column: ColumnData): boolean {
     const target = `${column?.name ?? ''} ${column?.displayAs ?? ''}`.toLowerCase();
@@ -428,6 +429,10 @@ markViewForCheck(): void {
         if (typeof sortKey === 'string' && sortKey.trim()) {
           return sortKey.trim();
         }
+      }
+
+      if (column === 'workOrderDisplay') {
+        return this.workOrderDisplaySortKey(value);
       }
 
       // Check if this column should use natural sorting (for codes with numbers)
@@ -1298,6 +1303,35 @@ parseDateValue(value: unknown): Date | null {
     }).join('');
   }
 
+  /** Empty → Missing → WO codes (natural), so Work Order column sorts predictably. */
+  workOrderDisplaySortKey(value: unknown): string {
+    const raw = String(value ?? '').trim();
+    if (!raw) {
+      return '0';
+    }
+
+    const tokens = raw.split(',').map(token => token.trim()).filter(token => token.length > 0);
+    if (!tokens.length) {
+      return '0';
+    }
+
+    const normalizedTokens = tokens.map(token => token.toLowerCase());
+    const hasMissing = normalizedTokens.some(token => token === 'missing');
+    const workOrderTokens = tokens.filter((_, index) => normalizedTokens[index] !== 'missing');
+    const workOrderKey = workOrderTokens.length
+      ? this.naturalSortKey(workOrderTokens.join(', '))
+      : '';
+
+    if (hasMissing && !workOrderKey) {
+      return `1|${this.naturalSortKey(tokens.join(', '))}`;
+    }
+    if (hasMissing) {
+      return `1|${workOrderKey}|${this.naturalSortKey(tokens.join(', '))}`;
+    }
+
+    return `2|${workOrderKey || this.naturalSortKey(raw)}`;
+  }
+
 getFilterableColumnValue(item: TableItem, column: string): string {
     return this.normalizeFilterValue(this.flattenFilterSourceValue(item?.[column]));
   }
@@ -1448,7 +1482,13 @@ normalizeFilterValue(value: unknown): string {
     this.markViewForCheck();
   }
 
-  onMatSortChange(_event: Sort): void {
+  onMatSortChange(event: Sort): void {
+    if (event.active && (event.direction === 'asc' || event.direction === 'desc')) {
+      this.lastUserSort = { sortColumn: event.active, sortDirection: event.direction };
+    } else {
+      this.lastUserSort = null;
+    }
+
     if (this.filterSticky) {
       this.persistStickyFilterAndSort();
     }
@@ -1567,6 +1607,7 @@ attachTableSortAndPaginator(): void {
     this.dataSource.sort = this.sort;
     this.applyStickySortIfNeeded();
     this.applyInitialSortIfNeeded();
+    this.reapplyActiveSort();
   }
 
   applyInitialSortIfNeeded(): void {
@@ -1578,12 +1619,14 @@ attachTableSortAndPaginator(): void {
     }
 
     this.initialSortApplied = true;
+    const sortColumn = this.initialSortColumn.trim();
     this.sort.sort({
-      id: this.initialSortColumn.trim(),
+      id: sortColumn,
       start: this.initialSortDirection,
       disableClear: false
     });
     this.dataSource.sort = this.sort;
+    this.lastUserSort = { sortColumn, sortDirection: this.initialSortDirection };
   }
 
 applyStickySortIfNeeded(): void {
@@ -1603,8 +1646,39 @@ applyStickySortIfNeeded(): void {
       disableClear: false
     });
     this.dataSource.sort = this.sort;
+    this.lastUserSort = { sortColumn, sortDirection };
     if (this.filterSticky) {
       this.persistStickyFilterAndSort();
+    }
+  }
+
+  reapplyActiveSort(): void {
+    if (!this.sort || !this.dataSource) {
+      return;
+    }
+
+    const active = this.lastUserSort?.sortColumn || this.sort.active?.trim() || '';
+    const direction = this.lastUserSort?.sortDirection || this.sort.direction;
+    if (!active || (direction !== 'asc' && direction !== 'desc')) {
+      return;
+    }
+    if (!this.displayedColumns.includes(active)) {
+      return;
+    }
+
+    this.dataSource.sort = this.sort;
+    if (this.sort.active !== active || this.sort.direction !== direction) {
+      this.sort.sort({
+        id: active,
+        start: direction,
+        disableClear: false
+      });
+      return;
+    }
+
+    const currentData = this.dataSource.data;
+    if (currentData?.length) {
+      this.dataSource.data = [...currentData];
     }
   }
   //#endregion
@@ -1623,6 +1697,7 @@ applyStickySortIfNeeded(): void {
       return;
     }
     this.dataSource.data = [...this.data];
+    this.reapplyActiveSort();
     this.markViewForCheck();
   }
 

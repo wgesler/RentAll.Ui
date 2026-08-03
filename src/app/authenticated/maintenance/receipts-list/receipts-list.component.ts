@@ -171,7 +171,21 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
+  private cachedReceiptDisplayedColumns: ColumnSet | null = null;
+  private cachedReceiptDisplayedColumnsKey = '';
+
   get receiptDisplayedColumns(): ColumnSet {
+    const cacheKey = [
+      this.embeddedInAccounting ? '1' : '0',
+      this.accountingListMode ?? '',
+      this.isManualApplyMode ? '1' : '0',
+      this.authService.hasAccountingNavAccess() ? '1' : '0'
+    ].join('|');
+
+    if (this.cachedReceiptDisplayedColumns && this.cachedReceiptDisplayedColumnsKey === cacheKey) {
+      return this.cachedReceiptDisplayedColumns;
+    }
+
     const accountingNavAccess = this.authService.hasAccountingNavAccess();
     const hideIsUtilityColumn = !accountingNavAccess;
 
@@ -184,16 +198,22 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     };
 
     if (!this.embeddedInAccounting) {
-      return stripIsUtilityColumn(this.maintenanceReceiptDisplayedColumns);
+      this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(this.maintenanceReceiptDisplayedColumns);
+      this.cachedReceiptDisplayedColumnsKey = cacheKey;
+      return this.cachedReceiptDisplayedColumns;
     }
     const accountingColumns = this.accountingListMode === 'receipts'
       ? this.accountingNonBillReceiptDisplayedColumns
       : this.accountingReceiptDisplayedColumns;
     if (!this.isManualApplyMode) {
       const { applyAmount, ...columnsWithoutApply } = accountingColumns;
-      return stripIsUtilityColumn(columnsWithoutApply);
+      this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(columnsWithoutApply);
+      this.cachedReceiptDisplayedColumnsKey = cacheKey;
+      return this.cachedReceiptDisplayedColumns;
     }
-    return stripIsUtilityColumn(accountingColumns);
+    this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(accountingColumns);
+    this.cachedReceiptDisplayedColumnsKey = cacheKey;
+    return this.cachedReceiptDisplayedColumns;
   }
 
   get showBillsTableSelections(): boolean {
