@@ -1886,6 +1886,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     return !!this.form && this.saveAttempted && !!this.form.get('dueDate')?.invalid;
   }
 
+  get invoiceCodeDisplay(): string {
+    if (this.isAddMode) {
+      return 'New';
+    }
+
+    return (this.invoice?.invoiceCode || this.form?.get('invoiceCode')?.value || '').trim();
+  }
+
   getInvoiceOfficeFieldClass(baseClass: string = 'titlebar-field-office'): string {
     return this.showOfficeValidationError
       ? `${baseClass} invoice-required-field`

@@ -78,6 +78,11 @@
             <div class="grid grid-cols-4 form-standard-grid">
               <!-- Second Row: compact grouped date fields -->
               <div class="col-span-4 grid grid-cols-8 form-standard-grid">
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Invoice Code</mat-label>
+                  <input matInput [value]="invoiceCodeDisplay" readonly disabled class="readonly-field">
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="col-span-1" [class.invoice-required-field]="showInvoiceDateValidationError">
                   <mat-label>Invoice Date</mat-label>
                   <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
