@@ -1,6 +1,30 @@
 import { FileDetails } from "../../documents/models/document.model";
 import type { CalendarDateString } from '../../../services/utility.service';
 
+/** Persisted on receipt propertyIds when the user selects Company at the receipt level. */
+export const RECEIPT_COMPANY_PROPERTY_ID = '00000000-0000-0000-0000-000000000000';
+
+export function isReceiptCompanyPropertyId(propertyId: string | null | undefined): boolean {
+  return (propertyId || '').trim().toLowerCase() === RECEIPT_COMPANY_PROPERTY_ID;
+}
+
+export function normalizeReceiptPropertyIdForApi(propertyId: string | null | undefined): string | null {
+  const normalized = (propertyId || '').trim();
+  if (!normalized) {
+    return null;
+  }
+  if (isReceiptCompanyPropertyId(normalized)) {
+    return RECEIPT_COMPANY_PROPERTY_ID;
+  }
+  return normalized;
+}
+
+export function resolveFirstRealReceiptPropertyId(propertyIds: string[] | null | undefined): string | null {
+  return (propertyIds || [])
+    .map(propertyId => (propertyId || '').trim())
+    .find(propertyId => propertyId.length > 0 && !isReceiptCompanyPropertyId(propertyId)) ?? null;
+}
+
 export interface Split {
   receiptSplitId?: number | null;
   amount: number;

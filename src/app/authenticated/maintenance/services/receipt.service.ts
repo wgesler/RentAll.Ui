@@ -12,7 +12,7 @@ import { MappingService } from '../../../services/mapping.service';
 
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 
-import { BillPaymentRequest, BillPaymentResponse, ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
+import { BillPaymentRequest, BillPaymentResponse, ReceiptRequest, ReceiptResponse, isReceiptCompanyPropertyId } from '../models/receipt.model';
 
 
 
@@ -49,6 +49,14 @@ export class ReceiptService {
 
 
 
+  private resolveReceiptListPropertyId(propertyId?: string | null): string | null {
+    const normalizedPropertyId = (propertyId || '').trim();
+    if (!normalizedPropertyId || isReceiptCompanyPropertyId(normalizedPropertyId)) {
+      return null;
+    }
+    return normalizedPropertyId;
+  }
+
   searchReceipts(request: MaintenanceListSearchRequest): Observable<ReceiptResponse[]> {
 
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
@@ -65,7 +73,7 @@ export class ReceiptService {
 
       officeIds,
 
-      propertyId: request.propertyId || null,
+      propertyId: this.resolveReceiptListPropertyId(request.propertyId),
 
       isActive: request.isActive ?? null,
 
@@ -84,10 +92,9 @@ export class ReceiptService {
 
 
   getReceipts(propertyId?: string | null, officeId?: number | null): Observable<ReceiptResponse[]> {
-
-    const request$ = propertyId
-
-      ? this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId)
+    const effectivePropertyId = this.resolveReceiptListPropertyId(propertyId);
+    const request$ = effectivePropertyId
+      ? this.http.get<ReceiptResponse[]>(this.controller + 'property/' + effectivePropertyId)
 
       : officeId != null && Number.isFinite(officeId) && officeId > 0
 
@@ -102,8 +109,12 @@ export class ReceiptService {
 
 
   getReceiptsByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {
+    const effectivePropertyId = this.resolveReceiptListPropertyId(propertyId);
+    if (!effectivePropertyId) {
+      return of([]);
+    }
 
-    return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId)
+    return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + effectivePropertyId)
 
       .pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
 

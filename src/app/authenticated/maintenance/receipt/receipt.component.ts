@@ -22,7 +22,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
+import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, RECEIPT_COMPANY_PROPERTY_ID, Split, isReceiptCompanyPropertyId, normalizeReceiptPropertyIdForApi } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { JournalEntryService } from '../../accounting/services/journal-entry.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
@@ -33,9 +33,6 @@ import { BankCardResponse } from '../../organizations/models/bank.model';
 import { WorkOrderService } from '../services/work-order.service';
 import { MappingService } from '../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-
-/** Form-only sentinel for company-level receipts in the accounting shell (not sent to the API). */
-const ACCOUNTING_COMPANY_PROPERTY_ID = '__accounting_company__';
 
 @Component({
   standalone: true,
@@ -119,7 +116,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
 
-  readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
+  readonly accountingCompanyPropertyId = RECEIPT_COMPANY_PROPERTY_ID;
   lastPropertyIdsValue: string[] = [];
   manualSplitAccountIndexes = new Set<number>();
   appliedPrefillKey: string | null = null;
@@ -269,9 +266,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.showValidationErrorToast();
       return;
     }
-    const selectedPropertyIds = this.getPayloadPropertyIds()
-      .map(propertyId => this.normalizeGuidOrNull(propertyId))
-      .filter((propertyId): propertyId is string => !!propertyId);
+    const selectedPropertyIds = this.getPayloadPropertyIds();
     if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
       this.form.get('propertyIds')?.markAsTouched();
       this.showValidationErrorToast();
@@ -563,6 +558,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.replaceSplitLines(receipt.splits || []);
     this.lastPropertyIdsValue = this.getFormPropertyIds();
+    this.updatePropertyRequirementByReceiptType();
+    this.emitPropertySelectionRequiredState();
     this.receiptFileDetails = receipt.fileDetails || null;
     this.hasNewReceiptUpload = false;
     this.originalReceiptPath = receipt.receiptPath ?? null;
@@ -1636,9 +1633,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       ?? null
     );
     const isFirstSplitOnAccountingCreate = this.isAccountingShell && this.isAddMode && !split && this.splitsFormArray.length === 0;
+    const isNewSplitLine = split === undefined;
     const resolvedPropertyId = isFirstSplitOnAccountingCreate
       ? null
-      : (normalizedPropertyId ?? this.getDefaultSplitPropertyId());
+      : (isNewSplitLine
+        ? (normalizedPropertyId ?? this.getDefaultSplitPropertyId())
+        : normalizedPropertyId);
     const normalizedChartOfAccountId = Number(
       rawSplit?.chartOfAccountId
       ?? rawSplit?.['ChartOfAccountId']
@@ -2161,7 +2161,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isAccountingCompanySelected(): boolean {
-    return this.getFormPropertyIds().includes(ACCOUNTING_COMPANY_PROPERTY_ID);
+    return this.getFormPropertyIds().some(propertyId => isReceiptCompanyPropertyId(propertyId));
   }
 
   shouldDefaultToAccountingCompany(): boolean {
@@ -2176,10 +2176,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   applyAccountingCompanySelection(): void {
     this.form.patchValue({
-      propertyIds: [ACCOUNTING_COMPANY_PROPERTY_ID],
+      propertyIds: [RECEIPT_COMPANY_PROPERTY_ID],
       propertyCode: 'Company'
     }, { emitEvent: false });
-    this.lastPropertyIdsValue = [ACCOUNTING_COMPANY_PROPERTY_ID];
+    this.lastPropertyIdsValue = [RECEIPT_COMPANY_PROPERTY_ID];
     this.selectedPropertyId = null;
     this.updatePropertyRequirementByReceiptType();
   }
@@ -2191,14 +2191,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   toFormPropertyIds(propertyIds: string[] | null | undefined, splits?: Split[] | null): string[] {
-    const realIds = (propertyIds || [])
-      .map(propertyId => (propertyId || '').toString().trim())
-      .filter(propertyId => propertyId.length > 0);
+    const normalizedIds = (propertyIds || [])
+      .map(propertyId => normalizeReceiptPropertyIdForApi(propertyId))
+      .filter((propertyId): propertyId is string => !!propertyId);
+    const hasCompanyInIds = normalizedIds.some(propertyId => isReceiptCompanyPropertyId(propertyId));
+    const realIds = normalizedIds.filter(propertyId => !isReceiptCompanyPropertyId(propertyId));
     const hasCompanySplit = (splits || []).some(split => !this.normalizeSplitPropertyId(split.propertyId ?? null));
-    if (this.showAccountingCompanyPropertyOption && (realIds.length === 0 || hasCompanySplit)) {
-      return [ACCOUNTING_COMPANY_PROPERTY_ID, ...realIds];
+    if (this.showAccountingCompanyPropertyOption && !hasCompanyInIds && (realIds.length === 0 || hasCompanySplit)) {
+      return [RECEIPT_COMPANY_PROPERTY_ID, ...realIds];
     }
-    return realIds;
+    return normalizedIds;
   }
 
   getFormPropertyIds(): string[] {
@@ -2213,8 +2215,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getPayloadPropertyIds(): string[] {
-    // API accepts only real property ids; Company is form-only and maps to "no property ids".
-    return this.getSelectedPropertyIds();
+    return this.getFormPropertyIds()
+      .map(propertyId => normalizeReceiptPropertyIdForApi(propertyId))
+      .filter((propertyId): propertyId is string => !!propertyId);
   }
 
   isPropertySelectionRequired(): boolean {
@@ -2271,7 +2274,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   getSelectedPropertyIds(): string[] {
     return this.getFormPropertyIds()
-      .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID);
+      .filter(propertyId => !isReceiptCompanyPropertyId(propertyId));
   }
 
   getSplitPropertyOptions(): Array<{ value: string; label: string }> {
@@ -2315,7 +2318,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   normalizeSplitPropertyId(propertyId: string | null | undefined): string | null {
     const normalizedPropertyId = (propertyId || '').trim();
-    if (!normalizedPropertyId || normalizedPropertyId === ACCOUNTING_COMPANY_PROPERTY_ID) {
+    if (!normalizedPropertyId || isReceiptCompanyPropertyId(normalizedPropertyId)) {
       return null;
     }
     return normalizedPropertyId;
@@ -2360,12 +2363,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   getPropertyCodesDisplay(propertyIds: string[] | null | undefined): string {
     const ids = propertyIds || [];
-    const hasCompany = ids.includes(ACCOUNTING_COMPANY_PROPERTY_ID);
+    const hasCompany = ids.some(propertyId => isReceiptCompanyPropertyId(propertyId));
     const codeLookup = new Map(
       (this.propertyOptions || []).map(property => [property.propertyId, (property.propertyCode || '').trim()])
     );
     const realPropertyLabels = ids
-      .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID)
+      .filter(propertyId => !isReceiptCompanyPropertyId(propertyId))
       .map(propertyId => (propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0)
       .map(propertyId => codeLookup.get(propertyId) || propertyId)

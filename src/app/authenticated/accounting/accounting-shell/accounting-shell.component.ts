@@ -25,7 +25,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { ReceiptPrefill, ReceiptRequest, ReceiptSelection } from '../../maintenance/models/receipt.model';
+import { ReceiptPrefill, ReceiptRequest, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/work-order-create.component';
@@ -1245,7 +1245,7 @@ hydrateSelectedInvoiceForActiveId(): void {
   //#region Bills Receipt Detail
   onBillsReceiptSelect(selection: ReceiptSelection, origin: 'bills' | 'rentRoll' = 'bills'): void {
     const receiptId = (selection?.receiptId || '').trim() || null;
-    const propertyId = (selection?.propertyId || '').trim() || null;
+    const propertyId = resolveFirstRealReceiptPropertyId(selection?.propertyId ? [selection.propertyId] : selection?.receipt?.propertyIds);
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
 
@@ -1265,6 +1265,11 @@ hydrateSelectedInvoiceForActiveId(): void {
       if (cachedProperty?.propertyCode) {
         propertyStub.propertyCode = cachedProperty.propertyCode;
       }
+    } else if (
+      isReceiptCompanyPropertyId(selection?.propertyId)
+      || (selection?.receipt?.propertyIds || []).some(id => isReceiptCompanyPropertyId(id))
+    ) {
+      propertyStub.propertyCode = 'Company';
     }
 
     this.selectedTabIndex = this.tabBillsReceipts;
@@ -1708,7 +1713,7 @@ hydrateSelectedInvoiceForActiveId(): void {
 
   onReceiptsReceiptSelect(selection: ReceiptSelection): void {
     const receiptId = selection?.receiptId ?? null;
-    const propertyId = (selection?.propertyId || '').trim() || null;
+    const propertyId = resolveFirstRealReceiptPropertyId(selection?.propertyId ? [selection.propertyId] : selection?.receipt?.propertyIds);
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
 
@@ -1728,6 +1733,11 @@ hydrateSelectedInvoiceForActiveId(): void {
       if (cachedProperty?.propertyCode) {
         propertyStub.propertyCode = cachedProperty.propertyCode;
       }
+    } else if (
+      isReceiptCompanyPropertyId(selection?.propertyId)
+      || (selection?.receipt?.propertyIds || []).some(id => isReceiptCompanyPropertyId(id))
+    ) {
+      propertyStub.propertyCode = 'Company';
     }
 
     this.selectedTabIndex = this.tabBillsReceipts;
@@ -1985,7 +1995,9 @@ hydrateSelectedInvoiceForActiveId(): void {
 
   onOwnersUtilityReceiptSelect(selection: ReceiptSelection): void {
     const receiptId = selection?.receiptId ?? null;
-    const propertyId = (selection?.propertyId || '').trim() || null;
+    const propertyId = resolveFirstRealReceiptPropertyId(
+      selection?.propertyId ? [selection.propertyId] : selection?.receipt?.propertyIds
+    );
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
 
@@ -2003,6 +2015,11 @@ hydrateSelectedInvoiceForActiveId(): void {
       if (cachedProperty?.propertyCode) {
         propertyStub.propertyCode = cachedProperty.propertyCode;
       }
+    } else if (
+      isReceiptCompanyPropertyId(selection?.propertyId)
+      || (selection?.receipt?.propertyIds || []).some(id => isReceiptCompanyPropertyId(id))
+    ) {
+      propertyStub.propertyCode = 'Company';
     }
 
     this.selectedTabIndex = this.tabOwners;

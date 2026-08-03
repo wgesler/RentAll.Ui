@@ -30,7 +30,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
+import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, Split, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
@@ -303,7 +303,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   normalizeSearchPropertyId(propertyId: string | null | undefined): string | null {
     const normalized = (propertyId || '').trim();
-    return normalized || null;
+    if (!normalized || isReceiptCompanyPropertyId(normalized)) {
+      return null;
+    }
+    return normalized;
   }
 
   getSearchPropertyId(): string | null {
@@ -436,9 +439,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     if (this.isBillMissingReceiptAttachment(event)) {
-      const selectedPropertyId = (event.propertyIds || [])
-        .map(propertyId => (propertyId || '').trim())
-        .find(propertyId => propertyId.length > 0) || null;
+      const selectedPropertyId = resolveFirstRealReceiptPropertyId(event.propertyIds);
       const receipt = this.receipts.find(item => item.receiptId === event.receiptId) ?? null;
       this.receiptSelect.emit({
         receiptId: event.receiptId,
@@ -458,9 +459,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   goToReceipt(event: ReceiptDisplayList): void {
     if (this.embeddedInMaintenance || this.embeddedInAccounting) {
-      const selectedPropertyId = (event.propertyIds || [])
-        .map(propertyId => (propertyId || '').trim())
-        .find(propertyId => propertyId.length > 0) || null;
+      const selectedPropertyId = resolveFirstRealReceiptPropertyId(event.propertyIds);
       const receipt = this.receipts.find(item => item.receiptId === event.receiptId) ?? null;
       this.receiptSelect.emit({
         receiptId: event.receiptId,
@@ -487,9 +486,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const propertyId =
-      (rowItem.propertyIds || []).map(id => (id || '').trim()).find(id => id.length > 0)
-      || (this.property?.propertyId || '').trim()
-      || (this.selectedPropertyId || '').trim()
+      resolveFirstRealReceiptPropertyId(rowItem.propertyIds)
+      || resolveFirstRealReceiptPropertyId(this.property?.propertyId ? [this.property.propertyId] : null)
+      || resolveFirstRealReceiptPropertyId(this.selectedPropertyId ? [this.selectedPropertyId] : null)
       || null;
     const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
 
@@ -1394,6 +1393,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   resolvePropertyCode(propertyId: string | null | undefined): string {
+    if (isReceiptCompanyPropertyId(propertyId)) {
+      return 'Company';
+    }
     const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
     if (!normalizedPropertyId) {
       return '';

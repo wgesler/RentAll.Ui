@@ -18,7 +18,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptSelection } from '../models/receipt.model';
+import { ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
@@ -848,7 +848,7 @@ applyPageOfficeChangeEffects(): void {
   onReceiptSelect(selection: ReceiptSelection): void {
     const receiptId = selection?.receiptId ?? null;
     const selectedOfficeId = this.normalizeOfficeId(selection?.officeId ?? null);
-    const selectedPropertyId = (selection?.propertyId || '').trim() || null;
+    const selectedPropertyId = resolveFirstRealReceiptPropertyId(selection?.propertyId ? [selection.propertyId] : selection?.receipt?.propertyIds);
     this.receiptSaveValidationAttempted = false;
     if (selectedOfficeId !== this.selectedOfficeId) {
       this.skipNextOfficeChange = true;
@@ -923,7 +923,7 @@ applyPageOfficeChangeEffects(): void {
 
   onWorkOrderSelect(selection: WorkOrderSelection): void {
     const workOrderId = selection?.workOrderId ?? null;
-    const targetPropertyId = (selection?.propertyId || '').trim() || null;
+    const targetPropertyId = resolveFirstRealReceiptPropertyId(selection?.propertyId ? [selection.propertyId] : null);
     const selectedOfficeId = this.normalizeOfficeId(selection?.officeId ?? null);
     this.workOrderSaveValidationAttempted = false;
 
