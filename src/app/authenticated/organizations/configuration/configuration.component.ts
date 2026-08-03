@@ -296,6 +296,7 @@ refreshSettingsOfficeScopedLists(): void {
   onSettingsOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
     this.selectedCostCodesOfficeId = Number.isFinite(officeId as number) ? officeId : null;
+    this.refreshSettingsOfficeScopedLists();
   }
 
   onOfficeSelected(officeId: string | number | null): void {

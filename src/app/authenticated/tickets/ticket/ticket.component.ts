@@ -9,7 +9,7 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
@@ -644,6 +644,12 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     return normalized.length > 0 ? normalized : null;
   }
 
+  getTicketOfficeIdForAgentFilter(): number | null {
+    const officeId = this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId ?? null;
+    const parsedOfficeId = Number(officeId);
+    return Number.isFinite(parsedOfficeId) && parsedOfficeId > 0 ? parsedOfficeId : null;
+  }
+
   appendAutoCommentForCheckbox(controlName: string): void {
     const label = this.communicationStatusLabels[controlName];
     if (!label) {
@@ -728,8 +734,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   refreshReservationAgentOptions(): void {
-    this.reservationAgentOptions = (this.agents || [])
-      .filter(agent => agent.isActive)
+    const scopedOfficeId = this.getTicketOfficeIdForAgentFilter();
+    this.reservationAgentOptions = filterAgentsByOffice(this.agents, scopedOfficeId, { activeOnly: true })
       .map(agent => ({
         agentId: agent.agentId,
         displayName: String(agent.name || '').trim() || String(agent.agentCode || '').trim()

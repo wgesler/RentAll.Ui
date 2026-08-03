@@ -15,7 +15,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
-import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { ColorResponse } from '../../organizations/models/color.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -153,8 +153,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.applyOfficeFromGlobal(officeId);
-        this.syncSelectedAgentWithOfficeScope();
-        this.loadReservations();
+        this.lastLoadedOfficeId = null;
+        this.loadReservations(true);
         this.loadBoardProperties();
       }
     });
@@ -424,6 +424,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
+    const previousOfficeId = this.selectedOfficeId;
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: this.dateRangeSticky,
       pageOfficeId: this.selectedOfficeId,
@@ -432,6 +433,10 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (previousOfficeId !== this.selectedOfficeId) {
+      this.lastLoadedOfficeId = null;
+      this.syncSelectedAgentWithOfficeScope();
+    }
     this.markViewForCheck();
   }
 
@@ -559,6 +564,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.loadReservations(true);
     this.loadBoardProperties();
+    this.markViewForCheck();
   }
 
   onAgentDropdownChange(): void {
@@ -575,7 +581,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (this.selectedOfficeId == null) {
       return activeAgents;
     }
-    return activeAgents.filter(agent => agent.officeId === this.selectedOfficeId);
+    return filterAgentsByOffice(activeAgents, this.selectedOfficeId);
   }
 
   get showAgentDropdown(): boolean {

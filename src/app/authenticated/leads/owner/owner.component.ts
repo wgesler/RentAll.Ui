@@ -16,7 +16,7 @@ import { CommonService } from '../../../services/common.service';
 import { EntityType, OwnerType, VendorType } from '../../contacts/models/contact-enum';
 import { ContactRequest } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
-import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -100,6 +100,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['officeId']) {
       this.syncPropertyOfficeFromShell();
       this.syncPropertyOfficeFromSelectedCode();
+      this.syncAgentSelectionWithOfficeScope();
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
@@ -430,6 +431,28 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     if (Number.isFinite(officeId) && officeId > 0) {
       this.officeChange.emit(officeId);
     }
+    this.syncAgentSelectionWithOfficeScope();
+  }
+
+  get agentOptions(): AgentResponse[] {
+    return filterAgentsByOffice(this.agents, this.resolveSaveOfficeId(), { activeOnly: true });
+  }
+
+  syncAgentSelectionWithOfficeScope(): void {
+    const agentControl = this.form?.get('agentCode');
+    if (!agentControl) {
+      return;
+    }
+
+    const currentAgentCode = String(agentControl.value ?? '').trim();
+    if (!currentAgentCode) {
+      return;
+    }
+
+    const isCurrentAgentValid = this.agentOptions.some(agent => String(agent.agentCode ?? '').trim() === currentAgentCode);
+    if (!isCurrentAgentValid) {
+      agentControl.setValue(null, { emitEvent: false });
+    }
   }
 
   agentSelectLabel(agent: AgentResponse): string {
@@ -548,6 +571,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     this.agentService.getAgents().pipe(take(1)).subscribe({
       next: a => {
         this.agents = (a || []).filter(x => x.isActive);
+        this.syncAgentSelectionWithOfficeScope();
         if (this.lead) {
           this.populateForm(this.lead);
         }

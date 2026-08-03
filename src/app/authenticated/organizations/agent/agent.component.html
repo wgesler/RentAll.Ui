@@ -42,11 +42,23 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Offices</mat-label>
+                <mat-select formControlName="offices" multiple required>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('offices')?.hasError('required') && form.get('offices')?.touched) {
+                  <mat-error>At least one Office is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Primary Office</mat-label>
                 <mat-select formControlName="officeId" required>
                   <mat-option [value]="null">Select Office</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  @for (office of availableOffices; track office.value) {
+                    <mat-option [value]="office.value">{{ office.name }}</mat-option>
                   }
                 </mat-select>
                 @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {

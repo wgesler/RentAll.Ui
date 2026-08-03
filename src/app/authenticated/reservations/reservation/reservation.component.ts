@@ -31,7 +31,7 @@ import { EmailRequest } from '../../email/models/email.model';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailService } from '../../email/services/email.service';
-import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AgentService } from '../../organizations/services/agent.service';
@@ -627,6 +627,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.agentService.getAgents().pipe(take(1)).subscribe({
       next: (agents: AgentResponse[]) => {
         this.agents = agents;
+        this.syncAgentSelectionWithOfficeScope();
       },
       error: () => {
         this.agents = [];
@@ -747,6 +748,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         }
         this.syncOfficeIdToForm();
         this.updateContactsByReservationType();
+        this.syncAgentSelectionWithOfficeScope();
         if (this.shellMode && this.isAddMode) {
           this.addModeScopeResolved.emit({
             officeId: property.officeId ?? null,
@@ -1049,6 +1051,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.syncOfficeIdToForm();
     this.updateContactsByReservationType();
+    this.syncAgentSelectionWithOfficeScope();
   }
 
   applyCopyFromReservation(source: ReservationResponse): void {
@@ -2750,10 +2753,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         this.selectedOffice = newOffice;
         this.loadCostCodes();
         this.filterPropertiesByOffice();
+        this.syncAgentSelectionWithOfficeScope();
       }
     } else if (officeId === null && this.selectedOffice) {
       this.selectedOffice = null;
       this.filterPropertiesByOffice();
+      this.syncAgentSelectionWithOfficeScope();
     }
   }
 
@@ -3007,10 +3012,29 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   get agentOptions(): SearchableSelectOption[] {
+    const scopedAgents = filterAgentsByOffice(this.agents, this.getReservationOfficeIdForContactFilter(), { activeOnly: true });
     return [
       { value: this.noneAgentOptionValue, label: 'None' },
-      ...this.agents.map(agent => ({ value: agent.agentId, label: agent.agentCode }))
+      ...scopedAgents.map(agent => ({ value: agent.agentId, label: agent.agentCode }))
     ];
+  }
+
+  syncAgentSelectionWithOfficeScope(): void {
+    const agentControl = this.form?.get('agentId');
+    if (!agentControl || this.form?.get('reservationTypeId')?.value === ReservationType.Owner) {
+      return;
+    }
+
+    const currentAgentId = agentControl.value == null ? null : String(agentControl.value).trim();
+    if (!currentAgentId || currentAgentId === this.noneAgentOptionValue) {
+      return;
+    }
+
+    const scopedAgents = filterAgentsByOffice(this.agents, this.getReservationOfficeIdForContactFilter(), { activeOnly: true });
+    const isCurrentAgentValid = scopedAgents.some(agent => String(agent.agentId) === currentAgentId);
+    if (!isCurrentAgentValid) {
+      agentControl.setValue(this.noneAgentOptionValue, { emitEvent: false });
+    }
   }
 
   get assignedMaidHousekeepingOptions(): SearchableSelectOption[] {

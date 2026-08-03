@@ -11,7 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { AgentRequest, AgentResponse } from '../models/agent.model';
+import { AgentRequest, AgentResponse, agentHasOfficeAccess, normalizeAgentOffices } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
@@ -134,6 +134,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       agentCode: formValue.agentCode,
       name: formValue.name,
       officeId: formValue.officeId ? Number(formValue.officeId) : undefined,
+      offices: normalizeAgentOffices(formValue.offices || [], formValue.officeId ? Number(formValue.officeId) : null),
       isActive: formValue.isActive
     };
 
@@ -169,6 +170,9 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = this.globalSelectionService.filterOfficeListForUser(offices || []);
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        if (this.form) {
+          this.syncPrimaryOfficeOptions();
+        }
         if (this.isAddMode && this.form) {
           this.applyDefaultOfficeOnAdd();
         }
@@ -185,27 +189,76 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     const scopedOfficeId = this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
     const defaultOffice = this.utilityService.resolveSelectedOfficeById(this.offices, scopedOfficeId);
     if (defaultOffice) {
-      this.form.patchValue({ officeId: defaultOffice.officeId }, { emitEvent: false });
+      this.form.patchValue({
+        officeId: defaultOffice.officeId,
+        offices: [defaultOffice.officeId]
+      }, { emitEvent: false });
     }
   }
   buildForm(): void {
     this.form = this.fb.group({
       agentCode: new FormControl('', [Validators.required]),
       name: new FormControl('', [Validators.required]),
+      offices: new FormControl<number[]>([], [Validators.required]),
       officeId: new FormControl(null, [Validators.required]),
       isActive: new FormControl(true)
+    });
+
+    this.form.get('offices')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncPrimaryOfficeOptions();
+    });
+
+    this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(selectedOfficeId => {
+      this.syncOfficesFromPrimaryOffice(selectedOfficeId);
     });
   }
 
   populateForm(): void {
     if (this.agent && this.form) {
+      const offices = normalizeAgentOffices(this.agent.offices, this.agent.officeId);
       this.form.patchValue({
         agentCode: this.agent.agentCode?.toUpperCase() || '',
         name: this.agent.name,
-        officeId: this.agent.officeId || null,
+        offices,
+        officeId: this.agent.officeId || offices[0] || null,
         isActive: this.agent.isActive
       });
+      this.syncPrimaryOfficeOptions();
     }
+  }
+
+  syncPrimaryOfficeOptions(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const selectedOfficeIds = new Set<number>(
+      normalizeAgentOffices(this.form.get('offices')?.value || [])
+    );
+    this.availableOffices = this.mappingService.mapOfficesToDropdown(
+      this.offices.filter(office => selectedOfficeIds.has(office.officeId))
+    );
+
+    const currentPrimaryOfficeId = Number(this.form.get('officeId')?.value);
+    const hasCurrentPrimaryOffice = this.availableOffices.some(office => office.value === currentPrimaryOfficeId);
+    if (!hasCurrentPrimaryOffice) {
+      this.form.get('officeId')?.setValue(this.availableOffices[0]?.value ?? null, { emitEvent: false });
+    }
+  }
+
+  syncOfficesFromPrimaryOffice(selectedOfficeId: number | null): void {
+    if (!this.form) {
+      return;
+    }
+
+    const parsedOfficeId = Number(selectedOfficeId);
+    if (!Number.isFinite(parsedOfficeId) || parsedOfficeId <= 0) {
+      return;
+    }
+
+    const nextOffices = normalizeAgentOffices(this.form.get('offices')?.value || [], parsedOfficeId);
+    this.form.get('offices')?.setValue(nextOffices, { emitEvent: false });
+    this.syncPrimaryOfficeOptions();
   }
   //#endregion
 

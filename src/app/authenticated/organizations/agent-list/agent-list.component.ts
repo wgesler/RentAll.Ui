@@ -12,7 +12,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { AgentListDisplay } from '../models/agent.model';
+import { AgentListDisplay, agentHasOfficeAccess, normalizeAgentOffices } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
@@ -53,7 +53,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
 
   agentsDisplayedColumns: ColumnSet = {
     'agentCode': { displayAs: 'Code', maxWidth: '20ch' },
-    'officeName': { displayAs: 'Office', maxWidth: '25ch' },
+    'officeName': { displayAs: 'Offices', maxWidth: '25ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
@@ -98,7 +98,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     this.agentService.ensureAgentsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
       next: () => {
         this.agentService.getAllAgents().pipe(takeUntil(this.destroy$)).subscribe(agents => {
-          this.allAgents = this.mappingService.mapAgents(agents || []);
+          this.allAgents = this.mappingService.mapAgents(agents || [], this.offices);
           this.applyFilters();
           this.markViewForCheck();
         });
@@ -147,11 +147,13 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
 
     let filtered = this.allAgents;
     if (this.selectedOffice) {
-      filtered = filtered.filter(agent => agent.officeId === this.selectedOffice!.officeId);
+      filtered = filtered.filter(agent => agentHasOfficeAccess(agent, this.selectedOffice!.officeId));
     } else {
       const accessibleOfficeIds = new Set(this.offices.map(office => office.officeId));
       if (accessibleOfficeIds.size > 0) {
-        filtered = filtered.filter(agent => accessibleOfficeIds.has(agent.officeId));
+        filtered = filtered.filter(agent =>
+          normalizeAgentOffices(agent.offices, agent.officeId).some(id => accessibleOfficeIds.has(id))
+        );
       }
     }
 

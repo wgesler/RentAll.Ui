@@ -34,7 +34,7 @@ import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRo
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
-import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
+import { AgentListDisplay, AgentResponse, normalizeAgentOffices } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
 import { BuildingListDisplay, BuildingResponse } from '../authenticated/organizations/models/building.model';
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
@@ -75,13 +75,21 @@ export class MappingService {
 
   
   //#region Organization Mapping
-  mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
+  mapAgents(agents: AgentResponse[], offices: OfficeResponse[] = []): AgentListDisplay[] {
+    const officeNameById = new Map(
+      (offices || []).map(office => [Number(office.officeId), office.name])
+    );
     return agents.map<AgentListDisplay>((o: AgentResponse) => {
+      const agentOffices = normalizeAgentOffices(o.offices, o.officeId);
+      const officeNames = agentOffices
+        .map(officeId => officeNameById.get(officeId) || `Office ${officeId}`)
+        .join(', ');
       return {
         agentId: o.agentId,
         agentCode: o.agentCode,
         officeId: o.officeId,
-        officeName: o.officeName,
+        officeName: officeNames || o.officeName,
+        offices: agentOffices,
         name: o.name,
         isActive: o.isActive
       };

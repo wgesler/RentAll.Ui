@@ -11,7 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
-import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -90,6 +90,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId']) {
       this.resolveOfficeScope(this.officeId);
+      this.syncAgentSelectionWithOfficeScope();
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
@@ -491,6 +492,28 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
+    this.syncAgentSelectionWithOfficeScope();
+  }
+
+  get agentOptions(): AgentResponse[] {
+    return filterAgentsByOffice(this.agents, this.resolveSaveOfficeId(), { activeOnly: true });
+  }
+
+  syncAgentSelectionWithOfficeScope(): void {
+    const agentControl = this.form?.get('agentCode');
+    if (!agentControl) {
+      return;
+    }
+
+    const currentAgentCode = String(agentControl.value ?? '').trim();
+    if (!currentAgentCode) {
+      return;
+    }
+
+    const isCurrentAgentValid = this.agentOptions.some(agent => String(agent.agentCode ?? '').trim() === currentAgentCode);
+    if (!isCurrentAgentValid) {
+      agentControl.setValue(null, { emitEvent: false });
+    }
   }
 
   buildQuoteCreatePath(
@@ -586,6 +609,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     this.agentService.getAgents().pipe(take(1)).subscribe({
       next: a => {
         this.agents = (a || []).filter(x => x.isActive);
+        this.syncAgentSelectionWithOfficeScope();
         if (this.lead) {
           this.populateForm(this.lead);
         }
