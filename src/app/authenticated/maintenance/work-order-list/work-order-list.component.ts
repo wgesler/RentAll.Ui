@@ -367,6 +367,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
               splits: nextSplits,
               receiptPath: receipt.receiptPath ?? null,
               fileDetails: receipt.fileDetails ?? null,
+              isUtility: receipt.isUtility ?? false,
+              businessPrivate: receipt.businessPrivate ?? false,
               isActive: receipt.isActive
             };
 

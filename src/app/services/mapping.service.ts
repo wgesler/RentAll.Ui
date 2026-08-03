@@ -2220,10 +2220,13 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     const base = raw as WorkOrderResponse;
     const rawRecord = raw as Record<string, unknown>;
     const workOrderItems = this.mapWorkOrderItemsFromApi(rawRecord, base.workOrderItems);
+    const businessPrivateRaw = rawRecord['businessPrivate'] ?? rawRecord['BusinessPrivate'] ?? base.businessPrivate;
+    const businessPrivate = businessPrivateRaw === true || businessPrivateRaw === 'true' || businessPrivateRaw === 1;
 
     return {
       ...base,
       workOrderItems,
+      businessPrivate,
       journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),
       postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId)
     };
@@ -2258,10 +2261,11 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
 
   mapWorkOrderSaveRequest(
     sourceWorkOrder: WorkOrderResponse,
-    updates: Partial<Pick<WorkOrderRequest, 'isActive' | 'enteredInQb' | 'title' | 'description'>> = {}
+    updates: Partial<Pick<WorkOrderRequest, 'isActive' | 'enteredInQb' | 'businessPrivate' | 'title' | 'description'>> = {}
   ): WorkOrderRequest {
     const hasIsActive = Object.prototype.hasOwnProperty.call(updates, 'isActive');
     const hasEnteredInQb = Object.prototype.hasOwnProperty.call(updates, 'enteredInQb');
+    const hasBusinessPrivate = Object.prototype.hasOwnProperty.call(updates, 'businessPrivate');
     const hasTitle = Object.prototype.hasOwnProperty.call(updates, 'title');
     const hasDescription = Object.prototype.hasOwnProperty.call(updates, 'description');
 
@@ -2293,7 +2297,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         itemAmount: item.itemAmount ?? 0
       })),
       isActive: hasIsActive ? (updates.isActive === true) : sourceWorkOrder.isActive,
-      enteredInQb: hasEnteredInQb ? (updates.enteredInQb === true) : (sourceWorkOrder.enteredInQb === true)
+      enteredInQb: hasEnteredInQb ? (updates.enteredInQb === true) : (sourceWorkOrder.enteredInQb === true),
+      businessPrivate: hasBusinessPrivate ? (updates.businessPrivate === true) : (sourceWorkOrder.businessPrivate === true)
     };
   }
 
@@ -3125,6 +3130,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     const checkPrinted = checkPrintedRaw === true || checkPrintedRaw === 'true' || checkPrintedRaw === 1;
     const isUtilityRaw = rawRecord['isUtility'] ?? rawRecord['IsUtility'] ?? base.isUtility;
     const isUtility = isUtilityRaw === true || isUtilityRaw === 'true' || isUtilityRaw === 1;
+    const businessPrivateRaw = rawRecord['businessPrivate'] ?? rawRecord['BusinessPrivate'] ?? base.businessPrivate;
+    const businessPrivate = businessPrivateRaw === true || businessPrivateRaw === 'true' || businessPrivateRaw === 1;
     const agreementLineIdRaw = rawRecord['agreementLineId'] ?? rawRecord['AgreementLineId'] ?? base.agreementLineId;
     const parsedAgreementLineId = Number(agreementLineIdRaw);
     const agreementLineId = Number.isFinite(parsedAgreementLineId) && parsedAgreementLineId > 0
@@ -3147,6 +3154,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       paymentTypeId: Number.isFinite(paymentTypeId) ? paymentTypeId : 0,
       checkPrinted,
       isUtility,
+      businessPrivate,
       agreementLineId,
       agreementLineNotes,
       journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),
@@ -3227,7 +3235,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
 
   mapReceiptUpdateRequest(
     receipt: ReceiptResponse,
-    updates: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive' | 'isUtility'>> = {}
+    updates: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive' | 'isUtility' | 'businessPrivate'>> = {}
   ): ReceiptRequest {
     const hasBankCardId = Object.prototype.hasOwnProperty.call(updates, 'bankCardId');
     const hasVendorId = Object.prototype.hasOwnProperty.call(updates, 'vendorId');
@@ -3235,6 +3243,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     const hasReceiptDate = Object.prototype.hasOwnProperty.call(updates, 'receiptDate');
     const hasIsActive = Object.prototype.hasOwnProperty.call(updates, 'isActive');
     const hasIsUtility = Object.prototype.hasOwnProperty.call(updates, 'isUtility');
+    const hasBusinessPrivate = Object.prototype.hasOwnProperty.call(updates, 'businessPrivate');
 
     return {
       receiptId: receipt.receiptId,
@@ -3257,6 +3266,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       agreementLineId: receipt.agreementLineId ?? null,
       receiptPath: receipt.receiptPath ?? null,
       isUtility: hasIsUtility ? (updates.isUtility ?? receipt.isUtility ?? false) : (receipt.isUtility ?? false),
+      businessPrivate: hasBusinessPrivate ? (updates.businessPrivate ?? receipt.businessPrivate ?? false) : (receipt.businessPrivate ?? false),
       isActive: hasIsActive ? (updates.isActive ?? receipt.isActive) : receipt.isActive
     };
   }

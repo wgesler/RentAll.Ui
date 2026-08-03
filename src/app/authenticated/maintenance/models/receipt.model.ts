@@ -42,6 +42,7 @@ export interface ReceiptRequest {
   paymentTypeId?: number;
   checkPrinted?: boolean;
   isUtility?: boolean;
+  businessPrivate?: boolean;
   isActive: boolean;
 }
 
@@ -76,6 +77,7 @@ export interface ReceiptResponse {
   postingStatusId?: number | null;
   bankCardDisplayName?: string;
   isUtility?: boolean;
+  businessPrivate?: boolean;
   isActive: boolean;
   createdOn?: string;
   createdBy?: string;
@@ -125,6 +127,7 @@ export interface ReceiptDisplayList {
   receiptTypeTooltip?: string;
   descriptionDisplay?: string;
   isUtility?: boolean;
+  businessPrivate?: boolean;
   isActive: boolean;
   payableDisabled?: boolean;
   receiptPath?: string | null;

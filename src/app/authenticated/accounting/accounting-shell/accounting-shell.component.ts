@@ -1537,8 +1537,9 @@ hydrateSelectedInvoiceForActiveId(): void {
       receiptPath: null,
       fileDetails: null,
       isUtility: false,
+      businessPrivate: false,
       isActive: true
-    };
+      };
   }
 
   toAgreementLineId(value: string | number | null | undefined): number | null {
@@ -1585,6 +1586,7 @@ hydrateSelectedInvoiceForActiveId(): void {
         paymentTypeId: Number(receipt.paymentTypeId || 0),
         checkPrinted: !!receipt.checkPrinted,
         isUtility: !!receipt.isUtility,
+        businessPrivate: !!receipt.businessPrivate,
         isActive: !!receipt.isActive
       };
       await firstValueFrom(this.receiptService.updateReceipt(updateRequest));

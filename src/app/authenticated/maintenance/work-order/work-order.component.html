@@ -37,6 +37,11 @@
             <mat-checkbox formControlName="enteredInQb" color="primary">
               Entered in QB
             </mat-checkbox>
+            @if (isAccountingShell) {
+              <mat-checkbox formControlName="businessPrivate" color="primary">
+                Business Private
+              </mat-checkbox>
+            }
             <mat-checkbox formControlName="isActive" color="primary">
               IsActive
             </mat-checkbox>

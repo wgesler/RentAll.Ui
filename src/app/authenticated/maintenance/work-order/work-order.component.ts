@@ -55,6 +55,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() initialDescription: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
+  @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Input() embedDocumentPreviewInShell = false;
   @Input() navigateToPreviewOnSave: boolean = true;
   @Output() backEvent = new EventEmitter<void>();
@@ -317,6 +318,7 @@ onWorkOrderIdChanged(): void {
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       useDepartureFee: this.getUseDepartureFeeForSave(),
       enteredInQb: this.form.get('enteredInQb')?.value === true,
+      businessPrivate: this.resolveBusinessPrivateForSave(),
       title: (this.form.get('title')?.value ?? '').trim(),
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: workOrderItemsForSave,
@@ -374,6 +376,7 @@ onWorkOrderIdChanged(): void {
           reservationId: saved.reservationId ?? null,
           useDepartureFee: saved.useDepartureFee === true,
           enteredInQb: saved.enteredInQb === true,
+          businessPrivate: saved.businessPrivate === true,
           title: saved.title ?? '',
           description: saved.description ?? '',
           isActive: saved.isActive
@@ -564,6 +567,7 @@ onWorkOrderIdChanged(): void {
       reservationId: new FormControl<string | null>(null),
       useDepartureFee: new FormControl(false),
       enteredInQb: new FormControl(false),
+      businessPrivate: new FormControl(false),
       title: new FormControl('', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
@@ -582,6 +586,7 @@ onWorkOrderIdChanged(): void {
       reservationId: workOrder.reservationId ?? null,
       useDepartureFee: workOrder.useDepartureFee === true,
       enteredInQb: workOrder.enteredInQb === true,
+      businessPrivate: workOrder.businessPrivate === true,
       title: workOrder.title ?? '',
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
@@ -647,6 +652,7 @@ onWorkOrderIdChanged(): void {
       reservationId: null,
       useDepartureFee: false,
       enteredInQb: false,
+      businessPrivate: false,
       title: '',
       description: '',
       isActive: true
@@ -1230,6 +1236,7 @@ onWorkOrderIdChanged(): void {
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       useDepartureFee: this.getUseDepartureFeeForSave(),
       enteredInQb: this.form.get('enteredInQb')?.value === true,
+      businessPrivate: this.resolveBusinessPrivateForSave(),
       title: (this.form.get('title')?.value ?? '').trim(),
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: this.mapWorkOrderItemsForSave(false),
@@ -1237,6 +1244,17 @@ onWorkOrderIdChanged(): void {
       workOrderId: this.workOrder.workOrderId
     };
     return !this.hasWorkOrderUpdates(payload);
+  }
+
+  get isAccountingShell(): boolean {
+    return this.shellContext === 'accounting';
+  }
+
+  resolveBusinessPrivateForSave(): boolean {
+    if (this.isAccountingShell) {
+      return this.form.get('businessPrivate')?.value === true;
+    }
+    return this.workOrder?.businessPrivate === true;
   }
 
   mapWorkOrderItemsForSave(isCreate: boolean): WorkOrderItemRequest[] {
@@ -1327,6 +1345,7 @@ onWorkOrderIdChanged(): void {
       payloadReservationCode !== workOrderReservationCode ||
       useDepartureFeeMismatch ||
       payload.enteredInQb !== (this.workOrder.enteredInQb === true) ||
+      payload.businessPrivate !== (this.workOrder.businessPrivate === true) ||
       payloadTitle !== workOrderTitle ||
       payloadDescription !== workOrderDescription ||
       payload.isActive !== this.workOrder.isActive ||
@@ -1867,6 +1886,8 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
         splits: nextSplits,
         receiptPath: receipt.receiptPath ?? undefined,
         fileDetails: receipt.fileDetails ?? undefined,
+        isUtility: receipt.isUtility ?? false,
+        businessPrivate: receipt.businessPrivate ?? false,
         isActive: receipt.isActive ?? true
       };
       return this.receiptService.updateReceipt(payload);

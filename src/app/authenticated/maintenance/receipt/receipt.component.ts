@@ -353,6 +353,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       receiptPath: sendNewReceipt ? null : receiptPathValue,
       fileDetails: sendNewReceipt ? (this.receiptFileDetails ?? null) : null,
       isUtility: !!this.form.get('isUtility')?.value,
+      businessPrivate: this.resolveBusinessPrivateForSave(),
       isActive: this.form.get('isActive')?.value
     };
 
@@ -373,6 +374,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           this.havePropertyIdsChanged(payload.propertyIds, this.receipt.propertyIds || []) ||
           this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
           payload.isUtility !== (this.receipt.isUtility ?? false) ||
+          payload.businessPrivate !== (this.receipt.businessPrivate ?? false) ||
           payload.isActive !== this.receipt.isActive ||
           hasReceiptChange
         : true;
@@ -413,6 +415,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
             billNumber: (saved.billNumber || '').trim() || null,
             receiptPath: saved.receiptPath || '',
             isUtility: saved.isUtility ?? false,
+            businessPrivate: saved.businessPrivate ?? false,
             isActive: saved.isActive
           });
           this.replaceSplitLines(saved.splits || []);
@@ -529,6 +532,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       splits: this.fb.array([]),
       receiptPath: new FormControl(''),
       isUtility: new FormControl(false),
+      businessPrivate: new FormControl(false),
       isActive: new FormControl(true)
     });
     this.ensureAtLeastOneSplit();
@@ -553,6 +557,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       billNumber: (receipt.billNumber || '').trim() || null,
       receiptPath: receipt.receiptPath || '',
       isUtility: receipt.isUtility ?? false,
+      businessPrivate: receipt.businessPrivate ?? false,
       isActive: receipt.isActive
     });
     this.replaceSplitLines(receipt.splits || []);
@@ -622,6 +627,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       billNumber: null,
       receiptPath: '',
       isUtility: false,
+      businessPrivate: false,
       isActive: true
     }, { emitEvent: false });
     this.splitsFormArray.clear();
@@ -1922,6 +1928,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.shellContext === 'accounting';
   }
 
+  resolveBusinessPrivateForSave(): boolean {
+    if (this.isAccountingShell) {
+      return this.form.get('businessPrivate')?.value === true;
+    }
+    return this.receipt?.businessPrivate === true;
+  }
+
   get showSplitAccountColumn(): boolean {
     return this.isAccountingShell;
   }
@@ -2428,6 +2441,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       amount: 0,
       splits: [],
       isUtility: false,
+      businessPrivate: false,
       isActive: true,
       modifiedOn: '',
       modifiedBy: ''

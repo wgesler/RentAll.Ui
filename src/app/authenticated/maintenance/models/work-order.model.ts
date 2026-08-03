@@ -14,6 +14,7 @@ export interface WorkOrderRequest {
   workOrderDate: string;
   useDepartureFee: boolean;
   enteredInQb: boolean;
+  businessPrivate?: boolean;
   isActive: boolean;
 }
 
@@ -36,6 +37,7 @@ export interface WorkOrderResponse {
   workOrderDate: string;
   useDepartureFee: boolean;
   enteredInQb: boolean;
+  businessPrivate?: boolean;
   journalEntryId?: string | null;
   postingStatusId?: number | null;
   isActive: boolean;
@@ -62,6 +64,7 @@ export interface WorkOrderDisplayList {
   applyMarkup: boolean;
   workOrderDate: string;
   enteredInQb: boolean;
+  businessPrivate?: boolean;
   isActive: boolean;
   createdBy: string;
 }
