@@ -356,6 +356,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   showBillsReceiptsWorkOrderDetail = false;
   selectedBillsReceiptsWorkOrderId: string | null = null;
   selectedBillsReceiptsWorkOrder: WorkOrderResponse | null = null;
+  billsReceiptsWorkOrderInitialReceiptId: string | null = null;
+  billsReceiptsWorkOrderInitialReceiptSplitKey: string | null = null;
   billsReceiptsWorkOrderProperty: PropertyResponse | null = null;
   billsReceiptsWorkOrderDetailInstance = 0;
   showDepositsDetail = false;
@@ -1303,6 +1305,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.billsReceiptAutoSaveAttemptToken = 0;
     this.selectedBillsReceiptKind = this.billsReceiptOrigin === 'rentRoll' ? 'rentRoll' : 'bills';
     this.billsReceiptOrigin = 'bills';
+    this.syncBillsSearchRequest();
+    this.refreshActiveBillsReceiptList();
   }
 
   onBillsReceiptSaved(): void {
@@ -1744,6 +1748,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showReceiptsReceiptDetail = false;
     this.selectedReceiptsReceiptId = null;
     this.receiptsReceiptProperty = null;
+    this.syncBillsSearchRequest();
+    this.refreshActiveBillsReceiptList();
   }
 
   onBillsReceiptsWorkOrderSelect(selection: WorkOrderSelection): void {
@@ -1752,6 +1758,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     const resolvedOfficeId = this.selectedOfficeId;
 
     this.selectedBillsReceiptsWorkOrder = selection?.workOrder ?? null;
+    this.billsReceiptsWorkOrderInitialReceiptId = workOrderId === 'new' ? (selection?.prefilledReceiptId ?? null) : null;
+    this.billsReceiptsWorkOrderInitialReceiptSplitKey = workOrderId === 'new' ? (selection?.prefilledReceiptSplitKey ?? null) : null;
     this.billsReceiptsWorkOrderProperty = propertyId
       ? this.buildOwnersWorkOrderPropertyStub(resolvedOfficeId, propertyId)
       : this.buildBillsReceiptPropertyStub(resolvedOfficeId);
@@ -1772,6 +1780,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showBillsReceiptsWorkOrderDetail = false;
     this.selectedBillsReceiptsWorkOrderId = null;
     this.selectedBillsReceiptsWorkOrder = null;
+    this.billsReceiptsWorkOrderInitialReceiptId = null;
+    this.billsReceiptsWorkOrderInitialReceiptSplitKey = null;
     this.billsReceiptsWorkOrderProperty = null;
   }
 
@@ -5273,16 +5283,14 @@ captureOwnerStatementReturnContext(): void {
 
   onShellBillsPropertyDropdownChange(value: string | number | null): void {
     const propertyId = value == null || value === '' ? null : String(value);
-    if (this.selectedBillsPropertyId === propertyId) {
-      return;
-    }
+    const propertyChanged = this.selectedBillsPropertyId !== propertyId;
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
       return;
     }
-    if (this.selectedTabIndex === this.tabOwners) {
+    if (propertyChanged && this.selectedTabIndex === this.tabOwners) {
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
       this.refreshActiveOwnerView();

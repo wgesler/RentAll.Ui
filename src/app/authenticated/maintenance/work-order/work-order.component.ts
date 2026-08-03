@@ -7,6 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, catchError, forkJoin, finalize, of, skip, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -47,12 +48,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
 
   @Input() property: PropertyResponse | null = null;
+  @Input() propertyId: string | null = null;
   @Input() workOrderId: string | null = null;
   @Input() prefetchedWorkOrder: WorkOrderResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() initialTitle: string | null = null;
   @Input() initialDescription: string | null = null;
+  @Input() initialReceiptId: string | null = null;
+  @Input() initialReceiptSplitKey: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
@@ -81,6 +85,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   private workOrderAmountService = inject(WorkOrderAmountService);
   utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
+  private mappingService = inject(MappingService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
   private journalEntryService = inject(JournalEntryService);
@@ -118,6 +123,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   lastMarkupFactor: number = 1;
   hasUserEditedWorkOrder = false;
   activeWorkOrderLoadId = 0;
+  initialReceiptPrefillApplied = false;
+  activePropertyReceiptsLoadId = 0;
+  lastLoadedReceiptPropertyId: string | null | undefined = undefined;
   selectedGlobalOfficeId: number | null = null;
 
   isPageReady = false;
@@ -139,7 +147,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
-    this.selectedPropertyId = this.property?.propertyId ?? null;
+    this.selectedPropertyId = this.resolveActivePropertyId();
     this.isAddMode = this.workOrderId === 'new';
 
     if (!this.embeddedInMaintenance) {
@@ -147,7 +155,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       if (workOrderIdParam !== null) {
         this.workOrderId = workOrderIdParam;
       }
-      this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
+      this.selectedPropertyId = this.normalizePropertyId(
+        this.property?.propertyId ?? this.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId')
+      );
       this.isAddMode = this.workOrderId === 'new';
 
       this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
@@ -177,6 +187,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         propertyCode: this.property?.propertyCode || ''
       }, { emitEvent: false });
       this.applyInitialWorkOrderPrefill();
+      this.ensureEditableWorkOrderItems();
     }
 
     this.loadOffices();
@@ -194,27 +205,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.loadAccountingOfficeForWorkOrderCode();
     this.loadPropertyReservations();
-    this.loadPropertyReceipts();
-    this.loadPropertyAgreement();
+    if (!this.embeddedInMaintenance && this.resolveActivePropertyId()) {
+      this.loadPropertyAgreement();
+      this.loadPropertyReceipts();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['property']) {
-      this.selectedPropertyId = this.property?.propertyId ?? null;
-
-      if (this.selectedPropertyId && this.embeddedInMaintenance) {
-        this.form.patchValue({
-          workOrderCode: this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '',
-          officeName: this.property?.officeName || '',
-          propertyCode: this.property?.propertyCode || ''
-        }, { emitEvent: false });
-        if (!changes['property'].firstChange) {
-          this.loadAccountingOfficeForWorkOrderCode();
-          this.loadPropertyReservations();
-          this.loadPropertyReceipts();
-          this.loadPropertyAgreement();
-        }
-      }
+    if (changes['property'] || changes['propertyId']) {
+      this.handlePropertyScopeChange(changes);
     }
 
     if (changes['workOrderId'] && !changes['workOrderId'].firstChange) {
@@ -235,10 +234,66 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if ((changes['initialTitle'] || changes['initialDescription']) && this.isAddMode) {
       this.applyInitialWorkOrderPrefill();
     }
+
+    if ((changes['initialReceiptId'] || changes['initialReceiptSplitKey']) && this.isAddMode) {
+      this.initialReceiptPrefillApplied = false;
+      this.applyInitialReceiptPrefill();
+    }
+  }
+
+  normalizePropertyId(value: string | null | undefined): string | null {
+    const normalized = (value || '').trim();
+    return normalized || null;
+  }
+
+  resolveActivePropertyId(): string | null {
+    return this.normalizePropertyId(
+      this.property?.propertyId ?? this.propertyId ?? this.selectedPropertyId
+    );
+  }
+
+  handlePropertyScopeChange(changes: SimpleChanges): void {
+    const previousPropertyId = this.normalizePropertyId(
+      changes['propertyId']?.previousValue ?? changes['property']?.previousValue?.propertyId
+    );
+    const activePropertyId = this.resolveActivePropertyId();
+    const propertyScopeChanged = previousPropertyId !== activePropertyId;
+    this.selectedPropertyId = activePropertyId;
+
+    if (this.embeddedInMaintenance && activePropertyId && this.property) {
+      this.form.patchValue({
+        workOrderCode: this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '',
+        officeName: this.property?.officeName || '',
+        propertyCode: this.property?.propertyCode || ''
+      }, { emitEvent: false });
+    }
+
+    const shouldReload = propertyScopeChanged
+      || (changes['propertyId'] && !changes['propertyId'].firstChange)
+      || (changes['property'] && !changes['property'].firstChange);
+
+    if (shouldReload) {
+      this.reloadPropertyReceiptDropdown(propertyScopeChanged);
+    }
+  }
+
+  reloadPropertyReceiptDropdown(resetPrefill = false): void {
+    if (resetPrefill) {
+      this.initialReceiptPrefillApplied = false;
+    }
+
+    const activePropertyId = this.resolveActivePropertyId();
+    if (activePropertyId) {
+      this.loadAccountingOfficeForWorkOrderCode();
+      this.loadPropertyReservations();
+      this.loadPropertyAgreement();
+    }
+    this.loadPropertyReceipts();
   }
 
 onWorkOrderIdChanged(): void {
     this.isAddMode = this.workOrderId === 'new';
+    this.initialReceiptPrefillApplied = false;
     if (this.isAddMode) {
       this.resetForm();
       this.applyInitialWorkOrderPrefill();
@@ -621,6 +676,7 @@ onWorkOrderIdChanged(): void {
     this.hasUserEditedWorkOrder = false;
     this.captureInitialWorkOrderItemsSnapshot();
     this.syncUseDepartureFeeFromItems();
+    this.ensureEditableWorkOrderItems();
   }
 
   resetForm(): void {
@@ -635,6 +691,7 @@ onWorkOrderIdChanged(): void {
     this.associatedWorkOrderReceiptIds.clear();
     this.hasUserEditedWorkOrder = false;
     this.initialWorkOrderItemsSnapshot = [];
+    this.initialReceiptPrefillApplied = false;
     this.focusedCurrencyField = null;
     this.generatedWorkOrderCode = null;
     this.nextWorkOrderNo = null;
@@ -662,6 +719,7 @@ onWorkOrderIdChanged(): void {
 
     this.selectedPropertyId = this.property?.propertyId ?? null;
     this.loadAccountingOfficeForWorkOrderCode();
+    this.ensureEditableWorkOrderItems();
     if (this.property || this.selectedPropertyId) {
       this.loadPropertyReservations();
       this.loadPropertyReceipts();
@@ -695,6 +753,73 @@ onWorkOrderIdChanged(): void {
     if (Object.keys(patch).length > 0) {
       this.form.patchValue(patch, { emitEvent: false });
     }
+  }
+
+  ensureEditableWorkOrderItems(): void {
+    if (this.workOrderItems.length > 0) {
+      return;
+    }
+
+    this.workOrderItems.push({
+      description: '',
+      receiptId: null,
+      receiptSplitKey: null,
+      receiptAmount: 0,
+      itemSource: 'noReceipt',
+      laborHours: 0,
+      laborCost: this.defaultLaborCost,
+      itemAmount: 0
+    });
+  }
+
+  applyInitialReceiptPrefill(): void {
+    if (this.initialReceiptPrefillApplied || !this.isAddMode) {
+      this.ensureEditableWorkOrderItems();
+      return;
+    }
+
+    const splitKey = (this.initialReceiptSplitKey || '').trim();
+    const receiptId = (this.initialReceiptId || '').trim();
+    if (!splitKey && !receiptId) {
+      this.ensureEditableWorkOrderItems();
+      return;
+    }
+
+    if (!this.propertyReceipts.length) {
+      this.ensureEditableWorkOrderItems();
+      return;
+    }
+
+    this.ensureEditableWorkOrderItems();
+    const resolvedSplitKey = splitKey
+      || this.resolveInitialSplitKeyForItem(receiptId, this.generatedWorkOrderCode ?? '', new Set<string>());
+    if (!resolvedSplitKey) {
+      return;
+    }
+
+    const splitOption = this.getSplitOptionByKey(resolvedSplitKey);
+    if (!splitOption) {
+      return;
+    }
+
+    this.onReceiptSelectionChange(0, resolvedSplitKey);
+    const workOrderTypeId = this.mapReceiptTypeToWorkOrderType(Number(splitOption?.receiptTypeId ?? -1));
+    if (workOrderTypeId != null && this.form.get('workOrderTypeId')?.value == null) {
+      this.form.patchValue({ workOrderTypeId }, { emitEvent: false });
+      this.onWorkOrderTypeChanged(workOrderTypeId);
+    }
+    this.initialReceiptPrefillApplied = true;
+    this.markViewForCheck();
+  }
+
+  mapReceiptTypeToWorkOrderType(receiptTypeId: number): number | null {
+    if (receiptTypeId === ReceiptType.Tenant) {
+      return WorkOrderType.Tenant;
+    }
+    if (receiptTypeId === ReceiptType.Owner) {
+      return WorkOrderType.Owner;
+    }
+    return null;
   }
 
   isInventoryItemSelected(item: WorkOrderItemEditable): boolean {
@@ -956,10 +1081,6 @@ onWorkOrderIdChanged(): void {
   //#region Work Order Items
   addWorkOrderItem(): void {
     this.setUserEdited('addWorkOrderItem');
-    if (!this.canAddItem()) {
-      this.form.markAllAsTouched();
-      return;
-    }
 
     const newItem: WorkOrderItemEditable = {
       description: '',
@@ -991,17 +1112,31 @@ onWorkOrderIdChanged(): void {
 
   getAvailableReceiptsForItem(itemIndex: number): ReceiptSplitOption[] {
     const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
-    const eligible = this.propertyReceipts.flatMap(receipt => this.getReceiptSplitOptions(receipt, currentWorkOrderCode));
+    const currentReceiptSplitKey = this.workOrderItems[itemIndex]?.receiptSplitKey ?? null;
+    const currentReceiptId = this.parseSplitKey(currentReceiptSplitKey ?? '')?.receiptId ?? null;
+    const eligible = this.propertyReceipts
+      .filter(receipt => !this.shouldExcludeReceiptFromWorkOrderDropdown(receipt, currentReceiptId))
+      .flatMap(receipt => this.getReceiptSplitOptions(receipt, currentWorkOrderCode));
     const usedByOthers = new Set<string>();
     this.workOrderItems.forEach((it, i) => {
       if (i !== itemIndex && it.itemSource === 'receipt' && it.receiptSplitKey) {
         usedByOthers.add(it.receiptSplitKey);
       }
     });
-    const currentReceiptSplitKey = this.workOrderItems[itemIndex]?.receiptSplitKey ?? null;
     return eligible.filter(
       option => !usedByOthers.has(option.key) || option.key === currentReceiptSplitKey
     );
+  }
+
+  isBillReceipt(receipt: Pick<ReceiptResponse, 'bankCardId'>): boolean {
+    return Number(receipt.bankCardId ?? 0) === 0;
+  }
+
+  shouldExcludeReceiptFromWorkOrderDropdown(receipt: ReceiptResponse, allowReceiptId: string | null): boolean {
+    if (!this.isBillReceipt(receipt) || receipt.isUtility !== true) {
+      return false;
+    }
+    return (receipt.receiptId || '').trim() !== (allowReceiptId || '').trim();
   }
 
   onReceiptSelectionChange(itemIndex: number, receiptSelectionValue: number | string | null): void {
@@ -1534,6 +1669,7 @@ onWorkOrderIdChanged(): void {
     this.applyPropertyContextFromWorkOrder(workOrder);
     this.syncShellLocationFromWorkOrder(workOrder);
     this.loadAssociatedReceiptsForCurrentWorkOrder();
+    this.ensureEditableWorkOrderItems();
     this.isWorkOrderContentReady = true;
     this.cdr.detectChanges();
   }
@@ -1635,31 +1771,76 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
   }
 
   loadPropertyReceipts(): void {
-    if (!this.selectedPropertyId) {
+    const requestedPropertyId = this.resolveActivePropertyId();
+    this.selectedPropertyId = requestedPropertyId;
+    const loadId = ++this.activePropertyReceiptsLoadId;
+
+    if (!requestedPropertyId) {
+      this.lastLoadedReceiptPropertyId = null;
       this.propertyReceipts = [];
       this.cdr.detectChanges();
       return;
     }
-    this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(take(1)).subscribe({
+
+    this.receiptService.getReceiptsByPropertyId(requestedPropertyId).pipe(take(1)).subscribe({
       next: (receipts) => {
+        if (this.activePropertyReceiptsLoadId !== loadId || this.resolveActivePropertyId() !== requestedPropertyId) {
+          return;
+        }
         const activePropertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.propertyReceipts = this.mergeAssociatedReceipts(activePropertyReceipts);
+        this.lastLoadedReceiptPropertyId = requestedPropertyId;
         this.hydrateReceiptSplitKeysFromLoadedReceipts();
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
-        this.refreshBaselineAfterDataLoad();
-        this.cdr.detectChanges();
+        this.ensurePrefilledReceiptLoaded(() => {
+          if (this.activePropertyReceiptsLoadId !== loadId) {
+            return;
+          }
+          this.applyInitialReceiptPrefill();
+          this.refreshBaselineAfterDataLoad();
+          this.cdr.detectChanges();
+        });
       },
       error: () => {
+        if (this.activePropertyReceiptsLoadId !== loadId || this.resolveActivePropertyId() !== requestedPropertyId) {
+          return;
+        }
         this.propertyReceipts = this.mergeAssociatedReceipts([]);
+        this.lastLoadedReceiptPropertyId = requestedPropertyId;
         this.hydrateReceiptSplitKeysFromLoadedReceipts();
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
-        this.refreshBaselineAfterDataLoad();
-        this.cdr.detectChanges();
+        this.ensurePrefilledReceiptLoaded(() => {
+          if (this.activePropertyReceiptsLoadId !== loadId) {
+            return;
+          }
+          this.applyInitialReceiptPrefill();
+          this.refreshBaselineAfterDataLoad();
+          this.cdr.detectChanges();
+        });
       }
+    });
+  }
+
+  ensurePrefilledReceiptLoaded(onComplete: () => void): void {
+    const receiptId = (this.initialReceiptId || '').trim();
+    if (!this.isAddMode || !receiptId || this.propertyReceipts.some(receipt => receipt.receiptId === receiptId)) {
+      onComplete();
+      return;
+    }
+
+    this.receiptService.getReceiptById(receiptId).pipe(take(1)).subscribe({
+      next: receipt => {
+        if (receipt) {
+          this.propertyReceipts = this.mergeAssociatedReceipts(this.propertyReceipts, [receipt]);
+          this.hydrateReceiptSplitKeysFromLoadedReceipts();
+        }
+        onComplete();
+      },
+      error: () => onComplete()
     });
   }
 
@@ -1697,6 +1878,7 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
+        this.applyInitialReceiptPrefill();
         this.refreshBaselineAfterDataLoad();
         this.cdr.detectChanges();
       }
@@ -2004,7 +2186,11 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
   }
 
   getSplitWorkOrder(split: { workOrder?: string; workOrderCode?: string } | null | undefined): string {
-    return (split?.workOrderCode || split?.workOrder || '').trim();
+    const code = (split?.workOrderCode || split?.workOrder || '').trim();
+    if (this.mappingService.isReceiptWorkOrderMissingDisplay(code)) {
+      return '';
+    }
+    return code;
   }
 
   resolveInitialSplitKeyForItem(receiptId: string, currentWorkOrderCode: string, usedKeys: Set<string>): string | null {
@@ -2032,7 +2218,7 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
   }
 
   canAddItem(): boolean {
-    return this.form.valid;
+    return true;
   }
 
   getCurrentAssociatedReceiptIds(): string[] {

@@ -191,6 +191,7 @@
                 [officeId]="selectedOfficeId"
                 [searchRequest]="receiptSearchRequest"
                 [embeddedInMaintenance]="true"
+                [shellContext]="'maintenance'"
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)"
                 (workOrderSelect)="onWorkOrderSelect($event)" />
@@ -214,9 +215,12 @@
                 @for (instance of [workOrderDetailInstance]; track instance) {
                   <app-work-order
                     [property]="property"
+                    [propertyId]="selectedPropertyId ?? property?.propertyId ?? null"
                     [workOrderId]="selectedWorkOrderId"
                     [prefetchedWorkOrder]="selectedWorkOrder"
                     [officeId]="selectedOfficeId"
+                    [initialReceiptId]="workOrderInitialReceiptId"
+                    [initialReceiptSplitKey]="workOrderInitialReceiptSplitKey"
                     [embeddedInMaintenance]="true"
                     [shellContext]="'maintenance'"
                     [embedDocumentPreviewInShell]="true"
@@ -235,7 +239,9 @@
                   [searchRequest]="workOrderSearchRequest"
                   [reservationId]="titleBarReservationId"
                   [embeddedInMaintenance]="true"
+                  [shellContext]="'maintenance'"
                   [embedDocumentPreviewInShell]="true"
+                  [refreshTrigger]="refreshWorkOrdersTrigger"
                   (workOrderSelect)="onWorkOrderSelect($event)"
                   (previewEvent)="onWorkOrderPreviewOpen($event)" />
               }

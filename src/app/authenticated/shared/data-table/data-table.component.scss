@@ -1,6 +1,7 @@
-/* Pass-through wrapper unless layout-debug orange is active (see dbgBandMainBelowFilter). */
-:host .datatable-main-block:not(.dbg-band-main) {
-    display: contents;
+.work-order-missing-link {
+    color: #dc2626;
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 :host .datatable-main-block.dbg-band-main {

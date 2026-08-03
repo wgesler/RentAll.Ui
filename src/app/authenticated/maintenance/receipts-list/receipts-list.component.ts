@@ -33,6 +33,7 @@ import { MaintenanceListSearchRequest } from '../models/maintenance-search.model
 import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
+import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
 
 @Component({
   standalone: true,
@@ -47,12 +48,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() embeddedInMaintenance = false;
+  @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Input() embeddedInAccounting = false;
   @Input() accountingListMode: 'all' | 'bills' | 'receipts' | 'utilities' = 'all';
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
-  @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
+  @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
   private receiptService = inject(ReceiptService);
   private mappingService = inject(MappingService);
@@ -211,16 +213,39 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.loadVendors();
     this.loadPropertyCodes();
     this.loadChartOfAccountsForAccounting();
-    this.loadReceiptsForCurrentSearchCriteria();
+    if (!this.embeddedInMaintenance) {
+      this.loadReceiptsForCurrentSearchCriteria();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['searchRequest'] && this.embeddedInMaintenance) {
+      const previousPropertyId = changes['searchRequest'].firstChange
+        ? undefined
+        : this.normalizeSearchPropertyId(changes['searchRequest'].previousValue?.propertyId);
+      const currentPropertyId = this.getSearchPropertyId();
+      const propertyScopeChanged = previousPropertyId !== currentPropertyId;
+      const previousKey = changes['searchRequest'].firstChange
+        ? null
+        : this.buildReceiptSearchKeyFromRequest(changes['searchRequest'].previousValue);
+      const currentKey = this.buildReceiptSearchKey();
+      const searchCriteriaChanged = previousKey !== currentKey;
+
+      if (propertyScopeChanged) {
+        this.lastReceiptSearchKey = null;
+      }
+
+      if (changes['searchRequest'].firstChange || propertyScopeChanged || searchCriteriaChanged) {
+        this.loadReceiptsForCurrentSearchCriteria(propertyScopeChanged);
+      }
+    }
+
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
       if (propertyId !== this.selectedPropertyId) {
         this.selectedPropertyId = propertyId;
-        if (!changes['property'].firstChange) {
-          this.loadReceiptsForCurrentSearchCriteria();
+        if (!this.embeddedInMaintenance && !changes['property'].firstChange) {
+          this.loadReceiptsForCurrentSearchCriteria(true);
         }
       }
     }
@@ -244,15 +269,38 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.loadReceiptsForCurrentSearchCriteria(true);
       }
     }
-    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
-      this.loadReceiptsForCurrentSearchCriteria(true);
-    }
-
-    if (changes['searchRequest'] && this.embeddedInMaintenance) {
-      if (!changes['searchRequest'].firstChange) {
-        this.loadReceiptsForCurrentSearchCriteria();
+    if (changes['refreshTrigger']) {
+      const previousTrigger = Number(changes['refreshTrigger'].previousValue ?? -1);
+      const currentTrigger = Number(changes['refreshTrigger'].currentValue ?? 0);
+      const triggerChanged = currentTrigger !== previousTrigger;
+      const skipInitialDuplicate = changes['refreshTrigger'].firstChange && !!changes['searchRequest']?.firstChange;
+      if (triggerChanged && !skipInitialDuplicate) {
+        this.lastReceiptSearchKey = null;
+        this.loadReceiptsForCurrentSearchCriteria(true);
       }
     }
+  }
+
+  normalizeSearchPropertyId(propertyId: string | null | undefined): string | null {
+    const normalized = (propertyId || '').trim();
+    return normalized || null;
+  }
+
+  getSearchPropertyId(): string | null {
+    return this.normalizeSearchPropertyId(this.searchRequest?.propertyId);
+  }
+
+  buildReceiptSearchKeyFromRequest(request?: MaintenanceListSearchRequest | null): string {
+    const resolvedRequest = request ?? { officeIds: [] };
+    return JSON.stringify({
+      officeIds: [...this.resolveMaintenanceSearchOfficeIds(resolvedRequest)].sort((a, b) => a - b),
+      propertyId: this.normalizeSearchPropertyId(resolvedRequest.propertyId),
+      startDate: resolvedRequest.startDate ?? null,
+      endDate: resolvedRequest.endDate ?? null,
+      isActive: resolvedRequest.isActive ?? null,
+      includeInactive: resolvedRequest.includeInactive ?? false,
+      receiptKind: this.resolveReceiptKindForSearch()
+    });
   }
 
   getReceipts(force = false): void {
@@ -300,7 +348,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         if (this.embeddedInMaintenance && searchKey != null) {
           this.lastReceiptSearchKey = searchKey;
         }
-        this.receipts = receipts || [];
+        this.receipts = this.excludeBusinessPrivateWhenMaintenanceShell(receipts || []);
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
         this.applyReceiptDisplayMappings();
         this.applyFilters();
@@ -424,6 +472,43 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       || (this.selectedPropertyId || '').trim()
       || null;
     const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
+
+    if (this.mappingService.isReceiptWorkOrderMissingDisplay(targetWorkOrderCode)) {
+      const missingSplit = this.mappingService.resolveFirstMissingWorkOrderSplit(rowItem);
+      if (!missingSplit) {
+        this.toastr.warning('Unable to locate missing work order split.', 'Work Order');
+        this.markViewForCheck();
+        return;
+      }
+
+      if (this.embeddedInMaintenance) {
+        this.workOrderSelect.emit({
+          workOrderId: 'new',
+          propertyId,
+          officeId,
+          prefilledReceiptId: missingSplit.receiptId,
+          prefilledReceiptSplitKey: missingSplit.splitKey
+        });
+        return;
+      }
+
+      if (!propertyId) {
+        this.toastr.error('Unable to open work order: missing property context.', 'Work Order');
+        return;
+      }
+
+      const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
+      this.router.navigate([maintenanceUrl], {
+        queryParams: {
+          tab: 3,
+          workOrderId: 'new',
+          receiptId: missingSplit.receiptId,
+          receiptSplitKey: missingSplit.splitKey
+        }
+      });
+      this.markViewForCheck();
+      return;
+    }
 
     this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
       next: workOrders => {
@@ -915,7 +1000,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    let filtered = this.filterAccountingReceiptsByMode(this.allReceipts);
+    let filtered = this.filterAccountingReceiptsByMode(this.excludeBusinessPrivateWhenMaintenanceShell(this.allReceipts));
     if (!this.authService.hasAccountingNavAccess()) {
       filtered = filtered.filter(receipt => receipt.isUtility !== true);
     }
@@ -974,6 +1059,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   isBillReceipt(receipt: Pick<ReceiptDisplayList, 'bankCardId'>): boolean {
     return Number(receipt.bankCardId ?? 0) === 0;
+  }
+
+  excludeBusinessPrivateWhenMaintenanceShell<T extends { businessPrivate?: boolean }>(items: T[]): T[] {
+    if (this.shellContext !== 'maintenance') {
+      return items;
+    }
+    return (items || []).filter(item => item.businessPrivate !== true);
   }
 
   hasOwnerSplit(receipt: Pick<ReceiptDisplayList, 'splits'>): boolean {

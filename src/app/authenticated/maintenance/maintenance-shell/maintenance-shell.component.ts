@@ -98,12 +98,15 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   receiptDetailInstance = 0;
   selectedReceiptId: string | null = null;
   refreshReceiptsTrigger = 0;
+  refreshWorkOrdersTrigger = 0;
   receiptSaveValidationAttempted = false;
   receiptPropertySelectionRequired = true;
 
   showWorkOrderDetail = false;
   selectedWorkOrderId: string | null = null;
   selectedWorkOrder: WorkOrderResponse | null = null;
+  workOrderInitialReceiptId: string | null = null;
+  workOrderInitialReceiptSplitKey: string | null = null;
   workOrderDetailInstance = 0;
   showWorkOrderCreate = false;
   workOrderCreateContext: WorkOrderPreviewSelection | null = null;
@@ -176,16 +179,19 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       }
 
       const receiptIdParam = (params.get('receiptId') || '').trim();
-      if (receiptIdParam !== '') {
+      const workOrderIdParam = (params.get('workOrderId') || '').trim();
+      if (receiptIdParam !== '' && !workOrderIdParam) {
         this.selectedTabIndex = this.receiptsTabIndex;
         this.selectedReceiptId = receiptIdParam === 'new' ? 'new' : receiptIdParam;
         this.showReceiptDetail = true;
       }
 
-      const workOrderIdParam = (params.get('workOrderId') || '').trim();
       if (this.showWorkOrdersTab && workOrderIdParam !== '') {
         this.selectedTabIndex = this.workOrdersTabIndex;
         this.selectedWorkOrderId = workOrderIdParam === 'new' ? 'new' : workOrderIdParam;
+        const receiptSplitKeyParam = (params.get('receiptSplitKey') || '').trim();
+        this.workOrderInitialReceiptId = receiptIdParam || null;
+        this.workOrderInitialReceiptSplitKey = receiptSplitKeyParam || null;
         this.workOrderDetailInstance++;
         this.showWorkOrderDetail = true;
       }
@@ -248,7 +254,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
           return;
         }
         this.skipNextOfficeChange = true;
-        this.skipNextPropertyCodeChange = true;
         this.property = property;
         this.selectedOfficeId = property.officeId ?? this.selectedOfficeId;
         this.selectedPropertyId = property.propertyId ?? null;
@@ -495,9 +500,13 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     if (this.skipNextPropertyCodeChange) {
       this.skipNextPropertyCodeChange = false;
+      this.syncMaintenanceSearchRequests();
+      this.refreshVisibleMaintenanceLists();
       return;
     }
     if (this.selectedPropertyId === this.property?.propertyId) {
+      this.syncMaintenanceSearchRequests();
+      this.refreshVisibleMaintenanceLists();
       return;
     }
 
@@ -513,9 +522,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.workOrderDetailInstance++;
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
+        this.property = null;
+        this.syncMaintenanceSearchRequests();
+        this.refreshReceiptsTrigger++;
+        this.refreshWorkOrdersTrigger++;
         return;
       }
       this.loadProperty(this.selectedPropertyId);
+      this.syncMaintenanceSearchRequests();
+      this.refreshReceiptsTrigger++;
+      this.refreshWorkOrdersTrigger++;
       return;
     }
     if (keepReceiptAddDetailOpen) {
@@ -523,9 +539,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.selectedReceiptId = 'new';
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
+        this.property = null;
+        this.syncMaintenanceSearchRequests();
+        this.refreshReceiptsTrigger++;
+        this.refreshWorkOrdersTrigger++;
         return;
       }
       this.loadProperty(this.selectedPropertyId);
+      this.syncMaintenanceSearchRequests();
+      this.refreshReceiptsTrigger++;
+      this.refreshWorkOrdersTrigger++;
       return;
     }
 
@@ -538,7 +561,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.property = null;
     this.isServiceError = false;
     if (!this.selectedPropertyId) {
+      this.property = null;
       this.syncMaintenanceSearchRequests();
+      this.refreshReceiptsTrigger++;
+      this.refreshWorkOrdersTrigger++;
       return;
     }
 
@@ -547,6 +573,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
     this.syncMaintenanceSearchRequests();
+    this.refreshReceiptsTrigger++;
+    this.refreshWorkOrdersTrigger++;
   }
 
   onReservationDropdownChange(value: string | number | null): void {
@@ -906,6 +934,8 @@ applyPageOfficeChangeEffects(): void {
     }
 
     this.selectedWorkOrder = selection?.workOrder ?? null;
+    this.workOrderInitialReceiptId = workOrderId === 'new' ? (selection?.prefilledReceiptId ?? null) : null;
+    this.workOrderInitialReceiptSplitKey = workOrderId === 'new' ? (selection?.prefilledReceiptSplitKey ?? null) : null;
     const reopeningWorkOrderAdd = workOrderId === 'new'
       && this.showWorkOrderDetail
       && this.selectedWorkOrderId === 'new';
@@ -968,11 +998,14 @@ applyPageOfficeChangeEffects(): void {
     this.titleBarReservationId = null;
     this.selectedWorkOrderId = null;
     this.selectedWorkOrder = null;
+    this.workOrderInitialReceiptId = null;
+    this.workOrderInitialReceiptSplitKey = null;
     this.selectedPropertyId = null;
     this.property = null;
     this.shellReservations = [];
     this.updateAvailableProperties();
     this.syncMaintenanceSearchRequests();
+    this.refreshWorkOrdersTrigger++;
     this.isServiceError = false;
     this.showWorkOrderDetail = false;
   }
@@ -1040,6 +1073,7 @@ applyPageOfficeChangeEffects(): void {
     this.updateAvailableProperties();
     this.syncMaintenanceSearchRequests();
     this.refreshReceiptsTrigger++;
+    this.refreshWorkOrdersTrigger++;
     this.showWorkOrderDetail = false;
   }
 
@@ -1175,6 +1209,18 @@ applyPageOfficeChangeEffects(): void {
 
     this.endDate = end;
     this.startDate = start;
+  }
+
+  refreshVisibleMaintenanceLists(): void {
+    if (this.showReceiptDetail || this.showWorkOrderDetail) {
+      return;
+    }
+    if (this.selectedTabIndex === this.receiptsTabIndex) {
+      this.refreshReceiptsTrigger++;
+    }
+    if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex) {
+      this.refreshWorkOrdersTrigger++;
+    }
   }
 
   syncMaintenanceSearchRequests(): void {

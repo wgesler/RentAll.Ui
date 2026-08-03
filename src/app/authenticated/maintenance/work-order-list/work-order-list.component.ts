@@ -31,6 +31,8 @@ export interface WorkOrderSelection {
   propertyId: string | null;
   officeId?: number | null;
   workOrder?: WorkOrderResponse | null;
+  prefilledReceiptId?: string | null;
+  prefilledReceiptSplitKey?: string | null;
 }
 
 @Component({
@@ -49,6 +51,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() reservationId: string | null = null;
   /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
+  @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   /** When true with embeddedInMaintenance, document preview opens in the host shell instead of routing away. */
   @Input() embedDocumentPreviewInShell = false;
   @Input() refreshTrigger = 0;
@@ -115,16 +118,39 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     this.loadOffices();
     this.loadAccountingOffices();
     this.loadVendors();
-    this.loadWorkOrdersForCurrentSearchCriteria();
+    if (!this.embeddedInMaintenance) {
+      this.loadWorkOrdersForCurrentSearchCriteria();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['searchRequest'] && this.embeddedInMaintenance) {
+      const previousPropertyId = changes['searchRequest'].firstChange
+        ? undefined
+        : this.normalizeSearchPropertyId(changes['searchRequest'].previousValue?.propertyId);
+      const currentPropertyId = this.getSearchPropertyId();
+      const propertyScopeChanged = previousPropertyId !== currentPropertyId;
+      const previousKey = changes['searchRequest'].firstChange
+        ? null
+        : this.buildWorkOrderSearchKeyFromRequest(changes['searchRequest'].previousValue);
+      const currentKey = this.buildWorkOrderSearchKey();
+      const searchCriteriaChanged = previousKey !== currentKey;
+
+      if (propertyScopeChanged) {
+        this.lastWorkOrderSearchKey = null;
+      }
+
+      if (changes['searchRequest'].firstChange || propertyScopeChanged || searchCriteriaChanged) {
+        this.loadWorkOrdersForCurrentSearchCriteria(propertyScopeChanged);
+      }
+    }
+
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
       if (propertyId !== this.selectedPropertyId) {
         this.selectedPropertyId = propertyId;
-        if (!changes['property'].firstChange) {
-          this.loadWorkOrdersForCurrentSearchCriteria();
+        if (!this.embeddedInMaintenance && !changes['property'].firstChange) {
+          this.loadWorkOrdersForCurrentSearchCriteria(true);
         }
       }
     }
@@ -141,17 +167,40 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
 
-    if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInMaintenance) {
-      this.loadWorkOrdersForCurrentSearchCriteria();
-    }
-
-    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
-      this.loadWorkOrdersForCurrentSearchCriteria(true);
+    if (changes['refreshTrigger']) {
+      const previousTrigger = Number(changes['refreshTrigger'].previousValue ?? -1);
+      const currentTrigger = Number(changes['refreshTrigger'].currentValue ?? 0);
+      const triggerChanged = currentTrigger !== previousTrigger;
+      const skipInitialDuplicate = changes['refreshTrigger'].firstChange && !!changes['searchRequest']?.firstChange;
+      if (triggerChanged && !skipInitialDuplicate) {
+        this.lastWorkOrderSearchKey = null;
+        this.loadWorkOrdersForCurrentSearchCriteria(true);
+      }
     }
 
     if (changes['workOrderTypeId'] && !changes['workOrderTypeId'].firstChange) {
       this.applyFilters();
     }
+  }
+
+  normalizeSearchPropertyId(propertyId: string | null | undefined): string | null {
+    const normalized = (propertyId || '').trim();
+    return normalized || null;
+  }
+
+  getSearchPropertyId(): string | null {
+    return this.normalizeSearchPropertyId(this.searchRequest?.propertyId);
+  }
+
+  buildWorkOrderSearchKeyFromRequest(request?: MaintenanceListSearchRequest | null): string {
+    const resolvedRequest = request ?? { officeIds: [] };
+    return JSON.stringify({
+      officeIds: [...this.resolveMaintenanceSearchOfficeIds(resolvedRequest)].sort((a, b) => a - b),
+      propertyId: this.normalizeSearchPropertyId(resolvedRequest.propertyId),
+      startDate: resolvedRequest.startDate ?? null,
+      endDate: resolvedRequest.endDate ?? null,
+      isActive: resolvedRequest.isActive ?? null
+    });
   }
 
   getWorkOrders(force = false): void {
@@ -195,7 +244,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
         if (this.embeddedInMaintenance && searchKey != null) {
           this.lastWorkOrderSearchKey = searchKey;
         }
-        this.workOrders = workOrders || [];
+        this.workOrders = this.excludeBusinessPrivateWhenMaintenanceShell(workOrders || []);
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
         this.markViewForCheck();
@@ -438,9 +487,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
+    const scopedWorkOrders = this.excludeBusinessPrivateWhenMaintenanceShell(this.allWorkOrders);
     const activeScoped = this.showInactive
-      ? this.allWorkOrders.filter(workOrder => workOrder.isActive === false)
-      : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false);
+      ? scopedWorkOrders.filter(workOrder => workOrder.isActive === false)
+      : scopedWorkOrders.filter(workOrder => workOrder.isActive !== false);
 
     const effectiveWorkOrderTypeId = this.ownersOnly ? this.ownerWorkOrderTypeId : this.workOrderTypeId;
     const shouldApplyWorkOrderTypeFilter = effectiveWorkOrderTypeId !== null && effectiveWorkOrderTypeId !== undefined;
@@ -461,6 +511,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   onOwnersOnlyToggleChange(): void {
     this.ownersOnly = !this.ownersOnly;
     this.applyFilters();
+  }
+
+  excludeBusinessPrivateWhenMaintenanceShell<T extends { businessPrivate?: boolean }>(items: T[]): T[] {
+    if (this.shellContext !== 'maintenance') {
+      return items;
+    }
+    return (items || []).filter(item => item.businessPrivate !== true);
   }
   //#endregion
 

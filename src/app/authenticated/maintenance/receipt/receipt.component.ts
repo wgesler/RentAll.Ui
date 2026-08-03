@@ -145,6 +145,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.buildForm();
     this.setupAccountingBillDateHandlers();
     this.setupVendorSelectionHandlers();
+    this.setupIsUtilityDisplayHandlers();
     this.applyPropertyInputToForm();
 
     this.splitsFormArray.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -1445,6 +1446,38 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.manualSplitAccountIndexes.delete(splitIndex);
     this.updateSplitLineAccountValidators();
     this.updatePropertyRequirementByReceiptType();
+    this.refreshSplitWorkOrderDisplay(splitIndex);
+  }
+
+  refreshSplitWorkOrderDisplay(splitIndex: number): void {
+    const row = this.splitsFormArray.at(splitIndex) as FormGroup | null;
+    if (!row) {
+      return;
+    }
+    const workOrderCode = String(row.get('workOrderCode')?.value ?? row.get('workOrder')?.value ?? '').trim();
+    const display = this.mappingService.resolveReceiptSplitWorkOrderDisplay({
+      receiptTypeId: Number(row.get('receiptTypeId')?.value ?? 0),
+      workOrderId: row.get('workOrderId')?.value,
+      workOrderCode,
+      workOrder: workOrderCode
+    }, { isUtility: this.getReceiptIsUtilityValue() });
+    row.patchValue({ workOrder: display }, { emitEvent: false });
+  }
+
+  refreshAllSplitWorkOrderDisplays(): void {
+    for (let index = 0; index < this.splitsFormArray.length; index++) {
+      this.refreshSplitWorkOrderDisplay(index);
+    }
+  }
+
+  getReceiptIsUtilityValue(): boolean {
+    return this.form.get('isUtility')?.value === true;
+  }
+
+  setupIsUtilityDisplayHandlers(): void {
+    this.form.get('isUtility')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshAllSplitWorkOrderDisplays();
+    });
   }
 
   getAccountingOfficeForReceiptOffice(): AccountingOfficeResponse | null {
@@ -1590,6 +1623,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const normalizedReceiptTypeId = split?.receiptTypeId
       ?? (this.isAccountingShell && this.isAddMode ? ReceiptType.Company : ReceiptType.Tenant);
     const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
+    const workOrderDisplay = this.mappingService.resolveReceiptSplitWorkOrderDisplay({
+      receiptTypeId: normalizedReceiptTypeId,
+      workOrderId: split?.workOrderId ?? null,
+      workOrderCode: normalizedWorkOrderCode,
+      workOrder: normalizedWorkOrderCode
+    }, { isUtility: this.getReceiptIsUtilityValue() });
     const rawSplit = split as (Partial<Split> & Record<string, unknown>) | undefined;
     const normalizedPropertyId = this.normalizeSplitPropertyId(
       split?.propertyId
@@ -1616,7 +1655,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: new FormControl<string | null>(resolvedPropertyId),
       workOrderId: new FormControl(split?.workOrderId ?? null),
       workOrderCode: new FormControl(normalizedWorkOrderCode),
-      workOrder: new FormControl(normalizedWorkOrderCode),
+      workOrder: new FormControl(workOrderDisplay),
       chartOfAccountId: new FormControl(resolvedChartOfAccountId),
       receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required])
     });
@@ -1677,8 +1716,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         description: (control.get('description')?.value || '').trim(),
         propertyId: this.normalizeSplitPropertyId(control.get('propertyId')?.value ?? null),
         workOrderId: (control.get('workOrderId')?.value || '').toString().trim() || null,
-        workOrderCode: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
-        workOrder: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
+        workOrderCode: (control.get('workOrderCode')?.value || '').trim(),
+        workOrder: (control.get('workOrderCode')?.value || '').trim(),
         chartOfAccountId: includeChartOfAccount && !isNonExpense && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
           ? chartOfAccountId
           : null,
@@ -1776,9 +1815,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   hasSplitWorkOrder(splitIndex: number): boolean {
-    const workOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
-    const workOrderCode = this.getSplitWorkOrderCode(splitIndex);
-    return workOrderId.length > 0 || workOrderCode.length > 0;
+    const row = this.splitsFormArray.at(splitIndex);
+    const workOrderId = (row?.get('workOrderId')?.value || '').toString().trim();
+    if (workOrderId.length > 0) {
+      return true;
+    }
+    const workOrderDisplay = (row?.get('workOrder')?.value || '').toString().trim();
+    return workOrderDisplay.length > 0 && !this.mappingService.isReceiptWorkOrderMissingDisplay(workOrderDisplay);
   }
 
   openWorkOrderFromSplit(splitIndex: number): void {
@@ -1833,6 +1876,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   getSplitWorkOrderCode(splitIndex: number): string {
     const row = this.splitsFormArray.at(splitIndex);
+    const workOrderDisplay = (row?.get('workOrder')?.value || '').toString().trim();
+    if (this.mappingService.isReceiptWorkOrderMissingDisplay(workOrderDisplay)) {
+      return '';
+    }
     const rawWorkOrder = (
       row?.get('workOrderCode')?.value
       || row?.get('workOrder')?.value

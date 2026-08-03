@@ -31,7 +31,7 @@ import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } fro
 import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
 import { getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
-import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
+import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
@@ -2368,6 +2368,7 @@ resolveWorkOrderTitle(
         applyMarkup: workOrder.applyMarkup === true,
         workOrderDate: this.formatter.formatDateString(workOrder.workOrderDate),
         enteredInQb: workOrder.enteredInQb === true,
+        businessPrivate: workOrder.businessPrivate === true,
         isActive: workOrder.isActive,
         createdBy: workOrder.createdBy ?? workOrder.modifiedBy ?? ''
       };
@@ -3159,12 +3160,15 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       agreementLineNotes,
       journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),
       postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId),
-      splits: this.mapReceiptSplitsFromApi(base.splits)
+      splits: this.mapReceiptSplitsFromApi(base.splits, { isUtility })
     };
   }
 
-  mapReceiptSplitsFromApi(splits: Split[] | undefined | null): Split[] {
-    const mapped = (splits || []).map(split => this.mapReceiptSplitFromApi(split));
+  mapReceiptSplitsFromApi(
+    splits: Split[] | undefined | null,
+    options?: { isUtility?: boolean | null }
+  ): Split[] {
+    const mapped = (splits || []).map(split => this.mapReceiptSplitFromApi(split, options));
     const seenSplitIds = new Set<number>();
     return mapped.filter(split => {
       const splitId = Number(split.receiptSplitId ?? 0);
@@ -3192,17 +3196,22 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     return Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null;
   }
 
-  mapReceiptSplitFromApi(raw: Split | Record<string, unknown>): Split {
+  mapReceiptSplitFromApi(
+    raw: Split | Record<string, unknown>,
+    options?: { isUtility?: boolean | null }
+  ): Split {
     const record = raw as Split & Record<string, unknown>;
     const chartOfAccountId = this.readSplitChartOfAccountId(record) ?? undefined;
     const receiptTypeId = Number(record.receiptTypeId ?? record['ReceiptTypeId'] ?? 0);
-    return {
+    const workOrderId = (record.workOrderId ?? record['WorkOrderId'] ?? null) as string | null;
+    const workOrderCode = String(record.workOrderCode ?? record['WorkOrderCode'] ?? record.workOrder ?? record['WorkOrder'] ?? '').trim();
+    const mappedSplit: Split = {
       receiptSplitId: (record.receiptSplitId ?? record['ReceiptSplitId'] ?? null) as number | null,
       amount: Number(record.amount ?? record['Amount'] ?? 0) || 0,
       description: String(record.description ?? record['Description'] ?? '').trim(),
       propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
-      workOrderId: (record.workOrderId ?? record['WorkOrderId'] ?? null) as string | null,
-      workOrderCode: String(record.workOrderCode ?? record['WorkOrderCode'] ?? record.workOrder ?? record['WorkOrder'] ?? '').trim(),
+      workOrderId,
+      workOrderCode,
       workOrder: String(record.workOrder ?? record['WorkOrder'] ?? record.workOrderCode ?? record['WorkOrderCode'] ?? '').trim(),
       receiptTypeId: Number.isFinite(receiptTypeId) ? receiptTypeId : 0,
       chartOfAccountId: chartOfAccountId ?? null,
@@ -3210,27 +3219,116 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? ''
       ).trim() || null
     };
+    const workOrderDisplay = this.resolveReceiptSplitWorkOrderDisplay(mappedSplit, options);
+    mappedSplit.workOrder = workOrderDisplay;
+    return mappedSplit;
+  }
+
+  readonly receiptWorkOrderMissingLabel = 'Missing';
+
+  isReceiptWorkOrderMissingDisplay(value: string | null | undefined): boolean {
+    return String(value ?? '').trim() === this.receiptWorkOrderMissingLabel;
+  }
+
+  isOwnerOrTenantReceiptSplitType(receiptTypeId: number | null | undefined): boolean {
+    const normalizedTypeId = Number(receiptTypeId ?? -1);
+    return normalizedTypeId === ReceiptType.Owner || normalizedTypeId === ReceiptType.Tenant;
+  }
+
+  shouldShowMissingWorkOrderForSplit(
+    split: Pick<Split, 'receiptTypeId' | 'workOrderId'>,
+    isUtility?: boolean | null
+  ): boolean {
+    const workOrderId = String(split.workOrderId ?? '').trim();
+    if (workOrderId) {
+      return false;
+    }
+
+    const receiptTypeId = Number(split.receiptTypeId ?? -1);
+    if (receiptTypeId === ReceiptType.Tenant) {
+      return true;
+    }
+    if (receiptTypeId === ReceiptType.Owner) {
+      return isUtility !== true;
+    }
+    return false;
+  }
+
+  resolveReceiptSplitWorkOrderDisplay(
+    split: Pick<Split, 'receiptTypeId' | 'workOrderId' | 'workOrderCode' | 'workOrder'>,
+    options?: { isUtility?: boolean | null }
+  ): string {
+    if (this.shouldShowMissingWorkOrderForSplit(split, options?.isUtility)) {
+      return this.receiptWorkOrderMissingLabel;
+    }
+    return String(split.workOrderCode ?? split.workOrder ?? '').trim();
+  }
+
+  resolveReceiptWorkOrderListDisplay(
+    splits: Split[] | undefined | null,
+    options?: { isUtility?: boolean | null }
+  ): string {
+    const labels = (splits || [])
+      .map(split => this.resolveReceiptSplitWorkOrderDisplay(split, options))
+      .filter(label => label.length > 0);
+    return Array.from(new Set(labels)).join(', ');
+  }
+
+  buildReceiptSplitKey(receiptId: string, splitIndex: number, receiptSplitId?: number | null): string {
+    const numericSplitId = Number(receiptSplitId);
+    const identity = Number.isFinite(numericSplitId) && numericSplitId > 0
+      ? `sid-${numericSplitId}`
+      : `idx-${splitIndex}`;
+    return `${receiptId}::${identity}`;
+  }
+
+  resolveFirstMissingWorkOrderSplit(
+    receipt: { receiptId: string; splits?: Split[] | null; isUtility?: boolean | null }
+  ): { receiptId: string; splitKey: string; receiptTypeId: number } | null {
+    const receiptId = String(receipt.receiptId ?? '').trim();
+    if (!receiptId) {
+      return null;
+    }
+
+    const splits = receipt.splits || [];
+    for (let index = 0; index < splits.length; index++) {
+      const split = splits[index];
+      if (!this.shouldShowMissingWorkOrderForSplit(split, receipt.isUtility)) {
+        continue;
+      }
+      return {
+        receiptId,
+        splitKey: this.buildReceiptSplitKey(receiptId, index, split.receiptSplitId ?? null),
+        receiptTypeId: Number(split.receiptTypeId) || 0
+      };
+    }
+    return null;
   }
 
   mapReceiptSplitsForRequest(splits: Split[] | undefined | null): Split[] {
     return this.mapReceiptSplitsFromApi(splits).map(split => {
       const chartOfAccountId = this.readSplitChartOfAccountId(split);
+      const workOrderCode = this.sanitizeReceiptSplitWorkOrderForRequest(split.workOrderCode ?? split.workOrder);
       return {
         receiptSplitId: split.receiptSplitId ?? null,
         amount: Number(split.amount) || 0,
         description: String(split.description ?? '').trim(),
         propertyId: String(split.propertyId ?? '').trim() || null,
         workOrderId: split.workOrderId ?? null,
-        workOrderCode: split.workOrderCode != null && String(split.workOrderCode).trim().length > 0
-          ? String(split.workOrderCode).trim()
-          : null,
-        workOrder: split.workOrder != null && String(split.workOrder).trim().length > 0
-          ? String(split.workOrder).trim()
-          : null,
+        workOrderCode,
+        workOrder: workOrderCode,
         receiptTypeId: split.receiptTypeId ?? 0,
         chartOfAccountId
       };
     });
+  }
+
+  sanitizeReceiptSplitWorkOrderForRequest(value: string | null | undefined): string | null {
+    const normalized = String(value ?? '').trim();
+    if (!normalized || this.isReceiptWorkOrderMissingDisplay(normalized)) {
+      return null;
+    }
+    return normalized;
   }
 
   mapReceiptUpdateRequest(
@@ -3273,16 +3371,10 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
 
   mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {
     return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => {
-      const splits = this.mapReceiptSplitsFromApi(receipt.splits);
+      const isUtility = receipt.isUtility === true;
+      const splits = this.mapReceiptSplitsFromApi(receipt.splits, { isUtility });
       const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
       const receiptAmount = Number(receipt.amount) || 0;
-      const distinctWorkOrders = Array.from(
-        new Set(
-          splits
-            .map(split => (split.workOrder || '').trim())
-            .filter(code => code.length > 0)
-        )
-      );
       const distinctReceiptTypes = Array.from(
         new Set(
           splits
@@ -3290,7 +3382,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
             .filter(typeLabel => typeLabel.length > 0)
         )
       );
-      const workOrderDisplay = distinctWorkOrders.join(', ');
+      const workOrderDisplay = this.resolveReceiptWorkOrderListDisplay(splits, { isUtility });
       const receiptTypeDisplay = distinctReceiptTypes.join(', ');
       const receiptTypeTooltip = distinctReceiptTypes.join(', ');
       const distinctAccounts = Array.from(
@@ -3351,6 +3443,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         receiptTypeTooltip,
         receiptPath: receipt.receiptPath ?? null,
         isUtility: receipt.isUtility ?? false,
+        businessPrivate: receipt.businessPrivate ?? false,
         isActive: receipt.isActive,
         createdBy: receipt.createdBy ?? receipt.createdByName ?? '',
         createdByName: receipt.createdByName ?? receipt.createdBy ?? '',

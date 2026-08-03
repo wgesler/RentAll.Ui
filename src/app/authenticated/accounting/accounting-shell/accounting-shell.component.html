@@ -1002,9 +1002,12 @@
                   @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
                     <app-work-order
                       [property]="billsReceiptsWorkOrderProperty"
+                      [propertyId]="selectedBillsPropertyId ?? billsReceiptsWorkOrderProperty?.propertyId ?? null"
                       [workOrderId]="selectedBillsReceiptsWorkOrderId"
                       [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
                       [officeId]="selectedOfficeId"
+                      [initialReceiptId]="billsReceiptsWorkOrderInitialReceiptId"
+                      [initialReceiptSplitKey]="billsReceiptsWorkOrderInitialReceiptSplitKey"
                       [embeddedInMaintenance]="true"
                       [shellContext]="'accounting'"
                       [embedDocumentPreviewInShell]="true"
@@ -1034,6 +1037,7 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
                     [embeddedInMaintenance]="true"
+                    [shellContext]="'accounting'"
                     [embeddedInAccounting]="true"
                     [accountingListMode]="'bills'"
                     [refreshTrigger]="billsRefreshTrigger"
@@ -1047,9 +1051,12 @@
                   @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
                     <app-work-order
                       [property]="billsReceiptsWorkOrderProperty"
+                      [propertyId]="selectedBillsPropertyId ?? billsReceiptsWorkOrderProperty?.propertyId ?? null"
                       [workOrderId]="selectedBillsReceiptsWorkOrderId"
                       [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
                       [officeId]="selectedOfficeId"
+                      [initialReceiptId]="billsReceiptsWorkOrderInitialReceiptId"
+                      [initialReceiptSplitKey]="billsReceiptsWorkOrderInitialReceiptSplitKey"
                       [embeddedInMaintenance]="true"
                       [shellContext]="'accounting'"
                       [embedDocumentPreviewInShell]="true"
@@ -1075,6 +1082,7 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
                     [embeddedInMaintenance]="true"
+                    [shellContext]="'accounting'"
                     [embeddedInAccounting]="true"
                     [accountingListMode]="'receipts'"
                     [refreshTrigger]="receiptsRefreshTrigger"
@@ -1377,6 +1385,7 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
                     [embeddedInMaintenance]="true"
+                    [shellContext]="'accounting'"
                     [embeddedInAccounting]="true"
                     [accountingListMode]="'utilities'"
                     [refreshTrigger]="ownersUtilitiesRefreshTrigger"
@@ -1400,6 +1409,7 @@
                   @for (instance of [ownersWorkOrderDetailInstance]; track instance) {
                     <app-work-order
                       [property]="ownersWorkOrderProperty"
+                      [propertyId]="selectedBillsPropertyId ?? ownersWorkOrderProperty?.propertyId ?? null"
                       [workOrderId]="selectedOwnersWorkOrderId"
                       [prefetchedWorkOrder]="selectedOwnersWorkOrder"
                       [officeId]="selectedOfficeId"
@@ -1416,6 +1426,7 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
                     [embeddedInMaintenance]="true"
+                    [shellContext]="'accounting'"
                     [embedDocumentPreviewInShell]="true"
                     [showOwnersOnlyToggle]="true"
                     [refreshTrigger]="ownersWorkOrdersRefreshTrigger"

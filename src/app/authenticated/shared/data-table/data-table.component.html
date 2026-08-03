@@ -382,12 +382,21 @@
                     @if (hasWorkOrderCodeLink) {
                       @let workOrderCodes = getDelimitedValues(item[column.name]);
                       @for (workOrderCode of workOrderCodes; track workOrderCode; let codeIndex = $index) {
+                        @if (workOrderCode === 'Missing') {
+                          <span
+                            class="work-order-missing-link"
+                            id="table-work-order-missing-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
+                            (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
+                            {{ workOrderCode }}
+                          </span>
+                        } @else {
                         <span
                           class="text-blue-700 underline cursor-pointer"
                           id="table-work-order-code-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
                           (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
                           {{workOrderCode}}
-                        </span>@if (codeIndex < workOrderCodes.length - 1) {<span>, </span>}
+                        </span>
+                        }@if (codeIndex < workOrderCodes.length - 1) {<span>, </span>}
                       }
                     } @else {
                       {{item[column.name]}}
