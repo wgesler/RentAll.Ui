@@ -12,7 +12,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { AgentListDisplay, AgentResponse } from '../models/agent.model';
+import { AgentListDisplay } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
@@ -71,7 +71,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
-    this.getAgents();
+    this.loadAgents();
 
     if (this.useGlobalOfficeSelection) {
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -94,15 +94,19 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     this.agentSelected.emit('new');
   }
 
-  getAgents(): void {
-    this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
-      next: (response: AgentResponse[]) => {
-        this.allAgents = this.mappingService.mapAgents(response);
-        this.applyFilters();
-        this.markViewForCheck();
+  loadAgents(): void {
+    this.agentService.ensureAgentsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
+      next: () => {
+        this.agentService.getAllAgents().pipe(takeUntil(this.destroy$)).subscribe(agents => {
+          this.allAgents = this.mappingService.mapAgents(agents || []);
+          this.applyFilters();
+          this.markViewForCheck();
+        });
       },
-      error: (err: HttpErrorResponse) => {
+      error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
+        this.allAgents = [];
+        this.agentsDisplay = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents');
         this.markViewForCheck();
       }
@@ -113,7 +117,6 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     this.agentService.deleteAgent(agent.agentId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Agent deleted successfully', CommonMessage.Success);
-        this.getAgents();
       },
       error: (_err: HttpErrorResponse) => {}
     });

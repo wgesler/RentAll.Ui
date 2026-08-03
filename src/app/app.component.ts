@@ -5,6 +5,7 @@ import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, for
 import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
+import { AgentService } from './authenticated/organizations/services/agent.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
 import { GlobalSelectionService } from './authenticated/organizations/services/global-selection.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private brandingService = inject(BrandingService);
   private commonService = inject(CommonService);
   private contactService = inject(ContactService);
+  private agentService = inject(AgentService);
   private organizationListService = inject(OrganizationListService);
   private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
@@ -83,6 +85,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadBranding();
         this.initializeOrganizationList();
         this.loadContacts();
+        this.loadAgents();
         this.loadOffices();
         this.loadPropertyCodes();
         this.loadReservationCodes();
@@ -97,6 +100,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'branding');
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
+        this.agentService.clearAgents();
         this.officeService.clearOffices();
         this.propertyService.clearPropertyCodes();
         this.reservationService.clearReservationCodes();
@@ -150,6 +154,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {},
+      error: () => {}
+    });
+  }
+
+  loadAgents(): void {
+    this.agentService.ensureAgentsLoaded().pipe(take(1)).subscribe({
       next: () => {},
       error: () => {}
     });

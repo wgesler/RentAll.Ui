@@ -15,6 +15,8 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
+import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentService } from '../../organizations/services/agent.service';
 import { ColorResponse } from '../../organizations/models/color.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { ColorService } from '../../organizations/services/color.service';
@@ -55,6 +57,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
   private officeService = inject(OfficeService);
+  private agentService = inject(AgentService);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
@@ -74,6 +77,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   apiReservations: ReservationListResponse[] = [];
   externalCalendarReservations: ReservationListResponse[] = [];
   offices: OfficeResponse[] = [];
+  agents: AgentResponse[] = [];
   contacts: ContactResponse[] = [];
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
@@ -95,8 +99,10 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   private readonly stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
   officeScopeResolved = false;
   selectedOfficeId: number | null = null;
+  selectedAgentId: string | null = null;
   userId: string = '';
   isOwnerScopedView: boolean = false;
+  canFilterByAgent: boolean = false;
   organizationId: string = '';
   propertiesFiltered = false;
   furnishedPropertyToggleChecked = false;
@@ -128,10 +134,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (hasRealtorRole(userGroups)) {
       this.readOnly = true;
     }
+    this.canFilterByAgent = this.authService.isAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.applyStickyDateRangeFromStorage();
     this.generateCalendarDays();
     this.loadContacts();
+    if (this.canFilterByAgent) {
+      this.loadAgents();
+    }
     this.loadColors();
     this.loadOfficeSettings();
     this.initializeOfficeScope();
@@ -143,6 +153,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.applyOfficeFromGlobal(officeId);
+        this.syncSelectedAgentWithOfficeScope();
         this.loadReservations();
         this.loadBoardProperties();
       }
@@ -233,12 +244,30 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts || [];
-        this.markViewForCheck();
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.contacts = contacts || [];
+          this.markViewForCheck();
+        });
       },
       error: () => {
         this.contacts = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadAgents(): void {
+    this.agentService.ensureAgentsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.agentService.getAllAgents().pipe(takeUntil(this.destroy$)).subscribe(agents => {
+          this.agents = agents || [];
+          this.syncSelectedAgentWithOfficeScope();
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.agents = [];
         this.markViewForCheck();
       }
     });
@@ -524,6 +553,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
   onOfficeDropdownChange(): void {
     this.lastLoadedOfficeId = null;
+    this.syncSelectedAgentWithOfficeScope();
     if (this.dateRangeSticky) {
       this.persistStickyDateRange();
     }
@@ -531,8 +561,53 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.loadBoardProperties();
   }
 
+  onAgentDropdownChange(): void {
+    this.combineBoardReservations();
+    this.markViewForCheck();
+  }
+
   get officeOptions(): OfficeResponse[] {
     return this.offices;
+  }
+
+  get agentOptions(): AgentResponse[] {
+    const activeAgents = (this.agents || []).filter(agent => agent.isActive);
+    if (this.selectedOfficeId == null) {
+      return activeAgents;
+    }
+    return activeAgents.filter(agent => agent.officeId === this.selectedOfficeId);
+  }
+
+  get showAgentDropdown(): boolean {
+    return this.canFilterByAgent && this.agentOptions.length > 0;
+  }
+
+  syncSelectedAgentWithOfficeScope(): void {
+    if (!this.selectedAgentId) {
+      return;
+    }
+    if (!this.agentOptions.some(agent => agent.agentId === this.selectedAgentId)) {
+      this.selectedAgentId = null;
+      this.combineBoardReservations();
+    }
+  }
+
+  getSelectedAgentCode(): string | null {
+    if (!this.canFilterByAgent || !this.selectedAgentId) {
+      return null;
+    }
+    const agent = this.agents.find(item => item.agentId === this.selectedAgentId);
+    const agentCode = (agent?.agentCode || '').trim();
+    return agentCode || null;
+  }
+
+  filterReservationsByAgent(reservations: ReservationListResponse[]): ReservationListResponse[] {
+    const agentCode = this.getSelectedAgentCode();
+    if (!agentCode) {
+      return reservations;
+    }
+    const normalizedAgentCode = agentCode.toLowerCase();
+    return (reservations || []).filter(reservation => (reservation.agentCode || '').trim().toLowerCase() === normalizedAgentCode);
   }
 
   get showOfficeDropdown(): boolean {
@@ -1398,7 +1473,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   combineBoardReservations(): void {
-    this.reservations = [...this.apiReservations, ...this.externalCalendarReservations];
+    const filteredApiReservations = this.filterReservationsByAgent(this.apiReservations);
+    const externalReservations = this.getSelectedAgentCode() ? [] : this.externalCalendarReservations;
+    this.reservations = [...filteredApiReservations, ...externalReservations];
     this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
     this.displayTextCache.clear();
     this.markViewForCheck();

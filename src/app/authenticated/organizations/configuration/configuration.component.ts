@@ -89,7 +89,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
-  shouldRefreshAgents: boolean = false;
   isEditingOffice: boolean = false;
   officeId: string | number | null = null;
   copyOfficeData: OfficeResponse | null = null;
@@ -368,16 +367,11 @@ refreshSettingsOfficeScopedLists(): void {
   }
 
   onAgentBack(): void {
-    if (this.shouldRefreshAgents) {
-      this.agentListComponent?.getAgents();
-    }
-    this.shouldRefreshAgents = false;
     this.agentId = null;
     this.isEditingAgent = false;
   }
 
   onAgentSaved(): void {
-    this.shouldRefreshAgents = true;
   }
 
   onRegionSelected(regionId: string | number | null): void {
