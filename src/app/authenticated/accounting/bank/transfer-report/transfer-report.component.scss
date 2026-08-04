@@ -23,9 +23,10 @@
     }
 
     $transfer-report-group-border: rgba(112, 112, 112, 0.28);
-    $transfer-report-group-bg-header: rgba(244, 247, 252, 0.92);
-    $transfer-report-group-bg-odd: mix(#ffffff, #f4f7fc, 84%);
-    $transfer-report-group-bg-even: mix(#f5f5f5, #f4f7fc, 70%);
+    $transfer-report-group-bg-header: rgba(228, 235, 248, 0.95);
+    $transfer-report-group-blue: #dce6f4;
+    $transfer-report-group-bg-odd: mix(#ffffff, $transfer-report-group-blue, 68%);
+    $transfer-report-group-bg-even: mix(#f5f5f5, $transfer-report-group-blue, 52%);
     $transfer-report-amount-column-width: 5.5rem;
 
     @mixin transfer-report-escrow-arrow($visible: true) {
