@@ -4130,7 +4130,7 @@ resolveTransferPropertyIds(
     for (const split of group) {
       const sourceAmount = Number(split.sourceJournalEntryLineAmount);
       if (Number.isFinite(sourceAmount) && sourceAmount !== 0) {
-        return this.roundCurrency(Math.abs(sourceAmount));
+        return this.roundCurrency(sourceAmount);
       }
     }
 

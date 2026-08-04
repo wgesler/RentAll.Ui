@@ -2196,18 +2196,17 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
           0
         );
-        const scaledSplits = this.scaleTransferSplitsToAmount(splits, this.transferAmount, splitTotal);
 
         const payload: TransferRequest = {
           organizationId: this.organizationId,
           officeId,
           transferDate,
           accountingPeriod: transferDate,
-          amount: this.transferAmount,
+          amount: splitTotal,
           description: 'Transfer to Escrow Accounts',
           bankAccountId: escrowDepositAccountId,
-          propertyId: scaledSplits.find(split => (split.propertyId || '').trim().length > 0)?.propertyId ?? null,
-          splits: scaledSplits,
+          propertyId: splits.find(split => (split.propertyId || '').trim().length > 0)?.propertyId ?? null,
+          splits,
           isActive: true
         };
 
@@ -2639,14 +2638,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     },
     depositSplit?: DepositSplit
   ): TransferSplit[] {
-    const expectedIncome = Number(recapRow.expectedIncomeValue || 0);
-    const ownerEscrow = this.scaleTransferAllocationAmount(
-      recapRow.ownerRentActualValue ?? recapRow.ownerRentValue,
-      baseAmount,
-      expectedIncome
-    );
-    const secDep = this.scaleTransferAllocationAmount(recapRow.securityDepositValue, baseAmount, expectedIncome);
-    const sdw = this.scaleTransferAllocationAmount(recapRow.sdwValue, baseAmount, expectedIncome);
+    const ownerEscrow = this.roundCurrencyValue(Number(recapRow.ownerRentActualValue ?? recapRow.ownerRentValue ?? 0));
+    const secDep = this.roundCurrencyValue(Number(recapRow.securityDepositValue ?? 0));
+    const sdw = this.roundCurrencyValue(Number(recapRow.sdwValue ?? 0));
     let bank = this.roundCurrencyValue(baseAmount - ownerEscrow - secDep - sdw);
 
     const drift = this.roundCurrencyValue(baseAmount - (ownerEscrow + secDep + sdw + bank));
@@ -2762,48 +2756,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       sortDateValue: contextLine.sortDateValue,
       disabled: true
     };
-  }
-
-  scaleTransferAllocationAmount(value: number, baseAmount: number, expectedIncome: number): number {
-    const amount = Number(value || 0);
-    if (!Number.isFinite(amount) || amount === 0) {
-      return 0;
-    }
-
-    if (expectedIncome <= 0) {
-      return this.roundCurrencyValue(amount);
-    }
-
-    return this.roundCurrencyValue(amount * (baseAmount / expectedIncome));
-  }
-
-  scaleTransferSplitsToAmount(
-    splits: TransferSplit[],
-    targetAmount: number,
-    currentTotal: number
-  ): TransferSplit[] {
-    const target = this.roundCurrencyValue(targetAmount);
-    const current = this.roundCurrencyValue(currentTotal);
-    if (current === 0 || target === current) {
-      return splits;
-    }
-
-    const ratio = target / current;
-    const scaled = splits.map(split => ({
-      ...split,
-      amount: this.roundCurrencyValue(Number(split.amount || 0) * ratio)
-    }));
-    const scaledTotal = scaled.reduce(
-      (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
-      0
-    );
-    const drift = this.roundCurrencyValue(target - scaledTotal);
-    if (drift !== 0 && scaled.length > 0) {
-      const lastSplit = scaled[scaled.length - 1];
-      lastSplit.amount = this.roundCurrencyValue(Number(lastSplit.amount || 0) + drift);
-    }
-
-    return scaled;
   }
 
   validateBuiltTransferSplits(
