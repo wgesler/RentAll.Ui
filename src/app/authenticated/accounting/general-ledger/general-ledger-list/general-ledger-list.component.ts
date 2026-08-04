@@ -2621,7 +2621,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       propertyId: (depositSplit?.propertyId || contextLine.propertyId || '').trim() || null,
       reservationId: (depositSplit?.reservationId || contextLine.reservationId || '').trim() || null,
       contactId: (depositSplit?.contactId || contextLine.contactId || '').trim() || null,
-      journalEntryLineId: (contextLine.journalEntryLineId || depositSplit?.journalEntryLineId || '').trim() || null,
+      journalEntryLineId: (contextLine.journalEntryLineId || '').trim() || null,
       chartOfAccountId: accountIds.bank
     }];
   }
@@ -2651,7 +2651,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const propertyId = (depositSplit?.propertyId || recapRow.propertyId || contextLine.propertyId || '').trim() || null;
     const reservationId = (depositSplit?.reservationId || recapRow.reservationId || contextLine.reservationId || '').trim() || null;
     const contactId = (depositSplit?.contactId || contextLine.contactId || '').trim() || null;
-    const journalEntryLineId = (contextLine.journalEntryLineId || depositSplit?.journalEntryLineId || '').trim() || null;
+    const journalEntryLineId = (contextLine.journalEntryLineId || '').trim() || null;
     const source = (recapRow.source || contextLine.source || '').trim();
     const description = source ? `Transfer to Escrow Accounts - ${source}` : 'Transfer to Escrow Accounts';
 
