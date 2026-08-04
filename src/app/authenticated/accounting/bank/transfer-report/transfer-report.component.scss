@@ -23,7 +23,9 @@
     }
 
     $transfer-report-group-border: rgba(112, 112, 112, 0.28);
-    $transfer-report-group-bg: rgba(244, 247, 252, 0.92);
+    $transfer-report-group-bg-header: rgba(244, 247, 252, 0.92);
+    $transfer-report-group-bg-odd: mix(#ffffff, #f4f7fc, 84%);
+    $transfer-report-group-bg-even: mix(#f5f5f5, #f4f7fc, 70%);
     $transfer-report-amount-column-width: 5.5rem;
 
     @mixin transfer-report-escrow-arrow($visible: true) {
@@ -56,10 +58,32 @@
 
     @each $column in business, ownerEscrow, secDep, sdw, rowTotal {
       th.mat-column-#{$column},
+      th.mat-mdc-header-cell.mat-column-#{$column} {
+        width: $transfer-report-amount-column-width !important;
+        min-width: $transfer-report-amount-column-width !important;
+        max-width: $transfer-report-amount-column-width !important;
+        box-sizing: border-box;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+        background-color: $transfer-report-group-bg-header;
+      }
+
       td.mat-column-#{$column},
+      td.mat-mdc-cell.mat-column-#{$column} {
+        width: $transfer-report-amount-column-width !important;
+        min-width: $transfer-report-amount-column-width !important;
+        max-width: $transfer-report-amount-column-width !important;
+        box-sizing: border-box;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+        background-color: $transfer-report-group-bg-odd;
+      }
+
       td.mat-column-#{$column}.mat-mdc-footer-cell,
-      th.mat-mdc-header-cell.mat-column-#{$column},
-      td.mat-mdc-cell.mat-column-#{$column},
       td.mat-mdc-footer-cell.mat-column-#{$column} {
         width: $transfer-report-amount-column-width !important;
         min-width: $transfer-report-amount-column-width !important;
@@ -69,7 +93,15 @@
         padding-right: 0 !important;
         padding-top: 2px !important;
         padding-bottom: 2px !important;
-        background-color: $transfer-report-group-bg;
+        background-color: $transfer-report-group-bg-header;
+      }
+
+      tr.mat-row:nth-child(even):not(.datatable-row-colored):not(.datatable-row-active):not(.mat-no-data-row):not(.datatable-detail-row),
+      tr.mat-mdc-row:nth-child(even):not(.datatable-row-colored):not(.datatable-row-active):not(.mat-no-data-row):not(.datatable-detail-row) {
+        td.mat-column-#{$column},
+        td.mat-mdc-cell.mat-column-#{$column} {
+          background-color: $transfer-report-group-bg-even;
+        }
       }
     }
 
