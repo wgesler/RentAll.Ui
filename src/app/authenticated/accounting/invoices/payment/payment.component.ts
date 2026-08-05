@@ -405,7 +405,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   getDisplayedSplitTotal(): number {
     return this.utilityService.sumCurrencyAmounts(
-      this.getPayloadSplitsFromForm().map(split => split.amount)
+      this.getPayloadAllocationsFromForm().map(allocation => allocation.amount)
     );
   }
 
