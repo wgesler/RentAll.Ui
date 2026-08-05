@@ -1192,7 +1192,8 @@ normalizeLedgerLineResponse(line: unknown): LedgerLineResponse {
       description: String(raw['description'] ?? raw['Description'] ?? ''),
       ledgerLineDate: this.utility.coerceCalendarDateStringFromApi(
         raw['ledgerLineDate'] ?? raw['LedgerLineDate']
-      ) ?? String(raw['ledgerLineDate'] ?? raw['LedgerLineDate'] ?? '')
+      ) ?? String(raw['ledgerLineDate'] ?? raw['LedgerLineDate'] ?? ''),
+      paymentId: String(raw['paymentId'] ?? raw['PaymentId'] ?? '').trim() || null
     };
   }
 
@@ -1257,6 +1258,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         description: line.description || '',
         amount: line.amount,
         ledgerLineDate: line.ledgerLineDate,
+        paymentId: line.paymentId ?? null,
         isNew: false, // Existing lines are not new
         rowColor: rowColor
       };

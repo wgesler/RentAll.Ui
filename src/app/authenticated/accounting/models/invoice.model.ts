@@ -146,6 +146,7 @@ export interface LedgerLineRequest {
   amount: number;
   description: string;
   ledgerLineDate: CalendarDateString;
+  paymentId?: string | null;
 }
 
 export interface LedgerLineResponse {
@@ -158,6 +159,7 @@ export interface LedgerLineResponse {
   amount: number;
   description: string;
   ledgerLineDate: CalendarDateString;
+  paymentId?: string | null;
 }
 
 export interface LedgerLineListDisplay {
@@ -169,6 +171,7 @@ export interface LedgerLineListDisplay {
   description: string;
   amount: number;
   ledgerLineDate?: CalendarDateString;
+  paymentId?: string | null;
   isNew?: boolean; // Track if this is a newly added line (should remain editable)
   rowColor?: string; // Hidden column for row coloring
 }

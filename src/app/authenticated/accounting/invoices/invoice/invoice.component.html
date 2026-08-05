@@ -247,7 +247,7 @@
                                 (blur)="onLedgerAmountBlur($event, i)">
                             </td>
                             <td class="text-right ledger-col-actions">
-                              @if (!isPaymentMode || line.isNew) {
+                              @if ((!isPaymentMode || line.isNew) && !isLinkedPaymentLine(line)) {
                                 <button mat-icon-button type="button" color="accent" (click)="removeLedgerLine(i)" 
                                   class="delete-ledger-line-btn"
                                   matTooltip="Remove this line item">

@@ -37,7 +37,7 @@ export class AccountingErrorLogListComponent implements OnInit, OnChanges, OnDes
     accountingPeriodDisplay: { displayAs: 'Period', maxWidth: '12ch' },
     amountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'left', headerAlignment: 'left' },
     message: { displayAs: 'Message', maxWidth: '100ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '16ch', alignment: 'center', headerAlignment: 'center' }
   };
 
   //#region Accounting-Error-Log-List

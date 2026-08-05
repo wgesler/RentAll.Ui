@@ -241,7 +241,8 @@ export class BillingComponent implements OnInit, OnDestroy {
           transactionTypeId: (line as any).transactionTypeId,
           amount: line.amount || 0,
           description: line.description || '',
-          ledgerLineDate: this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(index).value) ?? line.ledgerLineDate ?? invoiceDateString
+          ledgerLineDate: this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(index).value) ?? line.ledgerLineDate ?? invoiceDateString,
+          paymentId: line.paymentId ?? null
         };
         return ledgerLine;
       });
@@ -333,7 +334,14 @@ export class BillingComponent implements OnInit, OnDestroy {
         const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
         if (closedPeriodMessage) {
           this.toastr.error(closedPeriodMessage, CommonMessage.Error);
+          return;
         }
+        const apiMessage = this.utilityService.extractApiErrorMessage(err);
+        if (apiMessage) {
+          this.toastr.error(apiMessage, CommonMessage.Error);
+          return;
+        }
+        this.toastr.error('Unable to save invoice. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
       }
     });
   }
@@ -1135,12 +1143,24 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   removeLedgerLine(index: number): void {
-    if (index >= 0 && index < this.ledgerLines.length) {
-      this.ledgerLines.splice(index, 1);
-      this.recomputeLedgerLineNumbers();
-      this.syncLedgerLineDatesFormArray();
-      this.updateTotalAmount();
+    if (index < 0 || index >= this.ledgerLines.length) {
+      return;
     }
+
+    const line = this.ledgerLines[index];
+    if (this.isLinkedPaymentLine(line)) {
+      this.toastr.error('This line is linked to a payment and cannot be removed here. Delete the payment record first.', CommonMessage.Error);
+      return;
+    }
+
+    this.ledgerLines.splice(index, 1);
+    this.recomputeLedgerLineNumbers();
+    this.syncLedgerLineDatesFormArray();
+    this.updateTotalAmount();
+  }
+
+  isLinkedPaymentLine(line: LedgerLineListDisplay): boolean {
+    return !!String(line.paymentId ?? '').trim();
   }
 
 recomputeLedgerLineNumbers(): void {
