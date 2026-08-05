@@ -410,19 +410,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         }
 
         if (this.usesUntransferredOpenLinesFilter()) {
-          forkJoin({
-            transfers: this.transferService.searchTransfers({
-              officeIds,
-              isActive: true,
-              includeInactive: false
-            }),
-            deposits: this.depositService.searchDeposits({
-              officeIds,
-              isActive: true,
-              includeInactive: false
-            })
+          this.depositService.searchDeposits({
+            officeIds,
+            isActive: true,
+            includeInactive: false
           }).pipe(takeUntil(loadUntil)).subscribe({
-            next: (result) => {
+            next: (deposits) => {
               if (this.journalEntryLinesLoadId !== loadId) {
                 return;
               }
@@ -431,10 +424,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
                 lines || [],
                 filteredAccountIds,
                 usesFixedAccountFilter,
-                result.deposits,
-                result.transfers
+                deposits
               );
-              this.loadedDeposits = result.deposits || [];
+              this.loadedDeposits = deposits || [];
               this.applyLoadedJournalEntryLines(refinedLines, loadId);
             },
             error: () => {
@@ -446,7 +438,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
                 lines || [],
                 filteredAccountIds,
                 usesFixedAccountFilter,
-                [],
                 []
               );
               this.loadedDeposits = [];
@@ -460,7 +451,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           lines || [],
           filteredAccountIds,
           usesFixedAccountFilter,
-          null,
           null
         );
         this.applyLoadedJournalEntryLines(resolvedLines, loadId);
@@ -480,8 +470,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
                 lines || [],
                 filteredAccountIds,
                 usesFixedAccountFilter,
-                deposits,
-                null
+                deposits
               );
               this.applyLoadedJournalEntryLines(refinedLines, loadId);
             }
@@ -968,8 +957,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     lines: JournalEntryLineSearchResponse[],
     filteredAccountIds: number[],
     usesFixedAccountFilter: boolean,
-    deposits: DepositResponse[] | null,
-    transfers: TransferResponse[] | null
+    deposits: DepositResponse[] | null
   ): JournalEntryLineSearchResponse[] {
     let resolvedLines = lines || [];
     if (usesFixedAccountFilter && filteredAccountIds.length > 1) {
@@ -1002,12 +990,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         && escrowAccountIdSet.has(line.chartOfAccountId)
         && Math.abs(this.getLineNetAmountFromSearchLine(line)) > 0.005);
       const enrichedLines = this.enrichUntransferredFundsLinesFromDeposits(resolvedLines, deposits || []);
-      resolvedLines = this.filterUntransferredFundsOpenLines(
-        enrichedLines,
-        transfers || [],
-        deposits || [],
-        filteredAccountIds
-      );
+      resolvedLines = this.filterUntransferredFundsOpenLines(enrichedLines);
     }
     return resolvedLines;
   }
@@ -1926,46 +1909,16 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   }
 
   filterUntransferredFundsOpenLines(
-    lines: JournalEntryLineSearchResponse[],
-    transfers: TransferResponse[] = [],
-    deposits: DepositResponse[] = [],
-    escrowDepositAccountIds: number[] = []
+    lines: JournalEntryLineSearchResponse[]
   ): JournalEntryLineSearchResponse[] {
-    const openLines = lines
+    return (lines || [])
       .filter(line => Math.abs(this.getLineNetAmountFromSearchLine(line)) > 0.005)
+      .filter(line => !this.isJournalEntryLineLinkedToTransfer(line))
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
-
-    const transferredLineIds = this.filterTransferredJournalEntryLineIds(transfers);
-    const transferSettledLineIds = this.buildTransferSettledLineIds(
-      transfers,
-      deposits,
-      openLines,
-      escrowDepositAccountIds
-    );
-
-    return openLines.filter(line =>
-      !transferredLineIds.has(line.journalEntryLineId)
-      && !transferSettledLineIds.has(line.journalEntryLineId)
-    );
   }
 
-  filterTransferredJournalEntryLineIds(transfers: TransferResponse[]): Set<string> {
-    const transferredLineIds = new Set<string>();
-
-    for (const transfer of transfers || []) {
-      if (transfer.isActive === false) {
-        continue;
-      }
-
-      for (const split of transfer.splits || []) {
-        const journalEntryLineId = String(split.journalEntryLineId || '').trim();
-        if (journalEntryLineId) {
-          transferredLineIds.add(journalEntryLineId);
-        }
-      }
-    }
-
-    return transferredLineIds;
+  isJournalEntryLineLinkedToTransfer(line: Pick<JournalEntryLineSearchResponse, 'transferId'>): boolean {
+    return String(line.transferId || '').trim().length > 0;
   }
 
   enrichUntransferredFundsLinesFromDeposits(lines: JournalEntryLineSearchResponse[], deposits: DepositResponse[]): JournalEntryLineSearchResponse[] {
@@ -2039,126 +1992,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         contactName: depositContext.contactName || line.contactName
       };
     });
-  }
-
-  buildTransferSettledLineIds(
-    transfers: TransferResponse[],
-    deposits: DepositResponse[],
-    openLines: JournalEntryLineSearchResponse[],
-    escrowDepositAccountIds: number[]
-  ): Set<string> {
-    const settledLineIds = new Set<string>();
-    const escrowAccountIdSet = new Set(escrowDepositAccountIds);
-    const depositById = new Map<string, DepositResponse>();
-
-    for (const deposit of deposits || []) {
-      const depositId = String(deposit.depositId || '').trim().toLowerCase();
-      if (depositId) {
-        depositById.set(depositId, deposit);
-      }
-    }
-
-    for (const line of openLines) {
-      const lineId = String(line.journalEntryLineId || '').trim();
-      const lineNet = this.getLineNetAmountFromSearchLine(line);
-      if (!lineId || Math.abs(lineNet) <= 0.005) {
-        continue;
-      }
-
-      const linkedLineIds = this.buildLinkedLineIdsForOpenLine(line, depositById);
-
-      for (const transfer of transfers || []) {
-        if (transfer.isActive === false) {
-          continue;
-        }
-
-        const transferAmount = Number(transfer.amount || 0);
-        if (Math.abs(transferAmount - lineNet) > 0.005) {
-          continue;
-        }
-
-        const bankAccountId = Number(transfer.bankAccountId || 0);
-        if (escrowAccountIdSet.size > 0 && bankAccountId > 0 && !escrowAccountIdSet.has(bankAccountId)) {
-          continue;
-        }
-
-        const splits = transfer.splits || [];
-        if (splits.length === 0) {
-          continue;
-        }
-
-        const splitTotal = splits.reduce(
-          (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
-          0
-        );
-        if (Math.abs(splitTotal - transferAmount) > 0.005) {
-          continue;
-        }
-
-        const splitLineIds = splits
-          .map(split => this.normalizeJournalEntryLineId(split.journalEntryLineId))
-          .filter(splitLineId => splitLineId.length > 0);
-        const hasLineLink = splitLineIds.some(splitLineId => linkedLineIds.has(splitLineId));
-        if (hasLineLink) {
-          settledLineIds.add(lineId);
-          break;
-        }
-
-        if (Number(line.sourceTypeId) === SourceType.Deposit) {
-          const depositId = String(line.sourceId || '').trim().toLowerCase();
-          const deposit = depositById.get(depositId);
-          if (deposit && this.transferOverlapsDeposit(transfer, deposit)) {
-            settledLineIds.add(lineId);
-            break;
-          }
-        }
-      }
-    }
-
-    return settledLineIds;
-  }
-
-  buildLinkedLineIdsForOpenLine(
-    line: JournalEntryLineSearchResponse,
-    depositById: Map<string, DepositResponse>
-  ): Set<string> {
-    const linkedLineIds = new Set<string>();
-    const lineId = this.normalizeJournalEntryLineId(line.journalEntryLineId);
-    if (lineId) {
-      linkedLineIds.add(lineId);
-    }
-
-    if (Number(line.sourceTypeId) === SourceType.Deposit) {
-      const depositId = String(line.sourceId || '').trim().toLowerCase();
-      const deposit = depositById.get(depositId);
-      for (const split of deposit?.splits || []) {
-        const splitLineId = this.normalizeJournalEntryLineId(split.journalEntryLineId);
-        if (splitLineId) {
-          linkedLineIds.add(splitLineId);
-        }
-      }
-    }
-
-    return linkedLineIds;
-  }
-
-  transferOverlapsDeposit(transfer: TransferResponse, deposit: DepositResponse): boolean {
-    const transferPropertyIds = new Set(
-      (transfer.splits || [])
-        .map(split => this.normalizeLineContextId(split.propertyId))
-        .filter(propertyId => propertyId.length > 0)
-    );
-    const depositPropertyIds = new Set(
-      (deposit.splits || [])
-        .map(split => this.normalizeLineContextId(split.propertyId))
-        .filter(propertyId => propertyId.length > 0)
-    );
-
-    if (transferPropertyIds.size === 0 || depositPropertyIds.size === 0) {
-      return false;
-    }
-
-    return [...transferPropertyIds].some(propertyId => depositPropertyIds.has(propertyId));
   }
   //#endregion
 
