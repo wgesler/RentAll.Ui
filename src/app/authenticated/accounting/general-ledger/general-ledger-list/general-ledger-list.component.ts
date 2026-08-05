@@ -2287,12 +2287,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           this.toastr.error(closedPeriodMessage, CommonMessage.Error);
           return;
         }
-        const apiMessage = error instanceof HttpErrorResponse
-          ? (typeof error.error === 'string'
-            ? error.error
-            : error.error?.title || error.error?.message || error.message)
-          : error.message;
-        this.toastr.error(apiMessage || 'Unable to create transfer.', CommonMessage.Error);
+        if (error instanceof HttpErrorResponse) {
+          return;
+        }
+        this.toastr.error(error.message || 'Unable to create transfer.', CommonMessage.Error);
       }
     });
   }
@@ -2445,16 +2443,36 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       }];
     }
 
+    const amountOnlyKey = this.buildTransferAllocationMatchKey(depositId, workItem.escrowAmount, null);
+    const amountOnlyMatch = allocationByKey.get(amountOnlyKey);
+    if (amountOnlyMatch) {
+      return [{
+        allocation: amountOnlyMatch,
+        depositSplit: workItem.depositSplit,
+        escrowAmount: workItem.escrowAmount
+      }];
+    }
+
+    const workAmount = this.roundCurrencyValue(workItem.escrowAmount);
+    const amountMatch = allocations.find(item =>
+      String(item.depositId || '').trim().toLowerCase() === depositId.toLowerCase()
+      && Math.abs(this.roundCurrencyValue(Number(item.escrowAmount || 0)) - workAmount) <= 0.005
+    );
+    if (amountMatch) {
+      return [{
+        allocation: amountMatch,
+        depositSplit: workItem.depositSplit,
+        escrowAmount: workItem.escrowAmount
+      }];
+    }
+
     const depositAllocations = allocations.filter(item =>
       String(item.depositId || '').trim().toLowerCase() === depositId.toLowerCase()
     );
     if (depositAllocations.length <= 1) {
-      return directMatch
-        ? [{ allocation: directMatch, depositSplit: workItem.depositSplit, escrowAmount: workItem.escrowAmount }]
-        : [];
+      return [];
     }
 
-    const workAmount = this.roundCurrencyValue(workItem.escrowAmount);
     const allocationTotal = this.roundCurrencyValue(
       depositAllocations.reduce((sum, item) => sum + Number(item.escrowAmount || 0), 0)
     );
@@ -2537,9 +2555,13 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
       const lineAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
       const depositAmount = deposit ? this.roundCurrencyValue(Number(deposit.amount || 0)) : 0;
+      const splitTotal = paymentSplits.length > 0
+        ? this.roundCurrencyValue(paymentSplits.reduce((sum, split) => sum + Math.abs(Number(split.amount || 0)), 0))
+        : 0;
       const shouldExpandToPaymentSplits = paymentSplits.length > 1 && (
         Number(line.sourceTypeId) === SourceType.Deposit
         || (depositAmount > 0 && Math.abs(lineAmount - depositAmount) <= 0.005)
+        || (splitTotal > 0 && Math.abs(lineAmount - splitTotal) <= 0.005)
       );
 
       if (shouldExpandToPaymentSplits) {
