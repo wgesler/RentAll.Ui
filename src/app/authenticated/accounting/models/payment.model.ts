@@ -68,6 +68,7 @@ export interface PaymentResponse {
   paymentId: string;
   organizationId: string;
   officeId: number;
+  paymentCode: string;
   officeName: string;
   paymentDate: string;
   amount: number;
@@ -90,6 +91,7 @@ export interface PaymentResponse {
 
 export interface PaymentDisplayList {
   paymentId: string;
+  paymentCode: string;
   officeId: number;
   officeName: string;
   paymentDate: string;

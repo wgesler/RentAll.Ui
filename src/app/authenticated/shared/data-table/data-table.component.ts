@@ -101,6 +101,8 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() invoiceActionColor: string = '#2E7D32';
   @Input() payableActionColor: string = '#4CAF50';
   @Input() infoActionColor: string = '#1E88E5';
+  @Input() infoTooltipClass: string = 'invoice-reservation-info-tooltip';
+  @Input() infoIconLarge: boolean = false;
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsQuote: boolean = false;
   @Input() hasActionsRestore: boolean = false;
@@ -600,6 +602,11 @@ markViewForCheck(): void {
       return 'No document available';
     }
     if (buttonName === 'info') {
+      const infoTooltip = String(item?.infoTooltip ?? '').trim();
+      if (infoTooltip) {
+        return infoTooltip;
+      }
+
       const notes = String(item?.notes ?? item?.agreementLineNotes ?? '').trim();
       return notes || 'No notes';
     }

@@ -12,7 +12,7 @@ import { AccountingOfficeService } from '../../../organizations/services/account
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferResponse } from '../../models/transfer.model';
+import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferResponse } from '../../models/transfer.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { TransferService } from '../../services/transfer.service';
 @Component({
@@ -150,7 +150,21 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
         if (this.transferReportLoadId !== loadId) {
           return;
         }
-        this.applyTransfer(transfer);
+        this.transferService.getTransferReportLineAllocations(transferId).pipe(take(1)).subscribe({
+          next: lineAllocations => {
+            if (this.transferReportLoadId !== loadId) {
+              return;
+            }
+            this.applyTransfer(transfer, lineAllocations);
+          },
+          error: (error: HttpErrorResponse) => {
+            if (this.transferReportLoadId !== loadId) {
+              return;
+            }
+            console.error('Transfer Report - error loading deposit allocations:', error);
+            this.applyTransfer(transfer, []);
+          }
+        });
       },
       error: (error: HttpErrorResponse) => {
         if (this.transferReportLoadId !== loadId) {
@@ -172,11 +186,13 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  applyTransfer(transfer: TransferResponse): void {
+  applyTransfer(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[] = []): void {
     this.currentTransfer = transfer;
     this.applyColumnHeaders(transfer);
     const accountIds = this.resolveAccountIds(transfer);
-    this.rowsDisplay = this.mappingService.mapTransferToFlatReportRows(transfer, accountIds);
+    this.rowsDisplay = lineAllocations.length > 0
+      ? this.mappingService.mapTransferToFlatReportRowsFromDepositAllocations(transfer, lineAllocations)
+      : this.mappingService.mapTransferToFlatReportRows(transfer, accountIds);
     this.isServiceError = false;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferReport');
     this.markViewForCheck();

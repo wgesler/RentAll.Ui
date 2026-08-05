@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { TransferRequest, TransferResponse, TransferSearchRequest } from '../models/transfer.model';
+import { TransferDepositAllocationRequest, TransferDepositAllocationResponse, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSearchRequest } from '../models/transfer.model';
 
 @Injectable({
   providedIn: 'root'
@@ -71,5 +71,22 @@ export class TransferService {
   postTransferReport(transferId: string): Observable<TransferResponse> {
     return this.http.post<TransferResponse>(`${this.controller}${transferId}/post-report`, {})
       .pipe(map(transfer => this.mappingService.mapTransferResponse(transfer)));
+  }
+
+  resolveTransferDepositAllocations(request: TransferDepositAllocationRequest): Observable<TransferDepositAllocationResponse[]> {
+    return this.http.post<TransferDepositAllocationResponse[]>(`${this.controller}deposit-allocation`, {
+      officeId: request.officeId,
+      items: (request.items || []).map(item => ({
+        depositId: item.depositId,
+        escrowAmount: Number(item.escrowAmount) || 0
+      }))
+    }).pipe(map(response => Array.isArray(response) ? response : []));
+  }
+
+  getTransferReportLineAllocations(transferId: string): Observable<TransferReportLineAllocationResponse[]> {
+    return this.http.get<TransferReportLineAllocationResponse[]>(`${this.controller}${transferId}/report-line-allocations`)
+      .pipe(map(response => (Array.isArray(response) ? response : []).map(item =>
+        this.mappingService.mapTransferReportLineAllocationFromApi(item as unknown as Record<string, unknown>)
+      )));
   }
 }

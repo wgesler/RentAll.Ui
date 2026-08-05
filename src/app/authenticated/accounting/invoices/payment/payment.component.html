@@ -30,6 +30,11 @@
 
             <div class="grid grid-cols-4 form-standard-grid payment-form-grid">
               <div class="col-span-4 payment-overall-row payment-overall-primary-row">
+                <mat-form-field appearance="outline" class="payment-overall-code-field">
+                  <mat-label>Payment Code</mat-label>
+                  <input matInput [value]="isAddMode ? '' : (payment?.paymentCode || '')" readonly disabled>
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="payment-overall-date-field">
                   <mat-label>Payment Date</mat-label>
                   <input matInput [matDatepicker]="paymentDatePicker" formControlName="paymentDate" required>

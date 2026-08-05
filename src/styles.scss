@@ -1465,6 +1465,11 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   white-space: pre-line;
   line-height: 1.35;
   max-width: 280px;
+  text-align: left;
+
+  .mdc-tooltip__surface {
+    text-align: left;
+  }
 }
 
 /* Reservation lives inside a slot wrapper on some shells; fill slot width when the slot shrinks. */

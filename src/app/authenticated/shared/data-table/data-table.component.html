@@ -192,6 +192,7 @@
                     @for (button of buttons; track button.name) {
                       @if (!(button.name === 'info' && item?.infoHidden === true)) {
                         <span [matTooltip]="getButtonTooltip(button.name, button.tooltip, item)"
+                          [matTooltipClass]="button.name === 'info' ? infoTooltipClass : ''"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"
                           [matTooltipDisabled]="false"
                           style="display: inline-flex;">
@@ -216,7 +217,7 @@
                                   <mat-icon class="datatable-transfer-icon-btn__icon">sync_alt</mat-icon>
                                 </span>
                               } @else {
-                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" [ngClass]="{'datatable-info-icon': button.name === 'info'}">
+                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" [ngClass]="{'datatable-info-icon': button.name === 'info', 'datatable-info-icon-lg': button.name === 'info' && infoIconLarge}">
                                   @if (button.name === 'info') {
                                     info
                                   } @else {

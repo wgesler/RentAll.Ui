@@ -51,6 +51,12 @@ export interface JournalEntryLineSearchResponse {
   sourceCode?: string | null;
   checkNumber?: string | null;
   journalEntryMemo?: string | null;
+  paymentId?: string | null;
+  paymentCode?: string | null;
+  depositId?: string | null;
+  depositCode?: string | null;
+  transferId?: string | null;
+  transferCode?: string | null;
   postingStatusId: number;
   journalEntryKindId?: number | null;
   perspectiveId?: number | null;
@@ -85,6 +91,12 @@ export interface JournalEntryRequest {
   sourceId?: string | null;
   sourceCode?: string | null;
   memo?: string | null;
+  paymentId?: string | null;
+  paymentCode?: string | null;
+  depositId?: string | null;
+  depositCode?: string | null;
+  transferId?: string | null;
+  transferCode?: string | null;
   postingStatusId: number;
   isCashOnly: boolean;
   journalEntryKindId?: number | null;
@@ -123,6 +135,12 @@ export interface JournalEntryResponse {
   sourceId?: string | null;
   sourceCode?: string | null;
   memo?: string | null;
+  paymentId?: string | null;
+  paymentCode?: string | null;
+  depositId?: string | null;
+  depositCode?: string | null;
+  transferId?: string | null;
+  transferCode?: string | null;
   postingStatusId: number;
   journalEntryKindId?: number | null;
   isCashOnly: boolean;
@@ -170,6 +188,12 @@ export function buildJournalEntryFromSearchLines(
     sourceTypeId: header.sourceTypeId ?? null,
     sourceId: header.sourceId ?? null,
     sourceCode: header.sourceCode ?? null,
+    paymentId: header.paymentId ?? null,
+    paymentCode: header.paymentCode ?? null,
+    depositId: header.depositId ?? null,
+    depositCode: header.depositCode ?? null,
+    transferId: header.transferId ?? null,
+    transferCode: header.transferCode ?? null,
     memo: header.journalEntryMemo ?? null,
     postingStatusId: header.postingStatusId,
     isCashOnly: false,
@@ -222,6 +246,8 @@ export interface GeneralLedgerEntryDisplay {
   deleteDisabled?: boolean;
   editDisabled?: boolean;
   selected?: boolean;
+  infoTooltip?: string;
+  infoHidden?: boolean;
   journalEntryLines: JournalEntryLineListDisplay[];
   transactionDateSortKey?: string;
   journalEntryCreatedOnSortKey?: string;
@@ -260,6 +286,12 @@ export interface JournalEntryLineListDisplay {
   journalEntryKindId?: number | null;
   perspectiveId?: number | null;
   perspective?: string;
+  depositId?: string | null;
+  paymentCode?: string | null;
+  depositCode?: string | null;
+  transferCode?: string | null;
+  infoTooltip?: string;
+  infoHidden?: boolean;
   isManual?: boolean;
   editDisabled?: boolean;
   deleteDisabled?: boolean;

@@ -106,6 +106,42 @@ export interface TransferSelection {
   transfer?: TransferResponse | null;
 }
 
+export interface TransferDepositAllocationItemRequest {
+  depositId: string;
+  escrowAmount: number;
+}
+
+export interface TransferDepositAllocationRequest {
+  officeId: number;
+  items: TransferDepositAllocationItemRequest[];
+}
+
+export interface TransferDepositAllocationResponse {
+  depositId: string;
+  ownerEscrow: number;
+  secDep: number;
+  sdw: number;
+  business: number;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  contactId?: string | null;
+  description: string;
+}
+
+export interface TransferReportLineAllocationResponse {
+  journalEntryLineId: string;
+  depositId: string;
+  escrowAmount: number;
+  ownerEscrow: number;
+  secDep: number;
+  sdw: number;
+  business: number;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  contactId?: string | null;
+  description: string;
+}
+
 export interface TransferFlatReportAccountIds {
   escrowDepositAccountId?: number | null;
   businessAccountId?: number | null;

@@ -30,7 +30,7 @@ import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../a
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
 import { getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
-import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
+import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -668,6 +668,12 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
       journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? JournalEntryKind.Manual),
       journalEntryMemo: String(raw['journalEntryMemo'] ?? raw['JournalEntryMemo'] ?? base.journalEntryMemo ?? '').trim() || null,
+      paymentId: String(raw['paymentId'] ?? raw['PaymentId'] ?? base.paymentId ?? '').trim() || null,
+      paymentCode: String(raw['paymentCode'] ?? raw['PaymentCode'] ?? base.paymentCode ?? '').trim() || null,
+      depositId: String(raw['depositId'] ?? raw['DepositId'] ?? base.depositId ?? '').trim() || null,
+      depositCode: String(raw['depositCode'] ?? raw['DepositCode'] ?? base.depositCode ?? '').trim() || null,
+      transferId: String(raw['transferId'] ?? raw['TransferId'] ?? base.transferId ?? '').trim() || null,
+      transferCode: String(raw['transferCode'] ?? raw['TransferCode'] ?? base.transferCode ?? '').trim() || null,
       perspectiveId: Number(raw['perspectiveId'] ?? raw['PerspectiveId'] ?? base.perspectiveId ?? 2),
       clearedOn: this.utility.coerceCalendarDateStringFromApi(raw['clearedOn'] ?? raw['ClearedOn'] ?? base.clearedOn) ?? base.clearedOn ?? null,
       journalEntryCreatedOn: String(raw['journalEntryCreatedOn'] ?? raw['JournalEntryCreatedOn'] ?? base.journalEntryCreatedOn),
@@ -715,6 +721,12 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
       journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? base.journalEntryKindId ?? JournalEntryKind.Manual),
       isCashOnly: rawIsCashOnly === true || rawIsCashOnly === 1 || rawIsCashOnly === '1',
+      paymentId: String(raw['paymentId'] ?? raw['PaymentId'] ?? base.paymentId ?? '').trim() || null,
+      paymentCode: String(raw['paymentCode'] ?? raw['PaymentCode'] ?? base.paymentCode ?? '').trim() || null,
+      depositId: String(raw['depositId'] ?? raw['DepositId'] ?? base.depositId ?? '').trim() || null,
+      depositCode: String(raw['depositCode'] ?? raw['DepositCode'] ?? base.depositCode ?? '').trim() || null,
+      transferId: String(raw['transferId'] ?? raw['TransferId'] ?? base.transferId ?? '').trim() || null,
+      transferCode: String(raw['transferCode'] ?? raw['TransferCode'] ?? base.transferCode ?? '').trim() || null,
       memo: String(raw['memo'] ?? raw['Memo'] ?? base.memo ?? ''),
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
     };
@@ -998,6 +1010,10 @@ resolveJournalEntryLineSourceDisplay(
       journalEntryKindId: Number(line.journalEntryKindId ?? 0),
       perspectiveId: Number(line.perspectiveId ?? 2),
       perspective: getPerspectiveLabel(line.perspectiveId),
+      depositId: line.depositId ?? null,
+      paymentCode: line.paymentCode ?? null,
+      depositCode: line.depositCode ?? null,
+      transferCode: line.transferCode ?? null,
       isManual: isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId),
       sortDateValue: Date.parse(line.journalEntryCreatedOn),
       transactionDateSortKey: rawTransactionDate,
@@ -3798,6 +3814,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       base.modifiedOn ??
       '';
     const paymentId = String(rawRecord['paymentId'] ?? rawRecord['PaymentId'] ?? base.paymentId ?? '').trim();
+    const paymentCode = String(rawRecord['paymentCode'] ?? rawRecord['PaymentCode'] ?? base.paymentCode ?? '').trim();
     const depositIdRaw = rawRecord['depositId'] ?? rawRecord['DepositId'] ?? base.depositId;
     const depositId = depositIdRaw == null || String(depositIdRaw).trim().length === 0
       ? null
@@ -3818,6 +3835,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     return {
       ...base,
       paymentId,
+      paymentCode,
       organizationId: String(rawRecord['organizationId'] ?? rawRecord['OrganizationId'] ?? base.organizationId ?? '').trim(),
       officeId: Number(rawRecord['officeId'] ?? rawRecord['OfficeId'] ?? base.officeId ?? 0) || 0,
       officeName: String(rawRecord['officeName'] ?? rawRecord['OfficeName'] ?? base.officeName ?? '').trim(),
@@ -3896,6 +3914,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
 
       return {
         paymentId: payment.paymentId,
+        paymentCode: (payment.paymentCode || '').trim(),
         officeId: payment.officeId,
         officeName: payment.officeName,
         paymentDate: this.formatter.formatDateString(payment.paymentDate),
@@ -4309,6 +4328,91 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
         outOfBalanceValue
       };
     });
+  }
+
+  mapTransferReportLineAllocationFromApi(raw: Record<string, unknown>): TransferReportLineAllocationResponse {
+    return {
+      journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim(),
+      depositId: String(raw['depositId'] ?? raw['DepositId'] ?? '').trim(),
+      escrowAmount: Number(raw['escrowAmount'] ?? raw['EscrowAmount'] ?? 0) || 0,
+      ownerEscrow: Number(raw['ownerEscrow'] ?? raw['OwnerEscrow'] ?? 0) || 0,
+      secDep: Number(raw['secDep'] ?? raw['SecDep'] ?? 0) || 0,
+      sdw: Number(raw['sdw'] ?? raw['Sdw'] ?? 0) || 0,
+      business: Number(raw['business'] ?? raw['Business'] ?? 0) || 0,
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim() || null,
+      reservationId: String(raw['reservationId'] ?? raw['ReservationId'] ?? '').trim() || null,
+      contactId: String(raw['contactId'] ?? raw['ContactId'] ?? '').trim() || null,
+      description: String(raw['description'] ?? raw['Description'] ?? '').trim()
+    };
+  }
+
+  mapTransferToFlatReportRowsFromDepositAllocations(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[]): TransferFlatReportRowDisplay[] {
+    const splits = this.mapTransferSplitsFromApi(transfer.splits);
+    const splitsByLineId = new Map<string, TransferSplit>();
+    splits.forEach(split => {
+      const lineId = (split.journalEntryLineId || '').trim();
+      if (lineId && !splitsByLineId.has(lineId)) {
+        splitsByLineId.set(lineId, split);
+      }
+    });
+
+    const transferDate = this.formatter.formatDateString(transfer.transferDate);
+    const dateRange = this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod) || transferDate;
+    const location = (transfer.officeName || '').trim();
+
+    return (lineAllocations || [])
+      .filter(allocation => {
+        const escrowDepositValue = this.roundCurrency(Number(allocation.escrowAmount) || 0);
+        const rowTotalValue = this.roundCurrency(
+          (Number(allocation.business) || 0)
+          + (Number(allocation.ownerEscrow) || 0)
+          + (Number(allocation.secDep) || 0)
+          + (Number(allocation.sdw) || 0)
+        );
+        return escrowDepositValue !== 0 || rowTotalValue !== 0;
+      })
+      .map(allocation => {
+        const lineId = (allocation.journalEntryLineId || '').trim();
+        const context = lineId ? splitsByLineId.get(lineId) : undefined;
+        const businessValue = this.roundCurrency(Number(allocation.business) || 0);
+        const ownerEscrowValue = this.roundCurrency(Number(allocation.ownerEscrow) || 0);
+        const secDepValue = this.roundCurrency(Number(allocation.secDep) || 0);
+        const sdwValue = this.roundCurrency(Number(allocation.sdw) || 0);
+        const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
+        const escrowDepositValue = this.roundCurrency(Number(allocation.escrowAmount) || rowTotalValue);
+        const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
+        const reservationCode = (context?.reservationCode || '').trim()
+          || (transfer.transferCode || '').trim();
+        const propertyCode = (context?.propertyCode || '').trim();
+        const contactName = (context?.contactName || '').trim();
+        const description = (allocation.description || context?.description || transfer.description || '').trim();
+
+        return {
+          transferDate,
+          type: 'Transfer',
+          propertyId: (allocation.propertyId || context?.propertyId || transfer.propertyId || '').trim() || null,
+          propertyCode,
+          reservationId: (allocation.reservationId || context?.reservationId || '').trim() || null,
+          reservationCode,
+          dateRange: description || dateRange,
+          escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
+          escrowDepositValue,
+          business: this.formatFlatReportAmount(businessValue),
+          businessValue,
+          ownerEscrow: this.formatFlatReportAmount(ownerEscrowValue),
+          ownerEscrowValue,
+          secDep: this.formatFlatReportAmount(secDepValue),
+          secDepValue,
+          sdw: this.formatFlatReportAmount(sdwValue),
+          sdwValue,
+          location,
+          contactName,
+          rowTotal: this.formatFlatReportAmount(rowTotalValue),
+          rowTotalValue,
+          outOfBalance: this.formatFlatReportAmount(outOfBalanceValue),
+          outOfBalanceValue
+        };
+      });
   }
 
 formatFlatReportAmount(value: number): string {

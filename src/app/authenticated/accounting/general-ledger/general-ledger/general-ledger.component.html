@@ -78,7 +78,7 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">
-              <mat-label>Posting Date</mat-label>
+              <mat-label>Accounting Period</mat-label>
               @if (canEditLines) {
                 <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
               } @else {
@@ -89,6 +89,27 @@
               }
               <mat-datepicker #accountingPeriodPicker></mat-datepicker>
             </mat-form-field>
+
+            @if (journalEntry?.paymentCode) {
+              <mat-form-field appearance="outline" class="general-ledger-field w-full">
+                <mat-label>Payment</mat-label>
+                <input matInput [value]="journalEntry?.paymentCode || ''" readonly disabled class="readonly-field">
+              </mat-form-field>
+            }
+
+            @if (journalEntry?.depositCode) {
+              <mat-form-field appearance="outline" class="general-ledger-field w-full">
+                <mat-label>Deposit</mat-label>
+                <input matInput [value]="journalEntry?.depositCode || ''" readonly disabled class="readonly-field">
+              </mat-form-field>
+            }
+
+            @if (journalEntry?.transferCode) {
+              <mat-form-field appearance="outline" class="general-ledger-field w-full">
+                <mat-label>Transfer</mat-label>
+                <input matInput [value]="journalEntry?.transferCode || ''" readonly disabled class="readonly-field">
+              </mat-form-field>
+            }
           </div>
 
           <mat-form-field
