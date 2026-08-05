@@ -2370,8 +2370,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   buildTransferSplitsFromDepositAllocations(selectedLines: JournalEntryLineListDisplay[], allocations: TransferDepositAllocationResponse[], officeId: number): TransferSplit[] {
     const accountIds = this.resolveTransferAllocationAccountIds(officeId);
-    const allocationByDepositId = new Map(
-      (allocations || []).map(item => [String(item.depositId || '').trim(), item])
+    const allocationByLineId = new Map(
+      (allocations || [])
+        .map(item => [String(item.journalEntryLineId || '').trim(), item] as const)
+        .filter(([lineId]) => lineId.length > 0)
     );
     const splits: TransferSplit[] = [];
     const processedLineIds = new Set<string>();
@@ -2388,7 +2390,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
       }
 
-      const allocation = allocationByDepositId.get(depositId);
+      const allocation = allocationByLineId.get(lineId);
       if (!allocation) {
         throw new Error('Unable to resolve deposit allocation for the selected line.');
       }
@@ -2405,40 +2407,29 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   }
 
   buildTransferDepositAllocationItems(selectedLines: JournalEntryLineListDisplay[]): TransferDepositAllocationItemRequest[] {
-    const amountsByDepositId = new Map<string, number>();
+    return selectedLines
+      .map(line => {
+        const lineId = String(line.journalEntryLineId || '').trim();
+        const depositId = this.resolveDepositIdFromLine(line);
+        if (!depositId) {
+          throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
+        }
+        if (!lineId) {
+          throw new Error('Each selected line must have a journal entry line id.');
+        }
 
-    for (const line of selectedLines) {
-      const depositId = this.resolveDepositIdFromLine(line);
-      if (!depositId) {
-        throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
-      }
+        const escrowAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
+        if (escrowAmount === 0) {
+          return null;
+        }
 
-      this.addTransferDepositEscrowAmount(
-        amountsByDepositId,
-        depositId,
-        this.getLineNetAmount(line)
-      );
-    }
-
-    return Array.from(amountsByDepositId.entries())
-      .map(([depositId, escrowAmount]) => ({ depositId, escrowAmount }));
-  }
-
-  addTransferDepositEscrowAmount(amountsByDepositId: Map<string, number>, depositId: string, amount: number): void {
-    const normalizedDepositId = (depositId || '').trim();
-    if (!normalizedDepositId) {
-      return;
-    }
-
-    const normalizedAmount = this.roundCurrencyValue(Number(amount) || 0);
-    if (normalizedAmount === 0) {
-      return;
-    }
-
-    amountsByDepositId.set(
-      normalizedDepositId,
-      this.roundCurrencyValue((amountsByDepositId.get(normalizedDepositId) || 0) + normalizedAmount)
-    );
+        return {
+          depositId,
+          journalEntryLineId: lineId,
+          escrowAmount
+        };
+      })
+      .filter((item): item is TransferDepositAllocationItemRequest => item != null);
   }
 
   resolveDepositIdFromLine(line: JournalEntryLineListDisplay): string {

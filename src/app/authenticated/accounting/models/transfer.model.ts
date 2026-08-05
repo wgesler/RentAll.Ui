@@ -108,6 +108,7 @@ export interface TransferSelection {
 
 export interface TransferDepositAllocationItemRequest {
   depositId: string;
+  journalEntryLineId: string;
   escrowAmount: number;
 }
 
@@ -118,6 +119,7 @@ export interface TransferDepositAllocationRequest {
 
 export interface TransferDepositAllocationResponse {
   depositId: string;
+  journalEntryLineId?: string | null;
   ownerEscrow: number;
   secDep: number;
   sdw: number;

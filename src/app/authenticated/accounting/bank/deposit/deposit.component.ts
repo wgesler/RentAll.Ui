@@ -75,6 +75,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   saveValidationHighlightActive = false;
   isSyncingInitialSplit = false;
 
+  private readonly currencyTolerance = 0.005;
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
@@ -178,14 +180,14 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
 
-    const amountValue = parseFloat(this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '')) || 0;
+    const amountValue = this.getDepositAmountValue();
     const payloadSplits = this.getPayloadSplitsFromForm();
     if (payloadSplits.length === 0) {
       this.showValidationErrorToast();
       return;
     }
-    const splitTotalAmount = payloadSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-    if (splitTotalAmount > amountValue) {
+    const splitTotalAmount = this.getDisplayedSplitTotal();
+    if (splitTotalAmount - amountValue > this.currencyTolerance) {
       this.splitTotalValidationError = true;
       this.showValidationErrorToast();
       return;
@@ -284,7 +286,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       depositDate: this.getDateControlValue(deposit.depositDate),
       accountingPeriod: this.getDateControlValue(deposit.accountingPeriod || deposit.depositDate),
       description: deposit.description || '',
-      amount: deposit.amount != null ? this.formatter.currency(deposit.amount) : '0.00',
+      amount: deposit.amount != null ? this.roundCurrency(deposit.amount).toFixed(2) : '0.00',
       bankAccountId: deposit.bankAccountId ?? 0,
       isActive: deposit.isActive
     });
@@ -454,7 +456,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   getPayloadSplitsFromForm(): DepositSplit[] {
     return this.splitsFormArray.controls.map(control => {
       const group = control as FormGroup;
-      const amount = parseFloat(this.sanitizeSignedDecimalInput(group.get('amount')?.value?.toString() ?? '')) || 0;
+      const amount = this.roundCurrency(parseFloat(this.sanitizeSignedDecimalInput(group.get('amount')?.value?.toString() ?? '')) || 0);
       return {
         depositSplitId: group.get('depositSplitId')?.value ?? null,
         amount,
@@ -521,11 +523,13 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   getDisplayedSplitTotal(): number {
-    return this.getPayloadSplitsFromForm().reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+    return this.roundCurrency(
+      this.getPayloadSplitsFromForm().reduce((sum, split) => sum + split.amount, 0)
+    );
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.getDisplayedSplitTotal() > this.getDepositAmountValue();
+    return this.getDisplayedSplitTotal() - this.getDepositAmountValue() > this.currencyTolerance;
   }
 
   getSplitAmountDisplay(index: number): string {
@@ -632,7 +636,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     const amount = Number(split?.amount);
     return this.fb.group({
       depositSplitId: new FormControl(split?.depositSplitId ?? null),
-      amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
+      amount: new FormControl(Number.isFinite(amount) ? this.roundCurrency(amount).toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required]),
       propertyId: new FormControl(split?.propertyId || null),
       reservationId: new FormControl(split?.reservationId || null),
@@ -728,7 +732,11 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
  
   getDepositAmountValue(): number {
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    return parseFloat(raw) || 0;
+    return this.roundCurrency(parseFloat(raw) || 0);
+  }
+
+  roundCurrency(value: number): number {
+    return Math.round((Number(value) || 0) * 100) / 100;
   }
 
   getAmountDisplay(): string {
