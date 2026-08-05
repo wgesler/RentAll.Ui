@@ -75,8 +75,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   saveValidationHighlightActive = false;
   isSyncingInitialSplit = false;
 
-  private readonly currencyTolerance = 0.005;
-
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
@@ -187,7 +185,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
     const splitTotalAmount = this.getDisplayedSplitTotal();
-    if (splitTotalAmount - amountValue > this.currencyTolerance) {
+    if (this.utilityService.isSplitTotalGreaterThanDocumentAmount(splitTotalAmount, amountValue)) {
       this.splitTotalValidationError = true;
       this.showValidationErrorToast();
       return;
@@ -523,13 +521,16 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   getDisplayedSplitTotal(): number {
-    return this.roundCurrency(
-      this.getPayloadSplitsFromForm().reduce((sum, split) => sum + split.amount, 0)
+    return this.utilityService.sumCurrencyAmounts(
+      this.getPayloadSplitsFromForm().map(split => split.amount)
     );
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.getDisplayedSplitTotal() - this.getDepositAmountValue() > this.currencyTolerance;
+    return this.utilityService.isSplitTotalGreaterThanDocumentAmount(
+      this.getDisplayedSplitTotal(),
+      this.getDepositAmountValue()
+    );
   }
 
   getSplitAmountDisplay(index: number): string {
@@ -732,11 +733,11 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
  
   getDepositAmountValue(): number {
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    return this.roundCurrency(parseFloat(raw) || 0);
+    return this.utilityService.roundCurrency(parseFloat(raw) || 0);
   }
 
   roundCurrency(value: number): number {
-    return Math.round((Number(value) || 0) * 100) / 100;
+    return this.utilityService.roundCurrency(value);
   }
 
   getAmountDisplay(): string {

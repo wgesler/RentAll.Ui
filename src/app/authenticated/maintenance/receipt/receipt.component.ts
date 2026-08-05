@@ -1784,11 +1784,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSplitTotalAmount(splits: Split[]): number {
-    return (splits || []).reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+    return this.utilityService.sumCurrencyAmounts((splits || []).map(split => split.amount));
   }
 
   isSplitTotalGreaterThanReceipt(splitTotal: number, receiptAmount: number): boolean {
-    return this.toCurrencyCents(splitTotal) > this.toCurrencyCents(receiptAmount);
+    return this.utilityService.isSplitTotalGreaterThanDocumentAmount(splitTotal, receiptAmount);
   }
  
   haveSplitsChanged(nextSplits: Split[], currentSplits: Split[]): boolean {
@@ -2536,13 +2536,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#region Utility Methods
   markViewForCheck(): void {
     this.cdr.markForCheck();
-  }
-  toCurrencyCents(value: unknown): number {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) {
-      return 0;
-    }
-    return Math.round((numeric + Number.EPSILON) * 100);
   }
 
   get isEmbeddedInShell(): boolean {

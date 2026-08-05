@@ -404,15 +404,16 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getDisplayedSplitTotal(): number {
-    return this.getPayloadAllocationsFromForm().reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
-  }
-
-  toCurrencyCents(value: number): number {
-    return Math.round((Number(value) || 0) * 100);
+    return this.utilityService.sumCurrencyAmounts(
+      this.getPayloadSplitsFromForm().map(split => split.amount)
+    );
   }
 
   isAllocationTotalOutOfBalance(): boolean {
-    return this.toCurrencyCents(this.getDisplayedSplitTotal()) !== this.toCurrencyCents(this.getPaymentAmountValue());
+    return !this.utilityService.areCurrencyAmountsEqual(
+      this.getDisplayedSplitTotal(),
+      this.getPaymentAmountValue()
+    );
   }
 
   onOverallDescriptionBlur(): void {
@@ -684,7 +685,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   getPaymentAmountValue(): number {
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    return parseFloat(raw) || 0;
+    return this.utilityService.roundCurrency(parseFloat(raw) || 0);
   }
 
   getAmountDisplay(): string {

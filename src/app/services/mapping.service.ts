@@ -3399,8 +3399,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => {
       const isUtility = receipt.isUtility === true;
       const splits = this.mapReceiptSplitsFromApi(receipt.splits, { isUtility });
-      const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-      const receiptAmount = Number(receipt.amount) || 0;
+      const splitTotalAmount = this.utility.sumCurrencyAmounts(splits.map(split => split.amount));
+      const receiptAmount = this.utility.roundCurrency(Number(receipt.amount) || 0);
       const distinctReceiptTypes = Array.from(
         new Set(
           splits
@@ -3421,7 +3421,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       const accountDisplay = distinctAccounts.join(', ');
       const isFirstSplitBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorDisplay = (receipt.vendorName || '').trim();
-      const isSplitAmountValid = splitTotalAmount <= receiptAmount;
+      const isSplitAmountValid = this.utility.isSplitTotalWithinDocumentAmount(splitTotalAmount, receiptAmount);
       const paidAmountValue = Number((receipt as ReceiptResponse & { paidAmount?: number }).paidAmount ?? 0) || 0;
       const dueAmountValue = Math.max(0, receiptAmount - paidAmountValue);
       const notes = String((receipt as ReceiptResponse & { notes?: string | null }).notes ?? receipt.agreementLineNotes ?? '').trim();
@@ -3632,8 +3632,8 @@ resolveDepositPropertyIds(
   mapDepositDisplays(deposits: DepositResponse[]): DepositDisplayList[] {
     return (deposits || []).map((deposit: DepositResponse): DepositDisplayList => {
       const splits = this.mapDepositSplitsFromApi(deposit.splits);
-      const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-      const depositAmount = Number(deposit.amount) || 0;
+      const splitTotalAmount = this.utility.sumCurrencyAmounts(splits.map(split => split.amount));
+      const depositAmount = this.utility.roundCurrency(Number(deposit.amount) || 0);
       const distinctAccounts = Array.from(
         new Set(
           splits
@@ -3665,7 +3665,7 @@ resolveDepositPropertyIds(
         bankAccountId: deposit.bankAccountId ?? null,
         bankAccountDisplay: (deposit.bankAccountDisplayName || '').trim(),
         accountDisplay: distinctAccounts.join(', '),
-        isSplitAmountValid: splitTotalAmount <= depositAmount,
+        isSplitAmountValid: this.utility.isSplitTotalWithinDocumentAmount(splitTotalAmount, depositAmount),
         isActive: deposit.isActive,
         createdBy: deposit.createdBy ?? deposit.createdByName ?? '',
         createdByName: deposit.createdByName ?? deposit.createdBy ?? '',
@@ -4150,8 +4150,8 @@ resolveTransferPropertyIds(
   mapTransferDisplays(transfers: TransferResponse[]): TransferDisplayList[] {
     return (transfers || []).map((transfer: TransferResponse): TransferDisplayList => {
       const splits = this.mapTransferSplitsFromApi(transfer.splits);
-      const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-      const transferAmount = Number(transfer.amount) || 0;
+      const splitTotalAmount = this.utility.sumCurrencyAmounts(splits.map(split => split.amount));
+      const transferAmount = this.utility.roundCurrency(Number(transfer.amount) || 0);
       const distinctAccounts = Array.from(
         new Set(
           splits
@@ -4183,7 +4183,7 @@ resolveTransferPropertyIds(
         bankAccountId: transfer.bankAccountId ?? null,
         bankAccountDisplay: (transfer.bankAccountDisplayName || '').trim(),
         accountDisplay: distinctAccounts.join(', '),
-        isSplitAmountValid: splitTotalAmount <= transferAmount,
+        isSplitAmountValid: this.utility.isSplitTotalWithinDocumentAmount(splitTotalAmount, transferAmount),
         hasBeenTransfered: transfer.hasBeenTransfered === true,
         isActive: transfer.isActive,
         createdBy: transfer.createdBy ?? transfer.createdByName ?? '',
@@ -4333,7 +4333,7 @@ formatFlatReportAmount(value: number): string {
   }
 
 roundCurrency(value: number): number {
-    return Math.round((Number(value) || 0) * 100) / 100;
+    return this.utility.roundCurrency(value);
   }
 
   mapTransferUpdateRequest(transfer: TransferResponse, isActive: boolean): TransferRequest {

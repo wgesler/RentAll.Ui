@@ -750,7 +750,8 @@ initializeWorkOrderPreview(): void {
       predicate: (candidate: { split: Split; index: number }) => boolean
     ): { split: Split; index: number } | null => availableSplits.find(predicate) ?? null;
 
-    const amountMatches = (value: number): boolean => Math.abs(this.roundCurrency(value) - this.roundCurrency(targetAmount)) < 0.005;
+    const amountMatches = (value: number): boolean =>
+      this.utilityService.areCurrencyAmountsEqual(value, targetAmount);
     const descriptionMatches = (value: string | undefined): boolean => (value || '').trim().toLowerCase() === targetDescription;
 
     const chosen =
@@ -797,7 +798,7 @@ initializeWorkOrderPreview(): void {
   }
 
   roundCurrency(value: number): number {
-    return Math.round((Number(value) || 0) * 100) / 100;
+    return this.utilityService.roundCurrency(value);
   }
 
   generateIncludedReceiptPagesHtml(): string {

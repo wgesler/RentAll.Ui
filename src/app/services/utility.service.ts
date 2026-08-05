@@ -407,6 +407,37 @@ export class UtilityService {
     const n = Number(normalized);
     return Number.isNaN(n) ? null : n;
   }
+
+  /** Half-cent tolerance for accumulated currency comparisons (matches API 0.005m). */
+  readonly currencyTolerance = 0.005;
+
+  roundCurrency(value: unknown): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    return Math.round((numeric + Number.EPSILON) * 100) / 100;
+  }
+
+  sumCurrencyAmounts(amounts: Iterable<unknown>): number {
+    let total = 0;
+    for (const amount of amounts) {
+      total += Number(amount) || 0;
+    }
+    return this.roundCurrency(total);
+  }
+
+  areCurrencyAmountsEqual(left: unknown, right: unknown): boolean {
+    return Math.abs(this.roundCurrency(left) - this.roundCurrency(right)) <= this.currencyTolerance;
+  }
+
+  isSplitTotalWithinDocumentAmount(splitTotal: unknown, documentAmount: unknown): boolean {
+    return this.roundCurrency(splitTotal) <= this.roundCurrency(documentAmount);
+  }
+
+  isSplitTotalGreaterThanDocumentAmount(splitTotal: unknown, documentAmount: unknown): boolean {
+    return this.roundCurrency(splitTotal) - this.roundCurrency(documentAmount) > this.currencyTolerance;
+  }
   //#endregion
 
   isAccountingPeriodClosedConflict(error: unknown): boolean {

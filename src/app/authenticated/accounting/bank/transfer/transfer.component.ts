@@ -178,14 +178,14 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       return;
     }
 
-    const amountValue = parseFloat(this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '')) || 0;
+    const amountValue = this.getTransferAmountValue();
     const payloadSplits = this.getPayloadSplitsFromForm();
     if (payloadSplits.length === 0) {
       this.showValidationErrorToast();
       return;
     }
-    const splitTotalAmount = payloadSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-    if (splitTotalAmount > amountValue) {
+    const splitTotalAmount = this.getDisplayedSplitTotal();
+    if (this.utilityService.isSplitTotalGreaterThanDocumentAmount(splitTotalAmount, amountValue)) {
       this.splitTotalValidationError = true;
       this.showValidationErrorToast();
       return;
@@ -528,11 +528,16 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   getDisplayedSplitTotal(): number {
-    return this.getPayloadSplitsFromForm().reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+    return this.utilityService.sumCurrencyAmounts(
+      this.getPayloadSplitsFromForm().map(split => split.amount)
+    );
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.getDisplayedSplitTotal() > this.getTransferAmountValue();
+    return this.utilityService.isSplitTotalGreaterThanDocumentAmount(
+      this.getDisplayedSplitTotal(),
+      this.getTransferAmountValue()
+    );
   }
 
   getSplitAmountDisplay(index: number): string {
@@ -736,7 +741,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
  
   getTransferAmountValue(): number {
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    return parseFloat(raw) || 0;
+    return this.utilityService.roundCurrency(parseFloat(raw) || 0);
   }
 
   getAmountDisplay(): string {
