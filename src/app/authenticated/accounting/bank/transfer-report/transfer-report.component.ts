@@ -44,6 +44,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   currentTransfer: TransferResponse | null = null;
+  currentLineAllocations: TransferReportLineAllocationResponse[] = [];
   transferReportLoadId = 0;
   displayedColumns: ColumnSet = {};
 
@@ -97,7 +98,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
         this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.accountingOffices = offices || [];
           if (this.currentTransfer) {
-            this.applyTransfer(this.currentTransfer);
+            this.refreshReportDisplay();
             return;
           }
           this.applyColumnHeaders();
@@ -113,7 +114,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
         this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
           this.chartOfAccounts = accounts || [];
           if (this.currentTransfer) {
-            this.applyTransfer(this.currentTransfer);
+            this.refreshReportDisplay();
             return;
           }
           this.applyColumnHeaders();
@@ -162,7 +163,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
               return;
             }
             console.error('Transfer Report - error loading deposit allocations:', error);
-            this.applyTransfer(transfer, []);
+            this.showTransferReportLoadError(error, 'Unable to load transfer report allocations');
           }
         });
       },
@@ -171,30 +172,45 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         console.error('Transfer Report - error loading transfer:', error);
-        this.isServiceError = true;
-        this.rowsDisplay = [];
-        const apiMessage = typeof error.error === 'string'
-          ? error.error
-          : error.error?.title || error.error?.message || error.message;
-        this.noActivityMessage = apiMessage
-          ? `Unable to load transfer report: ${apiMessage}`
-          : 'Unable to load transfer report.';
-        this.markViewForCheck();
+        this.showTransferReportLoadError(error, 'Unable to load transfer report');
       }
     });
   }
   //#endregion
 
   //#region Form Response Methods
-  applyTransfer(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[] = []): void {
+  applyTransfer(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[]): void {
     this.currentTransfer = transfer;
-    this.applyColumnHeaders(transfer);
-    const accountIds = this.resolveAccountIds(transfer);
-    this.rowsDisplay = lineAllocations.length > 0
-      ? this.mappingService.mapTransferToFlatReportRowsFromDepositAllocations(transfer, lineAllocations)
-      : this.mappingService.mapTransferToFlatReportRows(transfer, accountIds);
+    this.currentLineAllocations = lineAllocations;
     this.isServiceError = false;
+    this.refreshReportDisplay();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferReport');
+  }
+
+  refreshReportDisplay(): void {
+    if (!this.currentTransfer) {
+      return;
+    }
+
+    this.applyColumnHeaders(this.currentTransfer);
+    this.rowsDisplay = this.mappingService.mapTransferToFlatReportRowsFromDepositAllocations(
+      this.currentTransfer,
+      this.currentLineAllocations
+    );
+    this.markViewForCheck();
+  }
+
+  showTransferReportLoadError(error: HttpErrorResponse, prefix: string): void {
+    this.isServiceError = true;
+    this.currentTransfer = null;
+    this.currentLineAllocations = [];
+    this.rowsDisplay = [];
+    const apiMessage = typeof error.error === 'string'
+      ? error.error
+      : error.error?.title || error.error?.message || error.message;
+    this.noActivityMessage = apiMessage
+      ? `${prefix}: ${apiMessage}`
+      : `${prefix}.`;
     this.markViewForCheck();
   }
   

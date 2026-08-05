@@ -30,7 +30,7 @@ import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../a
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
 import { getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
-import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
+import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -4123,7 +4123,7 @@ resolveTransferPropertyIds(
     const chartOfAccountId = Number(record.chartOfAccountId ?? record['ChartOfAccountId'] ?? 0);
     return {
       transferSplitId: (record.transferSplitId ?? record['TransferSplitId'] ?? null) as number | null,
-      amount: Number(record.amount ?? record['Amount'] ?? 0) || 0,
+      amount: this.parseOptionalAmount(record.amount ?? record['Amount']) ?? 0,
       description: String(record.description ?? record['Description'] ?? '').trim(),
       propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
       propertyCode: String(record.propertyCode ?? record['PropertyCode'] ?? '').trim() || null,
@@ -4145,17 +4145,6 @@ resolveTransferPropertyIds(
 
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  resolveTransferFlatReportEscrowDepositValue(group: TransferSplit[], rowTotalValue: number): number {
-    for (const split of group) {
-      const sourceAmount = Number(split.sourceJournalEntryLineAmount);
-      if (Number.isFinite(sourceAmount) && sourceAmount !== 0) {
-        return this.roundCurrency(sourceAmount);
-      }
-    }
-
-    return rowTotalValue;
   }
 
   mapTransferDisplays(transfers: TransferResponse[]): TransferDisplayList[] {
@@ -4251,96 +4240,15 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
     return names.join(', ');
   }
 
-  mapTransferToFlatReportRows(transfer: TransferResponse, accountIds: TransferFlatReportAccountIds): TransferFlatReportRowDisplay[] {
-    const splits = this.mapTransferSplitsFromApi(transfer.splits).filter(split => Number(split.amount) !== 0);
-    if (splits.length === 0) {
-      return [];
-    }
-
-    const groups = new Map<string, TransferSplit[]>();
-    splits.forEach((split, index) => {
-      const lineId = (split.journalEntryLineId || '').trim();
-      const key = lineId || `split-${split.transferSplitId ?? index}`;
-      const group = groups.get(key) ?? [];
-      group.push(split);
-      groups.set(key, group);
-    });
-
-    const transferDate = this.formatter.formatDateString(transfer.transferDate);
-    const dateRange = this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod) || transferDate;
-    const location = (transfer.officeName || '').trim();
-
-    return Array.from(groups.values()).map(group => {
-      let businessValue = 0;
-      let ownerEscrowValue = 0;
-      let secDepValue = 0;
-      let sdwValue = 0;
-
-      group.forEach(split => {
-        const amount = Number(split.amount) || 0;
-        const accountId = Number(split.chartOfAccountId ?? 0);
-        if (accountId > 0 && accountId === Number(accountIds.businessAccountId ?? 0)) {
-          businessValue = this.roundCurrency(businessValue + amount);
-        } else if (accountId > 0 && accountId === Number(accountIds.ownersAccountId ?? 0)) {
-          ownerEscrowValue = this.roundCurrency(ownerEscrowValue + amount);
-        } else if (accountId > 0 && accountId === Number(accountIds.secDepAccountId ?? 0)) {
-          secDepValue = this.roundCurrency(secDepValue + amount);
-        } else if (accountId > 0 && accountId === Number(accountIds.sdwAccountId ?? 0)) {
-          sdwValue = this.roundCurrency(sdwValue + amount);
-        } else if (accountId > 0 && accountId === Number(accountIds.escrowDepositAccountId ?? 0)) {
-          // Escrow deposit is the source column; ignore destination mis-posts here.
-        } else {
-          businessValue = this.roundCurrency(businessValue + amount);
-        }
-      });
-
-      const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
-      const escrowDepositValue = this.resolveTransferFlatReportEscrowDepositValue(group, rowTotalValue);
-      const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
-      const context = group[0];
-      const reservationCode = (context.reservationCode || '').trim()
-        || (transfer.transferCode || '').trim();
-      const propertyCode = (context.propertyCode || '').trim();
-      const contactName = (context.contactName || '').trim();
-      const description = (context.description || transfer.description || '').trim();
-
-      return {
-        transferDate,
-        type: 'Transfer',
-        propertyId: (context.propertyId || transfer.propertyId || '').trim() || null,
-        propertyCode,
-        reservationId: (context.reservationId || '').trim() || null,
-        reservationCode,
-        dateRange: description || dateRange,
-        escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
-        escrowDepositValue,
-        business: this.formatFlatReportAmount(businessValue),
-        businessValue,
-        ownerEscrow: this.formatFlatReportAmount(ownerEscrowValue),
-        ownerEscrowValue,
-        secDep: this.formatFlatReportAmount(secDepValue),
-        secDepValue,
-        sdw: this.formatFlatReportAmount(sdwValue),
-        sdwValue,
-        location,
-        contactName,
-        rowTotal: this.formatFlatReportAmount(rowTotalValue),
-        rowTotalValue,
-        outOfBalance: this.formatFlatReportAmount(outOfBalanceValue),
-        outOfBalanceValue
-      };
-    });
-  }
-
   mapTransferReportLineAllocationFromApi(raw: Record<string, unknown>): TransferReportLineAllocationResponse {
     return {
       journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim(),
       depositId: String(raw['depositId'] ?? raw['DepositId'] ?? '').trim(),
-      escrowAmount: Number(raw['escrowAmount'] ?? raw['EscrowAmount'] ?? 0) || 0,
-      ownerEscrow: Number(raw['ownerEscrow'] ?? raw['OwnerEscrow'] ?? 0) || 0,
-      secDep: Number(raw['secDep'] ?? raw['SecDep'] ?? 0) || 0,
-      sdw: Number(raw['sdw'] ?? raw['Sdw'] ?? 0) || 0,
-      business: Number(raw['business'] ?? raw['Business'] ?? 0) || 0,
+      escrowAmount: this.parseOptionalAmount(raw['escrowAmount'] ?? raw['EscrowAmount']) ?? 0,
+      ownerEscrow: this.parseOptionalAmount(raw['ownerEscrow'] ?? raw['OwnerEscrow']) ?? 0,
+      secDep: this.parseOptionalAmount(raw['secDep'] ?? raw['SecDep']) ?? 0,
+      sdw: this.parseOptionalAmount(raw['sdw'] ?? raw['Sdw']) ?? 0,
+      business: this.parseOptionalAmount(raw['business'] ?? raw['Business']) ?? 0,
       propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim() || null,
       reservationId: String(raw['reservationId'] ?? raw['ReservationId'] ?? '').trim() || null,
       contactId: String(raw['contactId'] ?? raw['ContactId'] ?? '').trim() || null,
