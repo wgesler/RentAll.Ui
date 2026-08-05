@@ -472,7 +472,11 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   applyTransferDisplayMappings(): void {
     this.allTransfers = this.allTransfers.map(row => ({
       ...row,
-      propertyCode: this.formatPropertyCodes(row.propertyIds)
+      propertyCode: this.mappingService.buildTransferPropertyCodesDisplay(
+        row.propertyIds,
+        row.splits,
+        this.propertyCodeLookup
+      ) || this.formatPropertyCodes(row.propertyIds)
     }));
   }
 

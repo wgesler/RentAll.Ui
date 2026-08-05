@@ -2646,10 +2646,15 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const sdw = this.roundCurrencyValue(Number(allocation.sdw || 0));
     const business = this.roundCurrencyValue(Number(allocation.business || 0));
 
-    const propertyId = (depositSplit?.propertyId || allocation.propertyId || contextLine.propertyId || '').trim() || null;
-    const reservationId = (depositSplit?.reservationId || allocation.reservationId || contextLine.reservationId || '').trim() || null;
-    const contactId = (depositSplit?.contactId || allocation.contactId || contextLine.contactId || '').trim() || null;
-    const journalEntryLineId = (contextLine.journalEntryLineId || '').trim() || null;
+    const propertyId = (depositSplit?.propertyId || allocation.propertyId || '').trim() || null;
+    const reservationId = (depositSplit?.reservationId || allocation.reservationId || '').trim() || null;
+    const contactId = (depositSplit?.contactId || allocation.contactId || '').trim() || null;
+    const journalEntryLineId = (
+      depositSplit?.journalEntryLineId
+      || allocation.journalEntryLineId
+      || contextLine.journalEntryLineId
+      || ''
+    ).trim() || null;
     const source = (allocation.description || this.extractTransferSourceLabel(depositSplit?.description) || contextLine.source || contextLine.description || '').trim();
     const description = source ? `Transfer to Escrow Accounts - ${source}` : 'Transfer to Escrow Accounts';
 

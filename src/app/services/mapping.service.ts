@@ -4086,11 +4086,7 @@ resolveTransferPropertyIds(
     existing: string[] | undefined | null,
     headerPropertyId?: string | null
   ): string[] {
-    const normalizedExisting = this.normalizeTransferPropertyIds(existing);
-    if (normalizedExisting.length > 0) {
-      return normalizedExisting;
-    }
-    const propertyIds = new Set<string>();
+    const propertyIds = new Set<string>(this.normalizeTransferPropertyIds(existing));
     const normalizedHeaderPropertyId = (headerPropertyId || '').trim();
     if (normalizedHeaderPropertyId.length > 0) {
       propertyIds.add(normalizedHeaderPropertyId);
@@ -4203,8 +4199,31 @@ resolveTransferPropertyIds(
     return normalized;
   }
 
-buildTransferPropertyCodesDisplay(propertyIds: string[], splits: TransferSplit[]): string {
+buildTransferPropertyCodesDisplay(
+    propertyIds: string[],
+    splits: TransferSplit[],
+    propertyCodeLookup?: ReadonlyMap<string, string> | null
+  ): string {
     const codes = new Set<string>();
+    (splits || []).forEach(split => {
+      const directCode = (split.propertyCode || '').trim();
+      if (directCode.length > 0) {
+        codes.add(directCode);
+        return;
+      }
+
+      const propertyId = (split.propertyId || '').trim();
+      if (propertyId.length > 0 && propertyCodeLookup) {
+        const lookupCode = (propertyCodeLookup.get(propertyId) || '').trim();
+        if (lookupCode.length > 0) {
+          codes.add(lookupCode);
+        }
+      }
+    });
+    if (codes.size > 0) {
+      return Array.from(codes).join(', ');
+    }
+
     (propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0)
@@ -4213,6 +4232,14 @@ buildTransferPropertyCodesDisplay(propertyIds: string[], splits: TransferSplit[]
           .find(split => (split.propertyId || '').trim() === propertyId)?.propertyCode;
         if ((splitCode || '').trim().length > 0) {
           codes.add((splitCode || '').trim());
+          return;
+        }
+
+        if (propertyCodeLookup) {
+          const lookupCode = (propertyCodeLookup.get(propertyId) || '').trim();
+          if (lookupCode.length > 0) {
+            codes.add(lookupCode);
+          }
         }
       });
     return Array.from(codes).join(', ');
