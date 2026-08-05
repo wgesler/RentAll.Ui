@@ -86,6 +86,7 @@ export class TransferService {
       return {
         depositId: String(item.depositId ?? raw['DepositId'] ?? ''),
         journalEntryLineId: String(item.journalEntryLineId ?? raw['JournalEntryLineId'] ?? '').trim() || null,
+        escrowAmount: Number(item.escrowAmount ?? raw['EscrowAmount'] ?? 0),
         ownerEscrow: Number(item.ownerEscrow ?? raw['OwnerEscrow'] ?? 0),
         secDep: Number(item.secDep ?? raw['SecDep'] ?? 0),
         sdw: Number(item.sdw ?? raw['Sdw'] ?? 0),

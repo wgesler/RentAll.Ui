@@ -120,6 +120,7 @@ export interface TransferDepositAllocationRequest {
 export interface TransferDepositAllocationResponse {
   depositId: string;
   journalEntryLineId?: string | null;
+  escrowAmount: number;
   ownerEscrow: number;
   secDep: number;
   sdw: number;

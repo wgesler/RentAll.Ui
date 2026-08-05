@@ -127,6 +127,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   allLines: JournalEntryLineSearchResponse[] = [];
+  loadedDeposits: DepositResponse[] = [];
   transferDepositAllocations: TransferDepositAllocationResponse[] = [];
   linesDisplay: JournalEntryLineListDisplay[] = [];
   entriesDisplay: GeneralLedgerEntryDisplay[] = [];
@@ -433,6 +434,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
                 result.deposits,
                 result.transfers
               );
+              this.loadedDeposits = result.deposits || [];
               this.applyLoadedJournalEntryLines(refinedLines, loadId);
             },
             error: () => {
@@ -447,6 +449,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
                 [],
                 []
               );
+              this.loadedDeposits = [];
               this.applyLoadedJournalEntryLines(refinedLines, loadId);
             }
           });
@@ -2370,66 +2373,153 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   buildTransferSplitsFromDepositAllocations(selectedLines: JournalEntryLineListDisplay[], allocations: TransferDepositAllocationResponse[], officeId: number): TransferSplit[] {
     const accountIds = this.resolveTransferAllocationAccountIds(officeId);
-    const allocationByLineId = new Map(
-      (allocations || [])
-        .map(item => [String(item.journalEntryLineId || '').trim(), item] as const)
-        .filter(([lineId]) => lineId.length > 0)
+    const allocationByKey = new Map(
+      (allocations || []).map(item => [this.buildTransferAllocationMatchKey(item.depositId, item.escrowAmount, item.journalEntryLineId), item] as const)
     );
     const splits: TransferSplit[] = [];
-    const processedLineIds = new Set<string>();
+    const processedKeys = new Set<string>();
 
-    for (const line of selectedLines) {
-      const lineId = String(line.journalEntryLineId || '').trim();
-      if (!lineId || processedLineIds.has(lineId)) {
+    for (const workItem of this.buildTransferAllocationWorkItems(selectedLines)) {
+      const matchKey = this.buildTransferAllocationMatchKey(
+        this.resolveDepositIdFromLine(workItem.contextLine),
+        workItem.escrowAmount,
+        workItem.allocationJournalEntryLineId
+      );
+      const contextKey = `${String(workItem.contextLine.journalEntryLineId || '').trim()}|${matchKey}`;
+      if (!matchKey || processedKeys.has(contextKey)) {
         continue;
       }
-      processedLineIds.add(lineId);
+      processedKeys.add(contextKey);
 
-      const depositId = this.resolveDepositIdFromLine(line);
+      const depositId = this.resolveDepositIdFromLine(workItem.contextLine);
       if (!depositId) {
         throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
       }
 
-      const allocation = allocationByLineId.get(lineId);
+      const allocation = allocationByKey.get(matchKey);
       if (!allocation) {
         throw new Error('Unable to resolve deposit allocation for the selected line.');
       }
 
       splits.push(...this.buildTransferSplitsFromAllocation(
         allocation,
-        this.getLineNetAmount(line),
-        line,
-        accountIds
+        workItem.escrowAmount,
+        workItem.contextLine,
+        accountIds,
+        workItem.depositSplit
       ));
     }
 
     return splits;
   }
 
+  buildTransferAllocationMatchKey(depositId: string, escrowAmount: number, journalEntryLineId?: string | null): string {
+    const normalizedDepositId = String(depositId || '').trim().toLowerCase();
+    const normalizedLineId = String(journalEntryLineId || '').trim().toLowerCase();
+    const normalizedAmount = this.roundCurrencyValue(Number(escrowAmount || 0));
+    return normalizedLineId
+      ? `${normalizedDepositId}|${normalizedAmount}|${normalizedLineId}`
+      : `${normalizedDepositId}|${normalizedAmount}`;
+  }
+
   buildTransferDepositAllocationItems(selectedLines: JournalEntryLineListDisplay[]): TransferDepositAllocationItemRequest[] {
-    return selectedLines
-      .map(line => {
-        const lineId = String(line.journalEntryLineId || '').trim();
-        const depositId = this.resolveDepositIdFromLine(line);
+    return this.buildTransferAllocationWorkItems(selectedLines)
+      .map(workItem => {
+        const depositId = this.resolveDepositIdFromLine(workItem.contextLine);
         if (!depositId) {
           throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
         }
-        if (!lineId) {
-          throw new Error('Each selected line must have a journal entry line id.');
-        }
 
-        const escrowAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
+        const escrowAmount = this.roundCurrencyValue(workItem.escrowAmount);
         if (escrowAmount === 0) {
           return null;
         }
 
+        const allocationJournalEntryLineId = String(workItem.allocationJournalEntryLineId || '').trim();
+
         return {
           depositId,
-          journalEntryLineId: lineId,
+          journalEntryLineId: allocationJournalEntryLineId || null,
           escrowAmount
         };
       })
       .filter((item): item is TransferDepositAllocationItemRequest => item != null);
+  }
+
+  buildTransferAllocationWorkItems(selectedLines: JournalEntryLineListDisplay[]): Array<{
+    contextLine: JournalEntryLineListDisplay;
+    allocationJournalEntryLineId: string;
+    escrowAmount: number;
+    depositSplit?: DepositSplit;
+  }> {
+    const workItems: Array<{
+      contextLine: JournalEntryLineListDisplay;
+      allocationJournalEntryLineId: string;
+      escrowAmount: number;
+      depositSplit?: DepositSplit;
+    }> = [];
+
+    for (const line of selectedLines) {
+      const depositId = this.resolveDepositIdFromLine(line);
+      const deposit = depositId
+        ? this.loadedDeposits.find(item => String(item.depositId || '').trim().toLowerCase() === depositId.toLowerCase())
+        : undefined;
+      const paymentSplits = (deposit?.splits || []).filter(split =>
+        Math.abs(this.roundCurrencyValue(Number(split.amount || 0))) > 0.005);
+
+      const lineAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
+      const depositAmount = deposit ? this.roundCurrencyValue(Number(deposit.amount || 0)) : 0;
+      const shouldExpandToPaymentSplits = paymentSplits.length > 1 && (
+        Number(line.sourceTypeId) === SourceType.Deposit
+        || (depositAmount > 0 && Math.abs(lineAmount - depositAmount) <= 0.005)
+      );
+
+      if (shouldExpandToPaymentSplits) {
+        for (const split of paymentSplits) {
+          const escrowAmount = this.roundCurrencyValue(Number(split.amount || 0));
+          if (escrowAmount === 0) {
+            continue;
+          }
+
+          workItems.push({
+            contextLine: line,
+            allocationJournalEntryLineId: String(split.journalEntryLineId || '').trim(),
+            escrowAmount,
+            depositSplit: split
+          });
+        }
+        continue;
+      }
+
+      const allocationJournalEntryLineId = String(line.journalEntryLineId || '').trim();
+      const escrowAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
+      if (!allocationJournalEntryLineId || escrowAmount === 0) {
+        continue;
+      }
+
+      const matchingSplit = paymentSplits.find(split =>
+        Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - escrowAmount) <= 0.005
+        || String(split.journalEntryLineId || '').trim() === allocationJournalEntryLineId);
+
+      workItems.push({
+        contextLine: line,
+        allocationJournalEntryLineId: String(matchingSplit?.journalEntryLineId || allocationJournalEntryLineId).trim(),
+        escrowAmount: matchingSplit ? this.roundCurrencyValue(Number(matchingSplit.amount || 0)) : escrowAmount,
+        depositSplit: matchingSplit
+      });
+    }
+
+    return workItems;
+  }
+
+  extractTransferSourceLabel(description?: string | null): string {
+    const normalized = String(description || '').trim();
+    if (!normalized) {
+      return '';
+    }
+
+    const colonIndex = normalized.indexOf(':');
+    return colonIndex > 0 ? normalized.slice(0, colonIndex).trim() : normalized;
   }
 
   resolveDepositIdFromLine(line: JournalEntryLineListDisplay): string {
@@ -2470,7 +2560,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const reservationId = (depositSplit?.reservationId || allocation.reservationId || contextLine.reservationId || '').trim() || null;
     const contactId = (depositSplit?.contactId || allocation.contactId || contextLine.contactId || '').trim() || null;
     const journalEntryLineId = (contextLine.journalEntryLineId || '').trim() || null;
-    const source = (allocation.description || depositSplit?.description || contextLine.source || contextLine.description || '').trim();
+    const source = (allocation.description || this.extractTransferSourceLabel(depositSplit?.description) || contextLine.source || contextLine.description || '').trim();
     const description = source ? `Transfer to Escrow Accounts - ${source}` : 'Transfer to Escrow Accounts';
 
     const allocations: Array<{ amount: number; accountId: number | null }> = [
