@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
@@ -129,24 +129,16 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     if (!transferId) {
       this.rowsDisplay = [];
       this.isServiceError = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferReport');
-      this.markViewForCheck();
+      this.finishTransferReportLoad();
       return;
     }
 
     this.isServiceError = false;
+    this.rowsDisplay = [];
     const loadId = ++this.transferReportLoadId;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'transferReport');
 
-    this.transferService.getTransferById(transferId).pipe(
-      take(1),
-      finalize(() => {
-        if (this.transferReportLoadId === loadId) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferReport');
-        }
-        this.markViewForCheck();
-      })
-    ).subscribe({
+    this.transferService.getTransferById(transferId).pipe(take(1)).subscribe({
       next: transfer => {
         if (this.transferReportLoadId !== loadId) {
           return;
@@ -184,7 +176,12 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     this.currentLineAllocations = lineAllocations;
     this.isServiceError = false;
     this.refreshReportDisplay();
+    this.finishTransferReportLoad();
+  }
+
+  finishTransferReportLoad(): void {
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferReport');
+    this.markViewForCheck();
   }
 
   refreshReportDisplay(): void {
@@ -211,7 +208,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     this.noActivityMessage = apiMessage
       ? `${prefix}: ${apiMessage}`
       : `${prefix}.`;
-    this.markViewForCheck();
+    this.finishTransferReportLoad();
   }
   
   resolveAccountIds(transfer?: TransferResponse | null): TransferFlatReportAccountIds {
