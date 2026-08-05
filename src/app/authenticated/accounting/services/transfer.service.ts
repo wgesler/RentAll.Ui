@@ -81,18 +81,21 @@ export class TransferService {
         journalEntryLineId: (item.journalEntryLineId || '').trim() || null,
         escrowAmount: Number(item.escrowAmount)
       }))
-    }).pipe(map(response => (Array.isArray(response) ? response : []).map(item => ({
-      depositId: String(item.depositId ?? (item as Record<string, unknown>)['DepositId'] ?? ''),
-      journalEntryLineId: String(item.journalEntryLineId ?? (item as Record<string, unknown>)['JournalEntryLineId'] ?? '').trim() || null,
-      ownerEscrow: Number(item.ownerEscrow ?? (item as Record<string, unknown>)['OwnerEscrow'] ?? 0) || 0,
-      secDep: Number(item.secDep ?? (item as Record<string, unknown>)['SecDep'] ?? 0) || 0,
-      sdw: Number(item.sdw ?? (item as Record<string, unknown>)['Sdw'] ?? 0) || 0,
-      business: Number(item.business ?? (item as Record<string, unknown>)['Business'] ?? 0) || 0,
-      propertyId: (item.propertyId ?? (item as Record<string, unknown>)['PropertyId'] ?? null) as string | null,
-      reservationId: (item.reservationId ?? (item as Record<string, unknown>)['ReservationId'] ?? null) as string | null,
-      contactId: (item.contactId ?? (item as Record<string, unknown>)['ContactId'] ?? null) as string | null,
-      description: String(item.description ?? (item as Record<string, unknown>)['Description'] ?? '').trim()
-    }))));
+    }).pipe(map(response => (Array.isArray(response) ? response : []).map(item => {
+      const raw = item as unknown as Record<string, unknown>;
+      return {
+        depositId: String(item.depositId ?? raw['DepositId'] ?? ''),
+        journalEntryLineId: String(item.journalEntryLineId ?? raw['JournalEntryLineId'] ?? '').trim() || null,
+        ownerEscrow: Number(item.ownerEscrow ?? raw['OwnerEscrow'] ?? 0),
+        secDep: Number(item.secDep ?? raw['SecDep'] ?? 0),
+        sdw: Number(item.sdw ?? raw['Sdw'] ?? 0),
+        business: Number(item.business ?? raw['Business'] ?? 0),
+        propertyId: (item.propertyId ?? raw['PropertyId'] ?? null) as string | null,
+        reservationId: (item.reservationId ?? raw['ReservationId'] ?? null) as string | null,
+        contactId: (item.contactId ?? raw['ContactId'] ?? null) as string | null,
+        description: String(item.description ?? raw['Description'] ?? '').trim()
+      } satisfies TransferDepositAllocationResponse;
+    })));
   }
 
   getTransferReportLineAllocations(transferId: string): Observable<TransferReportLineAllocationResponse[]> {
