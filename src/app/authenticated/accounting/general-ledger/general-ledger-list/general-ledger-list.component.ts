@@ -2380,37 +2380,105 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const processedKeys = new Set<string>();
 
     for (const workItem of this.buildTransferAllocationWorkItems(selectedLines)) {
-      const matchKey = this.buildTransferAllocationMatchKey(
-        this.resolveDepositIdFromLine(workItem.contextLine),
-        workItem.escrowAmount,
-        workItem.allocationJournalEntryLineId
-      );
-      const contextKey = `${String(workItem.contextLine.journalEntryLineId || '').trim()}|${matchKey}`;
-      if (!matchKey || processedKeys.has(contextKey)) {
-        continue;
-      }
-      processedKeys.add(contextKey);
-
       const depositId = this.resolveDepositIdFromLine(workItem.contextLine);
       if (!depositId) {
         throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
       }
 
-      const allocation = allocationByKey.get(matchKey);
-      if (!allocation) {
+      const resolvedAllocations = this.resolveTransferDepositAllocationsForWorkItem(
+        workItem,
+        depositId,
+        allocationByKey,
+        allocations || []
+      );
+      if (resolvedAllocations.length === 0) {
         throw new Error('Unable to resolve deposit allocation for the selected line.');
       }
 
-      splits.push(...this.buildTransferSplitsFromAllocation(
-        allocation,
-        workItem.escrowAmount,
-        workItem.contextLine,
-        accountIds,
-        workItem.depositSplit
-      ));
+      for (const resolved of resolvedAllocations) {
+        const matchKey = this.buildTransferAllocationMatchKey(
+          depositId,
+          resolved.escrowAmount,
+          resolved.allocation.journalEntryLineId
+        );
+        const contextKey = `${String(workItem.contextLine.journalEntryLineId || '').trim()}|${matchKey}`;
+        if (!matchKey || processedKeys.has(contextKey)) {
+          continue;
+        }
+        processedKeys.add(contextKey);
+
+        splits.push(...this.buildTransferSplitsFromAllocation(
+          resolved.allocation,
+          resolved.escrowAmount,
+          workItem.contextLine,
+          accountIds,
+          resolved.depositSplit
+        ));
+      }
     }
 
     return splits;
+  }
+
+  resolveTransferDepositAllocationsForWorkItem(
+    workItem: {
+      contextLine: JournalEntryLineListDisplay;
+      allocationJournalEntryLineId: string;
+      escrowAmount: number;
+      depositSplit?: DepositSplit;
+    },
+    depositId: string,
+    allocationByKey: Map<string, TransferDepositAllocationResponse>,
+    allocations: TransferDepositAllocationResponse[]
+  ): Array<{ allocation: TransferDepositAllocationResponse; depositSplit?: DepositSplit; escrowAmount: number }> {
+    const matchKey = this.buildTransferAllocationMatchKey(
+      depositId,
+      workItem.escrowAmount,
+      workItem.allocationJournalEntryLineId
+    );
+    const directMatch = allocationByKey.get(matchKey);
+    if (directMatch) {
+      return [{
+        allocation: directMatch,
+        depositSplit: workItem.depositSplit,
+        escrowAmount: workItem.escrowAmount
+      }];
+    }
+
+    const depositAllocations = allocations.filter(item =>
+      String(item.depositId || '').trim().toLowerCase() === depositId.toLowerCase()
+    );
+    if (depositAllocations.length <= 1) {
+      return directMatch
+        ? [{ allocation: directMatch, depositSplit: workItem.depositSplit, escrowAmount: workItem.escrowAmount }]
+        : [];
+    }
+
+    const workAmount = this.roundCurrencyValue(workItem.escrowAmount);
+    const allocationTotal = this.roundCurrencyValue(
+      depositAllocations.reduce((sum, item) => sum + Number(item.escrowAmount || 0), 0)
+    );
+    if (Math.abs(workAmount - allocationTotal) > 0.005) {
+      return [];
+    }
+
+    const deposit = this.loadedDeposits.find(item =>
+      String(item.depositId || '').trim().toLowerCase() === depositId.toLowerCase()
+    );
+
+    return depositAllocations.map(allocation => {
+      const escrowAmount = this.roundCurrencyValue(Number(allocation.escrowAmount || 0));
+      const depositSplit = (deposit?.splits || []).find(split =>
+        Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - escrowAmount) <= 0.005
+        || String(split.journalEntryLineId || '').trim() === String(allocation.journalEntryLineId || '').trim()
+      );
+
+      return {
+        allocation,
+        depositSplit,
+        escrowAmount
+      };
+    });
   }
 
   buildTransferAllocationMatchKey(depositId: string, escrowAmount: number, journalEntryLineId?: string | null): string {
