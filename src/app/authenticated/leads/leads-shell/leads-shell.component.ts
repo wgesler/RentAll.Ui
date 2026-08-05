@@ -472,10 +472,8 @@ clearOfficeTitleBarErrorIfValid(): void {
             if (this.offices.length === 1) {
               this.applyPageOfficeScope(this.offices[0].officeId);
             } else {
-              this.applyOfficeFromGlobal(this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue());
+              this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
             }
-          } else if (this.selectedOfficeId != null) {
-            this.applyPageOfficeScope(this.selectedOfficeId);
           }
           this.cdr.markForCheck();
         });

@@ -569,10 +569,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const invoiceId = paramMap.get('id');
+      const hadDetailRoute = !!this.activeInvoiceId;
       this.activeInvoiceId = invoiceId;
       this.hydrateSelectedInvoiceForActiveId();
       if (invoiceId && this.selectedTabIndex !== 0) {
         this.selectedTabIndex = 0;
+      }
+      if (!invoiceId && hadDetailRoute && !this.dateRangePinned) {
+        this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+        this.cdr.markForCheck();
       }
     });
 

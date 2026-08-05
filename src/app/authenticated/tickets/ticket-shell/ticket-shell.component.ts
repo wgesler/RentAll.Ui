@@ -118,9 +118,14 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
+      const hadDetailRoute = this.showTicketForm;
       this.showTicketForm = !!id;
       this.currentTicketId = id;
       this.selectedTabIndex = this.lastListTabIndex;
+      if (!id && hadDetailRoute) {
+        this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+        this.cdr.markForCheck();
+      }
     });
 
     this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(event => {
@@ -364,12 +369,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
             if (this.offices.length === 1) {
               this.applyPageOfficeScope(this.offices[0].officeId);
             } else {
-              this.applyOfficeFromGlobal(
-                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
-              );
+              this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
             }
-          } else if (this.selectedOfficeId != null) {
-            this.applyPageOfficeScope(this.selectedOfficeId);
           }
           this.syncFiltersToList();
           this.cdr.markForCheck();

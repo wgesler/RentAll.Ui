@@ -279,8 +279,12 @@ persistPinnedTopBarIfActive(): void {
           this.offices = offices || [];
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            this.applyOfficeFromGlobal(this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue());
-          } else if (this.selectedOfficeId != null) {
+            if (this.dateRangePinned) {
+              this.applyPageOfficeScope(this.selectedOfficeId);
+            } else {
+              this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+            }
+          } else if (this.dateRangePinned && this.selectedOfficeId != null) {
             this.applyPageOfficeScope(this.selectedOfficeId);
           } else {
             this.showOfficeDropdown = this.offices.length > 1;

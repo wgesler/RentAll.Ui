@@ -76,6 +76,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
 
   organizationId = '';
   destroy$ = new Subject<void>();
+  private initialOfficeScopeApplied = false;
 
   constructor() {
     // Before child lists bind @Input date range — ngOnInit is too late (first search can omit dates).
@@ -278,7 +279,18 @@ persistPinnedTopBarIfActive(): void {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          this.applyShellOfficeScope();
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.dateRangePinned) {
+              this.applyShellOfficeScope();
+            } else {
+              this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+            }
+          } else if (this.dateRangePinned) {
+            this.applyShellOfficeScope();
+          } else {
+            this.showOfficeDropdown = this.offices.length > 1;
+          }
           this.refreshPropertyOptions();
           this.refreshReservationOptions();
         });
