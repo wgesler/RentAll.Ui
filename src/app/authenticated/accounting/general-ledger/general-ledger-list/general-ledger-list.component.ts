@@ -2121,6 +2121,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           return;
         }
         if (error instanceof HttpErrorResponse) {
+          const apiMessage = typeof error.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message;
+          this.toastr.error(apiMessage || 'Unable to create transfer.', CommonMessage.Error);
           return;
         }
         this.toastr.error(error.message || 'Unable to create transfer.', CommonMessage.Error);
