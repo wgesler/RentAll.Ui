@@ -124,27 +124,17 @@ interface AccountingShellPinnedTopBarState {
   asOfDate?: string;
   /** @deprecated Legacy pinned state; migrated to startDate/endDate on load. */
   asOfStart?: string;
-  selectedTabIndex?: number;
+}
+
+interface AccountingShellNavigationState {
+  selectedTabIndex: number;
   selectedInvoiceKind?: AccountingShellInvoiceKind;
   selectedBillsReceiptKind?: AccountingShellBillsReceiptKind;
   selectedBankActivityKind?: AccountingShellBankActivityKind;
   selectedOwnerKind?: AccountingShellOwnerKind;
   selectedReportKind?: AccountingShellReportKind;
   selectedGeneralLedgerKind?: AccountingShellGeneralLedgerKind;
-  organizationId?: string | null;
-  officeId?: number | null;
-  companyId?: string | null;
-  reservationId?: string | null;
-  billsPropertyId?: string | null;
-  chartOfAccountId?: number | null;
-  financialReportClass?: Class;
-  arAgingDatePreset?: ArAgingDatePreset;
-  arAgingIntervalDays?: number;
-  arAgingThroughValue?: number;
-  arAgingSortBy?: ArAgingSortBy;
-  apAgingSortBy?: ApAgingSortBy;
-  glPropertyId?: string | null;
-  glReservationId?: string | null;
+  selectedOwnerStatementReportKind?: OwnerStatementReportKind;
 }
 
 @Component({
@@ -239,6 +229,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private skipNextDropdownTabMenuOpen = false;
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
+  private readonly shellNavigationStorageKeyPrefix = 'rentall-accounting-shell-navigation';
   readonly tabInvoices = 0;
   readonly tabBillsReceipts = 1;
   readonly tabBankActivities = 2;
@@ -499,21 +490,21 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.userId = this.authService.getUser()?.userId || '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.applyPinnedDateRangeFromStorage();
+    if (!this.hasExplicitShellNavigationParams(this.route.snapshot.queryParams)) {
+      this.applyShellNavigationFromStorage();
+    }
     this.loadChartOfAccounts();
     this.loadPropertyCodes();
     this.loadReservationCodes();
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
       this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
-        topBarPinned: this.dateRangePinned,
+        topBarPinned: false,
         pageOfficeId: this.selectedOfficeId,
         offices: this.offices
       });
       this.loadOffices();
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-        if (this.dateRangePinned) {
-          return;
-        }
         this.applyOfficeFromGlobal(officeId);
         this.syncBillsSearchRequest();
         if (this.selectedTabIndex === this.tabBillsReceipts) {
@@ -575,7 +566,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (invoiceId && this.selectedTabIndex !== 0) {
         this.selectedTabIndex = 0;
       }
-      if (!invoiceId && hadDetailRoute && !this.dateRangePinned) {
+      if (!invoiceId && hadDetailRoute) {
         this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
         this.cdr.markForCheck();
       }
@@ -627,9 +618,6 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   onInvoiceOfficeChange(officeId: number | null): void {
-    if (this.dateRangePinned) {
-      return;
-    }
     if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
       this.selectedCompanyId = null;
@@ -2705,6 +2693,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
         queryParams: this.buildShellQueryParams({ billsReceipt: kind }),
         queryParamsHandling: 'merge'
       });
+      this.persistPinnedTopBarIfActive();
       return;
     }
 
@@ -3087,6 +3076,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       queryParams: this.buildShellQueryParams({ ownerReport: kind }),
       queryParamsHandling: 'merge'
     });
+    this.persistPinnedTopBarIfActive();
   }
 
   onOwnerReportGoClick(): void {
@@ -3738,65 +3728,7 @@ persistPinnedTopBarIfActive(): void {
     if (this.dateRangePinned) {
       this.persistPinnedDateRange();
     }
-  }
-
-applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
-    this.selectedTabIndex = stored.selectedTabIndex ?? this.selectedTabIndex;
-    if (stored.selectedInvoiceKind && stored.selectedInvoiceKind !== 'payments') {
-      this.selectedInvoiceKind = stored.selectedInvoiceKind;
-      if (stored.selectedInvoiceKind === 'preBillingReport') {
-        this.ensurePreBillingMonthDefault();
-        this.syncPreBillingOfficeIds();
-      }
-      if (stored.selectedInvoiceKind === 'missingInvoiceReport') {
-        this.syncMissingInvoiceOfficeIds();
-      }
-    }
-    if (stored.selectedBillsReceiptKind) {
-      this.selectedBillsReceiptKind = stored.selectedBillsReceiptKind;
-    }
-    if (stored.selectedBankActivityKind) {
-      this.selectedBankActivityKind = stored.selectedBankActivityKind;
-    }
-    if ((stored.selectedOwnerKind as string | undefined) === 'securityDeposits') {
-      this.selectedTabIndex = this.tabBankActivities;
-      this.selectedBankActivityKind = 'securityDeposits';
-    } else if (stored.selectedOwnerKind) {
-      this.selectedOwnerKind = stored.selectedOwnerKind;
-    }
-    if (stored.selectedReportKind) {
-      this.selectedReportKind = stored.selectedReportKind;
-    }
-    if (stored.selectedGeneralLedgerKind) {
-      this.selectedGeneralLedgerKind = stored.selectedGeneralLedgerKind;
-    }
-    this.selectedOrganizationId = stored.organizationId ?? null;
-    this.selectedOfficeId = stored.officeId ?? null;
-    this.selectedCompanyId = stored.companyId ?? null;
-    this.selectedReservationId = stored.reservationId ?? null;
-    this.selectedBillsPropertyId = stored.billsPropertyId ?? null;
-    this.selectedChartOfAccountId = stored.chartOfAccountId ?? null;
-    if (stored.financialReportClass != null) {
-      this.selectedFinancialReportClass = stored.financialReportClass;
-    }
-    if (stored.arAgingDatePreset) {
-      this.selectedArAgingDatePreset = stored.arAgingDatePreset;
-    }
-    if (stored.arAgingIntervalDays != null) {
-      this.selectedArAgingIntervalDays = stored.arAgingIntervalDays;
-    }
-    if (stored.arAgingThroughValue != null) {
-      this.selectedArAgingThroughValue = stored.arAgingThroughValue;
-    }
-    if (stored.arAgingSortBy) {
-      this.selectedArAgingSortBy = stored.arAgingSortBy;
-    }
-    if (stored.apAgingSortBy) {
-      this.selectedApAgingSortBy = stored.apAgingSortBy;
-    }
-    this.selectedGlPropertyId = stored.glPropertyId ?? null;
-    this.selectedGlReservationId = stored.glReservationId ?? null;
-    this.syncArAgingReportFilters();
+    this.persistShellNavigationState();
   }
 
   toggleDateRangePin(): void {
@@ -3850,7 +3782,6 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
         }
       }
 
-      this.applyPinnedTopBarFields(stored!);
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
       this.syncArAgingReportFilters();
@@ -3884,28 +3815,7 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
     const snapshot: AccountingShellPinnedTopBarState = {
       enabled: true,
       startDate: startDate ?? '',
-      endDate: endDate ?? '',
-      selectedTabIndex: this.selectedTabIndex,
-      selectedInvoiceKind: this.selectedInvoiceKind,
-      selectedBillsReceiptKind: this.selectedBillsReceiptKind,
-      selectedBankActivityKind: this.selectedBankActivityKind,
-      selectedOwnerKind: this.selectedOwnerKind,
-      selectedReportKind: this.selectedReportKind,
-      selectedGeneralLedgerKind: this.selectedGeneralLedgerKind,
-      organizationId: this.selectedOrganizationId,
-      officeId: this.selectedOfficeId,
-      companyId: this.selectedCompanyId,
-      reservationId: this.selectedReservationId,
-      billsPropertyId: this.selectedBillsPropertyId,
-      chartOfAccountId: this.selectedChartOfAccountId,
-      financialReportClass: this.selectedFinancialReportClass,
-      arAgingDatePreset: this.selectedArAgingDatePreset,
-      arAgingIntervalDays: this.selectedArAgingIntervalDays,
-      arAgingThroughValue: this.selectedArAgingThroughValue,
-      arAgingSortBy: this.selectedArAgingSortBy,
-      apAgingSortBy: this.selectedApAgingSortBy,
-      glPropertyId: this.selectedGlPropertyId,
-      glReservationId: this.selectedGlReservationId
+      endDate: endDate ?? ''
     };
 
     localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify(snapshot));
@@ -3934,8 +3844,6 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
         return null;
       }
 
-      const officeId = parsed.officeId == null || parsed.officeId === undefined ? null : Number(parsed.officeId);
-      const chartOfAccountId = parsed.chartOfAccountId == null || parsed.chartOfAccountId === undefined ? null : Number(parsed.chartOfAccountId);
       const startDate = parsed.startDate
         ? String(parsed.startDate)
         : (parsed.asOfStart ? String(parsed.asOfStart) : '');
@@ -3949,28 +3857,7 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
       return {
         enabled: true,
         startDate,
-        endDate,
-        selectedTabIndex: Number.isFinite(Number(parsed.selectedTabIndex)) ? Number(parsed.selectedTabIndex) : 0,
-        selectedInvoiceKind: parsed.selectedInvoiceKind,
-        selectedBillsReceiptKind: parsed.selectedBillsReceiptKind,
-        selectedBankActivityKind: parsed.selectedBankActivityKind,
-        selectedOwnerKind: parsed.selectedOwnerKind,
-        selectedReportKind: parsed.selectedReportKind,
-        selectedGeneralLedgerKind: parsed.selectedGeneralLedgerKind,
-        organizationId: parsed.organizationId == null || parsed.organizationId === '' ? null : String(parsed.organizationId),
-        officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null,
-        companyId: parsed.companyId == null || parsed.companyId === '' ? null : String(parsed.companyId),
-        reservationId: parsed.reservationId == null || parsed.reservationId === '' ? null : String(parsed.reservationId),
-        billsPropertyId: parsed.billsPropertyId == null || parsed.billsPropertyId === '' ? null : String(parsed.billsPropertyId),
-        chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
-        financialReportClass: parsed.financialReportClass,
-        arAgingDatePreset: parsed.arAgingDatePreset,
-        arAgingIntervalDays: parsed.arAgingIntervalDays,
-        arAgingThroughValue: parsed.arAgingThroughValue,
-        arAgingSortBy: parsed.arAgingSortBy,
-        apAgingSortBy: parsed.apAgingSortBy,
-        glPropertyId: parsed.glPropertyId == null || parsed.glPropertyId === '' ? null : String(parsed.glPropertyId),
-        glReservationId: parsed.glReservationId == null || parsed.glReservationId === '' ? null : String(parsed.glReservationId)
+        endDate
       };
     } catch {
       return null;
@@ -3987,6 +3874,144 @@ applyPinnedTopBarFields(stored: AccountingShellPinnedTopBarState): void {
   getPinnedDateRangeStorageKey(): string {
     const userKey = this.userId?.trim() || 'anonymous';
     return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
+  }
+
+  hasExplicitShellNavigationParams(params: Record<string, unknown>): boolean {
+    return 'tab' in params
+      || 'invoiceKind' in params
+      || 'billsReceipt' in params
+      || 'bankActivity' in params
+      || 'ownerKind' in params
+      || 'ownerReport' in params
+      || 'report' in params
+      || 'glView' in params;
+  }
+
+  persistShellNavigationState(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    const snapshot: AccountingShellNavigationState = {
+      selectedTabIndex: this.selectedTabIndex,
+      selectedInvoiceKind: this.selectedInvoiceKind,
+      selectedBillsReceiptKind: this.selectedBillsReceiptKind,
+      selectedBankActivityKind: this.selectedBankActivityKind,
+      selectedOwnerKind: this.selectedOwnerKind,
+      selectedReportKind: this.selectedReportKind,
+      selectedGeneralLedgerKind: this.selectedGeneralLedgerKind,
+      selectedOwnerStatementReportKind: this.selectedOwnerStatementReportKind
+    };
+
+    localStorage.setItem(this.getShellNavigationStorageKey(), JSON.stringify(snapshot));
+  }
+
+  applyShellNavigationFromStorage(): void {
+    const stored = this.readShellNavigationFromStorage();
+    if (!stored) {
+      return;
+    }
+
+    if (Number.isFinite(stored.selectedTabIndex)) {
+      this.selectedTabIndex = Math.min(Math.max(stored.selectedTabIndex, 0), this.tabMaxIndex);
+    }
+
+    if (stored.selectedInvoiceKind && stored.selectedInvoiceKind !== 'payments') {
+      this.selectedInvoiceKind = stored.selectedInvoiceKind;
+      if (stored.selectedInvoiceKind === 'preBillingReport') {
+        this.ensurePreBillingMonthDefault();
+        this.syncPreBillingOfficeIds();
+      }
+      if (stored.selectedInvoiceKind === 'missingInvoiceReport') {
+        this.syncMissingInvoiceOfficeIds();
+      }
+    }
+
+    if (stored.selectedBillsReceiptKind) {
+      this.selectedBillsReceiptKind = stored.selectedBillsReceiptKind;
+    }
+
+    if (stored.selectedBankActivityKind) {
+      this.selectedBankActivityKind = stored.selectedBankActivityKind;
+    }
+
+    if ((stored.selectedOwnerKind as string | undefined) === 'securityDeposits') {
+      this.selectedTabIndex = this.tabBankActivities;
+      this.selectedBankActivityKind = 'securityDeposits';
+    } else if (stored.selectedOwnerKind) {
+      this.selectedOwnerKind = stored.selectedOwnerKind;
+    }
+
+    if (stored.selectedReportKind) {
+      this.selectedReportKind = stored.selectedReportKind;
+    }
+
+    if (stored.selectedGeneralLedgerKind) {
+      this.selectedGeneralLedgerKind = stored.selectedGeneralLedgerKind;
+    }
+
+    if (stored.selectedOwnerStatementReportKind) {
+      this.selectedOwnerStatementReportKind = stored.selectedOwnerStatementReportKind;
+    }
+
+    this.clampSelectedTabIndexForAccess();
+  }
+
+  readShellNavigationFromStorage(): AccountingShellNavigationState | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getShellNavigationStorageKey());
+    if (!rawValue) {
+      return this.readLegacyShellNavigationFromPinnedStorage();
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as AccountingShellNavigationState;
+      if (!Number.isFinite(Number(parsed?.selectedTabIndex))) {
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  readLegacyShellNavigationFromPinnedStorage(): AccountingShellNavigationState | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getPinnedDateRangeStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as Record<string, unknown>;
+      if (!Number.isFinite(Number(parsed['selectedTabIndex']))) {
+        return null;
+      }
+
+      return {
+        selectedTabIndex: Number(parsed['selectedTabIndex']),
+        selectedInvoiceKind: parsed['selectedInvoiceKind'] as AccountingShellInvoiceKind | undefined,
+        selectedBillsReceiptKind: parsed['selectedBillsReceiptKind'] as AccountingShellBillsReceiptKind | undefined,
+        selectedBankActivityKind: parsed['selectedBankActivityKind'] as AccountingShellBankActivityKind | undefined,
+        selectedOwnerKind: parsed['selectedOwnerKind'] as AccountingShellOwnerKind | undefined,
+        selectedReportKind: parsed['selectedReportKind'] as AccountingShellReportKind | undefined,
+        selectedGeneralLedgerKind: parsed['selectedGeneralLedgerKind'] as AccountingShellGeneralLedgerKind | undefined
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  getShellNavigationStorageKey(): string {
+    const userKey = this.userId?.trim() || 'anonymous';
+    return `${this.shellNavigationStorageKeyPrefix}-${userKey}`;
   }
   //#endregion
 
@@ -4956,9 +4981,6 @@ captureOwnerStatementReturnContext(): void {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    if (this.dateRangePinned) {
-      return;
-    }
     let activateBalanceSheetDefaults = false;
     let tabIndex = getNumberQueryParam(params, 'tab', 0, this.tabMaxIndex + 3);
     if (tabIndex !== null) {
@@ -5087,7 +5109,7 @@ captureOwnerStatementReturnContext(): void {
       }
     }
 
-    if ('officeId' in params && !this.dateRangePinned) {
+    if ('officeId' in params) {
       this.applyPageOfficeScope(getNumberQueryParam(params, 'officeId'));
     }
 
@@ -5184,80 +5206,78 @@ captureOwnerStatementReturnContext(): void {
       }
     }
 
-    const startDateParam = getStringQueryParam(params, 'startDate');
-    const endDateParam = getStringQueryParam(params, 'endDate');
-    const asOfDateParam = getStringQueryParam(params, 'asOfDate');
-    const asOfStartParam = getStringQueryParam(params, 'asOfStart');
-    const hasStartDateParam = 'startDate' in params;
-    const hasEndDateParam = 'endDate' in params;
-    if (hasStartDateParam || hasEndDateParam) {
-      const previousStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
-      const previousEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-      if (hasStartDateParam) {
-        this.startDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(startDateParam));
-      }
-      if (hasEndDateParam) {
-        this.endDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(endDateParam));
-      }
-      this.normalizeDateRangeValues();
-      if (this.dateRangePinned) {
-        this.persistPinnedDateRange();
-      }
-      const nextStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
-      const nextEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-      const datesChanged = previousStartDate !== nextStartDate || previousEndDate !== nextEndDate;
-      if (datesChanged) {
-        this.syncInvoiceSearchDateRange();
-        this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
-        if (this.selectedTabIndex >= 1 && this.selectedTabIndex <= this.tabGeneralLedger) {
-          queueMicrotask(() => {
-            this.billsRefreshTrigger++;
-            this.receiptsRefreshTrigger++;
-            this.undepositedFundsRefreshTrigger++;
-            this.untransferredFundsRefreshTrigger++;
-            this.depositsRefreshTrigger++;
-            if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
-              this.paymentsRefreshTrigger++;
-            }
-            this.transfersRefreshTrigger++;
-            this.transferReportRefreshTrigger++;
-            this.reconcileRefreshTrigger++;
-            this.printChecksRefreshTrigger++;
-            this.securityDepositsRefreshTrigger++;
-            this.ownersUtilitiesRefreshTrigger++;
-            this.ownersWorkOrdersRefreshTrigger++;
-            if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {
-              this.ownersStatementsRefreshTrigger++;
-            }
-            if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines) {
-              this.ownerStatementJournalEntryLinesRefreshTrigger++;
-            }
-            this.financialReportsRefreshTrigger++;
-            this.generalLedgerRefreshTrigger++;
-          });
+    if (!this.dateRangePinned) {
+      const startDateParam = getStringQueryParam(params, 'startDate');
+      const endDateParam = getStringQueryParam(params, 'endDate');
+      const asOfDateParam = getStringQueryParam(params, 'asOfDate');
+      const asOfStartParam = getStringQueryParam(params, 'asOfStart');
+      const hasStartDateParam = 'startDate' in params;
+      const hasEndDateParam = 'endDate' in params;
+      if (hasStartDateParam || hasEndDateParam) {
+        const previousStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+        const previousEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+        if (hasStartDateParam) {
+          this.startDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(startDateParam));
+        }
+        if (hasEndDateParam) {
+          this.endDate = this.cloneShellDate(this.utilityService.parseDateOnlyStringToDate(endDateParam));
+        }
+        this.normalizeDateRangeValues();
+        const nextStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+        const nextEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+        const datesChanged = previousStartDate !== nextStartDate || previousEndDate !== nextEndDate;
+        if (datesChanged) {
+          this.syncInvoiceSearchDateRange();
+          this.syncBillsSearchRequest({ ownerBundleInvalidateRequiresManualGo: false });
+          if (this.selectedTabIndex >= 1 && this.selectedTabIndex <= this.tabGeneralLedger) {
+            queueMicrotask(() => {
+              this.billsRefreshTrigger++;
+              this.receiptsRefreshTrigger++;
+              this.undepositedFundsRefreshTrigger++;
+              this.untransferredFundsRefreshTrigger++;
+              this.depositsRefreshTrigger++;
+              if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+                this.paymentsRefreshTrigger++;
+              }
+              this.transfersRefreshTrigger++;
+              this.transferReportRefreshTrigger++;
+              this.reconcileRefreshTrigger++;
+              this.printChecksRefreshTrigger++;
+              this.securityDepositsRefreshTrigger++;
+              this.ownersUtilitiesRefreshTrigger++;
+              this.ownersWorkOrdersRefreshTrigger++;
+              if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {
+                this.ownersStatementsRefreshTrigger++;
+              }
+              if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines) {
+                this.ownerStatementJournalEntryLinesRefreshTrigger++;
+              }
+              this.financialReportsRefreshTrigger++;
+              this.generalLedgerRefreshTrigger++;
+            });
+          }
         }
       }
-    }
 
-    if (asOfDateParam && !startDateParam && !endDateParam) {
-      const parsedEndDate = this.utilityService.parseDateOnlyStringToDate(asOfDateParam);
-      const parsedStartDate = asOfStartParam
-        ? this.utilityService.parseDateOnlyStringToDate(asOfStartParam)
-        : parsedEndDate
-          ? new Date(parsedEndDate.getFullYear(), 0, 1)
-          : null;
-      this.endDate = this.cloneShellDate(parsedEndDate);
-      this.startDate = this.cloneShellDate(parsedStartDate);
-      this.normalizeDateRangeValues();
-      if (this.dateRangePinned) {
-        this.persistPinnedDateRange();
+      if (asOfDateParam && !startDateParam && !endDateParam) {
+        const parsedEndDate = this.utilityService.parseDateOnlyStringToDate(asOfDateParam);
+        const parsedStartDate = asOfStartParam
+          ? this.utilityService.parseDateOnlyStringToDate(asOfStartParam)
+          : parsedEndDate
+            ? new Date(parsedEndDate.getFullYear(), 0, 1)
+            : null;
+        this.endDate = this.cloneShellDate(parsedEndDate);
+        this.startDate = this.cloneShellDate(parsedStartDate);
+        this.normalizeDateRangeValues();
+        this.syncArAgingReportFilters();
+        this.financialReportsRefreshTrigger++;
       }
-      this.syncArAgingReportFilters();
-      this.financialReportsRefreshTrigger++;
     }
 
-    if (activateBalanceSheetDefaults) {
+    if (activateBalanceSheetDefaults && !this.dateRangePinned) {
       this.applyBalanceSheetReportDefaults();
+      this.publishDateRangeState();
+    } else if (activateBalanceSheetDefaults) {
       this.publishDateRangeState();
     } else if (this.showOwnerReportGoButton) {
       this.ensureOwnerReportGoDefaultCriteria();
@@ -5272,19 +5292,16 @@ captureOwnerStatementReturnContext(): void {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
-    if (this.dateRangePinned) {
-      return;
-    }
     const previousOfficeId = this.selectedOfficeId;
     const resolvedOfficeId = this.globalSelectionService.resolvePageOfficeId({
-      topBarPinned: this.dateRangePinned,
+      topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,
       offices: this.offices,
       globalOfficeId: officeId
     });
     const officeChanged = previousOfficeId !== resolvedOfficeId;
     this.applyPageOfficeScope(resolvedOfficeId);
-    if (officeChanged && !this.dateRangePinned) {
+    if (officeChanged) {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
     }
@@ -5594,14 +5611,7 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
 
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            if (this.dateRangePinned) {
-              if (this.selectedOfficeId != null && !this.offices.some(office => office.officeId === this.selectedOfficeId)) {
-                this.selectedOfficeId = null;
-              }
-              this.applyPageOfficeScope(this.selectedOfficeId);
-            } else {
-              this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
-            }
+            this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
             if (this.showOwnerReportGoButton) {
               this.ensureOwnerReportGoDefaultCriteria();
             }
