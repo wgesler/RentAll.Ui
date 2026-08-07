@@ -3509,6 +3509,11 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     const journalEntryId = journalEntryIdRaw == null || String(journalEntryIdRaw).trim().length === 0
       ? null
       : String(journalEntryIdRaw).trim();
+    const transferIdRaw = rawRecord['transferId'] ?? rawRecord['TransferId'] ?? base.transferId;
+    const transferId = transferIdRaw == null || String(transferIdRaw).trim().length === 0
+      ? null
+      : String(transferIdRaw).trim();
+    const transferCode = String(rawRecord['transferCode'] ?? rawRecord['TransferCode'] ?? base.transferCode ?? '').trim();
 
     const propertyIdRaw = rawRecord['propertyId'] ?? rawRecord['PropertyId'] ?? base.propertyId;
     const propertyId = propertyIdRaw == null || String(propertyIdRaw).trim().length === 0
@@ -3546,6 +3551,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       depositCode,
       depositId,
       journalEntryId,
+      transferId,
+      transferCode,
       propertyId,
       organizationId: String(rawRecord['organizationId'] ?? rawRecord['OrganizationId'] ?? base.organizationId ?? '').trim(),
       officeId: Number(rawRecord['officeId'] ?? rawRecord['OfficeId'] ?? base.officeId ?? 0) || 0,
@@ -3662,6 +3669,8 @@ resolveDepositPropertyIds(
         splitTotalAmount,
         splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
         splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        transferId: deposit.transferId ?? null,
+        transferCode: (deposit.transferCode || '').trim(),
         bankAccountId: deposit.bankAccountId ?? null,
         bankAccountDisplay: (deposit.bankAccountDisplayName || '').trim(),
         accountDisplay: distinctAccounts.join(', '),

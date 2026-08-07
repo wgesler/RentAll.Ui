@@ -54,6 +54,8 @@ export interface DepositResponse {
   bankAccountId?: number | null;
   bankAccountDisplayName?: string;
   splits: DepositSplit[];
+  transferId?: string | null;
+  transferCode?: string;
   journalEntryId?: string | null;
   postingStatusId?: number | null;
   isActive: boolean;
@@ -82,6 +84,8 @@ export interface DepositDisplayList {
   splitTotalAmount?: number;
   splitTotalDisplay?: string;
   splitSummaryDisplay?: string;
+  transferId?: string | null;
+  transferCode?: string;
   bankAccountId?: number | null;
   bankAccountDisplay?: string;
   accountDisplay?: string;
