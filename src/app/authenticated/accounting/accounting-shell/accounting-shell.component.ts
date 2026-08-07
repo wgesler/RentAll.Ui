@@ -4176,12 +4176,26 @@ persistPinnedTopBarIfActive(): void {
     ).subscribe({
       next: (result) => {
         repairSucceeded = true;
-        this.showJournalEntrySyncResult('Split links repaired', result);
+        this.showSplitLinkRepairResult(result);
       },
       error: (error: HttpErrorResponse) => {
         this.toastr.error(error?.error ?? 'Unable to repair deposit/transfer split links.', CommonMessage.Error);
       }
     });
+  }
+
+  showSplitLinkRepairResult(result: JournalEntrySyncResult): void {
+    let message = `${result.documentsProcessed} documents processed`;
+    if (result.errors.length > 0) {
+      message += `. ${result.errors.length} issue(s): ${result.errors.slice(0, 3).join('; ')}`;
+      if (result.errors.length > 3) {
+        message += '...';
+      }
+      this.toastr.warning(message, 'Split links repaired');
+      return;
+    }
+
+    this.toastr.success(message, 'Split links repaired');
   }
 
   clearJournalEntries(): void {
