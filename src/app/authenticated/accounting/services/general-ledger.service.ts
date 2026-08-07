@@ -263,6 +263,12 @@ export class GeneralLedgerService {
     );
   }
 
+  repairDepositAndTransferSplitLinks(officeIds: number[]): Observable<JournalEntrySyncResult> {
+    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/sync/split-links`, { officeIds }).pipe(
+      map(result => this.mapJournalEntrySyncResult(result))
+    );
+  }
+
   startAllJournalEntrySyncJob(request: JournalEntrySyncRequest): Observable<StartJournalEntrySyncJobResponse> {
     return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/all/start`, {
       officeIds: request.officeIds ?? [],

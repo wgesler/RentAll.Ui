@@ -4156,6 +4156,34 @@ persistPinnedTopBarIfActive(): void {
     }
   }
 
+  repairDepositAndTransferSplitLinks(): void {
+    const officeIds = this.resolveOfficeIdsForJournalEntrySync();
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before repairing split links.', 'Repair');
+      return;
+    }
+
+    let repairSucceeded = false;
+    this.beginJournalEntrySyncTools();
+    this.generalLedgerService.repairDepositAndTransferSplitLinks(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.finishJournalEntrySyncTools();
+        if (repairSucceeded) {
+          this.onJournalEntriesChanged();
+        }
+      })
+    ).subscribe({
+      next: (result) => {
+        repairSucceeded = true;
+        this.showJournalEntrySyncResult('Split links repaired', result);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to repair deposit/transfer split links.', CommonMessage.Error);
+      }
+    });
+  }
+
   clearJournalEntries(): void {
     const officeIds = this.resolveOfficeIdsForJournalEntryClear();
     let clearSucceeded = false;
