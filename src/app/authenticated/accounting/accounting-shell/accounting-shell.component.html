@@ -1689,15 +1689,29 @@
 
 @if (showSyncProgressDialog) {
   <div class="journal-entry-sync-overlay">
-    <div class="journal-entry-sync-dialog" role="dialog" aria-label="Journal entry sync progress">
+    <div class="journal-entry-sync-dialog" role="dialog" [attr.aria-label]="syncProgressDialogMode === 'transfer' ? 'Transfer journal entry rebuild progress' : 'Journal entry sync progress'">
       <div class="journal-entry-sync-dialog-header">
         <div class="journal-entry-sync-dialog-title-wrap">
-          <span class="journal-entry-sync-dialog-title">Journal Entry Sync Progress</span>
+          <span class="journal-entry-sync-dialog-title">
+            @if (syncProgressDialogMode === 'transfer') {
+              Rebuild Transfer Journal Entries
+            } @else {
+              Journal Entry Sync Progress
+            }
+          </span>
           <span class="journal-entry-sync-dialog-subtitle">
             @if (isJournalEntrySyncInProgress) {
-              Sync is running...
+              @if (syncProgressDialogMode === 'transfer') {
+                Rebuilding transfer journal entries…
+              } @else {
+                Sync is running...
+              }
             } @else if (isSyncProgressComplete) {
-              Sync complete.
+              @if (syncProgressDialogMode === 'transfer') {
+                Transfer rebuild complete.
+              } @else {
+                Sync complete.
+              }
             }
           </span>
         </div>
@@ -1710,6 +1724,13 @@
           <mat-icon>close</mat-icon>
         </button>
       </div>
+
+      @if (syncProgressDialogMode === 'transfer' && isJournalEntrySyncInProgress) {
+        <div class="journal-entry-sync-transfer-running">
+          <mat-spinner [diameter]="28"></mat-spinner>
+          <span>Working through all transfers for the selected office(s). This can take a minute.</span>
+        </div>
+      }
 
       <table class="journal-entry-sync-progress-table">
         <thead>

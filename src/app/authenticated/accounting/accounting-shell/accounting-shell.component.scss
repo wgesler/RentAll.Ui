@@ -319,6 +319,23 @@ mat-card {
 .journal-entry-sync-btn--transfer {
   background-color: #0f766e !important;
   color: #fff !important;
+
+  &.mat-mdc-button-disabled,
+  &:disabled {
+    background-color: rgba(15, 23, 42, 0.12) !important;
+    color: rgba(15, 23, 42, 0.38) !important;
+    opacity: 1;
+  }
+}
+
+.journal-entry-sync-transfer-running {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.8125rem;
+  color: rgba(15, 23, 42, 0.72);
 }
 
 .journal-entry-sync-progress-table {

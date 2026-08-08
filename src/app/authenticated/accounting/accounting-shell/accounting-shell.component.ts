@@ -466,6 +466,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   syncProgressRows: JournalEntrySyncProgressRow[] = [];
   showSyncProgressDialog = false;
   isSyncProgressComplete = false;
+  syncProgressDialogMode: 'all' | 'transfer' = 'all';
   isFinancialReportDrillDownActive = false;
   isFinancialReportJournalEntryDetailActive = false;
   isArAgingDrillDownActive = false;
@@ -4127,6 +4128,7 @@ persistPinnedTopBarIfActive(): void {
       return;
     }
 
+    this.syncProgressDialogMode = 'all';
     this.initializeJournalEntrySyncProgress();
     this.showSyncProgressDialog = true;
     this.isSyncProgressComplete = false;
@@ -4184,32 +4186,42 @@ persistPinnedTopBarIfActive(): void {
     });
   }
 
-  rebuildTransferJournalEntries(): void {
+  async rebuildTransferJournalEntries(): Promise<void> {
     const officeIds = this.resolveOfficeIdsForJournalEntrySync();
     if (officeIds.length === 0) {
       this.toastr.warning('Select at least one office before rebuilding transfer journal entries.', 'Transfer');
       return;
     }
 
-    let rebuildSucceeded = false;
+    this.syncProgressDialogMode = 'transfer';
+    this.syncProgressRows = [
+      { key: 'transfer', label: 'Transfers', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Running' }
+    ];
+    this.showSyncProgressDialog = true;
+    this.isSyncProgressComplete = false;
     this.beginJournalEntrySyncTools();
-    this.generalLedgerService.syncTransferJournalEntries(officeIds).pipe(
-      take(1),
-      finalize(() => {
-        this.finishJournalEntrySyncTools();
-        if (rebuildSucceeded) {
-          this.onJournalEntriesChanged();
-        }
-      })
-    ).subscribe({
-      next: (result) => {
-        rebuildSucceeded = true;
-        this.showJournalEntrySyncResult('Transfer journal entries rebuilt', result);
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to rebuild transfer journal entries.', CommonMessage.Error);
-      }
-    });
+    await this.waitForUiPaint();
+
+    try {
+      const result = await firstValueFrom(this.generalLedgerService.syncTransferJournalEntries(officeIds));
+      this.updateJournalEntrySyncProgress('transfer', row => {
+        row.total = result.documentsProcessed;
+        row.processed = result.journalEntriesCreated;
+        row.skipped = result.journalEntriesSkipped;
+        row.errors = result.errors.length;
+        row.status = result.errors.length > 0 ? 'Completed with issues' : 'Completed';
+      });
+      this.showJournalEntrySyncResult('Transfer journal entries rebuilt', result);
+      this.onJournalEntriesChanged();
+    } catch (error) {
+      this.updateJournalEntrySyncProgress('transfer', row => {
+        row.status = 'Failed';
+        row.errors = Math.max(row.errors, 1);
+      });
+      this.showJournalEntrySyncError('Transfer', error);
+    } finally {
+      this.finishJournalEntrySyncTools(true);
+    }
   }
 
   showSplitLinkRepairResult(result: JournalEntrySyncResult): void {
