@@ -23,33 +23,61 @@
 }
 
 .general-ledger-header-row {
-  display: grid;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: start;
-  gap: var(--global-form-field-gap-x);
-  grid-template-columns: minmax(0, 54%) minmax(0, 46%);
+  /* Spacing from global .mat-mdc-form-field margin-right/bottom — no extra gap. */
+  gap: 0;
   min-width: 0;
   width: 100%;
 }
 
 .general-ledger-header-fields {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--global-form-field-gap-x);
-  grid-template-columns:
-    minmax(0, 1fr)
-    minmax(0, 1fr)
-    minmax(0, 2.25fr)
-    minmax(0, 1.5fr)
-    minmax(0, 1.5fr);
+  gap: 0;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
+.general-ledger-field-entry {
+  flex: 0 1 8.5rem;
+  width: 8.5rem;
+  min-width: 0;
+}
+
+.general-ledger-field-source {
+  flex: 0 0 9.5rem;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 9.5rem;
+}
+
 .general-ledger-field-kind {
-  min-width: 11.5rem;
+  flex: 0 1 11rem;
+  width: 11rem;
+  min-width: 10rem;
+}
+
+.general-ledger-field-date {
+  flex: 0 1 11rem;
+  width: 11rem;
+  min-width: 0;
+}
+
+.general-ledger-field-doc {
+  flex: 0 0 10.5rem;
+  width: 10.5rem;
+  min-width: 10.5rem;
+  max-width: 10.5rem;
 }
 
 .general-ledger-field-memo {
-  max-width: 100%;
+  flex: 1 1 12rem;
+  min-width: 0;
+  width: auto;
+  max-width: none;
 }
 
 .general-ledger-save-row {

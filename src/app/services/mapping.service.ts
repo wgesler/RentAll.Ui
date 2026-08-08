@@ -4305,6 +4305,7 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
     const transferDate = this.formatter.formatDateString(transfer.transferDate);
     const dateRange = this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod) || transferDate;
     const location = (transfer.officeName || '').trim();
+    const emptyGuid = '00000000-0000-0000-0000-000000000000';
 
     return (lineAllocations || [])
       .filter(allocation => {
@@ -4319,7 +4320,26 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       })
       .map(allocation => {
         const lineId = (allocation.journalEntryLineId || '').trim();
-        const context = lineId ? splitsByLineId.get(lineId) : undefined;
+        const hasLineId = !!lineId && lineId !== emptyGuid;
+        let context = hasLineId ? splitsByLineId.get(lineId) : undefined;
+        if (!context) {
+          const allocationDescription = (allocation.description || '').trim().toLowerCase();
+          const allocationPropertyId = (allocation.propertyId || '').trim();
+          context = splits.find(split => {
+            const splitLineId = (split.journalEntryLineId || '').trim();
+            if (splitLineId && splitLineId !== emptyGuid) {
+              return false;
+            }
+            const splitDescription = (split.description || '').trim().toLowerCase();
+            const splitPropertyId = (split.propertyId || '').trim();
+            const descriptionMatches = !allocationDescription
+              || splitDescription === allocationDescription;
+            const propertyMatches = !allocationPropertyId
+              || !splitPropertyId
+              || splitPropertyId === allocationPropertyId;
+            return descriptionMatches && propertyMatches;
+          });
+        }
         const businessValue = this.roundCurrency(Number(allocation.business) || 0);
         const ownerEscrowValue = this.roundCurrency(Number(allocation.ownerEscrow) || 0);
         const secDepValue = this.roundCurrency(Number(allocation.secDep) || 0);

@@ -64,7 +64,7 @@
               }
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">
+            <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-date w-full" subscriptSizing="dynamic">
               <mat-label>Transaction Date</mat-label>
               @if (canEditLines) {
                 <input matInput [matDatepicker]="transactionDatePicker" formControlName="transactionDate">
@@ -77,7 +77,7 @@
               <mat-datepicker #transactionDatePicker></mat-datepicker>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="general-ledger-field w-full" subscriptSizing="dynamic">
+            <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-date w-full" subscriptSizing="dynamic">
               <mat-label>Accounting Period</mat-label>
               @if (canEditLines) {
                 <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
@@ -91,21 +91,21 @@
             </mat-form-field>
 
             @if (journalEntry?.paymentCode) {
-              <mat-form-field appearance="outline" class="general-ledger-field w-full">
+              <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-doc w-full">
                 <mat-label>Payment</mat-label>
                 <input matInput [value]="journalEntry?.paymentCode || ''" readonly disabled class="readonly-field">
               </mat-form-field>
             }
 
             @if (journalEntry?.depositCode) {
-              <mat-form-field appearance="outline" class="general-ledger-field w-full">
+              <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-doc w-full">
                 <mat-label>Deposit</mat-label>
                 <input matInput [value]="journalEntry?.depositCode || ''" readonly disabled class="readonly-field">
               </mat-form-field>
             }
 
             @if (journalEntry?.transferCode) {
-              <mat-form-field appearance="outline" class="general-ledger-field w-full">
+              <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-doc w-full">
                 <mat-label>Transfer</mat-label>
                 <input matInput [value]="journalEntry?.transferCode || ''" readonly disabled class="readonly-field">
               </mat-form-field>
