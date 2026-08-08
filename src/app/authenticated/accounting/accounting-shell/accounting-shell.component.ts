@@ -4195,7 +4195,7 @@ persistPinnedTopBarIfActive(): void {
 
     this.syncProgressDialogMode = 'transfer';
     this.syncProgressRows = [
-      { key: 'transfer', label: 'Transfers', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Running' }
+      { key: 'transfer', label: 'Transfers', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Starting' }
     ];
     this.showSyncProgressDialog = true;
     this.isSyncProgressComplete = false;
@@ -4203,16 +4203,16 @@ persistPinnedTopBarIfActive(): void {
     await this.waitForUiPaint();
 
     try {
-      const result = await firstValueFrom(this.generalLedgerService.syncTransferJournalEntries(officeIds));
-      this.updateJournalEntrySyncProgress('transfer', row => {
-        row.total = result.documentsProcessed;
-        row.processed = result.journalEntriesCreated;
-        row.skipped = result.journalEntriesSkipped;
-        row.errors = result.errors.length;
-        row.status = result.errors.length > 0 ? 'Completed with issues' : 'Completed';
-      });
-      this.showJournalEntrySyncResult('Transfer journal entries rebuilt', result);
-      this.onJournalEntriesChanged();
+      const startResponse = await firstValueFrom(this.generalLedgerService.startTransferJournalEntrySyncJob(officeIds));
+      if (!startResponse.jobId) {
+        throw new Error('Transfer rebuild job did not return an ID.');
+      }
+
+      const completed = await this.pollJournalEntrySyncJob(startResponse.jobId);
+      if (completed) {
+        this.onJournalEntriesChanged();
+      }
+      this.toastr.success('Transfer journal entries rebuilt.', 'Transfer');
     } catch (error) {
       this.updateJournalEntrySyncProgress('transfer', row => {
         row.status = 'Failed';

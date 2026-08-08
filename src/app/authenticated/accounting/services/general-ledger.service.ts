@@ -275,6 +275,16 @@ export class GeneralLedgerService {
     );
   }
 
+  startTransferJournalEntrySyncJob(officeIds: number[]): Observable<StartJournalEntrySyncJobResponse> {
+    return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/transfers/start`, {
+      officeIds
+    }).pipe(
+      map(response => ({
+        jobId: String(response?.jobId ?? '')
+      }))
+    );
+  }
+
   startAllJournalEntrySyncJob(request: JournalEntrySyncRequest): Observable<StartJournalEntrySyncJobResponse> {
     return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/all/start`, {
       officeIds: request.officeIds ?? [],

@@ -1728,7 +1728,13 @@
       @if (syncProgressDialogMode === 'transfer' && isJournalEntrySyncInProgress) {
         <div class="journal-entry-sync-transfer-running">
           <mat-spinner [diameter]="28"></mat-spinner>
-          <span>Working through all transfers for the selected office(s). This can take a minute.</span>
+          <span>
+            @if ((syncProgressRows[0]?.status || '').startsWith('Loading')) {
+              Loading office cache, then rebuilding transfer JEs…
+            } @else {
+              Rebuilding transfer {{ syncProgressRows[0]?.processed || 0 }} of {{ syncProgressRows[0]?.total || 0 }}…
+            }
+          </span>
         </div>
       }
 
