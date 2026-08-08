@@ -4184,6 +4184,34 @@ persistPinnedTopBarIfActive(): void {
     });
   }
 
+  rebuildTransferJournalEntries(): void {
+    const officeIds = this.resolveOfficeIdsForJournalEntrySync();
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before rebuilding transfer journal entries.', 'Transfer');
+      return;
+    }
+
+    let rebuildSucceeded = false;
+    this.beginJournalEntrySyncTools();
+    this.generalLedgerService.syncTransferJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.finishJournalEntrySyncTools();
+        if (rebuildSucceeded) {
+          this.onJournalEntriesChanged();
+        }
+      })
+    ).subscribe({
+      next: (result) => {
+        rebuildSucceeded = true;
+        this.showJournalEntrySyncResult('Transfer journal entries rebuilt', result);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to rebuild transfer journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
   showSplitLinkRepairResult(result: JournalEntrySyncResult): void {
     let message = `${result.documentsProcessed} documents processed`;
     if (result.errors.length > 0) {
