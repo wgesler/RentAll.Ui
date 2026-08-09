@@ -3482,7 +3482,23 @@ openReconcileAccountReport(view: 'summary' | 'detail'): void {
   }
 
   onReconcileComplete(): void {
+    const setup = this.reconcileSetup;
+    this.reconcileSetup = null;
     this.chartOfAccountsService.notifyChartOfAccountsChanged();
+
+    if (setup) {
+      this.selectedChartOfAccountId = setup.chartOfAccountId;
+      const statementDate = this.utilityService.parseCalendarDateInput(setup.statementDate);
+      if (statementDate) {
+        this.endDate = statementDate;
+        this.syncInvoiceSearchDateRange();
+      }
+      this.reconcileAccountReportContext = {
+        endingBalance: setup.endingBalance
+      };
+    }
+
+    this.openReconcileAccountReport('detail');
   }
 
 resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {

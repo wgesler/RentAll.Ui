@@ -293,7 +293,6 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('Reconciliation completed.', 'Success');
         this.reconcileCompleteEvent.emit();
-        this.leaveEvent.emit();
       },
       error: (error: HttpErrorResponse) => {
         const message = error.error?.message || error.message || 'Unable to complete reconciliation.';

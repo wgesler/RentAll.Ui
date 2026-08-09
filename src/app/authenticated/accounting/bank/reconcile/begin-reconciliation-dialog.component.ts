@@ -11,6 +11,7 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { BeginReconciliationDialogData, BeginReconciliationDialogResult, ReconcileDraftResponse } from '../../models/reconcile.model';
+import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ReconcileAdjustmentService } from '../../services/reconcile-adjustment.service';
 import { ReconcileDraftService } from '../../services/reconcile-draft.service';
 import { ReconcileService } from '../../services/reconcile.service';
@@ -33,6 +34,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   private reconcileAdjustmentService = inject(ReconcileAdjustmentService);
   private reconcileDraftService = inject(ReconcileDraftService);
   private reconcileService = inject(ReconcileService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
 
   beginningBalance = 0;
   lastReconciledDate: string | null = null;
@@ -125,9 +127,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: latestReconcile => {
-        this.lastReconciledDate = latestReconcile?.statementDate ?? null;
-        this.beginningBalance = latestReconcile?.endingBalance ?? 0;
-        this.updateAccountReconcileDefault(accountId, latestReconcile?.endingBalance ?? null, latestReconcile?.statementDate ?? null);
+        this.refreshDialogAfterUndo(accountId, latestReconcile?.endingBalance ?? null, latestReconcile?.statementDate ?? null);
         this.toastr.success('Last reconciliation undone.', 'Success');
       },
       error: (error: HttpErrorResponse | Error) => {
@@ -137,6 +137,15 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
         this.toastr.error(message, CommonMessage.Error);
       }
     });
+  }
+
+  refreshDialogAfterUndo(accountId: number, endingBalance: number | null, statementDate: string | null): void {
+    // Tip data is returned from remove-last; re-seed defaults and reload like a fresh open.
+    this.updateAccountReconcileDefault(accountId, endingBalance, statementDate);
+    this.data.existingSetup = null;
+    this.applySelectedAccountDefaults();
+    this.loadReconcileDraftForSelectedAccount();
+    this.chartOfAccountsService.notifyChartOfAccountsChanged();
   }
 
   onContinue(): void {
