@@ -3160,6 +3160,11 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       this.utility.coerceCalendarDateStringFromApi(
         rawRecord['paidDate'] ?? rawRecord['PaidDate'] ?? base.paidDate
       ) ?? null;
+    const paymentDescriptionRaw = rawRecord['paymentDescription'] ?? rawRecord['PaymentDescription'] ?? base.paymentDescription;
+    const paymentDescription =
+      paymentDescriptionRaw == null || String(paymentDescriptionRaw).trim().length === 0
+        ? null
+        : String(paymentDescriptionRaw).trim();
     const createdOn =
       this.utility.coerceDateTimeOffsetStringFromApi(
         rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
@@ -3197,6 +3202,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       accountingPeriod,
       billNumber,
       paidDate,
+      paymentDescription,
       createdOn,
       invoiceId,
       receiptCode,
@@ -3403,12 +3409,13 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       billNumber: receipt.billNumber ?? null,
       ticketId: receipt.ticketId || '',
       amount: Number(receipt.amount) || 0,
-      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
-      paidDate: receipt.paidDate ?? null,
       description: String(receipt.description ?? '').trim(),
       bankCardId: hasBankCardId ? (updates.bankCardId ?? null) : (receipt.bankCardId ?? null),
       vendorId: hasVendorId ? (updates.vendorId ?? null) : (receipt.vendorId ?? null),
       vendorName: hasVendorName ? (updates.vendorName ?? null) : (receipt.vendorName ?? null),
+      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
+      paidDate: receipt.paidDate ?? null,
+      paymentDescription: receipt.paymentDescription ?? null,
       splits: this.mapReceiptSplitsForRequest(receipt.splits),
       agreementLineId: receipt.agreementLineId ?? null,
       receiptPath: receipt.receiptPath ?? null,
@@ -3471,6 +3478,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         dueAmountValue,
         paidAmount: this.formatter.currencyUsd(paidAmountValue),
         paidDate: receipt.paidDate ? this.formatter.formatDateString(receipt.paidDate) : null,
+        paymentDescription: (receipt.paymentDescription || '').trim() || null,
         dueAmount: this.formatter.currencyUsd(dueAmountValue),
         splits,
         splitTotalAmount,
@@ -3502,7 +3510,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     });
   }
 
-  mapReceiptSplitDetailLines(receipt: Pick<ReceiptDisplayList, 'receiptId' | 'receiptDate' | 'paidDate' | 'paidAmountValue' | 'splits'>): ReceiptSplitDetailLineDisplay[] {
+  mapReceiptSplitDetailLines(receipt: Pick<ReceiptDisplayList, 'receiptId' | 'receiptDate' | 'paidDate' | 'paidAmountValue' | 'paymentDescription' | 'splits'>): ReceiptSplitDetailLineDisplay[] {
     const receiptId = String(receipt.receiptId || '').trim();
     const billDate = (receipt.receiptDate || '').trim() || null;
     const lines: ReceiptSplitDetailLineDisplay[] = (receipt.splits || []).map((split, index) => ({
@@ -3517,11 +3525,12 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
 
     const paidAmountValue = Number(receipt.paidAmountValue ?? 0) || 0;
     const paidDate = (receipt.paidDate || '').trim() || null;
-    if (Math.abs(paidAmountValue) > 0.005 || !!paidDate) {
+    const paymentDescription = (receipt.paymentDescription || '').trim();
+    if (Math.abs(paidAmountValue) > 0.005 || !!paidDate || !!paymentDescription) {
       lines.push({
         lineId: `${receiptId}-payment`,
         lineDate: paidDate,
-        description: 'Payment',
+        description: paymentDescription || 'Payment',
         workOrder: '—',
         receiptType: 'Payment',
         account: '—',

@@ -341,6 +341,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       amount: amountValue,
       paidAmount: this.receipt?.paidAmount ?? 0,
       paidDate: this.receipt?.paidDate ?? null,
+      paymentDescription: this.receipt?.paymentDescription ?? null,
       bankCardId: isBill ? null : bankCardId,
       vendorId: isBill ? vendorId : null,
       vendorName: isBill ? null : vendorName,

@@ -65,12 +65,13 @@ export interface ReceiptRequest {
   billNumber?: string | null;
   ticketId: string;
   amount: number;
-  paidAmount?: number | null;
-  paidDate?: string | null;
   description: string;
   bankCardId?: number | null;
   vendorId?: string | null;
   vendorName?: string | null;
+  paidAmount?: number | null;
+  paidDate?: string | null;
+  paymentDescription?: string | null;
   splits: Split[];
   agreementLineId?: number | null;
   receiptPath?: string | null;
@@ -97,11 +98,12 @@ export interface ReceiptResponse {
   ticketId: string;
   description: string;
   amount: number;
-  paidAmount?: number | null;
-  paidDate?: string | null;
   bankCardId?: number | null;
   vendorId?: string | null;
   vendorName?: string | null;
+  paidAmount?: number | null;
+  paidDate?: string | null;
+  paymentDescription?: string | null;
   splits: Split[];
   agreementLineId?: number | null;
   agreementLineNotes?: string | null;
@@ -142,6 +144,7 @@ export interface ReceiptDisplayList {
   bankCardId?: number | null;
   vendorId?: string | null;
   vendorName?: string | null;
+  paymentDescription?: string | null;
   agreementLineId?: number | null;
   notes?: string;
   infoHidden?: boolean;
