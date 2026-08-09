@@ -63,6 +63,9 @@ export async function sendDocumentEmail(
   const ccRecipients = mapManualEmailRecipients(emailConfig.ccEmails);
   const bccRecipients = mapManualEmailRecipients(emailConfig.bccEmails);
 
+  const additionalFileDetails = (emailConfig.additionalFileDetails || [])
+    .filter(file => !!file?.fileName && (!!file.file || !!file.dataUrl));
+
   const emailRequest: EmailRequest = {
     organizationId: documentConfig.organizationId!,
     officeId: documentConfig.selectedOfficeId!,
@@ -80,7 +83,8 @@ export async function sendDocumentEmail(
       fileName: attachmentFileName,
       contentType: pdfBlob.type || 'application/pdf',
       file: pdfBase64
-    }
+    },
+    additionalFileDetails
   };
 
   await firstValueFrom(deps.emailService.sendEmail(emailRequest));

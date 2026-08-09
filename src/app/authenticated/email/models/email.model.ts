@@ -28,6 +28,7 @@ export interface EmailRequest {
   plainTextContent: string;
   htmlContent: string;
   fileDetails?: FileDetails | null;
+  additionalFileDetails?: FileDetails[];
   emailTypeId: number;
 }
 

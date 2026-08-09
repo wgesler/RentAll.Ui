@@ -45,8 +45,64 @@
   font-size: 1.1rem;
   width: 1.1rem;
   height: 1.1rem;
-  vertical-align: middle;
-  margin-left: 0.25rem;
+  flex-shrink: 0;
+}
+
+.email-attachments-block {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.45rem 0 0.75rem;
+}
+
+.email-attachments-header {
+  border-bottom: none;
+  padding-bottom: 0.35rem;
+}
+
+.email-attachments-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+}
+
+.email-attachment-file-input {
+  display: none;
+}
+
+.email-attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-left: 6.5rem;
+}
+
+.email-attachment-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+}
+
+.email-attachment-row--auto {
+  color: #0f172a;
+}
+
+.email-attachment-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-attachment-tag {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background: #e2e8f0;
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
 }
 
 .email-field-grow {

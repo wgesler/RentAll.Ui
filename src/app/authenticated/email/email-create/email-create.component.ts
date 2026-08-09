@@ -5,7 +5,10 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { DocumentHtmlService } from '../../../services/document-html.service';
+import { ImageOptimizationFailedError, UtilityService } from '../../../services/utility.service';
+import { FileDetails } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
 import { EmailConfig } from '../../shared/base-document.component';
 import { EmailCreateDraft } from '../models/email-create.model';
@@ -28,12 +31,16 @@ export class EmailCreateComponent implements OnInit {
   private documentService = inject(DocumentService);
   private documentHtmlService = inject(DocumentHtmlService);
   private emailService = inject(EmailService);
+  private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
   draft: EmailCreateDraft | null = null;
   form: FormGroup = this.buildForm();
   isSending = false;
   isMissingDraft = false;
+  additionalAttachments: FileDetails[] = [];
+  private readonly maxAdditionalAttachments = 5;
+  private readonly maxAdditionalAttachmentBytes = 10 * 1024 * 1024;
   private initialPlainTextContent = '';
 
   ngOnInit(): void {
@@ -59,8 +66,12 @@ export class EmailCreateComponent implements OnInit {
     });
   }
 
-  get attachmentName(): string {
+  get autoAttachmentName(): string {
     return this.draft?.emailConfig.fileDetails?.fileName || 'document.pdf';
+  }
+
+  get canAddMoreAttachments(): boolean {
+    return this.additionalAttachments.length < this.maxAdditionalAttachments;
   }
 
   get toRecipientLine(): string {
@@ -69,6 +80,72 @@ export class EmailCreateComponent implements OnInit {
 
   get fromRecipientLine(): string {
     return this.formatAddressLine(this.form.get('fromName')?.value, this.form.get('fromEmail')?.value);
+  }
+
+  async onAdditionalAttachmentsSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement | null;
+    const files = Array.from(input?.files || []);
+    if (files.length === 0) {
+      return;
+    }
+
+    const remainingSlots = this.maxAdditionalAttachments - this.additionalAttachments.length;
+    if (remainingSlots <= 0) {
+      this.toastr.warning(`You can add up to ${this.maxAdditionalAttachments} additional attachments.`, CommonMessage.Error);
+      if (input) {
+        input.value = '';
+      }
+      return;
+    }
+
+    const filesToAdd = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+      this.toastr.warning(`Only ${remainingSlots} more attachment(s) can be added.`, CommonMessage.Error);
+    }
+
+    for (const file of filesToAdd) {
+      const alreadyAdded = this.additionalAttachments.some(attachment =>
+        (attachment.fileName || '').toLowerCase() === file.name.replace(/\.(heic|heif)$/i, '.jpg').toLowerCase()
+        || (attachment.fileName || '').toLowerCase() === file.name.toLowerCase()
+      );
+      if (alreadyAdded) {
+        continue;
+      }
+
+      try {
+        const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+        const optimizedSize = payload.uploadFile?.size ?? file.size;
+        if (optimizedSize > this.maxAdditionalAttachmentBytes) {
+          this.toastr.error(`${payload.fileDetails.fileName || file.name} exceeds the 10 MB attachment limit.`, CommonMessage.Error);
+          continue;
+        }
+
+        this.additionalAttachments = [...this.additionalAttachments, {
+          ...payload.fileDetails,
+          size: optimizedSize
+        }];
+      } catch (error) {
+        if (error instanceof ImageOptimizationFailedError) {
+          this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+        } else {
+          this.toastr.error(`Unable to prepare ${file.name}.`, CommonMessage.Error);
+        }
+      }
+    }
+
+    if (input) {
+      input.value = '';
+    }
+    this.cdr.detectChanges();
+  }
+
+  removeAdditionalAttachment(index: number): void {
+    if (index < 0 || index >= this.additionalAttachments.length) {
+      return;
+    }
+
+    this.additionalAttachments = this.additionalAttachments.filter((_, attachmentIndex) => attachmentIndex !== index);
+    this.cdr.detectChanges();
   }
 
   async send(): Promise<void> {
@@ -95,7 +172,8 @@ export class EmailCreateComponent implements OnInit {
       ccEmails: splitEmailList(formValue.ccEmails || ''),
       bccEmails: splitEmailList(formValue.bccEmails || ''),
       plainTextContent: plainTextBody,
-      htmlContent: isBodyModified ? '' : (this.draft.emailConfig.htmlContent || '').trim()
+      htmlContent: isBodyModified ? '' : (this.draft.emailConfig.htmlContent || '').trim(),
+      additionalFileDetails: [...this.additionalAttachments]
     };
 
     if (!this.isValidDraft(this.draft, emailConfig)) {

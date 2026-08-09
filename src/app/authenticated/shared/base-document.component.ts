@@ -51,6 +51,7 @@ export interface EmailConfig {
   plainTextContent: string;
   htmlContent?: string;
   fileDetails?: FileDetails | null;
+  additionalFileDetails?: FileDetails[];
   errorMessage?: string;
 }
 

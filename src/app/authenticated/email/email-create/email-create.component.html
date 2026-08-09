@@ -65,12 +65,47 @@
             />
           </div>
 
-          <div class="email-address-line">
-            <span class="line-label">Attachment:</span>
-            <span class="line-value">
-              {{ attachmentName }}
-              <mat-icon class="attachment-icon">attach_file</mat-icon>
-            </span>
+          <div class="email-attachments-block">
+            <div class="email-address-line email-attachments-header">
+              <span class="line-label">Attachments:</span>
+              <div class="email-attachments-actions">
+                <input
+                  #additionalAttachmentInput
+                  type="file"
+                  class="email-attachment-file-input"
+                  multiple
+                  (change)="onAdditionalAttachmentsSelected($event)"
+                />
+                <button
+                  mat-stroked-button
+                  type="button"
+                  color="primary"
+                  class="text-nowrap flex-shrink-0"
+                  [disabled]="isSending || !canAddMoreAttachments"
+                  (click)="additionalAttachmentInput.click()">
+                  <mat-icon>attach_file</mat-icon>
+                  Add Files
+                </button>
+              </div>
+            </div>
+
+            <div class="email-attachment-list">
+              <div class="email-attachment-row email-attachment-row--auto">
+                <mat-icon class="attachment-icon">attach_file</mat-icon>
+                <span class="email-attachment-name">{{ autoAttachmentName }}</span>
+                <span class="email-attachment-tag">Auto</span>
+              </div>
+
+              @for (attachment of additionalAttachments; track attachment.fileName; let index = $index) {
+                <div class="email-attachment-row">
+                  <mat-icon class="attachment-icon">attach_file</mat-icon>
+                  <span class="email-attachment-name">{{ attachment.fileName }}</span>
+                  <button mat-icon-button type="button" aria-label="Remove attachment" [disabled]="isSending" (click)="removeAdditionalAttachment(index)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
           </div>
 
           <mat-divider></mat-divider>
