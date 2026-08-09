@@ -83,7 +83,9 @@ export class ReceiptService {
 
       endDate: request.endDate ?? null,
 
-      receiptKind: request.receiptKind ?? null
+      receiptKind: request.receiptKind ?? null,
+
+      vendorId: request.vendorId ?? null
 
     }).pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
 

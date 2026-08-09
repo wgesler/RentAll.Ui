@@ -21,6 +21,8 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactService } from '../../contacts/services/contact.service';
 import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -198,6 +200,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private accountingOfficeService = inject(AccountingOfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private propertyService = inject(PropertyService);
+  private contactService = inject(ContactService);
   private securityDepositService = inject(SecurityDepositService);
   private reservationService = inject(ReservationService);
   private receiptService = inject(ReceiptService);
@@ -395,6 +398,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedGlReservationId: string | null = null;
   selectedBillsPropertyId: string | null = null;
   shellBillsPropertyTitleBarOptions: SearchableSelectOption[] = [];
+  selectedBillsVendorId: string | null = null;
+  shellBillsVendorTitleBarOptions: SearchableSelectOption[] = [];
+  billsVendorContacts: ContactResponse[] = [];
   glProperties: PropertyCodeResponse[] = [];
   glReservations: ReservationCodeResponse[] = [];
   availableGlProperties: SearchableSelectOption[] = [];
@@ -496,6 +502,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.loadChartOfAccounts();
     this.loadPropertyCodes();
+    this.loadBillsVendorContacts();
     this.loadReservationCodes();
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
@@ -2688,6 +2695,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     }
 
     if (kindChanged) {
+      this.syncBillsSearchRequest();
       this.refreshActiveBillsReceiptList();
       this.router.navigate([], {
         relativeTo: this.route,
@@ -3580,11 +3588,17 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       propertyId = this.selectedGlPropertyId;
     }
 
+    const vendorId =
+      this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'bills'
+        ? this.selectedBillsVendorId || null
+        : null;
+
     this.billsSearchRequest = {
       officeIds,
       propertyId: propertyId || null,
       startDate,
-      endDate
+      endDate,
+      vendorId
     };
     this.syncPaymentSearchRequest();
     this.invalidateOwnerReportCachesIfNeeded(options);
@@ -5444,6 +5458,7 @@ captureOwnerStatementReturnContext(): void {
   applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = officeId;
     this.refreshBillsPropertyOptions();
+    this.refreshBillsVendorOptions();
     this.syncBillsSearchRequest(
       this.showOwnerReportGoButton
         ? { ownerBundleInvalidateRequiresManualGo: false }
@@ -5469,6 +5484,14 @@ captureOwnerStatementReturnContext(): void {
       this.refreshActiveOwnerView();
     }
     this.persistPinnedTopBarIfActive();
+  }
+
+  onShellBillsVendorDropdownChange(value: string | number | null): void {
+    this.selectedBillsVendorId = value == null || value === '' ? null : String(value);
+    this.syncBillsSearchRequest();
+    if (this.selectedTabIndex === this.tabBillsReceipts) {
+      this.refreshActiveBillsReceiptList();
+    }
   }
 
   cloneShellDate(value: Date | null | undefined): Date | null {
@@ -5803,6 +5826,56 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
     }));
     if (this.selectedBillsPropertyId && !filteredProperties.some(property => property.propertyId === this.selectedBillsPropertyId)) {
       this.selectedBillsPropertyId = null;
+    }
+  }
+
+  loadBillsVendorContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.billsVendorContacts = contacts || [];
+          this.refreshBillsVendorOptions();
+        });
+      },
+      error: () => {
+        this.billsVendorContacts = [];
+        this.shellBillsVendorTitleBarOptions = [];
+        this.selectedBillsVendorId = null;
+      }
+    });
+  }
+
+  refreshBillsVendorOptions(): void {
+    const scopedOfficeIds = this.selectedOfficeId != null
+      ? [this.selectedOfficeId]
+      : this.resolveOfficeIdsForBillsSearch();
+    const vendorById = new Map<string, SearchableSelectOption>();
+
+    this.billsVendorContacts
+      .filter(contact => contact.entityTypeId === EntityType.Vendor)
+      .forEach(contact => {
+        const contactId = String(contact.contactId || '').trim();
+        if (!contactId || vendorById.has(contactId)) {
+          return;
+        }
+
+        const inScopedOffice = scopedOfficeIds.length === 0
+          || scopedOfficeIds.some(officeId => this.utilityService.contactHasOfficeAccess(contact, officeId));
+        if (!inScopedOffice) {
+          return;
+        }
+
+        vendorById.set(contactId, {
+          value: contactId,
+          label: this.utilityService.getVendorDropdownLabel(contact)
+        });
+      });
+
+    this.shellBillsVendorTitleBarOptions = [...vendorById.values()].sort((a, b) =>
+      String(a.label || '').localeCompare(String(b.label || ''), undefined, { sensitivity: 'base' })
+    );
+    if (this.selectedBillsVendorId && !vendorById.has(this.selectedBillsVendorId)) {
+      this.selectedBillsVendorId = null;
     }
   }
 

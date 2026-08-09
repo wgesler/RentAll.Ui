@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -30,7 +30,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, Split, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
@@ -73,6 +73,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
+  @ViewChild('receiptSplitsTemplate') receiptSplitsTemplate?: TemplateRef<unknown>;
 
   isPageReady = false;
   isServiceError: boolean = false;
@@ -83,6 +84,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   receipts: ReceiptResponse[] = [];
   receiptsDisplay: ReceiptDisplayList[] = [];
   allReceipts: ReceiptDisplayList[] = [];
+  expandedReceipts: Set<string> = new Set();
+  isAllExpanded = false;
   propertyCodeLookup = new Map<string, string>();
   bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
@@ -153,6 +156,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
+  readonly receiptSplitDetailDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
+    lineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    receiptType: { displayAs: 'Type', maxWidth: '12ch', wrap: false },
+    account: { displayAs: 'Account', maxWidth: '25ch', wrap: false },
+    workOrder: { displayAs: 'Work Order', maxWidth: '15ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '20ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '12ch', wrap: false, alignment: 'right' }
+  };
+
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
@@ -205,18 +218,28 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     const accountingColumns = this.accountingListMode === 'receipts'
       ? this.accountingNonBillReceiptDisplayedColumns
       : this.accountingReceiptDisplayedColumns;
+    let columns = accountingColumns;
     if (!this.isManualApplyMode) {
       const { applyAmount, ...columnsWithoutApply } = accountingColumns;
-      this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(columnsWithoutApply);
-      this.cachedReceiptDisplayedColumnsKey = cacheKey;
-      return this.cachedReceiptDisplayedColumns;
+      columns = columnsWithoutApply;
     }
-    this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(accountingColumns);
+    columns = stripIsUtilityColumn(columns);
+    if (this.accountingListMode === 'bills') {
+      columns = {
+        expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+        ...columns
+      };
+    }
+    this.cachedReceiptDisplayedColumns = columns;
     this.cachedReceiptDisplayedColumnsKey = cacheKey;
     return this.cachedReceiptDisplayedColumns;
   }
 
   get showBillsTableSelections(): boolean {
+    return this.embeddedInAccounting && this.accountingListMode === 'bills';
+  }
+
+  get showBillsDetailRows(): boolean {
     return this.embeddedInAccounting && this.accountingListMode === 'bills';
   }
 
@@ -255,6 +278,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.lastReceiptSearchKey = null;
       }
 
+      this.applyFilters();
       if (changes['searchRequest'].firstChange || propertyScopeChanged || searchCriteriaChanged) {
         this.loadReceiptsForCurrentSearchCriteria(propertyScopeChanged);
       }
@@ -322,7 +346,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       endDate: resolvedRequest.endDate ?? null,
       isActive: resolvedRequest.isActive ?? null,
       includeInactive: resolvedRequest.includeInactive ?? false,
-      receiptKind: this.resolveReceiptKindForSearch()
+      receiptKind: this.resolveReceiptKindForSearch(),
+      vendorId: resolvedRequest.vendorId ?? null
     });
   }
 
@@ -1024,6 +1049,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       filtered = filtered.filter(receipt => receipt.isUtility !== true);
     }
 
+    const vendorId = String(this.searchRequest?.vendorId || '').trim().toLowerCase();
+    if (vendorId) {
+      filtered = filtered.filter(receipt => String(receipt.vendorId || '').trim().toLowerCase() === vendorId);
+    }
+
     if (this.showBillsTableSelections && !this.showPaid) {
       filtered = filtered.filter(receipt => Math.abs(Number(receipt.dueAmountValue ?? 0)) > 0.005);
     }
@@ -1034,7 +1064,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         const applyAmountValue = this.isManualApplyMode ? Number(receiptAny['applyAmountValue'] ?? 0) : 0;
         const applyAmountEditable =
           this.manualApplyEditableReceiptId == null || this.manualApplyEditableReceiptId === receipt.receiptId;
-        return {
+        const mapped: ReceiptDisplayList = {
           ...receipt,
           selected: this.showBillsTableSelections && this.selectedBillReceiptIds.has(receipt.receiptId),
           applyAmountValue,
@@ -1049,15 +1079,92 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
               : '$' + this.formatter.currency(applyAmountValue))
             : '',
           applyAmountEditable
-        } as ReceiptDisplayList;
+        };
+        if (!this.showBillsDetailRows) {
+          return mapped;
+        }
+        return {
+          ...mapped,
+          expand: receipt.receiptId,
+          expanded: this.expandedReceipts.has(receipt.receiptId),
+          detailLines: this.mappingService.mapReceiptSplitDetailLines(receipt),
+          expandClick: (event: Event, item: ReceiptDisplayList) => {
+            event.stopPropagation();
+            if (this.expandedReceipts.has(item.receiptId)) {
+              this.expandedReceipts.delete(item.receiptId);
+            } else {
+              this.expandedReceipts.add(item.receiptId);
+            }
+            this.applyFilters();
+          }
+        };
       });
     }
 
     this.receiptsDisplay = this.showInactive
       ? filtered.filter(receipt => receipt.isActive === false)
       : filtered.filter(receipt => receipt.isActive !== false);
+    if (this.showBillsDetailRows) {
+      this.updateIsAllExpanded();
+    }
     this.focusPendingApplyAmountInput();
     this.markViewForCheck();
+  }
+
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    if (expanded) {
+      this.receiptsDisplay.forEach(receipt => {
+        if (receipt.receiptId) {
+          this.expandedReceipts.add(receipt.receiptId);
+        }
+      });
+    } else {
+      this.expandedReceipts.clear();
+    }
+    this.applyFilters();
+  }
+
+  updateIsAllExpanded(): void {
+    if (this.receiptsDisplay.length === 0) {
+      this.isAllExpanded = false;
+      return;
+    }
+    this.isAllExpanded = this.receiptsDisplay.every(
+      receipt => !!receipt.receiptId && this.expandedReceipts.has(receipt.receiptId)
+    );
+  }
+
+  getReceiptSplitDetailColumnNames(): string[] {
+    return Object.keys(this.receiptSplitDetailDisplayedColumns);
+  }
+
+  getReceiptSplitDetailColumnValue(
+    line: ReceiptSplitDetailLineDisplay,
+    columnName: string,
+    lineIndex?: number
+  ): string | number {
+    switch (columnName) {
+      case 'lineNo':
+        return lineIndex !== undefined ? lineIndex + 1 : '—';
+      case 'lineDate':
+        return line.lineDate || '—';
+      case 'receiptType':
+        return line.receiptType || '—';
+      case 'account':
+        return line.account || '—';
+      case 'workOrder':
+        return line.workOrder || '—';
+      case 'description':
+        return line.description || '—';
+      case 'amount': {
+        const amountValue = Number(line.amount) || 0;
+        const formattedAmount = this.formatter.currency(amountValue < 0 ? -amountValue : amountValue);
+        return amountValue < 0 ? '-$' + formattedAmount : '$' + formattedAmount;
+      }
+      default:
+        return '—';
+    }
   }
 
   filterAccountingReceiptsByMode(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
@@ -1190,7 +1297,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       endDate: request.endDate ?? null,
       isActive: request.isActive ?? null,
       includeInactive: request.includeInactive ?? false,
-      receiptKind: request.receiptKind ?? null
+      receiptKind: request.receiptKind ?? null,
+      vendorId: request.vendorId ?? null
     });
   }
   //#endregion

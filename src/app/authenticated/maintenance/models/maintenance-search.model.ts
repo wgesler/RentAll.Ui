@@ -12,4 +12,6 @@ export interface MaintenanceListSearchRequest {
   endDate?: string | null;
   /** Receipt search only: 1 = bills, 2 = card receipts; omit for all. */
   receiptKind?: 1 | 2 | null;
+  /** Receipt search only: filter by vendor contact id. */
+  vendorId?: string | null;
 }

@@ -1,3 +1,46 @@
+<ng-template #receiptSplitsTemplate let-receipt>
+  <div class="detail-lines-wrapper">
+    @if (receipt?.detailLines?.length) {
+      <table>
+        <thead>
+          <tr>
+            @for (columnName of getReceiptSplitDetailColumnNames(); track columnName) {
+              @if (receiptSplitDetailDisplayedColumns[columnName]) {
+                <th [style.max-width]="receiptSplitDetailDisplayedColumns[columnName].maxWidth"
+                    [style.width]="receiptSplitDetailDisplayedColumns[columnName].maxWidth"
+                    [style.min-width]="receiptSplitDetailDisplayedColumns[columnName].maxWidth"
+                    [style.text-align]="receiptSplitDetailDisplayedColumns[columnName].alignment || 'left'">
+                  {{ receiptSplitDetailDisplayedColumns[columnName].displayAs }}
+                </th>
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of receipt.detailLines; track line.lineId; let i = $index) {
+            <tr [style.background-color]="line.rowColor || ''"
+                [class.detail-row-colored]="line.rowColor">
+              @for (columnName of getReceiptSplitDetailColumnNames(); track columnName) {
+                @if (receiptSplitDetailDisplayedColumns[columnName]) {
+                  <td [style.max-width]="receiptSplitDetailDisplayedColumns[columnName].maxWidth"
+                      [style.width]="receiptSplitDetailDisplayedColumns[columnName].maxWidth"
+                      [style.min-width]="receiptSplitDetailDisplayedColumns[columnName].maxWidth"
+                      [style.text-align]="receiptSplitDetailDisplayedColumns[columnName].alignment || 'left'"
+                      [class.no-wrap]="!receiptSplitDetailDisplayedColumns[columnName].wrap">
+                    {{ getReceiptSplitDetailColumnValue(line, columnName, i) }}
+                  </td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="no-lines">No split lines found for this bill.</p>
+    }
+  </div>
+</ng-template>
+
 @if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
@@ -30,6 +73,11 @@
         [deleteConfirmTitle]="'Delete Receipt'"
         [deleteConfirmMessage]="'Are you sure you want to delete this receipt?'"
         [itemsPerPage]="10"
+        [hasDetailRow]="showBillsDetailRows"
+        [detailRowTemplate]="receiptSplitsTemplate"
+        [includeDetailRowHeader]="false"
+        [expandAllCallback]="toggleExpandAll.bind(this)"
+        [isAllExpanded]="isAllExpanded"
         [isManualApplyMode]="isManualApplyMode"
         [applyAmountChangeCallback]="onApplyAmountChange.bind(this)"
         [applyAmountInputCallback]="onApplyAmountInput.bind(this)"

@@ -42,6 +42,18 @@ export interface Split {
   workOrder?: string;
 }
 
+/** Expandable bill detail rows (splits + optional green payment line). */
+export interface ReceiptSplitDetailLineDisplay {
+  lineId: string;
+  lineDate: string | null;
+  description: string;
+  workOrder: string;
+  receiptType: string;
+  account: string;
+  amount: number;
+  rowColor?: string;
+}
+
 export interface ReceiptRequest {
   receiptId?: string;
   organizationId: string;
@@ -175,6 +187,10 @@ export interface ReceiptDisplayList {
   createdByName?: string;
   modifiedOn: string;
   modifiedBy: string;
+  expand?: string;
+  expanded?: boolean;
+  detailLines?: ReceiptSplitDetailLineDisplay[];
+  expandClick?: (event: Event, item: ReceiptDisplayList) => void;
 }
 
 export interface ReceiptSelection {

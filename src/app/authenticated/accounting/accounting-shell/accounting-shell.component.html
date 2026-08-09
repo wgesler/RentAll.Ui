@@ -274,6 +274,17 @@
               [noResultsText]="'No properties match your search'"
               (valueChange)="onShellBillsPropertyDropdownChange($event)">
             </app-title-bar-select>
+            @if (selectedBillsReceiptKind === 'bills') {
+              <app-title-bar-select
+                [label]="'Vendors'"
+                [formFieldClass]="'titlebar-field-company'"
+                [value]="selectedBillsVendorId"
+                [options]="shellBillsVendorTitleBarOptions"
+                [nullOptionLabel]="'All Vendors'"
+                [noResultsText]="'No vendors match your search'"
+                (valueChange)="onShellBillsVendorDropdownChange($event)">
+              </app-title-bar-select>
+            }
             @if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />

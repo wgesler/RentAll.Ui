@@ -26,7 +26,7 @@ import { EmailHtmlResponse } from '../authenticated/email/models/email-html.mode
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
-import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
+import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
 import { getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
@@ -3500,6 +3500,37 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         modifiedBy: receipt.modifiedBy
       };
     });
+  }
+
+  mapReceiptSplitDetailLines(receipt: Pick<ReceiptDisplayList, 'receiptId' | 'receiptDate' | 'paidDate' | 'paidAmountValue' | 'splits'>): ReceiptSplitDetailLineDisplay[] {
+    const receiptId = String(receipt.receiptId || '').trim();
+    const billDate = (receipt.receiptDate || '').trim() || null;
+    const lines: ReceiptSplitDetailLineDisplay[] = (receipt.splits || []).map((split, index) => ({
+      lineId: `${receiptId}-split-${split.receiptSplitId ?? index}`,
+      lineDate: billDate,
+      description: (split.description || '').trim() || '—',
+      workOrder: (split.workOrderCode || split.workOrder || '').trim() || '—',
+      receiptType: getReceiptType(split.receiptTypeId) || '—',
+      account: (split.chartOfAccountDisplayName || '').trim() || '—',
+      amount: Number(split.amount) || 0
+    }));
+
+    const paidAmountValue = Number(receipt.paidAmountValue ?? 0) || 0;
+    const paidDate = (receipt.paidDate || '').trim() || null;
+    if (Math.abs(paidAmountValue) > 0.005 || !!paidDate) {
+      lines.push({
+        lineId: `${receiptId}-payment`,
+        lineDate: paidDate,
+        description: 'Payment',
+        workOrder: '—',
+        receiptType: 'Payment',
+        account: '—',
+        amount: paidAmountValue,
+        rowColor: '#E8F5E9'
+      });
+    }
+
+    return lines;
   }
   //#endregion
 
