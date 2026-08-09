@@ -94,6 +94,12 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] || changes['chartOfAccountId'] || changes['searchDateRange'] || changes['refreshTrigger']) {
       this.loadJournalEntries();
+      return;
+    }
+
+    if (changes['setup']) {
+      this.applySetupValues();
+      this.markViewForCheck();
     }
   }
 
@@ -122,41 +128,47 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get endingBalance(): number {
-    return this.mappingService.parseCurrencyValue(this.endingBalanceInput);
+    return this.utilityService.roundCurrency(this.mappingService.parseCurrencyValue(this.endingBalanceInput));
   }
 
   get serviceCharge(): number {
-    return this.mappingService.parseCurrencyValue(this.serviceChargeInput);
+    return this.utilityService.roundCurrency(this.mappingService.parseCurrencyValue(this.serviceChargeInput));
   }
 
   get interestEarned(): number {
-    return this.mappingService.parseCurrencyValue(this.interestEarnedInput);
+    return this.utilityService.roundCurrency(this.mappingService.parseCurrencyValue(this.interestEarnedInput));
   }
 
   get clearedBalance(): number {
-    return this.beginningBalance
+    return this.utilityService.roundCurrency(
+      this.beginningBalance
       + this.clearedDepositsTotal
       - this.clearedPaymentsTotal
       - this.serviceCharge
-      + this.interestEarned;
+      + this.interestEarned
+    );
   }
 
   get difference(): number {
-    const value = this.endingBalance - this.clearedBalance;
-    return Math.abs(value) < 0.005 ? 0 : value;
+    return this.utilityService.roundCurrency(this.endingBalance - this.clearedBalance);
   }
 
   get isDifferenceZero(): boolean {
-    return Math.abs(this.difference) < 0.005;
+    return this.utilityService.areCurrencyAmountsEqual(this.endingBalance, this.clearedBalance);
   }
 
   get canReconcileNow(): boolean {
-    return this.isDifferenceZero && this.setup != null && !this.isSavingReconcile;
+    return this.isDifferenceZero
+      && !this.isSavingReconcile
+      && this.officeId != null
+      && this.officeId > 0
+      && this.chartOfAccountId != null
+      && this.chartOfAccountId > 0
+      && !!this.resolveReconcileStatementDate();
   }
 
   get canSaveReconcileMarks(): boolean {
-    return this.setup != null
-      && this.officeId != null
+    return this.officeId != null
       && this.officeId > 0
       && this.chartOfAccountId != null
       && this.chartOfAccountId > 0
@@ -323,7 +335,31 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onModify(): void {
-    this.modifyEvent.emit();
+    if (this.isSavingReconcile) {
+      return;
+    }
+
+    if (!this.canSaveReconcileMarks) {
+      this.modifyEvent.emit();
+      return;
+    }
+
+    this.isSavingReconcile = true;
+    this.saveReconcileMarks().pipe(
+      finalize(() => {
+        this.isSavingReconcile = false;
+        this.markViewForCheck();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.modifyEvent.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        const message = error.error?.message || error.message || 'Unable to save reconcile marks.';
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 
@@ -374,7 +410,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       takeUntil(this.destroy$),
       catchError(() => of(0))
     ).subscribe(beginningBalance => {
-      this.beginningBalance = beginningBalance;
+      this.beginningBalance = this.utilityService.roundCurrency(beginningBalance);
       this.markViewForCheck();
     });
 
@@ -622,7 +658,7 @@ applySetupValues(): void {
       return;
     }
 
-    this.beginningBalance = this.setup.beginningBalance;
+    this.beginningBalance = this.utilityService.roundCurrency(this.setup.beginningBalance);
     this.endingBalanceInput = this.setup.endingBalance === 0 ? '' : this.formatCurrencyInput(String(this.setup.endingBalance));
     this.serviceChargeInput = Math.abs(this.setup.serviceCharge) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.serviceCharge));
     this.interestEarnedInput = Math.abs(this.setup.interestEarned) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.interestEarned));
@@ -643,9 +679,9 @@ resetViewState(placeholderMessage = 'Select an Account to Reconcile.'): void {
   }
 
 sumClearedAmounts(lines: ReconcileLineDisplay[]): number {
-    return lines
-      .filter(line => line.isCleared)
-      .reduce((total, line) => total + line.amountValue, 0);
+    return this.utilityService.sumCurrencyAmounts(
+      lines.filter(line => line.isCleared).map(line => line.amountValue)
+    );
   }
 
 sortLines(lines: ReconcileLineDisplay[], side: ReconcileSide): ReconcileLineDisplay[] {
@@ -729,12 +765,22 @@ buildSaveReconcileMarksRequest() {
     };
   }
 
+resolveReconcileStatementDate(): string | null {
+    const setupStatementDate = (this.setup?.statementDate || '').trim();
+    if (setupStatementDate) {
+      return setupStatementDate;
+    }
+
+    const searchStatementDate = (this.searchDateRange?.endDate || '').trim();
+    return searchStatementDate || null;
+  }
+
 buildCompleteReconcileRequest() {
-    if (!this.setup || this.officeId == null || this.chartOfAccountId == null) {
+    if (this.officeId == null || this.chartOfAccountId == null) {
       return null;
     }
 
-    const statementDate = (this.setup.statementDate || '').trim();
+    const statementDate = this.resolveReconcileStatementDate();
     if (!statementDate) {
       return null;
     }
@@ -743,7 +789,7 @@ buildCompleteReconcileRequest() {
       officeId: this.officeId,
       chartOfAccountId: this.chartOfAccountId,
       lines: this.buildReconcileLineMarks(),
-      endingBalance: this.setup.endingBalance,
+      endingBalance: this.endingBalance,
       statementDate
     };
   }

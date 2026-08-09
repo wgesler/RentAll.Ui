@@ -417,7 +417,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   reconcileSetup: BeginReconciliationDialogResult | null = null;
   reconcileAccountReportContext: ReconcileAccountReportContext | null = null;
   private preserveReconcileAccountReportContext = false;
-  private reconcileLeaveReportView: 'summary' | 'detail' | null = null;
+  private beginReconciliationDialogOpen = false;
   reconcileHistoryRows: ReconcileResponse[] = [];
   shellReconcileStatementDateOptions: SearchableSelectOption[] = [];
   selectedReconcileId: number | null = null;
@@ -2704,8 +2704,8 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
   selectBankActivity(kind: AccountingShellBankActivityKind): void {
     this.bankActivitiesMenuTrigger?.closeMenu();
     if (kind === 'reconcile') {
-      this.activateBankActivity('reconcile');
-      this.openBeginReconciliationDialog();
+      // Do not activate Reconcile until Begin Reconciliation Continue sets setup.
+      this.openBeginReconciliationDialog(true);
       return;
     }
 
@@ -3278,13 +3278,18 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
   //#endregion
 
   //#region Reconcile
-  openBeginReconciliationDialog(): void {
+  openBeginReconciliationDialog(activateOnContinue = false): void {
+    if (this.beginReconciliationDialogOpen) {
+      return;
+    }
+
     if (this.selectedOfficeId == null || this.selectedOfficeId <= 0) {
       this.toastr.warning('Select an office before reconciling.');
       return;
     }
 
     const selectedAccount = this.resolveSelectedReconcileChartOfAccount();
+    this.beginReconciliationDialogOpen = true;
 
     this.dialog.open(BeginReconciliationDialogComponent, {
       width: '95vw',
@@ -3302,12 +3307,34 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
         existingSetup: this.reconcileSetup
       }
     }).afterClosed().pipe(take(1)).subscribe((result?: BeginReconciliationDialogResult) => {
+      this.beginReconciliationDialogOpen = false;
+
       if (!result) {
+        if (this.selectedBankActivityKind === 'reconcile' && this.reconcileSetup == null) {
+          this.activateBankActivity('undepositedFunds');
+        }
         return;
+      }
+
+      if (activateOnContinue || this.selectedBankActivityKind !== 'reconcile') {
+        this.activateBankActivity('reconcile');
       }
 
       this.applyBeginReconciliationResult(result);
     });
+  }
+
+ensureBeginReconciliationSetup(): void {
+    if (this.selectedBankActivityKind !== 'reconcile' || this.reconcileSetup != null || this.beginReconciliationDialogOpen) {
+      return;
+    }
+
+    // Leave clears the account on purpose; do not force the begin dialog until an account is selected again.
+    if (this.selectedChartOfAccountId == null) {
+      return;
+    }
+
+    this.openBeginReconciliationDialog(true);
   }
 
 applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
@@ -3331,24 +3358,17 @@ applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
   }
 
   onReconcileLeave(): void {
-    const setup = this.reconcileSetup;
     this.reconcileSetup = null;
-
-    if (setup) {
-      this.reconcileAccountReportContext = {
-        endingBalance: setup.endingBalance
-      };
-      this.selectedChartOfAccountId = setup.chartOfAccountId;
-      const statementDate = this.utilityService.parseCalendarDateInput(setup.statementDate);
-      if (statementDate) {
-        this.endDate = statementDate;
-        this.syncInvoiceSearchDateRange();
-      }
-    }
-
-    this.openReconcileAccountReport(this.reconcileLeaveReportView ?? 'detail');
-    this.reconcileLeaveReportView = null;
-    this.loadReconcileHistoryForSelectedAccount();
+    this.reconcileAccountReportContext = null;
+    this.selectedChartOfAccountId = null;
+    this.clearReconcileHistorySelection(true);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+    this.persistPinnedTopBarIfActive();
+    this.cdr.markForCheck();
   }
 
   onReconcileAccountReportViewChange(view: 'summary' | 'detail'): void {
@@ -3463,7 +3483,6 @@ openReconcileAccountReport(view: 'summary' | 'detail'): void {
 
   onReconcileComplete(): void {
     this.chartOfAccountsService.notifyChartOfAccountsChanged();
-    this.reconcileLeaveReportView = 'summary';
   }
 
 resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {
@@ -3956,6 +3975,10 @@ persistPinnedTopBarIfActive(): void {
     }
 
     this.clampSelectedTabIndexForAccess();
+
+    if (this.selectedBankActivityKind === 'reconcile' && this.reconcileSetup == null) {
+      queueMicrotask(() => this.ensureBeginReconciliationSetup());
+    }
   }
 
   readShellNavigationFromStorage(): AccountingShellNavigationState | null {
@@ -5131,6 +5154,10 @@ captureOwnerStatementReturnContext(): void {
       ) {
         this.selectedBankActivityKind = bankActivity;
       }
+    }
+
+    if (this.selectedBankActivityKind === 'reconcile' && this.reconcileSetup == null) {
+      queueMicrotask(() => this.ensureBeginReconciliationSetup());
     }
 
     if ('ownerKind' in params) {

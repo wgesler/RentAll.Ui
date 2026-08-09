@@ -394,6 +394,10 @@ applyExistingSetup(): void {
       interestEarnedAccountId: setup.interestEarnedAccountId
     }, { emitEvent: false });
     this.isApplyingDraft = false;
+
+    // Last reconciled / Undo come from the account tip (prior completed reconcile), not the in-progress setup.
+    this.applySelectedAccountDefaults();
+    this.beginningBalance = this.utilityService.roundCurrency(setup.beginningBalance);
   }
 
 formatCurrencyFieldValue(value: number, defaultWhenZero: string): string {

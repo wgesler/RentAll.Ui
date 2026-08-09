@@ -239,7 +239,7 @@
         color="primary"
         class="reconcile-now-btn"
         [disabled]="!canReconcileNow"
-        [matTooltip]="canReconcileNow ? 'Complete reconciliation' : 'Cleared balance must match ending balance'"
+        [matTooltip]="canReconcileNow ? 'Complete reconciliation' : (!isDifferenceZero ? 'Cleared balance must match ending balance' : 'Account and statement date are required')"
         (click)="onReconcileNow()">
         Reconcile Now
       </button>

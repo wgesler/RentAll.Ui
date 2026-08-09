@@ -724,7 +724,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
         payee: (line.contactName || '').trim(),
         memo: (line.memo || line.journalEntryMemo || '').trim(),
         amountValue,
-        isCleared: line.isCleared === true
+        isCleared: this.resolveIsClearedFlag(line.isCleared)
       };
     });
   }
