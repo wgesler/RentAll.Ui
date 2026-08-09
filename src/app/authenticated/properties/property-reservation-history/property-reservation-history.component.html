@@ -1,0 +1,73 @@
+<ng-template #invoicesTemplate let-reservation>
+  <div class="detail-lines-wrapper">
+    @if (reservation?.invoicesLoading) {
+      <div class="detail-loading">
+        <mat-spinner [diameter]="24"></mat-spinner>
+        <span>Loading invoices...</span>
+      </div>
+    } @else if (reservation?.invoices?.length > 0) {
+      <table>
+        <thead>
+          <tr>
+            @for (columnName of getInvoiceColumnNames(); track columnName) {
+              <th
+                [style.max-width]="invoiceColumns[columnName].maxWidth"
+                [style.width]="invoiceColumns[columnName].maxWidth"
+                [style.min-width]="invoiceColumns[columnName].maxWidth"
+                [style.text-align]="invoiceColumns[columnName].alignment || 'left'">
+                {{ invoiceColumns[columnName].displayAs }}
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (invoice of reservation.invoices; track invoice.invoiceId) {
+            <tr class="invoice-detail-row" (click)="goToInvoice($event, invoice, reservation)">
+              @for (columnName of getInvoiceColumnNames(); track columnName) {
+                <td
+                  [style.max-width]="invoiceColumns[columnName].maxWidth"
+                  [style.width]="invoiceColumns[columnName].maxWidth"
+                  [style.min-width]="invoiceColumns[columnName].maxWidth"
+                  [style.text-align]="invoiceColumns[columnName].alignment || 'left'">
+                  {{ invoice[columnName] }}
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="no-lines">No invoices found for this reservation.</p>
+    }
+  </div>
+</ng-template>
+
+<div class="property-reservation-history">
+  @if (!isPageReady) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading reservation history...</p>
+    </div>
+  } @else {
+    <div class="tableDiv">
+      <app-data-table
+        [data]="tableData"
+        [columns]="displayedColumns"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="false"
+        [hasDetailRow]="true"
+        [detailRowTemplate]="invoicesTemplate"
+        [includeDetailRowHeader]="false"
+        [expandAllCallback]="toggleExpandAll.bind(this)"
+        [isAllExpanded]="isAllExpanded"
+        [itemsPerPage]="10"
+        (editEvent)="goToReservation($event)"
+        (rowClickEvent)="goToReservation($event)" />
+    </div>
+  }
+</div>

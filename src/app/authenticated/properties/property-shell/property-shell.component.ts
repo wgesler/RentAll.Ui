@@ -22,6 +22,7 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyListingComponent } from '../property-listing/property-listing.component';
+import { PropertyReservationHistoryComponent } from '../property-reservation-history/property-reservation-history.component';
 import { PropertyComponent } from '../property/property.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -39,6 +40,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
     PropertyComponent,
     PropertyInformationComponent,
     PropertyListingComponent,
+    PropertyReservationHistoryComponent,
     PropertyWelcomeLetterComponent,
     EmailListComponent,
     DocumentListComponent
@@ -64,6 +66,9 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
 
   private static readonly welcomeLetterTabIndex = 2;
+  private static readonly reservationHistoryTabIndex = 4;
+  private static readonly emailTabIndex = 5;
+  private static readonly documentsTabIndex = 6;
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
@@ -114,9 +119,11 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
-        this.selectedTabIndex = 5;
+        this.selectedTabIndex = PropertyShellComponent.documentsTabIndex;
       } else if (queryParams['tab'] === 'email') {
-        this.selectedTabIndex = 4;
+        this.selectedTabIndex = PropertyShellComponent.emailTabIndex;
+      } else if (queryParams['tab'] === 'reservation-history') {
+        this.selectedTabIndex = PropertyShellComponent.reservationHistoryTabIndex;
       } else if (queryParams['tab'] === 'listing') {
         this.selectedTabIndex = 3;
       }
@@ -230,10 +237,10 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   onReservationDropdownChange(value: string | number | null): void {
     this.titleBarReservationId = this.normalizeTitleBarReservationId(value);
     this.propertySection?.applyTitleBarReservationSelection(value);
-    if (this.selectedTabIndex === 4) {
+    if (this.selectedTabIndex === PropertyShellComponent.emailTabIndex) {
       this.propertyEmailList?.reload();
     }
-    if (this.selectedTabIndex === 5) {
+    if (this.selectedTabIndex === PropertyShellComponent.documentsTabIndex) {
       this.propertyDocumentList?.reload();
     }
   }
@@ -435,10 +442,10 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
       this.selectedTabIndex = nextIndex;
       this.routeTabQueryParam(nextIndex);
-      if (nextIndex === 4) {
+      if (nextIndex === PropertyShellComponent.emailTabIndex) {
         queueMicrotask(() => this.propertyEmailList?.reload());
       }
-      if (nextIndex === 5) {
+      if (nextIndex === PropertyShellComponent.documentsTabIndex) {
         queueMicrotask(() => this.propertyDocumentList?.reload());
       }
     } finally {
@@ -450,9 +457,11 @@ applyOfficeFromGlobal(officeId: number | null): void {
     let tab: string | null = null;
     if (tabIndex === 3) {
       tab = 'listing';
-    } else if (tabIndex === 4) {
+    } else if (tabIndex === PropertyShellComponent.reservationHistoryTabIndex) {
+      tab = 'reservation-history';
+    } else if (tabIndex === PropertyShellComponent.emailTabIndex) {
       tab = 'email';
-    } else if (tabIndex === 5) {
+    } else if (tabIndex === PropertyShellComponent.documentsTabIndex) {
       tab = 'documents';
     }
 

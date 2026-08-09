@@ -3,8 +3,8 @@
   box-sizing: border-box;
 }
 
-/* Hide Listing-shell Emails tab from view while keeping routing/component wiring intact. */
-:host ::ng-deep .shell-tabs .mat-mdc-tab-header .mat-mdc-tab:nth-child(5) {
+/* Hide property-shell Emails tab from view while keeping routing/component wiring intact. */
+:host ::ng-deep .shell-tabs .mat-mdc-tab-header .mat-mdc-tab:nth-child(6) {
   display: none !important;
 }
 

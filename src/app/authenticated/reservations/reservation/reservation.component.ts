@@ -3351,6 +3351,14 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.router.navigateByUrl(RouterUrl.ReservationBoard);
       return;
     }
+    if (returnTo === 'property-reservation-history') {
+      const propertyId = qp.get('propertyId')?.trim();
+      if (propertyId) {
+        const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
+        this.router.navigateByUrl(`/${propertyUrl}?tab=reservation-history`);
+        return;
+      }
+    }
     if (returnTo === 'invoice-list') {
       const params: string[] = [];
       const officeId = qp.get('officeId');
