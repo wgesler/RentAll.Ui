@@ -3361,10 +3361,18 @@ applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
     this.reconcileSetup = null;
     this.reconcileAccountReportContext = null;
     this.selectedChartOfAccountId = null;
-    this.clearReconcileHistorySelection(true);
+    this.clearReconcileHistorySelection(false);
+    this.selectedTabIndex = this.tabBankActivities;
+    this.selectedBankActivityKind = 'reconcile';
+    // Explicitly clear any stale report= param so merge does not bounce us to Reports.
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.buildShellQueryParams(),
+      queryParams: this.buildShellQueryParams({
+        tab: String(this.tabBankActivities),
+        bankActivity: 'reconcile',
+        report: null,
+        chartOfAccountId: null
+      }),
       queryParamsHandling: 'merge'
     });
     this.persistPinnedTopBarIfActive();
@@ -5105,12 +5113,13 @@ captureOwnerStatementReturnContext(): void {
     let activateBalanceSheetDefaults = false;
     let tabIndex = getNumberQueryParam(params, 'tab', 0, this.tabMaxIndex + 3);
     if (tabIndex !== null) {
-      if ('report' in params && params['report'] === 'ownerApAging') {
+      if (params['report'] === 'ownerApAging') {
         tabIndex = this.tabOwners;
-      } else if ('report' in params) {
-        tabIndex = this.tabReports;
-      } else if ('bankActivity' in params) {
+      } else if (params['bankActivity']) {
+        // Prefer bank activity over a leftover report= from a prior Reconcile Now.
         tabIndex = this.tabBankActivities;
+      } else if (params['report']) {
+        tabIndex = this.tabReports;
       } else if ('ownerKind' in params) {
         tabIndex = this.tabOwners;
       } else if ('glView' in params) {
