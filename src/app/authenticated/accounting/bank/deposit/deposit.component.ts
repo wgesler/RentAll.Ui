@@ -149,6 +149,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.applyShellOfficeToDeposit();
       this.applyChartOfAccountsForOffice();
+      this.clearSplitPropertiesOutsideOffice();
+      this.cdr.markForCheck();
     }
     if (changes['property']) {
       this.applyPropertyInputToForm();
@@ -831,14 +833,18 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   getDepositOfficeId(): number | null {
+    // Add mode follows the accounting-shell office so property/account lists refilter with it.
+    if (this.isAddMode && this.officeId != null && this.officeId > 0) {
+      return this.officeId;
+    }
     if (this.deposit?.officeId) {
       return this.deposit.officeId;
     }
-    if (this.property?.officeId) {
-      return this.property.officeId;
-    }
     if (this.officeId != null && this.officeId > 0) {
       return this.officeId;
+    }
+    if (this.property?.officeId) {
+      return this.property.officeId;
     }
     const firstSplitPropertyId = this.splitsFormArray.controls
       .map(control => (control.get('propertyId')?.value || '').toString().trim())
@@ -850,6 +856,27 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       }
     }
     return null;
+  }
+
+  clearSplitPropertiesOutsideOffice(): void {
+    const officeId = this.getDepositOfficeId();
+    if (officeId == null || this.splitsFormArray.length === 0) {
+      return;
+    }
+
+    const allowedPropertyIds = new Set(
+      (this.propertyOptions || [])
+        .filter(property => property.officeId === officeId)
+        .map(property => (property.propertyId || '').trim())
+        .filter(propertyId => propertyId.length > 0)
+    );
+
+    for (const control of this.splitsFormArray.controls) {
+      const propertyId = (control.get('propertyId')?.value || '').toString().trim();
+      if (propertyId && !allowedPropertyIds.has(propertyId)) {
+        control.patchValue({ propertyId: null }, { emitEvent: false });
+      }
+    }
   }
 
   applyShellOfficeToDeposit(): void {

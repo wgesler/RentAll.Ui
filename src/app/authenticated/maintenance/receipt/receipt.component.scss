@@ -91,11 +91,29 @@
   color: #1e88e5;
 }
 
-.receipt-agreement-notes-info-btn mat-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
-  line-height: 16px;
+.receipt-agreement-notes-info-btn .datatable-info-letter-icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background-color: currentColor;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.receipt-agreement-notes-info-btn .datatable-info-letter-icon__glyph {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: normal;
+  transform: translate(0.5px, -0.5px);
 }
 
 .receipt-form-grid {

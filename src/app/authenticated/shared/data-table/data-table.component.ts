@@ -101,8 +101,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() invoiceActionColor: string = '#2E7D32';
   @Input() payableActionColor: string = '#4CAF50';
   @Input() infoActionColor: string = '#1E88E5';
+  @Input() copyActionColor: string = '#2196F3';
   @Input() infoTooltipClass: string = 'invoice-reservation-info-tooltip';
-  @Input() infoIconLarge: boolean = false;
+  /** When true (default), info action uses the filled letter-i badge at list size. */
+  @Input() infoIconLarge: boolean = true;
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsQuote: boolean = false;
   @Input() hasActionsRestore: boolean = false;
@@ -1443,7 +1445,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsInspect)  this.buttons.push({name: 'inspect', callback: (event, rowItem) => this.emitInspectEvent(event, rowItem), color: '#4CAF50', tooltip: 'Open Inspection', tooltipPosition: 'before', icon: 'search', suspendOnUpdate: false});
     if (this.hasActionsCalendar) this.buttons.push({name: 'calendar', callback: (event, rowItem) => this.emitCalendarEvent(event, rowItem), color: '#00897B', tooltip: 'Calendar', tooltipPosition: 'before', icon: 'calendar_month', suspendOnUpdate: false});
     if (this.hasActionsQuote)    this.buttons.push({name: 'quote', callback: (event, rowItem) => this.emitQuoteEvent(event, rowItem), color: '#2E7D32', tooltip: 'Generate Quote', tooltipPosition: 'before', icon: 'request_quote', suspendOnUpdate: false});
-    if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: '#2196F3', tooltip: 'Copy', tooltipPosition: 'before', icon: 'file_copy', suspendOnUpdate: false});
+    if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: this.copyActionColor, tooltip: 'Copy', tooltipPosition: 'before', icon: 'file_copy', suspendOnUpdate: false});
     if (this.hasActionsLink)     this.buttons.push({name: 'link', callback: (event, rowItem) => this.emitLinkEvent(event, rowItem), color: '#FF9800', tooltip: 'Copy Owner Link', tooltipPosition: 'before', icon: 'link', suspendOnUpdate: false});
     if (this.hasActionsUser)     this.buttons.push({name: 'user', callback: (event, rowItem) => this.emitUserEvent(event, rowItem), color: this.userActionColor, tooltip: this.userActionTooltip, tooltipPosition: 'before', icon: 'person_add', suspendOnUpdate: false});
     if (this.hasActionsRental)   this.buttons.push({name: 'rental', callback: (event, rowItem) => this.emitRentalEvent(event, rowItem), color: '#1976D2', tooltip: 'Convert to Rental Lead', tooltipPosition: 'before', icon: 'home_work', suspendOnUpdate: false});

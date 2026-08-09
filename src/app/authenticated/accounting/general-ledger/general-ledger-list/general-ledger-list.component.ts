@@ -142,13 +142,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
-    transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
+    transactionDate: { displayAs: 'Date', maxWidth: '14ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
     source: { displayAs: 'Source', maxWidth: '16ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
-    account: { displayAs: 'Account', maxWidth: '28ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
@@ -159,7 +158,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
-    account: { displayAs: 'Account', maxWidth: '42ch', wrap: false },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
@@ -904,7 +902,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const isManual = isUserEditableJournalEntry(line.sourceTypeId, line.journalEntryKindId);
     return {
       isManual,
-      editDisabled: !isManual,
+      // Always allow opening the JE (view); save stays blocked in the editor when not manual.
+      editDisabled: false,
       deleteDisabled: !this.journalEntryService.canDeleteJournalEntry(line.postingStatusId)
     };
   }

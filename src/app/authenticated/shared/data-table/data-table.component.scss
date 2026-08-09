@@ -976,11 +976,41 @@ td.mat-mdc-cell.datatable-date-column {
   margin-right: auto !important;
 }
 
-.datatable-info-icon-lg {
-  font-size: 20px !important;
-  width: 20px !important;
-  height: 20px !important;
-  line-height: 20px !important;
+.datatable-info-letter-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  box-sizing: border-box;
+  // Circle fill uses the action button color inherited from the parent button.
+  background-color: currentColor;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.datatable-info-letter-icon__glyph {
+  display: block;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: normal;
+  // Optical center: lowercase "i" glyph sits slightly left in the em box.
+  transform: translate(0.5px, -0.5px);
+}
+
+.datatable-info-letter-icon-lg {
+  width: 20px;
+  height: 20px;
+
+  .datatable-info-letter-icon__glyph {
+    font-size: 13px;
+    transform: translate(0.5px, -0.5px);
+  }
 }
 
 td.mat-cell.datatable-checkbox-td,

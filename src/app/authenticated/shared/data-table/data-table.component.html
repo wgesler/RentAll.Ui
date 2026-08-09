@@ -216,13 +216,16 @@
                                 <span class="datatable-transfer-icon-btn" id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
                                   <mat-icon class="datatable-transfer-icon-btn__icon">sync_alt</mat-icon>
                                 </span>
+                              } @else if (button.name === 'info') {
+                                <span
+                                  class="datatable-info-letter-icon"
+                                  [class.datatable-info-letter-icon-lg]="infoIconLarge"
+                                  id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                  <span class="datatable-info-letter-icon__glyph">i</span>
+                                </span>
                               } @else {
-                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" [ngClass]="{'datatable-info-icon': button.name === 'info', 'datatable-info-icon-lg': button.name === 'info' && infoIconLarge}">
-                                  @if (button.name === 'info') {
-                                    info
-                                  } @else {
-                                    {{button.icon}}
-                                  }
+                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                  {{button.icon}}
                                 </mat-icon>
                               }
                             }
