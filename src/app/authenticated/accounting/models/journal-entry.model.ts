@@ -13,7 +13,10 @@ export interface JournalEntryLineSearchRequest {
   unclearedOnly?: boolean;
   /** When true, include IsCashOnly journal entries (Owner AP Aging). Default false for GL / financial reports. */
   includeCashOnly?: boolean;
-  /** When true, honor startDate. When false (default), floor at office start and ignore startDate. */
+  /**
+   * When false (default): floor at accounting-office start; ignore startDate.
+   * When true: honor startDate if set; null startDate = beginning of time (GL Include All).
+   */
   showAll?: boolean;
   startDate?: string | null;
   endDate?: string | null;

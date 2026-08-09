@@ -589,7 +589,11 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   getSplitPropertyOptions(): Array<{ value: string; label: string }> {
-    return (this.propertyOptions || [])
+    const officeId = this.getDepositOfficeId();
+    const properties = officeId == null  ? (this.propertyOptions || [])
+      : (this.propertyOptions || []).filter(property => property.officeId === officeId);
+
+    return properties
       .map(property => ({
         value: (property.propertyId || '').trim(),
         label: (property.propertyCode || '').trim()

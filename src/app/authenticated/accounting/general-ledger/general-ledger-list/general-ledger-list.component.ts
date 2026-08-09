@@ -392,7 +392,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       includeUnposted: true,
       includeCashOnly: this.includeCashOnly,
       showAll: this.includeAll,
-      startDate: this.searchDateRange?.startDate ?? null,
+      startDate: this.includeAll ? null : (this.searchDateRange?.startDate ?? null),
       endDate: this.searchDateRange?.endDate ?? null
     }).pipe(
       takeUntil(loadUntil),
