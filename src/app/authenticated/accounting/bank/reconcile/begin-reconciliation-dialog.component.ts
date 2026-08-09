@@ -13,6 +13,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { BeginReconciliationDialogData, BeginReconciliationDialogResult, ReconcileDraftResponse } from '../../models/reconcile.model';
 import { ReconcileAdjustmentService } from '../../services/reconcile-adjustment.service';
 import { ReconcileDraftService } from '../../services/reconcile-draft.service';
+import { ReconcileService } from '../../services/reconcile.service';
 
 @Component({
   standalone: true,
@@ -31,10 +32,12 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
   private reconcileAdjustmentService = inject(ReconcileAdjustmentService);
   private reconcileDraftService = inject(ReconcileDraftService);
+  private reconcileService = inject(ReconcileService);
 
   beginningBalance = 0;
   lastReconciledDate: string | null = null;
   isSaving = false;
+  isUndoing = false;
   private isApplyingDraft = false;
   destroy$ = new Subject<void>();
 
@@ -91,7 +94,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   }
 
   get canUndoLastReconciliation(): boolean {
-    return String(this.lastReconciledDate || '').trim().length > 0;
+    return !this.isUndoing && !this.isSaving && String(this.lastReconciledDate || '').trim().length > 0;
   }
 
   formatCurrency(value: number): string {
@@ -103,7 +106,37 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   }
 
   onUndoLastReconciliation(): void {
-    // Undo last reconciliation when backend support is added.
+    if (!this.canUndoLastReconciliation) {
+      return;
+    }
+
+    const officeId = this.data.officeId;
+    const accountId = Number(this.form.get('chartOfAccountId')?.value);
+    if (!officeId || officeId <= 0 || !accountId) {
+      this.toastr.error('Account and office are required to undo reconciliation.', CommonMessage.Error);
+      return;
+    }
+
+    this.isUndoing = true;
+    this.reconcileService.removeLastReconcile(officeId, accountId).pipe(
+      finalize(() => {
+        this.isUndoing = false;
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: latestReconcile => {
+        this.lastReconciledDate = latestReconcile?.statementDate ?? null;
+        this.beginningBalance = latestReconcile?.endingBalance ?? 0;
+        this.updateAccountReconcileDefault(accountId, latestReconcile?.endingBalance ?? null, latestReconcile?.statementDate ?? null);
+        this.toastr.success('Last reconciliation undone.', 'Success');
+      },
+      error: (error: HttpErrorResponse | Error) => {
+        const message = error instanceof HttpErrorResponse
+          ? (error.error?.message || error.message || 'Unable to undo the last reconciliation.')
+          : (error.message || 'Unable to undo the last reconciliation.');
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
   }
 
   onContinue(): void {
@@ -327,6 +360,17 @@ resolveSelectedAccountDefault() {
     }
 
     return this.data.accountReconcileDefaults.find(account => account.chartOfAccountId === chartOfAccountId) ?? null;
+  }
+
+updateAccountReconcileDefault(chartOfAccountId: number, endingBalance: number | null, statementDate: string | null): void {
+    const existing = this.data.accountReconcileDefaults.find(account => account.chartOfAccountId === chartOfAccountId);
+    if (existing) {
+      existing.endingBalance = endingBalance;
+      existing.statementDate = statementDate;
+      return;
+    }
+
+    this.data.accountReconcileDefaults.push({ chartOfAccountId, endingBalance, statementDate });
   }
 
 applyExistingSetup(): void {

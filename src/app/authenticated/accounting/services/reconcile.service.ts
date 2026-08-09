@@ -21,6 +21,12 @@ export class ReconcileService {
     );
   }
 
+  removeLastReconcile(officeId: number, accountId: number): Observable<ReconcileResponse | null> {
+    return this.http.delete<ReconcileResponse | null>(`${this.controller}reconcile/office/${officeId}/account/${accountId}/last`).pipe(
+      map(row => row == null ? null : this.mapReconcileResponse(row as unknown as Record<string, unknown>))
+    );
+  }
+
   mapReconcileResponse(raw: Record<string, unknown>): ReconcileResponse {
     const base = raw as unknown as ReconcileResponse;
     return {

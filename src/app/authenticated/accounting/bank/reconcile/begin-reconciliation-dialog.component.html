@@ -99,8 +99,8 @@
     <div class="begin-reconciliation-dialog-actions">
       <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!canUndoLastReconciliation" (click)="onUndoLastReconciliation()">Undo Last Reconciliation</button>
       <div class="begin-reconciliation-dialog-actions-right">
-        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isSaving" (click)="onCancel()">Cancel</button>
-        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSaving" (click)="onContinue()">Continue</button>
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isSaving || isUndoing" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSaving || isUndoing" (click)="onContinue()">Continue</button>
       </div>
     </div>
   </mat-dialog-content>

@@ -604,6 +604,29 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
     };
   }
 
+  mapChartOfAccountResponse(raw: Record<string, unknown>): ChartOfAccountResponse {
+    const base = raw as unknown as ChartOfAccountResponse;
+    const endingBalanceRaw = raw['endingBalance'] ?? raw['EndingBalance'] ?? base.endingBalance;
+    const endingBalance = endingBalanceRaw == null || endingBalanceRaw === '' ? null : Number(endingBalanceRaw);
+    const subAccountIdRaw = Number(raw['subAccountId'] ?? raw['SubAccountId'] ?? base.subAccountId ?? 0);
+    const descriptionRaw = raw['description'] ?? raw['Description'] ?? base.description;
+    const noteRaw = raw['note'] ?? raw['Note'] ?? base.note;
+    return {
+      organizationId: String(raw['organizationId'] ?? raw['OrganizationId'] ?? base.organizationId ?? ''),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? base.officeId ?? 0),
+      accountId: Number(raw['accountId'] ?? raw['AccountId'] ?? base.accountId ?? 0),
+      accountNo: String(raw['accountNo'] ?? raw['AccountNo'] ?? base.accountNo ?? ''),
+      accountTypeId: Number(raw['accountTypeId'] ?? raw['AccountTypeId'] ?? base.accountTypeId ?? 0),
+      name: String(raw['name'] ?? raw['Name'] ?? base.name ?? ''),
+      isSubaccount: (raw['isSubaccount'] ?? raw['IsSubaccount'] ?? base.isSubaccount) === true,
+      subAccountId: Number.isFinite(subAccountIdRaw) && subAccountIdRaw > 0 ? subAccountIdRaw : null,
+      description: descriptionRaw == null || descriptionRaw === '' ? null : String(descriptionRaw),
+      endingBalance: endingBalance != null && Number.isFinite(endingBalance) ? endingBalance : null,
+      statementDate: this.utility.coerceCalendarDateStringFromApi(raw['statementDate'] ?? raw['StatementDate'] ?? base.statementDate) ?? null,
+      note: noteRaw == null || noteRaw === '' ? null : String(noteRaw)
+    };
+  }
+
   mapChartOfAccountSubaccountParentUpdate(account: ChartOfAccountResponse, parentAccountId: number | null): ChartOfAccountRequest {
     const isSubaccount = parentAccountId != null && parentAccountId > 0;
     return {
