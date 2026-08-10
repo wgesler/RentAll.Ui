@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -17,6 +17,13 @@ import { PropertyInformationService } from '../services/property-information.ser
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
+type HtmlEditorControlName =
+  | 'departureInstructions'
+  | 'departureCleaning'
+  | 'departureMail'
+  | 'departureFees';
+
+type HtmlEditorFormat = 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList';
 
 @Component({
     standalone: true,
@@ -55,6 +62,27 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation']));
   isPageReady = false;
   destroy$ = new Subject<void>();
+
+  private readonly htmlEditorControlNames: HtmlEditorControlName[] = [
+    'departureInstructions',
+    'departureCleaning',
+    'departureMail',
+    'departureFees'
+  ];
+  private htmlEditors = new Map<HtmlEditorControlName, HTMLDivElement>();
+
+  @ViewChild('departureInstructionsEditor') set departureInstructionsEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureInstructions', value);
+  }
+  @ViewChild('departureCleaningEditor') set departureCleaningEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureCleaning', value);
+  }
+  @ViewChild('departureMailEditor') set departureMailEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureMail', value);
+  }
+  @ViewChild('departureFeesEditor') set departureFeesEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureFees', value);
+  }
 
   constructor() {
     this.form = this.buildForm();
@@ -147,6 +175,10 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       televisionSource: formValue.televisionSource || undefined,
       internetService: formValue.internetService || undefined,
       keyReturn: formValue.keyReturn || undefined,
+      departureInstructions: formValue.departureInstructions || undefined,
+      departureCleaning: formValue.departureCleaning || undefined,
+      departureMail: formValue.departureMail || undefined,
+      departureFees: formValue.departureFees || undefined,
       concierge: formValue.concierge || undefined,
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       emergencyPhone: formValue.emergencyPhone ? this.formatterService.stripPhoneFormatting(formValue.emergencyPhone) : undefined,
@@ -235,6 +267,10 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       televisionSource: new FormControl(''),
       internetService: new FormControl(''),
       keyReturn: new FormControl(''),
+      departureInstructions: new FormControl(''),
+      departureCleaning: new FormControl(''),
+      departureMail: new FormControl(''),
+      departureFees: new FormControl(''),
       concierge: new FormControl(''),
       maintenanceEmail: new FormControl(''),
       emergencyPhone: new FormControl(''),
@@ -255,12 +291,17 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       televisionSource: response.televisionSource || '',
       internetService: response.internetService || '',
       keyReturn: response.keyReturn || '',
+      departureInstructions: response.departureInstructions || '',
+      departureCleaning: response.departureCleaning || '',
+      departureMail: response.departureMail || '',
+      departureFees: response.departureFees || '',
       concierge: response.concierge || '',
       maintenanceEmail: response.maintenanceEmail || '',
       emergencyPhone: response.emergencyPhone ? this.formatterService.phoneNumber(response.emergencyPhone) : '',
       additionalNotes: response.additionalNotes || ''
     });
     this.formatPhone();
+    this.syncAllHtmlEditorsFromForm();
   }
  
   populateFormFromCopiedData(): void {
@@ -280,12 +321,17 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       televisionSource: this.copiedPropertyInformation.televisionSource || '',
       internetService: this.copiedPropertyInformation.internetService || '',
       keyReturn: this.copiedPropertyInformation.keyReturn || '',
+      departureInstructions: this.copiedPropertyInformation.departureInstructions || '',
+      departureCleaning: this.copiedPropertyInformation.departureCleaning || '',
+      departureMail: this.copiedPropertyInformation.departureMail || '',
+      departureFees: this.copiedPropertyInformation.departureFees || '',
       concierge: this.copiedPropertyInformation.concierge || '',
       maintenanceEmail: this.copiedPropertyInformation.maintenanceEmail || '',
       emergencyPhone: this.copiedPropertyInformation.emergencyPhone ? this.formatterService.phoneNumber(this.copiedPropertyInformation.emergencyPhone) : '',
       additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
     });
     this.formatPhone();
+    this.syncAllHtmlEditorsFromForm();
     this.applyAddModeOfficeDefaults();
   }
 
@@ -372,6 +418,113 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   hasPersistedPropertyId(): boolean {
     return !!this.propertyId && this.propertyId !== 'new';
+  }
+
+  registerHtmlEditor(controlName: HtmlEditorControlName, value: ElementRef<HTMLDivElement> | undefined): void {
+    const editor = value?.nativeElement;
+    if (!editor) {
+      this.htmlEditors.delete(controlName);
+      return;
+    }
+    this.htmlEditors.set(controlName, editor);
+    this.syncHtmlEditorFromForm(controlName);
+  }
+
+  onHtmlEditorInput(controlName: HtmlEditorControlName, event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const control = this.form.get(controlName);
+    control?.setValue(element.innerHTML, { emitEvent: false });
+    control?.markAsDirty();
+    control?.markAsTouched();
+  }
+
+  applyHtmlEditorFormat(controlName: HtmlEditorControlName, format: HtmlEditorFormat): void {
+    const editor = this.htmlEditors.get(controlName);
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    if (format === 'paragraph') {
+      const inserted = this.execEditorCommand('insertParagraph', false);
+      if (!inserted) {
+        this.execEditorCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get(controlName)?.setValue(editor.innerHTML);
+      return;
+    }
+
+    if (format === 'unorderedList') {
+      this.applyUnorderedListCommand(editor);
+      this.form.get(controlName)?.setValue(editor.innerHTML);
+      return;
+    }
+
+    this.execEditorCommand(format, false);
+    this.form.get(controlName)?.setValue(editor.innerHTML);
+  }
+
+  preventEditorToolbarMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  syncAllHtmlEditorsFromForm(): void {
+    this.htmlEditorControlNames.forEach(controlName => this.syncHtmlEditorFromForm(controlName));
+  }
+
+  syncHtmlEditorFromForm(controlName: HtmlEditorControlName): void {
+    const editor = this.htmlEditors.get(controlName);
+    if (!editor) {
+      return;
+    }
+
+    const value = this.form?.get(controlName)?.value ?? '';
+    const nextHtml = typeof value === 'string' ? value : String(value);
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
+  }
+
+  /** Contenteditable toolbar; execCommand is deprecated in DOM typings but has no stable replacement yet. */
+  private execEditorCommand(commandId: string, showUi = false, value?: string): boolean {
+    return (document as unknown as { execCommand(commandId: string, showUI?: boolean, value?: string): boolean })
+      .execCommand(commandId, showUi, value);
+  }
+
+  private applyUnorderedListCommand(editor: HTMLDivElement): void {
+    editor.focus();
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    const listItems = selectedText
+      .split(/\r?\n+/)
+      .map(item => item.trim())
+      .filter(item => !!item);
+    if (listItems.length > 0) {
+      const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeEditorHtml(item)}</li>`).join('')}</ul>`;
+      this.execEditorCommand('insertHTML', false, listHtml);
+      return;
+    }
+
+    if (!selection || selection.rangeCount === 0) {
+      this.execEditorCommand('insertHTML', false, '<ul><li><br></li></ul>');
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    this.execEditorCommand('insertHTML', false, '<ul><li><br></li></ul>');
+  }
+
+  private escapeEditorHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   ngOnDestroy(): void {

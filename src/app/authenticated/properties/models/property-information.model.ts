@@ -14,6 +14,10 @@ export interface PropertyInformationRequest {
   internetNetwork?: string;
   internetPassword?: string;
   keyReturn?: string;
+  departureInstructions?: string;
+  departureCleaning?: string;
+  departureMail?: string;
+  departureFees?: string;
   concierge?: string;
   maintenanceEmail?: string;
   emergencyPhone?: string;
@@ -35,6 +39,10 @@ export interface PropertyInformationResponse {
   televisionSource?: string;
   internetService?: string;
   keyReturn?: string;
+  departureInstructions?: string;
+  departureCleaning?: string;
+  departureMail?: string;
+  departureFees?: string;
   concierge?: string;
   maintenanceEmail?: string;
   emergencyPhone?: string;
@@ -67,6 +75,10 @@ export interface PropertyInformationFormData {
   televisionSource: string | null;
   internetService: string | null;
   keyReturn: string | null;
+  departureInstructions: string | null;
+  departureCleaning: string | null;
+  departureMail: string | null;
+  departureFees: string | null;
   concierge: string | null;
   maintenanceEmail: string | null;
   emergencyPhone: string | null;

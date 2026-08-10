@@ -132,6 +132,114 @@
               <mat-label>Key Return Instructions</mat-label>
               <textarea matInput formControlName="keyReturn" rows="3"></textarea>
             </mat-form-field>
+
+            <div class="description-editor-wrap full-width">
+              <div class="description-editor-label">Departure Instructions</div>
+              <div class="description-editor-toolbar">
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureInstructions', 'bold')">
+                  <mat-icon>format_bold</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureInstructions', 'italic')">
+                  <mat-icon>format_italic</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureInstructions', 'underline')">
+                  <mat-icon>format_underlined</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureInstructions', 'paragraph')">
+                  <mat-icon>subject</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureInstructions', 'unorderedList')">
+                  <mat-icon>format_list_bulleted</mat-icon>
+                </button>
+              </div>
+              <div
+                #departureInstructionsEditor
+                class="description-editor-input description-editor-input--with-markers"
+                contenteditable="true"
+                (input)="onHtmlEditorInput('departureInstructions', $event)">
+              </div>
+            </div>
+
+            <div class="description-editor-wrap full-width">
+              <div class="description-editor-label">Departure Cleaning</div>
+              <div class="description-editor-toolbar">
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureCleaning', 'bold')">
+                  <mat-icon>format_bold</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureCleaning', 'italic')">
+                  <mat-icon>format_italic</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureCleaning', 'underline')">
+                  <mat-icon>format_underlined</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureCleaning', 'paragraph')">
+                  <mat-icon>subject</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureCleaning', 'unorderedList')">
+                  <mat-icon>format_list_bulleted</mat-icon>
+                </button>
+              </div>
+              <div
+                #departureCleaningEditor
+                class="description-editor-input description-editor-input--with-markers"
+                contenteditable="true"
+                (input)="onHtmlEditorInput('departureCleaning', $event)">
+              </div>
+            </div>
+
+            <div class="description-editor-wrap full-width">
+              <div class="description-editor-label">Departure Mail</div>
+              <div class="description-editor-toolbar">
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureMail', 'bold')">
+                  <mat-icon>format_bold</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureMail', 'italic')">
+                  <mat-icon>format_italic</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureMail', 'underline')">
+                  <mat-icon>format_underlined</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureMail', 'paragraph')">
+                  <mat-icon>subject</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureMail', 'unorderedList')">
+                  <mat-icon>format_list_bulleted</mat-icon>
+                </button>
+              </div>
+              <div
+                #departureMailEditor
+                class="description-editor-input description-editor-input--with-markers"
+                contenteditable="true"
+                (input)="onHtmlEditorInput('departureMail', $event)">
+              </div>
+            </div>
+
+            <div class="description-editor-wrap full-width">
+              <div class="description-editor-label">Departure Fees</div>
+              <div class="description-editor-toolbar">
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureFees', 'bold')">
+                  <mat-icon>format_bold</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureFees', 'italic')">
+                  <mat-icon>format_italic</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureFees', 'underline')">
+                  <mat-icon>format_underlined</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureFees', 'paragraph')">
+                  <mat-icon>subject</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyHtmlEditorFormat('departureFees', 'unorderedList')">
+                  <mat-icon>format_list_bulleted</mat-icon>
+                </button>
+              </div>
+              <div
+                #departureFeesEditor
+                class="description-editor-input description-editor-input--with-markers"
+                contenteditable="true"
+                (input)="onHtmlEditorInput('departureFees', $event)">
+              </div>
+            </div>
           </div>
         </mat-expansion-panel>
 

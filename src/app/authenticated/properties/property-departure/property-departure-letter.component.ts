@@ -643,6 +643,10 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
       result = result.replace(/\{\{televisionSource\}\}/g, this.propertyInformation.televisionSource || '');
       result = result.replace(/\{\{internetService\}\}/g, this.propertyInformation.internetService || '');
       result = result.replace(/\{\{keyReturn\}\}/g, this.propertyInformation.keyReturn || '');
+      result = result.replace(/\{\{departureInstructions\}\}/g, this.propertyInformation.departureInstructions || '');
+      result = result.replace(/\{\{departureCleaning\}\}/g, this.propertyInformation.departureCleaning || '');
+      result = result.replace(/\{\{departureMail\}\}/g, this.propertyInformation.departureMail || '');
+      result = result.replace(/\{\{departureFees\}\}/g, this.propertyInformation.departureFees || '');
       result = result.replace(/\{\{concierge\}\}/g, this.propertyInformation.concierge || '');
       result = this.applyOptionalLinePlaceholder(result, 'additionalNotesLine', 'Additional Notes', this.propertyInformation.additionalNotes);
     }
