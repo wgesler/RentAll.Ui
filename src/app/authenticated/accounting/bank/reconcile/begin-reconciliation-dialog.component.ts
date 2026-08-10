@@ -255,6 +255,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
 
   onCurrencyFocus(event: FocusEvent, controlName: 'endingBalance' | 'serviceCharge' | 'interestEarned'): void {
     this.formatterService.clearCurrencyOnFocus(event, this.form.get(controlName));
+    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
   }
 
   onCurrencyBlur(controlName: 'endingBalance' | 'serviceCharge' | 'interestEarned'): void {
