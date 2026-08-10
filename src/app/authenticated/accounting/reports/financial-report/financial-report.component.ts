@@ -15,6 +15,8 @@ import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
+import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
@@ -78,6 +80,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   private generalLedgerService = inject(GeneralLedgerService);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private commonService = inject(CommonService);
   private utilityService = inject(UtilityService);
@@ -126,6 +129,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   companyName = '';
   organizationId = '';
   offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   allLines: JournalEntryLineSearchResponse[] = [];
 
@@ -144,6 +148,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOrganization();
     this.loadOffices();
+    this.loadAccountingOffices();
     this.loadChartOfAccounts();
   }
 
@@ -205,6 +210,23 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       error: () => {
         this.offices = [];
         this.loadJournalEntryLines();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.accountingOffices = offices || [];
+          this.applyReportDisplay();
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.applyReportDisplay();
         this.markViewForCheck();
       }
     });
@@ -874,6 +896,7 @@ refreshDrillDownView(): void {
   applyReportDisplay(): void {
     try {
       const scopedAccounts = this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds());
+      const { yearEndMonth, yearEndDay } = this.resolveAccountingYearEnd();
       this.reportResult = this.mappingService.buildFinancialReport({
         reportKind: this.reportKind,
         accounts: scopedAccounts,
@@ -881,7 +904,9 @@ refreshDrillDownView(): void {
         startDate: this.resolveReportStartDate(),
         endDate: this.resolveReportEndDate(),
         chartOfAccountId: null,
-        reportClass: this.mappingService.normalizeFinancialReportClass(this.reportClass)
+        reportClass: this.mappingService.normalizeFinancialReportClass(this.reportClass),
+        yearEndMonth,
+        yearEndDay
       });
       this.initializeExpandedNodes(this.reportResult.sections);
       this.rebuildVisibleRows();
@@ -1341,6 +1366,17 @@ clearPrintableHtml(): void {
     return (this.offices || [])
       .map(office => Number(office.officeId))
       .filter(id => Number.isFinite(id) && id > 0);
+  }
+
+  resolveAccountingYearEnd(): { yearEndMonth: number; yearEndDay: number } {
+    const officeIds = this.resolveOfficeIds();
+    const accountingOffice = officeIds.length === 1
+      ? (this.accountingOffices || []).find(office => Number(office.officeId) === officeIds[0])
+      : null;
+    return {
+      yearEndMonth: accountingOffice?.yearEndMonth ?? 12,
+      yearEndDay: accountingOffice?.yearEndDay ?? 31
+    };
   }
 
   hasSearchDateRangeChanged(change: SimpleChanges['searchDateRange']): boolean {

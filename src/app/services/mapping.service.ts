@@ -4991,6 +4991,11 @@ roundCurrency(value: number): number {
 
   buildBalanceSheetReport(request: FinancialReportBuildRequest): FinancialReportResult {
     const asOfDate = this.resolveFinancialReportBalanceSheetAsOfDate(request.endDate);
+    const accountingYearStart = this.resolveAsOfReportYearStartDate(
+      asOfDate,
+      request.yearEndMonth,
+      request.yearEndDay
+    );
     request = {
       ...request,
       startDate: null,
@@ -5019,7 +5024,9 @@ roundCurrency(value: number): number {
       request.endDate,
       true,
       request.lines,
-      balanceAccounts
+      balanceAccounts,
+      request.yearEndMonth,
+      request.yearEndDay
     );
     const rawBalanceAmountsByAccountId = this.aggregateBalanceSheetAmountsByAccountIdAndColumn(
       request.lines,
@@ -5045,9 +5052,10 @@ roundCurrency(value: number): number {
       plFilteredAccounts,
       request.chartOfAccountId
     );
+    // Net Income uses P&L activity from accounting-year start through each column as-of (YTD).
     const rawProfitLossAmountsByAccountId = this.aggregateProfitLossAmountsByAccountIdAndColumn(
       request.lines,
-      request.startDate,
+      accountingYearStart,
       request.endDate,
       plFilteredAccounts,
       columnContext,
@@ -5059,17 +5067,18 @@ roundCurrency(value: number): number {
       columnContext.columnIds,
       plFilteredAccounts
     );
-    // Balance-sheet Net Income is year-to-date through each column (as-of), not that period alone.
-    const netIncomeColumnAmounts = this.finalizeFinancialReportColumnAmounts(
+    const periodNetIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(
       this.subtractFinancialReportColumnAmounts(
-        this.subtractFinancialReportColumnAmounts(
-          this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome),
-          this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold),
-          columnContext
-        ),
-        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense),
+        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome),
+        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold),
         columnContext
       ),
+      this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense),
+      columnContext
+    );
+    // Time columns: Jan = Jan; Feb = Jan+Feb; March = Jan+Feb+March; ... through year end.
+    const netIncomeColumnAmounts = this.finalizeFinancialReportColumnAmounts(
+      this.accumulateFinancialReportColumnAmountsToYearToDate(periodNetIncomeColumnAmounts, columnContext),
       columnContext,
       'balance'
     );
@@ -5253,7 +5262,7 @@ roundCurrency(value: number): number {
         columnContext,
         balanceAccounts,
         accountIdRemap,
-        request.startDate,
+        accountingYearStart,
         request.endDate
       ),
       sections: [...assetSections, ...liabilityEquitySections]
@@ -5266,11 +5275,13 @@ roundCurrency(value: number): number {
     endDate: string | null,
     balanceSheet: boolean,
     lines: JournalEntryLineSearchResponse[],
-    accounts: ChartOfAccountResponse[]
+    accounts: ChartOfAccountResponse[],
+    yearEndMonth?: number | null,
+    yearEndDay?: number | null
   ): FinancialReportColumnContext {
     const normalizedReportClass = this.normalizeFinancialReportClass(reportClass);
     const columnStartDate = balanceSheet
-      ? this.resolveFinancialReportBalanceSheetColumnStartDate(endDate, normalizedReportClass)
+      ? this.resolveFinancialReportBalanceSheetColumnStartDate(endDate, normalizedReportClass, yearEndMonth, yearEndDay)
       : startDate;
     const columnEndDate = endDate;
 
@@ -5599,7 +5610,6 @@ roundCurrency(value: number): number {
   ): Map<number, Map<string, { debit: number; credit: number }>> {
     const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
     const totals = new Map<number, Map<string, { debit: number; credit: number }>>();
-    const cumulativeBalanceSheetColumns = columnContext.balanceSheet && columnContext.isTimeBased;
 
     for (const line of lines || []) {
       if (accountTypeById.get(line.chartOfAccountId) === undefined) {
@@ -5613,28 +5623,38 @@ roundCurrency(value: number): number {
       }
 
       const accountId = accountIdRemap?.get(line.chartOfAccountId) ?? line.chartOfAccountId;
-      // P&L report: one period column. Balance sheet: roll into every column whose as-of end is on/after the line (YTD).
-      const targetColumnIds = cumulativeBalanceSheetColumns
-        ? columnContext.columns
-          .filter(column => this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate))
-          .map(column => column.columnId)
-        : [this.resolveFinancialReportLineColumnId(line, columnContext, accounts)].filter((columnId): columnId is string => !!columnId);
-
-      if (targetColumnIds.length === 0) {
+      const columnId = this.resolveFinancialReportLineColumnId(line, columnContext, accounts);
+      if (!columnId) {
         continue;
       }
 
-      targetColumnIds.forEach(columnId => {
-        const accountTotals = totals.get(accountId) || new Map<string, { debit: number; credit: number }>();
-        const columnTotals = accountTotals.get(columnId) || { debit: 0, credit: 0 };
-        columnTotals.debit += Number(line.debit) || 0;
-        columnTotals.credit += Number(line.credit) || 0;
-        accountTotals.set(columnId, columnTotals);
-        totals.set(accountId, accountTotals);
-      });
+      const accountTotals = totals.get(accountId) || new Map<string, { debit: number; credit: number }>();
+      const columnTotals = accountTotals.get(columnId) || { debit: 0, credit: 0 };
+      columnTotals.debit += Number(line.debit) || 0;
+      columnTotals.credit += Number(line.credit) || 0;
+      accountTotals.set(columnId, columnTotals);
+      totals.set(accountId, accountTotals);
     }
 
     return totals;
+  }
+
+  /** Running total across time columns: each column = sum of that period and all prior periods in the report. */
+  accumulateFinancialReportColumnAmountsToYearToDate(
+    amounts: Record<string, number>,
+    columnContext: FinancialReportColumnContext
+  ): Record<string, number> {
+    if (!columnContext.isTimeBased) {
+      return { ...amounts };
+    }
+
+    const result = this.createEmptyFinancialReportColumnAmounts(columnContext.columnIds, columnContext.showTotalColumn);
+    let runningTotal = 0;
+    columnContext.columnIds.forEach(columnId => {
+      runningTotal = this.roundFinancialReportAmount(runningTotal + (Number(amounts[columnId]) || 0));
+      result[columnId] = runningTotal;
+    });
+    return result;
   }
 
   aggregateBalanceSheetAmountsByAccountIdAndColumn(
@@ -6320,19 +6340,29 @@ roundCurrency(value: number): number {
       ?? '';
   }
 
-  resolveAsOfReportYearStartDate(asOfDate: string | null | undefined): string | null {
-    return this.utility.resolveYearStartDateFromAsOf(this.normalizeFinancialReportDate(asOfDate));
+  resolveAsOfReportYearStartDate(
+    asOfDate: string | null | undefined,
+    yearEndMonth?: number | null,
+    yearEndDay?: number | null
+  ): string | null {
+    return this.utility.resolveAccountingYearStartDateFromAsOf(
+      this.normalizeFinancialReportDate(asOfDate),
+      yearEndMonth ?? 12,
+      yearEndDay ?? 31
+    );
   }
 
   resolveFinancialReportBalanceSheetColumnStartDate(
     endDate: string | null,
-    reportClass: Class
+    reportClass: Class,
+    yearEndMonth?: number | null,
+    yearEndDay?: number | null
   ): string | null {
     if (!this.isFinancialReportTimeBasedClass(reportClass)) {
       return null;
     }
 
-    return this.resolveAsOfReportYearStartDate(endDate);
+    return this.resolveAsOfReportYearStartDate(endDate, yearEndMonth, yearEndDay);
   }
 
 
@@ -6917,7 +6947,12 @@ buildEscrowLastRecapAmountsByProperty(
         if (!column) {
           return false;
         }
-        return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate);
+        // Net Income YTD: accounting-year start through this column's as-of end.
+        return this.isJournalEntryLineInDateRange(
+          line.transactionDate,
+          context.startDate,
+          column.periodEnd || endDate
+        );
       }
       if (spec.mode === 'balance') {
         if (!column) {

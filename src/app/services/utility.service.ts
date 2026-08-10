@@ -138,12 +138,42 @@ export class UtilityService {
 
   /** Calendar year start (`yyyy-01-01`) for an as-of date string. */
   resolveYearStartDateFromAsOf(asOfDate: string | null | undefined): string | null {
+    return this.resolveAccountingYearStartDateFromAsOf(asOfDate, 12, 31);
+  }
+
+  /**
+   * Accounting-year start for an as-of date, using office year-end (month/day).
+   * Year-end 12/31 → Jan 1 of the as-of calendar year.
+   */
+  resolveAccountingYearStartDateFromAsOf(
+    asOfDate: string | null | undefined,
+    yearEndMonth: number = 12,
+    yearEndDay: number = 31
+  ): string | null {
     const normalized = this.toDateOnlyJsonString(asOfDate);
     if (!normalized) {
       return null;
     }
 
-    return `${normalized.slice(0, 4)}-01-01`;
+    const asOf = this.parseDateOnlyStringToDate(normalized);
+    if (!asOf) {
+      return null;
+    }
+
+    const month = Number(yearEndMonth);
+    const day = Number(yearEndDay);
+    const safeMonth = Number.isFinite(month) && month >= 1 && month <= 12 ? month : 12;
+    const maxDay = new Date(asOf.getFullYear(), safeMonth, 0).getDate();
+    const safeDay = Number.isFinite(day) && day >= 1 ? Math.min(day, maxDay) : maxDay;
+
+    const yearEndThisCalendarYear = new Date(asOf.getFullYear(), safeMonth - 1, safeDay);
+    const fiscalYearEnd = asOf.getTime() <= yearEndThisCalendarYear.getTime()
+      ? yearEndThisCalendarYear
+      : new Date(asOf.getFullYear() + 1, safeMonth - 1, Math.min(safeDay, new Date(asOf.getFullYear() + 1, safeMonth, 0).getDate()));
+
+    const fiscalYearStart = new Date(fiscalYearEnd.getFullYear() - 1, fiscalYearEnd.getMonth(), fiscalYearEnd.getDate());
+    fiscalYearStart.setDate(fiscalYearStart.getDate() + 1);
+    return this.formatDateOnlyForApi(fiscalYearStart);
   }
 
   /**

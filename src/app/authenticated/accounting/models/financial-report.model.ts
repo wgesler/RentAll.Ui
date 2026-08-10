@@ -85,4 +85,8 @@ export interface FinancialReportBuildRequest {
   endDate: string | null;
   chartOfAccountId: number | null;
   reportClass?: Class;
+  /** Accounting office year-end month (1-12). Used for Balance Sheet Net Income YTD. */
+  yearEndMonth?: number | null;
+  /** Accounting office year-end day. Used for Balance Sheet Net Income YTD. */
+  yearEndDay?: number | null;
 }
