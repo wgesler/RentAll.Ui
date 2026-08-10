@@ -54,7 +54,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '16ch', sortType: 'natural' },
     journalEntryCode: { displayAs: 'JEntry', wrap: false, maxWidth: '14ch', sortType: 'natural' },
-    contactName: { displayAs: 'Contact', wrap: true, maxWidth: '22ch' },
     arrivalDate: { displayAs: 'Arrival', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     departureDate: { displayAs: 'Departure', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     securityDepositReturnDate: { displayAs: 'Return By', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
@@ -142,7 +141,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
         const mappedResponse = this.mappingService.mapUnreturnedSecurityDepositsResponse(response);
         const attentionReservationIds = new Set(
           (mappedResponse.rows || [])
-            .filter(row => this.securityDepositService.isDepartedSecurityDeposit(row.departureDate))
+            .filter(row => this.securityDepositService.isSecurityDepositNeedingAttention(row))
             .map(row => this.utilityService.normalizeId(row.reservationId))
         );
         this.rowsDisplay = this.mappingService.mapUnreturnedSecurityDeposits(mappedResponse).map(row => ({

@@ -75,7 +75,7 @@ export class SecurityDepositService {
   }
 
   updateSecurityDepositsOutstandingBadge(rows: ReservationDepartureResponse[] | null | undefined): void {
-    this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(rows));
+    this.setSecurityDepositsOutstanding(this.hasSecurityDepositsNeedingAttention(rows));
   }
 
   setSecurityDepositsOutstanding(outstanding: boolean): void {
@@ -97,7 +97,7 @@ export class SecurityDepositService {
           return;
         }
 
-        this.setSecurityDepositsOutstanding(this.hasDepartedUnreturnedSecurityDeposits(response?.rows));
+        this.setSecurityDepositsOutstanding(this.hasSecurityDepositsNeedingAttention(response?.rows));
       },
       error: () => {
         if (loadId !== this.securityDepositsOutstandingLoadId) {
@@ -110,6 +110,7 @@ export class SecurityDepositService {
   }
 
   private getUnreturnedSecurityDepositsForBadge(): Observable<UnreturnedSecurityDepositsResponse> {
+    // Same endpoint as the list, all offices in access (no officeId) — used for sidebar/login badge.
     return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned', {
       context: new HttpContext().set(SUPPRESS_GLOBAL_ERROR_TOAST, true)
     });
@@ -134,7 +135,31 @@ export class SecurityDepositService {
     return departureOrdinal != null && departureOrdinal <= todayOrdinal;
   }
 
-  private hasDepartedUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[] | null | undefined): boolean {
-    return (rows || []).some(row => this.isDepartedSecurityDeposit(row.departureDate));
+  /**
+   * Needs attention: departed, not marked returned, and still has money to return and/or transfer.
+   * Used by login/sidebar badge and list row dots so they stay aligned.
+   */
+  isSecurityDepositNeedingAttention(row: ReservationDepartureResponse | null | undefined): boolean {
+    if (!row || row.depositReturned) {
+      return false;
+    }
+    if (!this.isDepartedSecurityDeposit(row.departureDate)) {
+      return false;
+    }
+
+    const collected = Number(row.collectedAmount ?? 0);
+    const owed = Number(row.owedAmount ?? 0);
+    const paid = Number(row.returnedAmount ?? 0);
+    const transferred = Number(row.transferredAmount ?? 0);
+    const balance = Number.isFinite(Number(row.balanceAmount))
+      ? Number(row.balanceAmount)
+      : Math.max(0, collected - owed);
+    const remainingReturn = Math.max(0, balance - paid);
+    const remainingTransfer = Math.max(0, owed - transferred);
+    return remainingReturn > 0.005 || remainingTransfer > 0.005;
+  }
+
+  private hasSecurityDepositsNeedingAttention(rows: ReservationDepartureResponse[] | null | undefined): boolean {
+    return (rows || []).some(row => this.isSecurityDepositNeedingAttention(row));
   }
 }
