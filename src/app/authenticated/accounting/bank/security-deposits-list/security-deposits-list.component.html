@@ -1,4 +1,4 @@
-@if (!isPageReady && rowsDisplay.length === 0) {
+@if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading security deposits...</p>
@@ -81,7 +81,7 @@
       <div class="security-deposits-summary-row">
         <span class="security-deposits-summary-label">{{ escrowAccountLabel || 'Escrow Security Deposit' }}</span>
         <span class="security-deposits-summary-value security-deposits-summary-value--escrow">
-          {{ formatter.currencyUsd(escrowBalance) }}
+          {{ formatter.currencyUsd(escrowBalanceDisplay) }}
         </span>
       </div>
       <div class="security-deposits-summary-row security-deposits-summary-row--discrepancy">

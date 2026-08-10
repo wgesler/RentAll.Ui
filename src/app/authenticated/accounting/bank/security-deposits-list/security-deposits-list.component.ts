@@ -74,7 +74,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   isPageReady = false;
   isServiceError = false;
   noDataMessage = 'No security deposits for the selected office access.';
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['securityDeposits']));
   destroy$ = new Subject<void>();
   private loadId = 0;
 
@@ -127,7 +127,10 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     this.securityDepositService.getUnreturnedSecurityDeposits(this.officeId).pipe(
       take(1),
       finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'securityDeposits');
+        // Only clear the gate for the latest in-flight load (avoids empty flash on overlapping refreshes).
+        if (loadId === this.loadId) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'securityDeposits');
+        }
       }),
       takeUntil(this.destroy$)
     ).subscribe({
@@ -452,8 +455,14 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     return this.sumSecurityDepositColumn('collectedAmount');
   }
 
+  /** Escrow SD account balance shown as an absolute (liability) amount. */
+  get escrowBalanceDisplay(): number {
+    return this.roundCurrencyValue(Math.abs(this.escrowBalance));
+  }
+
+  /** Total collected minus escrow balance (absolute). */
   get summaryDiscrepancy(): number {
-    return this.roundCurrencyValue(this.escrowBalance - this.totalCollected);
+    return this.roundCurrencyValue(this.totalCollected - this.escrowBalanceDisplay);
   }
 
   get totalsRow(): { [key: string]: string } | undefined {
