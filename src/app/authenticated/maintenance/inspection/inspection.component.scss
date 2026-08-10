@@ -25,6 +25,16 @@
   justify-content: flex-start;
 }
 
+.template-mode-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.template-mode-lock-btn {
+  flex-shrink: 0;
+}
+
 .inspection-controls-cell--type {
   justify-content: center;
 }

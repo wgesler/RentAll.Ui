@@ -97,6 +97,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   isServiceError: boolean = false;
   hasInitialized = false;
   activeMode: ChecklistMode = 'template';
+  /** Extra confirmation before entering Template mode; starts locked. */
+  isTemplateModeLocked = true;
   activeInspection: InspectionResponse | null = null;
   isSavingTemplateInternal: boolean = false;
   isSavingAnswersInternal: boolean = false;
@@ -482,6 +484,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         this.activeInspection = this.mappingService.mapInspection(savedInspectionResponse);
         this.patchInspectionTypeFromContext();
         this.activeMode = 'answer';
+        this.isTemplateModeLocked = true;
         this.applyModeState();
         this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
         this.captureSavedStateSignature();
@@ -519,6 +522,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           this.applySavedChecklistJson(savedTemplateJson);
         }
         this.activeMode = 'template';
+        this.isTemplateModeLocked = false;
         this.applyModeState();
         this.loadChecklistAnswers(propertyId);
       },
@@ -2424,9 +2428,20 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
   }
 
+  toggleTemplateModeLock(): void {
+    if (this.isReadonlyMode || !this.isAdmin) return;
+    this.isTemplateModeLocked = !this.isTemplateModeLocked;
+  }
+
   toggleTemplateMode(): void {
     if (this.isReadonlyMode || !this.isAdmin) return;
-    this.activeMode = this.isTemplateMode ? 'answer' : 'template';
+    if (this.isTemplateMode) {
+      this.activeMode = 'answer';
+      this.isTemplateModeLocked = true;
+    } else {
+      if (this.isTemplateModeLocked) return;
+      this.activeMode = 'template';
+    }
     this.applyModeState();
   }
 

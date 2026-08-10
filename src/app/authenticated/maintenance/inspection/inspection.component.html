@@ -44,9 +44,23 @@
   <div class="controls-row inspection-controls-row">
     <div class="inspection-controls-cell inspection-controls-cell--template dbg-band-inspection-control-group">
       @if (!isReadonlyMode && isAdmin) {
-        <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
-          Template
-        </mat-slide-toggle>
+        <div class="template-mode-controls">
+          <button
+            mat-icon-button
+            type="button"
+            class="template-mode-lock-btn"
+            [matTooltip]="isTemplateModeLocked ? 'Unlock to switch into Template mode' : 'Lock Template switch'"
+            [attr.aria-label]="isTemplateModeLocked ? 'Unlock Template switch' : 'Lock Template switch'"
+            (click)="toggleTemplateModeLock()">
+            <mat-icon>{{ isTemplateModeLocked ? 'lock' : 'lock_open' }}</mat-icon>
+          </button>
+          <mat-slide-toggle
+            [checked]="isTemplateMode"
+            [disabled]="isTemplateModeLocked && !isTemplateMode"
+            (change)="toggleTemplateMode()">
+            Template
+          </mat-slide-toggle>
+        </div>
       }
     </div>
 
