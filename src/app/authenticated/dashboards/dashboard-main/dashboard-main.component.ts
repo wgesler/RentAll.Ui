@@ -1309,9 +1309,11 @@ markViewForCheck(): void {
 
     this.arrivalColumnDefinitionByOffice.forEach((definitionByOffice, columnName) => {
       const displayName = definitionByOffice.values().next().value?.displayName || '';
+      const headerLines = this.splitTwoWordHeader(displayName);
       const isMultiSelect = this.isTrackerColumnMultiSelect(definitionByOffice);
       arrivalBase[columnName] = {
-        displayAs: displayName,
+        displayAs: headerLines.displayAs,
+        headerLine2: headerLines.headerLine2,
         isCheckbox: !isMultiSelect,
         isMultiSelect: isMultiSelect,
         checkboxEditable: true,
@@ -1325,9 +1327,11 @@ markViewForCheck(): void {
 
     this.departureColumnDefinitionByOffice.forEach((definitionByOffice, columnName) => {
       const displayName = definitionByOffice.values().next().value?.displayName || '';
+      const headerLines = this.splitTwoWordHeader(displayName);
       const isMultiSelect = this.isTrackerColumnMultiSelect(definitionByOffice);
       departureBase[columnName] = {
-        displayAs: displayName,
+        displayAs: headerLines.displayAs,
+        headerLine2: headerLines.headerLine2,
         isCheckbox: !isMultiSelect,
         isMultiSelect: isMultiSelect,
         checkboxEditable: true,
@@ -1486,6 +1490,14 @@ markViewForCheck(): void {
   getTrackerColumnName(displayName: string): string {
     const key = (displayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     return `tracker_${key}`;
+  }
+
+  splitTwoWordHeader(displayName: string): { displayAs: string; headerLine2?: string } {
+    const words = (displayName || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length === 2) {
+      return { displayAs: words[0], headerLine2: words[1] };
+    }
+    return { displayAs: (displayName || '').trim() };
   }
 
   cloneColumnSet(columns: ColumnSet): ColumnSet {
