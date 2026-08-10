@@ -3346,13 +3346,14 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   navigateToReservationEntryOrigin(): void {
     const qp = this.route.snapshot.queryParamMap;
-    const returnTo = qp.get('returnTo');
+    const urlQp = this.router.parseUrl(this.router.url).queryParamMap;
+    const returnTo = qp.get('returnTo') || urlQp.get('returnTo');
     if (returnTo === 'reservation-board') {
       this.router.navigateByUrl(RouterUrl.ReservationBoard);
       return;
     }
     if (returnTo === 'property-reservation-history') {
-      const propertyId = qp.get('propertyId')?.trim();
+      const propertyId = (qp.get('propertyId') || urlQp.get('propertyId'))?.trim();
       if (propertyId) {
         const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
         this.router.navigateByUrl(`/${propertyUrl}?tab=reservation-history`);
@@ -3361,10 +3362,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
     if (returnTo === 'invoice-list') {
       const params: string[] = [];
-      const officeId = qp.get('officeId');
-      const reservationId = qp.get('reservationId');
-      const companyId = qp.get('companyId');
-      const organizationId = qp.get('organizationId');
+      const officeId = qp.get('officeId') || urlQp.get('officeId');
+      const reservationId = qp.get('reservationId') || urlQp.get('reservationId');
+      const companyId = qp.get('companyId') || urlQp.get('companyId');
+      const organizationId = qp.get('organizationId') || urlQp.get('organizationId');
 
       if (officeId) {
         params.push(`officeId=${officeId}`);
@@ -3384,7 +3385,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
     if (returnTo === 'reservation-list') {
-      const path = qp.get('listReturnPath')?.trim();
+      const path = (qp.get('listReturnPath') || urlQp.get('listReturnPath'))?.trim();
       if (path && this.isAllowedReservationListReturnPath(path)) {
         this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
         return;
@@ -3393,14 +3394,14 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
     if (returnTo === 'security-deposits') {
-      const path = qp.get('listReturnPath')?.trim();
+      const path = (qp.get('listReturnPath') || urlQp.get('listReturnPath'))?.trim();
       if (path && this.isAllowedSecurityDepositsReturnPath(path)) {
         this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
         return;
       }
 
       const params: string[] = ['tab=2', 'bankActivity=securityDeposits'];
-      const officeId = qp.get('officeId');
+      const officeId = qp.get('officeId') || urlQp.get('officeId');
       if (officeId) {
         params.push(`officeId=${officeId}`);
       }

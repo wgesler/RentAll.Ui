@@ -439,6 +439,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownerStatementReturnAfterUtilityDetail = false;
   ownerStatementReturnAfterWorkOrderDetail = false;
   ownerStatementReturnAfterInvoiceDetail = false;
+  securityDepositReturnAfterInvoiceDetail = false;
   ownerStatementReturnOwnerKind: AccountingShellOwnerKind = 'statements';
   ownerStatementReturnReportKind: OwnerStatementReportKind = 'accrual';
   selectedOwnerStatementReportKind: OwnerStatementReportKind = 'accrual';
@@ -700,18 +701,10 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.cdr.markForCheck();
   }
 
-  onSecurityDepositJournalEntrySelect(event: { journalEntryId: string }): void {
-    const journalEntryId = (event?.journalEntryId || '').trim();
-    if (!journalEntryId) {
-      return;
-    }
-
-    this.showGeneralLedgerOfficeValidationError = false;
-    this.copyFromJournalEntry = null;
-    this.activeJournalEntryId = journalEntryId;
-    this.selectedJournalEntryLineId = null;
-    this.showGeneralLedgerDetail = true;
-    this.cdr.markForCheck();
+  onSecurityDepositInvoiceSelect(selection: InvoiceSelection): void {
+    this.securityDepositReturnAfterInvoiceDetail = true;
+    this.ownerStatementReturnAfterInvoiceDetail = false;
+    this.onInvoiceSelect(selection);
   }
 
   onSecurityDepositReportOpen(selection: SecurityDepositReportSelection): void {
@@ -848,6 +841,7 @@ hydrateSelectedInvoiceForActiveId(): void {
     if (reopeningInvoiceAdd) {
       this.invoiceDetailInstance++;
     }
+    this.suppressNextDropdownTabMenuOpen();
     this.selectedTabIndex = 0;
     this.cdr.markForCheck();
     this.router.navigate([], {
@@ -2351,6 +2345,7 @@ openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: num
     const openInvoice = (invoiceId: string, prefetchedInvoice: InvoiceResponse | null = null) => {
       this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterInvoiceDetail = true;
+      this.suppressNextDropdownTabMenuOpen();
       this.selectedTabIndex = 0;
       this.selectedInvoice = prefetchedInvoice;
       this.activeInvoiceId = invoiceId;
@@ -2487,6 +2482,17 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
         this.generalLedgerMenuTrigger?.openMenu();
         break;
     }
+  }
+
+  /** Programmatic tab jumps should show content only — not the tab's kind menu. */
+  suppressNextDropdownTabMenuOpen(): void {
+    this.skipNextDropdownTabMenuOpen = true;
+    this.invoicesMenuTrigger?.closeMenu();
+    this.billsReceiptsMenuTrigger?.closeMenu();
+    this.bankActivitiesMenuTrigger?.closeMenu();
+    this.ownersMenuTrigger?.closeMenu();
+    this.reportsMenuTrigger?.closeMenu();
+    this.generalLedgerMenuTrigger?.closeMenu();
   }
 
   onMatTabSelected(event: { index: number }): void {
@@ -5695,6 +5701,7 @@ clearInvoiceShellDetailState(): void {
     this.invoiceCreateContext = null;
     this.invoiceCreateReturnToEditor = false;
     this.ownerStatementReturnAfterInvoiceDetail = false;
+    this.securityDepositReturnAfterInvoiceDetail = false;
     this.cdr.markForCheck();
   }
 
@@ -5713,6 +5720,7 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
       this.ownerStatementReturnAfterInvoiceDetail = false;
       this.activeInvoiceId = null;
       this.selectedInvoice = null;
+      this.suppressNextDropdownTabMenuOpen();
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
       if (this.isOwnerReportView(this.selectedOwnerKind)) {
@@ -5732,8 +5740,29 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
       return;
     }
 
+    if (this.securityDepositReturnAfterInvoiceDetail) {
+      this.securityDepositReturnAfterInvoiceDetail = false;
+      this.activeInvoiceId = null;
+      this.selectedInvoice = null;
+      this.suppressNextDropdownTabMenuOpen();
+      this.selectedTabIndex = this.tabBankActivities;
+      this.selectedBankActivityKind = 'securityDeposits';
+      this.securityDepositsRefreshTrigger++;
+      this.cdr.markForCheck();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({
+          tab: String(this.tabBankActivities),
+          bankActivity: 'securityDeposits'
+        }),
+        queryParamsHandling: 'merge'
+      });
+      return;
+    }
+
     this.activeInvoiceId = null;
     this.selectedInvoice = null;
+    this.suppressNextDropdownTabMenuOpen();
     this.selectedTabIndex = 0;
     this.cdr.markForCheck();
 

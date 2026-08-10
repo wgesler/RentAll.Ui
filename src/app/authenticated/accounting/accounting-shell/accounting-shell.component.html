@@ -1328,8 +1328,7 @@
                   <app-security-deposits-list
                     [officeId]="selectedOfficeId"
                     [refreshTrigger]="securityDepositsRefreshTrigger"
-                    (journalEntrySelectEvent)="onSecurityDepositJournalEntrySelect($event)"
-                    (invoiceSelectEvent)="onInvoiceSelect($event)"
+                    (invoiceSelectEvent)="onSecurityDepositInvoiceSelect($event)"
                     (securityDepositReportEvent)="onSecurityDepositReportOpen($event)">
                   </app-security-deposits-list>
                 }

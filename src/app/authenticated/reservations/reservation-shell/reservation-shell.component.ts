@@ -933,6 +933,49 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
+    this.navigateToReservationEntryOriginFallback();
+  }
+
+  private navigateToReservationEntryOriginFallback(): void {
+    const qp = this.route.snapshot.queryParamMap;
+    const returnTo = qp.get('returnTo');
+    if (returnTo === 'security-deposits') {
+      const path = qp.get('listReturnPath')?.trim();
+      if (path) {
+        const normalized = path.split('?')[0].replace(/^\/+/, '');
+        if (normalized === RouterUrl.AccountingList) {
+          void this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
+          return;
+        }
+      }
+
+      const params: string[] = ['tab=2', 'bankActivity=securityDeposits'];
+      const officeId = qp.get('officeId');
+      if (officeId) {
+        params.push(`officeId=${officeId}`);
+      }
+      void this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
+      return;
+    }
+
+    if (returnTo === 'reservation-list') {
+      const path = qp.get('listReturnPath')?.trim();
+      if (path) {
+        const normalized = path.split('?')[0].replace(/^\/+/, '');
+        if (normalized === RouterUrl.ReservationList) {
+          void this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
+          return;
+        }
+      }
+      void this.router.navigateByUrl(RouterUrl.ReservationList);
+      return;
+    }
+
+    if (returnTo === 'reservation-board') {
+      void this.router.navigateByUrl(RouterUrl.ReservationBoard);
+      return;
+    }
+
     void this.router.navigateByUrl(RouterUrl.ReservationList);
   }
   //#endregion

@@ -33,7 +33,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   @Input() officeId: number | null = null;
   @Input() refreshTrigger = 0;
-  @Output() journalEntrySelectEvent = new EventEmitter<{ journalEntryId: string }>();
   @Output() invoiceSelectEvent = new EventEmitter<InvoiceSelection>();
   @Output() securityDepositReportEvent = new EventEmitter<SecurityDepositReportSelection>();
 
@@ -53,7 +52,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '16ch', sortType: 'natural' },
-    journalEntryCode: { displayAs: 'JEntry', wrap: false, maxWidth: '14ch', sortType: 'natural' },
     arrivalDate: { displayAs: 'Arrival', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     departureDate: { displayAs: 'Departure', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     securityDepositReturnDate: { displayAs: 'Return By', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
@@ -221,21 +219,31 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return;
     }
 
-    const returnedCell = wrap.querySelector<HTMLElement>(
-      'th.mat-column-depositReturned, td.mat-column-depositReturned, th.mat-mdc-header-cell.mat-column-depositReturned, td.mat-mdc-cell.mat-column-depositReturned'
-    );
     const table = wrap.querySelector<HTMLElement>('table.data-table, table.mat-table, table.mat-mdc-table');
     const summaryEl = this.summaryFooterRef?.nativeElement ?? wrap.querySelector<HTMLElement>('.security-deposits-summary');
-    if (!returnedCell || !table || !summaryEl) {
+    if (!table || !summaryEl) {
+      return;
+    }
+
+    const actionButtons = wrap.querySelectorAll<HTMLElement>(
+      'td.mat-column-actions button, td.mat-mdc-cell.mat-column-actions button'
+    );
+    const actionsCell = wrap.querySelector<HTMLElement>(
+      'td.mat-column-actions, td.mat-mdc-cell.mat-column-actions, th.mat-column-actions, th.mat-mdc-header-cell.mat-column-actions'
+    );
+    const rightAnchor = actionButtons.length > 0
+      ? actionButtons[actionButtons.length - 1]
+      : actionsCell;
+    if (!rightAnchor) {
       return;
     }
 
     const summaryRect = summaryEl.getBoundingClientRect();
-    const returnedRect = returnedCell.getBoundingClientRect();
+    const anchorRect = rightAnchor.getBoundingClientRect();
     const tableWidth = Math.max(0, Math.round(table.offsetWidth));
-    const returnedRightOffset = Math.max(0, Math.round(returnedRect.right - summaryRect.left));
+    const anchorRightOffset = Math.max(0, Math.round(anchorRect.right - summaryRect.left));
     const nextPanelWidth = Math.max(0, Math.round(tableWidth / 4));
-    const nextPanelMarginLeft = Math.max(0, returnedRightOffset - nextPanelWidth);
+    const nextPanelMarginLeft = Math.max(0, anchorRightOffset - nextPanelWidth);
 
     if (
       nextPanelWidth === this.summaryPanelWidthPx
@@ -398,10 +406,16 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return;
     }
 
-    const returnPath = this.router.url.startsWith('/') ? this.router.url : `/${this.router.url}`;
+    const returnParams = new URLSearchParams();
+    returnParams.set('tab', '2');
+    returnParams.set('bankActivity', 'securityDeposits');
+    if (this.officeId != null) {
+      returnParams.set('officeId', String(this.officeId));
+    }
+    const listReturnPath = `/${RouterUrl.AccountingList}?${returnParams.toString()}`;
     const queryParams: Record<string, string | number> = {
       returnTo: 'security-deposits',
-      listReturnPath: returnPath,
+      listReturnPath,
       ...(this.officeId != null ? { officeId: this.officeId } : {})
     };
 
@@ -409,15 +423,6 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])],
       { queryParams }
     );
-  }
-
-  openJournalEntry(row: UnreturnedSecurityDepositDisplay): void {
-    const journalEntryId = String(row?.journalEntryId || '').trim();
-    if (!journalEntryId) {
-      return;
-    }
-
-    this.journalEntrySelectEvent.emit({ journalEntryId });
   }
 
   openInvoice(row: UnreturnedSecurityDepositDisplay): void {
