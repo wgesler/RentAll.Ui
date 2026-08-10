@@ -34,6 +34,7 @@ type HtmlEditorFormat = 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorder
 })
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
   private cdr = inject(ChangeDetectorRef);
+  private host = inject(ElementRef<HTMLElement>);
 
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyInformationResponse | null = null;
@@ -157,6 +158,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     }
 
     this.isSubmitting = true;
+    this.syncAllHtmlEditorsToForm();
 
     const user = this.authService.getUser();
     const formValue = this.form.getRawValue();
@@ -175,37 +177,32 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       televisionSource: formValue.televisionSource || undefined,
       internetService: formValue.internetService || undefined,
       keyReturn: formValue.keyReturn || undefined,
-      departureInstructions: formValue.departureInstructions || undefined,
-      departureCleaning: formValue.departureCleaning || undefined,
-      departureMail: formValue.departureMail || undefined,
-      departureFees: formValue.departureFees || undefined,
+      // Always send these (never omit) so published procs don't fall back to NULL defaults.
+      departureInstructions: formValue.departureInstructions ?? '',
+      departureCleaning: formValue.departureCleaning ?? '',
+      departureMail: formValue.departureMail ?? '',
+      departureFees: formValue.departureFees ?? '',
       concierge: formValue.concierge || undefined,
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       emergencyPhone: formValue.emergencyPhone ? this.formatterService.stripPhoneFormatting(formValue.emergencyPhone) : undefined,
       additionalNotes: formValue.additionalNotes || undefined
     };
 
-    this.propertyInformationService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1)).subscribe({
-      next: () => {
-        this.propertyInformationService.updatePropertyInformation(propertyInformationRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-          next: () => {
-            this.toastr.success('Property information updated successfully', CommonMessage.Success);
-            this.copiedPropertyInformation = null;
-            this.welcomeLetterReloadService.triggerReload();
-          },
-          error: () => {}
-        });
+    // PUT already upserts server-side when the row is missing.
+    this.propertyInformationService.updatePropertyInformation(propertyInformationRequest).pipe(
+      take(1),
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: (response) => {
+        this.toastr.success('Property information updated successfully', CommonMessage.Success);
+        this.copiedPropertyInformation = null;
+        // Only re-bind when the API round-trips the new fields (avoids wiping editors if API is stale).
+        if (response && Object.prototype.hasOwnProperty.call(response, 'departureInstructions')) {
+          this.populateForm(response);
+        }
+        this.welcomeLetterReloadService.triggerReload();
       },
-      error: () => {
-        this.propertyInformationService.createPropertyInformation(propertyInformationRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-          next: () => {
-            this.toastr.success('Property information created successfully', CommonMessage.Success);
-            this.copiedPropertyInformation = null;
-            this.welcomeLetterReloadService.triggerReload();
-          },
-          error: () => {}
-        });
-      }
+      error: () => {}
     });
   }
   //#endregion
@@ -302,6 +299,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     });
     this.formatPhone();
     this.syncAllHtmlEditorsFromForm();
+    setTimeout(() => this.syncAllHtmlEditorsFromForm());
   }
  
   populateFormFromCopiedData(): void {
@@ -439,7 +437,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
 
   applyHtmlEditorFormat(controlName: HtmlEditorControlName, format: HtmlEditorFormat): void {
-    const editor = this.htmlEditors.get(controlName);
+    const editor = this.getHtmlEditorElement(controlName);
     if (!editor) {
       return;
     }
@@ -472,8 +470,21 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     this.htmlEditorControlNames.forEach(controlName => this.syncHtmlEditorFromForm(controlName));
   }
 
+  syncAllHtmlEditorsToForm(): void {
+    this.htmlEditorControlNames.forEach(controlName => {
+      const editor = this.getHtmlEditorElement(controlName);
+      if (!editor) {
+        return;
+      }
+      const control = this.form.get(controlName);
+      control?.setValue(editor.innerHTML, { emitEvent: false });
+      control?.markAsDirty();
+      control?.markAsTouched();
+    });
+  }
+
   syncHtmlEditorFromForm(controlName: HtmlEditorControlName): void {
-    const editor = this.htmlEditors.get(controlName);
+    const editor = this.getHtmlEditorElement(controlName);
     if (!editor) {
       return;
     }
@@ -483,6 +494,14 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }
+  }
+
+  private getHtmlEditorElement(controlName: HtmlEditorControlName): HTMLDivElement | null {
+    const mapped = this.htmlEditors.get(controlName);
+    if (mapped) {
+      return mapped;
+    }
+    return this.host.nativeElement.querySelector(`[data-html-editor="${controlName}"]`) as HTMLDivElement | null;
   }
 
   /** Contenteditable toolbar; execCommand is deprecated in DOM typings but has no stable replacement yet. */
