@@ -49,6 +49,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   private cdr = inject(ChangeDetectorRef);
 
   readonly displayedColumns: ColumnSet = {
+    securityDepositAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '16ch', sortType: 'natural' },
@@ -136,7 +137,15 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
         }
 
         const mappedResponse = this.mappingService.mapUnreturnedSecurityDepositsResponse(response);
-        this.rowsDisplay = this.mappingService.mapUnreturnedSecurityDeposits(mappedResponse);
+        const attentionReservationIds = new Set(
+          (mappedResponse.rows || [])
+            .filter(row => this.securityDepositService.isDepartedSecurityDeposit(row.departureDate))
+            .map(row => this.utilityService.normalizeId(row.reservationId))
+        );
+        this.rowsDisplay = this.mappingService.mapUnreturnedSecurityDeposits(mappedResponse).map(row => ({
+          ...row,
+          securityDepositAttentionDot: attentionReservationIds.has(row.reservationId) ? '●' : ''
+        }));
         this.escrowBalance = Number(mappedResponse.escrowBalance ?? 0);
         this.escrowAccountLabel = String(mappedResponse.escrowAccountLabel ?? '').trim();
         this.securityDepositService.updateSecurityDepositsOutstandingBadge(mappedResponse.rows);

@@ -2004,12 +2004,24 @@ mat-form-field input,
   gap: 8px;
 }
 
+/* Same visual as list attention dots (ticket/lead/security-deposit ●). */
+.attention-badge-dot,
 .mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-menu-badge-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--mat-sys-error, #dc2626);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
   flex-shrink: 0;
+  pointer-events: none;
+  color: #dc2626 !important;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  height: 1em;
+  /* ● sits optically low in the glyph box; nudge to match tab/menu label midline. */
+  transform: translateY(-0.08em);
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-check {

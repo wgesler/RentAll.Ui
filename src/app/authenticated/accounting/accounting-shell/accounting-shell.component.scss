@@ -431,17 +431,37 @@ mat-card {
     background: transparent !important;
   }
 
-  *,
-  *:hover,
-  *:focus,
-  *:active {
+  *:not(.attention-badge-dot):not(.accounting-tab-badge-dot),
+  *:not(.attention-badge-dot):not(.accounting-tab-badge-dot):hover,
+  *:not(.attention-badge-dot):not(.accounting-tab-badge-dot):focus,
+  *:not(.attention-badge-dot):not(.accounting-tab-badge-dot):active {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  .accounting-tab-badge-dot,
+  &:hover .accounting-tab-badge-dot,
+  &:focus .accounting-tab-badge-dot,
+  &:focus-visible .accounting-tab-badge-dot,
+  &:active .accounting-tab-badge-dot {
+    margin-right: 0.4rem;
+    align-self: center;
+    color: #dc2626 !important;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    height: 1em;
+    transform: translateY(-0.08em);
     background: transparent !important;
     background-color: transparent !important;
   }
 }
 
 .accounting-shell-dropdown-tab-label__text {
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
+  line-height: 1;
   background: transparent !important;
 }
 
@@ -513,7 +533,13 @@ mat-card {
   .mdc-tab:has(.accounting-shell-dropdown-tab-label) {
     &:hover {
       .accounting-shell-dropdown-tab-label,
-      .accounting-shell-dropdown-tab-label * {
+      .accounting-shell-dropdown-tab-label *:not(.attention-badge-dot):not(.accounting-tab-badge-dot) {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+
+      .accounting-shell-dropdown-tab-label .accounting-tab-badge-dot {
+        color: #dc2626 !important;
         background: transparent !important;
         background-color: transparent !important;
       }

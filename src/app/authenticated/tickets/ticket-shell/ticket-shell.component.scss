@@ -7,6 +7,14 @@
   box-sizing: border-box;
 }
 
+.ticket-shell-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 :host ::ng-deep .shell-tabs {
   margin-top: var(--global-form-row-gap);
 }

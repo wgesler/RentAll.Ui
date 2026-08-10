@@ -91,7 +91,15 @@
           </app-ticket>
         </ng-template>
         <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)" class="shell-tabs dbg-band-tabs">
-          <mat-tab label="My Tickets">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="ticket-shell-tab-label">
+                @if (hasMyTicketsAttention) {
+                  <span class="attention-badge-dot" aria-hidden="true">●</span>
+                }
+                My Tickets
+              </span>
+            </ng-template>
             @if (!showTicketForm) {
               <app-ticket-list
                 #myTicketListSection

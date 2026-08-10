@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit, QueryList, ViewChildre
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, skip, take, takeUntil } from 'rxjs';
+import { forkJoin, of, Subject, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -14,6 +14,7 @@ import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-par
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GeneralComponent, GeneralLeadFormClosed } from '../general/general.component';
 import { GeneralListComponent } from '../general-list/general-list.component';
+import { LeadStateType } from '../models/lead-enums';
 import { OwnerComponent } from '../owner/owner.component';
 import { OwnerEditSelection } from '../models/lead-owner.model';
 import { OwnerListComponent } from '../owner-list/owner-list.component';
@@ -21,6 +22,7 @@ import { LeadsReportsComponent } from '../reports/leads-reports.component';
 import { RentalComponent, RentalLeadFormClosed } from '../rental/rental.component';
 import { RentalEditSelection } from '../models/lead-rental.model';
 import { RentalListComponent } from '../rental-list/rental-list.component';
+import { LeadsService } from '../services/leads.service';
 
 @Component({
   standalone: true,
@@ -50,6 +52,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private leadsService = inject(LeadsService);
   private cdr = inject(ChangeDetectorRef);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -63,6 +66,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   officeTitleBarShowError = false;
   isAdmin = false;
   isOwnerAdmin = false;
+  hasNewRentalLeads = false;
+  hasNewOwnerLeads = false;
+  hasNewGeneralLeads = false;
+  private leadBadgeLoadId = 0;
 
   showRentalLeadForm = false;
   showOwnerLeadForm = false;
@@ -91,6 +98,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       offices: this.offices
     });
     this.loadOffices();
+    this.refreshLeadFolderBadges();
+    this.leadsService.leadStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshLeadFolderBadges();
+    });
     this.globalSelectionService
       .getSelectedOfficeId$()
       .pipe(skip(1), takeUntil(this.destroy$))
@@ -119,6 +130,47 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     const officeId = value == null || value === '' ? null : Number(value);
     this.applyPageOfficeScope(officeId);
     this.cdr.markForCheck();
+  }
+
+  refreshLeadFolderBadges(): void {
+    const loadId = ++this.leadBadgeLoadId;
+    forkJoin({
+      rentals: this.leadsService.getRentalLeads(),
+      owners: this.isOwnerAdmin ? this.leadsService.getOwnerLeads() : of([]),
+      generals: this.leadsService.getGeneralLeads()
+    }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: ({ rentals, owners, generals }) => {
+        if (loadId !== this.leadBadgeLoadId) {
+          return;
+        }
+        this.hasNewRentalLeads = this.hasNewLeadState(rentals);
+        this.hasNewOwnerLeads = this.isOwnerAdmin && this.hasNewLeadState(owners);
+        this.hasNewGeneralLeads = this.hasNewLeadState(generals);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        if (loadId !== this.leadBadgeLoadId) {
+          return;
+        }
+        this.hasNewRentalLeads = false;
+        this.hasNewOwnerLeads = false;
+        this.hasNewGeneralLeads = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  hasNewLeadState(rows: Array<{ leadStateId?: number; officeId?: number }> | null | undefined): boolean {
+    const officeId = this.selectedOfficeId != null && this.selectedOfficeId > 0 ? this.selectedOfficeId : null;
+    return (rows || []).some(row => {
+      if (row?.leadStateId !== LeadStateType.New) {
+        return false;
+      }
+      if (officeId == null) {
+        return true;
+      }
+      return Number(row.officeId) === officeId;
+    });
   }
 
   onTabIndexChange(nextTabIndex: number): void {
@@ -372,6 +424,7 @@ applyOfficeFromGlobal(officeId: number | null): void {
     }
     this.clearOfficeTitleBarErrorIfValid();
     this.propagateOfficeToLeadLists();
+    this.refreshLeadFolderBadges();
     this.cdr.markForCheck();
   }
 
@@ -386,6 +439,7 @@ applyPageOfficeScope(officeId: number | null): void {
     }
     this.clearOfficeTitleBarErrorIfValid();
     this.propagateOfficeToLeadLists();
+    this.refreshLeadFolderBadges();
   }
 
   resolveOfficeScope(officeId: number | null): void {

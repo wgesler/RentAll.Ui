@@ -20,6 +20,9 @@ import { ReservationCodeResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UserService } from '../../users/services/user.service';
+import { TicketStateType } from '../models/ticket-enum';
+import { TicketResponse } from '../models/ticket-models';
+import { TicketService } from '../services/ticket.service';
 import { TicketComponent } from '../ticket/ticket.component';
 import { TicketListComponent } from '../ticket-list/ticket-list.component';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -43,6 +46,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   private contactService = inject(ContactService);
   private globalSelectionService = inject(GlobalSelectionService);
   private userService = inject(UserService);
+  private ticketService = inject(TicketService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -94,6 +98,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   contacts: ContactResponse[] = [];
 
   isApplyingTicketSelectionContext = false;
+  hasMyTicketsAttention = false;
+  private myTicketsBadgeLoadId = 0;
   destroy$ = new Subject<void>();
 
   //#region Ticket-Shell
@@ -115,6 +121,10 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.loadPropertyCodes();
     this.loadContacts();
     this.loadReservationCodes();
+    this.refreshMyTicketsFolderBadge();
+    this.ticketService.ticketStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshMyTicketsFolderBadge();
+    });
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
@@ -212,12 +222,65 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.myTicketListSectionRef?.getTickets();
     this.otherTicketListSectionRef?.getTickets();
     this.closedTicketListSectionRef?.getTickets();
+    this.refreshMyTicketsFolderBadge();
   }
 
   onTicketListUpdated(): void {
     this.myTicketListSectionRef?.getTickets();
     this.otherTicketListSectionRef?.getTickets();
     this.closedTicketListSectionRef?.getTickets();
+    this.refreshMyTicketsFolderBadge();
+  }
+
+  refreshMyTicketsFolderBadge(): void {
+    const loadId = ++this.myTicketsBadgeLoadId;
+    const currentUserId = String(this.currentUserId || '').trim();
+    if (!currentUserId) {
+      this.hasMyTicketsAttention = false;
+      this.markViewForCheck();
+      return;
+    }
+
+    this.ticketService.getTickets().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: tickets => {
+        if (loadId !== this.myTicketsBadgeLoadId) {
+          return;
+        }
+        this.hasMyTicketsAttention = (tickets || []).some(ticket => this.shouldShowMyTicketsAttention(ticket));
+        this.markViewForCheck();
+      },
+      error: () => {
+        if (loadId !== this.myTicketsBadgeLoadId) {
+          return;
+        }
+        this.hasMyTicketsAttention = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  shouldShowMyTicketsAttention(ticket: TicketResponse): boolean {
+    const officeId = this.selectedOfficeId != null && this.selectedOfficeId > 0 ? this.selectedOfficeId : null;
+    if (officeId != null && Number(ticket.officeId) !== officeId) {
+      return false;
+    }
+
+    const currentUserId = String(this.currentUserId || '').trim();
+    const currentUserAgentId = String(this.currentUserAgentId || '').trim();
+    const assigneeId = String(ticket.assigneeId || '').trim();
+    const agentId = String(ticket.agentId || '').trim();
+    const createdBy = String(ticket.createdBy || '').trim();
+    const isAssignedToCurrentUser = assigneeId === currentUserId
+      || (currentUserAgentId !== '' && agentId === currentUserAgentId);
+    const isCreatedByCurrentUser = createdBy === currentUserId;
+
+    if (ticket.ticketStateTypeId === TicketStateType.caseCreated) {
+      return isCreatedByCurrentUser;
+    }
+    if (ticket.ticketStateTypeId === TicketStateType.assigned) {
+      return isAssignedToCurrentUser;
+    }
+    return false;
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
@@ -236,6 +299,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.refreshPropertyScope();
     this.refreshReservationScope(this.selectedReservationId);
     this.syncFiltersToList();
+    this.refreshMyTicketsFolderBadge();
     this.markViewForCheck();
   }
 
@@ -345,9 +409,11 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       next: agentId => {
         this.currentUserAgentId = agentId;
         this.syncFiltersToList();
+        this.refreshMyTicketsFolderBadge();
       },
       error: () => {
         this.currentUserAgentId = null;
+        this.refreshMyTicketsFolderBadge();
       }
     });
   }

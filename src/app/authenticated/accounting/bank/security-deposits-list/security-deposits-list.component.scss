@@ -24,6 +24,13 @@
   min-width: 0;
 }
 
+:host ::ng-deep .security-deposits-table-wrap td.mat-cell.mat-column-securityDepositAttentionDot,
+:host ::ng-deep .security-deposits-table-wrap td.mat-mdc-cell.mat-column-securityDepositAttentionDot {
+  color: #dc2626;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 :host ::ng-deep app-data-table [dataTableFooter] {
   margin-top: 0;
   padding-top: 1.5rem;

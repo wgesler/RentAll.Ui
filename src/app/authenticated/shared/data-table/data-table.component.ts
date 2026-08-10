@@ -1379,7 +1379,7 @@ normalizeFilterValue(value: unknown): string {
   }
 
   /** Shown left of the row-number column when `hasColumnIndex` is true. */
-  private static readonly leadingColumnsBeforeIndex = ['ticketAttentionDot', 'leadAttentionDot'];
+  private static readonly leadingColumnsBeforeIndex = ['ticketAttentionDot', 'leadAttentionDot', 'securityDepositAttentionDot'];
 
   setTableColumns(): void {
     let columns = {} as ColumnSet;

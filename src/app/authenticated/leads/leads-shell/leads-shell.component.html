@@ -63,7 +63,15 @@
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
-        <mat-tab label="Rental">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="leads-shell-tab-label">
+              @if (hasNewRentalLeads) {
+                <span class="attention-badge-dot" aria-hidden="true">●</span>
+              }
+              Rental
+            </span>
+          </ng-template>
           @if (selectedTabIndex === 0) {
           @if (showRentalLeadForm) {
             <app-rental
@@ -82,7 +90,15 @@
           }
         </mat-tab>
         @if (isOwnerAdmin) {
-          <mat-tab label="Owner">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="leads-shell-tab-label">
+                @if (hasNewOwnerLeads) {
+                  <span class="attention-badge-dot" aria-hidden="true">●</span>
+                }
+                Owner
+              </span>
+            </ng-template>
             @if (selectedTabIndex === getOwnerTabIndex()) {
             @if (showOwnerLeadForm) {
               <app-owner
@@ -102,7 +118,15 @@
             }
           </mat-tab>
         }
-        <mat-tab label="General">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="leads-shell-tab-label">
+              @if (hasNewGeneralLeads) {
+                <span class="attention-badge-dot" aria-hidden="true">●</span>
+              }
+              General
+            </span>
+          </ng-template>
           @if (selectedTabIndex === getGeneralTabIndex()) {
           @if (showGeneralLeadForm) {
             <app-general

@@ -8,6 +8,14 @@
   }
 }
 
+.leads-shell-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 :host ::ng-deep .shell-tabs .mat-mdc-tab-body-content {
   overflow-y: hidden !important;
   padding-top: 12px;

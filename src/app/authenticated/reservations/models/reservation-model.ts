@@ -456,5 +456,7 @@ export interface UnreturnedSecurityDepositDisplay {
   depositComplete: boolean;
   payableDisabled?: boolean;
   transferDisabled?: boolean;
+  /** Red attention marker for departed deposits (matches sidebar/Bank badge rule). */
+  securityDepositAttentionDot?: string;
 }
 

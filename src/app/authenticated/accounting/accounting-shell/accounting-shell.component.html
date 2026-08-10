@@ -1128,6 +1128,9 @@
                 class="accounting-shell-dropdown-tab-label"
                 (click)="onDropdownTabButtonClick($event, bankActivitiesMenuTrigger)"
                 aria-label="Choose bank view">
+                @if (hasUnreturnedSecurityDeposits) {
+                  <span class="attention-badge-dot accounting-tab-badge-dot" aria-hidden="true">●</span>
+                }
                 <span class="accounting-shell-dropdown-tab-label__text">Bank</span>
                 <span
                   class="accounting-shell-dropdown-tab-icon-wrap"
@@ -1145,10 +1148,10 @@
                 @for (option of shellBankActivityMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBankActivity(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">
-                      {{ option.label }}
                       @if (option.kind === 'securityDeposits' && hasUnreturnedSecurityDeposits) {
-                        <span class="accounting-menu-badge-dot" aria-hidden="true"></span>
+                        <span class="attention-badge-dot accounting-menu-badge-dot" aria-hidden="true">●</span>
                       }
+                      {{ option.label }}
                     </span>
                     @if (selectedTabIndex === tabBankActivities && selectedBankActivityKind === option.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>

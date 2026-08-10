@@ -124,15 +124,17 @@ export class SecurityDepositService {
     this.scheduledRefreshTimer = null;
   }
 
-  private hasDepartedUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[] | null | undefined): boolean {
+  isDepartedSecurityDeposit(departureDate: string | null | undefined): boolean {
     const todayOrdinal = this.utility.parseCalendarDateToOrdinal(this.utility.todayAsCalendarDateString());
     if (todayOrdinal == null) {
       return false;
     }
 
-    return (rows || []).some(row => {
-      const departureOrdinal = this.utility.parseCalendarDateToOrdinal(row.departureDate);
-      return departureOrdinal != null && departureOrdinal <= todayOrdinal;
-    });
+    const departureOrdinal = this.utility.parseCalendarDateToOrdinal(departureDate);
+    return departureOrdinal != null && departureOrdinal <= todayOrdinal;
+  }
+
+  private hasDepartedUnreturnedSecurityDeposits(rows: ReservationDepartureResponse[] | null | undefined): boolean {
+    return (rows || []).some(row => this.isDepartedSecurityDeposit(row.departureDate));
   }
 }
