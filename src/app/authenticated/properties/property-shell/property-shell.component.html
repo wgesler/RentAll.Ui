@@ -58,7 +58,7 @@
               }
             </mat-form-field>
 
-            @if (!isAddMode && selectedTabIndex >= 2 && selectedTabIndex !== 4) {
+            @if (!isAddMode && selectedTabIndex >= 2 && selectedTabIndex !== historyTabIndex) {
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
@@ -67,13 +67,13 @@
                   [value]="selectedReservationId ?? null"
                   [options]="reservationOptions"
                   [showInstructionOption]="true"
-                [nullOptionLabel]="selectedTabIndex >= 5 ? 'All Reservations' : 'Select Reservation'"
+                [nullOptionLabel]="selectedTabIndex >= emailTabIndex ? 'All Reservations' : 'Select Reservation'"
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onReservationDropdownChange($event)">
                 </app-title-bar-select>
               </div>
             }
-            @if (selectedTabIndex === 5) {
+            @if (selectedTabIndex === emailTabIndex) {
               <app-title-bar-select
                 [label]="'Email Types'"
                 [formFieldClass]="'titlebar-field-document-type'"
@@ -102,7 +102,7 @@
               <input matInput [value]="sharedPropertyCode || titleBarPropertyCode || ''" readonly disabled class="readonly-field">
             </mat-form-field>
 
-            @if (!isAddMode && selectedTabIndex >= 2 && selectedTabIndex !== 4) {
+            @if (!isAddMode && selectedTabIndex >= 2 && selectedTabIndex !== historyTabIndex) {
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
@@ -111,13 +111,13 @@
                   [value]="selectedReservationId ?? null"
                   [options]="reservationOptions"
                   [showInstructionOption]="true"
-                  [nullOptionLabel]="selectedTabIndex >= 5 ? 'All Reservations' : 'Select Reservation'"
+                  [nullOptionLabel]="selectedTabIndex >= emailTabIndex ? 'All Reservations' : 'Select Reservation'"
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onReservationDropdownChange($event)">
                 </app-title-bar-select>
               </div>
             }
-            @if (selectedTabIndex === 5) {
+            @if (selectedTabIndex === emailTabIndex) {
               <app-title-bar-select
                 [label]="'Email Types'"
                 [formFieldClass]="'titlebar-field-document-type'"
@@ -171,7 +171,7 @@
         </mat-tab>
 
         <mat-tab label="Welcome Letter">
-          @if (selectedTabIndex === 2) {
+          @if (selectedTabIndex === welcomeLetterTabIndex) {
             <app-property-welcome-letter
               [isAddMode]="isAddMode"
               [propertyId]="shellPropertyId"
@@ -185,8 +185,23 @@
           }
         </mat-tab>
 
+        <mat-tab label="Departure Letter">
+          @if (selectedTabIndex === departureLetterTabIndex) {
+            <app-property-departure-letter
+              [isAddMode]="isAddMode"
+              [propertyId]="shellPropertyId"
+              [titleBarReservationId]="titleBarReservationId"
+              [officeId]="titleBarPropertyOfficeId"
+              [propertyCode]="sharedPropertyCode"
+              [hideOfficePropertyReservation]="true"
+              [reservations]="shellReservations"
+              (reservationSelected)="onChildTabReservationChange($event)">
+            </app-property-departure-letter>
+          }
+        </mat-tab>
+
         <mat-tab label="Listing">
-          @if (selectedTabIndex === 3) {
+          @if (selectedTabIndex === listingTabIndex) {
             <app-property-listing
               [propertyId]="shellPropertyId"
               [officeId]="titleBarPropertyOfficeId"
@@ -197,7 +212,7 @@
         </mat-tab>
 
         <mat-tab label="History">
-          @if (selectedTabIndex === 4) {
+          @if (selectedTabIndex === historyTabIndex) {
             <app-property-reservation-history
               [propertyId]="shellPropertyId">
             </app-property-reservation-history>
@@ -205,7 +220,7 @@
         </mat-tab>
 
         <mat-tab label="Emails">
-          @if (selectedTabIndex === 5) {
+          @if (selectedTabIndex === emailTabIndex) {
             <app-email-list
               #propertyEmailList
               [propertyId]="shellPropertyId"
@@ -219,25 +234,6 @@
               (reservationIdChange)="onChildTabReservationChange($event)"
               (officeIdChange)="onChildTabOfficeChange($event)">
             </app-email-list>
-          }
-        </mat-tab>
-
-        <mat-tab label="Documents">
-          @if (selectedTabIndex === 6) {
-            <app-document-list
-              #propertyDocumentList
-              [documentTypeIds]="[DocumentType.PropertyLetter, DocumentType.Quote]"
-              [propertyId]="shellPropertyId"
-              [propertyCode]="sharedPropertyCode"
-              [officeId]="titleBarPropertyOfficeId"
-              [reservationId]="titleBarReservationId"
-              [source]="'property'"
-              [reservations]="shellReservations"
-              (reservationIdChange)="onChildTabReservationChange($event)"
-              (officeIdChange)="onChildTabOfficeChange($event)"
-              [hideHeader]="true"
-              [hideFilters]="true">
-            </app-document-list>
           }
         </mat-tab>
       </mat-tab-group>

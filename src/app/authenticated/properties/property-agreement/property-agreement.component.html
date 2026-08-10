@@ -136,11 +136,9 @@
     </div>
     </ng-template>
 
-    @if (!isPropertyManagementLease) {
-      <ng-container *ngTemplateOutlet="agreementLinesSection" />
-    }
-    @if (isPropertyManagementLease) {
-      <div class="property-agreement-management-section mb-6 min-w-0" [class.property-agreement-management-section--vendor]="!isPropertyManagementLease">
+    <ng-container *ngTemplateOutlet="agreementLinesSection" />
+    @if (isPropertyManagementLease && canViewManagementAgreement) {
+      <div class="property-agreement-management-section mt-6 mb-6 min-w-0" [class.property-agreement-management-section--vendor]="!isPropertyManagementLease">
         <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">
           {{ isPropertyManagementLease ? 'Management Agreement' : 'Direct / Third Party Agreement' }}
         </h4>
@@ -189,8 +187,6 @@
           <mat-checkbox formControlName="isMonthly" class="shrink-0">Monthly</mat-checkbox>
         </div>
       </div>
-    }
-    @if (isPropertyManagementLease) {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 mb-4">
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Payment Type</mat-label>
@@ -213,7 +209,6 @@
           <input matInput formControlName="accountNumber" />
         </mat-form-field>
       </div>
-      <ng-container *ngTemplateOutlet="agreementLinesSection" />
     }
     <div class="property-agreement-uploads-layout mb-4">
       @if (isPropertyManagementLease) {
@@ -340,7 +335,7 @@
       }
       <div class="property-agreement-upload-section">
         <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
-          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Lease Agreement</h4>
+          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Owner Agreement</h4>
         </div>
         <div class="property-agreement-upload-col min-w-0">
           <div class="property-agreement-col-body">

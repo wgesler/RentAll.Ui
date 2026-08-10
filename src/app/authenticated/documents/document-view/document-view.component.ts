@@ -524,18 +524,7 @@ iframeLoadHandler?: () => void;
     }
 
     if (this.returnTo === 'propertyTab' && this.propertyId) {
-      const queryParams = this.route.snapshot.queryParams;
-      const params: string[] = ['tab=documents'];
-      const reservationId = queryParams['reservationId'];
-      const officeId = queryParams['officeId'];
-      if (reservationId) {
-        params.push(`reservationId=${reservationId}`);
-      }
-      if (officeId !== null && officeId !== undefined && officeId !== '') {
-        params.push(`officeId=${officeId}`);
-      }
-      const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [this.propertyId]);
-      this.router.navigateByUrl(`${propertyUrl}?${params.join('&')}`);
+      this.router.navigateByUrl(RouterUrl.DocumentList);
       return;
     }
 
@@ -604,9 +593,7 @@ iframeLoadHandler?: () => void;
         const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [this.reservationId]);
         this.router.navigateByUrl(reservationUrl + '?tab=documents');
       } else if (this.documentTypeId === 1) {
-        // Return to property Documents tab
-        const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [this.propertyId]);
-        this.router.navigateByUrl(propertyUrl + '?tab=documents');
+        this.router.navigateByUrl(RouterUrl.DocumentList);
       } else {
         // Fallback to document list
         this.router.navigateByUrl(RouterUrl.DocumentList);

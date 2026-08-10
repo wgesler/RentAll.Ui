@@ -807,7 +807,7 @@ export class UtilityService {
 
   //#region Document filenames
   generateDocumentFileName(
-    type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection',
+    type: 'lease' | 'welcomeLetter' | 'departureLetter' | 'invoice' | 'inspection',
     propertyCode?: string | null,
     codeName?: string | null,
     subType?: string | null
@@ -822,6 +822,7 @@ export class UtilityService {
       case 'lease':
         return `${pc || 'Property'}${seg(code)}${seg(stamp)}.pdf`;
       case 'welcomeLetter':
+      case 'departureLetter':
         return `${pc || 'Property'}${seg(code)}${seg(stamp)}.pdf`;
       case 'invoice':
         return `${pc || 'Invoice'}${seg(code)}${seg(stamp)}.pdf`;

@@ -199,7 +199,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       }
       return isOwnerAuthorizedAdmin(this.ownerAuthorization);
     }
-    return this.isInAccounting || this.isAgentAdmin;
+    return true;
   }
 
   get canManagePropertyAgreement(): boolean {
@@ -212,7 +212,20 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       }
       return isOwnerAuthorizedAdmin(this.ownerAuthorization);
     }
-    return this.isInAccounting || this.isAgentAdmin;
+    return true;
+  }
+
+  get canViewManagementAgreement(): boolean {
+    if (String(this.publicOwnerToken || '').trim().length > 0) {
+      return false;
+    }
+    if (this.isInOwnerMode) {
+      if (isOwnerUnauthorized(this.ownerAuthorization)) {
+        return false;
+      }
+      return isOwnerAuthorizedAdmin(this.ownerAuthorization);
+    }
+    return this.isInAccounting;
   }
 
   //#region Property

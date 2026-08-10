@@ -39,6 +39,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input({ required: true }) propertyId!: string;
   @Input({ required: true }) isAddMode!: boolean;
   @Input({ required: true }) canManageAgreement!: boolean;
+  @Input() canViewManagementAgreement = false;
   @Input() officeId: number | null = null;
   @Input() isFurnished = true;
   @Input() bedrooms: number | null = null;

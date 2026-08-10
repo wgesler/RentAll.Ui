@@ -336,20 +336,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
     }
 
     if (returnTo === 'propertyTab') {
-      const propertyId = queryParams['propertyId'];
-      if (propertyId) {
-        const params: string[] = ['tab=documents'];
-        const reservationId = queryParams['reservationId'];
-        const officeId = queryParams['officeId'];
-        if (reservationId) {
-          params.push(`reservationId=${reservationId}`);
-        }
-        if (officeId !== null && officeId !== undefined && officeId !== '') {
-          params.push(`officeId=${officeId}`);
-        }
-        this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}?${params.join('&')}`);
-        return;
-      }
+      this.router.navigateByUrl(RouterUrl.DocumentList);
+      return;
     }
 
     if ((returnTo === 'maintenanceTab' || returnTo === 'maintenance')) {

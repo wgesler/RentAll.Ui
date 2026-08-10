@@ -13,13 +13,12 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyResponse } from '../models/property.model';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
+import { PropertyDepartureLetterComponent } from '../property-departure/property-departure-letter.component';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyListingComponent } from '../property-listing/property-listing.component';
 import { PropertyReservationHistoryComponent } from '../property-reservation-history/property-reservation-history.component';
@@ -42,8 +41,8 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
     PropertyListingComponent,
     PropertyReservationHistoryComponent,
     PropertyWelcomeLetterComponent,
-    EmailListComponent,
-    DocumentListComponent
+    PropertyDepartureLetterComponent,
+    EmailListComponent
   ],
   templateUrl: './property-shell.component.html',
   styleUrl: './property-shell.component.scss'
@@ -59,16 +58,16 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   private contactService = inject(ContactService);
   private utilityService = inject(UtilityService);
 
-  readonly DocumentType = DocumentType;
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
+  @ViewChild(PropertyDepartureLetterComponent) propertyDepartureLetter?: PropertyDepartureLetterComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
-  @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
 
-  private static readonly welcomeLetterTabIndex = 2;
-  private static readonly reservationHistoryTabIndex = 4;
-  private static readonly emailTabIndex = 5;
-  private static readonly documentsTabIndex = 6;
+  readonly welcomeLetterTabIndex = 2;
+  readonly departureLetterTabIndex = 3;
+  readonly listingTabIndex = 4;
+  readonly historyTabIndex = 5;
+  readonly emailTabIndex = 6;
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
@@ -118,14 +117,16 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     });
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
-      if (queryParams['tab'] === 'documents') {
-        this.selectedTabIndex = PropertyShellComponent.documentsTabIndex;
-      } else if (queryParams['tab'] === 'email') {
-        this.selectedTabIndex = PropertyShellComponent.emailTabIndex;
+      if (queryParams['tab'] === 'email') {
+        this.selectedTabIndex = this.emailTabIndex;
       } else if (queryParams['tab'] === 'reservation-history') {
-        this.selectedTabIndex = PropertyShellComponent.reservationHistoryTabIndex;
+        this.selectedTabIndex = this.historyTabIndex;
       } else if (queryParams['tab'] === 'listing') {
-        this.selectedTabIndex = 3;
+        this.selectedTabIndex = this.listingTabIndex;
+      } else if (queryParams['tab'] === 'departure-letter') {
+        this.selectedTabIndex = this.departureLetterTabIndex;
+      } else if (queryParams['tab'] === 'welcome-letter') {
+        this.selectedTabIndex = this.welcomeLetterTabIndex;
       }
     });
   }
@@ -227,7 +228,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     } else {
       this.titleBarReservationId = ctx.reservationId;
     }
-    this.syncWelcomeLetterToTitleBarReservation(previousReservationId, this.titleBarReservationId);
+    this.syncLetterTabToTitleBarReservation(previousReservationId, this.titleBarReservationId);
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
@@ -237,11 +238,8 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   onReservationDropdownChange(value: string | number | null): void {
     this.titleBarReservationId = this.normalizeTitleBarReservationId(value);
     this.propertySection?.applyTitleBarReservationSelection(value);
-    if (this.selectedTabIndex === PropertyShellComponent.emailTabIndex) {
+    if (this.selectedTabIndex === this.emailTabIndex) {
       this.propertyEmailList?.reload();
-    }
-    if (this.selectedTabIndex === PropertyShellComponent.documentsTabIndex) {
-      this.propertyDocumentList?.reload();
     }
   }
 
@@ -292,17 +290,20 @@ normalizeTitleBarReservationId(value: string | number | null | undefined): strin
     return value == null || value === '' ? null : String(value);
   }
 
-syncWelcomeLetterToTitleBarReservation(
+syncLetterTabToTitleBarReservation(
     previousReservationId: string | null,
     nextReservationId: string | null
   ): void {
-    if (this.selectedTabIndex !== PropertyShellComponent.welcomeLetterTabIndex) {
-      return;
-    }
     if (previousReservationId === nextReservationId) {
       return;
     }
-    this.propertyWelcomeLetter?.onTitleBarReservationIdUpdate(nextReservationId);
+    if (this.selectedTabIndex === this.welcomeLetterTabIndex) {
+      this.propertyWelcomeLetter?.onTitleBarReservationIdUpdate(nextReservationId);
+      return;
+    }
+    if (this.selectedTabIndex === this.departureLetterTabIndex) {
+      this.propertyDepartureLetter?.onTitleBarReservationIdUpdate(nextReservationId);
+    }
   }
 
   onChildTabOfficeChange(officeId: number | null): void {
@@ -442,11 +443,8 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
       this.selectedTabIndex = nextIndex;
       this.routeTabQueryParam(nextIndex);
-      if (nextIndex === PropertyShellComponent.emailTabIndex) {
+      if (nextIndex === this.emailTabIndex) {
         queueMicrotask(() => this.propertyEmailList?.reload());
-      }
-      if (nextIndex === PropertyShellComponent.documentsTabIndex) {
-        queueMicrotask(() => this.propertyDocumentList?.reload());
       }
     } finally {
       this.isHandlingTabGuard = false;
@@ -455,14 +453,16 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
   routeTabQueryParam(tabIndex: number): void {
     let tab: string | null = null;
-    if (tabIndex === 3) {
+    if (tabIndex === this.welcomeLetterTabIndex) {
+      tab = 'welcome-letter';
+    } else if (tabIndex === this.departureLetterTabIndex) {
+      tab = 'departure-letter';
+    } else if (tabIndex === this.listingTabIndex) {
       tab = 'listing';
-    } else if (tabIndex === PropertyShellComponent.reservationHistoryTabIndex) {
+    } else if (tabIndex === this.historyTabIndex) {
       tab = 'reservation-history';
-    } else if (tabIndex === PropertyShellComponent.emailTabIndex) {
+    } else if (tabIndex === this.emailTabIndex) {
       tab = 'email';
-    } else if (tabIndex === PropertyShellComponent.documentsTabIndex) {
-      tab = 'documents';
     }
 
     this.router.navigate([], {

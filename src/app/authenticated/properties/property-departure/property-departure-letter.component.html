@@ -1,0 +1,134 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading departure letter...</p>
+  </div>
+} @else {
+  <div class="departure-letter-container">
+    <form [formGroup]="form" class="departure-letter-form">
+      
+      @if (!hideOfficePropertyReservation) {
+      <div class="flex gap-4 items-center mt-3 px-4 mb-4">
+        <mat-form-field appearance="outline" class="office-dropdown">
+          <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+          <input matInput [value]="selectedOffice ? selectedOffice.name : 'All Offices'" readonly [disabled]="true">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-shrink-0 property-code-field">
+          <mat-label>Property Code</mat-label>
+          <input matInput [value]="propertyCode || property?.propertyCode || ''" readonly [disabled]="true">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="reservation-dropdown">
+          <mat-label>Reservation</mat-label>
+          <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [compareWith]="compareReservationId">
+            <mat-option [value]="null">Select Reservation</mat-option>
+            @for (reservation of availableReservations; track reservation.value.reservationId) {
+              <mat-option [value]="reservation.value.reservationId">
+                {{ reservation.label }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      }
+
+      @if (hideOfficePropertyReservation && showReservationOnly) {
+      <div class="flex gap-4 items-center mt-3 px-4 mb-4">
+        <mat-form-field appearance="outline" class="reservation-dropdown">
+          <mat-label>Reservation</mat-label>
+          <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [compareWith]="compareReservationId">
+            <mat-option [value]="null">Select Reservation</mat-option>
+            @for (reservation of availableReservations; track reservation.value.reservationId) {
+              <mat-option [value]="reservation.value.reservationId">
+                {{ reservation.label }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      }
+
+      <div class="property-tab-actions-band property-tab-actions-band--centered top-controls">
+        <div class="property-tab-actions-band__row">
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap property-departure-actions-group">
+            <mat-checkbox
+              color="primary"
+              class="departure-letter-branded-toggle"
+              [checked]="isBranded"
+              (change)="onBrandedChange($event.checked)">
+              Branded
+            </mat-checkbox>
+            <mat-checkbox
+              color="primary"
+              class="departure-letter-branded-toggle"
+              [checked]="includeDepartureDate"
+              (change)="onIncludeDepartureDateChange($event.checked)">
+              Include Departure Date
+            </mat-checkbox>
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+              [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
+              [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+              [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || isDownloading">
+              <mat-icon>download</mat-icon>
+              {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-departure-letter-button" (click)="saveDepartureLetter()"
+              class="text-nowrap flex-shrink-0"
+              [disabled]="!selectedOffice || !selectedReservation || isSubmitting">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="editor-section property-tab-main-area">
+        @if (selectedOffice && selectedReservation) {
+          @if (previewIframeHtml) {
+            <div class="preview-section">
+              <iframe 
+                [srcdoc]="safeHtml" 
+                class="preview-iframe"
+                [attr.key]="iframeKey"
+                (load)="injectStylesIntoIframe()"
+                frameborder="0">
+              </iframe>
+            </div>
+          } @else if (isPreviewHtmlPending()) {
+            <div class="loading-container preview-loading-container">
+              <mat-spinner [diameter]="40"></mat-spinner>
+              <p>Loading preview...</p>
+            </div>
+          } @else {
+            <div class="loading-container preview-loading-container">
+              <p>Preview is not available yet. Save property HTML or try again.</p>
+            </div>
+          }
+        } @else {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Departure Letter (HTML)</mat-label>
+            <textarea 
+              matInput 
+              formControlName="departureLetter" 
+              rows="20"
+              [placeholder]="'Enter your departure letter HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
+            </textarea>
+            <mat-hint>
+              Use placeholders like {{ '{' }}{{ '{' }}propertyAddress{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the letter. Select an Office and Reservation to see a preview.
+            </mat-hint>
+          </mat-form-field>
+        }
+      </div>
+
+    </form>
+  </div>
+}

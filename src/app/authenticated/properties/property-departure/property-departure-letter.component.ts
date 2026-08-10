@@ -1,0 +1,1132 @@
+import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { MaterialModule } from '../../../material.module';
+import { RouterUrl } from '../../../app.routes';
+import { CommonService } from '../../../services/common.service';
+import { DocumentExportService } from '../../../services/document-export.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
+import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
+import { DocumentType } from '../../documents/models/document.enum';
+import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { EmailService } from '../../email/services/email.service';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailHtmlService } from '../../email/services/email-html.service';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
+import { DocumentService } from '../../documents/services/document.service';
+import { BuildingResponse } from '../../organizations/models/building.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { BuildingService } from '../../organizations/services/building.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { getCheckInTime, getCheckOutTime, getTrashPickupDay } from '../models/property-enums';
+import { PropertyHtmlResponse } from '../models/property-html.model';
+import { PropertyInformationResponse } from '../models/property-information.model';
+import { PropertyResponse } from '../models/property.model';
+import { PropertyHtmlService } from '../services/property-html.service';
+import { PropertyInformationService } from '../services/property-information.service';
+import { PropertyService } from '../services/property.service';
+import { DepartureLetterReloadService } from '../services/departure-letter-reload.service';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { environment } from '../../../../environments/environment';
+
+@Component({
+    standalone: true,
+    selector: 'app-property-departure-letter',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './property-departure-letter.component.html',
+    styleUrls: ['./property-departure-letter.component.scss']
+})
+export class PropertyDepartureLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+
+  @Input() propertyId: string;
+  @Input() isAddMode: boolean = false;
+  @Input() titleBarReservationId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Input() propertyCode: string | null = null;
+  @Input() hideOfficePropertyReservation: boolean = false;
+  @Input() showReservationOnly: boolean = false;
+  @Input() reservations: ReservationListResponse[] = [];
+  @Output() reservationSelected = new EventEmitter<string | null>();
+  private propertyHtmlService = inject(PropertyHtmlService);
+  private propertyInformationService = inject(PropertyInformationService);
+  private propertyService = inject(PropertyService);
+  private commonService = inject(CommonService);
+  private emailHtmlService = inject(EmailHtmlService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private fb = inject(FormBuilder);
+  private sanitizer = inject(DomSanitizer);
+  private formatterService = inject(FormatterService);
+  private mappingService = inject(MappingService);
+  private utilityService = inject(UtilityService);
+  private buildingService = inject(BuildingService);
+  private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private departureLetterReloadService = inject(DepartureLetterReloadService);
+  private documentReloadService = inject(DocumentReloadService);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private cdr = inject(ChangeDetectorRef);
+  override toastr: ToastrService;
+
+  isSubmitting: boolean = false;
+  form: FormGroup;
+  property: PropertyResponse | null = null;
+  propertyHtml: PropertyHtmlResponse | null = null;
+  propertyInformation: PropertyInformationResponse | null = null;
+  emailHtml: EmailHtmlResponse | null = null;
+  organization: OrganizationResponse | null = null;
+  availableReservations: { value: ReservationListResponse, label: string }[] = [];
+  selectedReservation: ReservationResponse | null = null;
+  contacts: ContactResponse[] = [];
+  buildings: BuildingResponse[] = [];
+  offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
+  selectedOffice: OfficeResponse | null = null;
+  organizationId = '';
+  previewIframeHtml: string = '';
+  safeHtml: SafeHtml = '';
+  previewIframeStyles: string = '';
+  iframeKey: number = 0;
+  isDownloading: boolean = false;
+  debuggingHtml: boolean = false; // environment.local || environment.dev;
+  isPageReady: boolean = false;
+  propertyReservationsLoaded: boolean = false;
+  pendingFilterOfficeId: number | null | undefined = undefined;
+  isBranded: boolean = true;
+  includeDepartureDate: boolean = true;
+  reservationLoadSeq = 0;
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'departureLetter', 'propertyInformation', 'organization', 'buildings', 'emailHtml', 'logo']));
+  logoSourcesLoaded = { accountingOffices: false, organization: false };
+  destroy$ = new Subject<void>();
+
+  constructor() {
+    super();
+    this.form = this.buildForm();
+  }
+
+  //#region Departure Letter
+  ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+      this.isPageReady = true;
+      this.cdr.markForCheck();
+    });
+
+    this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadEmailHtml();
+    this.loadOrganization();
+    this.loadContacts();
+    this.loadBuildings();
+
+    if (this.isAddMode || !this.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'departureLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
+      return;
+    }
+
+    if (this.reservations && this.reservations.length > 0) {
+      this.propertyReservationsLoaded = true;
+      this.syncReservationDropdown();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+    } else {
+      this.loadReservations();
+    }
+
+    this.loadProperty();
+    this.loadPropertyInformation();
+    this.getDepartureLetter();
+
+    this.departureLetterReloadService.reloadDepartureLetter.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.reloadDepartureLetter();
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['reservations']) {
+      const list = this.reservations ?? [];
+      if (list.length > 0) {
+        this.propertyReservationsLoaded = true;
+        this.syncReservationDropdown();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      } else if (!changes['reservations'].firstChange && this.propertyId && !this.isAddMode) {
+        this.loadReservations();
+      }
+    }
+
+    if (changes['titleBarReservationId']) {
+      const newReservationId = this.normalizeReservationId(changes['titleBarReservationId'].currentValue);
+      const previousReservationId = this.normalizeReservationId(changes['titleBarReservationId'].previousValue);
+      if (changes['titleBarReservationId'].firstChange || newReservationId !== previousReservationId) {
+        this.onTitleBarReservationIdUpdate(newReservationId);
+      }
+    }
+
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      if (newOfficeId !== previousOfficeId) {
+        this.onTitleBarOfficeIdUpdate(newOfficeId);
+      }
+    }
+
+    if (changes['propertyCode']) {
+      const newPropertyCode = changes['propertyCode'].currentValue;
+      const previousPropertyCode = changes['propertyCode'].previousValue;
+      if (newPropertyCode !== previousPropertyCode && this.selectedReservation) {
+        this.onTitleBarPropertyCodeUpdate();
+      }
+    }
+  }
+
+  reloadDepartureLetter(): void {
+    if (this.propertyId) {
+      this.loadProperty();
+      this.loadPropertyInformation();
+      this.getDepartureLetter();
+    }
+  }
+
+  getDepartureLetter(): void {
+    if (!this.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'departureLetter');
+      return;
+    }
+
+    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'departureLetter'); })).subscribe({
+      next: (response: PropertyHtmlResponse) => {
+        if (response) {
+          this.propertyHtml = response;
+          this.form.patchValue({ departureLetter: response.departureLetter || '' });
+          this.generatePreviewIframe();
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  saveDepartureLetter(): void {
+    if (!this.selectedOffice || !this.selectedReservation) {
+      this.toastr.warning('Please select an office and reservation to generate the departure letter', 'Missing Selection');
+      this.isSubmitting = false;
+      return;
+    }
+
+    this.isSubmitting = true;
+
+    const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+      this.previewIframeHtml,
+      this.previewIframeStyles
+    );
+
+    const fileName = this.utilityService.generateDocumentFileName(
+      'departureLetter',
+      this.propertyCode,
+      this.utilityService.getReservationDropdownLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
+      ).trim() || undefined
+    );
+    const generateDto: GenerateDocumentFromHtmlDto = {
+      htmlContent: htmlWithStyles,
+      organizationId: this.organization.organizationId,
+      officeId: this.selectedOffice.officeId,
+      officeName: this.selectedOffice.name,
+      propertyId: this.propertyId || null,
+      reservationId: this.selectedReservation?.reservationId || null,
+      documentTypeId: Number(DocumentType.PropertyLetter),
+      fileName: fileName
+    };
+
+    this.documentService.generate(generateDto).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Document generated successfully', 'Success');
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
+        this.documentReloadService.triggerReload();
+      },
+      error: () => {
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
+      }
+    });
+  }
+
+  //#endregion
+
+  //#region Form Building Methods
+  buildForm(): FormGroup {
+    const form = this.fb.group({
+      departureLetter: new FormControl(''),
+      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice }),
+      isBranded: new FormControl(true),
+      includeDepartureDate: new FormControl(true)
+    });
+    return form;
+  }
+  //#endregion
+
+  //#region Data Loading Methods
+  loadContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: (contacts) => {
+        this.contacts = contacts || [];
+        // Rebuild reservation labels now that contact display names are available.
+        this.syncReservationDropdown();
+      },
+      error: () => {
+        this.contacts = [];
+      }
+    });
+  }
+
+  loadProperty(): void {
+    if (!this.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+      next: (response: PropertyResponse) => {
+        this.property = response;
+        if (response.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
+          this.syncReservationDropdown();
+        }
+        if (this.selectedOffice && this.selectedReservation) {
+          this.generatePreviewIframe();
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  loadBuildings(): void {
+    const orgId = this.authService.getUser()?.organizationId;
+    if (!orgId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
+      return;
+    }
+
+    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+      next: (buildings: BuildingResponse[]) => {
+        this.buildings = (buildings || []).filter(b => b.isActive);
+        if (this.selectedOffice && this.selectedReservation) {
+          this.generatePreviewIframe();
+        }
+      },
+      error: () => {
+        this.buildings = [];
+      }
+    });
+  }
+
+  loadOffices(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+        this.offices = offices || [];
+        this.resolveSelectedOfficeFromContext();
+        if (this.propertyReservationsLoaded) {
+          this.syncReservationDropdown();
+        }
+        if (this.selectedOffice && this.selectedReservation) {
+          this.generatePreviewIframe();
+        }
+      });
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {
+      this.markLogoSourceLoaded('accountingOffices');
+    })).subscribe({
+      next: (offices) => {
+        this.accountingOffices = offices || [];
+      },
+      error: () => {
+        this.accountingOffices = [];
+      }
+    });
+  }
+
+  loadReservations(): void {
+    if (!this.propertyId) {
+      this.reservations = [];
+      this.availableReservations = [];
+      return;
+    }
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
+    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.propertyReservationsLoaded = true;
+        this.syncReservationDropdown();
+      },
+      error: () => {
+        this.reservations = [];
+        this.propertyReservationsLoaded = true;
+        this.availableReservations = [];
+      }
+    });
+  }
+
+  loadOrganization(): void {
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.markLogoSourceLoaded('organization');
+    })).subscribe({
+      next: (org: OrganizationResponse) => {
+        this.organization = org;
+      },
+      error: () => {}
+    });
+  }
+
+  markLogoSourceLoaded(source: 'accountingOffices' | 'organization'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.accountingOffices && this.logoSourcesLoaded.organization) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
+    }
+  }
+
+  loadPropertyInformation(): void {
+    if (!this.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
+      return;
+    }
+
+    this.propertyInformationService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
+      next: (response: PropertyInformationResponse) => {
+        if (response) {
+          this.propertyInformation = response;
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+      next: (response: EmailHtmlResponse) => {
+        this.emailHtml = this.mappingService.mapEmailHtml(response as any);
+      },
+      error: () => {}
+    });
+  }
+  //#endregion
+
+  //#region Form Response Methods
+  onReservationSelected(reservationId: string | null, skipEmit: boolean = false): void {
+    const loadSeq = ++this.reservationLoadSeq;
+    if (!reservationId) {
+      this.selectedReservation = null;
+      this.generatePreviewIframe();
+      this.cdr.markForCheck();
+      if (!skipEmit) {
+        this.reservationSelected.emit(null);
+      }
+      return;
+    }
+
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (reservation: ReservationResponse) => {
+        if (loadSeq !== this.reservationLoadSeq) {
+          return;
+        }
+        this.selectedReservation = reservation;
+        this.form.patchValue({ selectedReservationId: reservation.reservationId }, { emitEvent: false });
+        if (reservation.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
+        }
+        this.generatePreviewIframe();
+        this.cdr.markForCheck();
+        if (!skipEmit) {
+          this.reservationSelected.emit(reservationId);
+        }
+      },
+      error: () => {
+        if (loadSeq !== this.reservationLoadSeq) {
+          return;
+        }
+      }
+    });
+  }
+  
+  resolveSelectedOfficeFromContext(): void {
+    const filterOfficeId = this.getFilterOfficeId();
+    if (filterOfficeId == null) {
+      this.selectedOffice = null;
+      return;
+    }
+    this.selectedOffice = this.offices.find(o => o.officeId === filterOfficeId) ?? null;
+  }
+
+  getFilterOfficeId(): number | null {
+    if (this.pendingFilterOfficeId !== undefined) {
+      return this.pendingFilterOfficeId;
+    }
+    if (this.officeId != null && this.officeId !== undefined) {
+      return Number(this.officeId);
+    }
+    if (this.property?.officeId != null) {
+      return Number(this.property.officeId);
+    }
+    if (this.selectedReservation?.officeId != null) {
+      return Number(this.selectedReservation.officeId);
+    }
+    return this.selectedOffice?.officeId ?? null;
+  }
+
+  syncReservationDropdown(): void {
+    if (this.offices.length > 0) {
+      this.resolveSelectedOfficeFromContext();
+      this.pendingFilterOfficeId = undefined;
+    }
+    this.buildReservationDropdownLabels();
+  }
+
+  buildReservationDropdownLabels(): void {
+    if (!this.propertyReservationsLoaded) {
+      this.availableReservations = [];
+      this.form.get('selectedReservationId')?.disable();
+      return;
+    }
+
+    const filterOfficeId = this.getFilterOfficeId();
+    if (filterOfficeId == null || Number.isNaN(filterOfficeId)) {
+      this.availableReservations = [];
+      this.form.get('selectedReservationId')?.disable();
+      return;
+    }
+
+    this.form.get('selectedReservationId')?.enable();
+
+    if (this.reservations && this.reservations.length > 0) {
+      const filteredReservations = this.reservations.filter(r => Number(r.officeId) === filterOfficeId);
+      this.availableReservations = filteredReservations.map(r => ({
+        value: r,
+        label: this.utilityService.getReservationDropdownLabel(
+          r,
+          this.contacts.find(c => c.contactId === r.contactId)
+          ?? this.contacts.find(c => c.contactId === r.companyId)
+          ?? null
+        )
+      }));
+    } else {
+      this.availableReservations = [];
+    }
+  }
+
+  compareReservationId(a: string | null, b: string | null): boolean {
+    return String(a ?? '') === String(b ?? '');
+  }
+  //#endregion
+
+  //#region Title Bar Updates
+  normalizeReservationId(value: string | null | undefined): string | null {
+    return value == null || value === '' ? null : String(value);
+  }
+
+  onTitleBarReservationIdUpdate(newReservationId: string | null | undefined): void {
+    if (newReservationId) {
+      this.form.get('selectedReservationId')?.setValue(newReservationId, { emitEvent: false });
+      this.onReservationSelected(newReservationId, true);
+    } else {
+      this.form.get('selectedReservationId')?.setValue(null, { emitEvent: false });
+      this.selectedReservation = null;
+      this.generatePreviewIframe();
+    }
+  }
+
+  onTitleBarOfficeIdUpdate(newOfficeId: number | null | undefined): void {
+    this.pendingFilterOfficeId = newOfficeId == null || newOfficeId === undefined ? null : Number(newOfficeId);
+    if (this.offices.length === 0) {
+      return;
+    }
+    this.syncReservationDropdown();
+  }
+
+  onTitleBarPropertyCodeUpdate(): void {
+    this.generatePreviewIframe();
+  }
+
+  onBrandedChange(checked: boolean): void {
+    this.isBranded = checked;
+    this.form.get('isBranded')?.setValue(checked, { emitEvent: false });
+    this.generatePreviewIframe();
+  }
+
+  onIncludeDepartureDateChange(checked: boolean): void {
+    this.includeDepartureDate = checked;
+    this.form.get('includeDepartureDate')?.setValue(checked, { emitEvent: false });
+    this.generatePreviewIframe();
+  }
+  //#endregion
+
+  //#region Form Replacement Methods
+  replacePlaceholders(html: string): string {
+    let result = html;
+    const isBranded = this.form?.get('isBranded')?.value !== false;
+    const includeDepartureDate = this.form?.get('includeDepartureDate')?.value !== false;
+
+    if (this.organization) {    
+      result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
+      result = result.replace(/\{\{companyName\}\}/g, this.organization.name);
+    }
+
+    if (this.selectedReservation) {
+      result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
+      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
+      result = result.replace(/\{\{departureDateLine\}\}/g, this.getDepartureDate());
+      result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
+      result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+      result = this.applyOptionalCodePlaceholder(result, 'lockBoxCode', this.selectedReservation.lockBoxCode);
+      result = this.applyOptionalCodePlaceholder(result, 'unitAccessCode', this.selectedReservation.unitTenantCode);
+      result = this.applyOptionalCodePlaceholder(result, 'unitTenantCode', this.selectedReservation.unitTenantCode);
+      result = this.applyOptionalCodePlaceholder(result, 'garageCode', this.selectedReservation.garageCode);
+    }
+
+    if (this.property) {
+      result = result.replace(/\{\{propertyCode\}\}/g, this.propertyCode || this.property?.propertyCode || '');
+      result = result.replace(/\{\{communityAddressLine\}\}/g, this.getCommunityAddress() || '');
+      result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
+      result = result.replace(/\{\{buildingCommunity\}\}/g, this.getBuildingCommunityDescription() || 'N/A');
+      result = result.replace(/\{\{bldgNo\}\}/g, this.property.bldgNo || 'N/A');
+      result = result.replace(/\{\{size\}\}/g,  `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
+      result = result.replace(/\{\{unitLevel\}\}/g, this.getUnitFloorLevel());
+      result = result.replace(/\{\{phone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
+      result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
+      result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
+      result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
+      result = result.replace(/\{\{amenities\}\}/g, this.property.amenities || '');
+      result = this.applyOptionalCodePlaceholder(result, 'alarmCode', this.property.alarmCode);
+      result = this.applyOptionalCodePlaceholder(result, 'bldgcode', this.property.bldgMstrCode);
+      result = this.applyOptionalCodePlaceholder(result, 'gateCode', this.property.gateCode);
+      result = this.applyOptionalCodePlaceholder(result, 'trashCode', this.property.trashCode);
+      result = this.applyOptionalCodePlaceholder(result, 'mailcode', this.property.mailRoomCode);
+      result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
+    }
+
+    if (this.propertyInformation) {
+      result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyInformation.arrivalInstructions || '');
+      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.getMailInstructionLine() || '');
+      result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyInformation.packageInstructions || '');
+      result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyInformation.parkingInformation || '');
+      result = result.replace(/\{\{access\}\}/g, this.propertyInformation.access || '');
+      result = result.replace(/\{\{laundry\}\}/g, this.propertyInformation.laundry || '');
+      result = this.applyOptionalLinePlaceholder(result, 'providedFurnishingsLine', 'Provided Furnishings', this.propertyInformation.providedFurnishings);
+      result = result.replace(/\{\{housekeeping\}\}/g, this.propertyInformation.housekeeping || '');
+      result = result.replace(/\{\{televisionSource\}\}/g, this.propertyInformation.televisionSource || '');
+      result = result.replace(/\{\{internetService\}\}/g, this.propertyInformation.internetService || '');
+      result = result.replace(/\{\{keyReturn\}\}/g, this.propertyInformation.keyReturn || '');
+      result = result.replace(/\{\{concierge\}\}/g, this.propertyInformation.concierge || '');
+      result = this.applyOptionalLinePlaceholder(result, 'additionalNotesLine', 'Additional Notes', this.propertyInformation.additionalNotes);
+    }
+
+    if (this.selectedOffice) {
+      const maintenanceEmail = isBranded ? (this.selectedOffice.maintenanceEmail || '') : '';
+      const afterHoursPhone = isBranded ? (this.selectedOffice.afterHoursPhone || '') : '';
+      result = this.applyOptionalCodePlaceholder(result, 'maintenanceEmail', maintenanceEmail);
+      result = this.applyOptionalCodePlaceholder(result, 'afterHoursPhone', this.formatterService.phoneNumber(afterHoursPhone) || '');
+      
+      const selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === this.selectedOffice?.officeId);
+      let officeLogoDataUrl = selectedAccountingOffice?.fileDetails?.dataUrl;
+      if (!officeLogoDataUrl && selectedAccountingOffice?.fileDetails?.file) {
+        const fileDetails = selectedAccountingOffice.fileDetails;
+        const contentType = fileDetails.contentType || 'image/png';
+        if (fileDetails.file.startsWith('data:')) {
+          officeLogoDataUrl = fileDetails.file;
+        } else {
+          officeLogoDataUrl = `data:${contentType};base64,${fileDetails.file}`;
+        }
+      }
+      
+      if (!officeLogoDataUrl && this.organization?.fileDetails?.dataUrl) {
+        officeLogoDataUrl = this.organization.fileDetails.dataUrl;
+      }
+      
+      if (isBranded && officeLogoDataUrl) {
+        result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
+      }
+    } else if (this.propertyInformation) {
+      const maintenanceEmail = isBranded ? (this.propertyInformation.maintenanceEmail || '') : '';
+      const afterHoursPhone = isBranded ? (this.propertyInformation.emergencyPhone || '') : '';
+      result = this.applyOptionalCodePlaceholder(result, 'maintenanceEmail', maintenanceEmail);
+      result = this.applyOptionalCodePlaceholder(result, 'afterHoursPhone', this.formatterService.phoneNumber(afterHoursPhone) || '');
+    }
+
+    if (this.organization) {
+      const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
+      if (isBranded && orgLogoDataUrl) {
+        result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
+      }
+    }
+    
+    const hasAccountingOfficeLogo = this.accountingOffices
+      .some(ao => ao.officeId === this.selectedOffice?.officeId && !!(ao.fileDetails?.dataUrl || ao.fileDetails?.file));
+    if (!isBranded || (!hasAccountingOfficeLogo && !this.organization?.fileDetails?.dataUrl)) {
+      result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
+      result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
+    }
+
+    const smokingDisclaimerBlock = this.buildSmokingDisclaimerBlock(isBranded);
+    result = result.replace(/\{\{smokingDisclaimerBlock\}\}/g, smokingDisclaimerBlock);
+
+    result = result.replace(/\{\{[^}]+\}\}/g, '');
+
+    return result;
+  }
+
+  applyOptionalCodePlaceholder(html: string, placeholder: string, value: string | null | undefined): string {
+    const normalizedValue = (value || '').trim();
+    const tokenRegex = new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g');
+
+    if (normalizedValue) {
+      const escapedValue = this.escapeHtml(normalizedValue);
+
+      // Keep span-label + value on the same visual line.
+      const labeledSpanTokenRegex = new RegExp(`(<span[^>]*>[^<]*:<\\/span>)\\s*\\{\\{${placeholder}\\}\\}`, 'gi');
+      let result = html.replace(
+        labeledSpanTokenRegex,
+        `<span style="white-space: nowrap; display: inline-block;">$1 ${escapedValue}</span>`
+      );
+
+      // Keep plain-text label + value together when no span label is used.
+      const plainLabelTokenRegex = new RegExp(`([A-Za-z][A-Za-z\\s/]*:)\\s*\\{\\{${placeholder}\\}\\}`, 'g');
+      result = result.replace(
+        plainLabelTokenRegex,
+        `<span style="white-space: nowrap; display: inline-block;">$1 ${escapedValue}</span>`
+      );
+
+      return result.replace(tokenRegex, escapedValue);
+    }
+
+    // Remove a preceding label span tied to this placeholder (e.g. "<span ...>Garage:</span> {{garageCode}}").
+    const labeledTokenRegex = new RegExp(`<span[^>]*>[^<]*:<\\/span>\\s*\\{\\{${placeholder}\\}\\}`, 'gi');
+    let result = html.replace(labeledTokenRegex, '');
+
+    // If template uses plain text labels instead of span wrappers, remove those too.
+    const plainLabelTokenRegex = new RegExp(`[A-Za-z\\s/]+:\\s*\\{\\{${placeholder}\\}\\}`, 'g');
+    result = result.replace(plainLabelTokenRegex, '');
+
+    // Finally remove any remaining token.
+    result = result.replace(tokenRegex, '');
+    return result;
+  }
+
+  applyOptionalLinePlaceholder(
+    html: string,
+    placeholder: string,
+    label: string,
+    value: string | null | undefined
+  ): string {
+    const normalizedValue = (value || '').trim();
+    const tokenRegex = new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g');
+    const wrappedParagraphRegex = new RegExp(`<p[^>]*>\\s*\\{\\{${placeholder}\\}\\}\\s*<\\/p>`, 'gi');
+
+    if (normalizedValue) {
+      const escapedValue = this.escapeHtml(normalizedValue);
+      const lineHtml = `<p><span class="label">${label}:</span> ${escapedValue}</p>`;
+      const withWrappedReplaced = html.replace(wrappedParagraphRegex, lineHtml);
+      return withWrappedReplaced.replace(tokenRegex, lineHtml);
+    }
+
+    const withoutWrappedLine = html.replace(wrappedParagraphRegex, '');
+    return withoutWrappedLine.replace(tokenRegex, '');
+  }
+
+  escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  buildSmokingDisclaimerBlock(isBranded: boolean): string {
+    const companyName = String(this.organization?.name || '').trim();
+    const brandedReference = isBranded && companyName
+      ? `Please check with your ${this.escapeHtml(companyName)} representative to determine where smoking is allowed, as many properties are entirely smoke-free.`
+      : 'Please check with your housing representative to determine where smoking is allowed, as many properties are entirely smoke-free.';
+    return `<p class="smoking-disclaimer">Please note that smoking is not permitted in the apartment, including the balcony or patio areas. ${brandedReference} Smoking in any unauthorized area will result in substantial fines.</p>`;
+  }
+
+  getDepartureDate(): string {
+    const includeDepartureDate = this.form?.get('includeDepartureDate')?.value !== false;
+    if (!includeDepartureDate || !this.selectedReservation) {
+      return '';
+    }
+
+    const departureDate = this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '';
+    if (!departureDate) {
+      return '';
+    }
+
+    return `<p><span class="label">Departure Date:</span> ${this.escapeHtml(departureDate)}</p>`;
+  }
+
+  getOrganizationName(): string {
+    if (!this.organization) return '';
+    if (this.selectedOffice) {
+      return this.organization.name + ' ' + this.selectedOffice.name;
+    }
+    return this.organization.name;
+  }
+
+  getCommunityAddress(): string {
+    const communityAddressTrimmed = (this.property.communityAddress || '').trim();
+    return communityAddressTrimmed ? `<p><span class="label">Community Address:</span> ${this.escapeHtml(communityAddressTrimmed)}</p>` : '';
+  }
+
+  getApartmentAddress(): string {
+    if (!this.property) return '';
+    const parts = [
+      this.property.address1,
+      this.property.suite ? `#${this.property.suite}` : '',
+      this.property.city,
+      this.property.state,
+      this.property.zip
+    ].filter(p => p);
+    return parts.join(', ');
+  }
+
+  getMailInstructionLine(): string {
+    if(this.property?.mailbox)
+      return '#' + this.property.mailbox + ' ' + this.propertyInformation.mailboxInstructions;
+    return this.propertyInformation.mailboxInstructions
+  }
+
+  getTrashLocation(): string {
+    if (!this.property) return 'N/A';
+    
+    const trashPickupDay = getTrashPickupDay(this.property.trashPickupId);
+    const removalLocation = this.property.trashRemoval || 'N/A';
+    
+    if (trashPickupDay && removalLocation !== 'N/A') {
+      return `Trash is picked up on ${trashPickupDay}. ${removalLocation}`;
+    } else if (trashPickupDay) {
+      return `Trash is picked up on ${trashPickupDay}.`;
+    } else if (removalLocation !== 'N/A') {
+      return `${removalLocation}`;
+    }
+    
+    return 'N/A';
+  }
+
+  getUnitFloorLevel(): string {  
+    if (!this.property || this.property.unitLevel == null || !Number.isFinite(Number(this.property.unitLevel))) 
+      return 'N/A';
+    
+    const ordinal = this.formatterService.ordinal(Number(this.property.unitLevel));
+    if (!ordinal) {
+      return 'N/A';
+    }
+    return `${ordinal} Floor`;
+  }
+
+
+  getBuildingCommunityDescription(): string | null {
+    if (!this.property) {
+      return null;
+    }
+
+    // If this is a building, provide the building name
+    if (this.property.buildingId != null && this.buildings?.length) {
+      const building = this.buildings.find(b => this.buildingIdsMatch(b.buildingId, this.property!.buildingId));
+      if (building?.name) {
+        return building.name;
+      }
+    }
+
+    // Finally, if there's a neighborhood description, use that
+    return this.property.neighborhood || null;
+  }
+
+  //#endregion
+
+  isPreviewHtmlPending(): boolean {
+    return this.itemsToLoad$.value.has('previewHtml');
+  }
+
+  //#region Html Processing
+  generatePreviewIframe(): void {
+    if (!this.selectedOffice || !this.selectedReservation) {
+      this.previewIframeHtml = '';
+      this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      return;
+    }
+
+    const departureLetterHtml = this.propertyHtml?.departureLetter || this.form.get('departureLetter')?.value || '';
+    if (!this.debuggingHtml && !departureLetterHtml.trim()) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
+    this.loadHtmlFiles().pipe(take(1)).subscribe({
+      next: (htmlFiles) => {
+        const selectedDocuments: string[] = [];
+
+        if (htmlFiles.departureLetter) {
+          selectedDocuments.push(htmlFiles.departureLetter);
+        }
+
+        if (selectedDocuments.length === 0) {
+          this.previewIframeHtml = '';
+          this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+          return;
+        }
+
+        try {
+          if (selectedDocuments.length === 1) {
+            const processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+            this.processAndSetHtml(processedHtml);
+            return;
+          }
+
+          let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
+          
+          const allExtractedStyles: string[] = [];
+          const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+          
+          let match;
+          styleRegex.lastIndex = 0;
+          while ((match = styleRegex.exec(combinedHtml)) !== null) {
+            if (match[1]) {
+              let styleContent = match[1].trim();
+              styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
+              styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
+              allExtractedStyles.push(styleContent);
+            }
+          }
+          
+          for (let i = 1; i < selectedDocuments.length; i++) {
+            if (selectedDocuments[i]) {
+              const processed = this.replacePlaceholders(selectedDocuments[i]);
+              
+              styleRegex.lastIndex = 0;
+              while ((match = styleRegex.exec(processed)) !== null) {
+                if (match[1]) {
+                  let styleContent = match[1].trim();
+                  styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
+                  styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
+                  allExtractedStyles.push(styleContent);
+                }
+              }
+              
+              const stripped = this.stripAndReplace(processed);
+              combinedHtml += stripped;
+            }
+          }
+          
+          combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+          
+          if (allExtractedStyles.length > 0) {
+            const combinedStyles = allExtractedStyles.join('\n\n');
+            if (combinedHtml.includes('<head>')) {
+              combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
+            } else {
+              if (combinedHtml.includes('<body>')) {
+                combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
+              } else {
+                combinedHtml = `<head><style>${combinedStyles}</style></head>${combinedHtml}`;
+              }
+            }
+          }
+
+          this.processAndSetHtml(combinedHtml);
+        } catch {
+          this.previewIframeHtml = '';
+          this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+        }
+      },
+      error: () => {
+        this.previewIframeHtml = '';
+        this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      }
+    });
+  }
+
+  processAndSetHtml(html: string): void {
+    const result = this.documentHtmlService.processHtml(html, true);
+    this.previewIframeHtml = result.processedHtml;
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
+    this.previewIframeStyles = result.extractedStyles;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+    this.iframeKey++;
+    this.cdr.markForCheck();
+  }
+
+  stripAndReplace(html: string): string {
+    return this.documentHtmlService.stripAndReplace(html);
+  }
+
+  loadHtmlFiles(): Observable<{ departureLetter: string; inspectionChecklist: string }> {
+    if (this.debuggingHtml) {
+      return this.http.get('assets/departure-letter.html', { responseType: 'text' }).pipe(
+        map(departureLetter => ({
+          departureLetter,
+          inspectionChecklist: ''
+        }))
+      );
+    } else {
+      return of({
+        departureLetter: this.propertyHtml?.departureLetter || '',
+        inspectionChecklist: ''
+      });
+    }
+  }
+  //#endregion
+
+  //#region Abstract BaseDocumentComponent
+  protected getDocumentConfig(): DocumentConfig {
+    return {
+      previewIframeHtml: this.previewIframeHtml,
+      previewIframeStyles: this.previewIframeStyles,
+      organizationId: this.organization?.organizationId || null,
+      selectedOfficeId: this.selectedOffice?.officeId || null,
+      selectedOfficeName: this.selectedOffice?.name || '',
+      selectedReservationId: this.selectedReservation?.reservationId || null,
+      propertyId: this.propertyId || null,
+      contacts: this.contacts,
+      isDownloading: this.isDownloading
+    };
+  }
+
+  protected setDownloading(value: boolean): void {
+    this.isDownloading = value;
+  }
+
+  override async onDownload(): Promise<void> {
+    const fileName = this.utilityService.generateDocumentFileName(
+      'departureLetter',
+      this.propertyCode,
+      this.utilityService.getReservationDropdownLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
+      ).trim() || undefined
+    );
+
+    const downloadConfig: DownloadConfig = {
+      fileName: fileName,
+      documentType: DocumentType.PropertyLetter,
+      noPreviewMessage: 'Please select an office and reservation to generate the departure letter',
+      noSelectionMessage: 'Organization or Office not available'
+    };
+
+    await super.onDownload(downloadConfig);
+  }
+
+  override onPrint(): void {
+    super.onPrint('Please select an office and reservation to generate the departure letter');
+  }
+
+  override async onEmail(): Promise<void> {
+    const contact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) || null;
+    const toName = contact?.fullName;
+    const toEmail = contact?.email || '';
+    const salutationName = `${contact?.firstName|| ''}`.trim();
+    const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
+    const currentUser = this.authService.getUser();
+    const agentName = currentUser.firstName + ' ' + currentUser.lastName;
+    const agentPhone = this.formatterService.phoneNumber(currentUser?.phone || '') || '';
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const plainTextContent = '';
+    const attachmentFileName = this.utilityService.generateDocumentFileName(
+      'departureLetter',
+      this.propertyCode,
+      this.utilityService.getReservationDropdownLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
+      ).trim() || undefined
+    );
+    const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
+    const emailTemplateHtml = (contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLetter || '') : (this.emailHtml?.welcomeLetter || '');
+
+    const emailBodyHtml = emailTemplateHtml
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{tenantName\}\}/g, tenantName)
+      .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
+      .replace(/\{\{agentName\}\}/g, agentName || '')
+      .replace(/\{\{agentPhone\}\}/g, agentPhone || '');
+ 
+    const emailConfig: EmailConfig = {
+      subject: emailSubject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.PropertyLetter,
+      emailType: EmailType.PropertyLetter,
+      plainTextContent,
+      htmlContent: emailBodyHtml,
+      fileDetails: {
+        fileName: attachmentFileName,
+        contentType: 'application/pdf',
+        file: ''
+      }
+    };
+
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    this.router.navigateByUrl(RouterUrl.EmailCreate);
+  }
+  //#endregion
+
+  //#region Utility Methods
+  buildingIdsMatch(a: number | string | null | undefined, b: number | string | null | undefined): boolean {
+    if (a == null || b == null) {
+      return false;
+    }
+    const na = Number(a);
+    const nb = Number(b);
+    return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+  }
+
+  getPrimaryReservationContactId(reservation: ReservationResponse | null | undefined): string | null {
+    const contactIds = reservation?.contactIds || [];
+    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
+    return firstContactId ? String(firstContactId) : null;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
+  //#endregion
+}

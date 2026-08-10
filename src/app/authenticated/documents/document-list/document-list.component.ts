@@ -321,8 +321,7 @@ markViewForCheck(): void {
         queryParams.propertyId = this.propertyId;
       }
     } else if (this.source === 'property' && this.propertyId) {
-      queryParams.returnTo = 'propertyTab';
-      queryParams.tab = 'documents';
+      queryParams.returnTo = 'documentList';
       queryParams.propertyId = this.propertyId;
       if (reservationIdToUse) {
         queryParams.reservationId = reservationIdToUse;
@@ -561,8 +560,7 @@ resolveOfficeIdsForRequest(): number[] {
         queryParams.officeId = this.selectedOfficeId;
       }
     } else if (this.source === 'property' && this.propertyId) {
-      queryParams.returnTo = 'propertyTab';
-      queryParams.tab = 'documents';
+      queryParams.returnTo = 'documentList';
       queryParams.propertyId = this.propertyId;
       if (reservationIdToUse) {
         queryParams.reservationId = reservationIdToUse;
