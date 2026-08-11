@@ -60,7 +60,7 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   get checklistColumns(): ColumnSet {
     return {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
