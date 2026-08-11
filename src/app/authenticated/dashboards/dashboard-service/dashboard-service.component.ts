@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
@@ -28,9 +28,14 @@ import { RouterUrl } from '../../../app.routes';
   imports: [MaterialModule, DataTableComponent],
   templateUrl: './dashboard-service.component.html',
   styleUrl: './dashboard-service.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[class.dashboard-titlebar-only]': 'titleBarOnly'
+  }
 })
 export class DashboardServiceComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
+  @Input() titleBarOnly = false;
+
   private userService = inject(UserService);
   private formatterService = inject(FormatterService);
   private router = inject(Router);

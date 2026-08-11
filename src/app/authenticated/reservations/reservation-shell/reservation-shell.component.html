@@ -223,22 +223,6 @@
             }
           }
         </mat-tab>
-
-        <mat-tab label="Documents">
-          @if (selectedTabIndex === getDocumentsTabIndex()) {
-            <app-document-list
-              #reservationDocumentList
-              [propertyId]="selectedPropertyId"
-              [propertyCode]="selectedPropertyCode"
-              [documentTypeIds]="[DocumentType.ReservationLease]"
-              [hideFilters]="true"
-              [officeId]="displayOfficeId"
-              [reservationId]="activeReservationId"
-              [source]="'reservation'"
-              [hideHeader]="true">
-            </app-document-list>
-          }
-        </mat-tab>
       </mat-tab-group>
     </mat-card>
   </section>

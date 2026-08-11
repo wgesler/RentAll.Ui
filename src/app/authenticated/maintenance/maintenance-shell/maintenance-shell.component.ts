@@ -22,9 +22,6 @@ import { ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPr
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
-import { DocumentGetRequest } from '../../documents/models/document.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
@@ -47,7 +44,6 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ReceiptComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
-    DocumentListComponent,
     MaintenanceComponent
   ],
   templateUrl: './maintenance-shell.component.html',
@@ -64,8 +60,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   private globalSelectionService = inject(GlobalSelectionService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private cdr = inject(ChangeDetectorRef);
-
-  readonly DocumentType = DocumentType;
 
   property: PropertyResponse | null = null;
   routePropertyId: string | null = null;
@@ -126,10 +120,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   openWithAllSelections = false;
   clearPropertyOnOpen = false;
   propertyLoadVersion = 0;
+  /** One-shot: auto-pick first Property Code when the shell opens with none selected. */
+  private hasAppliedInitialPropertySelection = false;
 
   startDate: Date | null = null;
   endDate: Date | null = null;
-  documentRequest: DocumentGetRequest = { officeIds: [] };
   receiptSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   workOrderSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
 
@@ -144,6 +139,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   ngOnInit(): void {
     this.openWithAllSelections = ((this.route.snapshot.queryParamMap.get('scope') || '').trim().toLowerCase() === 'all');
     this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
+    const routePropertyId = (this.route.snapshot.paramMap.get('id') || '').trim();
+    if (routePropertyId && routePropertyId !== 'all') {
+      // Route already targets a property — do not replace it with the first list item.
+      this.hasAppliedInitialPropertySelection = true;
+    }
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.selectedOfficeId = this.openWithAllSelections
@@ -369,10 +369,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return 3;
   }
 
-  get documentsTabIndex(): number {
-    return this.showWorkOrdersTab ? 4 : 3;
-  }
-
   get receiptsTabIndex(): number {
     return 2;
   }
@@ -384,10 +380,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     if (this.selectedTabIndex === 0) {
       return true;
     }
-    if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail) {
-      return true;
-    }
-    return this.selectedTabIndex === this.documentsTabIndex;
+    return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail;
   }
 
   get titleBarReservationNullLabel(): string {
@@ -682,6 +675,39 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.selectedPropertyId = null;
       }
     }
+
+    this.ensureInitialPropertySelected();
+  }
+
+  /** On first open with no property, select the first code in the title-bar list. */
+  ensureInitialPropertySelected(): void {
+    if (this.hasAppliedInitialPropertySelection) {
+      return;
+    }
+
+    if (this.selectedPropertyId || this.property?.propertyId) {
+      this.hasAppliedInitialPropertySelection = true;
+      return;
+    }
+
+    if (this.isPropertyLoading || this.availableProperties.length === 0) {
+      return;
+    }
+
+    const firstPropertyId = (this.availableProperties[0]?.propertyId || '').trim();
+    if (!firstPropertyId) {
+      return;
+    }
+
+    this.hasAppliedInitialPropertySelection = true;
+    this.selectedPropertyId = firstPropertyId;
+    this.openWithAllSelections = false;
+    this.clearPropertyOnOpen = false;
+    this.routePropertyId = firstPropertyId;
+    this.loadProperty(firstPropertyId);
+    void this.router.navigateByUrl(
+      `${RouterUrl.replaceTokens(RouterUrl.Maintenance, [firstPropertyId])}?tab=${this.selectedTabIndex}`
+    );
   }
 
   normalizeOfficeId(value: number | null | undefined): number | null {
@@ -826,10 +852,10 @@ applyPageOfficeChangeEffects(): void {
       if (nextTabIndex === 0) {
         this.ensureInspectionTabReady();
       }
-      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
+      if (nextTabIndex === this.receiptsTabIndex) {
         this.titleBarReservationId = null;
       }
-      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.workOrdersTabIndex || nextTabIndex === this.documentsTabIndex) {
+      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.workOrdersTabIndex) {
         this.syncMaintenanceSearchRequests();
       }
     } finally {
@@ -1113,7 +1139,7 @@ applyPageOfficeChangeEffects(): void {
       return null;
     }
 
-    const maxTab = this.documentsTabIndex;
+    const maxTab = this.showWorkOrdersTab ? this.workOrdersTabIndex : this.receiptsTabIndex;
     if (tabParam > maxTab) {
       return maxTab;
     }
@@ -1228,13 +1254,6 @@ applyPageOfficeChangeEffects(): void {
     const propertyId = this.selectedPropertyId;
     const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-
-    this.documentRequest = {
-      officeIds,
-      propertyId,
-      startDate,
-      endDate
-    };
 
     this.receiptSearchRequest = {
       officeIds,

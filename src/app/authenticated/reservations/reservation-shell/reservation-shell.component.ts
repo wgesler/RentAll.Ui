@@ -14,8 +14,6 @@ import { ReservationInvoicePreviewComponent } from '../../accounting/invoices/re
 import { InvoiceComponent } from '../../accounting/invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../../accounting/invoices/invoice-create/invoice-create.component';
 import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../../accounting/models/invoice.model';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -41,8 +39,7 @@ import { ReservationService } from '../services/reservation.service';
     InvoiceComponent,
     InvoiceCreateComponent,
     InvoiceListComponent,
-    ReservationInvoicePreviewComponent,
-    DocumentListComponent
+    ReservationInvoicePreviewComponent
   ],
   templateUrl: './reservation-shell.component.html',
   styleUrl: './reservation-shell.component.scss'
@@ -58,7 +55,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   private mappingService = inject(MappingService);
 
   @ViewChild('reservationSection') reservationSection?: ReservationComponent;
-  @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationInvoiceList') reservationInvoiceList?: InvoiceListComponent;
   @ViewChild('previewAllInvoiceEditor') previewAllInvoiceEditor?: InvoiceComponent;
 
@@ -96,8 +92,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   private reservationsLoadedPropertyId: string | null = null;
 
   destroy$ = new Subject<void>();
-
-  readonly DocumentType = DocumentType;
 
   //#region Reservation-Shell
   ngOnInit(): void {
@@ -181,10 +175,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
         queryParams,
         queryParamsHandling: 'merge'
       });
-
-      if (requestedTabIndex === this.getDocumentsTabIndex()) {
-        queueMicrotask(() => this.reservationDocumentList?.reload());
-      }
     } finally {
       this.isHandlingTabGuard = false;
     }
@@ -201,8 +191,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
         return this.getLeaseTabIndex();
       case 'invoices':
         return this.getInvoicesTabIndex();
-      case 'documents':
-        return this.getDocumentsTabIndex();
       default:
         return 0;
     }
@@ -217,9 +205,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     }
     if (tabIndex === this.getInvoicesTabIndex()) {
       return 'invoices';
-    }
-    if (tabIndex === this.getDocumentsTabIndex()) {
-      return 'documents';
     }
     return null;
   }
@@ -295,10 +280,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
         reservation.reservationId = this.selectedHeaderReservationId;
         reservation.loadReservation();
       }
-      return;
-    }
-    if (this.selectedTabIndex === this.getDocumentsTabIndex()) {
-      queueMicrotask(() => this.reservationDocumentList?.reload());
     }
   }
 
@@ -650,10 +631,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
 
   getInvoicesTabIndex(): number {
     return this.isAdmin ? 3 : 2;
-  }
-
-  getDocumentsTabIndex(): number {
-    return this.isAdmin ? 4 : 3;
   }
   //#endregion
 

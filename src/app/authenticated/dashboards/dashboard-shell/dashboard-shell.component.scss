@@ -1,0 +1,5 @@
+/* Keep standard content-card mat-card inset (16px 20px from global styles)
+   so the tab strip lines up with tab body content, same as reservation shell. */
+:host ::ng-deep section.content-card > mat-card {
+  overflow: visible;
+}

@@ -1,0 +1,74 @@
+@if (!snapshot.isReady) {
+  <div class="loading-container dbg-band-main">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading…</p>
+  </div>
+} @else {
+  <div class="dashboard-tab-content dbg-band-main">
+    <div class="property-tab-actions-band" aria-hidden="true">
+      <div class="property-tab-actions-band__row"></div>
+    </div>
+    <div class="property-tab-main-area">
+    <mat-accordion class="reservation-tables" multi="true">
+      <mat-expansion-panel [(expanded)]="expandedSections.checklist">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Property Turnover</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="tableDiv">
+          @if (checklistRows.length > 0) {
+            <app-data-table
+              [data]="checklistRows"
+              [columns]="checklistColumns"
+              [subheaderLabel]="'Coming Online (Next 15 Days)'"
+              [hasColumnIndex]="false"
+              [hasFilter]="false"
+              [hasToggleTop]="false"
+              [hasButtonTop]="false"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [hasActionsDelete]="false"
+              [hasPropertyCodeLink]="true"
+              [itemsPerPage]="50"
+              (editEvent)="goToProperty($event)"
+              (rowClickEvent)="goToProperty($event)"
+              (propertyCodeClickEvent)="goToProperty($event)"/>
+          } @else {
+            <p class="dashboard-tab-empty">No properties coming online.</p>
+          }
+        </div>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel [(expanded)]="expandedSections.maintenance">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Maintenance Online</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="tableDiv">
+          @if (maintenanceRows.length > 0) {
+            <app-data-table
+              [data]="maintenanceRows"
+              [columns]="maintenanceColumns"
+              [subheaderLabel]="'Coming Online (Next 15 Days)'"
+              [hasColumnIndex]="true"
+              [hasFilter]="false"
+              [hasToggleTop]="false"
+              [hasButtonTop]="false"
+              [hasActionsRowClick]="false"
+              [hasPropertyCodeLink]="true"
+              [hasActionsEdit]="true"
+              [hasActionsInspect]="true"
+              [itemsPerPage]="10"
+              (dropdownChangeEvent)="onMaintenanceDropdownChange($event)"
+              (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
+              (editEvent)="goToPropertyMaintenance($event)"
+              (inspectEvent)="goToInspection($event)"
+              (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+              (contactClickEvent)="goToContact($event)"/>
+          } @else {
+            <p class="dashboard-tab-empty">No maintenance online rows.</p>
+          }
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+    </div>
+  </div>
+}

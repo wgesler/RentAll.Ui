@@ -77,6 +77,7 @@
         </div>
       </div>
     </div>
+    @if (!titleBarOnly) {
     <mat-card>
       <div class="dashboard-content dbg-band-main">
         <app-reservation-board [ownerContactId]="ownerContactId" [readOnly]="true" [readOnlyOwnerLayout]="true" [showReservationNames]="false"></app-reservation-board>
@@ -165,5 +166,6 @@
         </div>
       </div>
     </mat-card>
+    }
   </section>
 </div>

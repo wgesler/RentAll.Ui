@@ -3,9 +3,9 @@
   box-sizing: border-box;
 }
 
-/* Hide property-shell Emails tab from view while keeping routing/component wiring intact. */
-:host ::ng-deep .shell-tabs .mat-mdc-tab-header .mat-mdc-tab:nth-child(6) {
-  display: none !important;
+/* Same side inset as list shells (emails/contacts/users/tickets/documents). */
+:host ::ng-deep section.content-card > mat-card {
+  padding: 16px 20px;
 }
 
 :host ::ng-deep .property-titlebar .titlebar-label-required-asterisk,

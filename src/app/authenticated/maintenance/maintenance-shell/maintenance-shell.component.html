@@ -248,21 +248,6 @@
               }
             </mat-tab>
           }
-          <mat-tab label="Documents">
-            @if (selectedTabIndex === documentsTabIndex) {
-            <app-document-list
-              [documentTypeIds]="[DocumentType.Inspection, DocumentType.WorkOrder]"
-              [documentRequest]="documentRequest"
-              [propertyId]="selectedPropertyId ?? property?.propertyId ?? undefined"
-              [propertyCode]="property?.propertyCode ?? null"
-              [officeId]="selectedOfficeId ?? property?.officeId ?? null"
-              [reservationId]="titleBarReservationId"
-              [reservations]="shellReservations"
-              source="maintenance"
-              [hideHeader]="true"
-              [hideFilters]="true" />
-            }
-          </mat-tab>
         </mat-tab-group>
       </mat-card>
     </section>

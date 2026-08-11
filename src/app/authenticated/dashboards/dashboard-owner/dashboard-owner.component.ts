@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
@@ -23,9 +23,14 @@ import { UserService } from '../../users/services/user.service';
   imports: [MaterialModule, DataTableComponent, ReservationBoardComponent],
   templateUrl: './dashboard-owner.component.html',
   styleUrl: './dashboard-owner.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[class.dashboard-titlebar-only]': 'titleBarOnly'
+  }
 })
 export class DashboardOwnerComponent implements OnInit, OnDestroy {
+  @Input() titleBarOnly = false;
+
   private authService = inject(AuthService);
   private userService = inject(UserService);
   private reservationService = inject(ReservationService);

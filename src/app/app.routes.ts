@@ -7,7 +7,7 @@ import { InvoiceCreateComponent } from './authenticated/accounting/invoices/invo
 import { BillingComponent } from './authenticated/accounting/invoices/billing/billing.component';
 import { ContactComponent } from './authenticated/contacts/contact/contact.component';
 import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
-import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';
+import { DashboardShellComponent } from './authenticated/dashboards/dashboard-shell/dashboard-shell.component';
 import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
 import { DashboardServiceComponent } from './authenticated/dashboards/dashboard-service/dashboard-service.component';
 import { DocumentsShellComponent } from './authenticated/documents/documents-shell/documents-shell.component';
@@ -37,7 +37,6 @@ import { OrganizationListComponent } from './authenticated/organizations/organiz
 import { OrganizationComponent } from './authenticated/organizations/organization/organization.component';
 import { RegionListComponent } from './authenticated/organizations/region-list/region-list.component';
 import { RegionComponent } from './authenticated/organizations/region/region.component';
-import { MaintenanceListComponent } from './authenticated/maintenance/maintenance-list/maintenance-list.component';
 import { MaintenanceShellComponent } from './authenticated/maintenance/maintenance-shell/maintenance-shell.component';
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
@@ -192,14 +191,14 @@ export namespace RouterUrl {
 
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
-  { path: RouterToken.Dashboard, component: DashboardMainComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Dashboard, component: DashboardShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DashboardService, component: DashboardServiceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
   { path: 'rentals', redirectTo: RouterToken.ReservationList, pathMatch: 'full' },
   { path: RouterToken.ContactList, component: ContactsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contacts, component: ContactsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.MaintenanceList, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.TicketList, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.Ticket, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },

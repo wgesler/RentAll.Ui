@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, catchError, concatMap, filter, finalize, firstValueFrom, from, map, of, take, takeUntil, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -23,6 +23,7 @@ import { UserService } from '../../users/services/user.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { MonthlyCommissionDisplay, MonthlyCommissionTileRow } from '../models/dashboard-model';
+import { DashboardCompanyDataService } from '../services/dashboard-company-data.service';
 import { PropertyMaintenanceBase } from '../../shared/base-classes/property-maintenance.base';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -38,9 +39,14 @@ import { PropertyLeaseType } from '../../properties/models/property-enums';
     imports: [MaterialModule, DataTableComponent],
     templateUrl: './dashboard-main.component.html',
     styleUrl: './dashboard-main.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    host: {
+      '[class.dashboard-titlebar-only]': 'titleBarOnly'
+    }
 })
 export class DashboardMainComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
+  @Input() titleBarOnly = false;
+
   private userService = inject(UserService);
   private router = inject(Router);
   private agentService = inject(AgentService);
@@ -48,6 +54,9 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   private toastr = inject(ToastrService);
   private trackerService = inject(TrackerService);
   private cdr = inject(ChangeDetectorRef);
+  private companyDataService = inject(DashboardCompanyDataService);
+  private titleBarOnlineOfflineTodayCount = 0;
+  private titleBarOnlineOfflineTomorrowCount = 0;
 
   profilePictureUrl: string | null = null;
   todayDate = '';
@@ -161,20 +170,35 @@ markViewForCheck(): void {
 
   //#region Dashboard-Main
   override ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-      this.markViewForCheck();
-    });
     this.setTodayDate();
     this.isAdmin = this.authService.isAdmin();
     this.canViewCommissions = this.authService.canViewCommissions();
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.authService.getUser()?.userId ?? '');
 
+    if (this.titleBarOnly) {
+      this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
+        this.todayArriveDepartCount = snapshot.todayArriveDepartCount;
+        this.tomorrowArriveDepartCount = snapshot.tomorrowArriveDepartCount;
+        this.titleBarOnlineOfflineTodayCount = snapshot.onlineOfflineTodayCount;
+        this.titleBarOnlineOfflineTomorrowCount = snapshot.onlineOfflineTomorrowCount;
+        this.rentedCount = snapshot.rentedCount;
+        this.vacantCount = snapshot.vacantCount;
+        this.isPageReady = snapshot.isReady;
+        this.markViewForCheck();
+      });
+      return;
+    }
+
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     if (this.canViewCommissions) {
       this.loadUsers();
       this.loadAgents();
-    } 
+    }
 
     this.loadTrackerConfiguration();
 
@@ -184,6 +208,20 @@ markViewForCheck(): void {
     });
 
     super.ngOnInit();
+  }
+
+  protected override getOnlineOfflineTodayCount(): number {
+    if (this.titleBarOnly) {
+      return this.titleBarOnlineOfflineTodayCount;
+    }
+    return super.getOnlineOfflineTodayCount();
+  }
+
+  protected override getOnlineOfflineTomorrowCount(): number {
+    if (this.titleBarOnly) {
+      return this.titleBarOnlineOfflineTomorrowCount;
+    }
+    return super.getOnlineOfflineTomorrowCount();
   }
   //#endregion
 

@@ -1,3 +1,12 @@
+:host.dashboard-titlebar-only {
+  display: contents;
+
+  .content-card-wrap,
+  .content-card {
+    display: contents;
+  }
+}
+
 .dashboard-content {
   padding: 24px;
 }

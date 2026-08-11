@@ -67,22 +67,11 @@
                   [value]="selectedReservationId ?? null"
                   [options]="reservationOptions"
                   [showInstructionOption]="true"
-                [nullOptionLabel]="selectedTabIndex >= emailTabIndex ? 'All Reservations' : 'Select Reservation'"
+                [nullOptionLabel]="'Select Reservation'"
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onReservationDropdownChange($event)">
                 </app-title-bar-select>
               </div>
-            }
-            @if (selectedTabIndex === emailTabIndex) {
-              <app-title-bar-select
-                [label]="'Email Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedEmailTypeId"
-                [options]="emailTypeOptions"
-                [nullOptionLabel]="'All Email Types'"
-                [noResultsText]="'No email types match your search'"
-                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
-              </app-title-bar-select>
             }
         } @else if (showShellContextTitleBar) {
             @if (showOfficeDropdown || officeOptions.length > 0) {
@@ -111,22 +100,11 @@
                   [value]="selectedReservationId ?? null"
                   [options]="reservationOptions"
                   [showInstructionOption]="true"
-                  [nullOptionLabel]="selectedTabIndex >= emailTabIndex ? 'All Reservations' : 'Select Reservation'"
+                  [nullOptionLabel]="'Select Reservation'"
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onReservationDropdownChange($event)">
                 </app-title-bar-select>
               </div>
-            }
-            @if (selectedTabIndex === emailTabIndex) {
-              <app-title-bar-select
-                [label]="'Email Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedEmailTypeId"
-                [options]="emailTypeOptions"
-                [nullOptionLabel]="'All Email Types'"
-                [noResultsText]="'No email types match your search'"
-                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
-              </app-title-bar-select>
             }
         }
         </div>
@@ -216,24 +194,6 @@
             <app-property-reservation-history
               [propertyId]="shellPropertyId">
             </app-property-reservation-history>
-          }
-        </mat-tab>
-
-        <mat-tab label="Emails">
-          @if (selectedTabIndex === emailTabIndex) {
-            <app-email-list
-              #propertyEmailList
-              [propertyId]="shellPropertyId"
-              [propertyCode]="sharedPropertyCode"
-              [officeId]="titleBarPropertyOfficeId"
-              [reservationId]="titleBarReservationId"
-              [source]="'property'"
-              [hideHeader]="true"
-              [hideFilters]="true"
-              [reservations]="shellReservations"
-              (reservationIdChange)="onChildTabReservationChange($event)"
-              (officeIdChange)="onChildTabOfficeChange($event)">
-            </app-email-list>
           }
         </mat-tab>
       </mat-tab-group>

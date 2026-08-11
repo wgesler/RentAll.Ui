@@ -49,8 +49,8 @@
   --global-action-button-height: 36px;
   --global-action-button-radius: 6px;
   --global-action-button-padding-x: 14px;
-  /* Shell mat-tab strip: cap each tab at 1/N of the row (N slots) so fewer tabs do not grow wider. */
-  --shell-tab-slot-count: 5;
+  /* Shell mat-tab strip: size each tab as 1/N of the row (N slots) so fewer tabs leave empty space on the right. */
+  --shell-tab-slot-count: 6;
   --shell-tab-min-height: 48px;
   --shell-tab-padding-block: 12px;
   --shell-tab-label-line-height: 1.35;
@@ -61,6 +61,8 @@
   --shell-tab-active-bg: color-mix(in srgb, var(--shell-tab-blue-wash) 50%, var(--shell-tab-accordion-bg) 50%);
   --shell-tab-active-hover-bg: color-mix(in srgb, var(--shell-tab-blue-wash) 58%, var(--shell-tab-accordion-bg) 42%);
   --shell-tab-active-border-color: color-mix(in srgb, #2563eb 42%, #64748b 58%);
+  --shell-tab-folder-border-color: rgba(0, 0, 0, 0.10);
+  --shell-tab-top-radius: 8px;
   --shell-tab-active-label-color: rgb(15 23 42);
   /* Settings accordion alignment: shared top offset for embedded action rows/lists. */
   --settings-embedded-actions-top-offset: 1.5rem;
@@ -274,6 +276,18 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   margin-top: 0 !important;
 }
 
+/* Dashboard shell tabs: same button-band spacer + accordion inset as property-shell. */
+.shell-tabs .dashboard-tab-content {
+  padding: 0 0 24px;
+  box-sizing: border-box;
+}
+
+.shell-tabs .dashboard-tab-content > .property-tab-main-area {
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  box-sizing: border-box;
+}
+
 /* Cancel .content-card-wrap .info-form horizontal padding for the band only (full width matches other tabs). */
 .shell-tabs app-property .property-page-form > .property-tab-actions-band:first-child {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
@@ -295,12 +309,14 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   max-width: none;
 }
 
-/* Main area: match tab strip + actions band width (same bleed as band above; list tabs are already full width). */
+/* Main area: match tab strip width, then inset like list datatable-main-block. */
 .shell-tabs app-property .property-page-form > .property-tab-main-area {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
 }
 
 /* Leads shell: embedded rental/owner lead forms — same main-area bleed as property tab forms. */
@@ -317,6 +333,8 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
 }
 
 .shell-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-main-area {
@@ -324,6 +342,8 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   width: calc(100% + 3rem);
   max-width: none;
   box-sizing: border-box;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 .shell-tabs .document-list-tab-container.list-layout-tabbed .property-tab-actions-band > .property-tab-actions-band__row:first-child {
@@ -344,6 +364,8 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
 }
 
 .shell-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-actions-band:first-child {
@@ -358,6 +380,8 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
 }
 
 .shell-tabs app-invoice-create .invoice-create-container.invoice-shell-mode > .invoice-create-form > .property-tab-actions-band:first-child,
@@ -1777,6 +1801,9 @@ mat-tab-header {
 
 /* Shell tab groups: size tabs as if the strip always has --shell-tab-slot-count slots. */
 .shell-tabs {
+  /* Opaque stand-in for --shell-tab-inactive-bg (was 50% alpha and let the folder line show through). */
+  --shell-tab-inactive-bg-opaque: color-mix(in srgb, rgb(226 232 240) 50%, #ffffff);
+
   .mat-mdc-tab-header {
     display: flex;
     width: 100%;
@@ -1784,31 +1811,60 @@ mat-tab-header {
     min-width: 0;
     box-sizing: border-box;
     min-height: var(--shell-tab-min-height);
+    border-bottom: none;
+    background: transparent !important;
+    /* Pull strip onto the folder top edge (also cancels dbg-band stack gap). */
+    margin-bottom: -1px !important;
+    position: relative;
+    z-index: 2;
 
     .mat-mdc-tab-label-container {
       flex: 1 1 auto;
       width: 100%;
       max-width: 100%;
       min-width: 0;
+      padding: 0 !important;
+      background: transparent !important;
       box-sizing: border-box;
     }
 
     .mat-mdc-tab-list,
     .mdc-tab__scroll-content {
+      display: flex !important;
+      align-items: flex-end;
       width: 100%;
       max-width: 100%;
       min-width: 0;
+      background: transparent !important;
       box-sizing: border-box;
     }
 
     .mat-mdc-tab,
     .mdc-tab {
+      /* Same 1/N slot sizing + original horizontal spacing between tabs. */
       flex: 0 1 calc(100% / var(--shell-tab-slot-count));
       max-width: calc(100% / var(--shell-tab-slot-count));
       min-width: 0;
       min-height: var(--shell-tab-min-height);
-      overflow: visible !important;
+      /* Side/top spacing only — no bottom gap; sit on the folder top line. */
+      margin: 0.25rem 0.25rem 0 0.25rem !important;
+      border-radius: var(--shell-tab-top-radius) var(--shell-tab-top-radius) 0 0 !important;
+      border: 1px solid transparent !important;
+      border-bottom: none !important;
+      /* Opaque fill masks the folder top edge under each tab. */
+      background-color: var(--shell-tab-inactive-bg-opaque) !important;
+      /* Clip fill to rounded top corners (was overflow:visible, which hid the radius). */
+      overflow: hidden !important;
       box-sizing: border-box;
+      position: relative;
+      z-index: 2;
+      /* Cover the folder top line under this tab without needing overflow:visible. */
+      box-shadow: 0 1px 0 0 var(--shell-tab-inactive-bg-opaque);
+
+      &:hover {
+        background-color: var(--shell-tab-inactive-hover-bg) !important;
+        box-shadow: 0 1px 0 0 var(--shell-tab-inactive-hover-bg);
+      }
     }
 
     .mdc-tab__content {
@@ -1828,20 +1884,64 @@ mat-tab-header {
       justify-content: center;
       text-align: center;
     }
+
+    .mat-mdc-tab.mdc-tab--active {
+      margin: 0.25rem 0.25rem 0 0.25rem !important;
+      border-radius: var(--shell-tab-top-radius) var(--shell-tab-top-radius) 0 0 !important;
+      /* Real border (not ::after) so top corners actually round. */
+      border-top: 2px solid var(--shell-tab-active-border-color) !important;
+      border-left: 2px solid var(--shell-tab-active-border-color) !important;
+      border-right: 2px solid var(--shell-tab-active-border-color) !important;
+      border-bottom: none !important;
+      background-color: var(--shell-tab-active-bg) !important;
+      box-shadow: 0 1px 0 0 var(--shell-tab-active-bg);
+
+      /* Disable the old square-looking ::after chrome on shell tabs. */
+      &::after {
+        content: none !important;
+        display: none !important;
+      }
+
+      &:hover {
+        background-color: var(--shell-tab-active-hover-bg) !important;
+        box-shadow: 0 1px 0 0 var(--shell-tab-active-hover-bg);
+      }
+    }
+  }
+
+  /*
+   * File-folder frame: full-width top edge under the strip.
+   * Tabs (opaque) cover it; line remains only in gaps and empty space to the right.
+   */
+  .mat-mdc-tab-body-wrapper {
+    border: 1px solid var(--shell-tab-folder-border-color);
+    /* Round the outer folder corners (top L/R as well as bottom). */
+    border-radius: 0.25rem;
+    box-sizing: border-box !important;
+    position: relative;
+    z-index: 1;
   }
 }
 
-/* Per-shell tab counts (default --shell-tab-slot-count: 5 in :root). */
+/* Embedded / single-tab shells hide the tab strip — skip the folder frame there. */
+.reservation-shell-mode .shell-tabs .mat-mdc-tab-body-wrapper,
+.property-shell-mode-tabs .mat-mdc-tab-body-wrapper,
+.documents-shell-single-tab .mat-mdc-tab-body-wrapper {
+  border: none;
+  border-radius: 0;
+}
+
+/* Optional per-shell overrides (default --shell-tab-slot-count: 6 in :root). */
+.shell-tabs--3-slots {
+  --shell-tab-slot-count: 3;
+}
+
 .shell-tabs--4-slots {
   --shell-tab-slot-count: 4;
 }
 
 .shell-tabs--6-slots {
   --shell-tab-slot-count: 6;
-}
-
-.shell-tabs--3-slots {
-  --shell-tab-slot-count: 3;
 }
 
 /* All Material tabs: uniform fill on select; labels stay transparent. */
@@ -1923,12 +2023,7 @@ mat-tab-header {
   }
 }
 
-/* Shell/tab pages use a stronger active edge. */
-.shell-tabs .mat-mdc-tab.mdc-tab--active::after {
-  border-top-width: 2px !important;
-  border-left-width: 2px !important;
-  border-right-width: 2px !important;
-}
+/* Shell active edge is a real border on the tab (see .shell-tabs rules above). */
 
 // Manipulate initial background color
 .mdc-text-field--filled:not(.mdc-text-field--disabled) {
@@ -2299,6 +2394,18 @@ mat-form-field input,
 .list-layout-standard.dbg-band-main app-data-table .datatable-search-wrap,
 .list-layout-standard app-data-table:has(.datatable-main-block.dbg-band-main) .datatable-search-wrap {
   margin-top: 0 !important;
+}
+
+/*
+ * Standalone lists (Properties, Reservations, Owners/contacts, etc.):
+ * inset table inside the orange band like Tickets / shell tab lists.
+ * (Shell-tabs rules set the same values; safe to share.)
+ */
+.list-layout-standard app-data-table .datatable-main-block {
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  padding-bottom: var(--global-page-inner-padding);
+  box-sizing: border-box;
 }
 
 /*

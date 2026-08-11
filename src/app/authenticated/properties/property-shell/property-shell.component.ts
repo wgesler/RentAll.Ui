@@ -13,7 +13,6 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyResponse } from '../models/property.model';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
@@ -41,8 +40,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
     PropertyListingComponent,
     PropertyReservationHistoryComponent,
     PropertyWelcomeLetterComponent,
-    PropertyDepartureLetterComponent,
-    EmailListComponent
+    PropertyDepartureLetterComponent
   ],
   templateUrl: './property-shell.component.html',
   styleUrl: './property-shell.component.scss'
@@ -61,13 +59,11 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
   @ViewChild(PropertyDepartureLetterComponent) propertyDepartureLetter?: PropertyDepartureLetterComponent;
-  @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
 
   readonly welcomeLetterTabIndex = 2;
   readonly departureLetterTabIndex = 3;
   readonly listingTabIndex = 4;
   readonly historyTabIndex = 5;
-  readonly emailTabIndex = 6;
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
@@ -117,9 +113,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     });
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
-      if (queryParams['tab'] === 'email') {
-        this.selectedTabIndex = this.emailTabIndex;
-      } else if (queryParams['tab'] === 'reservation-history') {
+      if (queryParams['tab'] === 'reservation-history') {
         this.selectedTabIndex = this.historyTabIndex;
       } else if (queryParams['tab'] === 'listing') {
         this.selectedTabIndex = this.listingTabIndex;
@@ -203,17 +197,6 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     return this.propertySection?.sharedPropertyCode ?? null;
   }
 
-  get emailTypeOptions(): SearchableSelectOption[] {
-    return (this.propertyEmailList?.emailTypeOptions || []).map(option => ({
-      value: option.value,
-      label: option.label
-    }));
-  }
-
-  get selectedEmailTypeId(): number | null {
-    return this.propertyEmailList?.selectedEmailTypeId ?? null;
-  }
-
   //#endregion
 
   //#region Top Bar Event Methods
@@ -238,16 +221,6 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   onReservationDropdownChange(value: string | number | null): void {
     this.titleBarReservationId = this.normalizeTitleBarReservationId(value);
     this.propertySection?.applyTitleBarReservationSelection(value);
-    if (this.selectedTabIndex === this.emailTabIndex) {
-      this.propertyEmailList?.reload();
-    }
-  }
-
-  onHeaderEmailTypeDropdownChange(value: string | number | null): void {
-    if (!this.propertyEmailList) {
-      return;
-    }
-    this.propertyEmailList.onEmailTypeDropdownChange(value);
   }
 
   onPropertyCodeInput(event: Event): void {
@@ -443,9 +416,6 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
       this.selectedTabIndex = nextIndex;
       this.routeTabQueryParam(nextIndex);
-      if (nextIndex === this.emailTabIndex) {
-        queueMicrotask(() => this.propertyEmailList?.reload());
-      }
     } finally {
       this.isHandlingTabGuard = false;
     }
@@ -461,8 +431,6 @@ applyOfficeFromGlobal(officeId: number | null): void {
       tab = 'listing';
     } else if (tabIndex === this.historyTabIndex) {
       tab = 'reservation-history';
-    } else if (tabIndex === this.emailTabIndex) {
-      tab = 'email';
     }
 
     this.router.navigate([], {
