@@ -9,7 +9,7 @@ import { ContactComponent } from './authenticated/contacts/contact/contact.compo
 import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
 import { DashboardShellComponent } from './authenticated/dashboards/dashboard-shell/dashboard-shell.component';
 import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
-import { DashboardServiceComponent } from './authenticated/dashboards/dashboard-service/dashboard-service.component';
+import { DashboardStaffComponent } from './authenticated/dashboards/dashboard-staff/dashboard-staff.component';
 import { DocumentsShellComponent } from './authenticated/documents/documents-shell/documents-shell.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
@@ -63,7 +63,7 @@ export enum RouterToken {
   Login = 'login',
   Auth = 'auth',
   Dashboard = 'dashboard',
-  DashboardService = 'dashboard-service',
+  DashboardStaff = 'dashboard-staff',
   DashboardOwner = 'dashboard-owner',
   ContactList = 'contacts',
   Contacts = 'contacts',
@@ -124,7 +124,7 @@ export enum RouterToken {
 
 export enum RouterUrl {
   Dashboard             = `${RouterToken.Auth}/${RouterToken.Dashboard}`,
-  DashboardService      = `${RouterToken.Auth}/${RouterToken.DashboardService}`,
+  DashboardStaff = `${RouterToken.Auth}/${RouterToken.DashboardStaff}`,
   DashboardOwner        = `${RouterToken.Auth}/${RouterToken.DashboardOwner}`,
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
   Contacts              = `${RouterToken.Auth}/${RouterToken.Contacts}`,
@@ -192,7 +192,7 @@ export namespace RouterUrl {
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
   { path: RouterToken.Dashboard, component: DashboardShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.DashboardService, component: DashboardServiceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.DashboardStaff, component: DashboardStaffComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
   { path: 'rentals', redirectTo: RouterToken.ReservationList, pathMatch: 'full' },
   { path: RouterToken.ContactList, component: ContactsShellComponent, canActivate: [authRouteGuard] },

@@ -165,6 +165,7 @@ export interface ReservationPropertyMaintenanceDisplayList {
 export interface MaintenanceListDisplay extends PropertyListDisplay {
   maintenanceId?: string;
   reservationId?: string | null;
+  reservationCode?: string | null;
   eventType?: ServiceType | null;
   propertyAddress: string;
   propertyStatusText: string;
@@ -206,10 +207,19 @@ export type DashboardPropertyTurnoverRow = PropertyListDisplay & {
 };
 
 export type PropertyVacancyDisplay = PropertyListResponse & {
+  propertyStatusDisplay: string;
   vacancyDays: number | null;
   vacancyDaysDisplay: string | number;
   lastDepartureDate: string | null;
 };
+
+/** Occupied / offline-status inventory rows (and legacy in-process shape). */
+export type PropertyInProcessDisplay = PropertyListResponse & {
+  propertyStatusDisplay: string;
+};
+
+export type PropertyOccupiedDisplay = PropertyInProcessDisplay;
+export type PropertyOfflineStatusDisplay = PropertyInProcessDisplay;
 
 export interface ReservationTurnoverEventDisplay {
   propertyId: string;

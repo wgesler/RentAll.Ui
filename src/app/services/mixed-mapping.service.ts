@@ -320,6 +320,9 @@ export class MixedMappingService {
       reservationId: 'reservationId' in mixedRow
         ? this.utilityService.normalizeIdOrNull((mixedRow as ReservationPropertyMaintenance).reservationId)
         : this.utilityService.normalizeIdOrNull(reservationSnapshot?.reservationId ?? null),
+      reservationCode: 'reservationCode' in mixedRow
+        ? String((mixedRow as ReservationPropertyMaintenance).reservationCode ?? '').trim() || null
+        : null,
       eventType: mixedRow.eventType ?? null,
       propertyAddress: propertyRow.shortAddress ?? '',
       cleanerUserId: cleanerId,
@@ -552,8 +555,8 @@ export class MixedMappingService {
   }
   //#endregion
 
-  //#region Dashboard-Service Display Mappers
-  mapPropertyMaintenanceToDashboardServiceScheduleRow(pm: PropertyMaintenance): ReservationPropertyMaintenance {
+  //#region Dashboard-Staff Display Mappers
+  mapPropertyMaintenanceToDashboardStaffScheduleRow(pm: PropertyMaintenance): ReservationPropertyMaintenance {
     const eventCal = (pm.eventDate ?? '') as CalendarDateString;
     const eventDisp = this.formatter.formatDateString(pm.eventDate ?? undefined) || '';
     const eventOrd = this.utilityService.parseCalendarDateToOrdinal(pm.eventDate ?? null);
@@ -610,7 +613,7 @@ export class MixedMappingService {
     };
   }
 
-  mapReservationPropertyMaintenanceDashboardServiceScheduleRow(row: ReservationPropertyMaintenance): ReservationPropertyMaintenance {
+  mapReservationPropertyMaintenanceDashboardStaffScheduleRow(row: ReservationPropertyMaintenance): ReservationPropertyMaintenance {
     const eventDisp = this.formatter.formatDateString(row.eventDate ?? undefined) || '';
     const providerAssignment = this.getProviderAssignmentForTurnoverRow(row);
     const mappedRow = {

@@ -10,13 +10,21 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { MaintenanceListResponse } from '../../maintenance/models/maintenance.model';
 import { MaintenanceService } from '../../maintenance/services/maintenance.service';
+import { PropertyStatus, getPropertyStatus } from '../../properties/models/property-enums';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { Frequency } from '../../reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UserResponse } from '../../users/models/user.model';
-import { PropertyMaintenance, PropertyVacancyDisplay, ReservationPropertyMaintenance } from '../models/mixed-models';
+import {
+  PropertyInProcessDisplay,
+  PropertyMaintenance,
+  PropertyOccupiedDisplay,
+  PropertyOfflineStatusDisplay,
+  PropertyVacancyDisplay,
+  ReservationPropertyMaintenance
+} from '../models/mixed-models';
 import { ServiceType, getServiceType } from '../models/mixed-enums';
 @Directive()
 export class PropertyMaintenanceBase implements OnInit, OnDestroy {
@@ -64,8 +72,8 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   inspectorUsers: UserResponse[] = [];
   organizationId = '';
   todayAtMidnight: Date = new Date();
-  fifteenDaysAtMidnight: Date = new Date();
-  nextTwoMonthsAtMidnight: Date = new Date();
+  currentMonthStartAtMidnight: Date = new Date();
+  nextMonthEndAtMidnight: Date = new Date();
   tomorrowAtMidnight: Date = new Date();
   todayCalendarDate: string | null = null;
   tomorrowCalendarDate: string | null = null;
@@ -76,6 +84,10 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   rentedCount = 0;
   vacantCount = 0;
   propertiesByVacancy: PropertyVacancyDisplay[] = [];
+  propertiesOccupied: PropertyOccupiedDisplay[] = [];
+  propertiesOfflineStatus: PropertyOfflineStatusDisplay[] = [];
+  /** @deprecated Use propertiesOccupied — kept for any leftover references during rename. */
+  propertiesInProcess: PropertyInProcessDisplay[] = [];
 
   //#region Property-Maintenance Base
   ngOnInit(): void {
@@ -166,6 +178,26 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       this.reservationList.push(next);
     }
     this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
+  }
+
+  /** Keep property provider fields in sync so office recompute does not wipe recent saves. */
+  protected applyPropertyProviderOverridesToCachedLists(
+    propertyId: string,
+    overrides: Partial<PropertyListResponse> & Record<string, unknown>
+  ): void {
+    const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
+    if (!normalizedPropertyId) {
+      return;
+    }
+    const property = this.propertyList.find(row => this.utilityService.normalizeId(row.propertyId) === normalizedPropertyId);
+    if (property) {
+      Object.assign(property, overrides);
+    }
+    for (const pm of this.propertyMaintenanceList) {
+      if (this.utilityService.normalizeId(pm.propertyId) === normalizedPropertyId) {
+        Object.assign(pm, overrides);
+      }
+    }
   }
   //#endregion
 
@@ -268,7 +300,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
    getPropertiesGoingOffline(userId: string | null = null): PropertyMaintenance[] {
-    const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
+    const bounds = this.getInclusiveCurrentAndNextMonthOrdinalBounds();
     if (!bounds) {
       return [];
     }
@@ -295,7 +327,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
    getPropertiesComingOnline(userId: string | null = null): PropertyMaintenance[] {
-    const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
+    const bounds = this.getInclusiveCurrentAndNextMonthOrdinalBounds();
     if (!bounds) {
       return [];
     }
@@ -322,7 +354,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
    getReservationsWithArrivals(userId: string | null = null): ReservationPropertyMaintenance[] {
-    const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
+    const bounds = this.getInclusiveCurrentAndNextMonthOrdinalBounds();
     if (!bounds) {
       return [];
     }
@@ -350,7 +382,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
    getReservationsWithDepartures(userId: string | null = null): ReservationPropertyMaintenance[] {
-    const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
+    const bounds = this.getInclusiveCurrentAndNextMonthOrdinalBounds();
     if (!bounds) {
       return [];
     }
@@ -377,7 +409,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
   protected getReservationsWithCleanings(userId: string | null = null): ReservationPropertyMaintenance[] {
-    const bounds = this.getInclusiveNextTwoMonthsOrdinalBounds();
+    const bounds = this.getInclusiveCurrentAndNextMonthOrdinalBounds();
     if (!bounds) {
       return [];
     }
@@ -567,6 +599,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       this.rentedCount = 0;
       this.vacantCount = 0;
       this.propertiesByVacancy = [];
+      this.propertiesOccupied = [];
+      this.propertiesOfflineStatus = [];
+      this.propertiesInProcess = [];
       return;
     }
 
@@ -575,42 +610,29 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     const officeScopedProperties = !this.selectedOffice
       ? this.propertyList
       : this.propertyList.filter(p => p.officeId === this.selectedOffice!.officeId);
-    const propertiesForScope = officeScopedProperties.filter(property => {
-      const availableFromDate = this.utilityService.parseDateOnlyStringToDate(property.availableFrom);
-      const availableUntilDate = this.utilityService.parseDateOnlyStringToDate(property.availableUntil);
-      const isNotYetOnline = availableFromDate !== null && availableFromDate.getTime() > today.getTime();
-      const isAlreadyOffline = availableUntilDate !== null && availableUntilDate.getTime() < today.getTime();
-      return !isNotYetOnline && !isAlreadyOffline;
-    });
-    const scopedPropertyIds = new Set(propertiesForScope.map(property => property.propertyId));
+
+    // Inventory tabs partition by status (office-scoped). Arrivals/Departures may still overlap.
+    const vacantStatusIds = new Set<number>([
+      PropertyStatus.Vacant,
+      PropertyStatus.Cleaned,
+      PropertyStatus.Inspected,
+      PropertyStatus.Ready,
+      PropertyStatus.Maintenance
+    ]);
+    const vacantStatusSortOrder = new Map<number, number>([
+      [PropertyStatus.Vacant, 0],
+      [PropertyStatus.Cleaned, 1],
+      [PropertyStatus.Inspected, 2],
+      [PropertyStatus.Ready, 3],
+      [PropertyStatus.Maintenance, 4]
+    ]);
+
     const reservationsForScope = !this.selectedOffice
       ? this.reservationList
       : this.reservationList.filter(r => r.officeId === this.selectedOffice!.officeId);
-
-    const propertyIdsWithCurrentStay = new Set<string>();
-    reservationsForScope.forEach(reservation => {
-      if (!reservation.isActive || !reservation.propertyId) {
-        return;
-      }
-      if (!scopedPropertyIds.has(reservation.propertyId)) {
-        return;
-      }
-      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
-      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
-      if (!arrivalDate || !departureDate) {
-        return;
-      }
-      if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
-        propertyIdsWithCurrentStay.add(reservation.propertyId);
-      }
-    });
-
     const latestPastDepartureByProperty = new Map<string, Date>();
     reservationsForScope.forEach(reservation => {
       if (!reservation.propertyId) {
-        return;
-      }
-      if (!scopedPropertyIds.has(reservation.propertyId)) {
         return;
       }
       const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
@@ -623,8 +645,28 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       }
     });
 
-    this.propertiesByVacancy = propertiesForScope
-      .filter(property => !propertyIdsWithCurrentStay.has(property.propertyId))
+    const withBeds = (property: typeof officeScopedProperties[number]) => ({
+      ...property,
+      bedroomId1: this.mappingService.readPropertyListBedroomTypeId(property, 1),
+      bedroomId2: this.mappingService.readPropertyListBedroomTypeId(property, 2),
+      bedroomId3: this.mappingService.readPropertyListBedroomTypeId(property, 3),
+      bedroomId4: this.mappingService.readPropertyListBedroomTypeId(property, 4),
+      propertyStatusDisplay: getPropertyStatus(property.propertyStatusId) || '—'
+    });
+
+    // Occupied = PropertyStatus.Occupied (no separate Owner Occupied status in the model yet).
+    this.propertiesOccupied = officeScopedProperties
+      .filter(property => property.propertyStatusId === PropertyStatus.Occupied)
+      .map(property => withBeds(property))
+      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }));
+
+    this.propertiesOfflineStatus = officeScopedProperties
+      .filter(property => property.propertyStatusId === PropertyStatus.Offline)
+      .map(property => withBeds(property))
+      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }));
+
+    this.propertiesByVacancy = officeScopedProperties
+      .filter(property => vacantStatusIds.has(Number(property.propertyStatusId)))
       .map(property => {
         const latestPastDeparture = latestPastDepartureByProperty.get(property.propertyId);
         const vacancyDays = latestPastDeparture
@@ -632,52 +674,39 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
           : null;
         const vacancyDaysDisplay: string | number = vacancyDays === null ? 'Never rented' : vacancyDays;
         const lastDepartureDate = this.mappingService.mapVacantPropertyLastDepartureDate(latestPastDeparture ?? null);
-
         return {
-          ...property,
-          bedroomId1: this.mappingService.readPropertyListBedroomTypeId(property, 1),
-          bedroomId2: this.mappingService.readPropertyListBedroomTypeId(property, 2),
-          bedroomId3: this.mappingService.readPropertyListBedroomTypeId(property, 3),
-          bedroomId4: this.mappingService.readPropertyListBedroomTypeId(property, 4),
+          ...withBeds(property),
           vacancyDays,
           vacancyDaysDisplay,
           lastDepartureDate
         };
       })
       .sort((a, b) => {
-        const aDays = a.vacancyDays;
-        const bDays = b.vacancyDays;
-
-        if (aDays === null && bDays === null) {
-          return (a.propertyCode || '').localeCompare(b.propertyCode || '');
+        const aOrder = vacantStatusSortOrder.get(Number(a.propertyStatusId)) ?? 99;
+        const bOrder = vacantStatusSortOrder.get(Number(b.propertyStatusId)) ?? 99;
+        if (aOrder !== bOrder) {
+          return aOrder - bOrder;
         }
-        if (aDays === null) {
-          return -1;
-        }
-        if (bDays === null) {
-          return 1;
-        }
-        return bDays - aDays;
+        return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' });
       });
 
-    this.rentedCount = propertyIdsWithCurrentStay.size;
+    this.propertiesInProcess = this.propertiesOccupied;
+    this.rentedCount = this.propertiesOccupied.length;
     this.vacantCount = this.propertiesByVacancy.length;
   }
 
-   getInclusiveNextFifteenDayOrdinalBounds(): { lo: number; hi: number } | null {
-    const hi = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.formatDateOnlyForApi(this.fifteenDaysAtMidnight));
-    if (hi === null) {
+  /** First day of the current calendar month through last day of the next calendar month. */
+   getInclusiveCurrentAndNextMonthOrdinalBounds(): { lo: number; hi: number } | null {
+    const lo = this.utilityService.parseCalendarDateToOrdinal(
+      this.utilityService.formatDateOnlyForApi(this.currentMonthStartAtMidnight)
+    );
+    const hi = this.utilityService.parseCalendarDateToOrdinal(
+      this.utilityService.formatDateOnlyForApi(this.nextMonthEndAtMidnight)
+    );
+    if (lo === null || hi === null) {
       return null;
     }
-    return { lo: this.todayDayOrdinal, hi };
-  }
-
-   getInclusiveNextTwoMonthsOrdinalBounds(): { lo: number; hi: number } | null {
-    const hi = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.formatDateOnlyForApi(this.nextTwoMonthsAtMidnight));
-    if (hi === null) {
-      return null;
-    }
-    return { lo: this.todayDayOrdinal, hi };
+    return { lo, hi };
   }
   //#endregion
 
@@ -687,15 +716,13 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     today.setHours(0, 0, 0, 0);
     this.todayAtMidnight = today;
 
-    const fifteen = new Date(today);
-    fifteen.setDate(fifteen.getDate() + 15);
-    fifteen.setHours(0, 0, 0, 0);
-    this.fifteenDaysAtMidnight = fifteen;
-
-    const twoMonthsAhead = new Date(today);
-    twoMonthsAhead.setMonth(twoMonthsAhead.getMonth() + 2);
-    twoMonthsAhead.setHours(0, 0, 0, 0);
-    this.nextTwoMonthsAtMidnight = twoMonthsAhead;
+    // e.g. Aug 11 → Aug 1 .. Sep 30; Sep 1 → Sep 1 .. Oct 31
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    this.currentMonthStartAtMidnight = new Date(year, month, 1);
+    this.currentMonthStartAtMidnight.setHours(0, 0, 0, 0);
+    this.nextMonthEndAtMidnight = new Date(year, month + 2, 0);
+    this.nextMonthEndAtMidnight.setHours(0, 0, 0, 0);
   }
 
    cacheTodayCalendar(): void {

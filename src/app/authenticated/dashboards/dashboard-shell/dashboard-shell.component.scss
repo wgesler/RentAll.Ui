@@ -2,4 +2,580 @@
    so the tab strip lines up with tab body content, same as reservation shell. */
 :host ::ng-deep section.content-card > mat-card {
   overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-shell-calendars {
+  /* Breathing room between title bar ↔ calendars ↔ tabs. */
+  margin-top: 0;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+/* Dashboard list tabs: no Save-band height — sit closer under the tab strip. */
+:host ::ng-deep .shell-tabs .dashboard-panel-content > .property-tab-actions-band {
+  min-height: 0;
+  margin-bottom: 0.35rem;
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+}
+
+/* Title bar: icon + title use global .content-card titlebar rules (see styles.scss); stats stay on the right. */
+.dashboard-main-titlebar {
+  position: relative;
+  /* Above shell mat-card / tab strip so commissions popover is not covered. */
+  z-index: 30;
+  overflow: visible;
+  /* Matches welcome row: padding-left after the border (space before person icon). */
+  --dashboard-titlebar-line-inset: 0.65rem;
+  /* Vertical rules between date/tiles and tile groups — match welcome column border height (~avatar row). */
+  --dashboard-titlebar-vertical-divider-height: 2.35rem;
+  /* Fixed tile box: same outer width × height for every stat (border-box includes padding + border). */
+  --dashboard-titlebar-tile-width: 6.75rem;
+  --dashboard-titlebar-tile-height: 3.625rem;
+  --dashboard-titlebar-calendar-icon-size: 1.25rem;
+
+  .dashboard-titlebar-inner {
+    align-items: center;
+    min-height: var(--property-titlebar-height);
+    box-sizing: border-box;
+  }
+
+  .dashboard-titlebar-welcome-next-title {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 0;
+    margin-left: var(--dashboard-titlebar-line-inset);
+    padding-left: var(--dashboard-titlebar-line-inset);
+    border-left: calc(1px + 1pt) solid rgba(15, 23, 42, 0.72);
+  }
+
+  /* Standard title-bar Office select; keep compact so Welcome/date/tiles stay on one row. */
+  .dashboard-titlebar-office.form-titlebar-fields-wrap {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    margin-left: calc(var(--dashboard-titlebar-line-inset) * 4);
+    padding: 0;
+    align-self: center;
+  }
+
+  .dashboard-titlebar-stats {
+    display: flex;
+    align-items: stretch;
+    /* Same as welcome `margin-left` before the vertical rule (title → profile rhythm). */
+    gap: var(--dashboard-titlebar-line-inset);
+    flex: 0 0 auto;
+    margin-left: auto;
+    overflow: visible;
+    flex-wrap: nowrap;
+    padding: 2px 0;
+    box-sizing: border-box;
+  }
+
+  .dashboard-titlebar-stat-tiles {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--dashboard-titlebar-line-inset);
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat {
+    box-sizing: border-box;
+    flex: 0 0 var(--dashboard-titlebar-tile-width);
+    width: var(--dashboard-titlebar-tile-width);
+    min-width: var(--dashboard-titlebar-tile-width);
+    max-width: var(--dashboard-titlebar-tile-width);
+    height: var(--dashboard-titlebar-tile-height);
+    min-height: var(--dashboard-titlebar-tile-height);
+    max-height: var(--dashboard-titlebar-tile-height);
+    padding: 3px 5px;
+    overflow: hidden;
+    justify-content: center;
+    align-items: stretch;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-body {
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-metric,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-metric,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-metric,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-metric {
+    margin-top: 0.35rem;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-icon,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-icon,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-icon,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-icon {
+    width: var(--dashboard-titlebar-calendar-icon-size);
+    height: var(--dashboard-titlebar-calendar-icon-size);
+    font-size: var(--dashboard-titlebar-calendar-icon-size);
+    line-height: 1;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-value,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-value,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-value,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-value {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-heading {
+    gap: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-heading-single {
+    margin-bottom: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--props .dashboard-titlebar-stat-heading-single {
+    margin-bottom: 0.35rem;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--commissions .dashboard-titlebar-commission-row {
+    margin-top: 0;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-heading,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-sub {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dashboard-titlebar-stat {
+    flex: 0 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 4px 10px;
+    border-radius: 4px;
+    max-height: calc(var(--property-titlebar-height) - 8px);
+    margin: auto 0;
+    min-width: fit-content;
+  }
+
+  .dashboard-titlebar-date-cluster {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    flex-shrink: 0;
+    /* Same as welcome `padding-left` after the vertical rule (date → divider). */
+    gap: var(--dashboard-titlebar-line-inset);
+    min-width: 0;
+    padding: 2px 0 2px 2px;
+    margin-right: 0;
+  }
+
+  .dashboard-titlebar-date-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    text-align: right;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 10.5rem;
+    padding: 2px 0 2px 0;
+    margin-right: 0;
+  }
+
+  .dashboard-titlebar-date {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #1e3a68;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Single hairline like welcome `border-left`; spacing from flex `gap` only (`--dashboard-titlebar-line-inset`). */
+  .dashboard-titlebar-stats-divider {
+    box-sizing: border-box;
+    width: 0;
+    flex-shrink: 0;
+    align-self: center;
+    height: var(--dashboard-titlebar-vertical-divider-height);
+    min-height: var(--dashboard-titlebar-vertical-divider-height);
+    max-height: var(--dashboard-titlebar-vertical-divider-height);
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-left: calc(1px + 1pt) solid rgba(15, 23, 42, 0.72);
+    background: transparent;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat-tiles-divider {
+    align-self: center;
+    height: var(--dashboard-titlebar-vertical-divider-height);
+    min-height: var(--dashboard-titlebar-vertical-divider-height);
+    max-height: var(--dashboard-titlebar-vertical-divider-height);
+  }
+
+  .dashboard-titlebar-welcome-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .dashboard-titlebar-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+
+  .dashboard-titlebar-avatar-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 36px;
+    flex-shrink: 0;
+    color: #64748b;
+  }
+
+  .dashboard-titlebar-welcome-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dashboard-titlebar-welcome-label {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .dashboard-titlebar-user-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #1e3a68;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dashboard-titlebar-stat--blue {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+  }
+
+  .dashboard-titlebar-stat--pink {
+    background-color: #fce4ec;
+    border: 1px solid #f48fb1;
+  }
+
+  .dashboard-titlebar-stat--green {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+  }
+
+  .dashboard-titlebar-stat--yellow {
+    background-color: #fffde7;
+    border: 1px solid #fff59d;
+  }
+
+  .dashboard-titlebar-stat--props {
+    background-color: #f3e5f5;
+    border: 1px solid #ce93d8;
+  }
+
+  .dashboard-titlebar-stat--commissions {
+    position: relative;
+    background-color: #fff3e0;
+    border: 1px solid #ffcc80;
+  }
+
+  .dashboard-titlebar-stat-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-height: 0;
+  }
+
+  .dashboard-titlebar-stat-heading {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .dashboard-titlebar-stat-heading-single {
+    margin-bottom: 1px;
+  }
+
+  .dashboard-titlebar-stat-line {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1565c0;
+    line-height: 1.15;
+  }
+
+  .dashboard-titlebar-stat-sub {
+    font-size: 10px;
+    font-weight: 600;
+    color: #1565c0;
+    line-height: 1.15;
+    padding-left: 0;
+  }
+
+  .dashboard-titlebar-stat-metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    margin-top: 1px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .dashboard-titlebar-stat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #555;
+  }
+
+  .dashboard-titlebar-stat-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1;
+  }
+
+  .dashboard-titlebar-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--props .dashboard-titlebar-spinner {
+    min-height: 18px;
+  }
+
+  .dashboard-titlebar-prop-stats--stacked {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 0;
+    min-width: 0;
+    line-height: 1.1;
+  }
+
+  .dashboard-titlebar-prop-stats--stacked .dashboard-titlebar-prop-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dashboard-titlebar-prop-stats--stacked .dashboard-titlebar-prop-label {
+    font-size: 10px;
+  }
+
+  .dashboard-titlebar-prop-stats--stacked .dashboard-titlebar-prop-value {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .dashboard-titlebar-prop-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  .dashboard-titlebar-prop-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .dashboard-titlebar-commission-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 1px;
+    min-width: 0;
+  }
+
+  .dashboard-titlebar-commission-agent {
+    font-size: 10px;
+    font-weight: 600;
+    color: #1565c0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dashboard-titlebar-commission-amt {
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    flex-shrink: 0;
+    min-width: 5ch;
+    text-align: right;
+  }
+
+  .commission-breakdown-popover {
+    min-width: 210px;
+    max-width: 260px;
+    background-color: #fff3e0;
+    border: 1px solid #ffcc80;
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14);
+    overflow: visible;
+    z-index: 40;
+  }
+
+  .commission-breakdown-popover--under-titlebar {
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    left: auto;
+    margin-top: 4px;
+    z-index: 40;
+  }
+
+  .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-sub {
+    color: #1565c0;
+  }
+
+  .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-sub {
+    color: #c2185b;
+  }
+
+  .dashboard-titlebar-stat--green .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--green .dashboard-titlebar-stat-sub {
+    color: #2e7d32;
+  }
+
+  .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-sub {
+    color: #f57f17;
+  }
+
+  .dashboard-titlebar-stat--props .dashboard-titlebar-stat-line {
+    color: #4a148c;
+  }
+
+  .dashboard-titlebar-stat--props .dashboard-titlebar-prop-label {
+    color: #6a1b9a;
+  }
+
+  .dashboard-titlebar-stat--props .dashboard-titlebar-prop-value {
+    color: #111;
+  }
+
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-sub {
+    color: #e65100;
+  }
+
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-commission-agent {
+    color: #e65100;
+  }
+
+  .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--green .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--props .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-line {
+    font-size: calc(11px + 0.5pt);
+  }
+}
+
+.commission-tile-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.commission-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: #333;
+}
+
+.commission-breakdown-row + .commission-breakdown-row {
+  margin-top: 4px;
+}
+
+.commission-breakdown-agent {
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.commission-breakdown-amount {
+  text-align: right;
+  font-weight: 500;
+}
+
+.commission-toggle-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .dashboard-main-titlebar .dashboard-titlebar-welcome-next-title {
+    margin-left: var(--dashboard-titlebar-line-inset);
+    padding-left: var(--dashboard-titlebar-line-inset);
+    max-width: 42vw;
+  }
+
+  .dashboard-main-titlebar .dashboard-titlebar-date-block {
+    max-width: 9rem;
+  }
 }

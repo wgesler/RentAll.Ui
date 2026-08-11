@@ -42,7 +42,7 @@ const OUTSIDE_ROLES: UserGroups[] = [
 const ROUTER_TOKEN = {
   Auth: 'auth',
   Dashboard: 'dashboard',
-  DashboardService: 'dashboard-service',
+  DashboardStaff: 'dashboard-staff',
   DashboardOwner: 'dashboard-owner',
   ReservationBoard: 'boards',
   ReservationList: 'reservations',
@@ -158,7 +158,7 @@ const noAccess: AccessRule = {
 
 //#region Segment and Nav Definitions
 const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
-  ROUTER_TOKEN.DashboardService,
+  ROUTER_TOKEN.DashboardStaff,
   ROUTER_TOKEN.MaintenanceList,
   'work-order',
   ROUTER_TOKEN.WorkOrderCreate,
@@ -205,7 +205,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
 ];
 
 export const SERVICE_PROVIDERS_NAV_ITEMS: NavItemDefinition[] = [
-  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.DashboardService, ...openToAllExceptSuperAdmin }
+  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.DashboardStaff, ...openToAllExceptSuperAdmin }
 ];
 
 export const NAV_ITEMS_BY_GROUP = {
@@ -218,7 +218,7 @@ export const NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
 
 const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.Dashboard]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.DashboardService]: openToAllExceptSuperAdmin,
+  [ROUTER_TOKEN.DashboardStaff]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.ReservationBoard]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.ReservationList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.PropertyList]: openToAllExceptSuperAdmin,
@@ -451,7 +451,7 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
 
 export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
   if (isInspectorOnlyUser(userGroups)) {
-    return `/${ROUTER_TOKEN.Auth}/${ROUTER_TOKEN.DashboardService}`;
+    return `/${ROUTER_TOKEN.Auth}/${ROUTER_TOKEN.DashboardStaff}`;
   }
   const firstVisibleItem = getVisibleNavItems(userGroups)[0];
   const token = firstVisibleItem?.url || ROUTER_TOKEN.Dashboard;

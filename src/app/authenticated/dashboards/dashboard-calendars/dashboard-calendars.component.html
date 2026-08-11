@@ -1,0 +1,167 @@
+<div
+  class="dashboard-panel-content dbg-band-main calendars-panel-content"
+  [class.calendars-panel-content--calendars-only]="showCalendarsSection && !showMaidServiceTable"
+  [class.calendars-panel-content--table-only]="!showCalendarsSection && showMaidServiceTable">
+  <div class="property-tab-main-area">
+    @if (showCalendarsSection) {
+    <section class="calendars-at-a-glance" aria-label="Calendars">
+      <div class="calendars-at-a-glance-body">
+        <div class="calendars-at-a-glance-left">
+          <div class="calendars-at-a-glance-main">
+            <div class="dashboard-staff-schedule-calendars">
+              <div class="dashboard-staff-schedule-calendars-layout">
+                @for (month of scheduleCalendarMonths; track month.title) {
+                  <div class="dashboard-staff-schedule-calendar">
+                    <h3 class="dashboard-staff-schedule-calendar-title">
+                      <mat-icon class="dashboard-staff-schedule-calendar-title-icon">calendar_month</mat-icon>
+                      <span>{{ month.title }}</span>
+                    </h3>
+                    <div class="dashboard-staff-schedule-calendar-body">
+                      <div class="dashboard-staff-schedule-calendar-weekdays" role="row">
+                        @for (wd of scheduleCalendarWeekdayLabels; track wd) {
+                          <span class="dashboard-staff-schedule-calendar-weekday">{{ wd }}</span>
+                        }
+                      </div>
+                      <div class="dashboard-staff-schedule-calendar-grid" role="grid">
+                        @for (cell of month.cells; track $index) {
+                          <button
+                            type="button"
+                            class="dashboard-staff-schedule-calendar-cell"
+                            [class.is-empty]="!cell.dateKey"
+                            [class.is-weekend]="cell.isWeekend"
+                            [class.is-today]="cell.isToday"
+                            [class.has-schedule]="!!cell.dateKey && scheduledDayKeys.has(cell.dateKey)"
+                            [class.has-arrival]="isArrivalDay(cell.dateKey)"
+                            [class.has-departure]="isDepartureDay(cell.dateKey)"
+                            [class.is-selected]="!!cell.dateKey && cell.dateKey === selectedScheduleCalendarDayKey"
+                            [disabled]="!cell.dateKey"
+                            (click)="onScheduleCalendarDayClick(cell.dateKey)">
+                            @if (cell.day !== null) {
+                              <span class="dashboard-staff-schedule-calendar-cell-day">{{ cell.day }}</span>
+                              @if (hasScheduleDot(cell.dateKey)) {
+                                <span
+                                  class="dashboard-staff-schedule-calendar-dot"
+                                  [ngClass]="getScheduleDotClass(cell.dateKey)"
+                                  [ngStyle]="getScheduleDotStyle(cell.dateKey)"
+                                  aria-hidden="true"></span>
+                              }
+                            }
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="calendar-dot-key" aria-label="Calendar legend">
+            <span class="calendar-dot-key-item">
+              <span class="calendar-shade-key shade-arrival" aria-hidden="true"></span>
+              <span>Arrival</span>
+            </span>
+            <span class="calendar-dot-key-item">
+              <span class="calendar-shade-key shade-departure" aria-hidden="true"></span>
+              <span>Departure</span>
+            </span>
+            <span class="calendar-dot-key-item">
+              <span class="dashboard-staff-schedule-calendar-dot dot-blue" aria-hidden="true"></span>
+              <span>Cleaning</span>
+            </span>
+            <span class="calendar-dot-key-item">
+              <span class="dashboard-staff-schedule-calendar-dot dot-green" aria-hidden="true"></span>
+              <span>Carpet</span>
+            </span>
+            <span class="calendar-dot-key-item">
+              <span class="dashboard-staff-schedule-calendar-dot dot-purple" aria-hidden="true"></span>
+              <span>Inspection</span>
+            </span>
+            <span class="calendar-dot-key-item">
+              <span class="dashboard-staff-schedule-calendar-dot dot-pink" aria-hidden="true"></span>
+              <span>Maid Service</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="calendars-at-a-glance-divider" aria-hidden="true"></div>
+
+        <div class="calendars-at-a-glance-aside">
+          @if (selectedScheduleCalendarDayKey) {
+            <aside class="calendar-day-detail" aria-label="Selected day details">
+              <h3 class="calendar-day-detail-title">{{ selectedDayLabel }}</h3>
+              @if (!snapshot.isReady) {
+                <div class="calendar-day-detail-loading">
+                  <mat-spinner [diameter]="28"></mat-spinner>
+                  <p>Loading events…</p>
+                </div>
+              } @else if (selectedDayEvents.length > 0) {
+                <div class="calendar-day-detail-scroller" aria-label="Day events">
+                  @for (page of selectedDayEventPages; track $index) {
+                    <ul class="calendar-day-detail-page">
+                      @for (item of page; track item.eventKind + '-' + (item.maintenanceId || item.reservationId || item.propertyId || item.propertyCode) + '-' + item.eventLabel) {
+                        <li
+                          class="calendar-day-detail-item"
+                          [attr.data-event-kind]="item.eventKind"
+                          role="button"
+                          tabindex="0"
+                          (click)="onDayEventClick(item)"
+                          (keydown.enter)="onDayEventClick(item)"
+                          (keydown.space)="$event.preventDefault(); onDayEventClick(item)">
+                          <div class="calendar-day-detail-event">{{ item.eventLabel }}</div>
+                          <div class="calendar-day-detail-row"><span>Property</span><strong>{{ item.propertyCode }}</strong></div>
+                          <div class="calendar-day-detail-row"><span>Reservation</span><strong>{{ item.reservationCode }}</strong></div>
+                          <div class="calendar-day-detail-row"><span>Contact</span><strong>{{ item.contactName }}</strong></div>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              } @else {
+                <p class="calendar-day-detail-empty">No events for this day.</p>
+              }
+            </aside>
+          } @else {
+            <div class="calendar-day-detail calendar-day-detail--placeholder" aria-hidden="true"></div>
+          }
+        </div>
+      </div>
+    </section>
+    }
+
+    @if (showMaidServiceTable) {
+      <div class="tableDiv maid-service-table">
+        @if (!snapshot.isReady) {
+          <div class="loading-container">
+            <mat-spinner [diameter]="32"></mat-spinner>
+            <p>Loading maid service…</p>
+          </div>
+        } @else {
+          <app-data-table
+            [data]="maidDisplayRows"
+            [columns]="maintenanceColumns"
+            [subheaderLabel]="''"
+            [hasColumnIndex]="true"
+            [hasFilter]="true"
+            [hasToggleTop]="false"
+            [hasButtonTop]="false"
+            [hasActionsRowClick]="false"
+            [hasPropertyCodeLink]="true"
+            [hasActionsEdit]="true"
+            [hasActionsInspect]="true"
+            [itemsPerPage]="50"
+            (dropdownChangeEvent)="onMaintenanceDropdownChange($event)"
+            (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
+            (editEvent)="goToPropertyMaintenance($event)"
+            (inspectEvent)="goToInspection($event)"
+            (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+            (contactClickEvent)="goToContact($event)">
+            <div dataTableFilterActions>
+              <span class="filter-row-title">Maid Service Properties</span>
+            </div>
+          </app-data-table>
+        }
+      </div>
+    }
+  </div>
+</div>

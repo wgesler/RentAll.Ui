@@ -276,13 +276,13 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   margin-top: 0 !important;
 }
 
-/* Dashboard shell tabs: same button-band spacer + accordion inset as property-shell. */
-.shell-tabs .dashboard-tab-content {
+/* Dashboard shell panels: same button-band spacer + accordion inset as property-shell. */
+.shell-tabs .dashboard-panel-content {
   padding: 0 0 24px;
   box-sizing: border-box;
 }
 
-.shell-tabs .dashboard-tab-content > .property-tab-main-area {
+.shell-tabs .dashboard-panel-content > .property-tab-main-area {
   padding-left: var(--global-page-inner-padding);
   padding-right: var(--global-page-inner-padding);
   box-sizing: border-box;

@@ -1,0 +1,41 @@
+@if (!snapshot.isReady) {
+  <div class="loading-container dbg-band-main">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading…</p>
+  </div>
+} @else {
+  <div class="dashboard-panel-content dbg-band-main">
+    <div class="property-tab-actions-band" aria-hidden="true">
+      <div class="property-tab-actions-band__row"></div>
+    </div>
+    <div class="property-tab-main-area">
+      <div class="tableDiv">
+        @if (showMissingAgentMessage) {
+          <p class="dashboard-tab-empty">No agent is assigned to this user.</p>
+        } @else {
+          <app-data-table
+            [data]="commissionRows"
+            [columns]="commissionColumns"
+            [subheaderLabel]="''"
+            [hasColumnIndex]="true"
+            [hasFilter]="true"
+            [hasToggleTop]="false"
+            [hasButtonTop]="false"
+            [hasActionsRowClick]="true"
+            [hasActionsEdit]="true"
+            [hasActionsDelete]="false"
+            [hasPropertyCodeLink]="true"
+            [itemsPerPage]="50"
+            (editEvent)="goToReservation($event)"
+            (rowClickEvent)="goToReservation($event)"
+            (propertyCodeClickEvent)="goToProperty($event)"
+            (contactClickEvent)="goToContact($event)">
+            <div dataTableFilterActions>
+              <span class="filter-row-title">{{ titleLabel }}</span>
+            </div>
+          </app-data-table>
+        }
+      </div>
+    </div>
+  </div>
+}

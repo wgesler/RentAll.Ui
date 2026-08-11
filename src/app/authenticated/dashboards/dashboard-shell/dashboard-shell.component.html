@@ -1,10 +1,173 @@
-<app-dashboard-company-data-host />
+<app-dashboard-company-data />
 
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
-    <app-dashboard-main [titleBarOnly]="true" />
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg property-titlebar dbg-band-actions dashboard-main-titlebar">
+      <div class="flex items-center flex-wrap min-w-0 flex-1 dashboard-titlebar-inner">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">dashboard</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Dashboard</span>
+        </span>
+        <div class="dashboard-titlebar-welcome-next-title">
+          <div class="dashboard-titlebar-welcome-row">
+            @if (profilePictureUrl) {
+              <img [src]="profilePictureUrl" alt="" class="dashboard-titlebar-avatar" />
+            } @else {
+              <mat-icon class="dashboard-titlebar-avatar-icon">person</mat-icon>
+            }
+            <div class="dashboard-titlebar-welcome-text">
+              <span class="dashboard-titlebar-welcome-label">Welcome</span>
+              <span class="dashboard-titlebar-user-name">{{ getFullName() }}</span>
+            </div>
+          </div>
+        </div>
+        @if (titleBarShowOfficeDropdown) {
+          <div class="dashboard-titlebar-office header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="titleBarSelectedOfficeId"
+              [options]="titleBarOfficeOptions"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onTitleBarOfficeChange($event)">
+            </app-title-bar-select>
+          </div>
+        }
+        <div class="dashboard-titlebar-stats">
+          <div class="dashboard-titlebar-date-cluster">
+            <div class="dashboard-titlebar-date-block">
+              <p class="dashboard-titlebar-date">{{ todayDate }}</p>
+            </div>
+            <div class="dashboard-titlebar-stats-divider" aria-hidden="true"></div>
+          </div>
+
+          <div class="dashboard-titlebar-stat-tiles">
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--blue">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
+                <span class="dashboard-titlebar-stat-sub">Today</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ todayArriveDepartCount }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--pink">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
+                <span class="dashboard-titlebar-stat-sub">Tomorrow</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ tomorrowArriveDepartCount }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stats-divider dashboard-titlebar-stat-tiles-divider" aria-hidden="true"></div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--green">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">On/Offline</span>
+                <span class="dashboard-titlebar-stat-sub">Today</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ getOnlineOfflineTodayCount() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--yellow">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">On/Offline</span>
+                <span class="dashboard-titlebar-stat-sub">Tomorrow</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ getOnlineOfflineTomorrowCount() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stats-divider dashboard-titlebar-stat-tiles-divider" aria-hidden="true"></div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--props">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
+                <span class="dashboard-titlebar-stat-line">Properties</span>
+              </h4>
+              @if (!isPageReady) {
+                <div class="dashboard-titlebar-spinner">
+                  <mat-spinner [diameter]="16"></mat-spinner>
+                </div>
+              } @else {
+                <div class="dashboard-titlebar-prop-stats dashboard-titlebar-prop-stats--stacked">
+                  <div class="dashboard-titlebar-prop-row">
+                    <span class="dashboard-titlebar-prop-label">Occupied</span>
+                    <span class="dashboard-titlebar-prop-value">{{ rentedCount }}</span>
+                  </div>
+                  <div class="dashboard-titlebar-prop-row">
+                    <span class="dashboard-titlebar-prop-label">Vacant</span>
+                    <span class="dashboard-titlebar-prop-value">{{ vacantCount }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (showCommissionsUi) {
+            <div
+              class="dashboard-titlebar-stat dashboard-titlebar-stat--commissions"
+              [class.commission-tile-clickable]="canViewAllCommissions && getMonthlyCommissionTotal() > 0"
+              (mousedown)="onCommissionPreviewMouseDown($event)"
+              (touchstart)="onCommissionPreviewTouchStart($event)">
+              <div class="dashboard-titlebar-stat-body">
+                <h4 class="dashboard-titlebar-stat-heading">
+                  <span class="dashboard-titlebar-stat-line">Commissions</span>
+                  <span class="dashboard-titlebar-stat-sub">{{ getCurrentMonthDisplay() }}</span>
+                </h4>
+                <div class="dashboard-titlebar-commission-row">
+                  <span class="dashboard-titlebar-commission-agent">{{ currentUserAgentCode || 'N/A' }}</span>
+                  <button
+                    type="button"
+                    class="commission-toggle-button dashboard-titlebar-commission-amt"
+                    [attr.aria-label]="'Press and hold to show monthly commission total and agent breakdown'"
+                    title="Press and hold to show amount and breakdown">
+                    {{ getCommissionAmountDisplay(getMonthlyCommissionTotal()) }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+          </div>
+        </div>
+      </div>
+      @if (showCommissionsUi && canViewAllCommissions && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
+        <div class="commission-breakdown-popover commission-breakdown-popover--under-titlebar">
+          @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
+            <div class="commission-breakdown-row">
+              <span class="commission-breakdown-agent">{{ row.agentCode }}</span>
+              <span class="commission-breakdown-amount">{{ formatUsd(row.amount) }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
 
     <mat-card>
+      <!-- One shared calendars instance above every tab so it never remounts/jumps. -->
+      <div class="dashboard-shell-calendars dbg-band-main">
+        <app-dashboard-calendars [showMaidServiceTable]="false" />
+      </div>
+
       <mat-tab-group
         [selectedIndex]="selectedTabIndex"
         [animationDuration]="'0ms'"
@@ -12,29 +175,46 @@
         (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Arrivals">
           @if (selectedTabIndex === 0) {
-            <app-dashboard-arrivals-tab />
+            <app-dashboard-arrivals />
           }
         </mat-tab>
         <mat-tab label="Departures">
           @if (selectedTabIndex === 1) {
-            <app-dashboard-departures-tab />
+            <app-dashboard-departures />
           }
         </mat-tab>
         <mat-tab label="Online">
           @if (selectedTabIndex === 2) {
-            <app-dashboard-online-tab />
+            <app-dashboard-online />
           }
         </mat-tab>
         <mat-tab label="Offline">
           @if (selectedTabIndex === 3) {
-            <app-dashboard-offline-tab />
+            <app-dashboard-offline />
           }
         </mat-tab>
-        <mat-tab label="Cleaning">
+        <mat-tab label="Occupied">
           @if (selectedTabIndex === 4) {
-            <app-dashboard-cleaning-tab />
+            <app-dashboard-in-process />
           }
         </mat-tab>
+        <mat-tab label="Vacant">
+          @if (selectedTabIndex === 5) {
+            <app-dashboard-vacant />
+          }
+        </mat-tab>
+        <mat-tab label="Maid Service">
+          @if (selectedTabIndex === 6) {
+            <app-dashboard-calendars [showCalendarsSection]="false" />
+          }
+        </mat-tab>
+        @if (canViewCommissions) {
+          <mat-tab label="Commissions">
+            @if (selectedTabIndex === 7) {
+              <app-dashboard-commissions />
+            }
+          </mat-tab>
+        }
       </mat-tab-group>
     </mat-card>
   </section>

@@ -1,0 +1,192 @@
+@use './maintenance-table-inline';
+
+.dashboard-tab-empty {
+  margin: 0;
+  padding: 4px 0;
+  color: #707070;
+}
+
+.orphans-table {
+  margin-top: 1.25rem;
+}
+
+.filter-row-title {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/*
+ * Nested line: left indent, leave clear space before parent Actions (not full width).
+ */
+.maintenance-detail-wrapper {
+  margin: 0 140px 0 24px;
+  padding: 8px 12px 6px 16px;
+  background-color: #f9f9f9;
+  border-left: 2px solid #e0e0e0;
+  box-sizing: border-box;
+  width: calc(100% - 164px);
+  max-width: calc(100% - 164px);
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+:host ::ng-deep .datatable-detail-row,
+:host ::ng-deep .datatable-detail-row td {
+  padding: 0 !important;
+  vertical-align: top;
+  background-color: #f9f9f9;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
+:host ::ng-deep .turnover-outer-table .is-scrollable,
+:host ::ng-deep .maintenance-nested-table .is-scrollable {
+  overflow-x: hidden !important;
+}
+
+:host ::ng-deep .maintenance-nested-table {
+  .datatable-main-block {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .datatable-search-wrap,
+  .datatable-paginator-wrap,
+  mat-paginator {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+    visibility: visible !important;
+  }
+
+  .mat-mdc-header-row,
+  tr[mat-header-row],
+  .mdc-data-table__header-row {
+    display: table-row !important;
+    visibility: visible !important;
+    height: 28px !important;
+    min-height: 28px !important;
+  }
+
+  .mat-mdc-header-cell,
+  th.mat-header-cell {
+    display: table-cell !important;
+    visibility: visible !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .mat-mdc-row,
+  .mat-row,
+  .mdc-data-table__row {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .is-scrollable {
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    min-height: 0 !important;
+  }
+
+  table.data-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .mat-mdc-header-cell,
+  .mat-mdc-cell,
+  th.mat-header-cell,
+  td.mat-cell {
+    min-width: 0 !important;
+  }
+
+  td.mat-column-propertyCode,
+  th.mat-column-propertyCode {
+    width: 8% !important;
+    padding-right: 2px !important;
+  }
+
+  td.mat-column-eventDate,
+  th.mat-column-eventDate {
+    width: 8% !important;
+    padding-left: 2px !important;
+    padding-right: 4px !important;
+  }
+
+  td.mat-column-hasPets,
+  th.mat-column-hasPets {
+    width: 5% !important;
+  }
+
+  td.mat-column-cleaningDate,
+  th.mat-column-cleaningDate,
+  td.mat-column-carpetDate,
+  th.mat-column-carpetDate,
+  td.mat-column-inspectingDate,
+  th.mat-column-inspectingDate {
+    width: 10% !important;
+  }
+
+  td.mat-column-cleaner,
+  td.mat-column-carpet,
+  td.mat-column-inspector,
+  th.mat-column-cleaner,
+  th.mat-column-carpet,
+  th.mat-column-inspector {
+    width: 13% !important;
+    overflow: visible !important;
+  }
+
+  td.mat-column-cleaner .datatable-dropdown-trigger,
+  td.mat-column-carpet .datatable-dropdown-trigger,
+  td.mat-column-inspector .datatable-dropdown-trigger,
+  td.mat-column-cleaner .datatable-multiselect-wrapper,
+  td.mat-column-carpet .datatable-multiselect-wrapper,
+  td.mat-column-inspector .datatable-multiselect-wrapper {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  td.mat-column-cleaner .mat-mdc-select,
+  td.mat-column-carpet .mat-mdc-select,
+  td.mat-column-inspector .mat-mdc-select {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  td.mat-column-cleaner .mat-mdc-select-arrow-wrapper,
+  td.mat-column-carpet .mat-mdc-select-arrow-wrapper,
+  td.mat-column-inspector .mat-mdc-select-arrow-wrapper {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex-shrink: 0 !important;
+  }
+
+  td.mat-column-cleaner .mat-mdc-select-trigger,
+  td.mat-column-carpet .mat-mdc-select-trigger,
+  td.mat-column-inspector .mat-mdc-select-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+}

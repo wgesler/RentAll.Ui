@@ -286,7 +286,7 @@ export class AuthService {
                     return RouterUrl.DashboardOwner;
                 }
                 if (isServiceProvider(userGroups)) {
-                    return RouterUrl.DashboardService;
+                    return RouterUrl.DashboardStaff;
                 }
                 return RouterUrl.Dashboard;
             case StartupPage.Boards:

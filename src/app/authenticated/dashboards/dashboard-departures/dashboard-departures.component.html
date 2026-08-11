@@ -1,0 +1,101 @@
+<ng-template #maintenanceDetailTemplate let-row>
+  <div class="detail-lines-wrapper maintenance-detail-wrapper">
+    @if (row?.maintenanceRows?.length > 0) {
+      <app-data-table
+        class="maintenance-nested-table"
+        [data]="row.maintenanceRows"
+        [columns]="maintenanceColumns"
+        [subheaderLabel]="''"
+        [hasColumnIndex]="false"
+        [hasFilter]="false"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="false"
+        [hasPropertyCodeLink]="true"
+        [hasActionsEdit]="false"
+        [hasActionsInspect]="false"
+        [dbgBandMainBelowFilter]="false"
+        [itemsPerPage]="100"
+        (dropdownChangeEvent)="onMaintenanceDropdownChange($event)"
+        (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
+        (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+        (contactClickEvent)="goToContact($event)"/>
+    } @else {
+      <p class="dashboard-tab-empty">No maintenance for this reservation.</p>
+    }
+  </div>
+</ng-template>
+
+@if (!snapshot.isReady) {
+  <div class="loading-container dbg-band-main">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading…</p>
+  </div>
+} @else {
+  <div class="dashboard-panel-content dbg-band-main">
+    <div class="property-tab-actions-band" aria-hidden="true">
+      <div class="property-tab-actions-band__row"></div>
+    </div>
+    <div class="property-tab-main-area">
+      <div class="tableDiv">
+        <app-data-table
+          class="turnover-outer-table"
+          [data]="turnoverDisplayRows"
+          [columns]="checklistColumns"
+          [subheaderLabel]="''"
+          [hasColumnIndex]="true"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsCheckAll]="true"
+          [hasActionsClearTracking]="true"
+          [hasActionsDelete]="false"
+          [hasPropertyCodeLink]="true"
+          [hasDetailRow]="true"
+          [detailRowTemplate]="maintenanceDetailTemplate"
+          [includeDetailRowHeader]="false"
+          [expandAllCallback]="toggleExpandAll.bind(this)"
+          [isAllExpanded]="isAllExpanded"
+          [itemsPerPage]="100"
+          (editEvent)="onChecklistRowNavigate($event)"
+          (rowClickEvent)="onChecklistRowNavigate($event)"
+          (propertyCodeClickEvent)="goToProperty($event)"
+          (contactClickEvent)="onChecklistContactNavigate($event)"
+          (checkAllEvent)="onChecklistCheckAll($event)"
+          (clearTrackingEvent)="onChecklistClearTracking($event)"
+          (dropdownChangeEvent)="onChecklistDropdownChange($event)"
+          (checkboxChangeEvent)="onChecklistCheckboxChange($event)">
+          <div dataTableFilterActions>
+            <span class="filter-row-title">Upcoming Departures (Current & Next Month)</span>
+          </div>
+        </app-data-table>
+      </div>
+
+      @if (orphanMaintenanceRows.length > 0) {
+        <div class="tableDiv orphans-table">
+          <app-data-table
+            [data]="orphanMaintenanceRows"
+            [columns]="maintenanceColumns"
+            [subheaderLabel]="'Maintenance (Unmatched)'"
+            [hasColumnIndex]="true"
+            [hasFilter]="false"
+            [hasToggleTop]="false"
+            [hasButtonTop]="false"
+            [hasActionsRowClick]="false"
+            [hasPropertyCodeLink]="true"
+            [hasActionsEdit]="true"
+            [hasActionsInspect]="true"
+            [itemsPerPage]="10"
+            (dropdownChangeEvent)="onMaintenanceDropdownChange($event)"
+            (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
+            (editEvent)="goToPropertyMaintenance($event)"
+            (inspectEvent)="goToInspection($event)"
+            (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+            (contactClickEvent)="goToContact($event)"/>
+        </div>
+      }
+    </div>
+  </div>
+}

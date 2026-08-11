@@ -13,9 +13,9 @@ Open the actual code (and templates/styles where relevant). Do not infer behavio
 | Mixed types | `src/app/authenticated/shared/models/mixed-models.ts` |
 | Cross-domain mapping | `src/app/services/mixed-mapping.service.ts` |
 | Shared dashboard data pipeline | `src/app/authenticated/shared/base-classes/property-maintenance.base.ts` |
-| Service staff dashboard (extends base) | `src/app/authenticated/dashboards/dashboard-service/dashboard-service.component.ts`, `.html`, `.scss` |
-| Main / agent dashboard (does **not** extend base) | `src/app/authenticated/dashboards/dashboard-main/dashboard-main.component.ts`, `.html`, `.scss` |
-| Maintenance grid (does **not** extend base) | `src/app/authenticated/maintenance/maintenance-list/maintenance-list.component.ts`, `.html`, `.scss` |
+| Staff dashboard (extends base) | `src/app/authenticated/dashboards/dashboard-staff/dashboard-staff.component.ts`, `.html`, `.scss` |
+| Company dashboard shell (title bar + tabs) | `src/app/authenticated/dashboards/dashboard-shell/dashboard-shell.component.ts`, `.html`, `.scss` |
+| Company dashboard data (extends base) | `src/app/authenticated/dashboards/dashboard-company-data/dashboard-company-data.component.ts` |
 | Project rules for agents | `.cursor/rules/*.mdc` |
 | Editor defaults | `.editorconfig` |
 
@@ -23,7 +23,7 @@ Open the actual code (and templates/styles where relevant). Do not infer behavio
 
 ## Mixed models and `MixedMappingService` (contract)
 
-- **Types** live in **`mixed-models.ts`**. **Cross-domain mapping** (property + maintenance + reservation shapes, maintenance list rows, service-dashboard schedule rows, etc.) lives in **`MixedMappingService`**, with **`MappingService`**, **`FormatterService`**, and **`UtilityService`** used where appropriate—not reimplemented in components.
+- **Types** live in **`mixed-models.ts`**. **Cross-domain mapping** (property + maintenance + reservation shapes, maintenance list rows, staff-dashboard schedule rows, etc.) lives in **`MixedMappingService`**, with **`MappingService`**, **`FormatterService`**, and **`UtilityService`** used where appropriate—not reimplemented in components.
 
 **After mapping, trust the rows:**
 
@@ -39,11 +39,11 @@ Open the actual code (and templates/styles where relevant). Do not infer behavio
 
 - **`PropertyMaintenanceBase`** is an **`@Directive()`** base class: shared loads (offices, active reservations, property + maintenance → mixed lists), **`recomputeDashboardData`**, fifteen-day ordinal windowing, derived slices (offline/online, arrivals/departures, cleanings path), today/tomorrow counts. Subclasses own a concrete **`itemsToLoad$`** initial `Set`; base loaders **`removeLoadItemFromSet`** in **`finalize`** for their keys. Override **`onAfterRecomputeDashboardData`** for UI-specific follow-up after recompute.
 
-- **`DashboardServiceComponent`** is currently the **only** `extends PropertyMaintenanceBase` usage (verify with repo search). It passes services through **`super(...)`**, adds **`UserService`**, overrides **`ngOnInit`** / **`ngOnDestroy`** (child work first, then **`super`**), and supplies **`itemsToLoad$`** keys such as **`currentUser`** plus the base keys.
+- **`DashboardCompanyDataComponent`** and **`DashboardStaffComponent`** (and related) extend **`PropertyMaintenanceBase`** (verify with repo search). The company dashboard data component loads/recomputes/publishes; panel components display from `DashboardCompanyDataService`.
 
-- **`DashboardMainComponent`** and **`MaintenanceListComponent`** are **separate** features: they **do not** extend **`PropertyMaintenanceBase`** today. They still use **`mixed-models`** / **`MixedMappingService`** where their screens need joined data—**read those components** for exact flows.
+- **`DashboardShellComponent`** owns the company dashboard title bar and tabs; it reads KPIs from `DashboardCompanyDataService`.
 
-If another screen needs the **same** reservation + property + maintenance pipeline as the service dashboard, **extend the base or move shared logic into it** instead of copying loaders.
+If another screen needs the **same** reservation + property + maintenance pipeline, **extend the base or move shared logic into it** instead of copying loaders.
 
 ---
 
