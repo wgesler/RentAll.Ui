@@ -41,14 +41,14 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(focus => {
       if (focus?.tabIndex !== 2) {
         return;
       }
       this.rebuildTurnoverDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
       this.companyDataService.scrollDashboardActiveRowIntoView();
     });
   }
@@ -124,7 +124,7 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
             this.expandedPropertyKeys.add(key);
           }
           this.rebuildTurnoverDisplayRows();
-          this.cdr.markForCheck();
+          this.markViewForCheck();
         }
       };
     });
@@ -155,7 +155,7 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
       }
     }
     this.rebuildTurnoverDisplayRows();
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
 
   updateIsAllExpanded(): void {
@@ -167,6 +167,16 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
     return String(value || '').trim().toLowerCase();
   }
 
+  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
+    this.companyDataService.onMaintenanceDropdownChange(event);
+  }
+
+  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
+    this.companyDataService.onMaintenanceInlineDateChange(event);
+  }
+  //#endregion
+
+  //#region Navigate From Calendar
   goToProperty(event: { propertyId: string }): void {
     if (event?.propertyId) {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
@@ -193,13 +203,11 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     }
   }
+  //#endregion
 
-  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
-    this.companyDataService.onMaintenanceDropdownChange(event);
-  }
-
-  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
-    this.companyDataService.onMaintenanceInlineDateChange(event);
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

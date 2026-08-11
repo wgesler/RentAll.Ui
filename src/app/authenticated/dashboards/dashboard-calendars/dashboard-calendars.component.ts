@@ -43,9 +43,7 @@ type CalendarDayEvent = {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardCalendarsComponent implements OnInit, OnDestroy {
-  /** When false, hide months/legend/day-detail (maid table can still show). */
   @Input() showCalendarsSection = true;
-  /** When false, only the at-a-glance calendars render (no maid-service table). */
   @Input() showMaidServiceTable = true;
 
   private companyDataService = inject(DashboardCompanyDataService);
@@ -66,7 +64,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   selectedScheduleCalendarDayKey: string | null = null;
   selectedDayEvents: CalendarDayEvent[] = [];
   selectedDayLabel = '';
-  private readonly dayEventsPerPage = 4;
+  dayEventsPerPage = 4;
 
   //#region Dashboard-Calendars
   ngOnInit(): void {
@@ -78,12 +76,12 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
         this.refreshScheduleCalendars();
         this.syncMaidDisplayRows();
       } finally {
-        this.cdr.markForCheck();
+        this.markViewForCheck();
       }
     });
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncMaidDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
       if (this.showMaidServiceTable && this.companyDataService.calendarFocus?.tabIndex === 6) {
         this.companyDataService.scrollDashboardActiveRowIntoView();
       }
@@ -91,12 +89,11 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   get maintenanceColumns(): ColumnSet {
     return this.snapshot.maidMaintenanceColumns;
   }
 
-  /** Pages of up to 4 events (2×2); horizontal scroll moves to the next page. */
   get selectedDayEventPages(): CalendarDayEvent[][] {
     const pages: CalendarDayEvent[][] = [];
     for (let i = 0; i < this.selectedDayEvents.length; i += this.dayEventsPerPage) {
@@ -326,7 +323,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
       this.companyDataService.clearCalendarFocus();
     }
     this.syncMaidDisplayRows();
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
 
   onDayEventClick(item: CalendarDayEvent): void {
@@ -516,6 +513,16 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
     });
   }
 
+  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
+    this.companyDataService.onMaintenanceDropdownChange(event);
+  }
+
+  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
+    this.companyDataService.onMaintenanceInlineDateChange(event);
+  }
+  //#endregion
+
+  //#region Navigate From Calendar
   goToContact(event: MaintenanceListDisplay): void {
     if (event?.owner1Id) {
       this.router.navigate(
@@ -536,13 +543,11 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     }
   }
+  //#endregion
 
-  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
-    this.companyDataService.onMaintenanceDropdownChange(event);
-  }
-
-  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
-    this.companyDataService.onMaintenanceInlineDateChange(event);
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

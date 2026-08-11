@@ -92,7 +92,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
       this.currentUserAgentCode = snapshot.currentUserAgentCode;
       this.monthlyCommissions = snapshot.monthlyCommissionRows || [];
       this.isPageReady = snapshot.isReady;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
 
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(focus => {
@@ -101,7 +101,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
       }
       // Always apply so Material tab selection stays in sync with calendar focus.
       this.selectedTabIndex = focus.tabIndex;
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
   }
 
@@ -167,13 +167,13 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
 
   loadCurrentUser(userId: string | undefined): void {
     if (!userId?.trim()) {
-      this.cdr.markForCheck();
+      this.markViewForCheck();
       return;
     }
 
     this.userService.getUserByGuid(userId).pipe(
       take(1),
-      finalize(() => this.cdr.markForCheck())
+      finalize(() => this.markViewForCheck())
     ).subscribe({
       next: (userResponse: UserResponse) => {
         this.applyUserProfilePicture(userResponse);
@@ -198,7 +198,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   onDocumentMouseup(): void {
     setTimeout(() => {
       this.endCommissionPreview();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
   }
 
@@ -206,7 +206,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   onDocumentTouchend(): void {
     setTimeout(() => {
       this.endCommissionPreview();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
   }
   //#endregion
@@ -272,6 +272,10 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

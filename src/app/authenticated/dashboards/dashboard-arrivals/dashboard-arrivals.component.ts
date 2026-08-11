@@ -41,20 +41,42 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(focus => {
       if (focus?.tabIndex !== 0) {
         return;
       }
       this.rebuildTurnoverDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
       this.companyDataService.scrollDashboardActiveRowIntoView();
     });
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Toggle Rows
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    this.expandedReservationKeys.clear();
+    if (expanded) {
+      for (const row of this.turnoverDisplayRows) {
+        const key = (row.expand || '').trim();
+        if (key) {
+          this.expandedReservationKeys.add(key);
+        }
+      }
+    }
+    this.rebuildTurnoverDisplayRows();
+    this.markViewForCheck();
+  }
+
+  updateIsAllExpanded(): void {
+    const keys = this.turnoverDisplayRows.map(row => (row.expand || '').trim()).filter(key => key !== '');
+    this.isAllExpanded = keys.length > 0 && keys.every(key => this.expandedReservationKeys.has(key));
+  }
+  //#endregion
+
+  //#region Form Response
   get checklistColumns(): ColumnSet {
     return {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
@@ -144,7 +166,7 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
             this.expandedReservationKeys.add(key);
           }
           this.rebuildTurnoverDisplayRows();
-          this.cdr.markForCheck();
+          this.markViewForCheck();
         }
       };
     });
@@ -161,26 +183,6 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
         )
       }));
     this.updateIsAllExpanded();
-  }
-
-  toggleExpandAll(expanded: boolean): void {
-    this.isAllExpanded = expanded;
-    this.expandedReservationKeys.clear();
-    if (expanded) {
-      for (const row of this.turnoverDisplayRows) {
-        const key = (row.expand || '').trim();
-        if (key) {
-          this.expandedReservationKeys.add(key);
-        }
-      }
-    }
-    this.rebuildTurnoverDisplayRows();
-    this.cdr.markForCheck();
-  }
-
-  updateIsAllExpanded(): void {
-    const keys = this.turnoverDisplayRows.map(row => (row.expand || '').trim()).filter(key => key !== '');
-    this.isAllExpanded = keys.length > 0 && keys.every(key => this.expandedReservationKeys.has(key));
   }
 
   normalizeKey(value: string | null | undefined): string {
@@ -213,12 +215,6 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
     this.companyDataService.onReservationClearTracking(row, 'arrival');
   }
 
-  goToProperty(event: { propertyId: string }): void {
-    if (event?.propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-    }
-  }
-
   onChecklistContactNavigate(row: ReservationTurnoverEventDisplay): void {
     if (!row.contactId?.trim()) {
       return;
@@ -227,6 +223,22 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
       [RouterUrl.replaceTokens(RouterUrl.Contact, [row.contactId])],
       { queryParams: { returnUrl: this.router.url } }
     );
+  }
+
+  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
+    this.companyDataService.onMaintenanceDropdownChange(event);
+  }
+
+  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
+    this.companyDataService.onMaintenanceInlineDateChange(event);
+  }
+  //#endregion
+
+  //#region Navigate From Calendar
+  goToProperty(event: { propertyId: string }): void {
+    if (event?.propertyId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
+    }
   }
 
   goToContact(event: MaintenanceListDisplay): void {
@@ -249,13 +261,11 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     }
   }
+  //#endregion
 
-  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
-    this.companyDataService.onMaintenanceDropdownChange(event);
-  }
-
-  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
-    this.companyDataService.onMaintenanceInlineDateChange(event);
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

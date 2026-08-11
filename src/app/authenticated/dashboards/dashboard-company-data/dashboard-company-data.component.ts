@@ -56,9 +56,9 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   adminAgents: AgentResponse[] = [];
   adminCommissionRatesByAgentCode = new Map<string, number>();
   monthlyCommissionRows: MonthlyCommissionDisplay[] = [];
-  private commissionsUsersReady = false;
-  private commissionsAgentsReady = false;
-  private commissionsCurrentUserReady = false;
+  commissionsUsersReady = false;
+  commissionsAgentsReady = false;
+  commissionsCurrentUserReady = false;
 
   trackerConfiguration: TrackerConfigurationResponse | null = null;
   reservationTrackerResponsesByReservation = new Map<string, Map<string, ReservationTrackerResponse>>();
@@ -66,10 +66,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   arrivalColumnDefinitionByOffice = new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
   departureColumnDefinitionByOffice = new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
 
-  private reservationTurnoverArrivalRows: ReservationTurnoverEventDisplay[] = [];
-  private reservationTurnoverDepartureRows: ReservationTurnoverEventDisplay[] = [];
-  private reservationTurnoverArrivalColumns: ColumnSet = {};
-  private reservationTurnoverDepartureColumns: ColumnSet = {};
+  reservationTurnoverArrivalRows: ReservationTurnoverEventDisplay[] = [];
+  reservationTurnoverDepartureRows: ReservationTurnoverEventDisplay[] = [];
+  reservationTurnoverArrivalColumns: ColumnSet = {};
+  reservationTurnoverDepartureColumns: ColumnSet = {};
 
   private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },

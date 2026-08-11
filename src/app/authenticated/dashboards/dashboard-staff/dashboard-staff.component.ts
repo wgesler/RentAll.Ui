@@ -106,11 +106,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
 
-markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
-  //#region Dashboard-Staff
+//#region Dashboard-Staff
   override ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -492,6 +488,9 @@ markViewForCheck(): void {
     });
   }
 
+  //#endregion
+
+  //#region Navigate From Calendar
   goToMaintenanceInspection(event: ReservationPropertyMaintenance): void {
     if (!event?.propertyId?.trim()) {
       return;
@@ -501,6 +500,10 @@ markViewForCheck(): void {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   override ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
     this.initLoadCompleteSubscription?.unsubscribe();

@@ -41,20 +41,20 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(focus => {
       if (focus?.tabIndex !== 1) {
         return;
       }
       this.rebuildTurnoverDisplayRows();
-      this.cdr.markForCheck();
+      this.markViewForCheck();
       this.companyDataService.scrollDashboardActiveRowIntoView();
     });
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   get checklistColumns(): ColumnSet {
     return {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
@@ -137,7 +137,7 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
             this.expandedReservationKeys.add(key);
           }
           this.rebuildTurnoverDisplayRows();
-          this.cdr.markForCheck();
+          this.markViewForCheck();
         }
       };
     });
@@ -168,7 +168,7 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
       }
     }
     this.rebuildTurnoverDisplayRows();
-    this.cdr.markForCheck();
+    this.markViewForCheck();
   }
 
   updateIsAllExpanded(): void {
@@ -206,12 +206,6 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
     this.companyDataService.onReservationClearTracking(row, 'departure');
   }
 
-  goToProperty(event: { propertyId: string }): void {
-    if (event?.propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-    }
-  }
-
   onChecklistContactNavigate(row: ReservationTurnoverEventDisplay): void {
     if (!row.contactId?.trim()) {
       return;
@@ -220,6 +214,22 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
       [RouterUrl.replaceTokens(RouterUrl.Contact, [row.contactId])],
       { queryParams: { returnUrl: this.router.url } }
     );
+  }
+
+  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
+    this.companyDataService.onMaintenanceDropdownChange(event);
+  }
+
+  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
+    this.companyDataService.onMaintenanceInlineDateChange(event);
+  }
+  //#endregion
+
+  //#region Navigate From Calendar
+  goToProperty(event: { propertyId: string }): void {
+    if (event?.propertyId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
+    }
   }
 
   goToContact(event: MaintenanceListDisplay): void {
@@ -242,13 +252,11 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     }
   }
+  //#endregion
 
-  onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
-    this.companyDataService.onMaintenanceDropdownChange(event);
-  }
-
-  onMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
-    this.companyDataService.onMaintenanceInlineDateChange(event);
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

@@ -31,12 +31,12 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.commissionRows = snapshot.monthlyCommissionRows || [];
-      this.cdr.markForCheck();
+      this.markViewForCheck();
     });
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   get commissionColumns(): ColumnSet {
     return this.snapshot.monthlyCommissionColumns || {};
   }
@@ -52,7 +52,9 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
   get showMissingAgentMessage(): boolean {
     return !this.snapshot.isAdmin && !this.snapshot.currentUserAgentId;
   }
+  //#endregion
 
+  //#region Navigate From Calendar
   goToReservation(event: MonthlyCommissionDisplay): void {
     if (!event?.reservationId) {
       if (event?.propertyId) {
@@ -81,6 +83,12 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
         { queryParams: { returnUrl: this.router.url } }
       );
     }
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

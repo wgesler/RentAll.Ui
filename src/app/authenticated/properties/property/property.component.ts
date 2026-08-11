@@ -2492,6 +2492,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
+  
   syncDescriptionEditorFromForm(): void {
     const editor = this.descriptionEditor?.nativeElement;
     if (!editor) {
