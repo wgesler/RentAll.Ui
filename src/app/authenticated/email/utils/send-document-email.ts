@@ -79,6 +79,7 @@ export async function sendDocumentEmail(
     plainTextContent: emailConfig.plainTextContent,
     htmlContent: emailConfig.htmlContent?.trim() || '',
     emailTypeId: Number(emailConfig.emailType),
+    documentTypeId: Number(emailConfig.documentType),
     fileDetails: {
       fileName: attachmentFileName,
       contentType: pdfBlob.type || 'application/pdf',

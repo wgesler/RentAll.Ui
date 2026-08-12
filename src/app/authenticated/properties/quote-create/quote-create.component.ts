@@ -921,7 +921,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       toName,
       fromEmail,
       fromName,
-      documentType: DocumentType.Other,
+      documentType: DocumentType.Quote,
       emailType: EmailType.Proposal,
       plainTextContent,
       htmlContent: emailBodyHtml,
@@ -948,7 +948,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     const fileName = `Quote_${this.utilityService.todayAsCalendarDateString()}.pdf`;
     const downloadConfig: DownloadConfig = {
       fileName,
-      documentType: DocumentType.Other,
+      documentType: DocumentType.Quote,
       noPreviewMessage: 'Please load quote preview before downloading.',
       noSelectionMessage: 'Organization or Office not available'
     };

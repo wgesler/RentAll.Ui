@@ -30,6 +30,7 @@ export interface EmailRequest {
   fileDetails?: FileDetails | null;
   additionalFileDetails?: FileDetails[];
   emailTypeId: number;
+  documentTypeId?: number | null;
 }
 
 export interface EmailResponse {
