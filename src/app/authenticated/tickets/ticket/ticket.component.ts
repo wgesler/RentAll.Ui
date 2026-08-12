@@ -991,6 +991,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           panelClass: 'ticket-work-order-dialog-panel',
           data: {
             property,
+            workOrderId: 'new',
             maintenanceId: this.ticket?.ticketId ?? null,
             initialTitle: this.getTicketTitleForWorkOrder(),
             initialDescription: this.getTicketDescriptionForWorkOrder()

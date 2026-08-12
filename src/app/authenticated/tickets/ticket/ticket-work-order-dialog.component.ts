@@ -51,7 +51,7 @@ export class TicketWorkOrderDialogComponent {
   }
 
   get dialogTitle(): string {
-    return this.data.workOrderId ? 'Edit Work Order' : 'Add Work Order';
+    return this.data.workOrderId && this.data.workOrderId !== 'new' ? 'Edit Work Order' : 'Add Work Order';
   }
 
   closeDialog(): void {
