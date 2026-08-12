@@ -53,9 +53,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Input() preferReceiptModeOnAdd = false;
   @Input() autoBackOnSave = true;
+  @Input() showInlineSaveButtons = true;
   @Input() autoSaveAttemptToken = 0;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
+  @Output() savedAndNewEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
@@ -81,6 +83,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   receiptService: ReceiptService;
   isAddMode: boolean = false;
   isSubmitting: boolean = false;
+  pendingSaveAndNew = false;
   isPageReady = false;
   isReceiptContentReady = false;
 
@@ -230,6 +233,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  saveReceiptAndNew(): void {
+    this.pendingSaveAndNew = true;
+    this.saveReceipt();
+  }
+
   saveReceipt(): void {
     this.updatePropertyRequirementByReceiptType();
     this.updateVendorFieldValidators();
@@ -239,41 +247,49 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.receiptFileValidationError = !this.hasReceiptFileForSave();
 
     if (!this.organizationId) {
+      this.pendingSaveAndNew = false;
       this.showValidationErrorToast();
       return;
     }
     if (this.form.invalid) {
+      this.pendingSaveAndNew = false;
       this.showValidationErrorToast();
       return;
     }
     const receiptDateValue = this.getReceiptDateForApi();
     if (!receiptDateValue) {
+      this.pendingSaveAndNew = false;
       this.form.get('receiptDate')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
     if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
+      this.pendingSaveAndNew = false;
       this.form.get('dueDate')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
     if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value)) {
+      this.pendingSaveAndNew = false;
       this.form.get('accountingPeriod')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
     if (this.isAddMode && !this.property && this.isPropertySelectionRequired()) {
+      this.pendingSaveAndNew = false;
       this.showValidationErrorToast();
       return;
     }
     const selectedPropertyIds = this.getPayloadPropertyIds();
     if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
+      this.pendingSaveAndNew = false;
       this.form.get('propertyIds')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
 
     if (!this.hasReceiptFileForSave()) {
+      this.pendingSaveAndNew = false;
       this.receiptFileValidationError = true;
       this.showValidationErrorToast();
       return;
@@ -293,16 +309,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       };
     });
     if (payloadSplits.length === 0) {
+      this.pendingSaveAndNew = false;
       this.showValidationErrorToast();
       return;
     }
     const missingRequiredSplitField = this.validateRequiredSplitFields();
     if (missingRequiredSplitField) {
+      this.pendingSaveAndNew = false;
       this.showValidationErrorToast();
       return;
     }
     const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
     if (this.isSplitTotalGreaterThanReceipt(splitTotalAmount, amountValue)) {
+      this.pendingSaveAndNew = false;
       this.splitTotalValidationError = true;
       this.toastr.warning('Split total cannot be greater than the receipt amount.', 'Invalid split total');
       return;
@@ -313,16 +332,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
     const vendorName = (this.form.get('vendorName')?.value || '').toString().trim() || null;
     if (!Number.isFinite(bankCardId) || bankCardId < 0) {
+      this.pendingSaveAndNew = false;
       this.form.get('bankCardId')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
     if (isBill && !vendorId) {
+      this.pendingSaveAndNew = false;
       this.form.get('vendorId')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
     if (!isBill && !vendorName) {
+      this.pendingSaveAndNew = false;
       this.form.get('vendorName')?.markAsTouched();
       this.showValidationErrorToast();
       return;
@@ -376,6 +398,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           hasReceiptChange
         : true;
       if (!hasReceiptUpdates) {
+        const andNew = this.pendingSaveAndNew;
+        this.pendingSaveAndNew = false;
+        if (andNew) {
+          this.savedAndNewEvent.emit(this.receipt);
+          this.prepareFormForNewEntry();
+          return;
+        }
         if (this.autoBackOnSave && (this.selectedPropertyId || this.isEmbeddedInShell)) {
           this.back();
         }
@@ -392,6 +421,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
       save$.pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
         next: (saved: ReceiptResponse) => {
+          const andNew = this.pendingSaveAndNew;
+          this.pendingSaveAndNew = false;
+          this.toastr.success('Receipt saved.', 'Success');
+          if (andNew) {
+            this.savedAndNewEvent.emit(saved);
+            this.prepareFormForNewEntry();
+            return;
+          }
+
           this.receipt = saved;
           this.activeAgreementLineId = this.normalizeAgreementLineId(saved.agreementLineId);
           this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(saved.agreementLineNotes);
@@ -434,12 +472,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           this.saveValidationHighlightActive = false;
           this.receiptFileValidationError = false;
           this.savedEvent.emit(saved);
-          this.toastr.success('Receipt saved.', 'Success');
-          if (this.selectedPropertyId || this.isEmbeddedInShell) {
+          if (this.autoBackOnSave && (this.selectedPropertyId || this.isEmbeddedInShell)) {
             this.back();
           }
         },
         error: (err: HttpErrorResponse) => {
+          this.pendingSaveAndNew = false;
           const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
           if (closedPeriodMessage) {
             this.toastr.error(closedPeriodMessage, 'Error');
@@ -460,11 +498,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.journalEntryService.confirmUpdateIfAllowed(this.receipt.postingStatusId, 'Receipt').pipe(take(1)).subscribe(canProceed => {
       if (!canProceed) {
+        this.pendingSaveAndNew = false;
         return;
       }
 
       saveReceipt();
     });
+  }
+
+  prepareFormForNewEntry(): void {
+    this.receiptId = 'new';
+    this.resetForm();
   }
 
   showValidationErrorToast(): void {

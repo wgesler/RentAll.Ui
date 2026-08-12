@@ -10,15 +10,22 @@
     <app-receipt
       #receiptDetail
       [property]="data.property"
-      [receiptId]="data.receiptId ?? null"
+      [receiptId]="data.receiptId ?? 'new'"
       [ticketId]="data.ticketId"
       [shellContext]="'maintenance'"
-      (savedEvent)="onReceiptSaved($event)">
+      [autoBackOnSave]="false"
+      [showInlineSaveButtons]="false"
+      (savedEvent)="onReceiptSaved($event)"
+      (savedAndNewEvent)="onReceiptSavedAndNew($event)">
       <div receipt-dialog-actions>
         <button mat-raised-button type="button" color="accent" (click)="closeDialog()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
           Cancel
         </button>
-        <button mat-raised-button type="button" color="primary" (click)="saveReceipt()" [disabled]="isSaveDisabled" class="text-nowrap flex-shrink-0">
+        <button mat-raised-button type="button" color="primary" (click)="saveReceiptAndNew()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
+          <mat-icon>save</mat-icon>
+          Save & New
+        </button>
+        <button mat-raised-button type="button" color="primary" (click)="saveReceipt()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
           <mat-icon>save</mat-icon>
           Save
         </button>

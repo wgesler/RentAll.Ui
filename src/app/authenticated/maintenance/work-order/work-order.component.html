@@ -4,7 +4,7 @@
     <p>Loading work order...</p>
   </div>
 } @else {
-  <div class="flex content-card-wrap justify-center">
+  <div class="flex content-card-wrap justify-center" [class.shell-embedded-detail-wrap]="embeddedInMaintenance">
     <section class="content-card">
       @if (!embeddedInMaintenance) {
         <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
@@ -22,6 +22,13 @@
                 Back
               </button>
             }
+            @if (!isViewModeBeforeChanges()) {
+              <button mat-raised-button type="button" color="accent" (click)="saveWorkOrderAndNew()"
+                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                <mat-icon>save</mat-icon>
+                Save & New
+              </button>
+            }
             <button mat-raised-button type="button" color="primary" (click)="onPrimaryAction()"
               class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || (!isViewModeBeforeChanges() && !form.valid)">
               <mat-icon>{{ isViewModeBeforeChanges() ? 'visibility' : 'save' }}</mat-icon>
@@ -33,30 +40,45 @@
 
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.work-order-embedded-form]="embeddedInMaintenance">
-          <div class="mb-4 flex justify-end items-center gap-2" style="padding-right: 5px;">
-            <mat-checkbox formControlName="enteredInQb" color="primary">
-              Entered in QB
-            </mat-checkbox>
-            @if (isAccountingShell) {
-              <mat-checkbox formControlName="businessPrivate" color="primary">
-                Business Private
+          <div class="work-order-status-row">
+            <span class="text-lg font-medium">Work Order Details</span>
+            <div class="flex items-center gap-2">
+              <mat-checkbox formControlName="enteredInQb" color="primary">
+                Entered in QB
               </mat-checkbox>
-            }
-            <mat-checkbox formControlName="isActive" color="primary">
-              IsActive
-            </mat-checkbox>
-            @if (embeddedInMaintenance) {
-              <button
-                mat-raised-button
-                type="button"
-                color="primary"
-                (click)="onInlineSaveClick()"
-                [disabled]="isSubmitting"
-                class="text-nowrap flex-shrink-0">
-                <mat-icon>{{ isViewModeBeforeChanges() ? 'visibility' : 'save' }}</mat-icon>
-                {{ isViewModeBeforeChanges() ? 'View' : 'Save' }}
-              </button>
-            }
+              @if (isAccountingShell) {
+                <mat-checkbox formControlName="businessPrivate" color="primary">
+                  Business Private
+                </mat-checkbox>
+              }
+              <mat-checkbox formControlName="isActive" color="primary">
+                IsActive
+              </mat-checkbox>
+              @if (embeddedInMaintenance && showInlineSaveButtons) {
+                @if (!isViewModeBeforeChanges()) {
+                  <button
+                    mat-raised-button
+                    type="button"
+                    color="accent"
+                    (click)="saveWorkOrderAndNew()"
+                    [disabled]="isSubmitting"
+                    class="text-nowrap flex-shrink-0">
+                    <mat-icon>save</mat-icon>
+                    Save & New
+                  </button>
+                }
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="primary"
+                  (click)="onInlineSaveClick()"
+                  [disabled]="isSubmitting"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>{{ isViewModeBeforeChanges() ? 'visibility' : 'save' }}</mat-icon>
+                  {{ isViewModeBeforeChanges() ? 'View' : 'Save' }}
+                </button>
+              }
+            </div>
           </div>
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">

@@ -1,6 +1,7 @@
 .ticket-work-order-dialog-wrap {
-  min-width: 700px;
-  max-width: 92vw;
+  width: min(1600px, 98vw);
+  min-width: min(1600px, 98vw);
+  max-width: 98vw;
   background: #fff;
   font-family: "Poppins", "Helvetica Neue", sans-serif;
   font-size: 16px;

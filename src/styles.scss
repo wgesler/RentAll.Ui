@@ -1702,6 +1702,25 @@ mat-form-field.company-dropdown {
   }
 }
 
+/*
+ * Nested receipt/work-order detail cards inside shell tabs:
+ * keep the inner form box, but inset it from the tab border so borders do not pile flush.
+ */
+.shell-tabs .shell-embedded-detail-wrap.content-card-wrap {
+  width: 100%;
+  align-items: stretch;
+  margin-bottom: 0;
+  padding: var(--global-page-inner-padding);
+  box-sizing: border-box;
+}
+
+.shell-tabs .shell-embedded-detail-wrap.content-card-wrap .content-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 /* Embedded settings editors inside accordion panels: remove card page spacing/chrome. */
 .settings-embedded-edit-wrap.content-card-wrap {
   margin-bottom: 0 !important;

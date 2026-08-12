@@ -4,7 +4,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, defer, finalize, take, takeUntil, tap } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -29,8 +29,8 @@ import { WorkOrderService } from '../../maintenance/services/work-order.service'
 import { TicketStateType, getTicketStateTypes } from '../models/ticket-enum';
 import { TicketNoteRequest, TicketResponse, TicketRequest } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
-import { TicketReceiptDialogComponent, TicketReceiptDialogResult } from './ticket-receipt-dialog.component';
-import { TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult } from './ticket-work-order-dialog.component';
+import { TicketReceiptDialogComponent } from './ticket-receipt-dialog.component';
+import { TicketWorkOrderDialogComponent } from './ticket-work-order-dialog.component';
 
 @Component({
   standalone: true,
@@ -106,6 +106,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket']));
   destroy$ = new Subject<void>();
+  pendingTicketComments: { noteText: string; createdOn: string; author: string }[] = [];
+  commentPersistQueue$ = new Subject<{ noteText: string; errorMessage: string }>();
 
   //#region Ticket
   ngOnInit(): void {
@@ -114,6 +116,10 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
+    this.commentPersistQueue$.pipe(
+      concatMap(({ noteText, errorMessage }) => this.persistAppendedTicketComment(noteText, errorMessage)),
+      takeUntil(this.destroy$)
+    ).subscribe();
 
     this.buildForm();
     this.setupCommunicationStatusCommentTracking();
@@ -472,25 +478,44 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   get ticketNotesDisplay(): { author: string; createdOn: string; note: string; linkedType: 'receipt' | 'workOrder' | null; linkedCode: string | null; linkedPrefix: string | null }[] {
-    return (this.ticket?.notes || [])
+    const persisted = (this.ticket?.notes || [])
       .filter(note => !!String(note.note || '').trim())
-      .sort((a, b) => {
-        const aTime = Date.parse(String(a.createdOn || '')) || 0;
-        const bTime = Date.parse(String(b.createdOn || '')) || 0;
-        return bTime - aTime;
-      })
       .map(note => {
         const noteText = String(note.note || '').trim();
         const linked = this.parseLinkedTicketNote(noteText);
         return {
-        author: String(note.createdByName || note.modifiedByName || note.createdBy || note.modifiedBy || '').trim() || 'Unknown',
-        createdOn: this.formatterService.formatDateTimeString(note.createdOn) || '',
-        note: noteText,
-        linkedType: linked?.type ?? null,
-        linkedCode: linked?.code ?? null,
-        linkedPrefix: linked?.prefix ?? null
-      };
+          author: String(note.createdByName || note.modifiedByName || note.createdBy || note.modifiedBy || '').trim() || 'Unknown',
+          createdOn: this.formatterService.formatDateTimeString(note.createdOn) || '',
+          createdOnRaw: String(note.createdOn || ''),
+          note: noteText,
+          linkedType: linked?.type ?? null,
+          linkedCode: linked?.code ?? null,
+          linkedPrefix: linked?.prefix ?? null
+        };
       });
+    const persistedNoteTexts = new Set(persisted.map(note => note.note));
+    const pending = this.pendingTicketComments
+      .filter(comment => !!comment.noteText.trim() && !persistedNoteTexts.has(comment.noteText))
+      .map(comment => {
+        const linked = this.parseLinkedTicketNote(comment.noteText);
+        return {
+          author: comment.author || 'Unknown',
+          createdOn: this.formatterService.formatDateTimeString(comment.createdOn) || '',
+          createdOnRaw: comment.createdOn,
+          note: comment.noteText,
+          linkedType: linked?.type ?? null,
+          linkedCode: linked?.code ?? null,
+          linkedPrefix: linked?.prefix ?? null
+        };
+      });
+
+    return [...persisted, ...pending]
+      .sort((a, b) => {
+        const aTime = Date.parse(String(a.createdOnRaw || '')) || 0;
+        const bTime = Date.parse(String(b.createdOnRaw || '')) || 0;
+        return bTime - aTime;
+      })
+      .map(({ createdOnRaw, ...display }) => display);
   }
 
   onAssigneeChanged(): void {
@@ -861,7 +886,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
     this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
       next: (property: PropertyResponse) => {
-        const dialogRef = this.dialog.open(TicketReceiptDialogComponent, {
+        this.dialog.open(TicketReceiptDialogComponent, {
           width: '95vw',
           maxWidth: '1300px',
           maxHeight: '95vh',
@@ -869,15 +894,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           panelClass: 'ticket-receipt-dialog-panel',
           data: {
             property,
-            ticketId: this.ticket?.ticketId ?? null
+            receiptId: 'new',
+            ticketId: this.ticket?.ticketId ?? null,
+            onCreated: (receipt: ReceiptResponse) => {
+              const receiptNote = this.buildReceiptCreatedComment(receipt);
+              this.appendTicketComment(receiptNote, 'Receipt saved, but unable to append ticket comment.');
+            }
           }
-        });
-        dialogRef.afterClosed().pipe(take(1)).subscribe((result?: TicketReceiptDialogResult) => {
-          if (!result?.saved || !result.receipt) {
-            return;
-          }
-          const receiptNote = this.buildReceiptCreatedComment(result.receipt);
-          this.appendTicketComment(receiptNote, 'Receipt saved, but unable to append ticket comment.');
         });
       },
       error: () => {
@@ -983,9 +1006,9 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
     this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
       next: (property: PropertyResponse) => {
-        const dialogRef = this.dialog.open(TicketWorkOrderDialogComponent, {
-          width: '95vw',
-          maxWidth: '1300px',
+        this.dialog.open(TicketWorkOrderDialogComponent, {
+          width: '98vw',
+          maxWidth: '1600px',
           maxHeight: '95vh',
           disableClose: true,
           panelClass: 'ticket-work-order-dialog-panel',
@@ -994,15 +1017,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
             workOrderId: 'new',
             maintenanceId: this.ticket?.ticketId ?? null,
             initialTitle: this.getTicketTitleForWorkOrder(),
-            initialDescription: this.getTicketDescriptionForWorkOrder()
+            initialDescription: this.getTicketDescriptionForWorkOrder(),
+            initialReservationId: this.getTicketReservationIdForWorkOrder(),
+            onCreated: (workOrder: WorkOrderResponse) => {
+              const workOrderCode = this.resolveWorkOrderCode(workOrder);
+              this.appendTicketComment(`Work Order Created: ${workOrderCode}`, 'Work order saved, but unable to append ticket comment.');
+            }
           }
-        });
-        dialogRef.afterClosed().pipe(take(1)).subscribe((result?: TicketWorkOrderDialogResult) => {
-          if (!result?.saved || !result.workOrder) {
-            return;
-          }
-          const workOrderCode = this.resolveWorkOrderCode(result.workOrder);
-          this.appendTicketComment(`Work Order Created: ${workOrderCode}`, 'Work order saved, but unable to append ticket comment.');
         });
       },
       error: () => {
@@ -1026,6 +1047,11 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   getTicketDescriptionForWorkOrder(): string {
     const rawDescription = String(this.form.get('description')?.value ?? this.ticket?.description ?? '').trim();
     return this.htmlToPlainText(rawDescription).slice(0, 2048);
+  }
+
+  getTicketReservationIdForWorkOrder(): string | null {
+    return this.normalizeId(this.selectedReservationIdFromShell)
+      ?? this.normalizeId(this.ticket?.reservationId);
   }
 
   htmlToPlainText(html: string): string {
@@ -1107,51 +1133,94 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   appendTicketComment(noteText: string, errorMessage: string): void {
-    if (!this.ticket?.ticketId) {
+    const trimmedNote = String(noteText || '').trim();
+    if (!this.ticket?.ticketId || !trimmedNote) {
       return;
     }
 
     const user = this.authService.getUser();
-    const existing = this.ticket;
-    const existingNotes: TicketNoteRequest[] = (existing.notes || []).map(note => ({
-      ticketNoteId: note.ticketNoteId,
-      ticketId: note.ticketId,
-      note: note.note
-    }));
-
-    const request: TicketRequest = {
-      ticketId: existing.ticketId,
-      organizationId: user?.organizationId || existing.organizationId || '',
-      officeId: existing.officeId,
-      propertyId: existing.propertyId,
-      reservationId: existing.reservationId,
-      assigneeId: existing.assigneeId ?? null,
-      agentId: existing.agentId ?? null,
-      ticketCode: existing.ticketCode,
-      title: existing.title,
-      description: existing.description,
-      ticketStateTypeId: existing.ticketStateTypeId,
-      needPermissionToEnter: !!existing.needPermissionToEnter,
-      permissionGranted: !!existing.permissionGranted,
-      ownerContacted: !!existing.ownerContacted,
-      confirmedWithTenant: !!existing.confirmedWithTenant,
-      followedUpWithOwner: !!existing.followedUpWithOwner,
-      workOrderCompleted: !!existing.workOrderCompleted,
-      notes: [...existingNotes, {
-        ticketId: existing.ticketId,
-        note: noteText
-      }],
-      isActive: !!existing.isActive
-    };
-
-    this.ticketService.updateTicket(request).pipe(take(1)).subscribe({
-      next: (response) => {
-        this.ticket = response;
-      },
-      error: () => {
-        this.toastr.error(errorMessage, 'Warning');
+    const author = String(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || '').trim() || 'You';
+    this.pendingTicketComments = [
+      ...this.pendingTicketComments,
+      {
+        noteText: trimmedNote,
+        createdOn: new Date().toISOString(),
+        author
       }
-    });
+    ];
+    this.cdr.markForCheck();
+    this.commentPersistQueue$.next({ noteText: trimmedNote, errorMessage });
+  }
+
+  persistAppendedTicketComment(noteText: string, errorMessage: string) {
+    return defer(() => {
+      if (!this.ticket?.ticketId) {
+        this.removePendingTicketComment(noteText);
+        return EMPTY;
+      }
+
+      const user = this.authService.getUser();
+      const existing = this.ticket;
+      const existingNotes: TicketNoteRequest[] = (existing.notes || [])
+        .filter(note => Number(note.ticketNoteId) > 0)
+        .map(note => ({
+          ticketNoteId: note.ticketNoteId,
+          ticketId: note.ticketId,
+          note: note.note
+        }));
+
+      const request: TicketRequest = {
+        ticketId: existing.ticketId,
+        organizationId: user?.organizationId || existing.organizationId || '',
+        officeId: existing.officeId,
+        propertyId: existing.propertyId,
+        reservationId: existing.reservationId,
+        assigneeId: existing.assigneeId ?? null,
+        agentId: existing.agentId ?? null,
+        ticketCode: existing.ticketCode,
+        title: existing.title,
+        description: existing.description,
+        ticketStateTypeId: existing.ticketStateTypeId,
+        needPermissionToEnter: !!existing.needPermissionToEnter,
+        permissionGranted: !!existing.permissionGranted,
+        ownerContacted: !!existing.ownerContacted,
+        confirmedWithTenant: !!existing.confirmedWithTenant,
+        followedUpWithOwner: !!existing.followedUpWithOwner,
+        workOrderCompleted: !!existing.workOrderCompleted,
+        notes: [...existingNotes, {
+          ticketId: existing.ticketId,
+          note: noteText
+        }],
+        isActive: !!existing.isActive
+      };
+
+      return this.ticketService.updateTicket(request).pipe(
+        take(1),
+        tap(response => {
+          this.ticket = response;
+          this.removePendingTicketComment(noteText);
+          this.cdr.markForCheck();
+        })
+      );
+    }).pipe(
+      catchError(() => {
+        this.removePendingTicketComment(noteText);
+        this.toastr.error(errorMessage, 'Warning');
+        this.cdr.markForCheck();
+        return EMPTY;
+      })
+    );
+  }
+
+  removePendingTicketComment(noteText: string): void {
+    const index = this.pendingTicketComments.findIndex(comment => comment.noteText === noteText);
+    if (index < 0) {
+      return;
+    }
+    this.pendingTicketComments = [
+      ...this.pendingTicketComments.slice(0, index),
+      ...this.pendingTicketComments.slice(index + 1)
+    ];
   }
 
   parseLinkedTicketNote(noteText: string): { type: 'receipt' | 'workOrder'; code: string; prefix?: string | null } | null {

@@ -14,15 +14,22 @@
       [maintenanceId]="data.maintenanceId"
       [initialTitle]="data.initialTitle ?? null"
       [initialDescription]="data.initialDescription ?? null"
+      [initialReservationId]="data.initialReservationId ?? null"
       [showBackButton]="false"
       [embeddedInMaintenance]="true"
+      [showInlineSaveButtons]="false"
       [navigateToPreviewOnSave]="false"
-      (savedEvent)="onWorkOrderSaved($event)">
+      (savedEvent)="onWorkOrderSaved($event)"
+      (savedAndNewEvent)="onWorkOrderSavedAndNew($event)">
       <div work-order-dialog-actions>
         <button mat-raised-button type="button" color="accent" (click)="closeDialog()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
           Cancel
         </button>
-        <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()" [disabled]="isSaveDisabled" class="text-nowrap flex-shrink-0">
+        <button mat-raised-button type="button" color="primary" (click)="saveWorkOrderAndNew()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
+          <mat-icon>save</mat-icon>
+          Save & New
+        </button>
+        <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
           <mat-icon>save</mat-icon>
           Save
         </button>

@@ -4,7 +4,7 @@
     <p>Loading receipt...</p>
   </div>
 } @else {
-  <div class="flex content-card-wrap justify-center">
+  <div class="flex content-card-wrap justify-center" [class.shell-embedded-detail-wrap]="isEmbeddedInShell">
     <section class="content-card">
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form pt-5 receipt-embedded-form">
@@ -35,16 +35,28 @@
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
                   </mat-checkbox>
-                  <button
-                    mat-raised-button
-                    type="button"
-                    color="primary"
-                    (click)="saveReceipt()"
-                    [disabled]="isSubmitting"
-                    class="text-nowrap flex-shrink-0">
-                    <mat-icon>save</mat-icon>
-                    Save
-                  </button>
+                  @if (showInlineSaveButtons) {
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="accent"
+                      (click)="saveReceiptAndNew()"
+                      [disabled]="isSubmitting"
+                      class="text-nowrap flex-shrink-0">
+                      <mat-icon>save</mat-icon>
+                      Save & New
+                    </button>
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="primary"
+                      (click)="saveReceipt()"
+                      [disabled]="isSubmitting"
+                      class="text-nowrap flex-shrink-0">
+                      <mat-icon>save</mat-icon>
+                      Save
+                    </button>
+                  }
                 </div>
               </div>
               <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
@@ -336,16 +348,28 @@
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
                   </mat-checkbox>
-                  <button
-                    mat-raised-button
-                    type="button"
-                    color="primary"
-                    (click)="saveReceipt()"
-                    [disabled]="isSubmitting"
-                    class="text-nowrap flex-shrink-0">
-                    <mat-icon>save</mat-icon>
-                    Save
-                  </button>
+                  @if (showInlineSaveButtons) {
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="accent"
+                      (click)="saveReceiptAndNew()"
+                      [disabled]="isSubmitting"
+                      class="text-nowrap flex-shrink-0">
+                      <mat-icon>save</mat-icon>
+                      Save & New
+                    </button>
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="primary"
+                      (click)="saveReceipt()"
+                      [disabled]="isSubmitting"
+                      class="text-nowrap flex-shrink-0">
+                      <mat-icon>save</mat-icon>
+                      Save
+                    </button>
+                  }
                 </div>
               </div>
               <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">

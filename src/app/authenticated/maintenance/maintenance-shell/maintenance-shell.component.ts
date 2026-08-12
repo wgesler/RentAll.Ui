@@ -947,6 +947,13 @@ applyPageOfficeChangeEffects(): void {
     this.refreshReceiptsTrigger++;
   }
 
+  onReceiptSavedAndNew(): void {
+    this.receiptSaveValidationAttempted = false;
+    this.selectedReceiptId = 'new';
+    this.receiptDetailInstance++;
+    this.refreshReceiptsTrigger++;
+  }
+
   onReceiptSaveValidationAttempted(): void {
     this.receiptSaveValidationAttempted = true;
   }
@@ -1105,6 +1112,17 @@ applyPageOfficeChangeEffects(): void {
     this.refreshReceiptsTrigger++;
     this.refreshWorkOrdersTrigger++;
     this.showWorkOrderDetail = false;
+  }
+
+  onWorkOrderSavedAndNew(): void {
+    this.workOrderSaveValidationAttempted = false;
+    this.selectedWorkOrderId = 'new';
+    this.selectedWorkOrder = null;
+    this.workOrderInitialReceiptId = null;
+    this.workOrderInitialReceiptSplitKey = null;
+    this.workOrderDetailInstance++;
+    this.refreshReceiptsTrigger++;
+    this.refreshWorkOrdersTrigger++;
   }
 
   onWorkOrderSaveValidationAttempted(): void {

@@ -12,6 +12,8 @@ export interface TicketWorkOrderDialogData {
   workOrderId?: string | null;
   initialTitle?: string | null;
   initialDescription?: string | null;
+  initialReservationId?: string | null;
+  onCreated?: (workOrder: WorkOrderResponse) => void;
 }
 
 export interface TicketWorkOrderDialogResult {
@@ -39,13 +41,6 @@ export class TicketWorkOrderDialogComponent {
 
   data: TicketWorkOrderDialogData;
 
-  get isSaveDisabled(): boolean {
-    if (!this.workOrderDetail?.form) {
-      return true;
-    }
-    return this.workOrderDetail.isSubmitting || (!this.workOrderDetail.isViewModeBeforeChanges() && !this.workOrderDetail.form.valid);
-  }
-
   get isSubmitting(): boolean {
     return this.workOrderDetail?.isSubmitting ?? false;
   }
@@ -62,7 +57,16 @@ export class TicketWorkOrderDialogComponent {
     this.workOrderDetail?.saveWorkOrder();
   }
 
+  saveWorkOrderAndNew(): void {
+    this.workOrderDetail?.saveWorkOrderAndNew();
+  }
+
   onWorkOrderSaved(workOrder: WorkOrderResponse): void {
+    this.data.onCreated?.(workOrder);
     this.dialogRef.close({ saved: true, workOrder });
+  }
+
+  onWorkOrderSavedAndNew(workOrder: WorkOrderResponse): void {
+    this.data.onCreated?.(workOrder);
   }
 }

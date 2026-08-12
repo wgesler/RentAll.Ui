@@ -1339,6 +1339,19 @@ hydrateSelectedInvoiceForActiveId(): void {
     }
   }
 
+  onBillsReceiptSavedAndNew(): void {
+    this.selectedBillsReceiptId = 'new';
+    this.billsReceiptPrefill = null;
+    this.billsReceiptAgreementLineId = null;
+    this.billsReceiptAgreementLineNotes = null;
+    this.billsReceiptDetailInstance++;
+    this.billsRefreshTrigger++;
+    if (this.billsReceiptOrigin === 'rentRoll') {
+      this.rentRollRefreshTrigger++;
+    }
+    this.onJournalEntriesChanged();
+  }
+
   onRentRollCreateBill(request: RentRollCreateBillRequest): void {
     this.startRentRollCreateQueue([request]);
   }
@@ -1799,8 +1812,27 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.onBillsReceiptsWorkOrderBack();
   }
 
+  onBillsReceiptsWorkOrderSavedAndNew(): void {
+    this.selectedBillsReceiptsWorkOrderId = 'new';
+    this.selectedBillsReceiptsWorkOrder = null;
+    this.billsReceiptsWorkOrderInitialReceiptId = null;
+    this.billsReceiptsWorkOrderInitialReceiptSplitKey = null;
+    this.billsReceiptsWorkOrderDetailInstance++;
+    if (this.selectedBillsReceiptKind === 'bills') {
+      this.billsRefreshTrigger++;
+    } else if (this.selectedBillsReceiptKind === 'receipts') {
+      this.receiptsRefreshTrigger++;
+    }
+  }
+
   onReceiptsReceiptSaved(): void {
     this.onReceiptsReceiptBack();
+    this.receiptsRefreshTrigger++;
+  }
+
+  onReceiptsReceiptSavedAndNew(): void {
+    this.selectedReceiptsReceiptId = 'new';
+    this.receiptsReceiptDetailInstance++;
     this.receiptsRefreshTrigger++;
   }
 
@@ -2060,6 +2092,12 @@ hydrateSelectedInvoiceForActiveId(): void {
     }
   }
 
+  onOwnersUtilityReceiptSavedAndNew(): void {
+    this.selectedOwnersUtilityReceiptId = 'new';
+    this.ownersUtilityReceiptDetailInstance++;
+    this.ownersUtilitiesRefreshTrigger++;
+  }
+
   onOwnersWorkOrderSelect(selection: WorkOrderSelection): void {
     this.clearWorkOrderCreateState();
 
@@ -2122,6 +2160,13 @@ hydrateSelectedInvoiceForActiveId(): void {
     } else {
       this.ownersWorkOrdersRefreshTrigger++;
     }
+  }
+
+  onOwnersWorkOrderSavedAndNew(): void {
+    this.selectedOwnersWorkOrderId = 'new';
+    this.selectedOwnersWorkOrder = null;
+    this.ownersWorkOrderDetailInstance++;
+    this.ownersWorkOrdersRefreshTrigger++;
   }
 
   onWorkOrderPreviewOpen(selection: WorkOrderPreviewSelection): void {

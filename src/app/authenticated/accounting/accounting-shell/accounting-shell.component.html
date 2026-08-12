@@ -1031,7 +1031,8 @@
                       [showBackButton]="false"
                       (previewEvent)="onWorkOrderPreviewOpen($event)"
                       (backEvent)="onBillsReceiptsWorkOrderBack()"
-                      (savedEvent)="onBillsReceiptsWorkOrderSaved()" />
+                      (savedEvent)="onBillsReceiptsWorkOrderSaved()"
+                      (savedAndNewEvent)="onBillsReceiptsWorkOrderSavedAndNew()" />
                   }
                 } @else if (showBillsReceiptDetail) {
                   @for (instance of [billsReceiptDetailInstance]; track instance) {
@@ -1047,7 +1048,8 @@
                     [shellContext]="'accounting'"
                     (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (backEvent)="onBillsReceiptBack()"
-                    (savedEvent)="onBillsReceiptSaved()" />
+                    (savedEvent)="onBillsReceiptSaved()"
+                    (savedAndNewEvent)="onBillsReceiptSavedAndNew()" />
                   }
                 } @else {
                   <app-receipts-list
@@ -1080,7 +1082,8 @@
                       [showBackButton]="false"
                       (previewEvent)="onWorkOrderPreviewOpen($event)"
                       (backEvent)="onBillsReceiptsWorkOrderBack()"
-                      (savedEvent)="onBillsReceiptsWorkOrderSaved()" />
+                      (savedEvent)="onBillsReceiptsWorkOrderSaved()"
+                      (savedAndNewEvent)="onBillsReceiptsWorkOrderSavedAndNew()" />
                   }
                 } @else if (showReceiptsReceiptDetail) {
                   @for (instance of [receiptsReceiptDetailInstance]; track instance) {
@@ -1092,7 +1095,8 @@
                     [preferReceiptModeOnAdd]="true"
                     (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (backEvent)="onReceiptsReceiptBack()"
-                    (savedEvent)="onReceiptsReceiptSaved()" />
+                    (savedEvent)="onReceiptsReceiptSaved()"
+                    (savedAndNewEvent)="onReceiptsReceiptSavedAndNew()" />
                   }
                 } @else {
                   <app-receipts-list
@@ -1397,7 +1401,8 @@
                       [officeId]="selectedOfficeId"
                       [shellContext]="'accounting'"
                       (backEvent)="onOwnersUtilityReceiptBack()"
-                      (savedEvent)="onOwnersUtilityReceiptSaved()" />
+                      (savedEvent)="onOwnersUtilityReceiptSaved()"
+                      (savedAndNewEvent)="onOwnersUtilityReceiptSavedAndNew()" />
                   }
                 } @else {
                   <app-receipts-list
@@ -1438,7 +1443,8 @@
                       [showBackButton]="false"
                       (previewEvent)="onWorkOrderPreviewOpen($event)"
                       (backEvent)="onOwnersWorkOrderBack()"
-                      (savedEvent)="onOwnersWorkOrderSaved()" />
+                      (savedEvent)="onOwnersWorkOrderSaved()"
+                      (savedAndNewEvent)="onOwnersWorkOrderSavedAndNew()" />
                   }
                 } @else {
                   <app-work-order-list

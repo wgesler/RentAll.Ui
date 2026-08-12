@@ -185,7 +185,8 @@
                   (propertySelectionRequiredChange)="onReceiptPropertySelectionRequiredChange($event)"
                   (workOrderSelect)="onWorkOrderSelect($event)"
                   (backEvent)="onReceiptBack()"
-                  (savedEvent)="onReceiptSaved()" />
+                  (savedEvent)="onReceiptSaved()"
+                  (savedAndNewEvent)="onReceiptSavedAndNew()" />
               }
             } @else {
               <app-receipts-list
@@ -232,7 +233,8 @@
                     (receiptSelect)="onReceiptSelect($event)"
                     (previewEvent)="onWorkOrderPreviewOpen($event)"
                     (backEvent)="onWorkOrderBack()"
-                    (savedEvent)="onWorkOrderSaved()" />
+                    (savedEvent)="onWorkOrderSaved()"
+                    (savedAndNewEvent)="onWorkOrderSavedAndNew()" />
                 }
               } @else {
                 <app-work-order-list

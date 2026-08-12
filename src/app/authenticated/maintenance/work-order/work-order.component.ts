@@ -55,15 +55,18 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() maintenanceId: string | null = null;
   @Input() initialTitle: string | null = null;
   @Input() initialDescription: string | null = null;
+  @Input() initialReservationId: string | null = null;
   @Input() initialReceiptId: string | null = null;
   @Input() initialReceiptSplitKey: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
+  @Input() showInlineSaveButtons = true;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Input() embedDocumentPreviewInShell = false;
   @Input() navigateToPreviewOnSave: boolean = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
+  @Output() savedAndNewEvent = new EventEmitter<WorkOrderResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() shellLocationSync = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
@@ -100,6 +103,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   workOrderService: WorkOrderService;
   isAddMode: boolean = false;
   isSubmitting: boolean = false;
+  pendingSaveAndNew = false;
 
   organizationId: string = '';
   selectedPropertyId: string | null = null;
@@ -205,7 +209,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.loadAccountingOfficeForWorkOrderCode();
     this.loadPropertyReservations();
-    if (!this.embeddedInMaintenance && this.resolveActivePropertyId()) {
+    if (this.resolveActivePropertyId()) {
       this.loadPropertyAgreement();
       this.loadPropertyReceipts();
     }
@@ -231,7 +235,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.loadAccountingOfficeForWorkOrderCode();
     }
 
-    if ((changes['initialTitle'] || changes['initialDescription']) && this.isAddMode) {
+    if ((changes['initialTitle'] || changes['initialDescription'] || changes['initialReservationId']) && this.isAddMode) {
       this.applyInitialWorkOrderPrefill();
     }
 
@@ -260,7 +264,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const propertyScopeChanged = previousPropertyId !== activePropertyId;
     this.selectedPropertyId = activePropertyId;
 
-    if (this.embeddedInMaintenance && activePropertyId && this.property) {
+    if (this.form && this.embeddedInMaintenance && activePropertyId && this.property) {
       this.form.patchValue({
         workOrderCode: this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '',
         officeName: this.property?.officeName || '',
@@ -272,7 +276,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       || (changes['propertyId'] && !changes['propertyId'].firstChange)
       || (changes['property'] && !changes['property'].firstChange);
 
-    if (shouldReload) {
+    // ngOnChanges can run before buildForm(); defer receipt reload until form exists (ngOnInit loads then).
+    if (shouldReload && this.form) {
       this.reloadPropertyReceiptDropdown(propertyScopeChanged);
     }
   }
@@ -308,6 +313,11 @@ onWorkOrderIdChanged(): void {
     this.loadWorkOrder();
   }
 
+  saveWorkOrderAndNew(): void {
+    this.pendingSaveAndNew = true;
+    this.saveWorkOrder();
+  }
+
   saveWorkOrder(): void {
     this.saveValidationAttempted.emit();
     this.form.markAllAsTouched();
@@ -329,6 +339,7 @@ onWorkOrderIdChanged(): void {
     const resolvedPropertyId = this.resolvePropertyIdForSave(requiresPropertySelection);
 
     if (!resolvedOrganizationId || !hasValidOfficeId || (requiresPropertySelection && !resolvedPropertyId)) {
+      this.pendingSaveAndNew = false;
       if (!hasValidOfficeId) {
         this.toastr.error('Office is required. Select an office in the title bar.', 'Error');
       } else if (requiresPropertySelection && !resolvedPropertyId) {
@@ -339,16 +350,19 @@ onWorkOrderIdChanged(): void {
       return;
     }
     if (this.form.invalid) {
+      this.pendingSaveAndNew = false;
       this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
       return;
     }
     if (this.workOrderItems.length === 0) {
+      this.pendingSaveAndNew = false;
       this.toastr.warning('Add at least one work order item before saving.', 'Items Required');
       return;
     }
 
     const isCreate = this.workOrder?.workOrderId == null;
     if (isCreate && !this.generatedWorkOrderCode) {
+      this.pendingSaveAndNew = false;
       this.toastr.warning('Work order code is still loading. Please try Save again.', 'Please Wait');
       this.loadAccountingOfficeForWorkOrderCode();
       return;
@@ -356,6 +370,7 @@ onWorkOrderIdChanged(): void {
     const workOrderItemsForSave = this.mapWorkOrderItemsForSave(isCreate);
     const invalidItem = workOrderItemsForSave.find(item => item.itemAmount === 0);
     if (invalidItem) {
+      this.pendingSaveAndNew = false;
       this.form.markAllAsTouched();
       this.toastr.warning('Each work order item must have a non-zero Total. Total = receipt amount + (labor hours × labor cost).', 'Item Total Required');
       return;
@@ -386,6 +401,13 @@ onWorkOrderIdChanged(): void {
     // Edit mode: only call update when something changed
     if (this.workOrder?.workOrderId) {
       if (!this.hasWorkOrderUpdates(payload)) {
+        const andNew = this.pendingSaveAndNew;
+        this.pendingSaveAndNew = false;
+        if (andNew) {
+          this.savedAndNewEvent.emit(this.workOrder);
+          this.prepareFormForNewEntry();
+          return;
+        }
         if (this.selectedPropertyId) {
           this.back();
         }
@@ -417,10 +439,34 @@ onWorkOrderIdChanged(): void {
 
     save$.pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
       next: (saved: WorkOrderResponse) => {
-        this.workOrder = saved;
-        this.isAddMode = false;
+        const andNew = this.pendingSaveAndNew;
+        this.pendingSaveAndNew = false;
         const wasCreate = isCreate;
         let totalAmount: number = 0;
+        (saved.workOrderItems ?? []).forEach(item => {
+          totalAmount += item.itemAmount ?? 0;
+        });
+
+        if (wasCreate) {
+          this.workOrder = saved;
+          this.updateAccountingOfficeWorkOrderNoAfterCreate();
+        }
+        const hasReceiptItems = this.workOrderItems.some(item => item.itemSource === 'receipt');
+        if (hasReceiptItems) {
+          const effectiveWorkOrderCode = saved.workOrderCode ?? this.form.get('workOrderCode')?.value ?? this.generatedWorkOrderCode ?? '';
+          this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, saved.workOrderId ?? null, selectedSplitKeysForSave, previousAssignedSplitKeys);
+        }
+        this.toastr.success('Work order saved.', 'Success');
+        this.saveWorkOrderAsInvoice(saved, totalAmount);
+
+        if (andNew) {
+          this.savedAndNewEvent.emit(saved);
+          this.prepareFormForNewEntry();
+          return;
+        }
+
+        this.workOrder = saved;
+        this.isAddMode = false;
         this.form.patchValue({
           workOrderCode: saved.workOrderCode ?? this.generatedWorkOrderCode ?? '',
           workOrderDate: this.getWorkOrderDateControlValue(saved.workOrderDate),
@@ -443,7 +489,6 @@ onWorkOrderIdChanged(): void {
           const laborCost = Number(item.laborCost) || 0;
           const derivedAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
           const receiptAmount = derivedAmount;
-          totalAmount += item.itemAmount;
           return {
             workOrderItemId: item.workOrderItemId,
             workOrderId: item.workOrderId,
@@ -465,18 +510,6 @@ onWorkOrderIdChanged(): void {
         this.hasUserEditedWorkOrder = false;
         this.captureInitialWorkOrderItemsSnapshot();
         this.savedEvent.emit(saved);
-        if (wasCreate) {
-          this.updateAccountingOfficeWorkOrderNoAfterCreate();
-        }
-        const hasReceiptItems = this.workOrderItems.some(item => item.itemSource === 'receipt');
-        if (hasReceiptItems) {
-          const effectiveWorkOrderCode = saved.workOrderCode ?? this.form.get('workOrderCode')?.value ?? this.generatedWorkOrderCode ?? '';
-          this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, saved.workOrderId ?? null, selectedSplitKeysForSave, previousAssignedSplitKeys);
-        }
-        this.toastr.success('Work order saved.', 'Success');
-
-        // Save this work order as an invoice that can be paid
-        this.saveWorkOrderAsInvoice(saved, totalAmount);
 
         if (!this.navigateToPreviewOnSave) {
           return;
@@ -503,6 +536,7 @@ onWorkOrderIdChanged(): void {
         this.toastr.warning('Work order saved, but unable to open the preview page.', 'Navigation Warning');
       },
       error: (err: HttpErrorResponse) => {
+        this.pendingSaveAndNew = false;
         const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
         if (closedPeriodMessage) {
           this.toastr.error(closedPeriodMessage, 'Error');
@@ -524,11 +558,22 @@ onWorkOrderIdChanged(): void {
 
     this.journalEntryService.confirmUpdateIfAllowed(this.workOrder?.postingStatusId, 'Work Order').pipe(take(1)).subscribe(canProceed => {
       if (!canProceed) {
+        this.pendingSaveAndNew = false;
         return;
       }
 
       saveWorkOrder();
     });
+  }
+
+  prepareFormForNewEntry(): void {
+    this.workOrderId = 'new';
+    this.initialTitle = null;
+    this.initialDescription = null;
+    this.initialReceiptId = null;
+    this.initialReceiptSplitKey = null;
+    this.resetForm();
+    this.applyInitialWorkOrderPrefill();
   }
 
   saveWorkOrderAsInvoice(workOrder: WorkOrderResponse, totalAmount: number): void {
@@ -732,22 +777,23 @@ onWorkOrderIdChanged(): void {
 
   //#region Form Methods
   applyInitialWorkOrderPrefill(): void {
-    if (!this.isAddMode) {
+    if (!this.isAddMode || !this.form) {
       return;
     }
 
     const title = (this.initialTitle || '').trim();
     const description = (this.initialDescription || '').trim();
-    if (!title && !description) {
-      return;
-    }
+    const reservationId = (this.initialReservationId || '').trim();
 
-    const patch: { title?: string; description?: string } = {};
+    const patch: { title?: string; description?: string; reservationId?: string } = {};
     if (title && !(this.form.get('title')?.value ?? '').toString().trim()) {
       patch.title = title.slice(0, 1000);
     }
     if (description && !(this.form.get('description')?.value ?? '').toString().trim()) {
       patch.description = description.slice(0, 2048);
+    }
+    if (reservationId && !(this.form.get('reservationId')?.value ?? '').toString().trim()) {
+      patch.reservationId = reservationId;
     }
 
     if (Object.keys(patch).length > 0) {
@@ -1523,15 +1569,18 @@ onWorkOrderIdChanged(): void {
       return;
     }
 
-    const isTenantType = Number(typeId) === WorkOrderType.Tenant;
+    // Number(null) === 0, so treat only an explicit Tenant selection as required.
+    const isTenantType = typeId !== null && typeId !== undefined && Number(typeId) === WorkOrderType.Tenant;
     if (isTenantType) {
       reservationControl.setValidators([Validators.required]);
     } else {
       reservationControl.clearValidators();
-      reservationControl.setValue(null, { emitEvent: false });
-      if (this.workOrder) {
-        this.workOrder.reservationId = null;
-        this.workOrder.reservationCode = null;
+      if (typeId !== null && typeId !== undefined) {
+        reservationControl.setValue(null, { emitEvent: false });
+        if (this.workOrder) {
+          this.workOrder.reservationId = null;
+          this.workOrder.reservationCode = null;
+        }
       }
     }
 

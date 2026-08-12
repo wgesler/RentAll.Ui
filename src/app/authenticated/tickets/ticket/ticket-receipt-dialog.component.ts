@@ -10,6 +10,7 @@ export interface TicketReceiptDialogData {
   property: PropertyResponse;
   ticketId: string | null;
   receiptId?: string | null;
+  onCreated?: (receipt: ReceiptResponse) => void;
 }
 
 export interface TicketReceiptDialogResult {
@@ -37,19 +38,12 @@ export class TicketReceiptDialogComponent {
 
   data: TicketReceiptDialogData;
 
-  get isSaveDisabled(): boolean {
-    if (!this.receiptDetail?.form) {
-      return true;
-    }
-    return this.receiptDetail.isSubmitting || !this.receiptDetail.form.valid;
-  }
-
   get isSubmitting(): boolean {
     return this.receiptDetail?.isSubmitting ?? false;
   }
 
   get dialogTitle(): string {
-    return this.data.receiptId ? 'Edit Receipt' : 'Add Receipt';
+    return this.data.receiptId && this.data.receiptId !== 'new' ? 'Edit Receipt' : 'Add Receipt';
   }
 
   closeDialog(): void {
@@ -60,7 +54,16 @@ export class TicketReceiptDialogComponent {
     this.receiptDetail?.saveReceipt();
   }
 
+  saveReceiptAndNew(): void {
+    this.receiptDetail?.saveReceiptAndNew();
+  }
+
   onReceiptSaved(receipt: ReceiptResponse): void {
+    this.data.onCreated?.(receipt);
     this.dialogRef.close({ saved: true, receipt });
+  }
+
+  onReceiptSavedAndNew(receipt: ReceiptResponse): void {
+    this.data.onCreated?.(receipt);
   }
 }
