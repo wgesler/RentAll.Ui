@@ -536,7 +536,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
       fromEmail,
       fromName,
       documentType: DocumentType.SecurityDepositReport,
-      emailType: EmailType.Other,
+      emailType: EmailType.SecurityDeposit,
       plainTextContent: '',
       htmlContent: body,
       fileDetails: {

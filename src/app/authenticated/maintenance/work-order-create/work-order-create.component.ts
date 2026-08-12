@@ -1192,7 +1192,7 @@ initializeWorkOrderPreview(): void {
       fromEmail,
       fromName,
       documentType: DocumentType.WorkOrder,
-      emailType: EmailType.Other,
+      emailType: EmailType.WorkOrder,
       plainTextContent: '',
       htmlContent: body,
       fileDetails: {

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
@@ -17,51 +17,82 @@ import { hasInspectorRole } from '../../shared/access/role-access';
   templateUrl: './email.component.html',
   styleUrl: './email.component.scss'
 })
-export class EmailComponent implements OnInit, OnDestroy {
+export class EmailComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() emailId: string | null = null;
+  @Input() embeddedInEmailShell = false;
+  @Output() backEvent = new EventEmitter<void>();
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private emailService = inject(EmailService);
   private formatter = inject(FormatterService);
   private authService = inject(AuthService);
 
-  emailId = '';
+  currentEmailId = '';
   email: EmailResponse | null = null;
   isLoading = false;
   isServiceError = false;
   destroy$ = new Subject<void>();
 
-
   //#region Email
   ngOnInit(): void {
-    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
-      const id = paramMap.get('id');
-      if (!id) {
-        this.isServiceError = true;
-        return;
-      }
+    if (this.emailId != null && this.emailId !== '') {
+      this.initializeEmail(this.emailId);
+      return;
+    }
 
-      this.emailId = id;
-      this.loadEmail();
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
+      this.initializeEmail(paramMap.get('id'));
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['emailId'] && !changes['emailId'].firstChange) {
+      this.initializeEmail(changes['emailId'].currentValue);
+    }
+  }
+
+  initializeEmail(id: string | null | undefined): void {
+    const nextId = String(id || '').trim();
+    if (!nextId) {
+      this.currentEmailId = '';
+      this.email = null;
+      this.isLoading = false;
+      this.isServiceError = true;
+      return;
+    }
+
+    if (nextId === this.currentEmailId && this.email) {
+      return;
+    }
+
+    this.currentEmailId = nextId;
+    this.loadEmail();
   }
 
   loadEmail(): void {
     this.isLoading = true;
     this.isServiceError = false;
+    this.email = null;
 
-    this.emailService.getEmailByGuid(this.emailId).subscribe({
+    this.emailService.getEmailByGuid(this.currentEmailId).pipe(
+      take(1),
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    ).subscribe({
       next: (email) => {
         this.email = email;
-        this.isLoading = false;
+        this.isServiceError = false;
       },
       error: () => {
         this.email = null;
         this.isServiceError = true;
-        this.isLoading = false;
       }
     });
   }
-    
+
   formatRecipients(recipients: EmailAddress[] | undefined): string {
     if (!recipients || recipients.length === 0) {
       return '';
@@ -112,7 +143,7 @@ export class EmailComponent implements OnInit, OnDestroy {
     return from.email || from.name || '';
   }
 
-   getMaintenanceShellEmailTabIndex(): number {
+  getMaintenanceShellEmailTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
     return showWorkOrdersTab ? 4 : 3;
@@ -121,6 +152,11 @@ export class EmailComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   back(): void {
+    if (this.embeddedInEmailShell) {
+      this.backEvent.emit();
+      return;
+    }
+
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
 
@@ -194,7 +230,7 @@ export class EmailComponent implements OnInit, OnDestroy {
 
     this.router.navigateByUrl(RouterUrl.EmailList);
   }
-  
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

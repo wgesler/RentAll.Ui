@@ -446,6 +446,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return this.selectedTabIndex === this.receiptsTabIndex && this.showReceiptDetail;
   }
 
+  get showTopBarBackButton(): boolean {
+    return this.isReceiptDetailActive || this.isWorkOrderDetailActive || this.isWorkOrderCreateActive;
+  }
+
   get isReceiptAddMode(): boolean {
     return this.isReceiptDetailActive && this.selectedReceiptId === 'new';
   }

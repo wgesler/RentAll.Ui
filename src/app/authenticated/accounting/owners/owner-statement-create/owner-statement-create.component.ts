@@ -509,7 +509,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       fromEmail,
       fromName,
       documentType: DocumentType.OwnerStatement,
-      emailType: EmailType.Other,
+      emailType: EmailType.OwnerStatement,
       plainTextContent: '',
       htmlContent: body,
       fileDetails: {

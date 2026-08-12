@@ -1958,7 +1958,7 @@ normalizeTemplateAssetPath(assetPath: string): string {
       fromEmail,
       fromName,
       documentType: DocumentType.OwnerAgreement,
-      emailType: EmailType.Other,
+      emailType: EmailType.OwnerAgreement,
       plainTextContent: 'Please find the attached owner agreement.',
       htmlContent: '<p>Please find the attached owner agreement.</p>',
       fileDetails: {

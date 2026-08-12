@@ -4,70 +4,86 @@
     <p>Loading email...</p>
   </div>
 } @else if (!isServiceError && email) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">mail</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">View Email</span>
-        </span>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
+  @if (!embeddedInEmailShell) {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">mail</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">View Email</span>
+          </span>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          </div>
         </div>
-      </div>
 
-      <mat-card>
-        <div class="email-container">
-          <div class="email-header-row">
-            <div class="email-subject">{{ email.subject }}</div>
-            <div class="email-created">{{ formattedCreatedOn }}</div>
-          </div>
-
-          <div class="email-address-line">
-            <span class="line-label">To:</span>
-            <span class="line-value">{{ toRecipientsLine || 'None' }}</span>
-          </div>
-
-          <div class="email-address-line">
-            <span class="line-label">CC:</span>
-            <span class="line-value">{{ ccRecipientsLine || 'None' }}</span>
-          </div>
-
-          <div class="email-address-line">
-            <span class="line-label">BCC:</span>
-            <span class="line-value">{{ bccRecipientsLine || 'None' }}</span>
-          </div>
-
-          <div class="email-address-line">
-            <span class="line-label">From:</span>
-            <span class="line-value">{{ fromRecipientLine || 'None' }}</span>
-          </div>
-
-          <div class="email-address-line">
-            <span class="line-label">Attachments:</span>
-            <span class="line-value">
-              @if (email.attachmentName) {
-                {{ email.attachmentName }}
-                <mat-icon class="attachment-icon">attach_file</mat-icon>
-              } @else {
-                None
-              }
-            </span>
-          </div>
-
-          <mat-divider></mat-divider>
-
-          <div class="email-body-pane" [innerHTML]="email.htmlContent || ''"></div>
-        </div>
-      </mat-card>
-    </section>
-  </div>
+        <mat-card>
+          <ng-container *ngTemplateOutlet="emailBody"></ng-container>
+        </mat-card>
+      </section>
+    </div>
+  } @else {
+    <ng-container *ngTemplateOutlet="emailBody"></ng-container>
+  }
 } @else {
   <div class="loading-container">
     <p>Could not load this email.</p>
   </div>
 }
+
+<ng-template #emailBody>
+  <div class="email-container">
+    <div class="email-header-row">
+      <div class="email-subject">{{ email?.subject }}</div>
+      <div class="email-created">{{ formattedCreatedOn }}</div>
+    </div>
+
+    <div class="email-address-line">
+      <span class="line-label">To:</span>
+      <span class="line-value">{{ toRecipientsLine || 'None' }}</span>
+    </div>
+
+    <div class="email-address-line">
+      <span class="line-label">CC:</span>
+      <span class="line-value">{{ ccRecipientsLine || 'None' }}</span>
+    </div>
+
+    <div class="email-address-line">
+      <span class="line-label">BCC:</span>
+      <span class="line-value">{{ bccRecipientsLine || 'None' }}</span>
+    </div>
+
+    <div class="email-address-line">
+      <span class="line-label">From:</span>
+      <span class="line-value">{{ fromRecipientLine || 'None' }}</span>
+    </div>
+
+    <div class="email-address-line">
+      <span class="line-label">Attachments:</span>
+      <span class="line-value">
+        @if (email?.attachmentName) {
+          {{ email?.attachmentName }}
+          <mat-icon class="attachment-icon">attach_file</mat-icon>
+        } @else {
+          None
+        }
+      </span>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    @if (email?.htmlContent?.trim()) {
+      <div class="email-body-pane" [innerHTML]="email?.htmlContent"></div>
+    } @else if (email?.plainTextContent?.trim()) {
+      <pre class="email-body-pane email-body-pane--plain">{{ email?.plainTextContent }}</pre>
+    } @else {
+      <div class="email-body-pane email-body-pane--plain email-body-pane--empty">
+        No message body was stored for this email.
+      </div>
+    }
+  </div>
+</ng-template>

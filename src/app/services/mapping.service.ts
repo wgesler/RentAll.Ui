@@ -1361,11 +1361,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         email?.documentTypeId !== undefined && email?.documentTypeId !== null
           ? Number(email.documentTypeId)
           : undefined,
-      canView: Boolean(
-        email?.documentId ??
-        email?.attachmentDocumentId ??
-        email?.attachmentPath
-      ),
+      // Eye/View opens the sent email record (not the attachment). Always allow when we have an id.
+      canView: !!String(email?.emailId ?? '').trim(),
       createdOn: this.formatter.formatDateTimeString(email?.createdOn) || (email?.createdOn ?? '')
     }));
   }

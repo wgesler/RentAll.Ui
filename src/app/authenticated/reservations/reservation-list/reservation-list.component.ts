@@ -714,7 +714,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       subject: `Reservation Update: ${reservationLabel}`,
       plainTextContent: `A reservation was cancelled.\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}`,
       htmlContent: `<p>A reservation was cancelled.</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}</p>`,
-      emailTypeId: EmailType.Other
+      emailTypeId: EmailType.Reservation
     };
 
     this.emailService.sendEmail(request).pipe(take(1)).subscribe({

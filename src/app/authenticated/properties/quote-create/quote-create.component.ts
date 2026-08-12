@@ -922,7 +922,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       fromEmail,
       fromName,
       documentType: DocumentType.Other,
-      emailType: EmailType.Other,
+      emailType: EmailType.Proposal,
       plainTextContent,
       htmlContent: emailBodyHtml,
       fileDetails: {

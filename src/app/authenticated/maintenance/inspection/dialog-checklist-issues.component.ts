@@ -364,7 +364,7 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
       fromEmail,
       fromName,
       documentType: DocumentType.Inspection,
-      emailType: EmailType.Other,
+      emailType: EmailType.InspectionIssues,
       plainTextContent: this.buildIssuesReportText(),
       htmlContent: this.buildIssuesEmailHtml(issuesForEmail),
       fileDetails: {

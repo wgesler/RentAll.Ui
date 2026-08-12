@@ -123,11 +123,13 @@
 
         <div class="flex items-center gap-3 ml-[10px]">
           <div class="uniform-gap form-titlebar-actions-wrap">
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
+            @if (showTopBarBackButton) {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+            }
           </div>
         </div>
       </div>

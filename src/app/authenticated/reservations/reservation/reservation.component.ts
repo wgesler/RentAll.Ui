@@ -3144,7 +3144,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       subject,
       plainTextContent,
       htmlContent,
-      emailTypeId: EmailType.Other
+      emailTypeId: EmailType.Reservation
     };
 
     this.emailService.sendEmail(request).pipe(take(1)).subscribe({

@@ -289,7 +289,7 @@ htmlNeedsTokenReplacement(html: string): boolean {
       fromEmail,
       fromName,
       documentType: DocumentType.OwnerAgreement,
-      emailType: EmailType.Other,
+      emailType: EmailType.OwnerAgreement,
       plainTextContent: `Please find the attached ${String(title).toLowerCase()}.`,
       htmlContent: `<p>Please find the attached ${String(title).toLowerCase()}.</p>`,
       fileDetails: {

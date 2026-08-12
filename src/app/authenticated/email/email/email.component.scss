@@ -73,3 +73,14 @@
   overflow: auto;
   white-space: pre-wrap;
 }
+
+.email-body-pane--plain {
+  margin: 1rem 0 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.email-body-pane--empty {
+  color: #64748b;
+  font-style: italic;
+}

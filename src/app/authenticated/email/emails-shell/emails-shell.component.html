@@ -47,43 +47,45 @@
               (valueChange)="onEmailTypeDropdownChange($event)">
             </app-title-bar-select>
           }
-          <div class="emails-shell-titlebar-dates">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Start Date</mat-label>
-              <input
-                matInput
-                [matDatepicker]="emailsShellStartPicker"
-                [(ngModel)]="startDate"
-                [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onDateRangeChange()"
-                [max]="endDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="emailsShellStartPicker"></mat-datepicker-toggle>
-              <mat-datepicker #emailsShellStartPicker></mat-datepicker>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>End Date</mat-label>
-              <input
-                matInput
-                [matDatepicker]="emailsShellEndPicker"
-                [(ngModel)]="endDate"
-                [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onDateRangeChange()"
-                [min]="startDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="emailsShellEndPicker"></mat-datepicker-toggle>
-              <mat-datepicker #emailsShellEndPicker></mat-datepicker>
-            </mat-form-field>
-            <button
-              mat-icon-button
-              type="button"
-              class="emails-shell-date-pin-btn"
-              [class.emails-shell-date-pin-btn--active]="dateRangePinned"
-              [attr.aria-pressed]="dateRangePinned"
-              [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
-              [matTooltip]="dateRangePinned ? 'Unpin top bar' : 'Keep top bar selections fixed'"
-              (click)="toggleDateRangePin()">
-              <mat-icon>push_pin</mat-icon>
-            </button>
-          </div>
+          @if (selectedTabIndex === 0) {
+            <div class="emails-shell-titlebar-dates">
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Start Date</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="emailsShellStartPicker"
+                  [(ngModel)]="startDate"
+                  [ngModelOptions]="{ standalone: true }"
+                  (dateChange)="onDateRangeChange()"
+                  [max]="endDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="emailsShellStartPicker"></mat-datepicker-toggle>
+                <mat-datepicker #emailsShellStartPicker></mat-datepicker>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>End Date</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="emailsShellEndPicker"
+                  [(ngModel)]="endDate"
+                  [ngModelOptions]="{ standalone: true }"
+                  (dateChange)="onDateRangeChange()"
+                  [min]="startDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="emailsShellEndPicker"></mat-datepicker-toggle>
+                <mat-datepicker #emailsShellEndPicker></mat-datepicker>
+              </mat-form-field>
+              <button
+                mat-icon-button
+                type="button"
+                class="emails-shell-date-pin-btn"
+                [class.emails-shell-date-pin-btn--active]="dateRangePinned"
+                [attr.aria-pressed]="dateRangePinned"
+                [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
+                [matTooltip]="dateRangePinned ? 'Unpin top bar' : 'Keep top bar selections fixed'"
+                (click)="toggleDateRangePin()">
+                <mat-icon>push_pin</mat-icon>
+              </button>
+            </div>
+          }
         </div>
       </div>
       <div class="flex items-center gap-3 ml-[10px]">
@@ -128,8 +130,7 @@
               [propertyCode]="selectedPropertyCode"
               [reservations]="reservations"
               (alertEdit)="onAlertEdit($event)"
-              (alertSelected)="onAlertSelected($event)"
-              [alertSearchDateRange]="alertSearchDateRange">
+              (alertSelected)="onAlertSelected($event)">
             </app-alert-list>
           } @else {
             <app-alert

@@ -9,10 +9,12 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
 import { skip, BehaviorSubject, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
-import { EmailGetRequest, EmailListDisplay } from '../models/email.model';
+import { EmailGetRequest, EmailListDisplay, EmailResponse } from '../models/email.model';
 import { EmailService } from '../services/email.service';
+import { EmailCreateDraftService } from '../services/email-create-draft.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { DocumentType } from '../../documents/models/document.enum';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -53,6 +55,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
   private emailService = inject(EmailService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
   private router = inject(Router);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
@@ -94,10 +97,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     attachmentPath: { displayAs: 'Attachment', maxWidth: '20ch', alignment: 'center' },
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
   };
-
-markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
 
   //#region Email-List
   ngOnInit(): void {
@@ -231,15 +230,21 @@ markViewForCheck(): void {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    if (this.source === 'emails') {
-      return;
-    }
-
     this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
+          if (this.source === 'emails') {
+            // Shell owns the office dropdown; still need office ids for dated search (All Offices).
+            if (this.usesServerSearchCriteria()) {
+              this.refreshEmailsForCurrentScope();
+            } else {
+              this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emails');
+            }
+            this.markViewForCheck();
+            return;
+          }
           this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.source !== 'invoice', disableSingleOfficeRule: this.source === 'invoice' }).pipe(take(1)).subscribe({
             next: uiState => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
@@ -253,7 +258,9 @@ markViewForCheck(): void {
       error: () => {
         this.offices = [];
         this.showOfficeDropdown = false;
-        this.resolveOfficeScope(null, false);
+        if (this.source !== 'emails') {
+          this.resolveOfficeScope(null, false);
+        }
         this.markViewForCheck();
       }
     });
@@ -287,11 +294,14 @@ markViewForCheck(): void {
   }
 
   refreshEmailsForCurrentScope(): void {
+    if (!this.usesServerSearchCriteria()) {
+      this.loadEmails();
+      return;
+    }
+
     const officeIds = this.resolveOfficeIdsForSearch();
     if (officeIds.length === 0) {
-      this.allEmails = [];
-      this.emails = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emails');
+      // Offices may still be loading — keep 'emails' in itemsToLoad so the spinner stays honest.
       this.markViewForCheck();
       return;
     }
@@ -324,7 +334,11 @@ markViewForCheck(): void {
           next: reservations => {
             this.reservations = reservations || [];
             this.filterReservations();
-            this.applyFilters();
+            if (this.usesServerSearchCriteria()) {
+              this.refreshEmailsForCurrentScope();
+            } else {
+              this.applyFilters();
+            }
             this.markViewForCheck();
           },
           error: () => {
@@ -594,58 +608,59 @@ markViewForCheck(): void {
   }
 
   viewEmail(email: EmailListDisplay): void {
-    const queryParams: any = {};
-    const reservationIdToUse = this.selectedReservationId || this.reservationId || null;
-
-    if (this.source === 'reservation' && reservationIdToUse) {
-      queryParams.returnTo = 'reservationTab';
-      queryParams.tab = 'email';
-      queryParams.reservationId = reservationIdToUse;
-      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
-        queryParams.officeId = this.selectedOfficeId;
-      }
-      if (this.propertyId) {
-        queryParams.propertyId = this.propertyId;
-      }
-    } else if (this.source === 'property' && this.propertyId) {
-      queryParams.returnTo = 'propertyTab';
-      queryParams.tab = 'email';
-      queryParams.propertyId = this.propertyId;
-      if (reservationIdToUse) {
-        queryParams.reservationId = reservationIdToUse;
-      }
-      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
-        queryParams.officeId = this.selectedOfficeId;
-      }
-    } else if (this.source === 'maintenance' && this.propertyId) {
-      queryParams.returnTo = 'maintenanceTab';
-      queryParams.propertyId = this.propertyId;
-      if (reservationIdToUse) {
-        queryParams.reservationId = reservationIdToUse;
-      }
-      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
-        queryParams.officeId = this.selectedOfficeId;
-      }
-    } else if (this.source === 'invoice') {
-      queryParams.returnTo = 'accountingTab';
-      queryParams.tab = '0';
-      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
-        queryParams.officeId = this.selectedOfficeId;
-      }
-      if (reservationIdToUse) {
-        queryParams.reservationId = reservationIdToUse;
-      }
-      if (this.selectedCompanyContact?.contactId) {
-        queryParams.companyId = this.selectedCompanyContact.contactId;
-      } else if (this.companyId) {
-        queryParams.companyId = this.companyId;
-      }
+    const emailId = (email?.emailId || '').trim();
+    if (!emailId) {
+      return;
     }
 
-    this.router.navigate(
-      [RouterUrl.replaceTokens(RouterUrl.Email, [email.emailId])],
-      { queryParams }
-    );
+    this.emailService.getEmailByGuid(emailId).pipe(take(1)).subscribe({
+      next: fullEmail => {
+        this.openSentEmailInCreateTemplate(fullEmail);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Could not load this email.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  openSentEmailInCreateTemplate(email: EmailResponse): void {
+    const to = (email.toRecipients || [])[0];
+    const from = email.fromRecipient;
+    const attachmentName = (email.attachmentName || '').trim();
+
+    this.emailCreateDraftService.setDraft({
+      viewOnly: true,
+      returnUrl: this.router.url,
+      emailConfig: {
+        subject: email.subject || '',
+        toEmail: to?.email || email.toEmail || '',
+        toName: to?.name || email.toName || '',
+        fromEmail: from?.email || email.fromEmail || '',
+        fromName: from?.name || email.fromName || '',
+        ccEmails: (email.ccRecipients || []).map(recipient => recipient.email).filter(address => !!address),
+        bccEmails: (email.bccRecipients || []).map(recipient => recipient.email).filter(address => !!address),
+        documentType: DocumentType.Other,
+        emailType: Number(email.emailTypeId ?? EmailType.Other),
+        plainTextContent: email.plainTextContent || '',
+        htmlContent: email.htmlContent || '',
+        fileDetails: attachmentName
+          ? { fileName: attachmentName, contentType: '', file: '' }
+          : null
+      },
+      documentConfig: {
+        previewIframeHtml: ' ',
+        previewIframeStyles: '',
+        organizationId: email.organizationId || this.organizationId || this.authService.getUser()?.organizationId || null,
+        selectedOfficeId: email.officeId ?? this.selectedOfficeId ?? this.officeId ?? null,
+        selectedReservationId: email.reservationId ?? this.reservationId ?? null,
+        propertyId: email.propertyId ?? this.propertyId ?? null,
+        isDownloading: false
+      }
+    });
+
+    void this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
 
   deleteEmail(email: EmailListDisplay): void {
@@ -728,7 +743,12 @@ markViewForCheck(): void {
   //#endregion
 
   //#region Utility Methods
-    ngOnDestroy(): void {
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+  }
+
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

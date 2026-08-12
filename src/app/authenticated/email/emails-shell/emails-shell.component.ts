@@ -65,7 +65,6 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   endDate: Date | null = null;
   dateRangePinned = false;
   emailSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
-  alertSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
 
   offices: OfficeResponse[] = [];
   showOfficeDropdown = false;
@@ -81,8 +80,10 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   constructor() {
     // Before child lists bind @Input date range — ngOnInit is too late (first search can omit dates).
     this.applyPinnedDateRangeFromStorage();
+    if (!this.startDate && !this.endDate) {
+      this.setDefaultDateRange();
+    }
     this.syncEmailSearchDateRange();
-    this.syncAlertSearchDateRange();
   }
 
   //#region Emails-Shell
@@ -231,7 +232,6 @@ persistPinnedTopBarIfActive(): void {
     this.normalizeDateRangeValues();
     this.persistPinnedTopBarIfActive();
     this.syncEmailSearchDateRange();
-    this.syncAlertSearchDateRange();
     this.reloadActiveTabList();
     this.router.navigate([], {
       relativeTo: this.route,
@@ -423,13 +423,6 @@ persistPinnedTopBarIfActive(): void {
     };
   }
 
-  syncAlertSearchDateRange(): void {
-    this.alertSearchDateRange = {
-      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
-      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
-    };
-  }
-
   applyQueryParamState(params: Record<string, unknown>): void {
     const startDateParam = getStringQueryParam(params, 'startDate');
     const endDateParam = getStringQueryParam(params, 'endDate');
@@ -438,13 +431,11 @@ persistPinnedTopBarIfActive(): void {
       this.endDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
       this.normalizeDateRangeValues();
       this.syncEmailSearchDateRange();
-      this.syncAlertSearchDateRange();
       return;
     }
     if (!this.startDate && !this.endDate && !this.dateRangePinned) {
       this.setDefaultDateRange();
       this.syncEmailSearchDateRange();
-      this.syncAlertSearchDateRange();
     }
   }
 

@@ -38,6 +38,7 @@ export class EmailCreateComponent implements OnInit {
   form: FormGroup = this.buildForm();
   isSending = false;
   isMissingDraft = false;
+  isViewOnly = false;
   additionalAttachments: FileDetails[] = [];
   private readonly maxAdditionalAttachments = 5;
   private readonly maxAdditionalAttachmentBytes = 10 * 1024 * 1024;
@@ -51,6 +52,7 @@ export class EmailCreateComponent implements OnInit {
     }
 
     this.draft = draft;
+    this.isViewOnly = draft.viewOnly === true;
     const initialPlainTextContent = draft.emailConfig.plainTextContent || this.htmlToPlainText(draft.emailConfig.htmlContent || '');
     this.initialPlainTextContent = initialPlainTextContent;
 
@@ -64,10 +66,20 @@ export class EmailCreateComponent implements OnInit {
       bccEmails: (draft.emailConfig.bccEmails || []).join(', '),
       plainTextContent: initialPlainTextContent
     });
+
+    if (this.isViewOnly) {
+      this.form.disable({ emitEvent: false });
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  get pageTitle(): string {
+    return this.isViewOnly ? 'View Email' : 'Create Email';
   }
 
   get autoAttachmentName(): string {
-    return this.draft?.emailConfig.fileDetails?.fileName || 'document.pdf';
+    return this.draft?.emailConfig.fileDetails?.fileName || (this.isViewOnly ? '' : 'document.pdf');
   }
 
   get canAddMoreAttachments(): boolean {
@@ -149,6 +161,10 @@ export class EmailCreateComponent implements OnInit {
   }
 
   async send(): Promise<void> {
+    if (this.isViewOnly) {
+      return;
+    }
+
     if (!this.draft) {
       this.isMissingDraft = true;
       return;

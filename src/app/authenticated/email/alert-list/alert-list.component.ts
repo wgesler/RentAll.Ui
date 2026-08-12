@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { skip, BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -21,13 +20,13 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { AlertGetRequest, AlertListDisplay, AlertRequest, AlertResponse } from '../models/alert.model';
+import { AlertListDisplay, AlertRequest, AlertResponse } from '../models/alert.model';
 import { AlertService } from '../services/alert.service';
 
 @Component({
   selector: 'app-alert-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, MaterialModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './alert-list.component.html',
   styleUrl: './alert-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -42,7 +41,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() organizationId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() reservationId: string | null = null;
-  @Input() alertSearchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() reservations: ReservationCodeResponse[] = [];
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
@@ -76,11 +74,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
   contacts: ContactResponse[] = [];
 
-  /** Standalone /alerts route: dates owned here; emails-shell passes alertSearchDateRange instead. */
-  standaloneStartDate: Date | null = null;
-  standaloneEndDate: Date | null = null;
-  standaloneAlertSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
-
   alertsDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -93,10 +86,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     createdOn: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
-
-  constructor() {
-    this.initStandaloneAlertDateRange();
-  }
 
   //#region Alert-List
   ngOnInit(): void {
@@ -142,25 +131,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (changes['reservationId']) {
       this.selectedReservationId = changes['reservationId'].currentValue;
-      if (this.usesServerSearchCriteria()) {
-        this.refreshAlertsForCurrentScope();
-        return;
-      }
       this.applyFilters();
     }
     if (changes['propertyId'] && !changes['propertyId'].firstChange) {
-      if (this.usesServerSearchCriteria()) {
-        this.refreshAlertsForCurrentScope();
-        return;
-      }
       this.applyFilters();
-    }
-
-    if (this.source === 'alerts' && changes['alertSearchDateRange']) {
-      const range = changes['alertSearchDateRange'].currentValue as { startDate: string | null; endDate: string | null } | null;
-      if (range?.startDate && range?.endDate) {
-        this.refreshAlertsForCurrentScope();
-      }
     }
   }
 
@@ -272,11 +246,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAlerts(): void {
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
-
     this.utilityService.addLoadItem(this.itemsToLoad$, 'alerts');
     this.alertService.getAlerts().pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
@@ -300,57 +269,12 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
-
-  refreshAlertsForCurrentScope(): void {
-    const range = this.getEffectiveAlertSearchDateRange();
-    if (!range?.startDate || !range?.endDate) {
-      return;
-    }
-
-    const officeIds = this.resolveOfficeIdsForSearch();
-    if (officeIds.length === 0) {
-      this.allAlerts = [];
-      this.alerts = [];
-      this.alertsById = new Map();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
-      this.markViewForCheck();
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'alerts');
-    this.alertService.searchAlerts(this.buildAlertSearchRequest(officeIds)).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
-      this.markViewForCheck();
-    })).subscribe({
-      next: alerts => {
-        const alertResponses = alerts || [];
-        this.alertsById = new Map(alertResponses.map(alert => [alert.alertId, alert]));
-        this.allAlerts = this.mappingService.mapAlertListDisplays(alertResponses);
-        this.allAlerts = this.mappingService.mapAlertOfficeNames(this.allAlerts, this.offices);
-        this.applyReservationCodes();
-        this.applyFilters();
-        this.isServiceError = false;
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.allAlerts = [];
-        this.alerts = [];
-        this.alertsById = new Map();
-        this.isServiceError = true;
-        this.markViewForCheck();
-      }
-    });
-  }
   //#endregion
 
   //#region Form Response Methods
   onTitleBarOfficeIdUpdate(officeId: number | null): void {
     this.selectedOfficeId = officeId;
     this.filterReservations();
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
     this.applyFilters();
   }
 
@@ -360,27 +284,13 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     this.filterReservations();
     this.selectedReservationId = null;
     this.reservationIdChange.emit(this.selectedReservationId);
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
     this.applyFilters();
   }
 
   onReservationDropdownChange(value: string | number | null): void {
     this.selectedReservationId = value == null || value === '' ? null : String(value);
     this.reservationIdChange.emit(this.selectedReservationId);
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
     this.applyFilters();
-  }
-
-  onStandaloneDateRangeChange(): void {
-    this.normalizeStandaloneDateRangeValues();
-    this.syncStandaloneAlertSearchDateRange();
-    this.refreshAlertsForCurrentScope();
   }
   //#endregion
 
@@ -414,27 +324,20 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     filtered = this.showInactive
       ? filtered.filter(alert => alert.isActive === false)
       : filtered.filter(alert => alert.isActive === true);
-    const serverSearch = this.usesServerSearchCriteria();
-    if (!serverSearch) {
-      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
-        filtered = filtered.filter(alert => alert.officeId === String(this.selectedOfficeId));
-      }
-      if (this.selectedReservationId) {
-        filtered = filtered.filter(alert => alert.reservationId === this.selectedReservationId);
-      }
-      if ((this.source === 'property' || this.source === 'reservation') && this.propertyId) {
-        filtered = filtered.filter(alert => alert.propertyId === this.propertyId);
-      }
+    if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+      filtered = filtered.filter(alert => alert.officeId === String(this.selectedOfficeId));
+    }
+    if (this.selectedReservationId) {
+      filtered = filtered.filter(alert => alert.reservationId === this.selectedReservationId);
+    }
+    if (this.propertyId) {
+      filtered = filtered.filter(alert => alert.propertyId === this.propertyId);
     }
     this.alerts = filtered;
   }
 
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
     this.applyFilters();
   }
    //#endregion
@@ -465,10 +368,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   reload(): void {
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
     this.loadAlerts();
   }
 
@@ -568,103 +467,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
     this.filterReservations();
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
-      return;
-    }
     this.applyFilters();
-  }
-
-  getEffectiveAlertSearchDateRange(): { startDate: string | null; endDate: string | null } | null {
-    if (this.alertSearchDateRange?.startDate && this.alertSearchDateRange?.endDate) {
-      return this.alertSearchDateRange;
-    }
-    if (!this.hideHeader && this.source === 'alerts'
-      && this.standaloneAlertSearchDateRange?.startDate && this.standaloneAlertSearchDateRange?.endDate) {
-      return this.standaloneAlertSearchDateRange;
-    }
-    return null;
-  }
-
-  usesServerSearchCriteria(): boolean {
-    const range = this.getEffectiveAlertSearchDateRange();
-    return this.source === 'alerts' && !!(range?.startDate && range?.endDate);
-  }
-
-  resolveOfficeIdsForSearch(): number[] {
-    const scopedOfficeId = this.officeId ?? this.selectedOfficeId;
-    if (scopedOfficeId != null) {
-      return [scopedOfficeId];
-    }
-    const fromOffices = (this.offices || []).map(office => office.officeId).filter(id => id > 0);
-    if (fromOffices.length > 0) {
-      return fromOffices;
-    }
-    return [...new Set((this.reservations || []).map(reservation => reservation.officeId).filter(id => id > 0))];
-  }
-
-  buildAlertSearchRequest(officeIds: number[]): AlertGetRequest {
-    const reservationId = this.reservationId || this.selectedReservationId || null;
-    const range = this.getEffectiveAlertSearchDateRange();
-    return {
-      officeIds,
-      propertyId: this.propertyId ?? null,
-      reservationId,
-      isActive: !this.showInactive,
-      startDate: range?.startDate ?? null,
-      endDate: range?.endDate ?? null
-    };
-  }
-
-  initStandaloneAlertDateRange(): void {
-    const end = new Date();
-    end.setHours(0, 0, 0, 0);
-
-    const start = new Date(end);
-    start.setDate(start.getDate() - 30);
-    start.setHours(0, 0, 0, 0);
-
-    this.standaloneStartDate = start;
-    this.standaloneEndDate = end;
-    this.syncStandaloneAlertSearchDateRange();
-  }
-
-  syncStandaloneAlertSearchDateRange(): void {
-    this.standaloneAlertSearchDateRange = {
-      startDate: this.utilityService.formatDateOnlyForApi(this.standaloneStartDate),
-      endDate: this.utilityService.formatDateOnlyForApi(this.standaloneEndDate)
-    };
-  }
-
-  normalizeStandaloneDateRangeValues(): void {
-    if (!this.standaloneStartDate && !this.standaloneEndDate) {
-      this.initStandaloneAlertDateRange();
-      return;
-    }
-    if (this.standaloneStartDate && !this.standaloneEndDate) {
-      const end = new Date(this.standaloneStartDate);
-      end.setHours(0, 0, 0, 0);
-      this.standaloneEndDate = end;
-    } else if (!this.standaloneStartDate && this.standaloneEndDate) {
-      const start = new Date(this.standaloneEndDate);
-      start.setDate(start.getDate() - 30);
-      start.setHours(0, 0, 0, 0);
-      this.standaloneStartDate = start;
-    }
-
-    if (this.standaloneStartDate) {
-      this.standaloneStartDate.setHours(0, 0, 0, 0);
-    }
-    if (this.standaloneEndDate) {
-      this.standaloneEndDate.setHours(0, 0, 0, 0);
-    }
-
-    if (this.standaloneStartDate && this.standaloneEndDate
-      && this.standaloneStartDate.getTime() > this.standaloneEndDate.getTime()) {
-      const tmp = this.standaloneStartDate;
-      this.standaloneStartDate = this.standaloneEndDate;
-      this.standaloneEndDate = tmp;
-    }
   }
   //#endregion
 

@@ -9,17 +9,19 @@
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
         <span class="flex flex-column items-center gap-3 py-4">
           <mat-icon class="flex-shrink-0">mail</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Create Email</span>
+          <span class="flex-shrink-0 text-xl font-medium">{{ pageTitle }}</span>
         </span>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" (click)="cancel()" class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>close</mat-icon>
-            Cancel
+            <mat-icon>{{ isViewOnly ? 'arrow_back' : 'close' }}</mat-icon>
+            {{ isViewOnly ? 'Back' : 'Cancel' }}
           </button>
-          <button mat-raised-button type="button" color="primary" (click)="send()" [disabled]="isSending" class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>send</mat-icon>
-            {{ isSending ? 'Sending...' : 'Send' }}
-          </button>
+          @if (!isViewOnly) {
+            <button mat-raised-button type="button" color="primary" (click)="send()" [disabled]="isSending" class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>send</mat-icon>
+              {{ isSending ? 'Sending...' : 'Send' }}
+            </button>
+          }
         </div>
       </div>
 
@@ -68,41 +70,53 @@
           <div class="email-attachments-block">
             <div class="email-address-line email-attachments-header">
               <span class="line-label">Attachments:</span>
-              <div class="email-attachments-actions">
-                <input
-                  #additionalAttachmentInput
-                  type="file"
-                  class="email-attachment-file-input"
-                  multiple
-                  (change)="onAdditionalAttachmentsSelected($event)"
-                />
-                <button
-                  mat-stroked-button
-                  type="button"
-                  color="primary"
-                  class="text-nowrap flex-shrink-0"
-                  [disabled]="isSending || !canAddMoreAttachments"
-                  (click)="additionalAttachmentInput.click()">
-                  <mat-icon>attach_file</mat-icon>
-                  Add Files
-                </button>
-              </div>
+              @if (!isViewOnly) {
+                <div class="email-attachments-actions">
+                  <input
+                    #additionalAttachmentInput
+                    type="file"
+                    class="email-attachment-file-input"
+                    multiple
+                    (change)="onAdditionalAttachmentsSelected($event)"
+                  />
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    color="primary"
+                    class="text-nowrap flex-shrink-0"
+                    [disabled]="isSending || !canAddMoreAttachments"
+                    (click)="additionalAttachmentInput.click()">
+                    <mat-icon>attach_file</mat-icon>
+                    Add Files
+                  </button>
+                </div>
+              }
             </div>
 
             <div class="email-attachment-list">
-              <div class="email-attachment-row email-attachment-row--auto">
-                <mat-icon class="attachment-icon">attach_file</mat-icon>
-                <span class="email-attachment-name">{{ autoAttachmentName }}</span>
-                <span class="email-attachment-tag">Auto</span>
-              </div>
+              @if (autoAttachmentName) {
+                <div class="email-attachment-row email-attachment-row--auto">
+                  <mat-icon class="attachment-icon">attach_file</mat-icon>
+                  <span class="email-attachment-name">{{ autoAttachmentName }}</span>
+                  @if (!isViewOnly) {
+                    <span class="email-attachment-tag">Auto</span>
+                  }
+                </div>
+              } @else if (isViewOnly) {
+                <div class="email-attachment-row email-attachment-row--auto">
+                  <span class="email-attachment-name">None</span>
+                </div>
+              }
 
               @for (attachment of additionalAttachments; track attachment.fileName; let index = $index) {
                 <div class="email-attachment-row">
                   <mat-icon class="attachment-icon">attach_file</mat-icon>
                   <span class="email-attachment-name">{{ attachment.fileName }}</span>
-                  <button mat-icon-button type="button" aria-label="Remove attachment" [disabled]="isSending" (click)="removeAdditionalAttachment(index)">
-                    <mat-icon>close</mat-icon>
-                  </button>
+                  @if (!isViewOnly) {
+                    <button mat-icon-button type="button" aria-label="Remove attachment" [disabled]="isSending" (click)="removeAdditionalAttachment(index)">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  }
                 </div>
               }
             </div>
