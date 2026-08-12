@@ -1316,6 +1316,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     return {
       organizationId: emailHtml?.organizationId ?? '',
       welcomeLetter: emailHtml?.welcomeLetter ?? '',
+      departureLetter: emailHtml?.departureLetter ?? '',
       corporateLetter: emailHtml?.corporateLetter ?? '',
       lease: emailHtml?.lease ?? '',
       corporateLease: emailHtml?.corporateLease ?? '',
@@ -1323,6 +1324,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       corporateInvoice: emailHtml?.corporateInvoice ?? '',
       ownerStatement: emailHtml?.ownerStatement ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
+      departureSubject: emailHtml?.departureSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
       invoiceSubject: emailHtml?.invoiceSubject ?? '',
       ownerStatementSubject: emailHtml?.ownerStatementSubject ?? '',

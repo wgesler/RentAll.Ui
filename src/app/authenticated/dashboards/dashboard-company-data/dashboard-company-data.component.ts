@@ -1771,23 +1771,63 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     return TrackerContextType.PropertyOffline;
   }
 
+  getOnlineTrackerContextsForLeaseTypes(leaseTypeIds: Iterable<number>): TrackerContextType[] {
+    const leaseTypes = new Set(Array.from(leaseTypeIds, id => Number(id)));
+    const contexts: TrackerContextType[] = [];
+    if (leaseTypes.size === 0) {
+      return [
+        TrackerContextType.PropertyOnline,
+        TrackerContextType.PropertyThirdPartyOnline,
+        TrackerContextType.PropertyDirectOnline
+      ];
+    }
+    if (leaseTypes.has(PropertyLeaseType.PropertyManagement)) {
+      contexts.push(TrackerContextType.PropertyOnline);
+    }
+    if (leaseTypes.has(PropertyLeaseType.ThirdParty)) {
+      contexts.push(TrackerContextType.PropertyThirdPartyOnline);
+    }
+    if (leaseTypes.has(PropertyLeaseType.Direct)) {
+      contexts.push(TrackerContextType.PropertyDirectOnline);
+    }
+    return contexts;
+  }
+
+  getOfflineTrackerContextsForLeaseTypes(leaseTypeIds: Iterable<number>): TrackerContextType[] {
+    const leaseTypes = new Set(Array.from(leaseTypeIds, id => Number(id)));
+    const contexts: TrackerContextType[] = [];
+    if (leaseTypes.size === 0) {
+      return [
+        TrackerContextType.PropertyOffline,
+        TrackerContextType.PropertyThirdPartyOffline,
+        TrackerContextType.PropertyDirectOffline
+      ];
+    }
+    if (leaseTypes.has(PropertyLeaseType.PropertyManagement)) {
+      contexts.push(TrackerContextType.PropertyOffline);
+    }
+    if (leaseTypes.has(PropertyLeaseType.ThirdParty)) {
+      contexts.push(TrackerContextType.PropertyThirdPartyOffline);
+    }
+    if (leaseTypes.has(PropertyLeaseType.Direct)) {
+      contexts.push(TrackerContextType.PropertyDirectOffline);
+    }
+    return contexts;
+  }
+
   applyPropertyTrackerColumns(): void {
-    const visibleOfficeIds = new Set<number>([
-      ...this.onlinePropertyRows.map(row => row.officeId),
+    const onlineOfficeIds = new Set(this.onlinePropertyRows.map(row => row.officeId).filter(officeId => officeId > 0));
+    const offlineOfficeIds = new Set([
       ...this.offlinePropertyRows.map(row => row.officeId),
       ...this.offlineStatusPropertyDisplayRows.map(row => row.officeId)
     ].filter(officeId => officeId > 0));
 
-    const onlineContexts = [
-      TrackerContextType.PropertyOnline,
-      TrackerContextType.PropertyThirdPartyOnline,
-      TrackerContextType.PropertyDirectOnline
-    ];
-    const offlineContexts = [
-      TrackerContextType.PropertyOffline,
-      TrackerContextType.PropertyThirdPartyOffline,
-      TrackerContextType.PropertyDirectOffline
-    ];
+    // Only show tracker columns for lease types actually in each list (avoids blank PM columns on a 3rd-party row).
+    const onlineContexts = this.getOnlineTrackerContextsForLeaseTypes(this.onlinePropertyRows.map(row => row.propertyLeaseTypeId));
+    const offlineContexts = this.getOfflineTrackerContextsForLeaseTypes([
+      ...this.offlinePropertyRows.map(row => row.propertyLeaseTypeId),
+      ...this.offlineStatusPropertyDisplayRows.map(row => row.propertyLeaseTypeId)
+    ]);
 
     const onlineBase = this.cloneColumnSet(this.propertyOnlineBaseColumns);
     const offlineBase = this.cloneColumnSet(this.propertyOfflineBaseColumns);
@@ -1797,7 +1837,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
     onlineContexts.forEach(contextType => {
       const definitions = this.getTrackerDefinitionsForContext(contextType)
-        .filter(definition => visibleOfficeIds.size === 0 || visibleOfficeIds.has(definition.officeId));
+        .filter(definition => onlineOfficeIds.size === 0 || onlineOfficeIds.has(definition.officeId));
       const mapByColumn = this.buildColumnDefinitionByOffice(definitions);
       this.onlineColumnDefinitionByContext.set(Number(contextType), mapByColumn);
       this.addTrackerColumnsToColumnSet(onlineBase, mapByColumn);
@@ -1805,7 +1845,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
     offlineContexts.forEach(contextType => {
       const definitions = this.getTrackerDefinitionsForContext(contextType)
-        .filter(definition => visibleOfficeIds.size === 0 || visibleOfficeIds.has(definition.officeId));
+        .filter(definition => offlineOfficeIds.size === 0 || offlineOfficeIds.has(definition.officeId));
       const mapByColumn = this.buildColumnDefinitionByOffice(definitions);
       this.offlineColumnDefinitionByContext.set(Number(contextType), mapByColumn);
       this.addTrackerColumnsToColumnSet(offlineBase, mapByColumn);
@@ -1831,6 +1871,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
         isCheckbox: !isMultiSelect,
         isMultiSelect: isMultiSelect,
         checkboxEditable: true,
+        suppressRowClick: true,
         sort: false,
         wrap: false,
         alignment: 'center',

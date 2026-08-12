@@ -43,7 +43,6 @@ import { PropertyHtmlService } from '../services/property-html.service';
 import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { DepartureLetterReloadService } from '../services/departure-letter-reload.service';
-import { EntityType } from '../../contacts/models/contact-enum';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -1074,8 +1073,8 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       ).trim() || undefined
     );
-    const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
-    const emailTemplateHtml = (contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLetter || '') : (this.emailHtml?.welcomeLetter || '');
+    const emailSubject = this.emailHtml?.departureSubject?.trim() || 'Your Upcoming Departure';
+    const emailTemplateHtml = this.emailHtml?.departureLetter || '';
 
     const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{salutationName\}\}/g, salutationName)
