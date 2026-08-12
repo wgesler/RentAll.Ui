@@ -237,6 +237,22 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
     return String(value || '').trim().toLowerCase();
   }
 
+  onChecklistCheckboxChange(row: PropertyInProcessDisplay): void {
+    this.companyDataService.onPropertyCheckboxChange(row, 'offline');
+  }
+
+  onChecklistDropdownChange(row: PropertyInProcessDisplay): void {
+    this.companyDataService.onPropertyDropdownChange(row, 'offline');
+  }
+
+  onChecklistCheckAll(row: PropertyInProcessDisplay): void {
+    this.companyDataService.onPropertyCheckAllTracking(row, 'offline');
+  }
+
+  onChecklistClearTracking(row: PropertyInProcessDisplay): void {
+    this.companyDataService.onPropertyClearTracking(row, 'offline');
+  }
+
   onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
     this.companyDataService.onMaintenanceDropdownChange(event);
   }

@@ -10,13 +10,14 @@ import { TrackerContextType } from '../../organizations/models/tracker-enum';
 import { TrackerConfigurationDefinitionResponse, TrackerConfigurationResponse } from '../../organizations/models/tracker.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { TrackerService } from '../../organizations/services/tracker.service';
-import { PropertyStatus } from '../../properties/models/property-enums';
+import { PropertyLeaseType, PropertyStatus } from '../../properties/models/property-enums';
+import { PropertyTrackerResponse, PropertyTrackerResponseOption, PropertyTrackerResponseOptionRequest, PropertyTrackerResponseRequest } from '../../properties/models/property.model';
 import { BillingType } from '../../reservations/models/reservation-enum';
 import { ReservationTrackerResponse, ReservationTrackerResponseOption, ReservationTrackerResponseOptionRequest, ReservationTrackerResponseRequest } from '../../reservations/models/reservation-model';
 import { PropertyMaintenanceBase } from '../../shared/base-classes/property-maintenance.base';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ServiceType } from '../../shared/models/mixed-enums';
-import { DashboardPropertyTurnoverRow, MaintenanceListCurrentReservationByPropertyId, MaintenanceListDisplay, MaintenanceListMappingContext, PropertyMaintenance, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
+import { DashboardPropertyTurnoverRow, MaintenanceListCurrentReservationByPropertyId, MaintenanceListDisplay, MaintenanceListMappingContext, PropertyMaintenance, PropertyOfflineStatusDisplay, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
 import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
@@ -63,13 +64,23 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   trackerConfiguration: TrackerConfigurationResponse | null = null;
   reservationTrackerResponsesByReservation = new Map<string, Map<string, ReservationTrackerResponse>>();
   reservationTrackerResponseOptionsByReservation = new Map<string, ReservationTrackerResponseOption[]>();
+  propertyTrackerResponsesByProperty = new Map<string, Map<string, PropertyTrackerResponse>>();
+  propertyTrackerResponseOptionsByProperty = new Map<string, PropertyTrackerResponseOption[]>();
   arrivalColumnDefinitionByOffice = new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
   departureColumnDefinitionByOffice = new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
+  onlineColumnDefinitionByContext = new Map<number, Map<string, Map<number, TrackerConfigurationDefinitionResponse>>>();
+  offlineColumnDefinitionByContext = new Map<number, Map<string, Map<number, TrackerConfigurationDefinitionResponse>>>();
 
   reservationTurnoverArrivalRows: ReservationTurnoverEventDisplay[] = [];
   reservationTurnoverDepartureRows: ReservationTurnoverEventDisplay[] = [];
   reservationTurnoverArrivalColumns: ColumnSet = {};
   reservationTurnoverDepartureColumns: ColumnSet = {};
+  onlinePropertyRows: DashboardPropertyTurnoverRow[] = [];
+  offlinePropertyRows: DashboardPropertyTurnoverRow[] = [];
+  offlineStatusPropertyDisplayRows: PropertyOfflineStatusDisplay[] = [];
+  propertyOnlineColumns: ColumnSet = {};
+  propertyOfflineColumns: ColumnSet = {};
+  offlineStatusPropertyColumns: ColumnSet = {};
 
   private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -93,7 +104,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     reservationStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false }
   };
 
-  private readonly propertyOnlineColumns: ColumnSet = {
+  private readonly propertyOnlineBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     availableAfter: { displayAs: 'Online', maxWidth: '15ch', alignment: 'center' },
@@ -102,7 +113,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     squareFeet: { displayAs: 'Sq Ft', wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
 
-  private readonly propertyOfflineColumns: ColumnSet = {
+  private readonly propertyOfflineBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     availableUntil: { displayAs: 'Offline', maxWidth: '15ch', alignment: 'center' },
@@ -131,7 +142,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     bathrooms: { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' }
   };
 
-  private readonly offlineStatusPropertyColumns: ColumnSet = {
+  private readonly offlineStatusPropertyBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
@@ -162,6 +173,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       onReservationDropdownChange: (row, sourceContext) => this.onReservationDropdownChange(row, sourceContext),
       onReservationCheckAllTracking: (row, sourceContext) => this.onReservationCheckAllTracking(row, sourceContext),
       onReservationClearTracking: (row, sourceContext) => this.onReservationClearTracking(row, sourceContext),
+      onPropertyCheckboxChange: (row, sourceContext) => this.onPropertyCheckboxChange(row, sourceContext),
+      onPropertyDropdownChange: (row, sourceContext) => this.onPropertyDropdownChange(row, sourceContext),
+      onPropertyCheckAllTracking: (row, sourceContext) => this.onPropertyCheckAllTracking(row, sourceContext),
+      onPropertyClearTracking: (row, sourceContext) => this.onPropertyClearTracking(row, sourceContext),
       onMaintenanceDropdownChange: row => this.onMaintenanceDropdownChange(row),
       onMaintenanceInlineDateChange: row => this.handleMaintenanceInlineDateChange(row)
     });
@@ -230,6 +245,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     this.buildMonthlyCommissions();
     this.publishSnapshot();
     this.loadReservationTrackerResponses();
+    this.loadPropertyTrackerResponses();
   }
 
   loadHousekeepingUsers(): void {
@@ -284,6 +300,11 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     this.trackerService.getTrackerConfiguration(false).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'trackerConfiguration'))).subscribe({
       next: (response: TrackerConfigurationResponse) => {
         this.trackerConfiguration = response || null;
+        if (this.companyDataService.snapshot.isReady) {
+          this.publishSnapshot();
+          this.loadReservationTrackerResponses();
+          this.loadPropertyTrackerResponses();
+        }
       },
       error: () => {
         this.trackerConfiguration = null;
@@ -545,6 +566,37 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       });
       this.applyReservationTrackerValues();
       this.publishReservationTrackerSlice();
+    });
+  }
+
+  loadPropertyTrackerResponses(): void {
+    this.propertyService.getPropertyTrackerResponsesByOffices(false).pipe(
+      concatMap(responses =>
+        this.propertyService.getPropertyTrackerResponseOptionsByOffices(false).pipe(
+          map(options => ({ responses: responses || [], options: options || [] })),
+          catchError(() => of({ responses: responses || [], options: [] as PropertyTrackerResponseOption[] }))
+        )
+      ),
+      catchError(() => of({ responses: [] as PropertyTrackerResponse[], options: [] as PropertyTrackerResponseOption[] })),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe(result => {
+      this.propertyTrackerResponsesByProperty.clear();
+      this.propertyTrackerResponseOptionsByProperty.clear();
+      result.responses.forEach(response => {
+        const propertyKey = this.utilityService.normalizeId(response.propertyId);
+        const byDefinitionId = this.propertyTrackerResponsesByProperty.get(propertyKey) || new Map<string, PropertyTrackerResponse>();
+        byDefinitionId.set(this.utilityService.normalizeId(response.trackerDefinitionId), response);
+        this.propertyTrackerResponsesByProperty.set(propertyKey, byDefinitionId);
+      });
+      result.options.forEach(option => {
+        const propertyKey = this.utilityService.normalizeId(option.propertyId);
+        const list = this.propertyTrackerResponseOptionsByProperty.get(propertyKey) || [];
+        list.push(option);
+        this.propertyTrackerResponseOptionsByProperty.set(propertyKey, list);
+      });
+      this.applyPropertyTrackerValues();
+      this.publishPropertyTrackerSlice();
     });
   }
   //#endregion
@@ -852,19 +904,22 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   publishSnapshot(): void {
     const arrivalRows = [...this.arrivalReservations].sort((a, b) => (a.arrivalDateOrdinal ?? 0) - (b.arrivalDateOrdinal ?? 0));
     const departureRows = [...this.departureReservations].sort((a, b) => (a.departureDateOrdinal ?? 0) - (b.departureDateOrdinal ?? 0));
-    const onlineRows = [...this.onlineProperties]
+    this.onlinePropertyRows = [...this.onlineProperties]
       .filter(pm => pm.onlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableFromOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableFromOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
-    const offlineRows = [...this.offlineProperties]
+    this.offlinePropertyRows = [...this.offlineProperties]
       .filter(pm => pm.offlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableUntilOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableUntilOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
+    this.offlineStatusPropertyDisplayRows = [...this.propertiesOfflineStatus];
 
     this.reservationTurnoverArrivalRows = arrivalRows.map(r => this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r));
     this.reservationTurnoverDepartureRows = departureRows.map(r => this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r));
     this.applyReservationTrackerColumns();
     this.applyReservationTrackerValues();
+    this.applyPropertyTrackerColumns();
+    this.applyPropertyTrackerValues();
 
     const maintenanceSlices = this.remapProviderCells(this.buildMaintenanceSlices());
     const maintenanceColumns = this.buildMaintenanceColumns();
@@ -889,8 +944,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       monthlyCommissionRows: this.monthlyCommissionRows,
       reservationTurnoverArrivalRows: this.reservationTurnoverArrivalRows,
       reservationTurnoverDepartureRows: this.reservationTurnoverDepartureRows,
-      onlinePropertyRows: onlineRows,
-      offlinePropertyRows: offlineRows,
+      onlinePropertyRows: this.onlinePropertyRows,
+      offlinePropertyRows: this.offlinePropertyRows,
       arrivalMaintenanceDisplay: maintenanceSlices.arrivals,
       departureMaintenanceDisplay: maintenanceSlices.departures,
       comingOnlineMaintenanceDisplay: maintenanceSlices.online,
@@ -900,7 +955,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       vacantMaintenanceDisplay: maintenanceSlices.vacant,
       occupiedPropertyRows: this.propertiesOccupied,
       occupiedMaintenanceDisplay: maintenanceSlices.occupied,
-      offlineStatusPropertyRows: this.propertiesOfflineStatus,
+      offlineStatusPropertyRows: this.offlineStatusPropertyDisplayRows,
       offlineStatusMaintenanceDisplay: maintenanceSlices.offlineStatus,
       reservationTurnoverArrivalColumns: this.reservationTurnoverArrivalColumns,
       reservationTurnoverDepartureColumns: this.reservationTurnoverDepartureColumns,
@@ -927,6 +982,17 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       reservationTurnoverDepartureRows: this.reservationTurnoverDepartureRows,
       reservationTurnoverArrivalColumns: this.reservationTurnoverArrivalColumns,
       reservationTurnoverDepartureColumns: this.reservationTurnoverDepartureColumns
+    });
+  }
+
+  publishPropertyTrackerSlice(): void {
+    this.companyDataService.patchSnapshot({
+      onlinePropertyRows: this.onlinePropertyRows,
+      offlinePropertyRows: this.offlinePropertyRows,
+      offlineStatusPropertyRows: this.offlineStatusPropertyDisplayRows,
+      propertyOnlineColumns: this.propertyOnlineColumns,
+      propertyOfflineColumns: this.propertyOfflineColumns,
+      offlineStatusPropertyColumns: this.offlineStatusPropertyColumns
     });
   }
 
@@ -1683,6 +1749,362 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       rows.map(row => ((row.reservationId || '').trim() === reservationId ? { ...row, [column]: value } : row));
     this.reservationTurnoverArrivalRows = apply(this.reservationTurnoverArrivalRows);
     this.reservationTurnoverDepartureRows = apply(this.reservationTurnoverDepartureRows);
+  }
+
+  resolvePropertyTrackerContext(propertyLeaseTypeId: number, sourceContext: 'online' | 'offline'): TrackerContextType {
+    const leaseTypeId = Number(propertyLeaseTypeId);
+    if (sourceContext === 'online') {
+      if (leaseTypeId === PropertyLeaseType.ThirdParty) {
+        return TrackerContextType.PropertyThirdPartyOnline;
+      }
+      if (leaseTypeId === PropertyLeaseType.Direct) {
+        return TrackerContextType.PropertyDirectOnline;
+      }
+      return TrackerContextType.PropertyOnline;
+    }
+    if (leaseTypeId === PropertyLeaseType.ThirdParty) {
+      return TrackerContextType.PropertyThirdPartyOffline;
+    }
+    if (leaseTypeId === PropertyLeaseType.Direct) {
+      return TrackerContextType.PropertyDirectOffline;
+    }
+    return TrackerContextType.PropertyOffline;
+  }
+
+  applyPropertyTrackerColumns(): void {
+    const visibleOfficeIds = new Set<number>([
+      ...this.onlinePropertyRows.map(row => row.officeId),
+      ...this.offlinePropertyRows.map(row => row.officeId),
+      ...this.offlineStatusPropertyDisplayRows.map(row => row.officeId)
+    ].filter(officeId => officeId > 0));
+
+    const onlineContexts = [
+      TrackerContextType.PropertyOnline,
+      TrackerContextType.PropertyThirdPartyOnline,
+      TrackerContextType.PropertyDirectOnline
+    ];
+    const offlineContexts = [
+      TrackerContextType.PropertyOffline,
+      TrackerContextType.PropertyThirdPartyOffline,
+      TrackerContextType.PropertyDirectOffline
+    ];
+
+    const onlineBase = this.cloneColumnSet(this.propertyOnlineBaseColumns);
+    const offlineBase = this.cloneColumnSet(this.propertyOfflineBaseColumns);
+    const offlineStatusBase = this.cloneColumnSet(this.offlineStatusPropertyBaseColumns);
+    this.onlineColumnDefinitionByContext = new Map();
+    this.offlineColumnDefinitionByContext = new Map();
+
+    onlineContexts.forEach(contextType => {
+      const definitions = this.getTrackerDefinitionsForContext(contextType)
+        .filter(definition => visibleOfficeIds.size === 0 || visibleOfficeIds.has(definition.officeId));
+      const mapByColumn = this.buildColumnDefinitionByOffice(definitions);
+      this.onlineColumnDefinitionByContext.set(Number(contextType), mapByColumn);
+      this.addTrackerColumnsToColumnSet(onlineBase, mapByColumn);
+    });
+
+    offlineContexts.forEach(contextType => {
+      const definitions = this.getTrackerDefinitionsForContext(contextType)
+        .filter(definition => visibleOfficeIds.size === 0 || visibleOfficeIds.has(definition.officeId));
+      const mapByColumn = this.buildColumnDefinitionByOffice(definitions);
+      this.offlineColumnDefinitionByContext.set(Number(contextType), mapByColumn);
+      this.addTrackerColumnsToColumnSet(offlineBase, mapByColumn);
+      this.addTrackerColumnsToColumnSet(offlineStatusBase, mapByColumn);
+    });
+
+    this.propertyOnlineColumns = onlineBase;
+    this.propertyOfflineColumns = offlineBase;
+    this.offlineStatusPropertyColumns = offlineStatusBase;
+  }
+
+  addTrackerColumnsToColumnSet(target: ColumnSet, mapByColumn: Map<string, Map<number, TrackerConfigurationDefinitionResponse>>): void {
+    mapByColumn.forEach((definitionByOffice, columnName) => {
+      if (target[columnName]) {
+        return;
+      }
+      const displayName = definitionByOffice.values().next().value?.displayName || '';
+      const headerLines = this.splitTwoWordHeader(displayName);
+      const isMultiSelect = this.isTrackerColumnMultiSelect(definitionByOffice);
+      target[columnName] = {
+        displayAs: headerLines.displayAs,
+        headerLine2: headerLines.headerLine2,
+        isCheckbox: !isMultiSelect,
+        isMultiSelect: isMultiSelect,
+        checkboxEditable: true,
+        sort: false,
+        wrap: false,
+        alignment: 'center',
+        headerAlignment: 'center',
+        maxWidth: '10ch'
+      };
+    });
+  }
+
+  applyPropertyTrackerValues(): void {
+    this.onlinePropertyRows = this.onlinePropertyRows.map(row => this.attachPropertyTrackerValuesToRow(row, 'online'));
+    this.offlinePropertyRows = this.offlinePropertyRows.map(row => this.attachPropertyTrackerValuesToRow(row, 'offline'));
+    this.offlineStatusPropertyDisplayRows = this.offlineStatusPropertyDisplayRows.map(row => this.attachPropertyTrackerValuesToRow(row, 'offline'));
+  }
+
+  attachPropertyTrackerValuesToRow<T extends { propertyId: string; officeId: number; propertyLeaseTypeId: number }>(row: T, sourceContext: 'online' | 'offline'): T {
+    const next: Record<string, unknown> = { ...row };
+    const contextType = this.resolvePropertyTrackerContext(row.propertyLeaseTypeId, sourceContext);
+    const contextMaps = sourceContext === 'online' ? this.onlineColumnDefinitionByContext : this.offlineColumnDefinitionByContext;
+    const contextMap = contextMaps.get(Number(contextType)) || new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
+    const responseByDefinitionId = this.propertyTrackerResponsesByProperty.get(this.utilityService.normalizeId(row.propertyId)) || new Map<string, PropertyTrackerResponse>();
+    const optionResponses = this.propertyTrackerResponseOptionsByProperty.get(this.utilityService.normalizeId(row.propertyId)) || [];
+
+    const allColumnNames = new Set<string>();
+    contextMaps.forEach(mapByColumn => mapByColumn.forEach((_, columnName) => allColumnNames.add(columnName)));
+
+    allColumnNames.forEach(columnName => {
+      const definition = this.resolveTrackerDefinitionForOffice(contextMap.get(columnName) || new Map(), row.officeId);
+      if (!definition) {
+        next[columnName] = 'NONE';
+        return;
+      }
+      if (this.isTrackerDefinitionMultiSelect(definition)) {
+        const selectedLabels = optionResponses
+          .filter(option => this.utilityService.normalizeId(option.trackerDefinitionId) === this.utilityService.normalizeId(definition.trackerDefinitionId))
+          .map(option => (definition.options || []).find(defOption => this.utilityService.normalizeId(defOption.trackerDefinitionOptionId) === this.utilityService.normalizeId(option.trackerDefinitionOptionId))?.label || '')
+          .filter(label => !!label);
+        next[columnName] = {
+          value: selectedLabels,
+          options: (definition.options || []).map(option => option.label).filter(label => !!label),
+          optionsSelected: selectedLabels.length,
+          triggerText: selectedLabels.length ? `${selectedLabels.length} selected` : 'Select',
+          isOverridable: true,
+          isMultiSelect: true,
+          toString: () => selectedLabels.join(', ')
+        };
+        return;
+      }
+      const response = responseByDefinitionId.get(this.utilityService.normalizeId(definition.trackerDefinitionId));
+      next[columnName] = response?.isChecked === true;
+    });
+    return next as T;
+  }
+
+  getTrackerDefinitionForPropertyRow(sourceContext: 'online' | 'offline', columnName: string, officeId: number, propertyLeaseTypeId: number): TrackerConfigurationDefinitionResponse | null {
+    const contextType = this.resolvePropertyTrackerContext(propertyLeaseTypeId, sourceContext);
+    const contextMaps = sourceContext === 'online' ? this.onlineColumnDefinitionByContext : this.offlineColumnDefinitionByContext;
+    const mapByColumn = contextMaps.get(Number(contextType)) || new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
+    return this.resolveTrackerDefinitionForOffice(mapByColumn.get(columnName) || new Map(), officeId) || null;
+  }
+
+  getPropertyTrackerDefinitionsForRow(sourceContext: 'online' | 'offline', officeId: number, propertyLeaseTypeId: number): TrackerConfigurationDefinitionResponse[] {
+    const contextType = this.resolvePropertyTrackerContext(propertyLeaseTypeId, sourceContext);
+    const contextMaps = sourceContext === 'online' ? this.onlineColumnDefinitionByContext : this.offlineColumnDefinitionByContext;
+    const mapByColumn = contextMaps.get(Number(contextType)) || new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
+    return this.getTrackerDefinitionsForOffice(mapByColumn, officeId);
+  }
+
+  onPropertyCheckboxChange(event: { propertyId: string; officeId: number; propertyLeaseTypeId: number }, sourceContext: 'online' | 'offline'): void {
+    const ext = event as { propertyId: string; officeId: number; propertyLeaseTypeId: number; __changedCheckboxColumn?: string; __previousCheckboxValue?: boolean; __checkboxValue?: boolean; };
+    const column = ext.__changedCheckboxColumn;
+    if (!column) {
+      return;
+    }
+    const propertyId = (event.propertyId || '').trim();
+    const previousValue = ext.__previousCheckboxValue === true;
+    const nextValue = ext.__checkboxValue === true;
+    if (previousValue === nextValue || !propertyId) {
+      return;
+    }
+    const trackerDefinition = this.getTrackerDefinitionForPropertyRow(sourceContext, column, event.officeId, event.propertyLeaseTypeId);
+    if (!trackerDefinition) {
+      this.applyPropertyTurnoverCheckboxValue(propertyId, column, previousValue);
+      this.publishPropertyTrackerSlice();
+      return;
+    }
+    void this.savePropertyTrackerCheckbox(propertyId, trackerDefinition, nextValue).then(() => {
+      this.applyPropertyTurnoverCheckboxValue(propertyId, column, nextValue);
+      this.publishPropertyTrackerSlice();
+      this.toastr.success('Tracker updated.', CommonMessage.Success);
+    }).catch(() => {
+      this.applyPropertyTurnoverCheckboxValue(propertyId, column, previousValue);
+      this.publishPropertyTrackerSlice();
+      this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+    });
+  }
+
+  onPropertyDropdownChange(event: { propertyId: string; officeId: number; propertyLeaseTypeId: number }, sourceContext: 'online' | 'offline'): void {
+    const changedColumn = (event as { __changedDropdownColumn?: string }).__changedDropdownColumn;
+    if (!changedColumn) {
+      return;
+    }
+    const propertyId = (event.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+    const trackerDefinition = this.getTrackerDefinitionForPropertyRow(sourceContext, changedColumn, event.officeId, event.propertyLeaseTypeId);
+    if (!trackerDefinition || !this.isTrackerDefinitionMultiSelect(trackerDefinition)) {
+      return;
+    }
+    const selectedLabels = this.readMultiSelectLabels(event, changedColumn);
+    void this.savePropertyTrackerMultiSelect(propertyId, trackerDefinition, selectedLabels).then(() => {
+      this.applyPropertyTrackerValues();
+      this.publishPropertyTrackerSlice();
+      this.toastr.success('Tracker updated.', CommonMessage.Success);
+    }).catch(() => {
+      this.applyPropertyTrackerValues();
+      this.publishPropertyTrackerSlice();
+      this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+    });
+  }
+
+  onPropertyCheckAllTracking(event: { propertyId: string; officeId: number; propertyLeaseTypeId: number }, sourceContext: 'online' | 'offline'): void {
+    const propertyId = (event.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+    const definitions = this.getPropertyTrackerDefinitionsForRow(sourceContext, event.officeId, event.propertyLeaseTypeId);
+    if (definitions.length === 0) {
+      return;
+    }
+    void (async () => {
+      try {
+        for (const definition of definitions) {
+          if (this.isTrackerDefinitionMultiSelect(definition)) {
+            await this.savePropertyTrackerMultiSelect(propertyId, definition, (definition.options || []).map(option => option.label).filter(label => !!label));
+            continue;
+          }
+          await this.savePropertyTrackerCheckbox(propertyId, definition, true);
+        }
+        this.applyPropertyTrackerValues();
+        this.publishPropertyTrackerSlice();
+        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+      } catch {
+        this.applyPropertyTrackerValues();
+        this.publishPropertyTrackerSlice();
+        this.toastr.error('Unable to update all tracker checks.', CommonMessage.Error);
+      }
+    })();
+  }
+
+  onPropertyClearTracking(event: { propertyId: string; officeId: number; propertyLeaseTypeId: number }, sourceContext: 'online' | 'offline'): void {
+    const propertyId = (event.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+    const definitions = this.getPropertyTrackerDefinitionsForRow(sourceContext, event.officeId, event.propertyLeaseTypeId);
+    if (definitions.length === 0) {
+      return;
+    }
+    void (async () => {
+      try {
+        for (const definition of definitions) {
+          if (this.isTrackerDefinitionMultiSelect(definition)) {
+            await this.savePropertyTrackerMultiSelect(propertyId, definition, []);
+            continue;
+          }
+          await this.savePropertyTrackerCheckbox(propertyId, definition, false);
+        }
+        this.applyPropertyTrackerValues();
+        this.publishPropertyTrackerSlice();
+        this.toastr.success('Tracking cleared.', CommonMessage.Success);
+      } catch {
+        this.applyPropertyTrackerValues();
+        this.publishPropertyTrackerSlice();
+        this.toastr.error('Unable to clear tracking.', CommonMessage.Error);
+      }
+    })();
+  }
+
+  async savePropertyTrackerCheckbox(propertyId: string, trackerDefinition: TrackerConfigurationDefinitionResponse, isChecked: boolean): Promise<void> {
+    const propertyKey = this.utilityService.normalizeId(propertyId);
+    const definitionKey = this.utilityService.normalizeId(trackerDefinition.trackerDefinitionId);
+    const byDefinitionId = this.propertyTrackerResponsesByProperty.get(propertyKey) || new Map<string, PropertyTrackerResponse>();
+    this.propertyTrackerResponsesByProperty.set(propertyKey, byDefinitionId);
+    const existing = byDefinitionId.get(definitionKey) || null;
+    if (isChecked) {
+      const request: PropertyTrackerResponseRequest = {
+        trackerResponseId: existing?.trackerResponseId,
+        trackerDefinitionId: trackerDefinition.trackerDefinitionId,
+        propertyId: propertyId,
+        isChecked: true,
+        checkedOn: new Date().toISOString(),
+        checkedBy: this.authService.getUser()?.userId ?? null
+      };
+      const saved = existing
+        ? await firstValueFrom(this.propertyService.updatePropertyTrackerResponse(request))
+        : await firstValueFrom(this.propertyService.createPropertyTrackerResponse(request));
+      byDefinitionId.set(definitionKey, saved);
+      return;
+    }
+    if (existing?.trackerResponseId) {
+      await firstValueFrom(this.propertyService.deletePropertyTrackerResponse(existing.trackerResponseId));
+      byDefinitionId.delete(definitionKey);
+    }
+  }
+
+  async savePropertyTrackerMultiSelect(propertyId: string, trackerDefinition: TrackerConfigurationDefinitionResponse, selectedLabels: string[]): Promise<void> {
+    const propertyKey = this.utilityService.normalizeId(propertyId);
+    const definitionKey = this.utilityService.normalizeId(trackerDefinition.trackerDefinitionId);
+    const byDefinitionId = this.propertyTrackerResponsesByProperty.get(propertyKey) || new Map<string, PropertyTrackerResponse>();
+    this.propertyTrackerResponsesByProperty.set(propertyKey, byDefinitionId);
+    const optionResponses = this.propertyTrackerResponseOptionsByProperty.get(propertyKey) || [];
+    const optionById = new Map((trackerDefinition.options || []).map(option => [this.utilityService.normalizeId(option.trackerDefinitionOptionId), option] as const));
+    const optionIdByLabel = new Map((trackerDefinition.options || []).map(option => [option.label, this.utilityService.normalizeId(option.trackerDefinitionOptionId)] as const));
+    const selectedOptionIds = new Set(selectedLabels.map(label => optionIdByLabel.get(label) || '').filter(optionId => !!optionId));
+    let trackerResponse = byDefinitionId.get(definitionKey) || null;
+    if (!trackerResponse && selectedOptionIds.size > 0) {
+      trackerResponse = await firstValueFrom(this.propertyService.createPropertyTrackerResponse({
+        trackerDefinitionId: trackerDefinition.trackerDefinitionId,
+        propertyId: propertyId,
+        isChecked: true,
+        checkedOn: new Date().toISOString(),
+        checkedBy: this.authService.getUser()?.userId ?? null
+      }));
+      byDefinitionId.set(definitionKey, trackerResponse);
+    }
+    if (!trackerResponse) {
+      return;
+    }
+    const responseOptionList = optionResponses.filter(option => this.utilityService.normalizeId(option.trackerDefinitionId) === definitionKey);
+    const existingOptionIds = new Set(responseOptionList.map(option => this.utilityService.normalizeId(option.trackerDefinitionOptionId)));
+    for (const optionId of Array.from(selectedOptionIds).filter(id => !existingOptionIds.has(id))) {
+      const option = optionById.get(optionId);
+      if (!option) {
+        continue;
+      }
+      const created = await firstValueFrom(this.propertyService.createPropertyTrackerResponseOption({
+        trackerResponseId: trackerResponse.trackerResponseId,
+        trackerDefinitionOptionId: option.trackerDefinitionOptionId
+      } as PropertyTrackerResponseOptionRequest));
+      optionResponses.push(created);
+    }
+    for (const optionId of Array.from(existingOptionIds).filter(id => !selectedOptionIds.has(id))) {
+      const option = responseOptionList.find(item => this.utilityService.normalizeId(item.trackerDefinitionOptionId) === optionId);
+      if (!option) {
+        continue;
+      }
+      await firstValueFrom(this.propertyService.deletePropertyTrackerResponseOption(option.trackerResponseId, option.trackerDefinitionOptionId));
+    }
+    this.propertyTrackerResponseOptionsByProperty.set(
+      propertyKey,
+      optionResponses.filter(option => {
+        if (this.utilityService.normalizeId(option.trackerDefinitionId) !== definitionKey) {
+          return true;
+        }
+        return selectedOptionIds.has(this.utilityService.normalizeId(option.trackerDefinitionOptionId));
+      })
+    );
+    if (selectedOptionIds.size === 0 && trackerResponse.trackerResponseId) {
+      await firstValueFrom(this.propertyService.deletePropertyTrackerResponse(trackerResponse.trackerResponseId));
+      byDefinitionId.delete(definitionKey);
+    }
+  }
+
+  applyPropertyTurnoverCheckboxValue(propertyId: string, column: string, value: boolean): void {
+    const propertyKey = (propertyId || '').trim();
+    const applyOnlineOffline = (rows: DashboardPropertyTurnoverRow[]): DashboardPropertyTurnoverRow[] =>
+      rows.map(row => ((row.propertyId || '').trim() === propertyKey ? { ...row, [column]: value } : row));
+    const applyStatus = (rows: PropertyOfflineStatusDisplay[]): PropertyOfflineStatusDisplay[] =>
+      rows.map(row => ((row.propertyId || '').trim() === propertyKey ? { ...row, [column]: value } as PropertyOfflineStatusDisplay : row));
+    this.onlinePropertyRows = applyOnlineOffline(this.onlinePropertyRows);
+    this.offlinePropertyRows = applyOnlineOffline(this.offlinePropertyRows);
+    this.offlineStatusPropertyDisplayRows = applyStatus(this.offlineStatusPropertyDisplayRows);
   }
   //#endregion
 }

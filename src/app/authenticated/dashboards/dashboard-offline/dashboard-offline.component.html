@@ -49,6 +49,8 @@
           [hasButtonTop]="false"
           [hasActionsRowClick]="true"
           [hasActionsEdit]="true"
+          [hasActionsCheckAll]="true"
+          [hasActionsClearTracking]="true"
           [hasActionsDelete]="false"
           [hasPropertyCodeLink]="true"
           [hasDetailRow]="true"
@@ -59,7 +61,11 @@
           [itemsPerPage]="50"
           (editEvent)="goToProperty($event)"
           (rowClickEvent)="goToProperty($event)"
-          (propertyCodeClickEvent)="goToProperty($event)">
+          (propertyCodeClickEvent)="goToProperty($event)"
+          (checkAllEvent)="onChecklistCheckAll($event)"
+          (clearTrackingEvent)="onChecklistClearTracking($event)"
+          (dropdownChangeEvent)="onChecklistDropdownChange($event)"
+          (checkboxChangeEvent)="onChecklistCheckboxChange($event)">
           <div dataTableFilterActions>
             <span class="filter-row-title">Offline Properties (Current & Next Month)</span>
           </div>

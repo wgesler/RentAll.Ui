@@ -120,11 +120,21 @@ export const emptyDashboardCompanyDataSnapshot: DashboardCompanyDataSnapshot = {
   monthlyCommissionColumns: emptyColumns
 };
 
+export type DashboardPropertyTrackerRow = {
+  propertyId: string;
+  officeId: number;
+  propertyLeaseTypeId: number;
+};
+
 export type DashboardCompanyTrackerHandlers = {
   onReservationCheckboxChange?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
   onReservationDropdownChange?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
   onReservationCheckAllTracking?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
   onReservationClearTracking?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
+  onPropertyCheckboxChange?: (row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline') => void;
+  onPropertyDropdownChange?: (row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline') => void;
+  onPropertyCheckAllTracking?: (row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline') => void;
+  onPropertyClearTracking?: (row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline') => void;
   onMaintenanceDropdownChange?: (row: MaintenanceListDisplay) => void;
   onMaintenanceInlineDateChange?: (row: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }) => void;
 };
@@ -334,6 +344,22 @@ export class DashboardCompanyDataService {
 
   onReservationClearTracking(row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure'): void {
     this.trackerHandlers.onReservationClearTracking?.(row, sourceContext);
+  }
+
+  onPropertyCheckboxChange(row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline'): void {
+    this.trackerHandlers.onPropertyCheckboxChange?.(row, sourceContext);
+  }
+
+  onPropertyDropdownChange(row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline'): void {
+    this.trackerHandlers.onPropertyDropdownChange?.(row, sourceContext);
+  }
+
+  onPropertyCheckAllTracking(row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline'): void {
+    this.trackerHandlers.onPropertyCheckAllTracking?.(row, sourceContext);
+  }
+
+  onPropertyClearTracking(row: DashboardPropertyTrackerRow, sourceContext: 'online' | 'offline'): void {
+    this.trackerHandlers.onPropertyClearTracking?.(row, sourceContext);
   }
 
   onMaintenanceDropdownChange(row: MaintenanceListDisplay): void {

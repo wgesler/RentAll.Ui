@@ -167,6 +167,22 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
     return String(value || '').trim().toLowerCase();
   }
 
+  onChecklistCheckboxChange(row: DashboardPropertyTurnoverRow): void {
+    this.companyDataService.onPropertyCheckboxChange(row, 'online');
+  }
+
+  onChecklistDropdownChange(row: DashboardPropertyTurnoverRow): void {
+    this.companyDataService.onPropertyDropdownChange(row, 'online');
+  }
+
+  onChecklistCheckAll(row: DashboardPropertyTurnoverRow): void {
+    this.companyDataService.onPropertyCheckAllTracking(row, 'online');
+  }
+
+  onChecklistClearTracking(row: DashboardPropertyTurnoverRow): void {
+    this.companyDataService.onPropertyClearTracking(row, 'online');
+  }
+
   onMaintenanceDropdownChange(event: MaintenanceListDisplay): void {
     this.companyDataService.onMaintenanceDropdownChange(event);
   }
