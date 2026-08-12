@@ -157,7 +157,8 @@
                 data-html-editor="departureInstructions"
                 class="description-editor-input description-editor-input--with-markers"
                 contenteditable="true"
-                (input)="onHtmlEditorInput('departureInstructions', $event)">
+                (input)="onHtmlEditorInput('departureInstructions', $event)"
+                (paste)="onHtmlEditorPaste('departureInstructions', $event)">
               </div>
             </div>
 
@@ -185,7 +186,8 @@
                 data-html-editor="departureCleaning"
                 class="description-editor-input description-editor-input--with-markers"
                 contenteditable="true"
-                (input)="onHtmlEditorInput('departureCleaning', $event)">
+                (input)="onHtmlEditorInput('departureCleaning', $event)"
+                (paste)="onHtmlEditorPaste('departureCleaning', $event)">
               </div>
             </div>
 
@@ -213,7 +215,8 @@
                 data-html-editor="departureMail"
                 class="description-editor-input description-editor-input--with-markers"
                 contenteditable="true"
-                (input)="onHtmlEditorInput('departureMail', $event)">
+                (input)="onHtmlEditorInput('departureMail', $event)"
+                (paste)="onHtmlEditorPaste('departureMail', $event)">
               </div>
             </div>
 
@@ -241,7 +244,8 @@
                 data-html-editor="departureFees"
                 class="description-editor-input description-editor-input--with-markers"
                 contenteditable="true"
-                (input)="onHtmlEditorInput('departureFees', $event)">
+                (input)="onHtmlEditorInput('departureFees', $event)"
+                (paste)="onHtmlEditorPaste('departureFees', $event)">
               </div>
             </div>
           </div>

@@ -248,6 +248,43 @@ export class DocumentHtmlService {
   }
 
   /**
+   * Removes pasted font-size / font-family so embedded HTML inherits the host letter font.
+   * Keeps bold/italic/underline/lists and other non-typography styles.
+   */
+  stripEmbeddedTypography(html: string): string {
+    if (!html) {
+      return '';
+    }
+
+    let result = html;
+
+    // Pasted Word/HTML fragments often carry <style> blocks with font rules.
+    result = result.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+    // Drop legacy <font> wrappers (size/face) but keep inner text.
+    result = result.replace(/<\/?font\b[^>]*>/gi, '');
+
+    result = result.replace(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi, (_match, quote: string, styleBody: string) => {
+      const cleaned = styleBody
+        .split(';')
+        .map(part => part.trim())
+        .filter(part => {
+          if (!part) {
+            return false;
+          }
+          return !/^(font-size|font-family)\s*:/i.test(part);
+        })
+        .join('; ');
+
+      if (!cleaned) {
+        return '';
+      }
+      return ` style=${quote}${cleaned}${quote}`;
+    });
+
+    return result;
+  }
+
+  /**
    * Strips HTML document structure (DOCTYPE, html, head, body tags) and adds a page break
    * Used when combining multiple HTML documents
    */

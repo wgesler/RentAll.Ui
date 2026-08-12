@@ -6,6 +6,7 @@ import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -51,6 +52,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private utilityService = inject(UtilityService);
+  private documentHtmlService = inject(DocumentHtmlService);
 
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -178,10 +180,11 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       internetService: formValue.internetService || undefined,
       keyReturn: formValue.keyReturn || undefined,
       // Always send these (never omit) so published procs don't fall back to NULL defaults.
-      departureInstructions: formValue.departureInstructions ?? '',
-      departureCleaning: formValue.departureCleaning ?? '',
-      departureMail: formValue.departureMail ?? '',
-      departureFees: formValue.departureFees ?? '',
+      // Strip pasted font-size/font-family so departure letter uses one host font.
+      departureInstructions: this.documentHtmlService.stripEmbeddedTypography(formValue.departureInstructions ?? ''),
+      departureCleaning: this.documentHtmlService.stripEmbeddedTypography(formValue.departureCleaning ?? ''),
+      departureMail: this.documentHtmlService.stripEmbeddedTypography(formValue.departureMail ?? ''),
+      departureFees: this.documentHtmlService.stripEmbeddedTypography(formValue.departureFees ?? ''),
       concierge: formValue.concierge || undefined,
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       emergencyPhone: formValue.emergencyPhone ? this.formatterService.stripPhoneFormatting(formValue.emergencyPhone) : undefined,
@@ -432,6 +435,30 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     const element = event.target as HTMLDivElement;
     const control = this.form.get(controlName);
     control?.setValue(element.innerHTML, { emitEvent: false });
+    control?.markAsDirty();
+    control?.markAsTouched();
+  }
+
+  onHtmlEditorPaste(controlName: HtmlEditorControlName, event: ClipboardEvent): void {
+    event.preventDefault();
+    const clipboard = event.clipboardData;
+    if (!clipboard) {
+      return;
+    }
+
+    const html = clipboard.getData('text/html');
+    const text = clipboard.getData('text/plain');
+    const insertHtml = html
+      ? this.documentHtmlService.stripEmbeddedTypography(html)
+      : this.escapeEditorHtml(text || '').replace(/\r?\n/g, '<br>');
+
+    this.execEditorCommand('insertHTML', false, insertHtml);
+    const editor = this.getHtmlEditorElement(controlName);
+    if (!editor) {
+      return;
+    }
+    const control = this.form.get(controlName);
+    control?.setValue(editor.innerHTML, { emitEvent: false });
     control?.markAsDirty();
     control?.markAsTouched();
   }
