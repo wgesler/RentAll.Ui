@@ -361,6 +361,7 @@ export interface PropertyListDisplay {
   owner1Id?: string | null;
   vendorId?: string| null;
   contactName: string;
+  ownerName?: string;
   unitLevel: number;
   bedrooms: number;
   bathrooms: number;

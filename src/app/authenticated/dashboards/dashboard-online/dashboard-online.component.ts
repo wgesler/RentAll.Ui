@@ -227,10 +227,15 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
     }
   }
 
-  goToContact(event: MaintenanceListDisplay): void {
-    if (event?.owner1Id) {
+  goToContact(event: MaintenanceListDisplay | DashboardPropertyTurnoverRow): void {
+    const leaseTypeId = Number((event as DashboardPropertyTurnoverRow).propertyLeaseTypeId);
+    const isVendorLeaseType = leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+    const contactId = isVendorLeaseType
+      ? String((event as DashboardPropertyTurnoverRow).vendorId || event.owner1Id || '').trim()
+      : String(event.owner1Id || '').trim();
+    if (contactId) {
       this.router.navigate(
-        [RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id])],
+        [RouterUrl.replaceTokens(RouterUrl.Contact, [contactId])],
         { queryParams: { returnUrl: this.router.url } }
       );
     }

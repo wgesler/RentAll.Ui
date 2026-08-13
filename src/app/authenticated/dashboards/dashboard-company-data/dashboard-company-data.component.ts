@@ -11,7 +11,7 @@ import { TrackerConfigurationDefinitionResponse, TrackerConfigurationResponse } 
 import { AgentService } from '../../organizations/services/agent.service';
 import { TrackerService } from '../../organizations/services/tracker.service';
 import { PropertyLeaseType, PropertyStatus } from '../../properties/models/property-enums';
-import { PropertyTrackerResponse, PropertyTrackerResponseOption, PropertyTrackerResponseOptionRequest, PropertyTrackerResponseRequest } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyTrackerResponse, PropertyTrackerResponseOption, PropertyTrackerResponseOptionRequest, PropertyTrackerResponseRequest } from '../../properties/models/property.model';
 import { BillingType } from '../../reservations/models/reservation-enum';
 import { ReservationTrackerResponse, ReservationTrackerResponseOption, ReservationTrackerResponseOptionRequest, ReservationTrackerResponseRequest } from '../../reservations/models/reservation-model';
 import { PropertyMaintenanceBase } from '../../shared/base-classes/property-maintenance.base';
@@ -109,6 +109,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   private readonly propertyOnlineBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
+    ownerName: { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
     availableAfter: { displayAs: 'Online', maxWidth: '15ch', alignment: 'center' },
     bedrooms: { displayAs: 'Beds', wrap: false, maxWidth: '10ch', alignment: 'center' },
     bathrooms: { displayAs: 'Baths', wrap: false, maxWidth: '10ch', alignment: 'center' },
@@ -147,11 +148,12 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   private readonly offlineStatusPropertyBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
-    contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
-    propertyStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false },
+    ownerName: { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
     availableUntilDisplay: { displayAs: 'Offline', maxWidth: '15ch', alignment: 'center' },
     bedrooms: { displayAs: 'Beds', maxWidth: '15ch', alignment: 'center' },
-    bathrooms: { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' }
+    bathrooms: { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' },
+    squareFeet: { displayAs: 'Sq Ft', wrap: false, maxWidth: '10ch', alignment: 'center' },
+    propertyStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false }
   };
 
   private readonly monthlyCommissionColumns: ColumnSet = {
@@ -906,7 +908,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       .filter(pm => pm.offlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableUntilOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableUntilOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
-    this.offlineStatusPropertyDisplayRows = [...this.propertiesOfflineStatus];
+    this.offlineStatusPropertyDisplayRows = this.propertiesOfflineStatus.map(row => ({
+      ...row,
+      ownerName: this.mappingService.resolvePropertyListContactName(row)
+    }));
 
     this.reservationTurnoverArrivalRows = arrivalRows.map(r => this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r));
     this.reservationTurnoverDepartureRows = departureRows.map(r => this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r));
@@ -1605,9 +1610,13 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   }
 
   mapPropertyMaintenanceToDashboardTurnoverRow(pm: PropertyMaintenance): DashboardPropertyTurnoverRow {
-    const property = {
+    const listProperty = this.findPropertyListRowByPropertyId(pm.propertyId);
+    const property: PropertyListResponse = {
       ...this.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm),
-      propertyLeaseTypeId: this.getPropertyLeaseTypeIdByPropertyId(pm.propertyId)
+      propertyLeaseTypeId: listProperty?.propertyLeaseTypeId ?? this.getPropertyLeaseTypeIdByPropertyId(pm.propertyId),
+      owner1Id: listProperty?.owner1Id ?? null,
+      vendorId: listProperty?.vendorId ?? null,
+      contactName: listProperty?.contactName ?? ''
     };
     return this.mixedMappingService.mapDashboardMainPropertyTurnoverRow(
       property,

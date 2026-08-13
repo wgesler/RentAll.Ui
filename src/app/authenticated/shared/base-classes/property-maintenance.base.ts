@@ -128,9 +128,13 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
   protected getPropertyLeaseTypeIdByPropertyId(propertyId: string): number {
-    const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
-    const property = this.propertyList.find(row => this.utilityService.normalizeId(row.propertyId) === normalizedPropertyId);
+    const property = this.findPropertyListRowByPropertyId(propertyId);
     return Number(property?.propertyLeaseTypeId ?? 0);
+  }
+
+  protected findPropertyListRowByPropertyId(propertyId: string): PropertyListResponse | undefined {
+    const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
+    return this.propertyList.find(row => this.utilityService.normalizeId(row.propertyId) === normalizedPropertyId);
   }
 
   protected recomputeBackendData(userId: string | null = null): void {

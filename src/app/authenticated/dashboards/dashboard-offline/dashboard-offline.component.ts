@@ -297,9 +297,14 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
   }
 
   goToContact(event: MaintenanceListDisplay | PropertyInProcessDisplay): void {
-    if (event?.owner1Id) {
+    const leaseTypeId = Number((event as PropertyInProcessDisplay).propertyLeaseTypeId);
+    const isVendorLeaseType = leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+    const contactId = isVendorLeaseType
+      ? String((event as PropertyInProcessDisplay).vendorId || event.owner1Id || '').trim()
+      : String(event.owner1Id || '').trim();
+    if (contactId) {
       this.router.navigate(
-        [RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id])],
+        [RouterUrl.replaceTokens(RouterUrl.Contact, [contactId])],
         { queryParams: { returnUrl: this.router.url } }
       );
     }

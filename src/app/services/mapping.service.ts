@@ -1918,6 +1918,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         owner1Id: o.owner1Id,
         vendorId: o.vendorId,
         contactName: this.resolvePropertyListContactName(o),
+        ownerName: this.resolvePropertyListContactName(o),
         unitLevel: o.unitLevel,
         bedrooms,
         bathrooms: o.bathrooms,
