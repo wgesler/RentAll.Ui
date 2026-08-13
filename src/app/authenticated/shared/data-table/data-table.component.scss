@@ -1584,3 +1584,12 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
     display: table-header-group !important;
     visibility: visible !important;
 }
+
+.schedule-date-cell--primary {
+  font-weight: 700;
+}
+
+.schedule-date-cell--muted {
+  color: #9e9e9e;
+  font-weight: 400;
+}

@@ -10,3 +10,13 @@ export interface MonthlyCommissionTileRow {
   agentCode: string;
   amount: number;
 }
+
+export type DashboardServiceProviderOption = {
+  userId: string;
+  label: string;
+};
+
+export type ScheduleDateCell = {
+  text: string;
+  emphasis: 'primary' | 'muted' | 'none';
+};

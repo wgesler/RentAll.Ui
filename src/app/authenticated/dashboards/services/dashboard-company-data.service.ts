@@ -9,7 +9,7 @@ import {
   PropertyVacancyDisplay,
   ReservationTurnoverEventDisplay
 } from '../../shared/models/mixed-models';
-import { MonthlyCommissionDisplay } from '../models/dashboard-model';
+import { MonthlyCommissionDisplay, DashboardServiceProviderOption } from '../models/dashboard-model';
 
 export type DashboardOfficeOption = {
   officeId: number;
@@ -68,6 +68,9 @@ export type DashboardCompanyDataSnapshot = {
   offlineStatusPropertyColumnsByLeaseType: Partial<Record<number, ColumnSet>>;
   offlineStatusMaintenanceColumns: ColumnSet;
   monthlyCommissionColumns: ColumnSet;
+  serviceProviderOptions: DashboardServiceProviderOption[];
+  scheduleCleaningRows: MaintenanceListDisplay[];
+  scheduleCleaningColumns: ColumnSet;
 };
 
 const emptyColumns: ColumnSet = {};
@@ -121,7 +124,10 @@ export const emptyDashboardCompanyDataSnapshot: DashboardCompanyDataSnapshot = {
   offlineStatusPropertyColumns: emptyColumns,
   offlineStatusPropertyColumnsByLeaseType: {},
   offlineStatusMaintenanceColumns: emptyColumns,
-  monthlyCommissionColumns: emptyColumns
+  monthlyCommissionColumns: emptyColumns,
+  serviceProviderOptions: [],
+  scheduleCleaningRows: [],
+  scheduleCleaningColumns: emptyColumns
 };
 
 export type DashboardPropertyTrackerRow = {

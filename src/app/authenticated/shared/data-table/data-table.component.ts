@@ -825,6 +825,26 @@ markViewForCheck(): void {
       .filter(token => token.length > 0);
   }
 
+  getScheduleDateCellText(cell: unknown): string {
+    if (cell && typeof cell === 'object' && 'text' in cell) {
+      return String((cell as { text: string }).text || '');
+    }
+    return typeof cell === 'string' ? cell : '';
+  }
+
+  getScheduleDateCellClass(cell: unknown): string {
+    if (cell && typeof cell === 'object' && 'emphasis' in cell) {
+      const emphasis = (cell as { emphasis: string }).emphasis;
+      if (emphasis === 'primary') {
+        return 'schedule-date-cell schedule-date-cell--primary';
+      }
+      if (emphasis === 'muted') {
+        return 'schedule-date-cell schedule-date-cell--muted';
+      }
+    }
+    return 'schedule-date-cell';
+  }
+
   emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {
     if (event.checked && (rowItem?.disabled || rowItem?.updating)) {
       rowItem.selected = false;

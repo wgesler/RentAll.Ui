@@ -17,6 +17,7 @@ import {
   DashboardCompanyDataSnapshot,
   emptyDashboardCompanyDataSnapshot
 } from '../services/dashboard-company-data.service';
+import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 
 type ScheduleDotType = 'blue' | 'purple' | 'green' | 'pink';
 type ScheduleCalendarCell = { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean };
@@ -48,6 +49,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
 
   private companyDataService = inject(DashboardCompanyDataService);
   private router = inject(Router);
+  private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private utilityService = inject(UtilityService);
   private destroy$ = new Subject<void>();
@@ -68,6 +70,9 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Calendars
   ngOnInit(): void {
+    if (this.showMaidServiceTable && !this.showCalendarsSection) {
+      this.dashboardNavigation.setTabIndex(6);
+    }
     // Calendars render immediately; markers fill in when company snapshot becomes ready.
     this.refreshScheduleCalendars();
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
@@ -530,6 +535,10 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
         { queryParams: { returnUrl: this.router.url } }
       );
     }
+  }
+
+  goToProperty(event: { propertyId: string }): void {
+    this.dashboardNavigation.goToProperty(this.router, event?.propertyId);
   }
 
   goToPropertyMaintenance(event: MaintenanceListDisplay): void {

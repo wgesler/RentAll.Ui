@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -9,9 +10,11 @@ import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { MonthlyCommissionDisplay, MonthlyCommissionTileRow } from '../models/dashboard-model';
 import { DashboardCompanyDataService, DashboardOfficeOption } from '../services/dashboard-company-data.service';
+import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 import { DashboardArrivalsComponent } from '../dashboard-arrivals/dashboard-arrivals.component';
 import { DashboardCalendarsComponent } from '../dashboard-calendars/dashboard-calendars.component';
 import { DashboardCommissionsComponent } from '../dashboard-commissions/dashboard-commissions.component';
+import { DashboardSchedulesComponent } from '../dashboard-schedules/dashboard-schedules.component';
 import { DashboardCompanyDataComponent } from '../dashboard-company-data/dashboard-company-data.component';
 import { DashboardDeparturesComponent } from '../dashboard-departures/dashboard-departures.component';
 import { DashboardInProcessComponent } from '../dashboard-in-process/dashboard-in-process.component';
@@ -36,6 +39,7 @@ import { DashboardVacantComponent } from '../dashboard-vacant/dashboard-vacant.c
     DashboardCalendarsComponent,
     DashboardInProcessComponent,
     DashboardVacantComponent,
+    DashboardSchedulesComponent,
     DashboardCommissionsComponent
   ]
 })
@@ -44,6 +48,9 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   private userService = inject(UserService);
   private formatterService = inject(FormatterService);
   private companyDataService = inject(DashboardCompanyDataService);
+  private dashboardNavigation = inject(DashboardNavigationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -77,6 +84,14 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.user?.userId ?? '');
 
+    const tabParam = Number(this.route.snapshot.queryParamMap.get('tab'));
+    if (Number.isFinite(tabParam)) {
+      this.selectedTabIndex = this.clampTabIndex(tabParam);
+      this.dashboardNavigation.setTabIndex(this.selectedTabIndex);
+    } else {
+      this.dashboardNavigation.setTabIndex(this.selectedTabIndex);
+    }
+
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.todayArriveDepartCount = snapshot.todayArriveDepartCount;
       this.tomorrowArriveDepartCount = snapshot.tomorrowArriveDepartCount;
@@ -100,13 +115,31 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
         return;
       }
       // Always apply so Material tab selection stays in sync with calendar focus.
-      this.selectedTabIndex = focus.tabIndex;
+      this.selectedTabIndex = this.clampTabIndex(focus.tabIndex);
+      this.syncDashboardTabToUrl(this.selectedTabIndex);
       this.markViewForCheck();
     });
   }
 
+  clampTabIndex(tabIndex: number): number {
+    const maxTabIndex = this.canViewCommissions ? 8 : 7;
+    return Math.max(0, Math.min(maxTabIndex, Math.floor(tabIndex)));
+  }
+
+  syncDashboardTabToUrl(tabIndex: number): void {
+    const clamped = this.clampTabIndex(tabIndex);
+    this.selectedTabIndex = clamped;
+    this.dashboardNavigation.setTabIndex(clamped);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: clamped },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
   onTabIndexChange(tabIndex: number): void {
-    this.selectedTabIndex = tabIndex;
+    this.syncDashboardTabToUrl(tabIndex);
   }
 
   get titleBarOfficeOptions(): { value: number; label: string }[] {

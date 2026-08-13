@@ -23,6 +23,7 @@ import { PropertyListingComponent } from '../property-listing/property-listing.c
 import { PropertyReservationHistoryComponent } from '../property-reservation-history/property-reservation-history.component';
 import { PropertyComponent } from '../property/property.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
+import { DashboardNavigationService } from '../../dashboards/services/dashboard-navigation.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
@@ -55,6 +56,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   private reservationService = inject(ReservationService);
   private contactService = inject(ContactService);
   private utilityService = inject(UtilityService);
+  private dashboardNavigation = inject(DashboardNavigationService);
 
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
@@ -448,6 +450,14 @@ applyOfficeFromGlobal(officeId: number | null): void {
       if (!canLeave) {
         return;
       }
+    }
+
+    const dashboardReturnUrl = this.dashboardNavigation.resolveDashboardReturnUrl(
+      this.route.snapshot.queryParamMap.get('returnUrl')
+    );
+    if (dashboardReturnUrl) {
+      void this.router.navigateByUrl(dashboardReturnUrl);
+      return;
     }
 
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');

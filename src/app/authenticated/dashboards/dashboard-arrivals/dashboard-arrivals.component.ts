@@ -9,6 +9,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListDisplay, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
 import { UtilityService } from '../../../services/utility.service';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
+import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 
 type ArrivalTurnoverRow = ReservationTurnoverEventDisplay & {
   expand: string;
@@ -29,6 +30,7 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
   private companyDataService = inject(DashboardCompanyDataService);
   private utilityService = inject(UtilityService);
   private router = inject(Router);
+  private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -43,6 +45,7 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Arrivals
   ngOnInit(): void {
+    this.dashboardNavigation.setTabIndex(0);
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
@@ -237,12 +240,16 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
 
   onChecklistRowNavigate(row: ReservationTurnoverEventDisplay): void {
     if (row.reservationId?.trim()) {
-      this.router.navigate([RouterUrl.replaceTokens(RouterUrl.Reservation, [row.reservationId])], { queryParams: { returnUrl: this.router.url } });
+      this.dashboardNavigation.goToReservation(this.router, row.reservationId, row.propertyId);
       return;
     }
     if (row.propertyId?.trim()) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [row.propertyId]));
+      this.dashboardNavigation.goToProperty(this.router, row.propertyId);
     }
+  }
+
+  goToReservation(event: { reservationId?: string | null; propertyId?: string | null }): void {
+    this.dashboardNavigation.goToReservation(this.router, event?.reservationId, event?.propertyId);
   }
 
   onChecklistCheckboxChange(row: ReservationTurnoverEventDisplay): void {
@@ -282,9 +289,7 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
 
   //#region Navigate From Calendar
   goToProperty(event: { propertyId: string }): void {
-    if (event?.propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-    }
+    this.dashboardNavigation.goToProperty(this.router, event?.propertyId);
   }
 
   goToContact(event: MaintenanceListDisplay): void {

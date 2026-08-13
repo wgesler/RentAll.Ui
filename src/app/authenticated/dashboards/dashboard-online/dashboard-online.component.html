@@ -18,7 +18,7 @@
         [itemsPerPage]="100"
         (dropdownChangeEvent)="onMaintenanceDropdownChange($event)"
         (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
-        (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+        (propertyCodeClickEvent)="goToProperty($event)"
         (contactClickEvent)="goToContact($event)"/>
     } @else {
       <p class="dashboard-tab-empty">No maintenance for this property.</p>
@@ -96,7 +96,7 @@
             (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
             (editEvent)="goToPropertyMaintenance($event)"
             (inspectEvent)="goToInspection($event)"
-            (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+            (propertyCodeClickEvent)="goToProperty($event)"
             (contactClickEvent)="goToContact($event)"/>
         </div>
       }

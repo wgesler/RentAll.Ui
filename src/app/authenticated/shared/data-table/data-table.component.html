@@ -414,6 +414,22 @@
                     <span [matTooltip]="item?.receiptTypeTooltip || null" matTooltipPosition="above">
                       {{item[column.name]}}
                     </span>
+                  } @case ('scheduleDepartureDate') {
+                    @if (getScheduleDateCellText(item[column.name])) {
+                      <span [ngClass]="getScheduleDateCellClass(item[column.name])">{{ getScheduleDateCellText(item[column.name]) }}</span>
+                    }
+                  } @case ('scheduleArrivalDate') {
+                    @if (getScheduleDateCellText(item[column.name])) {
+                      <span [ngClass]="getScheduleDateCellClass(item[column.name])">{{ getScheduleDateCellText(item[column.name]) }}</span>
+                    }
+                  } @case ('scheduledCleanDate') {
+                    @if (getScheduleDateCellText(item[column.name])) {
+                      <span [ngClass]="getScheduleDateCellClass(item[column.name])">{{ getScheduleDateCellText(item[column.name]) }}</span>
+                    }
+                  } @case ('serviceDate') {
+                    @if (getScheduleDateCellText(item[column.name])) {
+                      <span [ngClass]="getScheduleDateCellClass(item[column.name])">{{ getScheduleDateCellText(item[column.name]) }}</span>
+                    }
                   } @default {
                   @if (column.editableType === 'date' && item[(column.name ?? '') + 'ReadOnly'] !== true) {
                     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="datatable-editable-date-field">

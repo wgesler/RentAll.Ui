@@ -8,6 +8,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MonthlyCommissionDisplay } from '../models/dashboard-model';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
+import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 
 @Component({
   standalone: true,
@@ -20,6 +21,7 @@ import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboa
 export class DashboardCommissionsComponent implements OnInit, OnDestroy {
   private companyDataService = inject(DashboardCompanyDataService);
   private router = inject(Router);
+  private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -28,6 +30,7 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Commissions
   ngOnInit(): void {
+    this.dashboardNavigation.setTabIndex(8);
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.commissionRows = snapshot.monthlyCommissionRows || [];
@@ -62,18 +65,11 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
       }
       return;
     }
-    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
-    const queryParams: Record<string, string> = {};
-    if (event.propertyId) {
-      queryParams['propertyId'] = event.propertyId;
-    }
-    this.router.navigate(['/' + url], { queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined });
+    this.dashboardNavigation.goToReservation(this.router, event.reservationId, event.propertyId);
   }
 
   goToProperty(event: { propertyId: string }): void {
-    if (event?.propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-    }
+    this.dashboardNavigation.goToProperty(this.router, event?.propertyId);
   }
 
   goToContact(event: MonthlyCommissionDisplay): void {

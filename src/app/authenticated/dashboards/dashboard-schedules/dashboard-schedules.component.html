@@ -1,0 +1,68 @@
+@if (!snapshot.isReady) {
+  <div class="loading-container dbg-band-main">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading…</p>
+  </div>
+} @else {
+  <div class="dashboard-panel-content dbg-band-main">
+    <div class="property-tab-actions-band" aria-hidden="true">
+      <div class="property-tab-actions-band__row"></div>
+    </div>
+    <div class="property-tab-main-area">
+      <div class="tableDiv">
+        <app-data-table
+          [data]="scheduleDisplayRows"
+          [columns]="scheduleColumns"
+          [subheaderLabel]="''"
+          [hasColumnIndex]="true"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsRowClick]="false"
+          [hasPropertyCodeLink]="true"
+          [hasReservationCodeLink]="true"
+          [hasActionsEdit]="false"
+          [hasActionsInspect]="false"
+          [itemsPerPage]="50"
+          (propertyCodeClickEvent)="goToProperty($event)"
+          (reservationCodeClickEvent)="goToReservation($event)">
+          <div dataTableFilterActions class="schedules-filter-actions-wrap">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap schedules-filter-actions">
+            <button
+              mat-raised-button
+              type="button"
+              color="accent"
+              class="text-nowrap flex-shrink-0"
+              aria-label="Download schedule"
+              [disabled]="scheduleDisplayRows.length === 0 || isDownloadingSchedule"
+              (click)="downloadSchedule()">
+              <mat-icon>download</mat-icon>
+              {{ isDownloadingSchedule ? 'Downloading...' : 'Download' }}
+            </button>
+            <button
+              mat-raised-button
+              type="button"
+              color="accent"
+              class="text-nowrap flex-shrink-0"
+              aria-label="Email schedule"
+              [disabled]="scheduleDisplayRows.length === 0 || isPreparingEmail"
+              (click)="emailSchedule()">
+              <mat-icon>email</mat-icon>
+              {{ isPreparingEmail ? 'Preparing...' : 'Email' }}
+            </button>
+            <mat-select
+              class="schedules-service-provider-select"
+              [value]="selectedServiceProviderId"
+              (valueChange)="onServiceProviderChange($event)"
+              panelClass="datatable-dropdown-panel">
+              @for (option of serviceProviderSelectOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+            </div>
+          </div>
+        </app-data-table>
+      </div>
+    </div>
+  </div>
+}

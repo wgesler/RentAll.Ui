@@ -8,6 +8,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListDisplay, PropertyInProcessDisplay } from '../../shared/models/mixed-models';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
+import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 
 type OccupiedTurnoverRow = PropertyInProcessDisplay & {
   expand: string;
@@ -27,6 +28,7 @@ type OccupiedTurnoverRow = PropertyInProcessDisplay & {
 export class DashboardInProcessComponent implements OnInit, OnDestroy {
   private companyDataService = inject(DashboardCompanyDataService);
   private router = inject(Router);
+  private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -38,6 +40,7 @@ export class DashboardInProcessComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Occupied
   ngOnInit(): void {
+    this.dashboardNavigation.setTabIndex(4);
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
@@ -177,9 +180,7 @@ export class DashboardInProcessComponent implements OnInit, OnDestroy {
 
   //#region Navigate From Calendar
   goToProperty(event: { propertyId: string }): void {
-    if (event?.propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-    }
+    this.dashboardNavigation.goToProperty(this.router, event?.propertyId);
   }
 
   goToContact(event: MaintenanceListDisplay | PropertyInProcessDisplay): void {

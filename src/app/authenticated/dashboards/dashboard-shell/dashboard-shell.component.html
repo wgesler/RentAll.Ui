@@ -208,9 +208,14 @@
             <app-dashboard-calendars [showCalendarsSection]="false" />
           }
         </mat-tab>
+        <mat-tab label="Schedules">
+          @if (selectedTabIndex === 7) {
+            <app-dashboard-schedules />
+          }
+        </mat-tab>
         @if (canViewCommissions) {
           <mat-tab label="Commissions">
-            @if (selectedTabIndex === 7) {
+            @if (selectedTabIndex === 8) {
               <app-dashboard-commissions />
             }
           </mat-tab>

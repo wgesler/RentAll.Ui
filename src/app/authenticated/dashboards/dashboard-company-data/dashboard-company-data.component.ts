@@ -16,12 +16,12 @@ import { BillingType } from '../../reservations/models/reservation-enum';
 import { ReservationTrackerResponse, ReservationTrackerResponseOption, ReservationTrackerResponseOptionRequest, ReservationTrackerResponseRequest } from '../../reservations/models/reservation-model';
 import { PropertyMaintenanceBase } from '../../shared/base-classes/property-maintenance.base';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ServiceType } from '../../shared/models/mixed-enums';
+import { ServiceType, getServiceType } from '../../shared/models/mixed-enums';
 import { DashboardPropertyTurnoverRow, MaintenanceListCurrentReservationByPropertyId, MaintenanceListDisplay, MaintenanceListMappingContext, PropertyMaintenance, PropertyOfflineStatusDisplay, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
 import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
-import { MonthlyCommissionDisplay } from '../models/dashboard-model';
+import { MonthlyCommissionDisplay, DashboardServiceProviderOption, ScheduleDateCell } from '../models/dashboard-model';
 import { DashboardCompanyDataService, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 
 @Component({
@@ -973,7 +973,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       offlineStatusPropertyColumns: this.offlineStatusPropertyColumns,
       offlineStatusPropertyColumnsByLeaseType: this.offlineStatusPropertyColumnsByLeaseType,
       offlineStatusMaintenanceColumns: this.withEventDateLabel(maintenanceColumns, 'Event Date'),
-      monthlyCommissionColumns: this.monthlyCommissionColumns
+      monthlyCommissionColumns: this.monthlyCommissionColumns,
+      serviceProviderOptions: this.buildServiceProviderOptions(),
+      scheduleCleaningRows: this.buildScheduleCleaningRows(maintenanceSlices),
+      scheduleCleaningColumns: this.buildScheduleCleaningColumns()
     });
   }
 
@@ -1016,6 +1019,425 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
   getShowOfficeDropdown(): boolean {
     return this.getDashboardOfficeOptions().length > 1;
+  }
+
+  buildScheduleCleaningColumns(): ColumnSet {
+    return {
+      propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
+      reservationCode: { displayAs: 'Reservation', maxWidth: '14ch', wrap: false },
+      shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
+      bedrooms: { displayAs: 'Beds', wrap: false, maxWidth: '10ch', alignment: 'center' },
+      bathrooms: { displayAs: 'Baths', wrap: false, maxWidth: '10ch', alignment: 'center' },
+      squareFeet: { displayAs: 'Sq Ft', wrap: false, maxWidth: '10ch', alignment: 'center' },
+      hasPets: { displayAs: 'Pets', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '10ch' },
+      scheduleDepartureDate: { displayAs: 'Departure or', headerLine2: 'Offline', maxWidth: '15ch', alignment: 'center', headerAlignment: 'center', wrap: false },
+      scheduleArrivalDate: { displayAs: 'Arrival or', headerLine2: 'Online', maxWidth: '15ch', alignment: 'center', headerAlignment: 'center', wrap: false },
+      scheduledCleanDate: { displayAs: 'Maid', headerLine2: 'Service', maxWidth: '15ch', alignment: 'center', headerAlignment: 'center', wrap: false },
+      cleanerName: { displayAs: 'Service Provider', maxWidth: '20ch', wrap: false },
+      serviceDate: { displayAs: 'Service Date', maxWidth: '15ch', alignment: 'center', wrap: false }
+    };
+  }
+
+  resolveScheduleProviderName(
+    providerCell: MaintenanceListDisplay['cleaner'],
+    emptyLabels: string[]
+  ): string {
+    if (providerCell && typeof providerCell === 'object' && 'value' in providerCell) {
+      const value = String(providerCell.value || '').trim();
+      if (value && !emptyLabels.includes(value)) {
+        return value;
+      }
+    }
+    return '';
+  }
+
+  resolveScheduleCleanerName(row: MaintenanceListDisplay): string {
+    return this.resolveScheduleProviderName(row.cleaner, ['Clear Selection', 'Select Cleaner']);
+  }
+
+  getScheduleServiceSlots(row: MaintenanceListDisplay): {
+    serviceKind: 'cleaning' | 'carpet' | 'inspecting' | 'maid';
+    serviceDate: string;
+    providerUserId: string | null;
+    providerName: string;
+  }[] {
+    if (row.eventType === ServiceType.MaidService) {
+      const serviceDate = String(row.eventDate || '').trim();
+      if (!this.isValidScheduleDate(serviceDate)) {
+        return [];
+      }
+      return [{
+        serviceKind: 'maid',
+        serviceDate,
+        providerUserId: row.cleanerUserId ?? null,
+        providerName: this.resolveScheduleCleanerName(row)
+      }];
+    }
+
+    const slots: {
+      serviceKind: 'cleaning' | 'carpet' | 'inspecting';
+      serviceDate: string;
+      providerUserId: string | null;
+      providerName: string;
+    }[] = [];
+
+    const cleaningDate = String(row.cleaningDate || '').trim();
+    if (this.isValidScheduleDate(cleaningDate)) {
+      slots.push({
+        serviceKind: 'cleaning',
+        serviceDate: cleaningDate,
+        providerUserId: row.cleanerUserId ?? null,
+        providerName: this.resolveScheduleProviderName(row.cleaner, ['Clear Selection', 'Select Cleaner'])
+      });
+    }
+
+    const carpetDate = String(row.carpetDate || '').trim();
+    if (this.isValidScheduleDate(carpetDate)) {
+      slots.push({
+        serviceKind: 'carpet',
+        serviceDate: carpetDate,
+        providerUserId: row.carpetUserId ?? null,
+        providerName: this.resolveScheduleProviderName(row.carpet, ['Clear Selection', 'Select Carpet Cleaner'])
+      });
+    }
+
+    const inspectingDate = String(row.inspectingDate || '').trim();
+    if (this.isValidScheduleDate(inspectingDate)) {
+      slots.push({
+        serviceKind: 'inspecting',
+        serviceDate: inspectingDate,
+        providerUserId: row.inspectorUserId ?? null,
+        providerName: this.resolveScheduleProviderName(row.inspector, ['Clear Selection', 'Select Inspector'])
+      });
+    }
+
+    return slots;
+  }
+
+  buildServiceProviderOptions(): DashboardServiceProviderOption[] {
+    return this.getServiceProviders().map(({ userId, displayName }) => ({
+      userId: this.utilityService.normalizeId(userId),
+      label: displayName
+    }));
+  }
+
+  buildPropertyReservationTimeline(): Map<
+    string,
+    {
+      reservationId: string;
+      arrivalDateOrdinal: number;
+      departureDateOrdinal: number;
+      arrivalDateDisplay: string;
+      departureDateDisplay: string;
+    }[]
+  > {
+    const byProperty = new Map<
+      string,
+      {
+        reservationId: string;
+        arrivalDateOrdinal: number;
+        departureDateOrdinal: number;
+        arrivalDateDisplay: string;
+        departureDateDisplay: string;
+      }[]
+    >();
+    for (const reservation of this.filteredReservationPropertyMaintenanceList) {
+      const propertyId = this.utilityService.normalizeId(reservation.propertyId);
+      const reservationId = this.utilityService.normalizeId(reservation.reservationId);
+      const arrivalDateOrdinal = reservation.arrivalDateOrdinal;
+      const departureDateOrdinal = reservation.departureDateOrdinal;
+      if (!propertyId || !reservationId || arrivalDateOrdinal == null || departureDateOrdinal == null) {
+        continue;
+      }
+      const list = byProperty.get(propertyId) ?? [];
+      list.push({
+        reservationId,
+        arrivalDateOrdinal,
+        departureDateOrdinal,
+        arrivalDateDisplay: reservation.arrivalDateDisplay || '',
+        departureDateDisplay: reservation.departureDateDisplay || ''
+      });
+      byProperty.set(propertyId, list);
+    }
+    for (const list of byProperty.values()) {
+      list.sort((a, b) => a.arrivalDateOrdinal - b.arrivalDateOrdinal);
+    }
+    return byProperty;
+  }
+
+  findPreviousDepartureDate(
+    timeline: {
+      reservationId: string;
+      arrivalDateOrdinal: number;
+      departureDateOrdinal: number;
+      arrivalDateDisplay: string;
+      departureDateDisplay: string;
+    }[],
+    beforeArrivalOrdinal: number,
+    reservationId?: string
+  ): string {
+    const normalizedReservationId = reservationId ? this.utilityService.normalizeId(reservationId) : '';
+    let best: (typeof timeline)[number] | null = null;
+    for (const entry of timeline) {
+      if (entry.departureDateOrdinal <= beforeArrivalOrdinal && entry.reservationId !== normalizedReservationId) {
+        if (!best || entry.departureDateOrdinal > best.departureDateOrdinal) {
+          best = entry;
+        }
+      }
+    }
+    return best?.departureDateDisplay ?? '';
+  }
+
+  findNextArrivalDate(
+    timeline: {
+      reservationId: string;
+      arrivalDateOrdinal: number;
+      departureDateOrdinal: number;
+      arrivalDateDisplay: string;
+      departureDateDisplay: string;
+    }[],
+    afterDepartureOrdinal: number,
+    reservationId?: string
+  ): string {
+    const normalizedReservationId = reservationId ? this.utilityService.normalizeId(reservationId) : '';
+    let best: (typeof timeline)[number] | null = null;
+    for (const entry of timeline) {
+      if (entry.arrivalDateOrdinal >= afterDepartureOrdinal && entry.reservationId !== normalizedReservationId) {
+        if (!best || entry.arrivalDateOrdinal < best.arrivalDateOrdinal) {
+          best = entry;
+        }
+      }
+    }
+    return best?.arrivalDateDisplay ?? '';
+  }
+
+  isValidScheduleDate(value: string): boolean {
+    const trimmed = String(value || '').trim();
+    return !!trimmed && trimmed !== '—' && trimmed !== '-' && trimmed !== 'N/A';
+  }
+
+  buildScheduleDateCell(text: string, emphasis: 'primary' | 'muted' | 'none'): ScheduleDateCell {
+    const trimmed = String(text || '').trim();
+    if (!this.isValidScheduleDate(trimmed)) {
+      return { text: '', emphasis: 'none' };
+    }
+    return { text: trimmed, emphasis };
+  }
+
+  buildScheduleDateCells(
+    row: MaintenanceListDisplay,
+    timeline: Map<
+      string,
+      {
+        reservationId: string;
+        arrivalDateOrdinal: number;
+        departureDateOrdinal: number;
+        arrivalDateDisplay: string;
+        departureDateDisplay: string;
+      }[]
+    >,
+    reservationById: Map<string, ReservationPropertyMaintenance>,
+    serviceDate: string
+  ): {
+    scheduleDepartureDate: ScheduleDateCell;
+    scheduleArrivalDate: ScheduleDateCell;
+    scheduledCleanDate: ScheduleDateCell;
+    serviceDate: ScheduleDateCell;
+  } {
+    const reservationId = this.utilityService.normalizeId(row.reservationId ?? '');
+    const reservation = reservationId ? reservationById.get(reservationId) : undefined;
+    const propertyId = this.utilityService.normalizeId(row.propertyId);
+    const propertyTimeline = timeline.get(propertyId) ?? [];
+    const eventDate = String(row.eventDate || '').trim();
+
+    if (row.eventType === ServiceType.Departure) {
+      return {
+        scheduleDepartureDate: this.buildScheduleDateCell(reservation?.departureDateDisplay || eventDate, 'primary'),
+        scheduleArrivalDate: this.buildScheduleDateCell(
+          reservation?.departureDateOrdinal != null
+            ? this.findNextArrivalDate(propertyTimeline, reservation.departureDateOrdinal, reservationId)
+            : '',
+          'none'
+        ),
+        scheduledCleanDate: this.buildScheduleDateCell('', 'none'),
+        serviceDate: this.buildScheduleDateCell(serviceDate, 'none')
+      };
+    }
+
+    if (row.eventType === ServiceType.Arrival) {
+      return {
+        scheduleDepartureDate: this.buildScheduleDateCell(
+          reservation?.arrivalDateOrdinal != null
+            ? this.findPreviousDepartureDate(propertyTimeline, reservation.arrivalDateOrdinal, reservationId)
+            : '',
+          'none'
+        ),
+        scheduleArrivalDate: this.buildScheduleDateCell(reservation?.arrivalDateDisplay || eventDate, 'primary'),
+        scheduledCleanDate: this.buildScheduleDateCell('', 'none'),
+        serviceDate: this.buildScheduleDateCell(serviceDate, 'none')
+      };
+    }
+
+    if (row.eventType === ServiceType.MaidService) {
+      return {
+        scheduleDepartureDate: this.buildScheduleDateCell('', 'none'),
+        scheduleArrivalDate: this.buildScheduleDateCell('', 'none'),
+        scheduledCleanDate: this.buildScheduleDateCell(eventDate, 'primary'),
+        serviceDate: this.buildScheduleDateCell(serviceDate, 'none')
+      };
+    }
+
+    if (row.eventType === ServiceType.Offline) {
+      return {
+        scheduleDepartureDate: this.buildScheduleDateCell(eventDate, 'primary'),
+        scheduleArrivalDate: this.buildScheduleDateCell('', 'none'),
+        scheduledCleanDate: this.buildScheduleDateCell('', 'none'),
+        serviceDate: this.buildScheduleDateCell(serviceDate, 'none')
+      };
+    }
+
+    if (row.eventType === ServiceType.Online) {
+      return {
+        scheduleDepartureDate: this.buildScheduleDateCell('', 'none'),
+        scheduleArrivalDate: this.buildScheduleDateCell(eventDate, 'primary'),
+        scheduledCleanDate: this.buildScheduleDateCell('', 'none'),
+        serviceDate: this.buildScheduleDateCell(serviceDate, 'none')
+      };
+    }
+
+    return {
+      scheduleDepartureDate: this.buildScheduleDateCell('', 'none'),
+      scheduleArrivalDate: this.buildScheduleDateCell('', 'none'),
+      scheduledCleanDate: this.buildScheduleDateCell('', 'none'),
+      serviceDate: this.buildScheduleDateCell(serviceDate, 'none')
+    };
+  }
+
+  resolveScheduleHasPets(row: MaintenanceListDisplay, reservationById: Map<string, ReservationPropertyMaintenance>): boolean {
+    const reservationId = this.utilityService.normalizeId(row.reservationId ?? '');
+    if (reservationId) {
+      const reservation = reservationById.get(reservationId);
+      if (reservation) {
+        return reservation.hasPets === true;
+      }
+    }
+    return row.hasPets === true;
+  }
+
+  isScheduleServiceDateFromCurrentMonthForward(dateDisplay: string): boolean {
+    const dateOrdinal = this.utilityService.parseCalendarDateToOrdinal(dateDisplay);
+    const monthStartOrdinal = this.utilityService.parseCalendarDateToOrdinal(
+      this.utilityService.formatDateOnlyForApi(this.currentMonthStartAtMidnight)
+    );
+    if (dateOrdinal == null || monthStartOrdinal == null) {
+      return false;
+    }
+    return dateOrdinal >= monthStartOrdinal;
+  }
+
+  isScheduleEventInDashboardWindow(row: MaintenanceListDisplay): boolean {
+    const bounds = this.getInclusiveCurrentAndNextMonthOrdinalBounds();
+    if (!bounds) {
+      return false;
+    }
+    const eventOrdinal = this.utilityService.parseCalendarDateToOrdinal(String(row.eventDate || '').trim());
+    if (eventOrdinal == null) {
+      return false;
+    }
+    return eventOrdinal >= bounds.lo && eventOrdinal <= bounds.hi;
+  }
+
+  shouldIncludeScheduleRow(row: MaintenanceListDisplay, scheduleSortDate: string): boolean {
+    if (!this.isValidScheduleDate(scheduleSortDate) || !this.isScheduleServiceDateFromCurrentMonthForward(scheduleSortDate)) {
+      return false;
+    }
+    if (
+      row.eventType === ServiceType.Arrival
+      || row.eventType === ServiceType.Departure
+      || row.eventType === ServiceType.Online
+      || row.eventType === ServiceType.Offline
+    ) {
+      return this.isScheduleEventInDashboardWindow(row);
+    }
+    return true;
+  }
+
+  buildScheduleCleaningRows(slices: {
+    arrivals: MaintenanceListDisplay[];
+    departures: MaintenanceListDisplay[];
+    online: MaintenanceListDisplay[];
+    offline: MaintenanceListDisplay[];
+    maid: MaintenanceListDisplay[];
+    occupied: MaintenanceListDisplay[];
+    vacant: MaintenanceListDisplay[];
+    offlineStatus: MaintenanceListDisplay[];
+  }): MaintenanceListDisplay[] {
+    const timeline = this.buildPropertyReservationTimeline();
+    const reservationById = new Map(
+      this.filteredReservationPropertyMaintenanceList.map(row => [this.utilityService.normalizeId(row.reservationId), row] as const)
+    );
+    const combined = [
+      ...slices.arrivals,
+      ...slices.departures,
+      ...slices.online,
+      ...slices.offline,
+      ...slices.maid,
+      ...slices.occupied,
+      ...slices.vacant,
+      ...slices.offlineStatus
+    ];
+    const seen = new Set<string>();
+    const rows: MaintenanceListDisplay[] = [];
+    for (const row of combined) {
+      for (const slot of this.getScheduleServiceSlots(row)) {
+        if (!this.shouldIncludeScheduleRow(row, slot.serviceDate)) {
+          continue;
+        }
+        const key = [
+          row.propertyId,
+          row.reservationId || '',
+          row.eventType ?? '',
+          slot.serviceKind,
+          slot.serviceDate,
+          slot.providerUserId || ''
+        ].join('|');
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        const dateCells = this.buildScheduleDateCells(row, timeline, reservationById, slot.serviceDate);
+        rows.push({
+          ...row,
+          eventTypeDisplay: row.eventType != null ? getServiceType(row.eventType) : '—',
+          cleanerName: slot.providerName,
+          cleanerUserId: slot.providerUserId,
+          hasPets: this.resolveScheduleHasPets(row, reservationById),
+          scheduleDepartureDate: dateCells.scheduleDepartureDate,
+          scheduleArrivalDate: dateCells.scheduleArrivalDate,
+          scheduledCleanDate: dateCells.scheduledCleanDate,
+          serviceDate: dateCells.serviceDate,
+          scheduleSortDate: slot.serviceDate
+        } as MaintenanceListDisplay & {
+          eventTypeDisplay: string;
+          cleanerName: string;
+          scheduleDepartureDate: ScheduleDateCell;
+          scheduleArrivalDate: ScheduleDateCell;
+          scheduledCleanDate: ScheduleDateCell;
+          serviceDate: ScheduleDateCell;
+          scheduleSortDate: string;
+        });
+      }
+    }
+    return rows.sort((a, b) => {
+      const aRow = a as MaintenanceListDisplay & { scheduleSortDate?: string };
+      const bRow = b as MaintenanceListDisplay & { scheduleSortDate?: string };
+      const aOrdinal = this.utilityService.parseCalendarDateToOrdinal(aRow.scheduleSortDate) ?? Number.MAX_SAFE_INTEGER;
+      const bOrdinal = this.utilityService.parseCalendarDateToOrdinal(bRow.scheduleSortDate) ?? Number.MAX_SAFE_INTEGER;
+      if (aOrdinal !== bOrdinal) {
+        return aOrdinal - bOrdinal;
+      }
+      return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' });
+    });
   }
 
   buildMaintenanceColumns(): ColumnSet {
@@ -1498,7 +1920,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     const patchRows = (rows: MaintenanceListDisplay[]) =>
       rows.map(row => (matchesRow(row) ? patchProviderFields(row) : row));
 
-    this.companyDataService.patchSnapshot({
+    const patched = {
       arrivalMaintenanceDisplay: patchRows(snapshot.arrivalMaintenanceDisplay),
       departureMaintenanceDisplay: patchRows(snapshot.departureMaintenanceDisplay),
       comingOnlineMaintenanceDisplay: patchRows(snapshot.comingOnlineMaintenanceDisplay),
@@ -1507,6 +1929,20 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       occupiedMaintenanceDisplay: patchRows(snapshot.occupiedMaintenanceDisplay),
       vacantMaintenanceDisplay: patchRows(snapshot.vacantMaintenanceDisplay),
       offlineStatusMaintenanceDisplay: patchRows(snapshot.offlineStatusMaintenanceDisplay)
+    };
+
+    this.companyDataService.patchSnapshot({
+      ...patched,
+      scheduleCleaningRows: this.buildScheduleCleaningRows({
+        arrivals: patched.arrivalMaintenanceDisplay,
+        departures: patched.departureMaintenanceDisplay,
+        online: patched.comingOnlineMaintenanceDisplay,
+        offline: patched.goingOfflineMaintenanceDisplay,
+        maid: patched.maidMaintenanceDisplay,
+        occupied: patched.occupiedMaintenanceDisplay,
+        vacant: patched.vacantMaintenanceDisplay,
+        offlineStatus: patched.offlineStatusMaintenanceDisplay
+      })
     });
   }
 

@@ -25,10 +25,12 @@
             [hasActionsEdit]="true"
             [hasActionsDelete]="false"
             [hasPropertyCodeLink]="true"
+            [hasReservationCodeLink]="true"
             [itemsPerPage]="50"
             (editEvent)="goToReservation($event)"
             (rowClickEvent)="goToReservation($event)"
             (propertyCodeClickEvent)="goToProperty($event)"
+            (reservationCodeClickEvent)="goToReservation($event)"
             (contactClickEvent)="goToContact($event)">
             <div dataTableFilterActions>
               <span class="filter-row-title">{{ titleLabel }}</span>

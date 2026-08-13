@@ -18,7 +18,7 @@
         [itemsPerPage]="100"
         (dropdownChangeEvent)="onMaintenanceDropdownChange($event)"
         (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
-        (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+        (propertyCodeClickEvent)="goToProperty($event)"
         (contactClickEvent)="goToContact($event)"/>
     } @else {
       <p class="dashboard-tab-empty">No maintenance for this reservation.</p>
@@ -53,6 +53,7 @@
           [hasActionsClearTracking]="true"
           [hasActionsDelete]="false"
           [hasPropertyCodeLink]="true"
+          [hasReservationCodeLink]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="maintenanceDetailTemplate"
           [includeDetailRowHeader]="false"
@@ -62,6 +63,7 @@
           (editEvent)="onChecklistRowNavigate($event)"
           (rowClickEvent)="onChecklistRowNavigate($event)"
           (propertyCodeClickEvent)="goToProperty($event)"
+          (reservationCodeClickEvent)="goToReservation($event)"
           (contactClickEvent)="onChecklistContactNavigate($event)"
           (checkAllEvent)="onChecklistCheckAll($event)"
           (clearTrackingEvent)="onChecklistClearTracking($event)"
@@ -89,6 +91,7 @@
           [hasActionsClearTracking]="true"
           [hasActionsDelete]="false"
           [hasPropertyCodeLink]="true"
+          [hasReservationCodeLink]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="maintenanceDetailTemplate"
           [includeDetailRowHeader]="false"
@@ -98,6 +101,7 @@
           (editEvent)="onChecklistRowNavigate($event)"
           (rowClickEvent)="onChecklistRowNavigate($event)"
           (propertyCodeClickEvent)="goToProperty($event)"
+          (reservationCodeClickEvent)="goToReservation($event)"
           (contactClickEvent)="onChecklistContactNavigate($event)"
           (checkAllEvent)="onChecklistCheckAll($event)"
           (clearTrackingEvent)="onChecklistClearTracking($event)"
@@ -128,7 +132,7 @@
             (inlineEditChangeEvent)="onMaintenanceInlineDateChange($event)"
             (editEvent)="goToPropertyMaintenance($event)"
             (inspectEvent)="goToInspection($event)"
-            (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
+            (propertyCodeClickEvent)="goToProperty($event)"
             (contactClickEvent)="goToContact($event)"/>
         </div>
       }

@@ -1323,11 +1323,13 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       invoice: emailHtml?.invoice ?? '',
       corporateInvoice: emailHtml?.corporateInvoice ?? '',
       ownerStatement: emailHtml?.ownerStatement ?? '',
+      schedules: emailHtml?.schedules ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
       departureSubject: emailHtml?.departureSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
       invoiceSubject: emailHtml?.invoiceSubject ?? '',
       ownerStatementSubject: emailHtml?.ownerStatementSubject ?? '',
+      scheduleSubject: emailHtml?.scheduleSubject ?? '',
       createdOn: emailHtml?.createdOn ?? '',
       modifiedOn: emailHtml?.modifiedOn
     };

@@ -13,6 +13,7 @@ import {
   PropertyInProcessDisplay
 } from '../../shared/models/mixed-models';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
+import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 
 type OfflineTabRow = PropertyInProcessDisplay & {
   availableUntilDisplay: string;
@@ -45,6 +46,7 @@ const OFFLINE_LEASE_TYPE_SECTIONS: ReadonlyArray<{ leaseTypeId: PropertyLeaseTyp
 export class DashboardOfflineComponent implements OnInit, OnDestroy {
   private companyDataService = inject(DashboardCompanyDataService);
   private router = inject(Router);
+  private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -55,6 +57,7 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Offline
   ngOnInit(): void {
+    this.dashboardNavigation.setTabIndex(3);
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
@@ -291,9 +294,7 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
 
   //#region Navigate From Calendar
   goToProperty(event: { propertyId: string }): void {
-    if (event?.propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-    }
+    this.dashboardNavigation.goToProperty(this.router, event?.propertyId);
   }
 
   goToContact(event: MaintenanceListDisplay | PropertyInProcessDisplay): void {

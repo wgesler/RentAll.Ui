@@ -1,0 +1,50 @@
+.schedules-filter-actions-wrap {
+  flex-shrink: 0;
+  max-width: none;
+}
+
+.schedules-filter-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .schedules-filter-actions .mat-mdc-raised-button {
+  flex-shrink: 0;
+}
+
+.schedules-service-provider-select {
+  flex-shrink: 0;
+  width: auto;
+  max-width: none;
+  display: inline-flex;
+  align-items: center;
+  min-width: 200px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+:host ::ng-deep .schedules-service-provider-select.mat-mdc-select {
+  background: transparent;
+}
+
+:host ::ng-deep .schedules-service-provider-select .mat-mdc-select-trigger {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-height: unset;
+  padding: 0;
+}
+
+:host ::ng-deep .schedules-service-provider-select .mat-mdc-select-value,
+:host ::ng-deep .schedules-service-provider-select .mat-mdc-select-arrow {
+  color: #334155;
+}
+
+:host ::ng-deep .schedules-service-provider-select .mat-mdc-select-value-text {
+  font-size: 13px;
+  font-weight: 600;
+}

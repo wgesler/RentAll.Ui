@@ -17,6 +17,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { DashboardNavigationService } from '../../dashboards/services/dashboard-navigation.service';
 import { InvoiceListComponent } from '../../accounting/invoices/invoice-list/invoice-list.component';
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
@@ -107,6 +108,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private globalSelectionService = inject(GlobalSelectionService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private userService = inject(UserService);
+  private dashboardNavigation = inject(DashboardNavigationService);
   private invoiceService = inject(InvoiceService);
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
@@ -3347,6 +3349,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   navigateToReservationEntryOrigin(): void {
     const qp = this.route.snapshot.queryParamMap;
     const urlQp = this.router.parseUrl(this.router.url).queryParamMap;
+    const dashboardReturnUrl = this.dashboardNavigation.resolveDashboardReturnUrl(
+      qp.get('returnUrl') || urlQp.get('returnUrl')
+    );
+    if (dashboardReturnUrl) {
+      void this.router.navigateByUrl(dashboardReturnUrl);
+      return;
+    }
     const returnTo = qp.get('returnTo') || urlQp.get('returnTo');
     if (returnTo === 'reservation-board') {
       this.router.navigateByUrl(RouterUrl.ReservationBoard);
