@@ -79,8 +79,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   offlinePropertyRows: DashboardPropertyTurnoverRow[] = [];
   offlineStatusPropertyDisplayRows: PropertyOfflineStatusDisplay[] = [];
   propertyOnlineColumns: ColumnSet = {};
+  propertyOnlineColumnsByLeaseType: Partial<Record<PropertyLeaseType, ColumnSet>> = {};
   propertyOfflineColumns: ColumnSet = {};
   offlineStatusPropertyColumns: ColumnSet = {};
+  offlineStatusPropertyColumnsByLeaseType: Partial<Record<PropertyLeaseType, ColumnSet>> = {};
 
   private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -952,6 +954,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       reservationTurnoverArrivalColumns: this.reservationTurnoverArrivalColumns,
       reservationTurnoverDepartureColumns: this.reservationTurnoverDepartureColumns,
       propertyOnlineColumns: this.propertyOnlineColumns,
+      propertyOnlineColumnsByLeaseType: this.propertyOnlineColumnsByLeaseType,
       propertyOfflineColumns: this.propertyOfflineColumns,
       arrivalMaintenanceColumns: this.withEventDateLabel(maintenanceColumns, 'Arrival Date'),
       departureMaintenanceColumns: this.withEventDateLabel(maintenanceColumns, 'Departure Date'),
@@ -963,6 +966,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       occupiedPropertyColumns: this.occupiedPropertyColumns,
       occupiedMaintenanceColumns: this.withEventDateLabel(maintenanceColumns, 'Event Date'),
       offlineStatusPropertyColumns: this.offlineStatusPropertyColumns,
+      offlineStatusPropertyColumnsByLeaseType: this.offlineStatusPropertyColumnsByLeaseType,
       offlineStatusMaintenanceColumns: this.withEventDateLabel(maintenanceColumns, 'Event Date'),
       monthlyCommissionColumns: this.monthlyCommissionColumns
     });
@@ -983,8 +987,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       offlinePropertyRows: this.offlinePropertyRows,
       offlineStatusPropertyRows: this.offlineStatusPropertyDisplayRows,
       propertyOnlineColumns: this.propertyOnlineColumns,
+      propertyOnlineColumnsByLeaseType: this.propertyOnlineColumnsByLeaseType,
       propertyOfflineColumns: this.propertyOfflineColumns,
-      offlineStatusPropertyColumns: this.offlineStatusPropertyColumns
+      offlineStatusPropertyColumns: this.offlineStatusPropertyColumns,
+      offlineStatusPropertyColumnsByLeaseType: this.offlineStatusPropertyColumnsByLeaseType
     });
   }
 
@@ -1847,6 +1853,48 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     this.propertyOnlineColumns = onlineBase;
     this.propertyOfflineColumns = offlineBase;
     this.offlineStatusPropertyColumns = offlineStatusBase;
+    this.propertyOnlineColumnsByLeaseType = this.buildPropertyColumnsByLeaseType(
+      this.propertyOnlineBaseColumns,
+      this.onlineColumnDefinitionByContext,
+      [
+        { leaseTypeId: PropertyLeaseType.PropertyManagement, contextType: TrackerContextType.PropertyOnline },
+        { leaseTypeId: PropertyLeaseType.ThirdParty, contextType: TrackerContextType.PropertyThirdPartyOnline },
+        { leaseTypeId: PropertyLeaseType.Direct, contextType: TrackerContextType.PropertyDirectOnline }
+      ],
+      onlineContexts
+    );
+    this.offlineStatusPropertyColumnsByLeaseType = this.buildPropertyColumnsByLeaseType(
+      this.offlineStatusPropertyBaseColumns,
+      this.offlineColumnDefinitionByContext,
+      [
+        { leaseTypeId: PropertyLeaseType.PropertyManagement, contextType: TrackerContextType.PropertyOffline },
+        { leaseTypeId: PropertyLeaseType.ThirdParty, contextType: TrackerContextType.PropertyThirdPartyOffline },
+        { leaseTypeId: PropertyLeaseType.Direct, contextType: TrackerContextType.PropertyDirectOffline }
+      ],
+      offlineContexts
+    );
+  }
+
+  buildPropertyColumnsByLeaseType(
+    baseColumns: ColumnSet,
+    columnDefinitionByContext: Map<number, Map<string, Map<number, TrackerConfigurationDefinitionResponse>>>,
+    leaseTypeContexts: ReadonlyArray<{ leaseTypeId: PropertyLeaseType; contextType: TrackerContextType }>,
+    activeContexts: TrackerContextType[]
+  ): Partial<Record<PropertyLeaseType, ColumnSet>> {
+    const activeContextSet = new Set(activeContexts.map(contextType => Number(contextType)));
+    const columnsByLeaseType: Partial<Record<PropertyLeaseType, ColumnSet>> = {};
+    leaseTypeContexts.forEach(({ leaseTypeId, contextType }) => {
+      if (!activeContextSet.has(Number(contextType))) {
+        return;
+      }
+      const columnSet = this.cloneColumnSet(baseColumns);
+      const mapByColumn = columnDefinitionByContext.get(Number(contextType));
+      if (mapByColumn) {
+        this.addTrackerColumnsToColumnSet(columnSet, mapByColumn);
+      }
+      columnsByLeaseType[leaseTypeId] = columnSet;
+    });
+    return columnsByLeaseType;
   }
 
   addTrackerColumnsToColumnSet(target: ColumnSet, mapByColumn: Map<string, Map<number, TrackerConfigurationDefinitionResponse>>): void {
@@ -1887,11 +1935,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     const responseByDefinitionId = this.propertyTrackerResponsesByProperty.get(this.utilityService.normalizeId(row.propertyId)) || new Map<string, PropertyTrackerResponse>();
     const optionResponses = this.propertyTrackerResponseOptionsByProperty.get(this.utilityService.normalizeId(row.propertyId)) || [];
 
-    const allColumnNames = new Set<string>();
-    contextMaps.forEach(mapByColumn => mapByColumn.forEach((_, columnName) => allColumnNames.add(columnName)));
-
-    allColumnNames.forEach(columnName => {
-      const definition = this.resolveTrackerDefinitionForOffice(contextMap.get(columnName) || new Map(), row.officeId);
+    contextMap.forEach((definitionByOffice, columnName) => {
+      const definition = this.resolveTrackerDefinitionForOffice(definitionByOffice, row.officeId);
       if (!definition) {
         next[columnName] = 'NONE';
         return;

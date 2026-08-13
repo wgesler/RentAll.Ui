@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { getPropertyStatus } from '../../properties/models/property-enums';
+import { getPropertyStatus, PropertyLeaseType } from '../../properties/models/property-enums';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -22,6 +22,18 @@ type OfflineTabRow = PropertyInProcessDisplay & {
   expandClick: (event: Event, item: OfflineTabRow) => void;
 };
 
+type OfflineLeaseTypeSection = {
+  leaseTypeId: PropertyLeaseType;
+  title: string;
+  rows: OfflineTabRow[];
+};
+
+const OFFLINE_LEASE_TYPE_SECTIONS: ReadonlyArray<{ leaseTypeId: PropertyLeaseType; title: string }> = [
+  { leaseTypeId: PropertyLeaseType.PropertyManagement, title: 'Property Management' },
+  { leaseTypeId: PropertyLeaseType.ThirdParty, title: '3rd Party' },
+  { leaseTypeId: PropertyLeaseType.Direct, title: 'Direct' }
+];
+
 @Component({
   standalone: true,
   selector: 'app-dashboard-offline',
@@ -37,10 +49,9 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
-  turnoverDisplayRows: OfflineTabRow[] = [];
+  leaseTypeSections: OfflineLeaseTypeSection[] = [];
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedPropertyKeys = new Set<string>();
-  isAllExpanded = false;
 
   //#region Dashboard-Offline
   ngOnInit(): void {
@@ -65,6 +76,13 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
     return {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
       ...this.snapshot.offlineStatusPropertyColumns
+    };
+  }
+
+  getChecklistColumns(leaseTypeId: PropertyLeaseType): ColumnSet {
+    return {
+      expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+      ...(this.snapshot.offlineStatusPropertyColumnsByLeaseType?.[leaseTypeId] ?? this.snapshot.offlineStatusPropertyColumns)
     };
   }
 
@@ -156,7 +174,7 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
       maintenanceByProperty.set(propertyKey, list);
     }
 
-    this.turnoverDisplayRows = this.buildOfflineParentRows().map(row => {
+    const turnoverDisplayRows = this.buildOfflineParentRows().map(row => {
       const propertyKey = this.normalizeKey(row.propertyId);
       const children = propertyKey
         ? (maintenanceByProperty.get(propertyKey) || []).filter(child => !usedMaintenance.has(child))
@@ -199,6 +217,11 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
       };
     });
 
+    this.leaseTypeSections = OFFLINE_LEASE_TYPE_SECTIONS.map(section => ({
+      ...section,
+      rows: turnoverDisplayRows.filter(row => Number(row.propertyLeaseTypeId) === section.leaseTypeId)
+    }));
+
     const focus = this.companyDataService.calendarFocus?.tabIndex === 3 ? this.companyDataService.calendarFocus : null;
     this.orphanMaintenanceRows = maintenanceRows
       .filter(row => !usedMaintenance.has(row))
@@ -210,17 +233,21 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
           this.companyDataService.calendarFocusDateForRow(focus, row, row.eventDate)
         )
       }));
-    this.updateIsAllExpanded();
   }
 
-  toggleExpandAll(expanded: boolean): void {
-    this.isAllExpanded = expanded;
-    this.expandedPropertyKeys.clear();
+  toggleExpandAllForSection(section: OfflineLeaseTypeSection, expanded: boolean): void {
     if (expanded) {
-      for (const row of this.turnoverDisplayRows) {
+      for (const row of section.rows) {
         const key = (row.expand || '').trim();
         if (key) {
           this.expandedPropertyKeys.add(key);
+        }
+      }
+    } else {
+      for (const row of section.rows) {
+        const key = (row.expand || '').trim();
+        if (key) {
+          this.expandedPropertyKeys.delete(key);
         }
       }
     }
@@ -228,9 +255,9 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
     this.markViewForCheck();
   }
 
-  updateIsAllExpanded(): void {
-    const keys = this.turnoverDisplayRows.map(row => (row.expand || '').trim()).filter(key => key !== '');
-    this.isAllExpanded = keys.length > 0 && keys.every(key => this.expandedPropertyKeys.has(key));
+  isAllExpandedForSection(section: OfflineLeaseTypeSection): boolean {
+    const keys = section.rows.map(row => (row.expand || '').trim()).filter(key => key !== '');
+    return keys.length > 0 && keys.every(key => this.expandedPropertyKeys.has(key));
   }
 
   normalizeKey(value: string | null | undefined): string {

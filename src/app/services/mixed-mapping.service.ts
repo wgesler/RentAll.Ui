@@ -869,6 +869,7 @@ export class MixedMappingService {
       maidUserId: reservation.maidUserId ?? null,
       lockBoxCode: reservation.lockBoxCode ?? null,
       unitTenantCode: reservation.unitTenantCode ?? null,
+      garageCode: reservation.garageCode ?? null,
       currentInvoiceNo: reservation.currentInvoiceNo ?? 0,
       billingMethodId: reservation.billingMethodId,
       prorateTypeId: reservation.prorateTypeId ?? 0,

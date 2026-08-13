@@ -37,40 +37,44 @@
       <div class="property-tab-actions-band__row"></div>
     </div>
     <div class="property-tab-main-area">
-      <div class="tableDiv">
-        <app-data-table
-          class="turnover-outer-table"
-          [data]="turnoverDisplayRows"
-          [columns]="checklistColumns"
-          [subheaderLabel]="''"
-          [hasColumnIndex]="true"
-          [hasFilter]="true"
-          [hasToggleTop]="false"
-          [hasButtonTop]="false"
-          [hasActionsRowClick]="true"
-          [hasActionsEdit]="true"
-          [hasActionsCheckAll]="true"
-          [hasActionsClearTracking]="true"
-          [hasActionsDelete]="false"
-          [hasPropertyCodeLink]="true"
-          [hasDetailRow]="true"
-          [detailRowTemplate]="maintenanceDetailTemplate"
-          [includeDetailRowHeader]="false"
-          [expandAllCallback]="toggleExpandAll.bind(this)"
-          [isAllExpanded]="isAllExpanded"
-          [itemsPerPage]="50"
-          (editEvent)="goToProperty($event)"
-          (rowClickEvent)="goToProperty($event)"
-          (propertyCodeClickEvent)="goToProperty($event)"
-          (checkAllEvent)="onChecklistCheckAll($event)"
-          (clearTrackingEvent)="onChecklistClearTracking($event)"
-          (dropdownChangeEvent)="onChecklistDropdownChange($event)"
-          (checkboxChangeEvent)="onChecklistCheckboxChange($event)">
-          <div dataTableFilterActions>
-            <span class="filter-row-title">Coming Online</span>
+      @for (section of leaseTypeSections; track section.leaseTypeId) {
+        @if (section.rows.length > 0) {
+          <div class="tableDiv">
+            <app-data-table
+              class="turnover-outer-table"
+              [data]="section.rows"
+              [columns]="getChecklistColumns(section.leaseTypeId)"
+              [subheaderLabel]="''"
+              [hasColumnIndex]="true"
+              [hasFilter]="true"
+              [hasToggleTop]="false"
+              [hasButtonTop]="false"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [hasActionsCheckAll]="true"
+              [hasActionsClearTracking]="true"
+              [hasActionsDelete]="false"
+              [hasPropertyCodeLink]="true"
+              [hasDetailRow]="true"
+              [detailRowTemplate]="maintenanceDetailTemplate"
+              [includeDetailRowHeader]="false"
+              [expandAllCallback]="toggleExpandAllForSection.bind(this, section)"
+              [isAllExpanded]="isAllExpandedForSection(section)"
+              [itemsPerPage]="50"
+              (editEvent)="goToProperty($event)"
+              (rowClickEvent)="goToProperty($event)"
+              (propertyCodeClickEvent)="goToProperty($event)"
+              (checkAllEvent)="onChecklistCheckAll($event)"
+              (clearTrackingEvent)="onChecklistClearTracking($event)"
+              (dropdownChangeEvent)="onChecklistDropdownChange($event)"
+              (checkboxChangeEvent)="onChecklistCheckboxChange($event)">
+              <div dataTableFilterActions>
+                <span class="filter-row-title">{{ section.title }}</span>
+              </div>
+            </app-data-table>
           </div>
-        </app-data-table>
-      </div>
+        }
+      }
 
       @if (orphanMaintenanceRows.length > 0) {
         <div class="tableDiv orphans-table">

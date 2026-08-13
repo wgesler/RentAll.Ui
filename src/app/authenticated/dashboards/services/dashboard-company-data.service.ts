@@ -53,6 +53,7 @@ export type DashboardCompanyDataSnapshot = {
   reservationTurnoverArrivalColumns: ColumnSet;
   reservationTurnoverDepartureColumns: ColumnSet;
   propertyOnlineColumns: ColumnSet;
+  propertyOnlineColumnsByLeaseType: Partial<Record<number, ColumnSet>>;
   propertyOfflineColumns: ColumnSet;
   arrivalMaintenanceColumns: ColumnSet;
   departureMaintenanceColumns: ColumnSet;
@@ -64,6 +65,7 @@ export type DashboardCompanyDataSnapshot = {
   occupiedPropertyColumns: ColumnSet;
   occupiedMaintenanceColumns: ColumnSet;
   offlineStatusPropertyColumns: ColumnSet;
+  offlineStatusPropertyColumnsByLeaseType: Partial<Record<number, ColumnSet>>;
   offlineStatusMaintenanceColumns: ColumnSet;
   monthlyCommissionColumns: ColumnSet;
 };
@@ -105,6 +107,7 @@ export const emptyDashboardCompanyDataSnapshot: DashboardCompanyDataSnapshot = {
   reservationTurnoverArrivalColumns: emptyColumns,
   reservationTurnoverDepartureColumns: emptyColumns,
   propertyOnlineColumns: emptyColumns,
+  propertyOnlineColumnsByLeaseType: {},
   propertyOfflineColumns: emptyColumns,
   arrivalMaintenanceColumns: emptyColumns,
   departureMaintenanceColumns: emptyColumns,
@@ -116,6 +119,7 @@ export const emptyDashboardCompanyDataSnapshot: DashboardCompanyDataSnapshot = {
   occupiedPropertyColumns: emptyColumns,
   occupiedMaintenanceColumns: emptyColumns,
   offlineStatusPropertyColumns: emptyColumns,
+  offlineStatusPropertyColumnsByLeaseType: {},
   offlineStatusMaintenanceColumns: emptyColumns,
   monthlyCommissionColumns: emptyColumns
 };

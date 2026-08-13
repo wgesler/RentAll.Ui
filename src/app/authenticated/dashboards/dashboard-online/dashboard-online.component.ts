@@ -7,6 +7,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { DashboardPropertyTurnoverRow, MaintenanceListDisplay } from '../../shared/models/mixed-models';
+import { PropertyLeaseType } from '../../properties/models/property-enums';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 
 type OnlineTurnoverRow = DashboardPropertyTurnoverRow & {
@@ -15,6 +16,18 @@ type OnlineTurnoverRow = DashboardPropertyTurnoverRow & {
   maintenanceRows: MaintenanceListDisplay[];
   expandClick: (event: Event, item: OnlineTurnoverRow) => void;
 };
+
+type OnlineLeaseTypeSection = {
+  leaseTypeId: PropertyLeaseType;
+  title: string;
+  rows: OnlineTurnoverRow[];
+};
+
+const ONLINE_LEASE_TYPE_SECTIONS: ReadonlyArray<{ leaseTypeId: PropertyLeaseType; title: string }> = [
+  { leaseTypeId: PropertyLeaseType.PropertyManagement, title: 'Property Management' },
+  { leaseTypeId: PropertyLeaseType.ThirdParty, title: '3rd Party' },
+  { leaseTypeId: PropertyLeaseType.Direct, title: 'Direct' }
+];
 
 @Component({
   standalone: true,
@@ -31,10 +44,9 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
-  turnoverDisplayRows: OnlineTurnoverRow[] = [];
+  leaseTypeSections: OnlineLeaseTypeSection[] = [];
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedPropertyKeys = new Set<string>();
-  isAllExpanded = false;
 
   //#region Dashboard-Online
   ngOnInit(): void {
@@ -62,6 +74,13 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
     };
   }
 
+  getChecklistColumns(leaseTypeId: PropertyLeaseType): ColumnSet {
+    return {
+      expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+      ...(this.snapshot.propertyOnlineColumnsByLeaseType?.[leaseTypeId] ?? this.snapshot.propertyOnlineColumns)
+    };
+  }
+
   get maintenanceColumns(): ColumnSet {
     const cols = this.snapshot.comingOnlineMaintenanceColumns || {};
     return {
@@ -85,7 +104,7 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
       maintenanceByProperty.set(propertyKey, list);
     }
 
-    this.turnoverDisplayRows = (this.snapshot.onlinePropertyRows || []).map(row => {
+    const turnoverDisplayRows = (this.snapshot.onlinePropertyRows || []).map(row => {
       const propertyKey = this.normalizeKey(row.propertyId);
       const children = propertyKey
         ? (maintenanceByProperty.get(propertyKey) || []).filter(child => !usedMaintenance.has(child))
@@ -129,6 +148,11 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
       };
     });
 
+    this.leaseTypeSections = ONLINE_LEASE_TYPE_SECTIONS.map(section => ({
+      ...section,
+      rows: turnoverDisplayRows.filter(row => Number(row.propertyLeaseTypeId) === section.leaseTypeId)
+    }));
+
     const focus = this.companyDataService.calendarFocus?.tabIndex === 2 ? this.companyDataService.calendarFocus : null;
     this.orphanMaintenanceRows = (this.snapshot.comingOnlineMaintenanceDisplay || [])
       .filter(row => !usedMaintenance.has(row))
@@ -140,17 +164,21 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
           this.companyDataService.calendarFocusDateForRow(focus, row, row.eventDate)
         )
       }));
-    this.updateIsAllExpanded();
   }
 
-  toggleExpandAll(expanded: boolean): void {
-    this.isAllExpanded = expanded;
-    this.expandedPropertyKeys.clear();
+  toggleExpandAllForSection(section: OnlineLeaseTypeSection, expanded: boolean): void {
     if (expanded) {
-      for (const row of this.turnoverDisplayRows) {
+      for (const row of section.rows) {
         const key = (row.expand || '').trim();
         if (key) {
           this.expandedPropertyKeys.add(key);
+        }
+      }
+    } else {
+      for (const row of section.rows) {
+        const key = (row.expand || '').trim();
+        if (key) {
+          this.expandedPropertyKeys.delete(key);
         }
       }
     }
@@ -158,9 +186,9 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
     this.markViewForCheck();
   }
 
-  updateIsAllExpanded(): void {
-    const keys = this.turnoverDisplayRows.map(row => (row.expand || '').trim()).filter(key => key !== '');
-    this.isAllExpanded = keys.length > 0 && keys.every(key => this.expandedPropertyKeys.has(key));
+  isAllExpandedForSection(section: OnlineLeaseTypeSection): boolean {
+    const keys = section.rows.map(row => (row.expand || '').trim()).filter(key => key !== '');
+    return keys.length > 0 && keys.every(key => this.expandedPropertyKeys.has(key));
   }
 
   normalizeKey(value: string | null | undefined): string {
