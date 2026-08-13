@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, catchError, concatMap, filter, finalize, firstValueFrom, from, map, of, take, takeUntil, toArray } from 'rxjs';
+import { BehaviorSubject, catchError, concatMap, filter, finalize, firstValueFrom, map, of, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
@@ -169,6 +169,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.isAdmin = this.authService.isAdmin();
     this.companyDataService.setTrackerHandlers({
+      loadReservationTrackers: reservationIds => this.loadReservationTrackerResponses(reservationIds),
       onReservationCheckboxChange: (row, sourceContext) => this.onReservationCheckboxChange(row, sourceContext),
       onReservationDropdownChange: (row, sourceContext) => this.onReservationDropdownChange(row, sourceContext),
       onReservationCheckAllTracking: (row, sourceContext) => this.onReservationCheckAllTracking(row, sourceContext),
@@ -244,7 +245,6 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     void userAssignedId;
     this.buildMonthlyCommissions();
     this.publishSnapshot();
-    this.loadReservationTrackerResponses();
     this.loadPropertyTrackerResponses();
   }
 
@@ -302,7 +302,6 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
         this.trackerConfiguration = response || null;
         if (this.companyDataService.snapshot.isReady) {
           this.publishSnapshot();
-          this.loadReservationTrackerResponses();
           this.loadPropertyTrackerResponses();
         }
       },
@@ -524,45 +523,38 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
   }
 
-  loadReservationTrackerResponses(): void {
-    const reservationIds = Array.from(new Set([
-      ...this.reservationTurnoverArrivalRows.map(row => (row.reservationId || '').trim()),
-      ...this.reservationTurnoverDepartureRows.map(row => (row.reservationId || '').trim())
-    ].filter(id => !!id)));
-
-    if (reservationIds.length === 0) {
-      this.reservationTrackerResponsesByReservation.clear();
-      this.reservationTrackerResponseOptionsByReservation.clear();
-      this.applyReservationTrackerValues();
-      this.publishReservationTrackerSlice();
+  loadReservationTrackerResponses(reservationIds: string[]): void {
+    const ids = Array.from(new Set((reservationIds || []).map(id => this.utilityService.normalizeId(id)).filter(id => !!id)));
+    if (ids.length === 0) {
       return;
     }
 
-    from(reservationIds).pipe(
-      concatMap(reservationId =>
-        this.reservationService.getReservationTrackerResponses(reservationId).pipe(
-          concatMap(responses =>
-            this.reservationService.getReservationTrackerResponseOptions(reservationId).pipe(
-              map(options => ({ reservationId, responses: responses || [], options: options || [] })),
-              catchError(() => of({ reservationId, responses: responses || [], options: [] as ReservationTrackerResponseOption[] }))
-            )
-          ),
-          catchError(() => of({ reservationId, responses: [] as ReservationTrackerResponse[], options: [] as ReservationTrackerResponseOption[] }))
-        )
-      ),
-      toArray(),
+    this.reservationService.getReservationTrackerResponsesByIds(ids).pipe(
+      catchError(() => of({ responses: [] as ReservationTrackerResponse[], options: [] as ReservationTrackerResponseOption[] })),
       take(1),
       takeUntil(this.destroy$)
     ).subscribe(result => {
-      this.reservationTrackerResponsesByReservation.clear();
-      this.reservationTrackerResponseOptionsByReservation.clear();
-      result.forEach(item => {
-        const byDefinitionId = new Map<string, ReservationTrackerResponse>();
-        item.responses.forEach(response => {
-          byDefinitionId.set(this.utilityService.normalizeId(response.trackerDefinitionId), response);
-        });
-        this.reservationTrackerResponsesByReservation.set(this.utilityService.normalizeId(item.reservationId), byDefinitionId);
-        this.reservationTrackerResponseOptionsByReservation.set(this.utilityService.normalizeId(item.reservationId), item.options);
+      ids.forEach(reservationId => {
+        this.reservationTrackerResponsesByReservation.set(reservationId, new Map<string, ReservationTrackerResponse>());
+        this.reservationTrackerResponseOptionsByReservation.set(reservationId, []);
+      });
+      (result?.responses || []).forEach(response => {
+        const reservationKey = this.utilityService.normalizeId(response.reservationId);
+        if (!reservationKey) {
+          return;
+        }
+        const byDefinitionId = this.reservationTrackerResponsesByReservation.get(reservationKey) || new Map<string, ReservationTrackerResponse>();
+        byDefinitionId.set(this.utilityService.normalizeId(response.trackerDefinitionId), response);
+        this.reservationTrackerResponsesByReservation.set(reservationKey, byDefinitionId);
+      });
+      (result?.options || []).forEach(option => {
+        const reservationKey = this.utilityService.normalizeId(option.reservationId);
+        if (!reservationKey) {
+          return;
+        }
+        const list = this.reservationTrackerResponseOptionsByReservation.get(reservationKey) || [];
+        list.push(option);
+        this.reservationTrackerResponseOptionsByReservation.set(reservationKey, list);
       });
       this.applyReservationTrackerValues();
       this.publishReservationTrackerSlice();

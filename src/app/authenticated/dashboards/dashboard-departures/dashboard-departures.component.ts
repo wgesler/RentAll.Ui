@@ -35,12 +35,14 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedReservationKeys = new Set<string>();
   isAllExpanded = false;
+  loadedTrackerReservationKey = '';
 
   //#region Dashboard-Departures
   ngOnInit(): void {
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.rebuildTurnoverDisplayRows();
+      this.requestReservationTrackers();
       this.markViewForCheck();
     });
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(focus => {
@@ -51,6 +53,19 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
       this.markViewForCheck();
       this.companyDataService.scrollDashboardActiveRowIntoView();
     });
+  }
+
+  requestReservationTrackers(): void {
+    if (!this.snapshot.isReady) {
+      return;
+    }
+    const ids = Array.from(new Set((this.snapshot.reservationTurnoverDepartureRows || []).map(row => String(row.reservationId || '').trim()).filter(id => !!id)));
+    const key = ids.slice().sort().join(',');
+    if (key === this.loadedTrackerReservationKey) {
+      return;
+    }
+    this.loadedTrackerReservationKey = key;
+    this.companyDataService.loadReservationTrackers(ids);
   }
   //#endregion
 

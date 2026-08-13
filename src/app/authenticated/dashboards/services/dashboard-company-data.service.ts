@@ -127,6 +127,7 @@ export type DashboardPropertyTrackerRow = {
 };
 
 export type DashboardCompanyTrackerHandlers = {
+  loadReservationTrackers?: (reservationIds: string[]) => void;
   onReservationCheckboxChange?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
   onReservationDropdownChange?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
   onReservationCheckAllTracking?: (row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure') => void;
@@ -328,6 +329,10 @@ export class DashboardCompanyDataService {
 
   setTrackerHandlers(handlers: DashboardCompanyTrackerHandlers): void {
     this.trackerHandlers = handlers;
+  }
+
+  loadReservationTrackers(reservationIds: string[]): void {
+    this.trackerHandlers.loadReservationTrackers?.(reservationIds);
   }
 
   onReservationCheckboxChange(row: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure'): void {

@@ -10,6 +10,8 @@ import {
   ReservationRequest,
   ReservationResponse,
   ReservationTrackerResponse,
+  ReservationTrackerResponseGetByIdsRequest,
+  ReservationTrackerResponseGetByIdsResponse,
   ReservationTrackerResponseOption,
   ReservationTrackerResponseOptionRequest,
   ReservationTrackerResponseRequest
@@ -179,6 +181,11 @@ export class ReservationService {
 
   getReservationTrackerResponses(reservationId: string): Observable<ReservationTrackerResponse[]> {
     return this.http.get<ReservationTrackerResponse[]>(this.controller + 'tracker-response/reservation/' + reservationId);
+  }
+
+  getReservationTrackerResponsesByIds(reservationIds: string[]): Observable<ReservationTrackerResponseGetByIdsResponse> {
+    const request: ReservationTrackerResponseGetByIdsRequest = { reservationIds };
+    return this.http.post<ReservationTrackerResponseGetByIdsResponse>(this.controller + 'tracker-response/reservations', request);
   }
 
   getReservationTrackerResponseOptions(reservationId: string): Observable<ReservationTrackerResponseOption[]> {

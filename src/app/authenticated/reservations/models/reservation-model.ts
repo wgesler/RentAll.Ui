@@ -322,6 +322,15 @@ export interface ReservationTrackerResponseOption {
   createdBy: string;
 }
 
+export interface ReservationTrackerResponseGetByIdsRequest {
+  reservationIds: string[];
+}
+
+export interface ReservationTrackerResponseGetByIdsResponse {
+  responses: ReservationTrackerResponse[];
+  options: ReservationTrackerResponseOption[];
+}
+
 // ExtraFeeLine models
 export interface ExtraFeeLineRequest {
   extraFeeLineId?: string | null;
