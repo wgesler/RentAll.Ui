@@ -40,7 +40,7 @@
       <div class="tableDiv">
         <app-data-table
           class="turnover-outer-table"
-          [data]="turnoverDisplayRows"
+          [data]="upcomingTurnoverDisplayRows"
           [columns]="checklistColumns"
           [subheaderLabel]="''"
           [hasColumnIndex]="true"
@@ -56,8 +56,8 @@
           [hasDetailRow]="true"
           [detailRowTemplate]="maintenanceDetailTemplate"
           [includeDetailRowHeader]="false"
-          [expandAllCallback]="toggleExpandAll.bind(this)"
-          [isAllExpanded]="isAllExpanded"
+          [expandAllCallback]="toggleExpandAllUpcoming.bind(this)"
+          [isAllExpanded]="isAllExpandedUpcoming"
           [itemsPerPage]="100"
           (editEvent)="onChecklistRowNavigate($event)"
           (rowClickEvent)="onChecklistRowNavigate($event)"
@@ -68,7 +68,43 @@
           (dropdownChangeEvent)="onChecklistDropdownChange($event)"
           (checkboxChangeEvent)="onChecklistCheckboxChange($event)">
           <div dataTableFilterActions>
-            <span class="filter-row-title">Upcoming Arrivals (Current & Next Month)</span>
+            <span class="filter-row-title">Upcoming Arrivals</span>
+          </div>
+        </app-data-table>
+      </div>
+
+      <div class="tableDiv">
+        <app-data-table
+          class="turnover-outer-table"
+          [data]="alreadyArrivedTurnoverDisplayRows"
+          [columns]="checklistColumns"
+          [subheaderLabel]="''"
+          [hasColumnIndex]="true"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsCheckAll]="true"
+          [hasActionsClearTracking]="true"
+          [hasActionsDelete]="false"
+          [hasPropertyCodeLink]="true"
+          [hasDetailRow]="true"
+          [detailRowTemplate]="maintenanceDetailTemplate"
+          [includeDetailRowHeader]="false"
+          [expandAllCallback]="toggleExpandAllAlreadyArrived.bind(this)"
+          [isAllExpanded]="isAllExpandedAlreadyArrived"
+          [itemsPerPage]="100"
+          (editEvent)="onChecklistRowNavigate($event)"
+          (rowClickEvent)="onChecklistRowNavigate($event)"
+          (propertyCodeClickEvent)="goToProperty($event)"
+          (contactClickEvent)="onChecklistContactNavigate($event)"
+          (checkAllEvent)="onChecklistCheckAll($event)"
+          (clearTrackingEvent)="onChecklistClearTracking($event)"
+          (dropdownChangeEvent)="onChecklistDropdownChange($event)"
+          (checkboxChangeEvent)="onChecklistCheckboxChange($event)">
+          <div dataTableFilterActions>
+            <span class="filter-row-title">Recently Arrived</span>
           </div>
         </app-data-table>
       </div>

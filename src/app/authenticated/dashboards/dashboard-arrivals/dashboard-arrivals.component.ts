@@ -7,6 +7,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListDisplay, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
+import { UtilityService } from '../../../services/utility.service';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 
 type ArrivalTurnoverRow = ReservationTurnoverEventDisplay & {
@@ -26,15 +27,18 @@ type ArrivalTurnoverRow = ReservationTurnoverEventDisplay & {
 })
 export class DashboardArrivalsComponent implements OnInit, OnDestroy {
   private companyDataService = inject(DashboardCompanyDataService);
+  private utilityService = inject(UtilityService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
-  turnoverDisplayRows: ArrivalTurnoverRow[] = [];
+  upcomingTurnoverDisplayRows: ArrivalTurnoverRow[] = [];
+  alreadyArrivedTurnoverDisplayRows: ArrivalTurnoverRow[] = [];
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedReservationKeys = new Set<string>();
-  isAllExpanded = false;
+  isAllExpandedUpcoming = false;
+  isAllExpandedAlreadyArrived = false;
   loadedTrackerReservationKey = '';
 
   //#region Dashboard-Arrivals
@@ -70,14 +74,27 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Toggle Rows
-  toggleExpandAll(expanded: boolean): void {
-    this.isAllExpanded = expanded;
-    this.expandedReservationKeys.clear();
+  toggleExpandAllUpcoming(expanded: boolean): void {
+    this.toggleExpandAll(expanded, this.upcomingTurnoverDisplayRows);
+  }
+
+  toggleExpandAllAlreadyArrived(expanded: boolean): void {
+    this.toggleExpandAll(expanded, this.alreadyArrivedTurnoverDisplayRows);
+  }
+
+  toggleExpandAll(expanded: boolean, rows: ArrivalTurnoverRow[]): void {
     if (expanded) {
-      for (const row of this.turnoverDisplayRows) {
+      for (const row of rows) {
         const key = (row.expand || '').trim();
         if (key) {
           this.expandedReservationKeys.add(key);
+        }
+      }
+    } else {
+      for (const row of rows) {
+        const key = (row.expand || '').trim();
+        if (key) {
+          this.expandedReservationKeys.delete(key);
         }
       }
     }
@@ -86,8 +103,18 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
   }
 
   updateIsAllExpanded(): void {
-    const keys = this.turnoverDisplayRows.map(row => (row.expand || '').trim()).filter(key => key !== '');
-    this.isAllExpanded = keys.length > 0 && keys.every(key => this.expandedReservationKeys.has(key));
+    this.isAllExpandedUpcoming = this.isAllExpandedForRows(this.upcomingTurnoverDisplayRows);
+    this.isAllExpandedAlreadyArrived = this.isAllExpandedForRows(this.alreadyArrivedTurnoverDisplayRows);
+  }
+
+  isAllExpandedForRows(rows: ArrivalTurnoverRow[]): boolean {
+    const keys = rows.map(row => (row.expand || '').trim()).filter(key => key !== '');
+    return keys.length > 0 && keys.every(key => this.expandedReservationKeys.has(key));
+  }
+
+  isUpcomingArrival(row: ReservationTurnoverEventDisplay, todayOrdinal: number): boolean {
+    const arrivalOrdinal = this.utilityService.parseCalendarDateToOrdinal(row.arrivalDateDisplay);
+    return arrivalOrdinal !== null && arrivalOrdinal > todayOrdinal;
   }
   //#endregion
 
@@ -129,7 +156,8 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.turnoverDisplayRows = (this.snapshot.reservationTurnoverArrivalRows || []).map(row => {
+    const todayOrdinal = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.todayAsCalendarDateString()) ?? 0;
+    const allTurnoverDisplayRows = (this.snapshot.reservationTurnoverArrivalRows || []).map(row => {
       const reservationKey = this.normalizeKey(row.reservationId);
       const propertyKey = this.normalizeKey(row.propertyId);
       let children = reservationKey
@@ -185,6 +213,9 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
         }
       };
     });
+
+    this.upcomingTurnoverDisplayRows = allTurnoverDisplayRows.filter(row => this.isUpcomingArrival(row, todayOrdinal));
+    this.alreadyArrivedTurnoverDisplayRows = allTurnoverDisplayRows.filter(row => !this.isUpcomingArrival(row, todayOrdinal));
 
     const focus = this.companyDataService.calendarFocus?.tabIndex === 0 ? this.companyDataService.calendarFocus : null;
     this.orphanMaintenanceRows = (this.snapshot.arrivalMaintenanceDisplay || [])
