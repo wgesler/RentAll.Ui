@@ -235,47 +235,69 @@
   tbody tr:last-child td {
     border-bottom: none;
   }
-}
 
-.split-lines-table--general-ledger {
-  .split-col-property {
-    width: 20ch;
-    min-width: 20ch;
-  }
+  &.split-lines-table--general-ledger {
+    th,
+    td {
+      padding: 5px 5px;
+    }
 
-  .split-col-reservation {
-    width: 15rem;
-    min-width: 15rem;
-  }
+    col.gl-split-col-no {
+      width: 2.5%;
+    }
 
-  .split-col-type {
-    width: 15ch;
-    min-width: 15ch;
-  }
+    col.gl-split-col-1 {
+      width: 7.5%;
+    }
 
-  .split-col-contact {
-    width: 10ch;
-    min-width: 10ch;
-    max-width: 12ch;
-  }
+    col.gl-split-col-2 {
+      width: 15%;
+    }
 
-  .split-col-account {
-    width: 23rem;
-    min-width: 23rem;
-  }
+    col.gl-split-col-actions {
+      width: 4%;
+    }
 
-  .split-col-description {
-    width: auto;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+    .split-col-no {
+      width: 2.5%;
+    }
 
-  .split-col-description .split-editable-input {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    .split-col-account,
+    .split-col-reservation,
+    .split-col-contact,
+    .split-col-description {
+      width: 15%;
+      min-width: 0;
+    }
+
+    .split-col-property,
+    .split-col-type,
+    .split-col-amount {
+      width: 7.5%;
+      min-width: 0;
+    }
+
+    .split-col-actions {
+      width: 4%;
+      min-width: 44px;
+      padding-right: 12px !important;
+    }
+
+    .split-col-contact {
+      max-width: none;
+    }
+
+    .split-col-description {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .split-col-description .split-editable-input {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 }
 
@@ -321,9 +343,11 @@
 }
 
 .split-account-select ::ng-deep .mat-mdc-select-trigger {
+  display: flex;
+  align-items: center;
   min-height: 28px;
   height: 28px;
-  padding: 0 6px;
+  padding: 0 4px 0 6px;
   box-sizing: border-box;
   font-size: 14px;
   border: 1px solid var(--mat-sys-outline, #ccc);
@@ -331,20 +355,26 @@
   background-color: var(--mat-sys-surface, #fff);
 }
 
+.split-account-select ::ng-deep .mat-mdc-select-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.split-account-select ::ng-deep .mat-mdc-select-arrow-wrapper {
+  flex: 0 0 auto;
+  margin-left: 2px;
+}
+
 .split-account-select ::ng-deep .searchable-trigger-value {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 28px;
-}
-
-.split-col-account .split-account-select ::ng-deep .searchable-trigger-value {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
-}
-
-.split-col-reservation .split-account-select ::ng-deep .searchable-trigger-value {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
 }
 
 .split-account-select ::ng-deep .searchable-select-control.split-input-invalid .mat-mdc-select-trigger,

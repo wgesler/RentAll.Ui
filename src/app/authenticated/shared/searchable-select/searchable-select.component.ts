@@ -45,6 +45,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           [errorStateMatcher]="showErrorStateMatcher"
           [attr.aria-invalid]="showError"
           [disabled]="disabled"
+          [panelWidth]="panelWidth"
           class="searchable-select-control"
           [ngClass]="selectClass"
           (focusin)="onFocusIn(searchableSelectRef)"
@@ -98,6 +99,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         [errorStateMatcher]="showErrorStateMatcher"
         [attr.aria-invalid]="showError"
         [disabled]="disabled"
+        [panelWidth]="panelWidth"
         class="searchable-select-control"
         [ngClass]="selectClass"
         (focusin)="onFocusIn(searchableSelectRef)"
@@ -155,6 +157,8 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
   @Input() hideSearchText = false;
   @Input() resetSearchOnOpen = true;
   @Input() selectClass = '';
+  /** `auto` matches trigger; `null`/'' grows to longest option text. */
+  @Input() panelWidth: string | number | null = 'auto';
   @Input() renderInFormField = false;
   @Input() formFieldLabel = '';
   @Input() formFieldClass = '';

@@ -141,6 +141,20 @@
           <div class="general-ledger-splits-table-wrap">
             @if (canEditLines) {
               <table class="split-lines-table split-lines-table--general-ledger">
+                <colgroup>
+                  <col class="gl-split-col-no">
+                  <col class="gl-split-col-2">
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-2">
+                  @if (shouldShowLineContactColumn()) {
+                    <col class="gl-split-col-2">
+                  }
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-2">
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-actions">
+                </colgroup>
                 <thead>
                   <tr>
                     <th class="split-col-no">No</th>
@@ -165,6 +179,7 @@
                         <app-searchable-select
                           class="split-account-select"
                           [renderInFormField]="false"
+                          [panelWidth]="null"
                           [value]="line.chartOfAccountId"
                           [options]="chartOfAccountOptions"
                           [required]="true"
@@ -185,6 +200,7 @@
                         <app-searchable-select
                           class="split-account-select"
                           [renderInFormField]="false"
+                          [panelWidth]="null"
                           [value]="line.propertyId"
                           [options]="getLinePropertyOptions(line)"
                           [disabled]="!shouldShowLineProperty(line)"
@@ -203,6 +219,7 @@
                         <app-searchable-select
                           class="split-account-select"
                           [renderInFormField]="false"
+                          [panelWidth]="null"
                           [value]="line.reservationId"
                           [options]="getLineReservationOptions(line)"
                           [disabled]="!shouldShowLineReservation(line)"
@@ -223,6 +240,7 @@
                             <app-searchable-select
                               class="split-account-select"
                               [renderInFormField]="false"
+                              [panelWidth]="null"
                               [value]="line.contactId"
                               [options]="getLineContactOptions(line)"
                               [required]="true"
@@ -242,6 +260,7 @@
                         <app-searchable-select
                           class="split-account-select"
                           [renderInFormField]="false"
+                          [panelWidth]="null"
                           [value]="line.perspectiveId"
                           [options]="perspectiveOptions"
                           [required]="true"
@@ -302,6 +321,17 @@
               </table>
             } @else {
               <table class="split-lines-table split-lines-table--general-ledger">
+                <colgroup>
+                  <col class="gl-split-col-no">
+                  <col class="gl-split-col-2">
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-2">
+                  <col class="gl-split-col-2">
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-2">
+                  <col class="gl-split-col-1">
+                  <col class="gl-split-col-1">
+                </colgroup>
                 <thead>
                   <tr>
                     <th class="split-col-no">No</th>

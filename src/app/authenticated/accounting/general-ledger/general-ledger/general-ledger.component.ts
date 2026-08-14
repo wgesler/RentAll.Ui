@@ -1119,9 +1119,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
     this.editableLines = [this.createEditableLine(), this.createEditableLine()];
     const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     this.form.reset({
       transactionDate: today,
-      accountingPeriod: null,
+      accountingPeriod: firstOfMonth,
       memo: '',
       journalEntryKindId: JournalEntryKind.Manual,
       isPosted: false
