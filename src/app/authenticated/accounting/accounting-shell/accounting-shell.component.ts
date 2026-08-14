@@ -2618,6 +2618,10 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     }
     this.clearInactiveDropdownSelections(event.index);
     this.selectedTabIndex = event.index;
+    const datesResetForView = this.applyShellUnpinnedViewDateRangeDefaults();
+    if (datesResetForView) {
+      this.syncInvoiceSearchDateRange();
+    }
     if (this.showOwnerReportGoButton) {
       this.ensureOwnerReportGoDefaultCriteria();
     }
@@ -2786,9 +2790,17 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
 
     this.selectedBankActivityKind = kind;
 
+    if (kindChanged) {
+      this.applyShellUnpinnedViewDateRangeDefaults();
+    }
+
     if (previousTab !== this.tabBankActivities) {
       this.onTabChange({ index: this.tabBankActivities });
       return;
+    }
+
+    if (kindChanged) {
+      this.syncInvoiceSearchDateRange();
     }
 
     this.syncBillsSearchRequest();
@@ -5553,7 +5565,13 @@ captureOwnerStatementReturnContext(): void {
     return new Date(value.getFullYear(), value.getMonth(), value.getDate());
   }
 
-  shouldApplyShellCurrentMonthDateDefaults(): boolean {
+  usesShellAccumulativeDateDefaults(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && (this.selectedBankActivityKind === 'undepositedFunds'
+        || this.selectedBankActivityKind === 'untransferredFunds');
+  }
+
+  shouldApplyShellInitialDateDefaults(): boolean {
     if (this.dateRangePinned) {
       return false;
     }
@@ -5565,8 +5583,60 @@ captureOwnerStatementReturnContext(): void {
     return !this.startDate || !this.endDate;
   }
 
+  resolveShellAccountingStartDate(): Date | null {
+    const officeIds = this.selectedOfficeId != null && this.selectedOfficeId > 0
+      ? [this.selectedOfficeId]
+      : undefined;
+
+    return this.accountingOfficeService.getEarliestAccountingStartDate(
+      this.accountingOfficeService.getAllAccountingOfficesValue(),
+      officeIds
+    );
+  }
+
+  resolveShellDefaultStartDate(): Date {
+    const accountingStart = this.resolveShellAccountingStartDate();
+    if (accountingStart) {
+      accountingStart.setHours(0, 0, 0, 0);
+      return accountingStart;
+    }
+
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    monthStart.setHours(0, 0, 0, 0);
+    return monthStart;
+  }
+
   applyShellInitialDateRangeDefaults(): boolean {
-    if (!this.shouldApplyShellCurrentMonthDateDefaults()) {
+    if (!this.shouldApplyShellInitialDateDefaults()) {
+      return false;
+    }
+
+    return this.applyShellUnpinnedViewDateRangeDefaults(true);
+  }
+
+  applyShellUnpinnedViewDateRangeDefaults(onlyWhenEmpty = false): boolean {
+    if (this.dateRangePinned) {
+      return false;
+    }
+
+    if (this.selectedTabIndex === this.tabReports && this.selectedReportKind === 'balanceSheet') {
+      return false;
+    }
+
+    if (this.usesShellAccumulativeDateDefaults()) {
+      return this.applyShellAccumulativeDateRangeDefaults(onlyWhenEmpty);
+    }
+
+    return this.applyShellCurrentMonthDateRangeDefaults(onlyWhenEmpty);
+  }
+
+  applyShellCurrentMonthDateRangeDefaults(onlyWhenEmpty = true): boolean {
+    if (this.dateRangePinned) {
+      return false;
+    }
+
+    if (onlyWhenEmpty && this.startDate && this.endDate) {
       return false;
     }
 
@@ -5576,11 +5646,35 @@ captureOwnerStatementReturnContext(): void {
     monthStart.setHours(0, 0, 0, 0);
     monthEnd.setHours(0, 0, 0, 0);
 
-    if (!this.startDate) {
+    if (!onlyWhenEmpty || !this.startDate) {
       this.startDate = monthStart;
     }
-    if (!this.endDate) {
+    if (!onlyWhenEmpty || !this.endDate) {
       this.endDate = monthEnd;
+    }
+
+    this.shellStartDateNeedsEntry = false;
+    this.shellEndDateNeedsEntry = false;
+    return true;
+  }
+
+  applyShellAccumulativeDateRangeDefaults(onlyWhenEmpty = true): boolean {
+    if (this.dateRangePinned) {
+      return false;
+    }
+
+    if (onlyWhenEmpty && this.startDate && this.endDate) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!onlyWhenEmpty || !this.startDate) {
+      this.startDate = this.resolveShellDefaultStartDate();
+    }
+    if (!onlyWhenEmpty || !this.endDate) {
+      this.endDate = new Date(today);
     }
 
     this.shellStartDateNeedsEntry = false;
@@ -5634,6 +5728,14 @@ captureOwnerStatementReturnContext(): void {
     }
     if (this.endDate) {
       this.endDate.setHours(0, 0, 0, 0);
+    }
+
+    const accountingStart = this.resolveShellAccountingStartDate();
+    if (accountingStart && this.usesShellAccumulativeDateDefaults()) {
+      accountingStart.setHours(0, 0, 0, 0);
+      if (this.startDate && this.startDate.getTime() < accountingStart.getTime()) {
+        this.startDate = this.cloneShellDate(accountingStart);
+      }
     }
 
     if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
