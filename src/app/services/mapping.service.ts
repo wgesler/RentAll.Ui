@@ -1255,10 +1255,10 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
       const costCodeId = line.costCodeId ?? null;
       let matchingCostCode: CostCodesResponse | undefined = undefined;
+      // Type comes from cost code; API join returns the same value when loaded from Invoice_Get.
       let transactionTypeId: number | undefined = line.transactionTypeId;
       
       if (costCodeId !== null && costCodes && costCodes.length > 0) {
-        // Find cost code by costCodeId (costCodes array is already filtered by office if needed)
         matchingCostCode = costCodes.find(c => c.costCodeId === costCodeId);
         
         if (matchingCostCode) {
@@ -1266,35 +1266,28 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         }
       }
       
-      // Translate transactionTypeId to transactionType label for display.
-      // Prefer CostCode-derived value when available, otherwise use API line.transactionTypeId.
       const transactionTypeLabel = transactionTypeId !== undefined && transactionTypeId !== null 
         ? getTransactionTypeLabel(transactionTypeId, transactionTypes)
         : '';
       
-      // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
       const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment ? '#E8F5E9' : undefined;
       
-      const mapped: LedgerLineListDisplay & { transactionTypeId?: number } = {
+      return {
         ledgerLineId: line.ledgerLineId,
         lineNumber: line.lineNumber,
-        costCodeId: costCodeId, // From invoice.ledgerLine.costCodeId
+        costCodeId: costCodeId,
         costCode: matchingCostCode
           ? this.utility.getCostCodeDropdownLabel(matchingCostCode)
           : this.utility.getCostCodeDropdownLabel(null, costCodeId ?? undefined),
-        transactionType: transactionTypeLabel, // Translated from CostCode.transactionTypeId
+        transactionTypeId,
+        transactionType: transactionTypeLabel,
         description: line.description || '',
         amount: line.amount,
         ledgerLineDate: line.ledgerLineDate,
         paymentId: line.paymentId ?? null,
-        isNew: false, // Existing lines are not new
+        isNew: false,
         rowColor: rowColor
       };
-      
-      // Preserve transactionTypeId from CostCode for reference
-      mapped.transactionTypeId = transactionTypeId;
-      
-      return mapped;
     });
   }
   //#endregion

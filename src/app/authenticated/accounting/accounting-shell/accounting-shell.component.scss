@@ -561,7 +561,7 @@ mat-card {
   font-weight: 600;
   line-height: 1.2;
   min-height: 3rem;
-  padding-top: 0.25rem;
+  padding-top: var(--dbg-layout-stack-gap);
   padding-bottom: 0.2rem;
   text-align: center;
   color: #000;

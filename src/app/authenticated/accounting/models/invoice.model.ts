@@ -141,7 +141,6 @@ export interface LedgerLineRequest {
   invoiceId?: string | null;
   lineNumber: number;
   costCodeId?: number;
-  transactionTypeId: number;
   reservationId?: string | null;
   amount: number;
   description: string;
@@ -167,6 +166,7 @@ export interface LedgerLineListDisplay {
   lineNumber: number;
   costCodeId: number | null; // ID reference for dropdowns and saving
   costCode: string | null; // Display value retrieved from CostCodes
+  transactionTypeId?: number; // From cost code (display/logic only; not saved on line)
   transactionType: string;
   description: string;
   amount: number;

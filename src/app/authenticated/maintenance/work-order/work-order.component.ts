@@ -22,7 +22,6 @@ import { PropertyService } from '../../properties/services/property.service';
 import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { TransactionType } from '../../accounting/models/accounting-enum';
 import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoice.model';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
@@ -597,7 +596,6 @@ onWorkOrderIdChanged(): void {
     const ledgerLines: LedgerLineRequest[] = [
       {
         lineNumber: 1,
-        transactionTypeId: TransactionType.ChargeOneTime,
         reservationId: workOrder.reservationId,
         costCodeId: numericCostCodeId,
         description: workOrderRef,

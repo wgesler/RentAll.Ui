@@ -191,14 +191,14 @@
                           <th class="text-left ledger-col-date">Date</th>
                           <th class="text-left ledger-col-cost-center">Cost Center</th>
                           <th class="text-left ledger-col-type">Type</th>
-                          <th class="text-left">Description</th>
+                          <th class="text-left ledger-col-description">Description</th>
                           <th class="text-left ledger-col-amount">Amount</th>
                           <th class="text-right ledger-col-actions"></th>
                         </tr>
                       </thead>
                       <tbody>
                         @for (line of ledgerLines; track (line.ledgerLineId + '-' + $index); let i = $index) {
-                          <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
+                          <tr [class.payment-line]="isPaymentLine(line)">
                             <td class="ledger-col-no">
                               <input type="text" class="w-full readonly-input ledger-input-no-border"
                                 [value]="line.lineNumber !== undefined ? line.lineNumber : (i + 1)"
@@ -226,11 +226,14 @@
                               </div>
                             </td>
                             <td class="type-cell ledger-col-type">
-                              <input type="text" class="w-full editable-input readonly-input"
+                              <input type="text" class="w-full editable-input readonly-input ledger-type-readonly"
                                 [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'transactionType')"
-                                [value]="line.transactionType || ''" readonly>
+                                [value]="line.transactionType || ''"
+                                readonly
+                                tabindex="-1"
+                                aria-readonly="true">
                             </td>
-                            <td>
+                            <td class="ledger-col-description">
                               <input type="text" class="w-full editable-input" 
                                 [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'description')"
                                 [value]="line.description || ''"

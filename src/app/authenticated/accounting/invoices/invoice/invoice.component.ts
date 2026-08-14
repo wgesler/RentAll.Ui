@@ -1026,7 +1026,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
           lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
           costCodeId: Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : undefined,
-          transactionTypeId: (line as any).transactionTypeId,
           reservationId: reservationId || null,
           amount: line.amount || 0,
           description: line.description || '',
@@ -1184,7 +1183,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       }));
     }
 
-    const transactionTypeId = (line as any).transactionTypeId;
+    const transactionTypeId = line.transactionTypeId;
 
     if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
       return this.creditCostCodes.filter(c => c.isActive).map(c => ({
@@ -1200,7 +1199,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   isPaymentLine(line: LedgerLineListDisplay): boolean {
-    const transactionTypeId = (line as any).transactionTypeId;
+    const transactionTypeId = line.transactionTypeId;
     if (transactionTypeId !== undefined && transactionTypeId !== null) {
       return transactionTypeId === TransactionType.Payment;
     }
@@ -1705,14 +1704,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       if (field === 'amount') {
         this.updateTotalAmount();
       }
-      
-      if (field === 'transactionType' && typeof value === 'string') {
-        const transactionType = this.transactionTypes.find(t => t.label === value);
-        if (transactionType) {
-           (this.ledgerLines[index] as any).transactionTypeId = transactionType.value;
-        }
-      }
-      
     }
   }
 
@@ -1732,27 +1723,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  onTransactionTypeChange(index: number, transactionTypeId: number | null): void {
-    if (transactionTypeId === null || transactionTypeId === undefined) {
-      this.updateLedgerLineField(index, 'transactionType', '');
-      (this.ledgerLines[index] as any).transactionTypeId = undefined;
-      return;
-    }
-
-    const transactionType = this.transactionTypes.find(t => t.value === transactionTypeId);
-    if (transactionType) {
-      this.updateLedgerLineField(index, 'transactionType', transactionType.label);
-      (this.ledgerLines[index] as any).transactionTypeId = transactionTypeId;
-    }
-  }
-
   onCostCodeChange(index: number, costCodeId: string | number | null): void {
     const parsedCostCodeId = costCodeId === null || costCodeId === undefined || costCodeId === '' ? NaN : Number(costCodeId);
     const normalizedCostCodeId = Number.isInteger(parsedCostCodeId) ? parsedCostCodeId : null;
     if (normalizedCostCodeId === null) {
       this.updateLedgerLineField(index, 'costCodeId', null);
       this.updateLedgerLineField(index, 'costCode', null);
-      (this.ledgerLines[index] as any).transactionTypeId = undefined;
+      this.updateLedgerLineField(index, 'transactionTypeId', undefined);
       this.updateLedgerLineField(index, 'transactionType', '');
     } else {
       const line = this.ledgerLines[index];
@@ -1766,7 +1743,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         const newTransactionTypeId = matchingCostCode.transactionTypeId;
-        (this.ledgerLines[index] as any).transactionTypeId = newTransactionTypeId;
+        this.updateLedgerLineField(index, 'transactionTypeId', newTransactionTypeId);
         const transactionType = this.transactionTypes.find(t => t.value === newTransactionTypeId);
         if (transactionType) {
           this.updateLedgerLineField(index, 'transactionType', transactionType.label);
@@ -1774,15 +1751,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         
       } else {
         this.updateLedgerLineField(index, 'costCode', null);
-        (this.ledgerLines[index] as any).transactionTypeId = undefined;
+        this.updateLedgerLineField(index, 'transactionTypeId', undefined);
         this.updateLedgerLineField(index, 'transactionType', '');
       }
     }
   }
 
   getTransactionTypeId(line: LedgerLineListDisplay): number | null {
-    const transactionTypeId = (line as any).transactionTypeId;
-    return transactionTypeId !== undefined && transactionTypeId !== null ? transactionTypeId : null;
+    return line.transactionTypeId !== undefined && line.transactionTypeId !== null ? line.transactionTypeId : null;
   }
 
   calculateInvoicedAmount(): number {
@@ -1912,7 +1888,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return false;
     }
 
-    const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
+    const hasTransactionTypeId = line.transactionTypeId !== undefined && line.transactionTypeId !== null;
     const parsedCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
     const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
     const hasDescription = !!line.description && line.description.trim() !== '';
@@ -1995,7 +1971,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           current.lineNumber !== original.lineNumber ||
           (this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(i).value) ?? current.ledgerLineDate ?? '') !== (original.ledgerLineDate ?? '') ||
           current.costCodeId !== original.costCodeId ||
-          (current as any).transactionTypeId !== (original as any).transactionTypeId ||
+          current.transactionTypeId !== original.transactionTypeId ||
           current.description !== original.description ||
           current.amount !== original.amount) {
         return true;
@@ -2159,7 +2135,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       ledgerLineDate: invoiceDateString,
       isNew: true
     };
-    (newLine as any).transactionTypeId = undefined;
+    newLine.transactionTypeId = undefined;
     this.ledgerLines.push(newLine);
     this.syncLedgerLineDatesFormArray();
     this.updateTotalAmount();

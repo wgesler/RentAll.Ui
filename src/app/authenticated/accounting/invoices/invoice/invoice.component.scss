@@ -32,58 +32,172 @@
   line-height: 1.25;
   border-collapse: collapse;
   width: 100%;
+  --ledger-row-control-height: 32px;
+  /* No | Date(1) | Cost(3) | Type(2) | Description(4) | Amount(1) | Actions  — content = 11 parts */
+  --ledger-row-columns: 40px minmax(0, 1fr) minmax(0, 3fr) minmax(0, 2fr) minmax(0, 4fr) minmax(0, 1fr) 40px;
 
-  .ledger-col-no {
-    width: 50px;
-    min-width: 50px;
-    max-width: 50px;
+  display: block;
+
+  thead,
+  tbody {
+    display: block;
+    width: 100%;
   }
 
-  .ledger-col-date {
-    width: 190px;
-    min-width: 190px;
-    max-width: 190px;
+  thead tr,
+  tbody tr {
+    display: grid;
+    grid-template-columns: var(--ledger-row-columns);
+    width: 100%;
+    align-items: center;
+    column-gap: 0;
+    box-sizing: border-box;
   }
 
-  /* Compact mat-form-field date — matches receipt datepicker behavior in table rows */
+  thead tr {
+    background-color: var(--invoice-ledger-header-bg);
+    border-bottom: 1px solid var(--invoice-ledger-border);
+  }
+
+  /* One continuous rule under the row (same as header) — not per-cell. */
+  tbody tr {
+    border-bottom: 1px solid var(--invoice-ledger-border);
+  }
+
+  thead th,
+  tbody td {
+    border-bottom: none;
+  }
+
+  th,
+  td {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+
+    > * {
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .ledger-line-date-field,
+    .ledger-field-box,
+    .editable-input,
+    .cost-code-select {
+      width: 100% !important;
+      max-width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .ledger-col-no,
+  .ledger-col-date,
+  .ledger-col-cost-center,
+  .ledger-col-type,
+  .ledger-col-description,
+  .ledger-col-amount,
+  .ledger-col-actions {
+    width: auto;
+  }
+
+  .ledger-col-type .ledger-type-readonly,
+  .type-cell .ledger-type-readonly {
+    color: var(--invoice-readonly-color) !important;
+    background-color: transparent !important;
+    cursor: default !important;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .ledger-col-amount {
+    text-align: right;
+  }
+
+  /* Compact mat-form-field date — same baseline as sibling controls */
   .ledger-line-date-field {
     width: 100%;
-    margin: 0;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center;
+    height: var(--ledger-row-control-height);
+    min-height: var(--ledger-row-control-height);
+    max-height: var(--ledger-row-control-height);
+  }
+
+  .ledger-line-date-field ::ng-deep .mat-mdc-text-field-wrapper,
+  .ledger-line-date-field ::ng-deep .mat-mdc-form-field-flex {
+    margin: 0 !important;
   }
 
   .ledger-line-date-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-    display: none;
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
   }
 
   .ledger-line-date-field ::ng-deep .mat-mdc-text-field-wrapper {
-    height: 28px !important;
-    min-height: 28px !important;
+    height: var(--ledger-row-control-height) !important;
+    min-height: var(--ledger-row-control-height) !important;
+    max-height: var(--ledger-row-control-height) !important;
     padding-left: 6px !important;
     padding-right: 2px !important;
     border-radius: 4px;
     box-sizing: border-box;
+    align-items: center !important;
   }
 
   .ledger-line-date-field ::ng-deep .mat-mdc-form-field-flex {
-    height: 28px !important;
-    min-height: 28px !important;
+    height: var(--ledger-row-control-height) !important;
+    min-height: var(--ledger-row-control-height) !important;
+    max-height: var(--ledger-row-control-height) !important;
     align-items: center !important;
+    padding: 0 !important;
   }
 
   .ledger-line-date-field ::ng-deep .mat-mdc-form-field-infix {
-    min-height: 28px !important;
+    min-height: var(--ledger-row-control-height) !important;
+    height: var(--ledger-row-control-height) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
-    display: flex;
+    border-top: none !important;
+    display: flex !important;
     align-items: center !important;
+    box-sizing: border-box;
+  }
+
+  .ledger-line-date-field ::ng-deep .mdc-text-field--outlined .mat-mdc-form-field-infix {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   .ledger-line-date-field ::ng-deep input.mat-mdc-input-element {
-    height: 26px !important;
-    line-height: 26px !important;
+    height: var(--ledger-row-control-height) !important;
+    line-height: var(--ledger-row-control-height) !important;
     margin: 0 !important;
     font-size: 14px !important;
     padding: 0 !important;
+    align-self: center !important;
+  }
+
+  .ledger-line-date-field ::ng-deep .mat-mdc-form-field-icon-suffix,
+  .ledger-line-date-field ::ng-deep .mat-mdc-form-field-icon-prefix {
+    align-self: center !important;
+    height: var(--ledger-row-control-height) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  .ledger-line-date-field ::ng-deep .mat-datepicker-toggle {
+    height: var(--ledger-row-control-height) !important;
+    width: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .ledger-line-date-field ::ng-deep .mat-datepicker-toggle-default-icon {
@@ -94,7 +208,10 @@
   .ledger-line-date-field ::ng-deep .mat-mdc-icon-button {
     width: 28px !important;
     height: 28px !important;
-    padding: 2px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .ledger-line-date-field.invoice-line-invalid ::ng-deep .mat-mdc-text-field-wrapper {
@@ -105,9 +222,9 @@
     display: flex;
     align-items: center;
     width: 100%;
-    height: 28px;
-    min-height: 28px;
-    max-height: 28px;
+    height: var(--ledger-row-control-height);
+    min-height: var(--ledger-row-control-height);
+    max-height: var(--ledger-row-control-height);
     box-sizing: border-box;
     border: 1px solid var(--invoice-ledger-input-border);
     border-radius: 4px;
@@ -126,8 +243,8 @@
       flex: 1 1 auto;
       min-width: 0;
       width: auto !important;
-      height: 28px !important;
-      line-height: 28px !important;
+      height: var(--ledger-row-control-height) !important;
+      line-height: var(--ledger-row-control-height) !important;
       padding: 0 6px !important;
       margin: 0 !important;
       border: none !important;
@@ -146,7 +263,7 @@
       .mat-datepicker-toggle {
         flex: 0 0 auto;
         width: 24px;
-        height: 28px;
+        height: var(--ledger-row-control-height);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -166,38 +283,11 @@
     }
   }
 
-  .ledger-col-cost-center {
-    width: 350px;
-    min-width: 350px;
-    max-width: 350px;
-  }
-
-  .ledger-col-type {
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
-  }
-
-  .ledger-col-amount {
-    width: 120px;
-    min-width: 120px;
-    max-width: 120px;
-    text-align: right;
-  }
-
-  .ledger-col-actions {
-    width: 50px;
-    min-width: 50px;
-    max-width: 50px;
-  }
-  
   th, td {
     text-align: left;
-    border-bottom: 1px solid var(--invoice-ledger-border);
   }
-  
+
   th {
-    background-color: var(--invoice-ledger-header-bg);
     font-weight: 500;
     font-size: 14px !important;
   }
@@ -261,14 +351,14 @@
   
   /* Shrink mat-select only inside ledger */
   mat-select {
-    min-height: 32px;
-    height: 32px;
+    min-height: var(--ledger-row-control-height);
+    height: var(--ledger-row-control-height);
     font-size: 14px !important;
   }
   
   /* mat-select internal trigger */
   .mat-mdc-select-trigger {
-    height: 32px;
+    height: var(--ledger-row-control-height);
     padding: 0 6px;
     display: flex;
     align-items: center;
@@ -279,8 +369,8 @@
   input[type="text"],
   input[type="date"],
   input[type="number"] {
-    height: 28px;
-    line-height: 28px;
+    height: var(--ledger-row-control-height);
+    line-height: var(--ledger-row-control-height);
     padding: 0 6px;
     box-sizing: border-box;
     width: 100%;
@@ -302,6 +392,10 @@
     border: 1px solid var(--invoice-ledger-input-border) !important;
     border-radius: 4px;
     background-color: var(--mat-sys-surface, #fff);
+    height: var(--ledger-row-control-height) !important;
+    line-height: var(--ledger-row-control-height) !important;
+    display: block;
+    box-sizing: border-box;
     
     &:focus {
       border-color: var(--invoice-ledger-input-focus) !important;
@@ -342,7 +436,7 @@
     }
   }
 
-  // Cost Center dropdown with left-aligned arrow - match ledger data row text
+  // Cost Center dropdown — arrow at the far right of the field
   .cost-code-select {
     width: 100%;
     font-size: 14px !important;
@@ -405,11 +499,12 @@
       
       .mat-mdc-select-trigger {
         display: flex;
-        flex-direction: row-reverse;
+        flex-direction: row;
         align-items: center;
         justify-content: space-between;
+        width: 100%;
         padding-left: 0;
-        padding-right: 1.5rem; // Padding after the dropdown arrow
+        padding-right: 0;
         font-size: 14px !important;
         line-height: 1.25 !important;
         
@@ -418,9 +513,9 @@
         }
         
         .mat-mdc-select-value {
-          flex: 1;
+          flex: 1 1 auto;
+          min-width: 0;
           text-align: left;
-          order: 2;
           font-size: 14px !important;
           line-height: 1.25 !important;
           
@@ -439,10 +534,9 @@
         }
         
         .mat-mdc-select-arrow-wrapper {
-          order: 1;
-          margin-right: 8px;
-          margin-left: 0;
-          flex-shrink: 0;
+          flex: 0 0 auto;
+          margin-left: 8px;
+          margin-right: 6px;
         }
       }
       
@@ -469,8 +563,12 @@
     border: 1px solid var(--invoice-ledger-input-border);
     border-radius: 4px;
     background-color: var(--mat-sys-surface, #fff);
-    padding: 2px 6px;
+    padding: 0 6px;
     box-sizing: border-box;
+    height: var(--ledger-row-control-height);
+    min-height: var(--ledger-row-control-height);
+    display: flex;
+    align-items: center;
 
     &:focus-within {
       border-color: var(--invoice-ledger-input-focus);
@@ -478,6 +576,17 @@
 
     &.invoice-line-invalid {
       border-color: #dc2626 !important;
+    }
+
+    app-searchable-select,
+    .cost-code-select {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+    }
+
+    ::ng-deep .mat-mdc-select-trigger {
+      width: 100%;
     }
   }
   

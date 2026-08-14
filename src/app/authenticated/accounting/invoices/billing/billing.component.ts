@@ -207,7 +207,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     // Check each ledger line for completeness
     const incompleteLines: number[] = [];
     this.ledgerLines.forEach((line, index) => {
-      const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
+      const hasTransactionTypeId = line.transactionTypeId !== undefined && line.transactionTypeId !== null;
       const parsedCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
       const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
       const hasDescription = line.description && line.description.trim() !== '';
@@ -238,7 +238,6 @@ export class BillingComponent implements OnInit, OnDestroy {
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
           lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
           costCodeId: Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : undefined,
-          transactionTypeId: (line as any).transactionTypeId,
           amount: line.amount || 0,
           description: line.description || '',
           ledgerLineDate: this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(index).value) ?? line.ledgerLineDate ?? invoiceDateString,
@@ -588,7 +587,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   isPaymentLine(line: LedgerLineListDisplay): boolean {
-    const transactionTypeId = (line as any).transactionTypeId;
+    const transactionTypeId = line.transactionTypeId;
     if (transactionTypeId !== undefined && transactionTypeId !== null) {
       return transactionTypeId === TransactionType.Payment;
     }
@@ -706,19 +705,9 @@ export class BillingComponent implements OnInit, OnDestroy {
   updateLedgerLineField(index: number, field: keyof LedgerLineListDisplay, value: any): void {
     if (this.ledgerLines[index]) {
       (this.ledgerLines[index] as any)[field] = value;
-      // Update total amount if amount field changed
       if (field === 'amount') {
         this.updateTotalAmount();
       }
-      
-      // If transactionType was updated from dropdown, convert the label back to the enum value for storage
-      if (field === 'transactionType' && typeof value === 'string') {
-        const transactionType = this.transactionTypes.find(t => t.label === value);
-        if (transactionType) {
-           (this.ledgerLines[index] as any).transactionTypeId = transactionType.value;
-        }
-      }
-      
     }
   }
 
@@ -738,75 +727,49 @@ export class BillingComponent implements OnInit, OnDestroy {
     });
   }
 
-  onTransactionTypeChange(index: number, transactionTypeId: number | null): void {
-    if (transactionTypeId === null || transactionTypeId === undefined) {     // Clear the transaction type
-      this.updateLedgerLineField(index, 'transactionType', '');
-      (this.ledgerLines[index] as any).transactionTypeId = undefined;
-      return;
-    }
-
-    const transactionType = this.transactionTypes.find(t => t.value === transactionTypeId);
-    if (transactionType) {
-      this.updateLedgerLineField(index, 'transactionType', transactionType.label);      // Store the ID for when we save
-      (this.ledgerLines[index] as any).transactionTypeId = transactionTypeId;
-    }
-  }
-
   onCostCodeChange(index: number, costCodeId: number | null): void {
     const normalizedCostCodeId = costCodeId === null || costCodeId === undefined ? null : Number(costCodeId);
     if (normalizedCostCodeId === null) {
       this.updateLedgerLineField(index, 'costCodeId', null);
       this.updateLedgerLineField(index, 'costCode', null);
-      // Clear transactionTypeId when cost code is cleared
-      (this.ledgerLines[index] as any).transactionTypeId = undefined;
+      this.updateLedgerLineField(index, 'transactionTypeId', undefined);
       this.updateLedgerLineField(index, 'transactionType', '');
     } else {
       const line = this.ledgerLines[index];
-      const previousTransactionTypeId = (line as any).transactionTypeId;
+      const previousTransactionTypeId = line.transactionTypeId;
       const currentAmount = line.amount || 0;
       
       this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
-      // Find the cost code and update costCode display value and transactionTypeId
       const matchingCostCode = this.billingCostCodes.find(c => c.costCodeId === normalizedCostCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
-        // Update transactionTypeId from CostCode
         const newTransactionTypeId = matchingCostCode.transactionTypeId;
-        (this.ledgerLines[index] as any).transactionTypeId = newTransactionTypeId;
-        // Update transactionType display value
+        this.updateLedgerLineField(index, 'transactionTypeId', newTransactionTypeId);
         const transactionType = this.transactionTypes.find(t => t.value === newTransactionTypeId);
         if (transactionType) {
           this.updateLedgerLineField(index, 'transactionType', transactionType.label);
         }
         
-        // Check if we're switching between debit and credit types
         const wasDebit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId !== TransactionType.Payment;
         const wasCredit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId === TransactionType.Payment;
         const isDebit = newTransactionTypeId !== TransactionType.Payment;
         const isCredit = newTransactionTypeId === TransactionType.Payment;
         
-        // If we have an amount and we're switching between debit and credit, flip the sign
         if (currentAmount !== 0 && currentAmount !== null && currentAmount !== undefined) {
           let newAmount = currentAmount;
           
           if (wasDebit && isCredit) {
-            // Switching from debit to credit: make negative
             newAmount = -Math.abs(currentAmount);
           } else if (wasCredit && isDebit) {
-            // Switching from credit to debit: make positive
             newAmount = Math.abs(currentAmount);
           } else if (isCredit && currentAmount > 0) {
-            // Already credit type but amount is positive: make negative
             newAmount = -Math.abs(currentAmount);
           } else if (isDebit && currentAmount < 0) {
-            // Already debit type but amount is negative: make positive
             newAmount = Math.abs(currentAmount);
           }
           
-          // Update the amount if it changed
           if (newAmount !== currentAmount) {
             this.updateLedgerLineField(index, 'amount', newAmount);
-            // Update the amount input field display (specifically target the amount field using data attribute)
             setTimeout(() => {
               const amountInput = document.querySelector(`input[data-field="amount"][data-index="${index}"]`) as HTMLInputElement;
               if (amountInput) {
@@ -817,15 +780,14 @@ export class BillingComponent implements OnInit, OnDestroy {
         }
       } else {
         this.updateLedgerLineField(index, 'costCode', null);
-        (this.ledgerLines[index] as any).transactionTypeId = undefined;
+        this.updateLedgerLineField(index, 'transactionTypeId', undefined);
         this.updateLedgerLineField(index, 'transactionType', '');
       }
     }
   }
 
   getTransactionTypeId(line: LedgerLineListDisplay): number | null {
-    const transactionTypeId = (line as any).transactionTypeId;
-    return transactionTypeId !== undefined && transactionTypeId !== null ? transactionTypeId : null;
+    return line.transactionTypeId !== undefined && line.transactionTypeId !== null ? line.transactionTypeId : null;
   }
 
   calculateInvoicedAmount(): number {
@@ -972,7 +934,7 @@ export class BillingComponent implements OnInit, OnDestroy {
           current.lineNumber !== original.lineNumber ||
           (this.utilityService.toDateOnlyJsonString(this.getLedgerLineDateControl(i).value) ?? current.ledgerLineDate ?? '') !== (original.ledgerLineDate ?? '') ||
           current.costCodeId !== original.costCodeId ||
-          (current as any).transactionTypeId !== (original as any).transactionTypeId ||
+          current.transactionTypeId !== original.transactionTypeId ||
           current.description !== original.description ||
           current.amount !== original.amount) {
         return true; // Line modified
@@ -1136,7 +1098,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       isNew: true // Mark as new so it remains editable
     };
     // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"
-    (newLine as any).transactionTypeId = undefined;
+    newLine.transactionTypeId = undefined;
     this.ledgerLines.push(newLine);
     this.syncLedgerLineDatesFormArray();
     this.updateTotalAmount();

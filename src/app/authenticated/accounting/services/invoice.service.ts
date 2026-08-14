@@ -88,14 +88,12 @@ export class InvoiceService {
     const normalizedLedgerLines = (invoice.ledgerLines ?? []).map(line => {
       const numericCostCodeId = Number(line.costCodeId);
       const numericLineNumber = Number(line.lineNumber);
-      const numericTransactionTypeId = Number(line.transactionTypeId);
       const numericAmount = Number(line.amount);
       const lineDate = line.ledgerLineDate || invoice.invoiceDate || this.utilityService.todayAsCalendarDateString();
 
       return {
         ...line,
         lineNumber: Number.isFinite(numericLineNumber) ? numericLineNumber : 0,
-        transactionTypeId: Number.isFinite(numericTransactionTypeId) ? numericTransactionTypeId : 0,
         amount: Number.isFinite(numericAmount) ? numericAmount : 0,
         ledgerLineDate: lineDate,
         costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0
