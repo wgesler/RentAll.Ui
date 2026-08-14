@@ -1556,16 +1556,29 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   isUndepositedFundsPaymentRefundSearchLine(
     line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit' | 'sourceTypeId' | 'journalEntryKindId'>
   ): boolean {
-    return this.getLineNetAmountFromSearchLine(line) < -0.005
-      && Number(line.sourceTypeId) === SourceType.Invoice
-      && Number(line.journalEntryKindId) === JournalEntryKind.Payment;
+    return this.isUndepositedFundsPaymentRefundLine(
+      line.sourceTypeId,
+      line.journalEntryKindId,
+      this.getLineNetAmountFromSearchLine(line)
+    );
+  }
+
+  isUndepositedFundsPaymentRefundLine(
+    sourceTypeId: number | null | undefined,
+    journalEntryKindId: number | null | undefined,
+    netAmount: number
+  ): boolean {
+    return netAmount < -0.005
+      && Number(sourceTypeId) === SourceType.Invoice
+      && Number(journalEntryKindId) === JournalEntryKind.Payment;
   }
 
   isUndepositedFundsLineSelectableForDeposit(
     line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue' | 'sourceTypeId' | 'journalEntryKindId'>
   ): boolean {
     const netAmount = this.getLineNetAmount(line);
-    return netAmount > 0.005 || this.isUndepositedFundsPaymentRefundSearchLine(line);
+    return netAmount > 0.005
+      || this.isUndepositedFundsPaymentRefundLine(line.sourceTypeId, line.journalEntryKindId, netAmount);
   }
 
   filterDepositedJournalEntryLineIds(deposits: DepositResponse[]): Set<string> {
