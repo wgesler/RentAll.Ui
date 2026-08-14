@@ -597,7 +597,7 @@ onWorkOrderIdChanged(): void {
     const ledgerLines: LedgerLineRequest[] = [
       {
         lineNumber: 1,
-        transactionTypeId: TransactionType.Charge,
+        transactionTypeId: TransactionType.ChargeOneTime,
         reservationId: workOrder.reservationId,
         costCodeId: numericCostCodeId,
         description: workOrderRef,

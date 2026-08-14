@@ -1172,7 +1172,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.isAddMode && !this.isPaymentMode) {
       const chargePaymentDepositAndSdw = this.officeCostCodes.filter(
         c => c.isActive
-          && (c.transactionTypeId === TransactionType.Charge
+          && (c.transactionTypeId === TransactionType.ChargeProrate
+            || c.transactionTypeId === TransactionType.ChargeOneTime
             || c.transactionTypeId === TransactionType.Payment
             || c.transactionTypeId === TransactionType.Deposit
             || c.transactionTypeId === TransactionType.SDW)

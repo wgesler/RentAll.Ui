@@ -383,7 +383,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       .filter(c => c.officeId === officeId && c.isActive);
 
     this.chargeCostCodeOptions = officeActiveCostCodes
-      .filter(c => c.transactionTypeId === TransactionType.Charge)
+      .filter(c => c.transactionTypeId === TransactionType.ChargeProrate || c.transactionTypeId === TransactionType.ChargeOneTime)
       .map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
