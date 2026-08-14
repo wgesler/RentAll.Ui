@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, inject } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
@@ -64,6 +64,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: MatSelect;
+  @ViewChildren('bankCardPanInput') bankCardPanInputs!: QueryList<ElementRef<HTMLInputElement>>;
   
   isServiceError: boolean = false;
   form: FormGroup;
@@ -102,6 +103,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   bankCardActionIndexes = new Set<number>();
   editingBankCardNumberIndexes = new Set<number>();
   bankCardNumberUpdatePendingIndexes = new Set<number>();
+  bankCardPanLoadingIndexes = new Set<number>();
+  private revealedBankCardPanByIndex = new Map<number, string>();
   private bankCardLastSavedState = new Map<number, { cardTypeId: number; cardName: string; chartOfAccountId: number | null }>();
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   bankCardChartOfAccountOptions: SearchableSelectOption<number>[] = [];
@@ -1166,6 +1169,8 @@ clearCheckStockLocal(): void {
     this.bankCardActionIndexes.clear();
     this.editingBankCardNumberIndexes.clear();
     this.bankCardNumberUpdatePendingIndexes.clear();
+    this.bankCardPanLoadingIndexes.clear();
+    this.revealedBankCardPanByIndex.clear();
     this.bankCardLastSavedState.clear();
   }
 
@@ -1369,6 +1374,7 @@ clearCheckStockLocal(): void {
 
   onBankCardUpdateSucceeded(index: number, response: BankCardResponse): void {
     this.bankCardNumberUpdatePendingIndexes.delete(index);
+    this.revealedBankCardPanByIndex.delete(index);
     const mapped = this.mappingService.mapBankCardsFromResponse([response]);
     if (!mapped[0]) {
       this.cdr.markForCheck();
@@ -1400,15 +1406,60 @@ clearCheckStockLocal(): void {
     );
   }
 
-  onBankCardNumberFocus(index: number): void {
+  onBankCardPanFocus(index: number): void {
     this.editingBankCardNumberIndexes.add(index);
     const card = this.bankCards[index];
-    if (!card) return;
-    const sourceDigits = card.rawCardNumber || this.formatterService.stripCreditCardFormatting(card.cardNumber || '');
-    card.cardNumber = sourceDigits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    if (!card) {
+      return;
+    }
+
+    if ((card.bankCardId || 0) <= 0) {
+      const sourceDigits = card.rawCardNumber || this.formatterService.stripCreditCardFormatting(card.cardNumber || '');
+      card.cardNumber = sourceDigits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      return;
+    }
+
+    const cachedPan = this.revealedBankCardPanByIndex.get(index);
+    if (cachedPan) {
+      card.rawCardNumber = cachedPan;
+      card.cardNumber = cachedPan.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      return;
+    }
+
+    const officeId = this.getBankCardOfficeId();
+    if (!officeId) {
+      return;
+    }
+
+    this.bankCardPanLoadingIndexes.add(index);
+    this.bankCardService.getBankCardPan(officeId, card.bankCardId).pipe(
+      take(1),
+      finalize(() => {
+        this.bankCardPanLoadingIndexes.delete(index);
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (response) => {
+        const digits = this.formatterService.stripCreditCardFormatting(response?.cardNumber || '');
+        this.revealedBankCardPanByIndex.set(index, digits);
+        card.rawCardNumber = digits;
+        card.cardNumber = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+        this.editingBankCardNumberIndexes.add(index);
+        this.markViewForCheck();
+        this.focusBankCardPanInput(index, card.cardNumber);
+      },
+      error: () => {
+        this.toastr.error('Unable to load card number');
+        this.editingBankCardNumberIndexes.delete(index);
+      }
+    });
   }
 
-  onBankCardNumberBlur(index: number): void {
+  onBankCardPanBlur(index: number): void {
+    if (this.bankCardPanLoadingIndexes.has(index)) {
+      return;
+    }
+
     const card = this.bankCards[index];
     if (card && this.isBankCardNumberChangeUpdate(card, index)) {
       this.bankCardNumberUpdatePendingIndexes.add(index);
@@ -1416,19 +1467,51 @@ clearCheckStockLocal(): void {
 
     this.editingBankCardNumberIndexes.delete(index);
     this.onBankCardFieldChange(index);
-  }
 
-  getBankCardNumberDisplay(card: BankCardResponse, index: number): string {
-    const isPersisted = (card?.bankCardId || 0) > 0;
-    const isEditing = this.editingBankCardNumberIndexes.has(index);
-    if (isPersisted && !isEditing) {
-      if (this.bankCardNumberUpdatePendingIndexes.has(index)) {
-        return '';
-      }
-      return card.displayName || '';
+    if (!card || (card.bankCardId || 0) <= 0) {
+      return;
     }
 
-    return card.cardNumber || '';
+    if (!this.isBankCardNumberChangeUpdate(card, index)) {
+      card.rawCardNumber = '';
+      card.cardNumber = this.mappingService.formatBankCardMaskedPan(card.lastFour);
+      this.revealedBankCardPanByIndex.delete(index);
+    }
+  }
+
+  getBankCardDisplayLabel(card: BankCardResponse): string {
+    return this.mappingService.mapBankCardDisplay(card);
+  }
+
+  isBankCardPanDecrypting(index: number): boolean {
+    return this.bankCardPanLoadingIndexes.has(index);
+  }
+
+  private focusBankCardPanInput(index: number, value?: string): void {
+    setTimeout(() => {
+      const input = this.bankCardPanInputs?.get(index)?.nativeElement;
+      if (!input) {
+        return;
+      }
+
+      if (value !== undefined) {
+        input.value = value;
+      }
+
+      input.focus();
+    });
+  }
+
+  getBankCardPanDisplay(card: BankCardResponse, index: number): string {
+    if ((card?.bankCardId || 0) <= 0) {
+      return card.cardNumber || '';
+    }
+
+    if (this.editingBankCardNumberIndexes.has(index)) {
+      return card.cardNumber || '';
+    }
+
+    return this.mappingService.formatBankCardMaskedPan(card.lastFour);
   }
 
   isBankCardNumberChangeUpdate(card: BankCardResponse, index: number): boolean {
@@ -1436,16 +1519,29 @@ clearCheckStockLocal(): void {
       return false;
     }
 
-    return this.getBankCardNumberDigits(card).length >= 13
-      && this.getMissingBankCardFields(card, false).length === 0;
+    const digits = this.getBankCardNumberDigits(card);
+    if (digits.length < 13) {
+      return false;
+    }
+
+    const originalPan = this.revealedBankCardPanByIndex.get(index);
+    if (originalPan && digits === originalPan) {
+      return false;
+    }
+
+    return this.getMissingBankCardFields(card, false).length === 0;
   }
 
   buildBankCardRequest(card: BankCardResponse): BankCardRequest {
+    const isPersisted = (card.bankCardId || 0) > 0;
+    const digits = this.getBankCardNumberDigits(card);
+    const cardNumber = isPersisted && digits.length < 13 ? '' : digits;
+
     return {
-      bankCardId: (card.bankCardId || 0) > 0 ? card.bankCardId : undefined,
+      bankCardId: isPersisted ? card.bankCardId : undefined,
       cardTypeId: Number(card.cardTypeId),
       cardName: (card.cardName || '').trim(),
-      cardNumber: this.getBankCardNumberDigits(card),
+      cardNumber,
       chartOfAccountId: this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
     };
   }

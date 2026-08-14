@@ -326,6 +326,7 @@
                               <th class="text-left bank-card-col-no">No</th>
                               <th class="text-left bank-card-col-type">Type</th>
                               <th class="text-left bank-card-col-name">Name On Card</th>
+                              <th class="text-left bank-card-col-display">Card Display</th>
                               <th class="text-left bank-card-col-number">Card Number</th>
                               <th class="text-left bank-card-col-account">Account</th>
                               <th class="text-right bank-card-col-actions"></th>
@@ -359,17 +360,35 @@
                                     (blur)="onBankCardFieldChange($index)"
                                     placeholder="Name On Card" />
                                 </td>
-                                <td class="bank-card-col-number">
+                                <td class="bank-card-col-display">
                                   <input
-                                    class="bank-card-entry-input"
-                                    [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'number')"
+                                    class="bank-card-entry-input bank-card-entry-input--readonly"
                                     type="text"
-                                    [value]="getBankCardNumberDisplay(card, $index)"
-                                    inputmode="numeric"
-                                    (focus)="onBankCardNumberFocus($index)"
-                                    (blur)="onBankCardNumberBlur($index)"
-                                    (input)="onBankCardNumberInput($event, $index)"
-                                    placeholder="Card Number" />
+                                    [value]="getBankCardDisplayLabel(card)"
+                                    readonly
+                                    tabindex="-1"
+                                    aria-readonly="true" />
+                                </td>
+                                <td class="bank-card-col-number">
+                                  <div class="bank-card-pan-field">
+                                    <input
+                                      #bankCardPanInput
+                                      class="bank-card-entry-input"
+                                      [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'number')"
+                                      type="text"
+                                      [value]="getBankCardPanDisplay(card, $index)"
+                                      inputmode="numeric"
+                                      (focus)="onBankCardPanFocus($index)"
+                                      (blur)="onBankCardPanBlur($index)"
+                                      (input)="onBankCardNumberInput($event, $index)"
+                                      placeholder="Card Number" />
+                                    @if (isBankCardPanDecrypting($index)) {
+                                      <div class="bank-card-pan-decrypting-overlay">
+                                        <span>Decrypting</span>
+                                        <mat-spinner diameter="14"></mat-spinner>
+                                      </div>
+                                    }
+                                  </div>
                                 </td>
                                 <td class="bank-card-col-account">
                                   <select

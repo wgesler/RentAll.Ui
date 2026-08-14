@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { BankCardRequest, BankCardResponse } from '../models/bank.model';
+import { BankCardPanResponse, BankCardRequest, BankCardResponse } from '../models/bank.model';
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +13,10 @@ export class BankCardService {
 
 
   private accountingOfficeController = this.configService.config().apiUrl + 'organization/accounting-office/';
+
+  getBankCardPan(officeId: number, bankCardId: number): Observable<BankCardPanResponse> {
+    return this.http.get<BankCardPanResponse>(this.accountingOfficeController + officeId + '/bank-card/' + bankCardId + '/pan');
+  }
 
   createBankCard(officeId: number, card: BankCardRequest): Observable<BankCardResponse> {
     return this.http.post<BankCardResponse>(this.accountingOfficeController + officeId + '/bank-card', card);

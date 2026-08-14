@@ -451,17 +451,19 @@ export class MappingService {
   mapBankCardsFromResponse(cards?: BankCardResponse[] | null): BankCardResponse[] {
     if (!cards || cards.length === 0) return [];
     return cards.map(card => {
-      const normalizedLastFour = this.normalizeBankCardLastFour(card.lastFour, card.cardNumber);
-      const rawCardNumber = this.formatter.stripCreditCardFormatting(card.cardNumber || '');
+      const normalizedLastFour = this.normalizeBankCardLastFour(card.lastFour, null);
+      const isPersisted = (card.bankCardId || 0) > 0;
       return {
         bankCardId: card.bankCardId,
         organizationId: card.organizationId,
         officeId: card.officeId,
         cardTypeId: Number(card.cardTypeId) || 0,
         cardName: card.cardName || '',
-        displayName: card.displayName || '',
-        cardNumber: this.formatBankCardNumberForDisplay(card.cardNumber, normalizedLastFour, (card.bankCardId || 0) > 0),
-        rawCardNumber,
+        displayName: (card.displayName || '').trim(),
+        cardNumber: isPersisted
+          ? this.formatBankCardMaskedPan(normalizedLastFour)
+          : this.formatBankCardNumberForDisplay(card.cardNumber, normalizedLastFour, false),
+        rawCardNumber: isPersisted ? '' : this.formatter.stripCreditCardFormatting(card.cardNumber || ''),
         lastFour: normalizedLastFour,
         chartOfAccountId: this.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
       };
@@ -483,14 +485,17 @@ export class MappingService {
   }
 
   mapBankCardDisplay(card: BankCardResponse): string {
-    if ((card?.bankCardId || 0) === 0) {
-      return card?.cardNumber || '';
+    return (card?.displayName || '').trim();
+  }
+
+  formatBankCardMaskedPan(lastFour?: string | null): string {
+    const normalizedLastFour = this.normalizeBankCardLastFour(lastFour, null);
+    if (!normalizedLastFour) {
+      return '';
     }
-    const digits = (card?.cardNumber || '').replace(/\D/g, '');
-    const finalLastFour = this.normalizeBankCardLastFour(card?.lastFour, card?.cardNumber);
-    if (!digits || !finalLastFour) return '';
-    const starCount = Math.max(0, digits.length - finalLastFour.length);
-    return `${'*'.repeat(starCount)}${finalLastFour}`;
+
+    const masked = `${'*'.repeat(12)}${normalizedLastFour}`;
+    return this.groupCardNumber(masked);
   }
 
 formatBankCardNumberForDisplay(cardNumber?: string | null, lastFour?: string | null, isPersisted: boolean = true): string {

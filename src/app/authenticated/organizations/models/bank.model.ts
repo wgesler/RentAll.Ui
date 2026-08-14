@@ -18,3 +18,7 @@ export interface BankCardResponse {
   lastFour: string;
   chartOfAccountId?: number | null;
 }
+
+export interface BankCardPanResponse {
+  cardNumber: string;
+}
