@@ -23,7 +23,7 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, PostingStatus, SourceType, SourceTypeLabels, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
+import { AccountType, JournalEntryKind, PostingStatus, SourceType, SourceTypeLabels, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -1113,7 +1113,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       ...this.buildDocumentLinkInfoFields(line),
       selected: (this.showDepositTableSelections || this.showTransferTableSelections || this.showPrintCheckTableSelections)
         && this.selectedJournalEntryLineIds.has(line.journalEntryLineId),
-      disabled: (this.showDepositTableSelections && this.getLineNetAmount(line) <= 0)
+      disabled: (this.showDepositTableSelections && !this.isUndepositedFundsLineSelectableForDeposit(line))
         || (this.showTransferTableSelections && !this.isUntransferredFundsLineSelectable(line))
         || (this.showPrintCheckTableSelections && !this.isPrintCheckLineSelectable(line))
     }));
@@ -1365,7 +1365,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   isSelectableActionLine(line: JournalEntryLineListDisplay): boolean {
     if (this.showDepositTableSelections) {
-      return this.getLineNetAmount(line) > 0;
+      return this.isUndepositedFundsLineSelectableForDeposit(line);
     }
 
     if (this.showTransferTableSelections) {
@@ -1512,14 +1512,14 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const openDebits = lines
       .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
-    const credits = lines
+    const depositCredits = lines
       .filter(line => this.getLineNetAmountFromSearchLine(line) < 0)
       .filter(line => Number(line.sourceTypeId) === SourceType.Deposit)
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
 
     const settledDebitIds = new Set<string>();
 
-    for (const creditLine of credits) {
+    for (const creditLine of depositCredits) {
       let remainingCredit = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
 
       for (const debitLine of openDebits) {
@@ -1540,10 +1540,32 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       }
     }
 
-    return openDebits.filter(line =>
+    const openDebitLines = openDebits.filter(line =>
       !settledDebitIds.has(line.journalEntryLineId)
       && !depositedLineIds.has(line.journalEntryLineId)
     );
+    const openPaymentRefunds = lines
+      .filter(line => this.isUndepositedFundsPaymentRefundSearchLine(line))
+      .filter(line => !depositedLineIds.has(line.journalEntryLineId))
+      .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
+
+    return [...openDebitLines, ...openPaymentRefunds]
+      .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
+  }
+
+  isUndepositedFundsPaymentRefundSearchLine(
+    line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit' | 'sourceTypeId' | 'journalEntryKindId'>
+  ): boolean {
+    return this.getLineNetAmountFromSearchLine(line) < -0.005
+      && Number(line.sourceTypeId) === SourceType.Invoice
+      && Number(line.journalEntryKindId) === JournalEntryKind.Payment;
+  }
+
+  isUndepositedFundsLineSelectableForDeposit(
+    line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue' | 'sourceTypeId' | 'journalEntryKindId'>
+  ): boolean {
+    const netAmount = this.getLineNetAmount(line);
+    return netAmount > 0.005 || this.isUndepositedFundsPaymentRefundSearchLine(line);
   }
 
   filterDepositedJournalEntryLineIds(deposits: DepositResponse[]): Set<string> {
@@ -1634,7 +1656,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return;
     }
 
-    this.syncLineSelectionFromGroupedEntries(line => this.getLineNetAmount(line) > 0);
+    this.syncLineSelectionFromGroupedEntries(line => this.isUndepositedFundsLineSelectableForDeposit(line));
 
     if (this.isDepositSelectionMode) {
       this.syncDepositAmountFromLineSelection();
