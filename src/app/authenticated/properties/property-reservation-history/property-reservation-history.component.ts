@@ -5,6 +5,7 @@ import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceResponse } from '../../accounting/models/invoice.model';
 import { InvoiceService } from '../../accounting/services/invoice.service';
@@ -24,6 +25,7 @@ import { InvoiceHistoryDisplayRow, ReservationHistoryDisplayRow } from '../model
 })
 export class PropertyReservationHistoryComponent implements OnInit, OnChanges, OnDestroy {
   private mappingService = inject(MappingService);
+  private mixedMappingService = inject(MixedMappingService);
   private utilityService = inject(UtilityService);
   private formatterService = inject(FormatterService);
   private invoiceService = inject(InvoiceService);
@@ -121,9 +123,22 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
 
   //#region Table Methods
   refreshTable(): void {
+    const propertyId = String(this.propertyId || '').trim();
     const mapped = this.mappingService.mapReservationList(this.reservations || []);
+    const currentReservationId = propertyId
+      ? this.mixedMappingService.getReservationData(this.reservations || []).get(propertyId)?.reservationId ?? null
+      : null;
+
     this.tableData = mapped
-      .filter(reservation => this.isHistoricalReservation(reservation.departureDate))
+      .filter(reservation => {
+        if (this.isHistoricalReservation(reservation.departureDate)) {
+          return true;
+        }
+        if (!currentReservationId) {
+          return false;
+        }
+        return String(reservation.reservationId || '').trim() === currentReservationId;
+      })
       .sort((a, b) => this.compareDepartureDateDesc(a.departureDate, b.departureDate))
       .map(reservation => this.toDisplayRow(reservation));
     this.updateIsAllExpanded();

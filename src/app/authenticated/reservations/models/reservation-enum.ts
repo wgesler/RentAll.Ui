@@ -309,3 +309,21 @@ export function getDepositTypes(): { value: number, label: string }[] {
   ];
 }
 //#endregion
+
+//#region Billing period dates
+/** Charge window start for billing/day counts — mirrors AccountingManager.ResolveBillingArrivalDate. */
+export function resolveBillingArrivalDate(
+  billingStartDate: Date | null | undefined,
+  arrivalDate: Date | null | undefined
+): Date | null {
+  return billingStartDate ?? arrivalDate ?? null;
+}
+
+/** Charge window end for billing/day counts — mirrors AccountingManager.ResolveBillingDepartureDate. */
+export function resolveBillingDepartureDate(
+  billingEndDate: Date | null | undefined,
+  departureDate: Date | null | undefined
+): Date | null {
+  return billingEndDate ?? departureDate ?? null;
+}
+//#endregion

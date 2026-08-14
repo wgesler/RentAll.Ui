@@ -60,7 +60,7 @@ interface ReservationNotificationFormValue {
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
 import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
@@ -808,10 +808,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(ReservationNotice.ThirtyDays, [Validators.required]),
-      arrivalDate: new FormControl(null, [Validators.required]),
+      arrivalDate: new FormControl(null, [Validators.required, this.arrivalBeforeDepartureValidator]),
       departureDate: new FormControl(null, [Validators.required, this.departureAfterArrivalValidator]),
-      billingStartDate: new FormControl<Date | null>(null),
-      billingEndDate: new FormControl<Date | null>(null),
+      billingStartDate: new FormControl<Date | null>(null, [this.billingStartBeforeArrivalValidator]),
+      billingEndDate: new FormControl<Date | null>(null, [this.billingEndAfterDepartureValidator]),
       numberOfStayDays: new FormControl<string | null>(null),
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
@@ -1040,6 +1040,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.departureDateStartAt = null;
     }
     this.form.get('departureDate')?.updateValueAndValidity({ emitEvent: false });
+    this.revalidateReservationDateFields();
     this.syncStayDaysFromDates();
 
     this.refreshSelectedPropertyContext(this.reservation.propertyId, () => {
@@ -1261,6 +1262,89 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     return departure.getTime() > arrival.getTime() ? null : { departureAfterArrival: true };
   };
 
+  arrivalBeforeDepartureValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const arrivalRaw = control.value;
+    const departureRaw = group.get('departureDate')?.value;
+    if (!arrivalRaw || !departureRaw) {
+      return null;
+    }
+    const arrival = this.parseDateOnly(arrivalRaw);
+    const departure = this.parseDateOnly(departureRaw);
+    if (!arrival || !departure) {
+      return null;
+    }
+    return departure.getTime() > arrival.getTime() ? null : { arrivalBeforeDeparture: true };
+  };
+
+  billingStartBeforeArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingStartRaw = control.value;
+    const arrivalRaw = group.get('arrivalDate')?.value;
+    if (!billingStartRaw || !arrivalRaw) {
+      return null;
+    }
+    const billingStart = this.parseDateOnly(billingStartRaw);
+    const arrival = this.parseDateOnly(arrivalRaw);
+    if (!billingStart || !arrival) {
+      return null;
+    }
+    return billingStart.getTime() <= arrival.getTime() ? null : { billingStartBeforeArrival: true };
+  };
+
+  billingEndAfterDepartureValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingEndRaw = control.value;
+    const departureRaw = group.get('departureDate')?.value;
+    if (!billingEndRaw || !departureRaw) {
+      return null;
+    }
+    const billingEnd = this.parseDateOnly(billingEndRaw);
+    const departure = this.parseDateOnly(departureRaw);
+    if (!billingEnd || !departure) {
+      return null;
+    }
+    return billingEnd.getTime() >= departure.getTime() ? null : { billingEndAfterDeparture: true };
+  };
+
+  revalidateReservationDateFields(): void {
+    if (!this.form) {
+      return;
+    }
+    ['arrivalDate', 'departureDate', 'billingStartDate', 'billingEndDate'].forEach(fieldName => {
+      this.form.get(fieldName)?.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  getEffectiveBillingArrivalDate(): Date | null {
+    if (!this.form) {
+      return null;
+    }
+    return resolveBillingArrivalDate(
+      this.parseDateOnly(this.form.get('billingStartDate')?.value),
+      this.parseDateOnly(this.form.get('arrivalDate')?.value)
+    );
+  }
+
+  getEffectiveBillingDepartureDate(): Date | null {
+    if (!this.form) {
+      return null;
+    }
+    return resolveBillingDepartureDate(
+      this.parseDateOnly(this.form.get('billingEndDate')?.value),
+      this.parseDateOnly(this.form.get('departureDate')?.value)
+    );
+  }
+
   parseStayDaysInput(value: unknown): number | null {
     if (value == null || value === '') {
       return null;
@@ -1299,8 +1383,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (!this.form || this.syncingStayDayFields) {
       return;
     }
-    const arrival = this.parseDateOnly(this.form.get('arrivalDate')?.value);
-    const departure = this.parseDateOnly(this.form.get('departureDate')?.value);
+    const arrival = this.getEffectiveBillingArrivalDate();
+    const departure = this.getEffectiveBillingDepartureDate();
     const billingTypeId = this.form.get('billingTypeId')?.value as number | null | undefined;
     const days = arrival && departure
       ? this.getDisplayedStayDaysFromDates(arrival, departure, billingTypeId)
@@ -1613,11 +1697,16 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       if (arrivalDate && departureDate) {
         const a = this.parseDateOnly(arrivalDate);
         const dep = this.parseDateOnly(departureDate);
-        if (a && dep && dep.getTime() <= a.getTime()) {
-          departureControl?.setValue(null, { emitEvent: true });
+        if (a && dep && dep.getTime() > a.getTime()) {
+          this.departureDateStartAt = new Date(dep.getTime());
+        } else if (a) {
+          const start = new Date(a.getTime());
+          start.setDate(start.getDate() + 1);
+          this.departureDateStartAt = start;
         }
       }
-      departureControl?.updateValueAndValidity({ emitEvent: false });
+
+      this.revalidateReservationDateFields();
 
       this.updatePropertyIdEditState();
       if (this.canEditProperty) {
@@ -1625,6 +1714,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       }
     });
     this.form.get('departureDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.revalidateReservationDateFields();
       if (this.canEditProperty) {
         this.filterPropertiesByOffice();
       }
@@ -1636,11 +1726,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       if (this.syncingStayDayFields) {
         return;
       }
-      const days = this.parseStayDaysInput(this.form.get('numberOfStayDays')?.value);
-      if (days != null) {
-        this.applyDepartureFromStayDays(days);
-        return;
-      }
       this.syncStayDaysFromDates();
     });
 
@@ -1649,6 +1734,22 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         return;
       }
       this.syncStayDaysFromDates();
+    });
+
+    this.form.get('billingStartDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.syncingStayDayFields) {
+        return;
+      }
+      this.syncStayDaysFromDates();
+      this.revalidateReservationDateFields();
+    });
+
+    this.form.get('billingEndDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.syncingStayDayFields) {
+        return;
+      }
+      this.syncStayDaysFromDates();
+      this.revalidateReservationDateFields();
     });
   }
 

@@ -481,6 +481,8 @@
                   <mat-datepicker #arrivalPicker></mat-datepicker>
                   @if (form.get('arrivalDate')?.hasError('required') && form.get('arrivalDate')?.touched) {
                     <mat-error>Arrival Date is required</mat-error>
+                  } @else if (form.get('arrivalDate')?.hasError('arrivalBeforeDeparture') && form.get('arrivalDate')?.touched) {
+                    <mat-error>Arrival must be before departure date</mat-error>
                   }
                 </mat-form-field>
 
@@ -508,6 +510,9 @@
                     <input matInput [matDatepicker]="billingStartDatePicker" formControlName="billingStartDate">
                     <mat-datepicker-toggle matIconSuffix [for]="billingStartDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #billingStartDatePicker></mat-datepicker>
+                    @if (form.get('billingStartDate')?.hasError('billingStartBeforeArrival') && form.get('billingStartDate')?.touched) {
+                      <mat-error>Billing start must be on or before arrival date</mat-error>
+                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
@@ -515,6 +520,9 @@
                     <input matInput [matDatepicker]="billingEndDatePicker" formControlName="billingEndDate">
                     <mat-datepicker-toggle matIconSuffix [for]="billingEndDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #billingEndDatePicker></mat-datepicker>
+                    @if (form.get('billingEndDate')?.hasError('billingEndAfterDeparture') && form.get('billingEndDate')?.touched) {
+                      <mat-error>Billing end must be on or after departure date</mat-error>
+                    }
                   </mat-form-field>
                 }
 
