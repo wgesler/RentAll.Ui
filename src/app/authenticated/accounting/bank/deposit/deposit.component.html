@@ -107,13 +107,29 @@
               <div class="deposit-splits-list" formArrayName="splits">
                 <div class="deposit-splits-table-wrap">
                   <table class="split-lines-table split-lines-table--deposit">
+                    <colgroup>
+                      <col class="gl-split-col-no">
+                      <col class="gl-split-col-2">
+                      <col class="gl-split-col-1">
+                      <col class="gl-split-col-2">
+                      @if (shouldShowSplitContactColumn()) {
+                        <col class="gl-split-col-2">
+                      }
+                      <col class="gl-split-col-desc">
+                      <col class="gl-split-col-1">
+                      <col class="gl-split-col-actions">
+                    </colgroup>
                     <thead>
                       <tr>
                         <th class="split-col-no">No</th>
-                        <th class="split-col-amount">Amount</th>
-                        <th class="split-col-description">Description</th>
-                        <th class="split-col-property">Property</th>
                         <th class="split-col-account">Account</th>
+                        <th class="split-col-property">Property</th>
+                        <th class="split-col-reservation">Reservation</th>
+                        @if (shouldShowSplitContactColumn()) {
+                          <th class="split-col-contact">Contact</th>
+                        }
+                        <th class="split-col-description">Description</th>
+                        <th class="split-col-amount">Amount</th>
                         <th class="split-col-actions"></th>
                       </tr>
                     </thead>
@@ -121,30 +137,11 @@
                       @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
                         <tr [formGroupName]="splitIndex">
                           <td class="split-col-no">{{ splitIndex + 1 }}</td>
-                          <td class="split-col-amount">
-                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
-                              (focus)="onSplitAmountFocus($event, splitIndex)"
-                              (blur)="onSplitAmountBlur($event, splitIndex)"
-                              (input)="onSplitAmountInput($event, splitIndex)"
-                              (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
-                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'amount')">
-                          </td>
-                          <td class="split-col-description">
-                            <input type="text" formControlName="description" required class="split-editable-input"
-                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
-                          </td>
-                          <td class="split-col-property">
-                            <select formControlName="propertyId" class="split-editable-input">
-                              <option [ngValue]="null">{{ getSplitNullPropertyOptionLabel() }}</option>
-                              @for (option of getSplitPropertyOptions(); track option.value) {
-                                <option [ngValue]="option.value">{{ option.label }}</option>
-                              }
-                            </select>
-                          </td>
                           <td class="split-col-account">
                             <app-searchable-select
                               class="split-account-select"
                               [renderInFormField]="false"
+                              [panelWidth]="null"
                               [value]="splitGroup.get('chartOfAccountId')?.value ?? null"
                               [options]="splitAccountOptions"
                               [required]="true"
@@ -162,6 +159,78 @@
                               [showError]="shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
                               errorText="Account is required"
                               (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
+                          </td>
+                          <td class="split-col-property" [class.split-col-context-inactive]="!shouldShowSplitProperty(splitGroup)">
+                            <app-searchable-select
+                              class="split-account-select"
+                              [renderInFormField]="false"
+                              [panelWidth]="null"
+                              [value]="splitGroup.get('propertyId')?.value ?? null"
+                              [options]="getSplitPropertyOptions(splitGroup)"
+                              [disabled]="!shouldShowSplitProperty(splitGroup)"
+                              [required]="shouldShowSplitProperty(splitGroup) && (getSplitContextMode(splitGroup) === 'accountsReceivable' || getSplitContextMode(splitGroup) === 'ownerPayable')"
+                              [showInstructionOption]="shouldShowSplitProperty(splitGroup)"
+                              [instructionOptionValue]="null"
+                              [nullOptionLabel]="shouldShowSplitProperty(splitGroup) ? getSplitPropertyNullLabel(splitGroup) : '—'"
+                              [showSearchInput]="shouldShowSplitProperty(splitGroup)"
+                              searchPlaceholder="Type to filter properties..."
+                              noResultsText="No properties match your search"
+                              [selectClass]="getSplitContextSelectClass(splitGroup, 'property')"
+                              [showError]="shouldShowSplitPropertyError(splitGroup)"
+                              (valueChange)="onSplitPropertySelectionChange(splitIndex, $event)" />
+                          </td>
+                          <td class="split-col-reservation" [class.split-col-context-inactive]="!shouldShowSplitReservation(splitGroup)">
+                            <app-searchable-select
+                              class="split-account-select"
+                              [renderInFormField]="false"
+                              [panelWidth]="null"
+                              [value]="splitGroup.get('reservationId')?.value ?? null"
+                              [options]="getSplitReservationOptions(splitGroup)"
+                              [disabled]="!shouldShowSplitReservation(splitGroup)"
+                              [required]="shouldShowSplitReservation(splitGroup)"
+                              [showInstructionOption]="shouldShowSplitReservation(splitGroup)"
+                              [instructionOptionValue]="null"
+                              [nullOptionLabel]="shouldShowSplitReservation(splitGroup) ? getSplitReservationNullLabel() : '—'"
+                              [showSearchInput]="shouldShowSplitReservation(splitGroup)"
+                              searchPlaceholder="Type to filter reservations..."
+                              noResultsText="No reservations match your search"
+                              [selectClass]="getSplitContextSelectClass(splitGroup, 'reservation')"
+                              [showError]="shouldShowSplitReservationError(splitGroup)"
+                              (valueChange)="onSplitReservationSelectionChange(splitIndex, $event)" />
+                          </td>
+                          @if (shouldShowSplitContactColumn()) {
+                            <td class="split-col-contact">
+                              @if (shouldShowSplitContact(splitGroup)) {
+                                <app-searchable-select
+                                  class="split-account-select"
+                                  [renderInFormField]="false"
+                                  [panelWidth]="null"
+                                  [value]="splitGroup.get('contactId')?.value ?? null"
+                                  [options]="getSplitContactOptions(splitGroup)"
+                                  [required]="true"
+                                  [showInstructionOption]="true"
+                                  [instructionOptionValue]="null"
+                                  [nullOptionLabel]="getSplitContactNullLabel()"
+                                  [showSearchInput]="true"
+                                  searchPlaceholder="Type to filter vendors..."
+                                  noResultsText="No vendors match your search"
+                                  [selectClass]="getSplitContextSelectClass(splitGroup, 'contact')"
+                                  [showError]="shouldShowSplitContactError(splitGroup)"
+                                  (valueChange)="onSplitContactSelectionChange(splitIndex, $event)" />
+                              }
+                            </td>
+                          }
+                          <td class="split-col-description">
+                            <input type="text" formControlName="description" required class="split-editable-input"
+                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                          </td>
+                          <td class="split-col-amount">
+                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input split-editable-input--amount"
+                              (focus)="onSplitAmountFocus($event, splitIndex)"
+                              (blur)="onSplitAmountBlur($event, splitIndex)"
+                              (input)="onSplitAmountInput($event, splitIndex)"
+                              (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
+                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'amount')">
                           </td>
                           <td class="split-col-actions">
                             <button

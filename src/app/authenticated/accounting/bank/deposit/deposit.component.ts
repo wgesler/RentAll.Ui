@@ -8,8 +8,13 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
+import { EntityType } from '../../../contacts/models/contact-enum';
+import { ContactResponse } from '../../../contacts/models/contact.model';
+import { ContactService } from '../../../contacts/services/contact.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
+import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
+import { ReservationService } from '../../../reservations/services/reservation.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
@@ -21,6 +26,8 @@ import { JournalEntryService } from '../../services/journal-entry.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+
+type DepositSplitContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable';
 
 @Component({
   standalone: true,
@@ -45,6 +52,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   private depositService = inject(DepositService);
   private journalEntryService = inject(JournalEntryService);
   private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
   private officeService = inject(OfficeService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private accountingOfficeService = inject(AccountingOfficeService);
@@ -63,6 +72,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   deposit: DepositResponse | null = null;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   propertyOptions: PropertyCodeResponse[] = [];
+  reservationOptions: ReservationCodeResponse[] = [];
+  contacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
@@ -105,6 +116,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.applyShellReferenceData();
     this.loadOffices();
     this.loadPropertyCodes();
+    this.loadReservationCodes();
+    this.loadContacts();
     this.loadAccountingOffices();
     this.loadChartOfAccounts();
     if (this.isAddMode) {
@@ -166,7 +179,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       this.showValidationErrorToast();
       return;
     }
-    if (this.form.invalid) {
+    if (this.form.invalid || this.hasSplitContextValidationErrors()) {
       this.showValidationErrorToast();
       return;
     }
@@ -374,8 +387,48 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
         this.accountingOffices = accountingOffices || [];
         this.applyChartOfAccountsForOffice();
+        this.applyAllSplitContextVisibilityRules();
         this.cdr.markForCheck();
       });
+    });
+  }
+
+  loadReservationCodes(): void {
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.reservationOptions = reservations || [];
+            this.applyAllSplitContextVisibilityRules();
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.reservationOptions = [];
+            this.cdr.markForCheck();
+          }
+        });
+      }
+    });
+  }
+
+  loadContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe({
+          next: contacts => {
+            this.contacts = contacts || [];
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.contacts = [];
+            this.cdr.markForCheck();
+          }
+        });
+      },
+      error: () => {
+        this.contacts = [];
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -450,6 +503,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
     const rows = splits.length > 0 ? splits : [undefined];
     rows.forEach(split => this.splitsFormArray.push(this.createSplitGroup(split)));
+    this.applyAllSplitContextVisibilityRules();
     this.cdr.markForCheck();
   }
 
@@ -584,15 +638,123 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   onSplitAccountSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
     const parsed = Number(value ?? 0);
     const accountId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    this.splitsFormArray.at(splitIndex)?.get('chartOfAccountId')?.setValue(accountId);
-    this.splitsFormArray.at(splitIndex)?.get('chartOfAccountId')?.markAsTouched();
-    this.splitsFormArray.at(splitIndex)?.get('chartOfAccountId')?.updateValueAndValidity({ emitEvent: false });
+    const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
+    if (!splitGroup) {
+      return;
+    }
+
+    splitGroup.get('chartOfAccountId')?.setValue(accountId);
+    splitGroup.get('chartOfAccountId')?.markAsTouched();
+    splitGroup.get('chartOfAccountId')?.updateValueAndValidity({ emitEvent: false });
+    this.applySplitContextVisibilityRules(splitGroup);
     this.cdr.markForCheck();
   }
 
-  getSplitPropertyOptions(): Array<{ value: string; label: string }> {
+  onSplitPropertySelectionChange(splitIndex: number, value: string | number | null | undefined): void {
+    const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
+    if (!splitGroup) {
+      return;
+    }
+
+    splitGroup.patchValue({ propertyId: value == null || value === '' ? null : String(value) }, { emitEvent: false });
+    this.clearInvalidSplitReservationSelection(splitGroup);
+    this.cdr.markForCheck();
+  }
+
+  onSplitReservationSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
+    const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
+    if (!splitGroup) {
+      return;
+    }
+
+    const reservationId = value == null || value === '' ? null : String(value);
+    const patch: { reservationId: string | null; propertyId?: string | null } = { reservationId };
+    if (reservationId) {
+      const reservation = this.reservationOptions.find(item => item.reservationId === reservationId);
+      if (reservation?.propertyId) {
+        patch.propertyId = reservation.propertyId;
+      }
+    }
+
+    splitGroup.patchValue(patch, { emitEvent: false });
+    this.cdr.markForCheck();
+  }
+
+  onSplitContactSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
+    const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
+    if (!splitGroup) {
+      return;
+    }
+
+    splitGroup.patchValue({ contactId: value == null || value === '' ? null : String(value) }, { emitEvent: false });
+    this.cdr.markForCheck();
+  }
+
+  getSplitContextMode(splitGroup: AbstractControl): DepositSplitContextMode {
+    const accountId = Number(splitGroup.get('chartOfAccountId')?.value ?? 0);
     const officeId = this.getDepositOfficeId();
-    const properties = officeId == null  ? (this.propertyOptions || [])
+    if (!accountId || !officeId) {
+      return 'default';
+    }
+
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
+    if (!accountingOffice) {
+      return 'default';
+    }
+
+    if (accountId === Number(accountingOffice.defaultActPayableAccountId ?? 0)) {
+      return 'accountsPayable';
+    }
+
+    if (accountId === Number(accountingOffice.defaultActRcvableAccountId ?? 0)) {
+      return 'accountsReceivable';
+    }
+
+    if (accountId === Number(accountingOffice.defaultOwnActPayableAccountId ?? 0)) {
+      return 'ownerPayable';
+    }
+
+    return 'default';
+  }
+
+  shouldShowSplitProperty(splitGroup: AbstractControl): boolean {
+    const mode = this.getSplitContextMode(splitGroup);
+    return mode === 'accountsPayable' || mode === 'ownerPayable' || mode === 'accountsReceivable';
+  }
+
+  shouldShowSplitReservation(splitGroup: AbstractControl): boolean {
+    return this.getSplitContextMode(splitGroup) === 'accountsReceivable';
+  }
+
+  shouldShowSplitContact(splitGroup: AbstractControl): boolean {
+    return this.getSplitContextMode(splitGroup) === 'accountsPayable';
+  }
+
+  shouldShowSplitContactColumn(): boolean {
+    return this.splitsFormArray.controls.some(control => this.shouldShowSplitContact(control));
+  }
+
+  getSplitPropertyNullLabel(splitGroup: AbstractControl): string {
+    const mode = this.getSplitContextMode(splitGroup);
+    if (mode === 'accountsReceivable' || mode === 'ownerPayable') {
+      return 'Select Property';
+    }
+
+    return 'Company';
+  }
+
+  getSplitReservationNullLabel(): string {
+    return 'Select Reservation';
+  }
+
+  getSplitContactNullLabel(): string {
+    return 'Select Vendor';
+  }
+
+  getSplitPropertyOptions(_splitGroup?: AbstractControl): SearchableSelectOption<string>[] {
+    const officeId = this.getDepositOfficeId();
+    const properties = officeId == null
+      ? (this.propertyOptions || [])
       : (this.propertyOptions || []).filter(property => property.officeId === officeId);
 
     return properties
@@ -603,8 +765,129 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       .filter(option => option.value.length > 0);
   }
 
-  getSplitNullPropertyOptionLabel(): string {
-    return 'Company';
+  getSplitReservationOptions(splitGroup: AbstractControl): SearchableSelectOption<string>[] {
+    return this.buildSplitReservationOptions(splitGroup);
+  }
+
+  buildSplitReservationOptions(splitGroup: AbstractControl): SearchableSelectOption<string>[] {
+    const officeId = this.getDepositOfficeId();
+    const officeFiltered = officeId == null
+      ? this.reservationOptions
+      : this.reservationOptions.filter(reservation => reservation.officeId === officeId);
+    const propertyId = this.normalizeSplitPropertyId(splitGroup.get('propertyId')?.value ?? null);
+    const requireProperty = this.shouldShowSplitReservation(splitGroup);
+    const filtered = !propertyId
+      ? (requireProperty ? [] : officeFiltered)
+      : officeFiltered.filter(reservation => reservation.propertyId === propertyId);
+
+    return filtered.map(reservation => ({
+      value: reservation.reservationId,
+      label: this.utilityService.getReservationDropdownLabel(reservation, null)
+    }));
+  }
+
+  getSplitContactOptions(_splitGroup?: AbstractControl): SearchableSelectOption<string>[] {
+    const officeId = this.getDepositOfficeId();
+    const filteredContacts = officeId == null
+      ? this.contacts.filter(contact => contact.entityTypeId === EntityType.Vendor)
+      : this.contacts.filter(contact =>
+        contact.entityTypeId === EntityType.Vendor
+        && this.utilityService.contactHasOfficeAccess(contact, officeId));
+
+    return filteredContacts.map(contact => ({
+      value: String(contact.contactId || '').trim(),
+      label: this.utilityService.getVendorDropdownLabel(contact)
+    })).filter(option => option.value.length > 0);
+  }
+
+  applySplitContextVisibilityRules(splitGroup: FormGroup): void {
+    if (!this.shouldShowSplitProperty(splitGroup)) {
+      splitGroup.patchValue({ propertyId: null }, { emitEvent: false });
+    }
+
+    if (!this.shouldShowSplitReservation(splitGroup)) {
+      splitGroup.patchValue({ reservationId: null }, { emitEvent: false });
+    }
+
+    if (!this.shouldShowSplitContact(splitGroup)) {
+      splitGroup.patchValue({ contactId: null }, { emitEvent: false });
+    }
+
+    this.clearInvalidSplitReservationSelection(splitGroup);
+  }
+
+  applyAllSplitContextVisibilityRules(): void {
+    this.splitsFormArray.controls.forEach(control => this.applySplitContextVisibilityRules(control as FormGroup));
+  }
+
+  clearInvalidSplitReservationSelection(splitGroup: FormGroup): void {
+    const reservationId = (splitGroup.get('reservationId')?.value || '').toString().trim();
+    if (!reservationId) {
+      return;
+    }
+
+    const reservationIds = new Set(this.buildSplitReservationOptions(splitGroup).map(option => String(option.value)));
+    if (!reservationIds.has(reservationId)) {
+      splitGroup.patchValue({ reservationId: null }, { emitEvent: false });
+    }
+  }
+
+  shouldShowSplitPropertyError(splitGroup: AbstractControl): boolean {
+    if (!this.saveValidationHighlightActive) {
+      return false;
+    }
+
+    const mode = this.getSplitContextMode(splitGroup);
+    if (mode !== 'accountsReceivable' && mode !== 'ownerPayable') {
+      return false;
+    }
+
+    return !this.normalizeSplitPropertyId(splitGroup.get('propertyId')?.value ?? null);
+  }
+
+  shouldShowSplitReservationError(splitGroup: AbstractControl): boolean {
+    if (!this.saveValidationHighlightActive || !this.shouldShowSplitReservation(splitGroup)) {
+      return false;
+    }
+
+    return !(splitGroup.get('reservationId')?.value || '').toString().trim();
+  }
+
+  shouldShowSplitContactError(splitGroup: AbstractControl): boolean {
+    if (!this.saveValidationHighlightActive || !this.shouldShowSplitContact(splitGroup)) {
+      return false;
+    }
+
+    return !(splitGroup.get('contactId')?.value || '').toString().trim();
+  }
+
+  hasSplitContextValidationErrors(): boolean {
+    return this.splitsFormArray.controls.some(control =>
+      this.shouldShowSplitPropertyError(control)
+      || this.shouldShowSplitReservationError(control)
+      || this.shouldShowSplitContactError(control));
+  }
+
+  getSplitContextSelectClass(splitGroup: AbstractControl, field: 'property' | 'reservation' | 'contact'): string {
+    const baseClass = 'split-editable-input split-account-select-control';
+    const enabled = field === 'property'
+      ? this.shouldShowSplitProperty(splitGroup)
+      : field === 'reservation'
+        ? this.shouldShowSplitReservation(splitGroup)
+        : this.shouldShowSplitContact(splitGroup);
+    const hasError = enabled && (field === 'property'
+      ? this.shouldShowSplitPropertyError(splitGroup)
+      : field === 'reservation'
+        ? this.shouldShowSplitReservationError(splitGroup)
+        : this.shouldShowSplitContactError(splitGroup));
+    const classes = [baseClass];
+    if (!enabled) {
+      classes.push('split-context-disabled');
+    }
+    if (hasError) {
+      classes.push('split-input-invalid');
+    }
+    return classes.join(' ');
   }
 
   normalizeSplitPropertyId(propertyId: string | null | undefined): string | null {
