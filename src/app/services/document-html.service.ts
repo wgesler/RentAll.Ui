@@ -6,6 +6,7 @@ export interface PrintStyleOptions {
   includeLeaseStyles?: boolean; // For lease-specific print styles
   preserveTemplateTypography?: boolean; // Keep template font size/line-height/margins
   preserveTemplatePageSetup?: boolean; // Keep template @page size/margins
+  landscape?: boolean;
 }
 
 @Injectable({
@@ -58,9 +59,10 @@ export class DocumentHtmlService {
     `;
 
     if (!preserveTemplatePageSetup) {
+      const pageSize = options?.landscape ? 'letter landscape' : 'letter';
       styles = `
       @page {
-        size: letter;
+        size: ${pageSize};
         margin: 0.5in;
         margin-bottom: ${marginBottom};
       }

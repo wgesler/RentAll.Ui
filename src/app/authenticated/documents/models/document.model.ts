@@ -95,6 +95,7 @@ export interface GenerateDocumentFromHtmlDto {
   fileName: string;
   /** When true, backend must generate a standalone PDF (images embedded) and save that file; documentPath must point to the PDF. */
   generatePdf?: boolean;
+  landscape?: boolean;
 }
 
 

@@ -46,7 +46,8 @@ export async function sendDocumentEmail(
     propertyId: documentConfig.propertyId || null,
     reservationId: documentConfig.selectedReservationId || null,
     documentTypeId: Number(emailConfig.documentType),
-    fileName: attachmentFileName
+    fileName: attachmentFileName,
+    landscape: documentConfig.printStyleOptions?.landscape === true
   };
 
   const pdfBlob = await firstValueFrom(deps.documentService.generateDownload(generateDto));

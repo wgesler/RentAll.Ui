@@ -353,6 +353,64 @@ export function effectiveBedTypeIdForPropertySlot(
   const maxSlot = Math.min(4, Math.floor(bedroomCount));
   return slot > maxSlot ? 0 : bedroomTypeId;
 }
+
+function pluralizeBedTypeLabel(label: string, count: number): string {
+  if (count <= 1) {
+    return `1 ${label}`;
+  }
+  switch (label) {
+    case 'Day Bed':
+      return `${count} Day Beds`;
+    case 'Sofa Bed':
+      return `${count} Sofa Beds`;
+    case 'Two Twins':
+      return `${count} Two Twins`;
+    case 'Double':
+      return `${count} Doubles`;
+    default:
+      return `${count} ${label}s`;
+  }
+}
+
+/** Summarizes configured bed types for display (e.g. "2 Kings", "1 King, 1 Queen"). */
+export function formatPropertyBedTypesSummary(
+  bedrooms: number,
+  bedroomId1: number,
+  bedroomId2: number,
+  bedroomId3: number,
+  bedroomId4: number
+): string {
+  const slotIds = [bedroomId1, bedroomId2, bedroomId3, bedroomId4];
+  const maxSlot = Math.min(4, Math.floor(bedrooms || 0));
+  const labels: string[] = [];
+
+  for (let slot = 1; slot <= maxSlot; slot++) {
+    const typeId = effectiveBedTypeIdForPropertySlot(slot as 1 | 2 | 3 | 4, bedrooms, slotIds[slot - 1]);
+    const label = getBedSizeType(typeId);
+    if (label && label !== 'None') {
+      labels.push(label);
+    }
+  }
+
+  if (labels.length === 0) {
+    return bedrooms > 0 ? String(bedrooms) : '';
+  }
+
+  const order: string[] = [];
+  const counts = new Map<string, number>();
+  for (const label of labels) {
+    if (!counts.has(label)) {
+      order.push(label);
+      counts.set(label, 1);
+    } else {
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+  }
+
+  return order
+    .map(label => pluralizeBedTypeLabel(label, counts.get(label) ?? 1))
+    .join(', ');
+}
 //#endregion
 
 //#region ManagementFeeType

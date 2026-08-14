@@ -186,6 +186,7 @@ export interface MaintenanceListDisplay extends PropertyListDisplay {
   bed2Text: PropertyBedDropdownCell;
   bed3Text: PropertyBedDropdownCell;
   bed4Text: PropertyBedDropdownCell;
+  bedTypesText?: string;
   eventDate: string;
   eventDateSortTime: number;
   hasPets: boolean;

@@ -118,7 +118,8 @@ export abstract class BaseDocumentComponent {
       propertyId: config.propertyId || null,
       reservationId: config.selectedReservationId || null,
       documentTypeId: Number(downloadConfig.documentType), 
-      fileName: downloadConfig.fileName
+      fileName: downloadConfig.fileName,
+      landscape: config.printStyleOptions?.landscape === true
     };
 
     // Use server-side PDF generation

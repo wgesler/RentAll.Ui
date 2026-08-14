@@ -78,6 +78,15 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
     return this.snapshot.scheduleCleaningColumns || {};
   }
 
+  getScheduleExportColumns(): ColumnSet {
+    const columns = this.snapshot.scheduleCleaningColumns || {};
+    if (!this.utilityService.normalizeId(this.selectedServiceProviderId)) {
+      return columns;
+    }
+    const { cleanerName: _cleanerName, ...columnsWithoutProvider } = columns;
+    return columnsWithoutProvider;
+  }
+
   get serviceProviderSelectOptions(): { value: string; label: string }[] {
     return [
       { value: '', label: 'All Service Providers' },
@@ -130,9 +139,11 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
     this.isDownloadingSchedule = true;
     this.markViewForCheck();
 
+    const schedulePrintOptions = { landscape: true };
     const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
       this.buildScheduleExportHtml(),
-      this.buildScheduleExportStyles()
+      this.buildScheduleExportStyles(),
+      schedulePrintOptions
     );
 
     this.documentService.generateDownload({
@@ -143,7 +154,8 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
       propertyId: null,
       reservationId: null,
       documentTypeId: Number(DocumentType.Other),
-      fileName: this.buildScheduleExportFileName('pdf')
+      fileName: this.buildScheduleExportFileName('pdf'),
+      landscape: true
     }).pipe(take(1), finalize(() => {
       this.isDownloadingSchedule = false;
       this.markViewForCheck();
@@ -230,6 +242,7 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
         const documentConfig: DocumentConfig = {
           previewIframeHtml: previewHtml,
           previewIframeStyles: this.buildScheduleExportStyles(),
+          printStyleOptions: { landscape: true },
           organizationId,
           selectedOfficeId,
           selectedOfficeName: this.resolveScheduleExportOfficeName(selectedOfficeId),
@@ -250,7 +263,7 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
   }
 
   buildScheduleExportHtml(): string {
-    const columnEntries = Object.entries(this.scheduleColumns);
+    const columnEntries = Object.entries(this.getScheduleExportColumns());
     const headerHtml = columnEntries.map(([, column]) => this.buildScheduleExportHeaderHtml(column)).join('');
     const bodyHtml = this.scheduleDisplayRows.map(row => {
       const cellHtml = columnEntries.map(([columnKey, column]) =>
@@ -258,10 +271,14 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
       ).join('');
       return `<tr>${cellHtml}</tr>`;
     }).join('');
-    const title = this.escapeHtml(this.getScheduleExportTitle());
+    const titleText = this.escapeHtml(this.buildScheduleTitleText(this.getSelectedServiceProviderLabel()));
+    const dateLabel = this.escapeHtml(this.getScheduleExportDateLabel());
+    const titleHtml = dateLabel
+      ? `<div class="schedule-export__title"><span class="schedule-export__title-text">${titleText}</span><span class="schedule-export__title-date">${dateLabel}</span></div>`
+      : `<span class="schedule-export__title-text schedule-export__title-text--solo">${titleText}</span>`;
 
     return `<div class="schedule-export">
-      <h1>${title}</h1>
+      ${titleHtml}
       <table>
         <thead><tr>${headerHtml}</tr></thead>
         <tbody>${bodyHtml}</tbody>
@@ -316,8 +333,13 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
   buildScheduleExportStyles(): string {
     return `
       .schedule-export { font-family: Arial, Helvetica, sans-serif; color: #0f172a; }
-      .schedule-export h1 { font-size: 18px; font-weight: 700; margin: 0 0 16px; }
-      .schedule-export table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
+      .schedule-export__title { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 0 0 16px; }
+      .schedule-export__title-text,
+      .schedule-export__title-date { font-size: 16pt !important; font-weight: 700; line-height: 1.2; font-family: Arial, Helvetica, sans-serif; }
+      .schedule-export__title-text { margin: 0; flex: 1 1 auto; }
+      .schedule-export__title-text--solo { display: block; margin: 0 0 16px; }
+      .schedule-export__title-date { text-align: right; white-space: nowrap; flex: 0 0 auto; }
+      .schedule-export table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: auto; }
       .schedule-export__header,
       .schedule-export__cell { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
       .schedule-export__header { background: #e2e8f0; font-weight: 700; }
@@ -340,16 +362,25 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
       .replace(/"/g, '&quot;');
   }
 
-  getScheduleExportTitle(): string {
-    return this.buildScheduleEmailSubject(this.getSelectedServiceProviderLabel());
+  getScheduleExportDateLabel(): string {
+    return this.formatterService.formatDateString(this.utilityService.todayAsCalendarDateString());
   }
 
-  buildScheduleEmailSubject(providerLabel: string): string {
-    const baseSubject = (this.emailHtml?.scheduleSubject || '').trim();
+  buildScheduleTitleText(providerLabel: string): string {
+    const baseSubject = (this.emailHtml?.scheduleSubject || '').trim() || 'Cleaning Schedule';
     if (providerLabel === 'All Service Providers') {
       return baseSubject;
     }
-    return `${baseSubject} - ${providerLabel}`;
+    return `${baseSubject}: ${providerLabel}`;
+  }
+
+  buildScheduleEmailSubject(providerLabel: string): string {
+    const titleText = this.buildScheduleTitleText(providerLabel);
+    const dateLabel = this.getScheduleExportDateLabel();
+    if (!dateLabel) {
+      return titleText;
+    }
+    return `${titleText} - ${dateLabel}`;
   }
 
   buildScheduleEmailBody(fromName: string, fromEmail: string, fromPhone: string, recipientName: string): string {

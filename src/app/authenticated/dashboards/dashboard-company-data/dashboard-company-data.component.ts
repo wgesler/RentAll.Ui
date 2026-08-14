@@ -10,7 +10,7 @@ import { TrackerContextType } from '../../organizations/models/tracker-enum';
 import { TrackerConfigurationDefinitionResponse, TrackerConfigurationResponse } from '../../organizations/models/tracker.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { TrackerService } from '../../organizations/services/tracker.service';
-import { PropertyLeaseType, PropertyStatus } from '../../properties/models/property-enums';
+import { PropertyLeaseType, PropertyStatus, formatPropertyBedTypesSummary } from '../../properties/models/property-enums';
 import { PropertyListResponse, PropertyTrackerResponse, PropertyTrackerResponseOption, PropertyTrackerResponseOptionRequest, PropertyTrackerResponseRequest } from '../../properties/models/property.model';
 import { BillingType } from '../../reservations/models/reservation-enum';
 import { ReservationTrackerResponse, ReservationTrackerResponseOption, ReservationTrackerResponseOptionRequest, ReservationTrackerResponseRequest } from '../../reservations/models/reservation-model';
@@ -1026,7 +1026,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
       reservationCode: { displayAs: 'Reservation', maxWidth: '14ch', wrap: false },
       shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
-      bedrooms: { displayAs: 'Beds', wrap: false, maxWidth: '10ch', alignment: 'center' },
+      bedTypesText: { displayAs: 'Beds', wrap: false, maxWidth: '18ch', alignment: 'center' },
       bathrooms: { displayAs: 'Baths', wrap: false, maxWidth: '10ch', alignment: 'center' },
       squareFeet: { displayAs: 'Sq Ft', wrap: false, maxWidth: '10ch', alignment: 'center' },
       hasPets: { displayAs: 'Pets', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '10ch' },
@@ -1409,6 +1409,13 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
         rows.push({
           ...row,
           eventTypeDisplay: row.eventType != null ? getServiceType(row.eventType) : '—',
+          bedTypesText: formatPropertyBedTypesSummary(
+            row.bedrooms,
+            row.bedroomId1,
+            row.bedroomId2,
+            row.bedroomId3,
+            row.bedroomId4
+          ),
           cleanerName: slot.providerName,
           cleanerUserId: slot.providerUserId,
           hasPets: this.resolveScheduleHasPets(row, reservationById),
