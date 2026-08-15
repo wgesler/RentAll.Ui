@@ -697,12 +697,6 @@
           <button mat-mini-fab type="button" color="primary" id="sync-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
             S
           </button>
-          <button mat-mini-fab type="button" color="accent" id="repair-split-links-button" matTooltip="Repair deposit/transfer split links" aria-label="Repair deposit and transfer split links" (click)="repairDepositAndTransferSplitLinks()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-            R
-          </button>
-          <button mat-mini-fab type="button" id="rebuild-transfer-journal-entries-button" matTooltip="Rebuild transfer journal entries" aria-label="Rebuild transfer journal entries" (click)="rebuildTransferJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn journal-entry-sync-btn--transfer">
-            T
-          </button>
           <button mat-mini-fab type="button" color="warn" id="clear-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
             C
           </button>
