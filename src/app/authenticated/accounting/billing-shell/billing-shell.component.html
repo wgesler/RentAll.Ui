@@ -38,7 +38,7 @@
               [invoiceIdInput]="activeInvoiceId"
               [prefetchedInvoice]="selectedInvoice"
               [officeIdInput]="selectedOfficeId"
-              [reservationIdInput]="selectedReservationId"
+              [reservationIdInput]="selectedReservationId || selectedOrganizationId"
               [companyIdInput]="selectedCompanyId"
               (invoiceCreated)="onInvoiceCreated()">
             </app-invoice>

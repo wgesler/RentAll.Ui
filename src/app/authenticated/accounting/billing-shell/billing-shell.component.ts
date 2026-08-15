@@ -42,6 +42,9 @@ export class BillingShellComponent implements OnInit, OnDestroy {
 
   onOrganizationDropdownChange(value: string | number | null): void {
     this.selectedOrganizationId = value == null || value === '' ? null : String(value);
+    if (this.activeInvoiceId && this.selectedOrganizationId) {
+      this.selectedReservationId = this.selectedOrganizationId;
+    }
   }
 
   onInvoiceOrganizationChange(organizationId: string | null): void {
@@ -61,6 +64,12 @@ export class BillingShellComponent implements OnInit, OnDestroy {
     }
     if (selection.reservationId) {
       this.selectedReservationId = selection.reservationId;
+      // Billing invoices store the recipient organization in reservationId.
+      if (!this.selectedOrganizationId) {
+        this.selectedOrganizationId = selection.reservationId;
+      }
+    } else if (this.selectedOrganizationId) {
+      this.selectedReservationId = this.selectedOrganizationId;
     }
     if (selection.companyId != null && selection.companyId !== '') {
       this.selectedCompanyId = selection.companyId;

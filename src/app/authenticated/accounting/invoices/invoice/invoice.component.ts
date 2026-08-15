@@ -186,6 +186,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.initializeInvoiceContext(false);
     }
 
+    if (!this.isAddMode && changes['reservationIdInput'] && this.form) {
+      const reservationId = this.reservationIdInput?.trim() || null;
+      if (reservationId) {
+        this.form.get('reservationId')?.setValue(reservationId, { emitEvent: false });
+      }
+    }
 
     if (this.isAddMode && (
       changes['shellMode'] ||
@@ -310,6 +316,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (this.offices.length === 0 || officeIdToApply == null) {
+      // Billing: recipient organization is carried in reservationId even when office is not set yet.
+      if (reservationIdParam && !reservationFromContext) {
+        this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
+        this.selectedReservation = null;
+      }
       return;
     }
 
@@ -324,7 +335,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.filterCostCodes();
 
+    if (!reservationIdParam) {
+      return;
+    }
+
+    // Billing recipient orgs are stored in reservationId and will not appear in the reservation list.
     if (!reservationFromContext) {
+      this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
+      this.selectedReservation = null;
       return;
     }
 
@@ -1009,7 +1027,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const snapshot = this.resolveInvoiceSnapshotFields();
     const reservationId = snapshot.reservationId;
     if (!reservationId && !snapshot.contactId) {
-      this.toastr.warning('Please select a company or reservation before saving.', 'Missing Selection');
+      this.toastr.warning('Please select a company, reservation, or organization before saving.', 'Missing Selection');
       this.isSubmitting = false;
       this.cdr.markForCheck();
       return;
@@ -1598,13 +1616,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       const currentReservationId = this.form.get('reservationId')?.value;
       if (currentReservationId && this.selectedOffice) {
         const currentReservation = this.reservations.find(r => r.reservationId === currentReservationId);
+        // Only clear when the selected id is a real reservation for another office.
+        // Billing stores recipient organization id in reservationId (not in the reservation list).
         if (currentReservation && currentReservation.officeId !== this.selectedOffice.officeId) {
           this.form.get('reservationId')?.setValue(null, { emitEvent: false });
           this.syncSelectedReservationFromForm();
         }
-      } else if (!this.selectedOffice) {
-        this.form.get('reservationId')?.setValue(null, { emitEvent: false });
-        this.syncSelectedReservationFromForm();
       }
 
       if (this.isAddMode && this.selectedOffice) {
