@@ -56,6 +56,7 @@ const ROUTER_TOKEN = {
   AccountingList: 'accounting',
   Leads: 'leads',
   Owner: 'owner',
+  BillingList: 'billing',
   BillingCreate: 'billing-create',
   InvoiceCreate: 'invoice-create',
   CostCodesList: 'cost-codes',
@@ -105,25 +106,24 @@ const accountingNavAccess: AccessRule = {
     UserGroups.Accounting,
     UserGroups.AccountingAdmin,
     UserGroups.OfficeAdmin,
-    UserGroups.Admin,
-    UserGroups.SuperAdmin
+    UserGroups.Admin
   ],
   excludedRoles: []
 };
 
 /** Deposits, GL, reports, and journal sync/clear: org admins only. */
 const accountingFullAccess: AccessRule = {
-  requiredRoles: [UserGroups.Admin, UserGroups.SuperAdmin],
+  requiredRoles: [UserGroups.Admin],
   excludedRoles: []
 };
 
 const adminOnly: AccessRule = {
-  requiredRoles: [UserGroups.Admin, UserGroups.SuperAdmin, UserGroups.OfficeAdmin],
+  requiredRoles: [UserGroups.Admin, UserGroups.OfficeAdmin],
   excludedRoles: []
 };
 
 const orgAdminOnly: AccessRule = {
-  requiredRoles: [UserGroups.Admin, UserGroups.SuperAdmin],
+  requiredRoles: [UserGroups.Admin],
   excludedRoles: []
 };
 
@@ -194,11 +194,9 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
 
 export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
-  { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
-  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingNavAccess },
+  { icon: 'receipt_long', displayName: 'Billing', url: ROUTER_TOKEN.BillingList, ...superAdminOnly },
   { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
   { icon: 'person', displayName: 'Owners', url: ROUTER_TOKEN.Owner, ...openToAll },
-  { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
   { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess },
   { icon: 'article', displayName: 'Logs', url: ROUTER_TOKEN.Logs, ...orgAdminOnly }
@@ -234,7 +232,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.AccountingList]: accountingNavAccess,
   leads: leadsAdminAndAgent,
   [ROUTER_TOKEN.Owner]: openToAll,
-  billing: accountingNavAccess,
+  [ROUTER_TOKEN.BillingList]: superAdminOnly,
   [ROUTER_TOKEN.BillingCreate]: superAdminOnly,
   [ROUTER_TOKEN.InvoiceCreate]: accountingNavAccess,
   [ROUTER_TOKEN.CostCodesList]: accountingNavAccess,
@@ -280,8 +278,7 @@ export function isOrgAdmin(userGroups: UserGroupInput): boolean {
 }
 
 export function hasOrgAdminAccess(userGroups: UserGroupInput): boolean {
-  const groups = getUserGroupNumbers(userGroups);
-  return groups.includes(UserGroups.Admin) || groups.includes(UserGroups.SuperAdmin);
+  return getUserGroupNumbers(userGroups).includes(UserGroups.Admin);
 }
 
 export function hasOfficeAdminRole(userGroups: UserGroupInput): boolean {

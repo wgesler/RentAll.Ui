@@ -1,0 +1,38 @@
+<div class="flex content-card-wrap justify-center items-start">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-shrink-0 items-center gap-2">
+          <mat-icon class="flex-shrink-0">receipt_long</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Billing</span>
+        </span>
+        <div class="header-title form-titlebar-fields-wrap">
+          <app-title-bar-select
+            [label]="'Organization'"
+            [formFieldClass]="'titlebar-field-company'"
+            [value]="selectedOrganizationId"
+            [options]="organizationTitleBarOptions"
+            [nullOptionLabel]="'Select Organization'"
+            [noResultsText]="'No organizations match your search'"
+            (valueChange)="onOrganizationDropdownChange($event)">
+          </app-title-bar-select>
+        </div>
+      </div>
+    </div>
+
+    <mat-card>
+      <div class="dbg-band-main">
+        <app-invoice-list
+          [source]="'billing'"
+          [organizationId]="selectedOrganizationId"
+          [organizationName]="selectedOrganizationName"
+          [organizationOptions]="organizationTitleBarOptions"
+          [officeId]="null"
+          [reservationId]="null"
+          [companyId]="null"
+          (organizationIdChange)="onInvoiceOrganizationChange($event)">
+        </app-invoice-list>
+      </div>
+    </mat-card>
+  </section>
+</div>

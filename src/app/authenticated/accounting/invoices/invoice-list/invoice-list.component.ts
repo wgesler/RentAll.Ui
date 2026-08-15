@@ -89,7 +89,7 @@ interface InvoiceListDisplayRow extends Omit<InvoiceResponse, 'totalAmount' | 'p
 })
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
-  @Input({ required: true }) source: 'reservation' | 'accounting';
+  @Input({ required: true }) source: 'reservation' | 'accounting' | 'billing';
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() organizationName: string | null = null; // Selected organization display name for SuperAdmin recipient column
   @Input() organizationOptions: { value: string, label: string }[] = []; // SuperAdmin org lookup for recipient display
@@ -314,7 +314,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const previousOrganizationId = changes['organizationId'].previousValue;
 
       if (previousOrganizationId === undefined || newOrganizationId !== previousOrganizationId) {
-        this.applyFilters();
+        if (this.source === 'billing' && this.officeScopeResolved) {
+          this.loadInvoicesForCurrentSearchCriteria(true);
+        } else {
+          this.applyFilters();
+        }
       }
     }
 
@@ -394,7 +398,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && this.organizationId) {
       params.push(`organizationId=${this.organizationId}`);
     }
-    if (this.source === 'accounting') {
+    if (this.source === 'billing') {
+      params.push(`returnTo=billing`);
+    } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       params.push(`returnTo=reservation`);
@@ -520,7 +526,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && reservationId) {
       params.push(`organizationId=${reservationId}`);
     }
-    if (this.source === 'accounting') {
+    if (this.source === 'billing') {
+      params.push(`returnTo=billing`);
+    } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       params.push(`returnTo=reservation`);
@@ -730,13 +738,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ? filtered.filter(invoice => invoice.isActive === false)
       : filtered.filter(invoice => invoice.isActive === true);
 
-    if (this.source === 'accounting' && !this.showPaid) {
+    if ((this.source === 'accounting' || this.source === 'billing') && !this.showPaid) {
       filtered = filtered.filter(invoice => Math.abs(this.getInvoiceBalanceDue(invoice)) > 0.005);
     }
 
-    // In Accounting SuperAdmin mode, organization filter maps to recipient organization
+    // Billing / Accounting SuperAdmin: organization filter maps to recipient organization
     // which is stored in invoice.reservationId for billing invoices.
-    if (this.source === 'accounting' && this.isSuperUser && this.organizationId) {
+    if ((this.source === 'accounting' || this.source === 'billing') && this.isSuperUser && this.organizationId) {
       filtered = filtered.filter(invoice => invoice.reservationId === this.organizationId);
     }
 
@@ -1373,6 +1381,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    if (this.source === 'billing' && !this.organizationId) {
+      this.lastInvoiceSearchKey = null;
+      this.invoiceSearchInFlightKey = null;
+      this.allInvoices = [];
+      this.invoicesDisplay = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+      this.markViewForCheck();
+      return;
+    }
+
     const officeIds = this.resolveOfficeIdsForSearch();
     if (officeIds.length === 0) {
       this.lastInvoiceSearchKey = null;
@@ -1472,12 +1490,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Get Methods
   get showInvoiceTableSelections(): boolean {
-    return this.source === 'accounting' || this.source === 'reservation';
+    return this.source === 'accounting' || this.source === 'billing' || this.source === 'reservation';
   }
 
   rebuildInvoicesDisplayedColumns(): void {
     const columns = { ...this.baseInvoicesDisplayedColumns };
-    if (this.source === 'accounting' && this.isSuperUser) {
+    if ((this.source === 'accounting' || this.source === 'billing') && this.isSuperUser) {
       columns['reservationCode'] = { ...columns['reservationCode'], displayAs: 'Company' };
     }
 
@@ -1668,7 +1686,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getRecipientDisplay(invoice: InvoiceResponse): string {
-    if (this.source === 'accounting' && this.isSuperUser) {
+    if ((this.source === 'accounting' || this.source === 'billing') && this.isSuperUser) {
       return this.getOrganizationNameById(invoice.reservationId)
         || this.organizationName
         || invoice.responsibleParty
@@ -1678,7 +1696,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getCompanyCodeDisplay(invoice: InvoiceResponse): string {
-    if (this.source === 'accounting' && this.isSuperUser) {
+    if ((this.source === 'accounting' || this.source === 'billing') && this.isSuperUser) {
       return invoice.reservationCode || '-';
     }
     return invoice.reservationCode || '-';
@@ -2169,7 +2187,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(nextOfficeId);
     }
 
-    if (officeChanged && this.source === 'accounting') {
+    if (officeChanged && (this.source === 'accounting' || this.source === 'billing')) {
       this.selectedCompanyContact = null;
       this.selectedReservation = null;
       this.companyIdChange.emit(null);
@@ -2249,6 +2267,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   buildInvoiceSearchRequest(officeIds: number[]): InvoiceGetRequest {
     const reservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
+
+    if (this.source === 'billing') {
+      return {
+        officeIds,
+        reservationId: this.organizationId || null,
+        isActive: !this.showInactive,
+        includeInactive: true,
+        includePaid: true,
+        startDate: null,
+        endDate: null
+      };
+    }
 
     if (this.source === 'accounting') {
       return {

@@ -1161,6 +1161,11 @@ recomputeLedgerLineNumbers(): void {
   }
 
   navigateBack(formValue: any): void {
+    const returnTo = this.route.snapshot.queryParams['returnTo'] || 'accounting';
+    if (returnTo === 'billing') {
+      this.router.navigateByUrl(RouterUrl.BillingList);
+      return;
+    }
     this.router.navigateByUrl(RouterUrl.AccountingList);
   }
 
@@ -1204,22 +1209,13 @@ recomputeLedgerLineNumbers(): void {
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'] || 'accounting';
-    const params: string[] = [];
 
-    if (returnTo === 'accounting') {
-      if (params.length > 0) {
-        this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
-      } else {
-        this.router.navigateByUrl(RouterUrl.AccountingList);
-      }
-    } else {
-      // Fallback to accounting list (defaults to invoices tab)
-      if (params.length > 0) {
-        this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
-      } else {
-        this.router.navigateByUrl(RouterUrl.AccountingList);
-      }
+    if (returnTo === 'billing') {
+      this.router.navigateByUrl(RouterUrl.BillingList);
+      return;
     }
+
+    this.router.navigateByUrl(RouterUrl.AccountingList);
   }
 
   ngOnDestroy(): void {

@@ -879,10 +879,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         : RouterUrl.AccountingList;
       this.router.navigateByUrl(accountingUrl);
     } else if (returnTo === 'billing') {
-      const billingUrl = params.length > 0
-        ? `${RouterUrl.Billing.replace(':id', 'new')}?${params.join('&')}`
-        : `${RouterUrl.Billing.replace(':id', 'new')}`;
-      this.router.navigateByUrl(billingUrl);
+      this.router.navigateByUrl(RouterUrl.BillingList);
     } else {
       const accountingUrl = params.length > 0 
         ? `${RouterUrl.AccountingList}?${params.join('&')}`

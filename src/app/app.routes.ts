@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AccountingShellComponent } from './authenticated/accounting/accounting-shell/accounting-shell.component';
+import { BillingShellComponent } from './authenticated/accounting/billing-shell/billing-shell.component';
 import { CostCodesListComponent } from './authenticated/accounting/setup/cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from './authenticated/accounting/setup/cost-codes/cost-codes.component';
 import { BillingCreateComponent } from './authenticated/accounting/invoices/billing-create/billing-create.component';
@@ -87,7 +88,8 @@ export enum RouterToken {
   Alert = RouterToken.AlertList + '/:id',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
-  Billing = 'billing/:id',
+  BillingList = 'billing',
+  Billing = RouterToken.BillingList + '/:id',
   BillingCreate = 'billing-create',
   InvoiceCreate = 'invoice-create',
   CostCodesList = 'cost-codes',
@@ -148,6 +150,7 @@ export enum RouterUrl {
   Alert                  = `${RouterToken.Auth}/${RouterToken.Alert}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
+  BillingList            = `${RouterToken.Auth}/${RouterToken.BillingList}`,
   Billing                = `${RouterToken.Auth}/${RouterToken.Billing}`,
   BillingCreate          = `${RouterToken.Auth}/${RouterToken.BillingCreate}`,
   InvoiceCreate          = `${RouterToken.Auth}/${RouterToken.InvoiceCreate}`,
@@ -216,6 +219,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Alert, component: AlertComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: AccountingShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.BillingList, component: BillingShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Billing, component: BillingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.BillingCreate, component: BillingCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },

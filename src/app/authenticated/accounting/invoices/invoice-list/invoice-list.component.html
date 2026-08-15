@@ -98,7 +98,7 @@
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="onInactiveToggleChange($event)" class="whitespace-nowrap">
                 InActive
               </mat-slide-toggle>
-              @if (source === 'accounting') {
+              @if (source === 'accounting' || source === 'billing') {
                 <mat-slide-toggle id="toggle-invoices-show-paid" [checked]="showPaid" color="primary" (change)="onShowPaidToggleChange($event)" class="whitespace-nowrap">
                   ShowPaid
                 </mat-slide-toggle>
@@ -106,7 +106,7 @@
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
                 Apply Payment
               </button>
-              @if (source === 'accounting') {
+              @if (source === 'accounting' || source === 'billing') {
                 <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
                   <mat-icon class="text-base">download</mat-icon>
                   <span>Export</span>
