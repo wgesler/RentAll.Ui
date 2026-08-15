@@ -713,8 +713,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const reservationCode = selectedReservation?.reservationCode
       ?? ((this.form?.get('reservationCode')?.value || '').trim() || null)
       ?? this.invoice?.reservationCode
-      ?? (billingOrganization?.code || '').trim()
-      || null;
+      ?? ((billingOrganization?.code || '').trim() || null);
 
     const selectedCompanyContact = this.getSelectedCompanyContact();
     if (selectedCompanyContact) {
