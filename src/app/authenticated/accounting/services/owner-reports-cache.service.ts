@@ -34,7 +34,7 @@ export class OwnerReportsCacheService {
         observer.next({
           cash: { rows: [], propertyActivityLines: [] },
           accrual: { rows: [], propertyActivityLines: [] },
-          recap: { rows: [] }
+          recap: { rows: [], rentalIncomeParentAccountNo: '' }
         });
         observer.complete();
       });
