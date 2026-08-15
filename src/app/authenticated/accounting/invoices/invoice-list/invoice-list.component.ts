@@ -399,9 +399,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && this.organizationId) {
       params.push(`organizationId=${this.organizationId}`);
     }
-    if (this.source === 'billing') {
-      params.push(`returnTo=billing`);
-    } else if (this.source === 'accounting') {
+    if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       params.push(`returnTo=reservation`);
@@ -527,9 +525,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && reservationId) {
       params.push(`organizationId=${reservationId}`);
     }
-    if (this.source === 'billing') {
-      params.push(`returnTo=billing`);
-    } else if (this.source === 'accounting') {
+    if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       params.push(`returnTo=reservation`);
