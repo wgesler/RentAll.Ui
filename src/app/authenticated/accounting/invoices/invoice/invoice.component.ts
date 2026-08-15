@@ -47,6 +47,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationIdInput: string | null = null;
   @Input() companyIdInput: string | null = null;
   @Input() propertyIdInput: string | null = null;
+  @Input() organizationOptions: { value: string; label: string; code?: string }[] = [];
   @Input() shellPropertyCodes: PropertyCodeResponse[] = [];
   @Input() prefetchedInvoice: InvoiceResponse | null = null;
   @Input() shellCreateInPlace = false;
@@ -703,10 +704,17 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const selectedReservation = reservationId
       ? this.reservations.find(reservation => reservation.reservationId === reservationId) ?? this.selectedReservation
       : null;
+    const billingOrganization = !selectedReservation && reservationId
+      ? this.organizationOptions.find(organization => organization.value === reservationId) ?? null
+      : null;
     const propertyOption = this.propertyTitleBarOptions.find(option => option.value === this.selectedPropertyId) ?? null;
     const propertyId = (this.selectedPropertyId || selectedReservation?.propertyId || '').trim() || null;
     const propertyCode = (propertyOption?.label || selectedReservation?.propertyCode || '').trim() || null;
-    const reservationCode = selectedReservation?.reservationCode ?? ((this.form?.get('reservationCode')?.value || '').trim() || this.invoice?.reservationCode || null);
+    const reservationCode = selectedReservation?.reservationCode
+      ?? ((this.form?.get('reservationCode')?.value || '').trim() || null)
+      ?? this.invoice?.reservationCode
+      ?? (billingOrganization?.code || '').trim()
+      || null;
 
     const selectedCompanyContact = this.getSelectedCompanyContact();
     if (selectedCompanyContact) {
@@ -754,7 +762,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       propertyId,
       propertyCode,
       contactId: null,
-      contactName: null
+      contactName: billingOrganization?.label || null
     };
   }
 

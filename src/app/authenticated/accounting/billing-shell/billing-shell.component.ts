@@ -112,10 +112,11 @@ export class BillingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  get organizationTitleBarOptions(): { value: string; label: string }[] {
+  get organizationTitleBarOptions(): { value: string; label: string; code?: string }[] {
     return (this.organizations || []).map((organization) => ({
       value: organization.organizationId,
-      label: organization.name || ''
+      label: organization.name || '',
+      code: organization.organizationCode || ''
     }));
   }
 

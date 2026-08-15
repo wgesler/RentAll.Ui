@@ -92,7 +92,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input({ required: true }) source: 'reservation' | 'accounting' | 'billing';
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() organizationName: string | null = null; // Selected organization display name for SuperAdmin recipient column
-  @Input() organizationOptions: { value: string, label: string }[] = []; // SuperAdmin org lookup for recipient display
+  @Input() organizationOptions: { value: string, label: string, code?: string }[] = []; // SuperAdmin org lookup for recipient display
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
@@ -1694,7 +1694,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getCompanyCodeDisplay(invoice: InvoiceResponse): string {
     if ((this.source === 'accounting' || this.source === 'billing') && this.isSuperUser) {
-      return invoice.reservationCode || '-';
+      return invoice.reservationCode
+        || this.getOrganizationCodeById(invoice.reservationId)
+        || '-';
     }
     return invoice.reservationCode || '-';
   }
@@ -1704,6 +1706,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return null;
     }
     return this.organizationOptions.find(organization => organization.value === organizationId)?.label || null;
+  }
+
+  getOrganizationCodeById(organizationId: string | null | undefined): string | null {
+    if (!organizationId) {
+      return null;
+    }
+    const code = this.organizationOptions.find(organization => organization.value === organizationId)?.code;
+    return (code || '').trim() || null;
   }
 
   getInvoiceBalanceDue(invoice: InvoiceResponse): number {
