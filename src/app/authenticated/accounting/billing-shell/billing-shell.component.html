@@ -6,32 +6,60 @@
           <mat-icon class="flex-shrink-0">receipt_long</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Billing</span>
         </span>
-        <div class="header-title form-titlebar-fields-wrap">
-          <app-title-bar-select
-            [label]="'Organization'"
-            [formFieldClass]="'titlebar-field-company'"
-            [value]="selectedOrganizationId"
-            [options]="organizationTitleBarOptions"
-            [nullOptionLabel]="'Select Organization'"
-            [noResultsText]="'No organizations match your search'"
-            (valueChange)="onOrganizationDropdownChange($event)">
-          </app-title-bar-select>
-        </div>
+        @if (!activeInvoiceId) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="'Organization'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="selectedOrganizationId"
+              [options]="organizationTitleBarOptions"
+              [nullOptionLabel]="'Select Organization'"
+              [noResultsText]="'No organizations match your search'"
+              (valueChange)="onOrganizationDropdownChange($event)">
+            </app-title-bar-select>
+          </div>
+        }
       </div>
+      @if (activeInvoiceId) {
+        <div class="form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" id="billing-shell-back-button" class="text-nowrap flex-shrink-0" (click)="closeEmbeddedInvoiceEditor(true)">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      }
     </div>
 
     <mat-card>
       <div class="dbg-band-main">
-        <app-invoice-list
-          [source]="'billing'"
-          [organizationId]="selectedOrganizationId"
-          [organizationName]="selectedOrganizationName"
-          [organizationOptions]="organizationTitleBarOptions"
-          [officeId]="null"
-          [reservationId]="null"
-          [companyId]="null"
-          (organizationIdChange)="onInvoiceOrganizationChange($event)">
-        </app-invoice-list>
+        @if (activeInvoiceId) {
+          @for (instance of [invoiceDetailInstance]; track instance) {
+            <app-invoice
+              [shellMode]="true"
+              [embedDocumentPreviewInShell]="true"
+              [invoiceIdInput]="activeInvoiceId"
+              [prefetchedInvoice]="selectedInvoice"
+              [officeIdInput]="selectedOfficeId"
+              [reservationIdInput]="selectedReservationId"
+              [companyIdInput]="selectedCompanyId"
+              (invoiceCreated)="onInvoiceCreated()">
+            </app-invoice>
+          }
+        } @else {
+          <app-invoice-list
+            [source]="'billing'"
+            [embedDocumentPreviewInShell]="true"
+            [organizationId]="selectedOrganizationId"
+            [organizationName]="selectedOrganizationName"
+            [organizationOptions]="organizationTitleBarOptions"
+            [officeId]="null"
+            [reservationId]="null"
+            [companyId]="null"
+            [refreshTrigger]="invoicesRefreshTrigger"
+            (organizationIdChange)="onInvoiceOrganizationChange($event)"
+            (invoiceSelect)="onInvoiceSelect($event)">
+          </app-invoice-list>
+        }
       </div>
     </mat-card>
   </section>
