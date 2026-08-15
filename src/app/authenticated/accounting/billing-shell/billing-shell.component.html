@@ -6,19 +6,17 @@
           <mat-icon class="flex-shrink-0">receipt_long</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Billing</span>
         </span>
-        @if (!activeInvoiceId) {
-          <div class="header-title form-titlebar-fields-wrap">
-            <app-title-bar-select
-              [label]="'Organization'"
-              [formFieldClass]="'titlebar-field-company'"
-              [value]="selectedOrganizationId"
-              [options]="organizationTitleBarOptions"
-              [nullOptionLabel]="'Select Organization'"
-              [noResultsText]="'No organizations match your search'"
-              (valueChange)="onOrganizationDropdownChange($event)">
-            </app-title-bar-select>
-          </div>
-        }
+        <div class="header-title form-titlebar-fields-wrap">
+          <app-title-bar-select
+            [label]="'Organization'"
+            [formFieldClass]="'titlebar-field-company'"
+            [value]="selectedOrganizationId"
+            [options]="organizationTitleBarOptions"
+            [nullOptionLabel]="'Select Organization'"
+            [noResultsText]="'No organizations match your search'"
+            (valueChange)="onOrganizationDropdownChange($event)">
+          </app-title-bar-select>
+        </div>
       </div>
       @if (activeInvoiceId) {
         <div class="form-titlebar-actions-wrap uniform-gap">
