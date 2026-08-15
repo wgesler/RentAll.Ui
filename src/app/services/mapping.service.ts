@@ -782,7 +782,12 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       ? rowsRaw.map(row => this.mapRecapReportRow(row as Record<string, unknown>))
       : [];
 
-    return { rows };
+    return {
+      rows,
+      rentalIncomeParentAccountNo: String(
+        raw['rentalIncomeParentAccountNo'] ?? raw['RentalIncomeParentAccountNo'] ?? ''
+      ).trim()
+    };
   }
 
   mapRecapReportRow(raw: Record<string, unknown>): JournalEntryRecapRowDisplay {

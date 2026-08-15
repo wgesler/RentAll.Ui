@@ -55,7 +55,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     payment: { displayAs: 'Payment', maxWidth: '12ch', alignment: 'right', sort: false },
     prePayment: { displayAs: 'PrePay', maxWidth: '12ch', alignment: 'right', sort: false },
     unPaid: { displayAs: 'UnPaid', maxWidth: '12ch', alignment: 'right', sort: false },
-    rentPlus4000: { displayAs: 'Rent/4000', maxWidth: '12ch', alignment: 'right', sort: false },
+    rentPlus4000: { displayAs: 'Rent', maxWidth: '12ch', alignment: 'right', sort: false },
     ownerRent: { displayAs: 'OwnRent', maxWidth: '12ch', alignment: 'right', sort: false },
     securityDeposit: { displayAs: 'SecDep', maxWidth: '12ch', alignment: 'right', sort: false },
     sdw: { displayAs: 'SDW', maxWidth: '12ch', alignment: 'right', sort: false },
@@ -212,9 +212,21 @@ toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLin
     }
 
     this.isServiceError = false;
+    this.applyRentColumnHeader(cachedReport.rentalIncomeParentAccountNo);
     this.rowsDisplay = this.applyRecapRowFilters(cachedReport.rows || []);
     this.noActivityMessage = this.noDataMessage;
     this.markViewForCheck();
+  }
+
+  applyRentColumnHeader(parentAccountNo: string | null | undefined): void {
+    const accountNo = String(parentAccountNo ?? '').trim();
+    this.displayedColumns = {
+      ...this.displayedColumns,
+      rentPlus4000: {
+        ...this.displayedColumns['rentPlus4000'],
+        displayAs: accountNo ? `Rent/${accountNo}` : 'Rent'
+      }
+    };
   }
 
 applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowDisplay[] {

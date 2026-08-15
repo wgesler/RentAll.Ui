@@ -319,6 +319,7 @@ export interface JournalEntryRecapSearchRequest {
 
 export interface RecapReportResponse {
   rows: JournalEntryRecapRowDisplay[];
+  rentalIncomeParentAccountNo: string;
 }
 
 /** Body for POST report/transfer/search — matches API GetTransferReportDto. */
