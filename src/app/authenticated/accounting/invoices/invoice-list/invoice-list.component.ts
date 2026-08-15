@@ -358,8 +358,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const officeIdToUse = reservationToUse?.officeId ?? this.selectedOffice?.officeId ?? this.officeId ?? null;
     const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompanyContact?.contactId || null);
 
-    // Billing shell always owns list ↔ editor; never route away to billing/:id.
-    if (this.source === 'billing' || (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation'))) {
+    // Embedded shells own the editor swap; do not rely on a sibling-route remount / query-only nav.
+    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation')) {
       this.invoiceSelect.emit({
         invoiceId: 'new',
         officeId: officeIdToUse,
@@ -385,7 +385,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
+    const targetUrl = (this.source === 'billing' || this.isSuperUser) ? RouterUrl.Billing : RouterUrl.Accounting;
     const url = RouterUrl.replaceTokens(targetUrl, ['new']);
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
@@ -396,10 +396,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
       params.push(`companyId=${companyIdToUse}`);
     }
-    if (this.isSuperUser && this.organizationId) {
+    if ((this.source === 'billing' || this.isSuperUser) && this.organizationId) {
       params.push(`organizationId=${this.organizationId}`);
     }
-    if (this.source === 'accounting') {
+    if (this.source === 'billing') {
+      params.push(`returnTo=billing`);
+    } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       params.push(`returnTo=reservation`);
@@ -476,8 +478,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
 
-    // Billing shell always owns list ↔ editor; never route away to billing/:id.
-    if (this.source === 'billing' || (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation'))) {
+    // Embedded shells own the editor swap; do not rely on a sibling-route remount / query-only nav.
+    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation')) {
       // Prefer the cached InvoiceResponse — row click emits a display row whose ledgerLines
       // are already remapped for the table and must not be treated as API payload.
       const sourceInvoice = this.allInvoices.find(invoice => invoice.invoiceId === event.invoiceId) ?? event;
@@ -511,7 +513,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
+    const targetUrl = (this.source === 'billing' || this.isSuperUser) ? RouterUrl.Billing : RouterUrl.Accounting;
     const url = RouterUrl.replaceTokens(targetUrl, [event.invoiceId]);
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
@@ -522,10 +524,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
       params.push(`companyId=${companyIdToUse}`);
     }
-    if (this.isSuperUser && reservationId) {
-      params.push(`organizationId=${reservationId}`);
+    if ((this.source === 'billing' || this.isSuperUser) && (reservationId || this.organizationId)) {
+      params.push(`organizationId=${reservationId || this.organizationId}`);
     }
-    if (this.source === 'accounting') {
+    if (this.source === 'billing') {
+      params.push(`returnTo=billing`);
+    } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       params.push(`returnTo=reservation`);

@@ -18,47 +18,20 @@
           </app-title-bar-select>
         </div>
       </div>
-      @if (activeInvoiceId) {
-        <div class="form-titlebar-actions-wrap uniform-gap">
-          <button mat-raised-button type="button" color="accent" id="billing-shell-back-button" class="text-nowrap flex-shrink-0" (click)="closeEmbeddedInvoiceEditor(true)">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-        </div>
-      }
     </div>
 
     <mat-card>
       <div class="dbg-band-main">
-        @if (activeInvoiceId) {
-          @for (instance of [invoiceDetailInstance]; track instance) {
-            <app-invoice
-              [shellMode]="true"
-              [embedDocumentPreviewInShell]="true"
-              [invoiceIdInput]="activeInvoiceId"
-              [prefetchedInvoice]="selectedInvoice"
-              [officeIdInput]="selectedOfficeId"
-              [reservationIdInput]="selectedReservationId || selectedOrganizationId"
-              [organizationOptions]="organizationTitleBarOptions"
-              [companyIdInput]="selectedCompanyId"
-              (invoiceCreated)="onInvoiceCreated()">
-            </app-invoice>
-          }
-        } @else {
-          <app-invoice-list
-            [source]="'billing'"
-            [embedDocumentPreviewInShell]="true"
-            [organizationId]="selectedOrganizationId"
-            [organizationName]="selectedOrganizationName"
-            [organizationOptions]="organizationTitleBarOptions"
-            [officeId]="null"
-            [reservationId]="null"
-            [companyId]="null"
-            [refreshTrigger]="invoicesRefreshTrigger"
-            (organizationIdChange)="onInvoiceOrganizationChange($event)"
-            (invoiceSelect)="onInvoiceSelect($event)">
-          </app-invoice-list>
-        }
+        <app-invoice-list
+          [source]="'billing'"
+          [organizationId]="selectedOrganizationId"
+          [organizationName]="selectedOrganizationName"
+          [organizationOptions]="organizationTitleBarOptions"
+          [officeId]="null"
+          [reservationId]="null"
+          [companyId]="null"
+          (organizationIdChange)="onInvoiceOrganizationChange($event)">
+        </app-invoice-list>
       </div>
     </mat-card>
   </section>
