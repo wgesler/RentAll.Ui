@@ -3,7 +3,7 @@ import { CanActivateFn, Router } from '@angular/router';
 import { RouterToken } from '../app.routes';
 import { canUserAccessUrl, getAuthorizedFallbackUrl } from '../authenticated/shared/access/role-access';
 import { AuthService } from '../services/auth.service';
-import { teardownCdkOverlayState } from '../shared/utils/cdk-overlay.util';
+import { resetViewportScroll, teardownCdkOverlayState } from '../shared/utils/cdk-overlay.util';
 
 export const authRouteGuard: CanActivateFn = (_route, state) => {
     const authService = inject(AuthService);
@@ -11,6 +11,7 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
 
     if (!authService.getIsLoggedIn()) {
         teardownCdkOverlayState();
+        resetViewportScroll();
         return router.createUrlTree([RouterToken.Login]);
     }
 

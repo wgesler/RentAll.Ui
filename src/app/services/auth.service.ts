@@ -21,7 +21,7 @@ import { OrganizationFeatureService } from '../authenticated/organizations/servi
 import { AccountingOfficeService } from '../authenticated/organizations/services/accounting-office.service';
 import { PropertyService } from '../authenticated/properties/services/property.service';
 import { ReservationService } from '../authenticated/reservations/services/reservation.service';
-import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../shared/utils/cdk-overlay.util';
+import { resetViewportScroll, teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../shared/utils/cdk-overlay.util';
 import { ConfigService } from './config.service';
 import { StorageService } from './storage.service';
 
@@ -79,11 +79,12 @@ export class AuthService {
         this.isLoggedIn$.next(false);
         this.dialog.closeAll();
         teardownCdkOverlayState();
+        resetViewportScroll();
 
-        teardownCdkOverlayStateAfterPaint(() => {
-            teardownCdkOverlayState();
-            void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true }).finally(() => {
-                teardownCdkOverlayState();
+        // Navigate immediately so login paints; clean overlays after paint (not before navigate).
+        void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true }).finally(() => {
+            teardownCdkOverlayStateAfterPaint(() => {
+                resetViewportScroll();
                 this.isLoggingOut$.next(false);
             });
         });

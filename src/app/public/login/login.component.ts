@@ -12,7 +12,7 @@ import { GlobalSelectionService } from '../../authenticated/organizations/servic
 import { OrganizationFeatureService } from '../../authenticated/organizations/services/organization-feature.service';
 import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
-import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../shared/utils/cdk-overlay.util';
+import { resetViewportScroll, teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../shared/utils/cdk-overlay.util';
 import { StorageService } from '../../services/storage.service';
 import { LoginRequest } from './models/login-request';
 
@@ -68,10 +68,14 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     teardownCdkOverlayState();
+    resetViewportScroll();
   }
 
   ngAfterViewInit(): void {
-    teardownCdkOverlayStateAfterPaint(() => teardownCdkOverlayState());
+    teardownCdkOverlayStateAfterPaint(() => {
+      teardownCdkOverlayState();
+      resetViewportScroll();
+    });
   }
 
   //#region Login
