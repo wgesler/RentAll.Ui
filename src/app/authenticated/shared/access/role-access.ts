@@ -22,8 +22,7 @@ const COMPANY_ROLES: UserGroups[] = [
   UserGroups.Agent,
   UserGroups.AgentAdmin,
   UserGroups.PropertyManager,
-  UserGroups.PropertyManagerAdmin,
-  UserGroups.Realtor
+  UserGroups.PropertyManagerAdmin
 ];
 
 const OUTSIDE_ROLES: UserGroups[] = [
