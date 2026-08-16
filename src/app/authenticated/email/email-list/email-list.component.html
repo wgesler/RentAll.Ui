@@ -23,7 +23,6 @@
             [deleteConfirmMessage]="'Are you sure you want to delete this email?'"
             [itemsPerPage]="10"
             (viewEvent)="viewEmail($event)"
-            (attachmentClickEvent)="viewDocument($event)"
             (rowClickEvent)="viewEmail($event)"
             (deleteEvent)="deleteEmail($event)"/>
         </div>
@@ -119,7 +118,6 @@
                 [deleteConfirmMessage]="'Are you sure you want to delete this email?'"
                 [itemsPerPage]="10"
                 (viewEvent)="viewEmail($event)"
-                (attachmentClickEvent)="viewDocument($event)"
                 (rowClickEvent)="viewEmail($event)"
                 (deleteEvent)="deleteEmail($event)"/>
             </div>
@@ -227,7 +225,6 @@
               [deleteConfirmMessage]="'Are you sure you want to delete this email?'"
               [itemsPerPage]="10"
               (viewEvent)="viewEmail($event)"
-              (attachmentClickEvent)="viewDocument($event)"
               (rowClickEvent)="viewEmail($event)"
               (deleteEvent)="deleteEmail($event)"/>
           </div>

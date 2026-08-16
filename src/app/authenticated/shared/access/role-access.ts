@@ -333,6 +333,15 @@ export function hasCompanyRole(userGroups: UserGroupInput): boolean {
   return COMPANY_ROLES.some(role => groups.includes(role));
 }
 
+/** Users who do not belong on Employees / Owners / Cleaners / Inspectors / Vendors tabs. */
+export function belongsOnOtherUsersTab(userGroups: UserGroupInput): boolean {
+  return !hasCompanyRole(userGroups)
+    && !hasOwnerRole(userGroups)
+    && !hasHousekeepingRole(userGroups)
+    && !hasInspectorRole(userGroups)
+    && !hasVendorRole(userGroups);
+}
+
 export function isInspectorOnlyUser(userGroups: UserGroupInput): boolean {
   return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Inspector);
 }

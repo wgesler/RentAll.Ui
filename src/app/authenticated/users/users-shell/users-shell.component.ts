@@ -35,7 +35,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   destroy$ = new Subject<void>();
 
   ngOnInit(): void {
-    const tabIndex = getNumberQueryParam(this.route.snapshot.queryParams, 'tab', 0, 4);
+    const tabIndex = getNumberQueryParam(this.route.snapshot.queryParams, 'tab', 0, 5);
     if (tabIndex !== null) {
       this.selectedTabIndex = tabIndex;
     }

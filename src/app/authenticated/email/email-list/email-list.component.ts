@@ -91,10 +91,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     emailTypeName: { displayAs: 'Email Type', maxWidth: '20ch' },
-    subject: { displayAs: 'Subject', maxWidth: '30ch' },
+    subject: { displayAs: 'Subject', maxWidth: '50ch' },
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
-    attachmentPath: { displayAs: 'Attachment', maxWidth: '20ch', alignment: 'center' },
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
   };
 
@@ -589,22 +588,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     this.loadEmails();
-  }
-
-  viewDocument(email: EmailListDisplay): void {
-    const documentId = email?.documentId;
-    if (!documentId) {
-      return;
-    }
-
-    this.router.navigate(
-      [RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])],
-      {
-        queryParams: {
-          returnTo: 'email'
-        }
-      }
-    );
   }
 
   viewEmail(email: EmailListDisplay): void {

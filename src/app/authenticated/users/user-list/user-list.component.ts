@@ -15,7 +15,7 @@ import { OrganizationService } from '../../organizations/services/organization.s
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
+import { belongsOnOtherUsersTab, hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
 import { getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
@@ -220,7 +220,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       (user) => hasOwnerRole(user.userGroups),
       (user) => hasHousekeepingRole(user.userGroups),
       (user) => hasInspectorRole(user.userGroups),
-      (user) => hasVendorRole(user.userGroups)
+      (user) => hasVendorRole(user.userGroups),
+      (user) => belongsOnOtherUsersTab(user.userGroups)
     ];
     const selectedTabPredicate = tabPredicates[this.selectedTabIndex] ?? tabPredicates[0];
     filtered = filtered.filter(selectedTabPredicate);
