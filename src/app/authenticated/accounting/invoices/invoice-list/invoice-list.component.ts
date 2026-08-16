@@ -1542,7 +1542,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveApplyPaymentOrganizationId(): string {
-    return (this.organizationId || this.authService.getUser()?.organizationId || '').trim();
+    // Must match JWT CurrentOrganizationId (API returns 401 otherwise). Do not use the
+    // shell company filter (billing/accounting SuperAdmin organizationId input).
+    return (this.authService.getUser()?.organizationId || '').trim();
   }
 
   buildApplyInvoicePaymentRequest(
