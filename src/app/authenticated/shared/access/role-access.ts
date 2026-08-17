@@ -32,7 +32,8 @@ const OUTSIDE_ROLES: UserGroups[] = [
   UserGroups.Vendor,
   UserGroups.Tenant,
   UserGroups.Owner,
-  UserGroups.Inspector
+  UserGroups.Inspector,
+  UserGroups.Realtor
 ];
 //#endregion
 

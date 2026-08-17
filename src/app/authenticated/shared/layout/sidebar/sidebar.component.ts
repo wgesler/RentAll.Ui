@@ -140,17 +140,18 @@ markViewForCheck(): void {
         return url !== 'owner' && !url.startsWith('owner/');
       });
     }
-    if (!this.authService.hasTicketingAccess()) {
+    if (!this.authService.hasAccessToPropertyManagement()) {
       items = items.filter(item => {
         const url = String(item.url || '');
-        return url !== 'tickets' && !url.startsWith('tickets/');
+        return url !== 'tickets' && !url.startsWith('tickets/')
+          && url !== 'maintenance' && !url.startsWith('maintenance/');
       });
     }
     this.navItems = items;
   }
 
   refreshAssignedTicketBadge(): void {
-    if (!this.authService.hasTicketingAccess()) {
+    if (!this.authService.hasAccessToPropertyManagement()) {
       this.hasAssignedTicketBadge = false;
       this.markViewForCheck();
       return;

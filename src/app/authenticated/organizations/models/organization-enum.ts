@@ -6,7 +6,8 @@ export enum FeatureType {
   QuickBooks = 3,
   Accounting = 4,
   Leads = 5,
-  Owners = 6
+  Owners = 6,
+  PropertyManagement = 7
 }
 
 export function getFeatureType(featureTypeId: number | undefined | null): string {
@@ -21,7 +22,8 @@ export function getFeatureType(featureTypeId: number | undefined | null): string
     [FeatureType.QuickBooks]: 'QuickBooks',
     [FeatureType.Accounting]: 'Accounting',
     [FeatureType.Leads]: 'Leads',
-    [FeatureType.Owners]: 'Owners'
+    [FeatureType.Owners]: 'Owners',
+    [FeatureType.PropertyManagement]: 'Property Management'
   };
 
   return typeMap[featureTypeId] || '';
@@ -39,7 +41,8 @@ export function getFeatureTypeCode(featureTypeId: number | undefined | null): st
     [FeatureType.QuickBooks]: 'QB',
     [FeatureType.Accounting]: 'ACT',
     [FeatureType.Leads]: 'LEAD',
-    [FeatureType.Owners]: 'OWN'
+    [FeatureType.Owners]: 'OWN',
+    [FeatureType.PropertyManagement]: 'PM'
   };
 
   return codeMap[featureTypeId] || '';
