@@ -1,3 +1,5 @@
+export const USER_GUIDE_WELCOME_URL = 'welcome';
+
 export type UserGuidePageKey = 'welcome' | 'dashboard' | 'dashboardStaff' | 'dashboardOwner' | 'leads' | 'boards' | 'reservations' | 'properties' | 'tickets' | 'maintenance' | 'accounting' | 'owner' | 'emails' | 'documents' | 'contacts' | 'users' | 'settings' | 'logs' | 'organizations' | 'billing';
 
 export interface UserGuideResponse {

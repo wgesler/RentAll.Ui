@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { take } from 'rxjs';
+import { USER_GUIDE_WELCOME_URL } from '../../../organizations/models/user-guide.model';
 import type { HelpGuideDialogComponent } from './help-guide-dialog.component';
-import { HELP_WELCOME_URL } from './help-guide.topics';
 
 @Injectable({ providedIn: 'root' })
 export class HelpGuideService {
@@ -37,7 +37,7 @@ export class HelpGuideService {
   getCurrentTopicUrl(): string {
     const parts = this.router.url.split('?')[0].split('/').filter(Boolean);
     const authIndex = parts.indexOf('auth');
-    const topicUrl = (authIndex >= 0 ? parts[authIndex + 1] : parts[0]) || HELP_WELCOME_URL;
+    const topicUrl = (authIndex >= 0 ? parts[authIndex + 1] : parts[0]) || USER_GUIDE_WELCOME_URL;
     if (topicUrl === 'dashboard-staff' || topicUrl === 'dashboard-owner') {
       return 'dashboard';
     }

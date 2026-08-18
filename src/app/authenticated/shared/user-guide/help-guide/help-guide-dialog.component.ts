@@ -7,10 +7,9 @@ import { AuthService } from '../../../../services/auth.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { OrganizationService } from '../../../organizations/services/organization.service';
-import { emptyUserGuide, UserGuideResponse } from '../../../organizations/models/user-guide.model';
+import { emptyUserGuide, USER_GUIDE_WELCOME_URL, UserGuideResponse } from '../../../organizations/models/user-guide.model';
 import { UserGroups } from '../../../users/models/user-enums';
 import { getUserGuideNavItems, NavItemDefinition } from '../../access/role-access';
-import { HELP_WELCOME_URL, HelpTopicContent, getHelpTopicContent } from './help-guide.topics';
 
 export interface HelpGuideDialogData {
   topicUrl?: string;
@@ -47,8 +46,8 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
 
   pageEditor?: ElementRef<HTMLDivElement>;
   tocItems: HelpTocItem[] = [];
-  selectedUrl = HELP_WELCOME_URL;
-  selectedTopic: HelpTopicContent = getHelpTopicContent(HELP_WELCOME_URL);
+  selectedUrl = USER_GUIDE_WELCOME_URL;
+  selectedTitle = 'Welcome';
   userGuide: UserGuideResponse = emptyUserGuide();
   canEdit = false;
   isEditing = false;
@@ -73,11 +72,11 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
     this.organizationService.getUserGuide().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'userGuide'); })).subscribe({
       next: userGuide => {
         this.userGuide = userGuide || emptyUserGuide();
-        this.selectTopic(this.data?.topicUrl || HELP_WELCOME_URL);
+        this.selectTopic(this.data?.topicUrl || USER_GUIDE_WELCOME_URL);
       },
       error: () => {
         this.userGuide = emptyUserGuide();
-        this.selectTopic(this.data?.topicUrl || HELP_WELCOME_URL);
+        this.selectTopic(this.data?.topicUrl || USER_GUIDE_WELCOME_URL);
       }
     });
   }
@@ -86,28 +85,14 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
     this.captureEditorHtml();
     const resolvedUrl = url === 'dashboard-staff' || url === 'dashboard-owner' ? 'dashboard' : url;
     const match = this.tocItems.find(item => item.url === resolvedUrl);
-    this.selectedUrl = match ? match.url : HELP_WELCOME_URL;
-    const topic = getHelpTopicContent(this.selectedUrl);
-    if (this.selectedUrl === HELP_WELCOME_URL) {
-      this.selectedTopic = topic;
-    } else if (match) {
-      this.selectedTopic = { ...topic, title: match.displayName };
-    } else {
-      this.selectedTopic = topic;
-    }
+    this.selectedUrl = match ? match.url : USER_GUIDE_WELCOME_URL;
+    this.selectedTitle = match?.displayName || 'Welcome';
     this.syncPageEditor();
     this.markViewForCheck();
   }
 
   getArticleHtml(): string {
-    const html = this.mappingService.getUserGuidePageHtml(this.userGuide, this.selectedUrl);
-    if (html.trim()) {
-      return html;
-    }
-    if (this.selectedTopic.paragraphs?.length) {
-      return this.selectedTopic.paragraphs.map(paragraph => `<p>${paragraph}</p>`).join('');
-    }
-    return this.selectedTopic.summary ? `<p>${this.selectedTopic.summary}</p>` : '';
+    return this.mappingService.getUserGuidePageHtml(this.userGuide, this.selectedUrl);
   }
 
   startEdit(): void {
@@ -205,7 +190,7 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   buildTocItems(): HelpTocItem[] {
     const navItems: NavItemDefinition[] = getUserGuideNavItems(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     return [
-      { url: HELP_WELCOME_URL, displayName: 'Welcome', icon: 'menu_book' },
+      { url: USER_GUIDE_WELCOME_URL, displayName: 'Welcome', icon: 'menu_book' },
       ...navItems.map(item => ({ url: item.url, displayName: item.displayName, icon: item.icon }))
     ];
   }
