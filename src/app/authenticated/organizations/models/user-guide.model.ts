@@ -29,8 +29,8 @@ export type UserGuideRequest = UserGuideResponse;
 export const USER_GUIDE_PAGE_KEYS: Record<string, UserGuidePageKey> = {
   welcome: 'welcome',
   dashboard: 'dashboard',
-  'dashboard-staff': 'dashboardStaff',
-  'dashboard-owner': 'dashboardOwner',
+  'dashboard-staff': 'dashboard',
+  'dashboard-owner': 'dashboard',
   leads: 'leads',
   boards: 'boards',
   reservations: 'reservations',

@@ -20,7 +20,6 @@ export const HELP_TOPIC_CONTENT: HelpTopicContent[] = [
     ],
     steps: [
       'Logo (upper left) opens the full guide.',
-      'The house-H icon on a title bar jumps to that page’s topic.',
       'Topics match the menu items you can already see.'
     ]
   },

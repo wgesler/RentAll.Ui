@@ -50,14 +50,23 @@
   font-weight: 600;
 }
 
+.help-guide-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+}
+
 .help-guide-article {
   padding: 20px 24px;
   overflow: auto;
+  color: rgba(0, 0, 0, 0.72);
 
   h2 {
     margin: 0 0 12px;
     font-size: 1.25rem;
     font-weight: 600;
+    color: rgba(0, 0, 0, 0.87);
   }
 
   p {
@@ -80,6 +89,14 @@
 
 .help-guide-article-body {
   line-height: 1.45;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:host ::ng-deep .help-guide-article-body :is(b, strong),
+:host ::ng-deep .help-guide-article p :is(b, strong),
+:host ::ng-deep .description-editor-input :is(b, strong) {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.87);
 }
 
 .description-editor-wrap {
@@ -103,6 +120,7 @@
   outline: none;
   line-height: 1.45;
   white-space: pre-wrap;
+  color: rgba(0, 0, 0, 0.72);
 }
 
 .description-editor-input:focus {

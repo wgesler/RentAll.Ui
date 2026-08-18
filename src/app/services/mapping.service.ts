@@ -215,6 +215,7 @@ export class MappingService {
         organizationId: org.organizationId,
         organizationCode: org.organizationCode,
         name: org.name,
+        organizationTypeId: org.organizationTypeId,
         address1: org.address1,
         address2: org.address2,
         suite: org.suite,

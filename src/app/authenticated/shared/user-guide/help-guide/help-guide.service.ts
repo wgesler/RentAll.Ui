@@ -37,6 +37,10 @@ export class HelpGuideService {
   getCurrentTopicUrl(): string {
     const parts = this.router.url.split('?')[0].split('/').filter(Boolean);
     const authIndex = parts.indexOf('auth');
-    return (authIndex >= 0 ? parts[authIndex + 1] : parts[0]) || HELP_WELCOME_URL;
+    const topicUrl = (authIndex >= 0 ? parts[authIndex + 1] : parts[0]) || HELP_WELCOME_URL;
+    if (topicUrl === 'dashboard-staff' || topicUrl === 'dashboard-owner') {
+      return 'dashboard';
+    }
+    return topicUrl;
   }
 }

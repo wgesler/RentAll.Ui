@@ -16,7 +16,7 @@ import { UtilityService, ImageOptimizationFailedError } from '../../../services/
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { UserGroups } from '../../users/models/user-enums';
-import { getFeatureTypes } from '../models/organization-enum';
+import { OrganizationType, getFeatureTypes, getOrganizationTypes } from '../models/organization-enum';
 import { FeatureResponse, FeatureToggleCell } from '../models/organization-feature.model';
 import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
 import { OrganizationFeatureService } from '../services/organization-feature.service';
@@ -58,6 +58,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   isAddMode: boolean = false;
   isSuperAdmin: boolean = false;
   featureTypes = getFeatureTypes();
+  organizationTypes = getOrganizationTypes();
   featureToggles: FeatureToggleCell[] = [];
   organizationFeaturesSubscribed = false;
   organizationFeaturesLoadItemCleared = false;
@@ -194,6 +195,8 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
+      organizationCode: new FormControl({ value: '', disabled: true }),
+      organizationTypeId: new FormControl(OrganizationType.PropertyManagement, [Validators.required]),
       name: new FormControl('', [Validators.required]),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
@@ -241,6 +244,8 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   populateForm(): void {
     if (this.organization && this.form) {
       this.form.patchValue({
+        organizationCode: this.organization.organizationCode || '',
+        organizationTypeId: this.organization.organizationTypeId || OrganizationType.PropertyManagement,
         name: this.organization.name,
         address1: this.organization.address1,
         address2: this.organization.address2 || '',

@@ -51,6 +51,7 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   selectedTopic: HelpTopicContent = getHelpTopicContent(HELP_WELCOME_URL);
   userGuide: UserGuideResponse = emptyUserGuide();
   canEdit = false;
+  isEditing = false;
   isSaving = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userGuide']));
   isPageReady = false;
@@ -83,7 +84,8 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
 
   selectTopic(url: string): void {
     this.captureEditorHtml();
-    const match = this.tocItems.find(item => item.url === url);
+    const resolvedUrl = url === 'dashboard-staff' || url === 'dashboard-owner' ? 'dashboard' : url;
+    const match = this.tocItems.find(item => item.url === resolvedUrl);
     this.selectedUrl = match ? match.url : HELP_WELCOME_URL;
     const topic = getHelpTopicContent(this.selectedUrl);
     if (this.selectedUrl === HELP_WELCOME_URL) {
@@ -102,17 +104,22 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
     if (html.trim()) {
       return html;
     }
-    if (this.canEdit) {
-      return '';
-    }
     if (this.selectedTopic.paragraphs?.length) {
       return this.selectedTopic.paragraphs.map(paragraph => `<p>${paragraph}</p>`).join('');
     }
     return this.selectedTopic.summary ? `<p>${this.selectedTopic.summary}</p>` : '';
   }
 
+  startEdit(): void {
+    if (!this.canEdit) {
+      return;
+    }
+    this.isEditing = true;
+    this.markViewForCheck();
+  }
+
   saveUserGuide(): void {
-    if (!this.canEdit || this.isSaving) {
+    if (!this.canEdit || !this.isEditing || this.isSaving) {
       return;
     }
     this.captureEditorHtml();
@@ -120,6 +127,7 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
     this.organizationService.updateUserGuide(this.userGuide).pipe(take(1), finalize(() => { this.isSaving = false; this.markViewForCheck(); })).subscribe({
       next: userGuide => {
         this.userGuide = userGuide;
+        this.isEditing = false;
         this.toastr.success('User guide saved');
         this.markViewForCheck();
       },

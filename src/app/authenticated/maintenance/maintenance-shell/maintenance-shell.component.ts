@@ -28,7 +28,6 @@ import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-import { PageHelpButtonComponent } from '../../shared/user-guide/page-help-button/page-help-button.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
@@ -39,7 +38,6 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     FormsModule,
     MaterialModule,
     TitleBarSelectComponent,
-    PageHelpButtonComponent,
     InspectionComponent,
     WorkOrderListComponent,
     ReceiptsListComponent,

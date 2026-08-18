@@ -430,24 +430,36 @@ export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boole
 }
 
 export function getUserGuideNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
-  if (getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin)) {
-    const ownerDashboard = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
-    const items: NavItemDefinition[] = [
-      ...COMPANY_USERS_NAV_ITEMS,
-      ...SUPER_USER_NAV_ITEMS,
-      ...SERVICE_PROVIDERS_NAV_ITEMS,
-      ...(ownerDashboard ? [{ ...ownerDashboard, url: ROUTER_TOKEN.DashboardOwner, displayName: 'Owner Dashboard' }] : [])
-    ];
-    const seen = new Set<string>();
-    return items.filter(item => {
-      if (seen.has(item.url)) {
-        return false;
-      }
-      seen.add(item.url);
-      return true;
-    });
+  const rawItems = getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin)
+    ? collapseUserGuideNavItems([...COMPANY_USERS_NAV_ITEMS, ...SUPER_USER_NAV_ITEMS])
+    : collapseUserGuideNavItems(getVisibleNavItems(userGroups));
+  const seen = new Set<string>();
+  return rawItems.filter(item => {
+    if (seen.has(item.url)) {
+      return false;
+    }
+    seen.add(item.url);
+    return true;
+  });
+}
+
+function collapseUserGuideNavItems(items: NavItemDefinition[]): NavItemDefinition[] {
+  const dashboardUrls = new Set<string>([ROUTER_TOKEN.Dashboard, ROUTER_TOKEN.DashboardStaff, ROUTER_TOKEN.DashboardOwner]);
+  const companyDashboard = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
+  let insertedDashboard = false;
+  const collapsed: NavItemDefinition[] = [];
+  for (const item of items) {
+    if (!dashboardUrls.has(item.url)) {
+      collapsed.push(item);
+      continue;
+    }
+    if (insertedDashboard) {
+      continue;
+    }
+    collapsed.push(companyDashboard ? { ...companyDashboard } : { ...item, url: ROUTER_TOKEN.Dashboard, displayName: 'Dashboard' });
+    insertedDashboard = true;
   }
-  return getVisibleNavItems(userGroups);
+  return collapsed;
 }
 
 export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinition[] {

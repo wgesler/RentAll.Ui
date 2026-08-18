@@ -6,18 +6,6 @@
         <span class="flex-shrink-0 text-xl font-medium">User Guide</span>
       </span>
     </div>
-    <div class="form-titlebar-actions-wrap">
-      @if (canEdit) {
-        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady || isSaving" (click)="saveUserGuide()">
-          <mat-icon>save</mat-icon>
-          Save
-        </button>
-      }
-      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closeDialog()">
-        <mat-icon>close</mat-icon>
-        Close
-      </button>
-    </div>
   </div>
 
   <div class="help-guide-body">
@@ -37,7 +25,7 @@
         </div>
       } @else {
         <h2>{{ selectedTopic.title }}</h2>
-        @if (canEdit) {
+        @if (canEdit && isEditing) {
           <div class="description-editor-wrap">
             <div class="description-editor-toolbar">
               <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('bold')">
@@ -68,5 +56,26 @@
         }
       }
     </section>
+  </div>
+
+  <div class="help-guide-footer">
+    <div class="form-titlebar-actions-wrap">
+      @if (canEdit && !isEditing) {
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady" (click)="startEdit()">
+          <mat-icon>edit</mat-icon>
+          Edit
+        </button>
+      }
+      @if (canEdit && isEditing) {
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady || isSaving" (click)="saveUserGuide()">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      }
+      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closeDialog()">
+        <mat-icon>close</mat-icon>
+        Close
+      </button>
+    </div>
   </div>
 </div>

@@ -1,3 +1,37 @@
+//#region OrganizationType
+export enum OrganizationType {
+  Unknown = 0,
+  PropertyManagement = 1,
+  PropertyBroker = 2,
+  Partner = 3
+}
+
+export function getOrganizationType(organizationTypeId: number | undefined | null): string {
+  if (organizationTypeId === undefined || organizationTypeId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [OrganizationType.Unknown]: 'Unknown',
+    [OrganizationType.PropertyManagement]: 'Property Management',
+    [OrganizationType.PropertyBroker]: 'Property Broker',
+    [OrganizationType.Partner]: 'Partner'
+  };
+
+  return typeMap[organizationTypeId] || '';
+}
+
+export function getOrganizationTypes(): { value: number; label: string }[] {
+  return Object.keys(OrganizationType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: OrganizationType[key as keyof typeof OrganizationType],
+      label: getOrganizationType(OrganizationType[key as keyof typeof OrganizationType])
+    }))
+    .filter(item => item.value !== OrganizationType.Unknown);
+}
+//#endregion
+
 //#region FeatureType
 export enum FeatureType {
   MainProgram = 0,

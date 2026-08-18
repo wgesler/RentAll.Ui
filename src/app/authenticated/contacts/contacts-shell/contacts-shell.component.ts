@@ -12,7 +12,6 @@ import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-par
 import { ContactListComponent } from '../contact-list/contact-list.component';
 import { ContactComponent } from '../contact/contact.component';
 import { EntityType } from '../models/contact-enum';
-import { PageHelpButtonComponent } from '../../shared/user-guide/page-help-button/page-help-button.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
@@ -22,7 +21,6 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     MaterialModule,
     FormsModule,
     TitleBarSelectComponent,
-    PageHelpButtonComponent,
     ContactListComponent,
     ContactComponent
 ],
