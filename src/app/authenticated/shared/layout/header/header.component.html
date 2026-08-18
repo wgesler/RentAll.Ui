@@ -12,10 +12,14 @@
   </button>
   <span class="flex items-center h-full flex-1 min-w-0 gap-3" [class.mobile-left-offset]="(isHandset$ | async)">
     @if ((isHandset$ | async) || isSidebarExpanded) {
-      <img [src]="(brandingLogoUrl$ | async) || 'assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png'" alt="RentAll Exchange" class="header-brand-logo mr-6" />
+      <button type="button" class="header-brand-logo-button mr-6" matTooltip="User Guide" aria-label="Open user guide" (click)="openHelpGuide()">
+        <img [src]="(brandingLogoUrl$ | async) || 'assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png'" alt="RentAll Exchange" class="header-brand-logo" />
+      </button>
     } @else {
       @if (brandingCollapsedLogoUrl$ | async; as collapsedLogoUrl) {
-        <img [src]="collapsedLogoUrl" alt="RentAll Exchange" class="header-brand-logo header-brand-logo-collapsed mr-6" />
+        <button type="button" class="header-brand-logo-button mr-6" matTooltip="User Guide" aria-label="Open user guide" (click)="openHelpGuide()">
+          <img [src]="collapsedLogoUrl" alt="RentAll Exchange" class="header-brand-logo header-brand-logo-collapsed" />
+        </button>
       }
     }
     <span class="quote flex items-center min-w-0 flex-1">

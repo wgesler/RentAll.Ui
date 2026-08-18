@@ -19,12 +19,6 @@ export interface OrganizationRequest {
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
   isInternational: boolean;
   currentInvoiceNo: number;
-  officeFee: number;
-  userFee: number;
-  unit50Fee: number;
-  unit100Fee: number;
-  unit200Fee: number;
-  unit500Fee: number;
   sendGridName?: string;
   isActive: boolean;
 }
@@ -48,12 +42,6 @@ export interface OrganizationResponse {
   fileDetails?: FileDetails; // Contains base64 image data for display
   isInternational: boolean;
   currentInvoiceNo: number;
-  officeFee: number;
-  userFee: number;
-  unit50Fee: number;
-  unit100Fee: number;
-  unit200Fee: number;
-  unit500Fee: number;
   sendGridName?: string;
   isActive: boolean;
 }

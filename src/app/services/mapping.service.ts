@@ -40,6 +40,7 @@ import { BuildingListDisplay, BuildingResponse } from '../authenticated/organiza
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
+import { UserGuideResponse, getUserGuidePageKey } from '../authenticated/organizations/models/user-guide.model';
 import { BankCardResponse } from '../authenticated/organizations/models/bank.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
@@ -267,6 +268,22 @@ export class MappingService {
       }
     });
     return colorMap;
+  }
+
+  getUserGuidePageHtml(userGuide: UserGuideResponse | null | undefined, url: string): string {
+    const key = getUserGuidePageKey(url);
+    if (!userGuide || !key) {
+      return '';
+    }
+    return userGuide[key] || '';
+  }
+
+  setUserGuidePageHtml(userGuide: UserGuideResponse, url: string, html: string): UserGuideResponse {
+    const key = getUserGuidePageKey(url);
+    if (!key) {
+      return userGuide;
+    }
+    return { ...userGuide, [key]: html };
   }
   //#endregion
 

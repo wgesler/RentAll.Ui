@@ -1,0 +1,72 @@
+<div class="help-guide">
+  <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+    <div class="flex items-center flex-wrap py-4">
+      <span class="flex items-center gap-2 flex-shrink-0">
+        <mat-icon class="flex-shrink-0">menu_book</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">User Guide</span>
+      </span>
+    </div>
+    <div class="form-titlebar-actions-wrap">
+      @if (canEdit) {
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady || isSaving" (click)="saveUserGuide()">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      }
+      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closeDialog()">
+        <mat-icon>close</mat-icon>
+        Close
+      </button>
+    </div>
+  </div>
+
+  <div class="help-guide-body">
+    <nav class="help-guide-toc" aria-label="User guide topics">
+      @for (item of tocItems; track item.url) {
+        <button type="button" class="help-guide-toc-item" [class.help-guide-toc-item-active]="item.url === selectedUrl" (click)="selectTopic(item.url)">
+          <mat-icon>{{ item.icon }}</mat-icon>
+          <span>{{ item.displayName }}</span>
+        </button>
+      }
+    </nav>
+
+    <section class="help-guide-article">
+      @if (!isPageReady) {
+        <div class="help-guide-loading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+      } @else {
+        <h2>{{ selectedTopic.title }}</h2>
+        @if (canEdit) {
+          <div class="description-editor-wrap">
+            <div class="description-editor-toolbar">
+              <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('bold')">
+                <mat-icon>format_bold</mat-icon>
+              </button>
+              <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('italic')">
+                <mat-icon>format_italic</mat-icon>
+              </button>
+              <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('underline')">
+                <mat-icon>format_underlined</mat-icon>
+              </button>
+              <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('paragraph')">
+                <mat-icon>subject</mat-icon>
+              </button>
+              <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('unorderedList')">
+                <mat-icon>format_list_bulleted</mat-icon>
+              </button>
+            </div>
+            <div
+              #pageEditor
+              class="description-editor-input description-editor-input--with-markers"
+              contenteditable="true"
+              (input)="onPageEditorInput($event)">
+            </div>
+          </div>
+        } @else {
+          <div class="help-guide-article-body" [innerHTML]="getArticleHtml()"></div>
+        }
+      }
+    </section>
+  </div>
+</div>

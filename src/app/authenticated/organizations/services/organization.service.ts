@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { BrandingRequest, BrandingResponse } from '../models/branding.model';
 import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
+import { UserGuideRequest, UserGuideResponse } from '../models/user-guide.model';
 
 @Injectable({
     providedIn: 'root'
@@ -47,6 +48,14 @@ export class OrganizationService {
 
   updateBranding(branding: BrandingRequest): Observable<BrandingResponse> {
     return this.http.put<BrandingResponse>(this.controller + 'branding', branding);
+  }
+
+  getUserGuide(): Observable<UserGuideResponse> {
+    return this.http.get<UserGuideResponse>(this.controller + 'user-guide');
+  }
+
+  updateUserGuide(userGuide: UserGuideRequest): Observable<UserGuideResponse> {
+    return this.http.put<UserGuideResponse>(this.controller + 'user-guide', userGuide);
   }
 }
 

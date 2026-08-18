@@ -429,6 +429,27 @@ export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boole
   return hasAccessByRule(userGroups, rule);
 }
 
+export function getUserGuideNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
+  if (getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin)) {
+    const ownerDashboard = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
+    const items: NavItemDefinition[] = [
+      ...COMPANY_USERS_NAV_ITEMS,
+      ...SUPER_USER_NAV_ITEMS,
+      ...SERVICE_PROVIDERS_NAV_ITEMS,
+      ...(ownerDashboard ? [{ ...ownerDashboard, url: ROUTER_TOKEN.DashboardOwner, displayName: 'Owner Dashboard' }] : [])
+    ];
+    const seen = new Set<string>();
+    return items.filter(item => {
+      if (seen.has(item.url)) {
+        return false;
+      }
+      seen.add(item.url);
+      return true;
+    });
+  }
+  return getVisibleNavItems(userGroups);
+}
+
 export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
   if (hasOwnerAndRealtorRoles(userGroups)) {
     const ownerDashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);

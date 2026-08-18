@@ -19,6 +19,7 @@ import { UserComponent } from '../../../users/user/user.component';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
+import { HelpGuideService } from '../../user-guide/help-guide/help-guide.service';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
@@ -40,6 +41,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private sidebarStateService = inject(SidebarStateService);
+  private helpGuideService = inject(HelpGuideService);
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -183,6 +185,10 @@ markViewForCheck(): void {
 
   toggleSidebar(): void {
     this.sidebarStateService.requestToggle();
+  }
+
+  openHelpGuide(): void {
+    this.helpGuideService.open('welcome');
   }
 
   onLayoutDebugToggle(checked: boolean): void {

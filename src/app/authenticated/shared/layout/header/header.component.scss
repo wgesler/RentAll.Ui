@@ -38,6 +38,15 @@
   padding-left: 2.5rem;
 }
 
+.header-brand-logo-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .header-brand-logo {
   height: 92px;
   width: auto;
