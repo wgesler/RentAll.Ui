@@ -4,12 +4,14 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
+import { CommonService } from '../../../../services/common.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
+import { OrganizationType } from '../../../organizations/models/organization-enum';
 import { OrganizationService } from '../../../organizations/services/organization.service';
 import { emptyUserGuide, USER_GUIDE_WELCOME_URL, UserGuideResponse } from '../../../organizations/models/user-guide.model';
 import { UserGroups } from '../../../users/models/user-enums';
-import { getUserGuideNavItems, NavItemDefinition } from '../../access/role-access';
+import { filterNavItemsForPartner, getUserGuideNavItems, NavItemDefinition } from '../../access/role-access';
 
 export interface HelpGuideDialogData {
   topicUrl?: string;
@@ -33,6 +35,7 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   private dialogRef = inject<MatDialogRef<HelpGuideDialogComponent>>(MatDialogRef);
   private data = inject<HelpGuideDialogData>(MAT_DIALOG_DATA, { optional: true });
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private organizationService = inject(OrganizationService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -188,7 +191,11 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   }
 
   buildTocItems(): HelpTocItem[] {
-    const navItems: NavItemDefinition[] = getUserGuideNavItems(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    let navItems: NavItemDefinition[] = getUserGuideNavItems(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    if (!this.authService.hasRole(UserGroups.SuperAdmin)
+      && Number(this.commonService.getOrganizationTypeId()) === OrganizationType.Partner) {
+      navItems = filterNavItemsForPartner(navItems);
+    }
     return [
       { url: USER_GUIDE_WELCOME_URL, displayName: 'Welcome', icon: 'menu_book' },
       ...navItems.map(item => ({ url: item.url, displayName: item.displayName, icon: item.icon }))

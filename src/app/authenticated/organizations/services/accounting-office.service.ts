@@ -15,34 +15,41 @@ export class AccountingOfficeService {
 
   private allAccountingOffices$ = new BehaviorSubject<AccountingOfficeResponse[]>([]);
   private accountingOfficesLoaded$ = new BehaviorSubject<boolean>(false);
+  private loadedOrganizationId: string | null = null;
   private readonly controller = this.configService.config().apiUrl + 'organization/accounting-office/';
 
-  /** GET api/organization/accounting-office; API scope is user/org aware server-side. */
-  loadAllAccountingOffices(): Observable<AccountingOfficeResponse[]> {
-    return this.http.get<AccountingOfficeResponse[]>(this.controller).pipe(
+  /** GET api/organization/accounting-office; SuperAdmin may pass organizationId to scope the list. */
+  loadAllAccountingOffices(organizationId?: string): Observable<AccountingOfficeResponse[]> {
+    const id = organizationId?.trim() || '';
+    const url = id ? `${this.controller}?organizationId=${encodeURIComponent(id)}` : this.controller;
+    return this.http.get<AccountingOfficeResponse[]>(url).pipe(
       tap((rows) => {
         this.allAccountingOffices$.next(rows || []);
         this.accountingOfficesLoaded$.next(true);
+        this.loadedOrganizationId = id;
       }),
       catchError((err: HttpErrorResponse) => {
         console.error('Accounting Office Service - Error loading all accounting offices:', err);
         this.allAccountingOffices$.next([]);
         this.accountingOfficesLoaded$.next(true);
+        this.loadedOrganizationId = id;
         return of([]);
       })
     );
   }
 
-  ensureAccountingOfficesLoaded(): Observable<AccountingOfficeResponse[]> {
-    if (this.accountingOfficesLoaded$.value) {
+  ensureAccountingOfficesLoaded(organizationId?: string): Observable<AccountingOfficeResponse[]> {
+    const id = organizationId?.trim() || '';
+    if (this.accountingOfficesLoaded$.value && this.loadedOrganizationId === id) {
       return this.getAllAccountingOffices().pipe(take(1));
     }
-    return this.loadAllAccountingOffices().pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
+    return this.loadAllAccountingOffices(id || undefined).pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
   }
 
-  refreshAccountingOffices(): Observable<AccountingOfficeResponse[]> {
+  refreshAccountingOffices(organizationId?: string): Observable<AccountingOfficeResponse[]> {
     this.accountingOfficesLoaded$.next(false);
-    return this.loadAllAccountingOffices().pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
+    this.loadedOrganizationId = null;
+    return this.loadAllAccountingOffices(organizationId).pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
   }
 
   /** Reload the global accounting-office cache and push to all getAllAccountingOffices() subscribers. */
@@ -57,6 +64,7 @@ export class AccountingOfficeService {
   clearAccountingOffices(): void {
     this.allAccountingOffices$.next([]);
     this.accountingOfficesLoaded$.next(false);
+    this.loadedOrganizationId = null;
   }
 
   getAllAccountingOffices(): Observable<AccountingOfficeResponse[]> {

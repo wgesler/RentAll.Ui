@@ -40,7 +40,8 @@
   --brand-header-text-color: #ffffff;
   /* Title-bar fields: default max widths when space allows; shrink on narrow viewports. */
   --titlebar-field-min-office: 92px;
-  --titlebar-field-min-company: 108px;
+  --titlebar-field-min-company: calc(300px + 10ch);
+  --titlebar-field-max-company: calc(300px + 10ch);
   --titlebar-field-min-property-code: 14ch;
   --titlebar-field-min-invoice-no: 24ch;
   --titlebar-field-min-reservation: 120px;
@@ -1251,10 +1252,10 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 }
 
 .titlebar-field-company {
-  flex: 0 1 300px;
-  width: auto;
+  flex: 0 0 var(--titlebar-field-max-company);
+  width: var(--titlebar-field-max-company);
   min-width: var(--titlebar-field-min-company);
-  max-width: 300px;
+  max-width: var(--titlebar-field-max-company);
 }
 
 .titlebar-field-chart-of-account {

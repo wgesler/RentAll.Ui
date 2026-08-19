@@ -38,14 +38,15 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   organizationsDisplay: OrganizationListDisplay[] = [];
 
   organizationsDisplayedColumns: ColumnSet = {
-    'organizationCode': { displayAs: 'Code', maxWidth: '84px' },
-    'name': { displayAs: 'Name', maxWidth: '30ch' },
-    'city': { displayAs: 'City' },
-    'state': { displayAs: 'State' },
-    'zip': { displayAs: 'Zip' },
-    'phone': { displayAs: 'Phone' },
-    'website': { displayAs: 'Website' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    organizationCode: { displayAs: 'Code', maxWidth: '16ch' },
+    organizationType: { displayAs: 'Type', maxWidth: '22ch' },
+    name: { displayAs: 'Name', maxWidth: '30ch' },
+    city: { displayAs: 'City', maxWidth: '25ch' },
+    state: { displayAs: 'State', maxWidth: '10ch' },
+    zip: { displayAs: 'Zip' , maxWidth: '10ch'},
+    phone: { displayAs: 'Phone', maxWidth: '20ch' },
+    website: { displayAs: 'Website' , maxWidth: '30ch'},
+    isActive: { displayAs: 'IsActive', maxWidth: '15ch', isCheckbox: true, wrap: false, alignment: 'center' }
   };
 
   isPageReady = false;

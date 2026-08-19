@@ -20,8 +20,8 @@
                 <mat-icon>arrow_back</mat-icon>
                 Back
               </button>
-              <button mat-raised-button type="submit" form="officeForm" color="primary" id="save-button-embedded" (click)="saveOffice()"
-                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || form.status !== 'VALID'">
+              <button mat-raised-button type="submit" form="officeForm" color="primary" id="save-button-embedded"
+                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
                 <mat-icon>save</mat-icon>
                 Save
               </button>
@@ -199,6 +199,7 @@
                 <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
               </mat-expansion-panel>
 
+              @if (!isPartnerOrganization) {
               <!-- Billing Accordion -->
               <mat-expansion-panel [expanded]="false" class="mb-4">
                 <mat-expansion-panel-header>
@@ -780,6 +781,7 @@
                   </div>
                 </div>
               </mat-expansion-panel>
+              }
 
               @if (hasQuickBooksAccess) {
                 <mat-expansion-panel [expanded]="false" class="mb-4">

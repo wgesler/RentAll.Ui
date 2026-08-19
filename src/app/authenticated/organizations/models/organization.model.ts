@@ -16,6 +16,7 @@ export interface OrganizationRequest {
   contactName?: string;
   contactEmail?: string;
   website?: string;
+  domain: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
   isInternational: boolean;
@@ -29,6 +30,7 @@ export interface OrganizationResponse {
   organizationCode: string;
   name: string;
   organizationTypeId: number;
+  organizationType?: string;
   address1: string;
   address2?: string;
   suite?: string;
@@ -40,6 +42,7 @@ export interface OrganizationResponse {
   contactName?: string;
   contactEmail?: string;
   website?: string;
+  domain: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
   isInternational: boolean;
@@ -53,6 +56,7 @@ export interface OrganizationListDisplay {
   organizationCode: string;
   name: string;
   organizationTypeId: number;
+  organizationType: string;
   address1: string;
   address2?: string;
   suite?: string;

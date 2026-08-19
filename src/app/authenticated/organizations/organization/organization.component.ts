@@ -151,6 +151,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       contactName: formValue.contactName || undefined,
       contactEmail: formValue.contactEmail || undefined,
       sendGridName: (formValue.sendGridName || '').trim() || undefined,
+      domain: (formValue.domain || '').trim(),
       phone: phoneDigits,
       fax: faxDigits || undefined,
       currentInvoiceNo: 0,
@@ -163,7 +164,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
     // Defensive guard: required fields must remain non-empty
     // For international addresses, city, state, and zip are not required
-    if (!organizationRequest.address1 || !organizationRequest.phone || 
+    if (!organizationRequest.address1 || !organizationRequest.phone || !organizationRequest.domain ||
         (!isInternational && (!organizationRequest.city || !organizationRequest.state || !organizationRequest.zip))) {
       this.isSubmitting = false;
       this.form.markAllAsTouched();
@@ -210,6 +211,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       contactEmail: new FormControl(''),
       sendGridName: new FormControl(''),
       website: new FormControl(''),
+      domain: new FormControl('', [Validators.required]),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       isInternational: new FormControl(false),
       isActive: new FormControl(true)
@@ -259,6 +261,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         contactEmail: this.organization.contactEmail || '',
         sendGridName: this.organization.sendGridName || '',
         website: this.organization.website || '',
+        domain: this.organization.domain || '',
         isInternational: this.organization.isInternational || false,
         isActive: this.organization.isActive
       });

@@ -7,6 +7,7 @@ import { skip, Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { ChartOfAccountsListComponent } from '../../accounting/setup/chart-of-accounts-list/chart-of-accounts-list.component';
@@ -23,6 +24,7 @@ import { BuildingComponent } from '../building/building.component';
 import { ColorListComponent } from '../color-list/color-list.component';
 import { ColorComponent } from '../color/color.component';
 import { AccountingOfficeResponse } from '../models/accounting-office.model';
+import { OrganizationType } from '../models/organization-enum';
 import { OrganizationResponse } from '../models/organization.model';
 import { OfficeResponse } from '../models/office.model';
 import { OfficeListComponent, OfficeCopyPayload } from '../office-list/office-list.component';
@@ -73,6 +75,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private globalSelectionService = inject(GlobalSelectionService);
 
   @ViewChild(OfficeListComponent) officeListComponent?: OfficeListComponent;
@@ -148,12 +151,12 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
     if (this.isSuperAdmin) {
       this.loadOrganizations();
+    } else {
+      this.loadSettingsOffices();
     }
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applySettingsOfficeFromGlobal(officeId);
     });
-
-    this.loadSettingsOffices();
   }
   //#endregion
 
@@ -167,6 +170,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
             org => org.organizationId === this.currentUserOrganizationId
           );
           this.selectedOrganizationId = matchingOrganization?.organizationId || this.organizations[0].organizationId;
+          this.onOrganizationChange();
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -185,15 +189,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
     this.settingsOfficesInitialized = false;
     this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = (offices || []).filter(office => office.isActive);
-          if (this.settingsOfficesInitialized) {
-            return;
-          }
-          this.settingsOfficesInitialized = true;
-          this.initializeSettingsOfficeScope();
-        });
+      next: (offices) => {
+        this.offices = (offices || []).filter(office => office.isActive && office.organizationId === organizationId);
+        this.settingsOfficesInitialized = true;
+        this.initializeSettingsOfficeScope();
       },
       error: () => {
         this.offices = [];
@@ -273,6 +272,12 @@ refreshSettingsOfficeScopedLists(): void {
   }
 
   onOrganizationChange(): void {
+    this.isEditingOffice = false;
+    this.officeId = null;
+    this.copyOfficeData = null;
+    this.isEditingAccountingOffice = false;
+    this.accountingOfficeId = null;
+    this.copyAccountingOfficeData = null;
     this.settingsOfficesInitialized = false;
     this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.loadSettingsOffices();
@@ -280,6 +285,19 @@ refreshSettingsOfficeScopedLists(): void {
 
   get effectiveOrganizationId(): string | null {
     return this.selectedOrganizationId || this.currentUserOrganizationId;
+  }
+
+  get isPartnerOrganization(): boolean {
+    const organizationId = this.effectiveOrganizationId;
+    if (!organizationId) {
+      return false;
+    }
+    const selected = (this.organizations || []).find(organization => organization.organizationId === organizationId);
+    if (selected) {
+      return Number(selected.organizationTypeId) === OrganizationType.Partner;
+    }
+    const cached = this.commonService.getOrganizationValue();
+    return cached?.organizationId === organizationId && Number(cached.organizationTypeId) === OrganizationType.Partner;
   }
 
   get officeTitleBarOptions(): { value: number; label: string }[] {
@@ -290,7 +308,7 @@ refreshSettingsOfficeScopedLists(): void {
   }
 
   get shouldShowOfficeTitleBarDropdown(): boolean {
-    return (this.offices || []).length > 1;
+    return this.isSuperAdmin || (this.offices || []).length > 1;
   }
 
   onSettingsOfficeDropdownChange(value: string | number | null): void {

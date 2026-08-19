@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -20,6 +20,7 @@ import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationListService } from '../../organizations/services/organization-list.service';
+import { OrganizationService } from '../../organizations/services/organization.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { UserGroups, getStartupPages, getUserGroupOptions } from '../models/user-enums';
@@ -40,10 +41,11 @@ export interface UserDialogData {
     styleUrl: './user.component.scss'
 })
 
-export class UserComponent implements OnInit, OnDestroy {
+export class UserComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   @Input() id: string = 'new';
+  @Input() selectedOrganizationId: string | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; userId?: string }>();
   userService = inject(UserService);
   router = inject(Router);
@@ -51,6 +53,7 @@ export class UserComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private organizationListService = inject(OrganizationListService);
+  private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
   private agentService = inject(AgentService);
   private authService = inject(AuthService);
@@ -67,6 +70,7 @@ export class UserComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  isDefaultOrgAdminReadOnly = false;
   isDialog: boolean = false;
   isEmbedded: boolean = true;
   selfEdit: boolean = false;
@@ -151,6 +155,7 @@ export class UserComponent implements OnInit, OnDestroy {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user');
         this.buildForm();
         this.setupPasswordValidation();
+        this.applySelectedOrganizationDefault();
       } else {
         this.buildForm();
         this.setupPasswordValidation();
@@ -176,11 +181,15 @@ export class UserComponent implements OnInit, OnDestroy {
           this.profilePath = response.profilePath;
           this.originalprofilePath = response.profilePath; 
         }
+        this.isDefaultOrgAdminReadOnly = this.isDefaultOrgAdminUser(response) && !this.isCurrentUserSuperAdmin;
         this.buildForm();
         this.setupPasswordValidation();
         // Use setTimeout to defer form population to avoid ExpressionChangedAfterItHasBeenCheckedError
         setTimeout(() => {
           this.populateForm();
+          if (this.isDefaultOrgAdminReadOnly) {
+            this.form.disable();
+          }
         }, 0);
       },
       error: () => {
@@ -190,6 +199,9 @@ export class UserComponent implements OnInit, OnDestroy {
   }
 
   saveUser(): void {
+    if (this.isDefaultOrgAdminReadOnly) {
+      return;
+    }
     // Get changePassword toggle value first
     const changePassword = this.form.get('changePassword')?.value || false;
     
@@ -437,12 +449,47 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
 
   //#region Data Loading Methods
   loadOrganizations(): void {
+    if (this.isCurrentUserSuperAdmin) {
+      this.organizationService.getOrganizations().pipe(take(1)).subscribe({
+        next: (organizations) => {
+          this.organizations = organizations || [];
+          this.applySelectedOrganizationDefault();
+        },
+        error: () => {
+          this.organizations = [];
+        }
+      });
+      return;
+    }
+
     this.organizationListService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
       next: (organizations) => {
         this.organizations = organizations || [];
+        this.applySelectedOrganizationDefault();
       },
       error: () => {}
     });
+  }
+
+  applySelectedOrganizationDefault(): void {
+    if (!this.isAddMode || !this.form || this.selfEdit) {
+      return;
+    }
+    const organizationId = (this.selectedOrganizationId || '').trim();
+    if (!organizationId) {
+      return;
+    }
+    const currentValue = (this.form.get('organizationId')?.value || '').trim();
+    if (currentValue === organizationId) {
+      return;
+    }
+    this.form.get('organizationId')?.setValue(organizationId);
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['selectedOrganizationId'] && !changes['selectedOrganizationId'].firstChange && this.isAddMode) {
+      this.applySelectedOrganizationDefault();
+    }
   }
 
   loadOffices(): void {
@@ -847,6 +894,10 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     if (!hasCurrentDefaultOffice) {
       this.form.get('defaultOffice')?.setValue(null, { emitEvent: false });
     }
+  }
+
+  isDefaultOrgAdminUser(user?: UserResponse): boolean {
+    return !!user?.email && user.email.trim().toLowerCase().startsWith('admin@');
   }
 
   hasRole(role: UserGroups): boolean {

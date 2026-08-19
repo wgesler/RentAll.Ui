@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -17,8 +17,12 @@ import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
+import { FeatureType, OrganizationType } from '../models/organization-enum';
+import { FeatureResponse } from '../models/organization-feature.model';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { getQbClassTypes, getQbNameTypes } from '../models/qb-type-enum';
+import { OrganizationFeatureService } from '../services/organization-feature.service';
+import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -40,6 +44,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+  private organizationService = inject(OrganizationService);
   private formatterService = inject(FormatterService);
   private commonService = inject(CommonService);
   private costCodesService = inject(CostCodesService);
@@ -73,6 +79,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   sdwCostCodeOptions: { value: number, label: string }[] = [];
   qbNameTypeOptions: { value: number; label: string }[] = getQbNameTypes();
   qbClassTypeOptions: { value: number; label: string }[] = getQbClassTypes();
+  hasQuickBooksAccess = false;
+  hasDocuSignAccess = false;
+  isPartnerOrganization = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isPageReady = false;
@@ -87,6 +96,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
     this.loadStates();
     this.loadCostCodes();
+    this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(features => {
+      this.applyOfficeFeatureAccess(features);
+    });
+    this.loadOfficeFeatureAccess();
+    this.loadOfficeOrganizationType();
 
     // Use the input id
     if (this.id) {
@@ -111,6 +125,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['copyFrom'] && this.copyFrom && this.form && this.isAddMode) {
       this.populateFormFromCopy();
+    }
+    if (changes['organizationId'] && !changes['organizationId'].firstChange) {
+      this.loadOfficeFeatureAccess();
+      this.loadOfficeOrganizationType();
     }
     // If id changes, reload office
     if (changes['id'] && !changes['id'].firstChange) {
@@ -172,6 +190,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
         this.buildForm();
         this.populateForm();
         this.filterOfficeCostCodeOptions();
+        this.loadOfficeFeatureAccess();
+        this.loadOfficeOrganizationType();
         this.cdr.markForCheck();
       },
       error: (err: HttpErrorResponse) => {
@@ -185,6 +205,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   saveOffice(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 
@@ -492,6 +513,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
     // Setup conditional validation for international addresses
     this.setupConditionalFields();
+    this.applyPartnerFieldValidators();
   }
 
   populateForm(): void {
@@ -679,6 +701,49 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       cityControl?.updateValueAndValidity({ emitEvent: false });
       stateControl?.updateValueAndValidity({ emitEvent: false });
       zipControl?.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  applyPartnerFieldValidators(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const phonePattern = /^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/;
+    const billingControls: { name: string; validators: ValidatorFn[] }[] = [
+      { name: 'maintenanceEmail', validators: [Validators.required, Validators.email] },
+      { name: 'afterHoursPhone', validators: [Validators.required, Validators.pattern(phonePattern)] },
+      { name: 'defaultDeposit', validators: [Validators.required] },
+      { name: 'defaultSdw', validators: [Validators.required] },
+      { name: 'daysToRefundDeposit', validators: [Validators.required] },
+      { name: 'defaultKeyFee', validators: [Validators.required] },
+      { name: 'undisclosedPetFee', validators: [Validators.required] },
+      { name: 'minimumSmokingFee', validators: [Validators.required] },
+      { name: 'utilityOneBed', validators: [Validators.required] },
+      { name: 'utilityTwoBed', validators: [Validators.required] },
+      { name: 'utilityThreeBed', validators: [Validators.required] },
+      { name: 'utilityFourBed', validators: [Validators.required] },
+      { name: 'utilityHouse', validators: [Validators.required] },
+      { name: 'maidOneBed', validators: [Validators.required] },
+      { name: 'maidTwoBed', validators: [Validators.required] },
+      { name: 'maidThreeBed', validators: [Validators.required] },
+      { name: 'maidFourBed', validators: [Validators.required] },
+      { name: 'maidHouse', validators: [Validators.required] },
+      { name: 'parkingLowEnd', validators: [Validators.required] },
+      { name: 'parkingHighEnd', validators: [Validators.required] }
+    ];
+
+    billingControls.forEach(item => {
+      const control = this.form.get(item.name);
+      if (!control) {
+        return;
+      }
+      if (this.isPartnerOrganization) {
+        control.clearValidators();
+      } else {
+        control.setValidators(item.validators);
+      }
+      control.updateValueAndValidity({ emitEvent: false });
     });
   }
   //#endregion
@@ -1115,17 +1180,67 @@ quotePastePlainToHtml(plain: string): string {
       return;
     }
     ke.preventDefault();
-    if (this.form?.status === 'VALID' && !this.isSubmitting) {
+    if (!this.isSubmitting) {
       this.saveOffice();
     }
   }
 
-  get hasQuickBooksAccess(): boolean {
-    return this.authService.hasQuickBooksAccess();
+  resolveOfficeOrganizationId(): string {
+    return (this.organizationId || this.office?.organizationId || this.authService.getUser()?.organizationId || '').trim();
   }
 
-  get hasDocuSignAccess(): boolean {
-    return this.authService.hasDocuSignAccess();
+  loadOfficeOrganizationType(): void {
+    const organizationId = this.resolveOfficeOrganizationId();
+    if (!organizationId) {
+      this.isPartnerOrganization = false;
+      this.markViewForCheck();
+      return;
+    }
+
+    const cached = this.commonService.getOrganizationValue();
+    if (cached?.organizationId === organizationId) {
+      this.isPartnerOrganization = Number(cached.organizationTypeId) === OrganizationType.Partner;
+      this.applyPartnerFieldValidators();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.organizationService.getOrganizationByGuid(organizationId).pipe(take(1)).subscribe({
+      next: organization => {
+        this.isPartnerOrganization = Number(organization?.organizationTypeId) === OrganizationType.Partner;
+        this.applyPartnerFieldValidators();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isPartnerOrganization = false;
+        this.applyPartnerFieldValidators();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadOfficeFeatureAccess(): void {
+    const organizationId = this.resolveOfficeOrganizationId();
+    if (!organizationId) {
+      this.hasQuickBooksAccess = false;
+      this.hasDocuSignAccess = false;
+      this.markViewForCheck();
+      return;
+    }
+    this.organizationFeatureService.ensureFeaturesLoaded(organizationId).pipe(take(1)).subscribe();
+  }
+
+  applyOfficeFeatureAccess(features: FeatureResponse[]): void {
+    const organizationId = this.resolveOfficeOrganizationId();
+    if (!organizationId) {
+      this.hasQuickBooksAccess = false;
+      this.hasDocuSignAccess = false;
+      this.markViewForCheck();
+      return;
+    }
+    this.hasQuickBooksAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.QuickBooks, features);
+    this.hasDocuSignAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.DocuSign, features);
+    this.markViewForCheck();
   }
  //#endregion
 

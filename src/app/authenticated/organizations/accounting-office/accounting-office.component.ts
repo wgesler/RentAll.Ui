@@ -16,6 +16,8 @@ import { UtilityService, ImageOptimizationFailedError } from '../../../services/
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
+import { OrganizationType } from '../models/organization-enum';
+import { OrganizationService } from '../services/organization.service';
 import { BankCardRequest, BankCardResponse } from '../models/bank.model';
 import { getCardTypes } from '../models/card-type-enum';
 import { AccountType } from '../../accounting/models/accounting-enum';
@@ -44,6 +46,7 @@ import { CheckLayoutEditorDialogComponent, CheckLayoutEditorDialogData } from '.
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() id: string | number | null = null;
+  @Input() organizationId: string | null = null;
   @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
@@ -54,6 +57,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private authService = inject(AuthService);
   private formatterService = inject(FormatterService);
   private commonService = inject(CommonService);
+  private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
   private costCodesService = inject(CostCodesService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -146,7 +150,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     { controlName: 'defaultRetainedEarningsAccountId', label: 'Retained Earnings' }
   ];
 
-  organizationId = '';
+  isPartnerOrganization = false;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
@@ -161,9 +165,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadStates();
     this.loadOffices();
+    this.loadAccountingOfficeOrganizationType();
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.allChartOfAccounts = accounts || [];
@@ -201,6 +205,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['copyFrom'] && this.copyFrom && this.form && this.isAddMode) {
       this.populateFormFromCopy();
+    }
+    if (changes['organizationId'] && !changes['organizationId'].firstChange) {
+      this.loadOffices();
+      this.loadAccountingOfficeOrganizationType();
     }
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
@@ -265,6 +273,7 @@ parseOfficeId(id: string | number | null): number | null {
         // Check stock: load like logo (AccountingOffice owns the PDF path for reopen).
         this.applyAccountingOfficeCheckStock(response);
         this.buildForm();
+        this.loadAccountingOfficeOrganizationType();
         this.loadChartOfAccountsForOffice(response?.officeId, () => {
           this.populateForm();
           this.applyBankCardsFromSource(response?.bankCards);
@@ -287,10 +296,10 @@ parseOfficeId(id: string | number | null): number | null {
     }
 
     const formValue = this.form.value;
-    const user = this.authService.getUser();
+    const organizationId = this.resolveOrganizationId();
     
     // Validate required fields
-    if (!user?.organizationId) {
+    if (!organizationId) {
       this.toastr.error('Organization ID is missing', CommonMessage.Error);
       return;
     }
@@ -316,7 +325,7 @@ parseOfficeId(id: string | number | null): number | null {
     }
     
     const officeRequest: AccountingOfficeRequest = {
-      organizationId: user.organizationId,
+      organizationId: organizationId,
       officeId: this.isAddMode ? officeIdNum! : 0, // Will be set correctly in update mode below
       name: formValue.name,
       address1: (formValue.address1 || '').trim(),
@@ -376,7 +385,7 @@ parseOfficeId(id: string | number | null): number | null {
         return;
       }
       officeRequest.officeId = resolvedOfficeId;
-      officeRequest.organizationId = this.accountingOffice?.organizationId || user?.organizationId || '';
+      officeRequest.organizationId = this.accountingOffice?.organizationId || organizationId;
     }
 
     const saveOffice$ = this.isAddMode
@@ -396,12 +405,57 @@ parseOfficeId(id: string | number | null): number | null {
   //#endregion
 
   //#region Data Loading Methods
+  resolveOrganizationId(): string {
+    return (this.organizationId || this.accountingOffice?.organizationId || this.authService.getUser()?.organizationId || '').trim();
+  }
+
+  loadAccountingOfficeOrganizationType(): void {
+    const organizationId = this.resolveOrganizationId();
+    if (!organizationId) {
+      this.isPartnerOrganization = false;
+      this.applyPartnerFieldValidators();
+      this.markViewForCheck();
+      return;
+    }
+
+    const cached = this.commonService.getOrganizationValue();
+    if (cached?.organizationId === organizationId) {
+      this.isPartnerOrganization = Number(cached.organizationTypeId) === OrganizationType.Partner;
+      this.applyPartnerFieldValidators();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.organizationService.getOrganizationByGuid(organizationId).pipe(take(1)).subscribe({
+      next: organization => {
+        this.isPartnerOrganization = Number(organization?.organizationTypeId) === OrganizationType.Partner;
+        this.applyPartnerFieldValidators();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isPartnerOrganization = false;
+        this.applyPartnerFieldValidators();
+        this.markViewForCheck();
+      }
+    });
+  }
+
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
-      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-        this.offices = offices || [];
+    const orgId = this.resolveOrganizationId();
+    if (!orgId) {
+      this.offices = [];
+      this.availableOffices = [];
+      return;
+    }
+    this.officeService.ensureOfficesLoaded(orgId).pipe(take(1)).subscribe({
+      next: (offices) => {
+        this.offices = (offices || []).filter(office => office.organizationId === orgId);
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-      });
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+      }
     });
   }
 
@@ -475,6 +529,37 @@ parseOfficeId(id: string | number | null): number | null {
       checkStockUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['pdf'], ['application/pdf'], 10000000, true)] }),
       isActive: new FormControl(true)
     }, { validators: [this.yearEndDayWithinMonthValidator()] });
+    this.applyPartnerFieldValidators();
+  }
+
+  applyPartnerFieldValidators(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const phonePattern = /^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/;
+    const brokerOptionalControls: { name: string; validators: ValidatorFn[] }[] = [
+      { name: 'bankName', validators: [Validators.required] },
+      { name: 'bankRouting', validators: [Validators.required, Validators.pattern(/^[0-9]+$/)] },
+      { name: 'bankAccount', validators: [Validators.required, Validators.pattern(/^[0-9]+$/)] },
+      { name: 'bankSwiftCode', validators: [Validators.required] },
+      { name: 'bankAddress', validators: [Validators.required] },
+      { name: 'bankPhone', validators: [Validators.required, Validators.pattern(phonePattern)] },
+      { name: 'currentCheckNumber', validators: [Validators.required, Validators.min(1)] }
+    ];
+
+    brokerOptionalControls.forEach(item => {
+      const control = this.form.get(item.name);
+      if (!control) {
+        return;
+      }
+      if (this.isPartnerOrganization) {
+        control.clearValidators();
+      } else {
+        control.setValidators(item.validators);
+      }
+      control.updateValueAndValidity({ emitEvent: false });
+    });
   }
 
   populateForm(): void {

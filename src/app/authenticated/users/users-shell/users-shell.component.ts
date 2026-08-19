@@ -2,11 +2,15 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, QueryList, ViewChildren, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, skip, startWith, takeUntil } from 'rxjs';
+import { Subject, skip, startWith, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { OrganizationService } from '../../organizations/services/organization.service';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { UserGroups } from '../models/user-enums';
 import { UserComponent } from '../user/user.component';
 import { UserListComponent } from '../user-list/user-list.component';
 
@@ -20,6 +24,8 @@ import { UserListComponent } from '../user-list/user-list.component';
 export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private authService = inject(AuthService);
+  private organizationService = inject(OrganizationService);
   private globalSelectionService = inject(GlobalSelectionService);
 
   @ViewChildren(UserListComponent) userSections?: QueryList<UserListComponent>;
@@ -32,9 +38,15 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Page-level office filter shared across user tabs (does not write global selection). */
   selectedOfficeId: number | null = null;
   selectedOrganizationId: string | null = null;
+  isSuperAdminUser = false;
+  organizationOptions: { value: string; label: string }[] = [];
   destroy$ = new Subject<void>();
 
   ngOnInit(): void {
+    this.isSuperAdminUser = this.authService.hasRole(UserGroups.SuperAdmin);
+    if (this.isSuperAdminUser) {
+      this.loadOrganizations();
+    }
     const tabIndex = getNumberQueryParam(this.route.snapshot.queryParams, 'tab', 0, 5);
     if (tabIndex !== null) {
       this.selectedTabIndex = tabIndex;
@@ -86,6 +98,20 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onUserFormBack(): void {
     this.onUserClosed({});
+  }
+
+  loadOrganizations(): void {
+    this.organizationService.getOrganizations().pipe(take(1)).subscribe({
+      next: (organizations: OrganizationResponse[]) => {
+        this.organizationOptions = (organizations || []).map(organization => ({
+          value: organization.organizationId,
+          label: organization.name
+        }));
+      },
+      error: () => {
+        this.organizationOptions = [];
+      }
+    });
   }
 
   onOrganizationDropdownChange(value: string | number | null): void {

@@ -91,7 +91,8 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
       : this.officeService.ensureOfficesLoaded(orgId);
     load$.pipe(take(1)).subscribe({
       next: (response: OfficeResponse[]) => {
-        this.allOffices = this.mappingService.mapOffices(response);
+        const scoped = (response || []).filter(office => !orgId || office.organizationId === orgId);
+        this.allOffices = this.mappingService.mapOffices(scoped);
         this.applyFilters();
         this.markViewForCheck();
       },

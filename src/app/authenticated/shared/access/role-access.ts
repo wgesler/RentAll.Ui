@@ -1,3 +1,5 @@
+import { RouterToken } from '../../../app.routes.tokens';
+import { OrganizationType } from '../../organizations/models/organization-enum';
 import { UserGroups } from '../../users/models/user-enums';
 
 export interface AccessRule {
@@ -37,42 +39,6 @@ const OUTSIDE_ROLES: UserGroups[] = [
 ];
 //#endregion
 
-
-//#region Route Tokens
-const ROUTER_TOKEN = {
-  Auth: 'auth',
-  Dashboard: 'dashboard',
-  DashboardStaff: 'dashboard-staff',
-  DashboardOwner: 'dashboard-owner',
-  ReservationBoard: 'boards',
-  ReservationList: 'reservations',
-  PropertyList: 'properties',
-  MaintenanceList: 'maintenance',
-  TicketList: 'tickets',
-  WorkOrderCreate: 'work-order-create',
-  EmailList: 'emails',
-  DocumentList: 'documents',
-  Contacts: 'contacts',
-  AccountingList: 'accounting',
-  Leads: 'leads',
-  Owner: 'owner',
-  BillingList: 'billing',
-  BillingCreate: 'billing-create',
-  InvoiceCreate: 'invoice-create',
-  CostCodesList: 'cost-codes',
-  OrganizationConfiguration: 'settings',
-  OfficeList: 'offices',
-  AccountingOfficeList: 'accounting-offices',
-  AgentList: 'agents',
-  AreaList: 'areas',
-  BuildingList: 'buildings',
-  RegionList: 'regions',
-  ColorList: 'colors',
-  UserList: 'users',
-  OrganizationList: 'organizations',
-  Logs: 'logs'
-} as const;
-//#endregion
 
 //#region Access Rules
 const superAdminOnly: AccessRule = {
@@ -122,8 +88,18 @@ const adminOnly: AccessRule = {
   excludedRoles: []
 };
 
+const usersAccess: AccessRule = {
+  requiredRoles: [UserGroups.SuperAdmin, UserGroups.Admin, UserGroups.OfficeAdmin],
+  excludedRoles: []
+};
+
 const orgAdminOnly: AccessRule = {
   requiredRoles: [UserGroups.Admin],
+  excludedRoles: []
+};
+
+const logsAccess: AccessRule = {
+  requiredRoles: [UserGroups.SuperAdmin, UserGroups.Admin],
   excludedRoles: []
 };
 
@@ -157,53 +133,56 @@ const noAccess: AccessRule = {
 //#endregion
 
 //#region Segment and Nav Definitions
+const WORK_ORDER_SEGMENT = RouterToken.MaintenanceWorkOrder.split('/')[0];
+const RECEIPT_SEGMENT = RouterToken.MaintenanceReceipt.split('/')[0];
+
 const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
-  ROUTER_TOKEN.DashboardStaff,
-  ROUTER_TOKEN.MaintenanceList,
-  'work-order',
-  ROUTER_TOKEN.WorkOrderCreate,
-  'receipt'
+  RouterToken.DashboardStaff,
+  RouterToken.MaintenanceList,
+  WORK_ORDER_SEGMENT,
+  RouterToken.WorkOrderCreate,
+  RECEIPT_SEGMENT
 ]);
 const REALTOR_ALLOWED_SEGMENTS = new Set<string>([
-  ROUTER_TOKEN.Dashboard,
-  ROUTER_TOKEN.ReservationBoard
+  RouterToken.Dashboard,
+  RouterToken.ReservationBoard
 ]);
 const OWNER_REALTOR_ALLOWED_SEGMENTS = new Set<string>([
-  ROUTER_TOKEN.DashboardOwner,
-  ROUTER_TOKEN.Dashboard,
-  ROUTER_TOKEN.ReservationBoard
+  RouterToken.DashboardOwner,
+  RouterToken.Dashboard,
+  RouterToken.ReservationBoard
 ]);
 
 export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
-  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
-  { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
-  { icon: 'grid_view', displayName: 'Boards', url: ROUTER_TOKEN.ReservationBoard, ...openToAllExceptSuperAdmin },
-  { icon: 'handshake', displayName: 'Reservations', url: ROUTER_TOKEN.ReservationList, ...openToAllExceptSuperAdmin },
-  { icon: 'home', displayName: 'Properties', url: ROUTER_TOKEN.PropertyList, ...openToAllExceptSuperAdmin },
-  { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
-  { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
-  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingNavAccess },
-  { icon: 'person', displayName: 'Owners', url: ROUTER_TOKEN.Owner, ...openToAllExceptSuperAdmin },
-  { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
-  { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
-  { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
-  { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
-  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess },
-  { icon: 'article', displayName: 'Logs', url: ROUTER_TOKEN.Logs, ...orgAdminOnly }
+  { icon: 'dashboard', displayName: 'Dashboard', url: RouterToken.Dashboard, ...openToAllExceptSuperAdmin },
+  { icon: 'hub', displayName: 'Leads', url: RouterToken.Leads, ...leadsAdminAndAgent },
+  { icon: 'grid_view', displayName: 'Boards', url: RouterToken.ReservationBoard, ...openToAllExceptSuperAdmin },
+  { icon: 'handshake', displayName: 'Reservations', url: RouterToken.ReservationList, ...openToAllExceptSuperAdmin },
+  { icon: 'home', displayName: 'Properties', url: RouterToken.PropertyList, ...openToAllExceptSuperAdmin },
+  { icon: 'confirmation_number', displayName: 'Tickets', url: RouterToken.TicketList, ...ticketAccess },
+  { icon: 'build', displayName: 'Maintenance', url: RouterToken.MaintenanceList, ...openToAllExceptSuperAdmin },
+  { icon: 'account_balance', displayName: 'Accounting', url: RouterToken.AccountingList, ...accountingNavAccess },
+  { icon: 'person', displayName: 'Owners', url: RouterToken.OwnerShell, ...openToAllExceptSuperAdmin },
+  { icon: 'mail', displayName: 'Emails', url: RouterToken.EmailList, ...openToAll },
+  { icon: 'description', displayName: 'Documents', url: RouterToken.DocumentList, ...openToAllExceptSuperAdmin },
+  { icon: 'contacts', displayName: 'Contacts', url: RouterToken.Contacts, ...openToAllExceptSuperAdmin },
+  { icon: 'people', displayName: 'Users', url: RouterToken.UserList, ...usersAccess },
+  { icon: 'settings', displayName: 'Settings', url: RouterToken.OrganizationConfiguration, ...settingsAccess },
+  { icon: 'article', displayName: 'Logs', url: RouterToken.Logs, ...logsAccess }
 ];
 
 export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
-  { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
-  { icon: 'receipt_long', displayName: 'Billing', url: ROUTER_TOKEN.BillingList, ...superAdminOnly },
-  { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
-  { icon: 'person', displayName: 'Owners', url: ROUTER_TOKEN.Owner, ...openToAll },
-  { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
-  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess },
-  { icon: 'article', displayName: 'Logs', url: ROUTER_TOKEN.Logs, ...orgAdminOnly }
+  { icon: 'corporate_fare', displayName: 'Organizations', url: RouterToken.OrganizationList, ...superAdminOnly },
+  { icon: 'receipt_long', displayName: 'Billing', url: RouterToken.BillingList, ...superAdminOnly },
+  { icon: 'hub', displayName: 'Leads', url: RouterToken.Leads, ...leadsAdminAndAgent },
+  { icon: 'person', displayName: 'Owners', url: RouterToken.OwnerShell, ...openToAll },
+  { icon: 'people', displayName: 'Users', url: RouterToken.UserList, ...usersAccess },
+  { icon: 'settings', displayName: 'Settings', url: RouterToken.OrganizationConfiguration, ...settingsAccess },
+  { icon: 'article', displayName: 'Logs', url: RouterToken.Logs, ...logsAccess }
 ];
 
 export const SERVICE_PROVIDERS_NAV_ITEMS: NavItemDefinition[] = [
-  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.DashboardStaff, ...openToAllExceptSuperAdmin }
+  { icon: 'dashboard', displayName: 'Dashboard', url: RouterToken.DashboardStaff, ...openToAllExceptSuperAdmin }
 ];
 
 export const NAV_ITEMS_BY_GROUP = {
@@ -212,45 +191,69 @@ export const NAV_ITEMS_BY_GROUP = {
   ServiceProviders: SERVICE_PROVIDERS_NAV_ITEMS
 } as const;
 
+//#region Organization SideBar Access
+function getCompanyNavItemsByUrls(urls: readonly string[]): NavItemDefinition[] {
+  const allowed = new Set(urls);
+  return COMPANY_USERS_NAV_ITEMS.filter(item => allowed.has(item.url));
+}
+
+export const PROPERTY_MANAGEMENT_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
+export const PROPERTY_BROKER_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
+export const PARTNER_NAV_ITEMS: NavItemDefinition[] = getCompanyNavItemsByUrls([
+  RouterToken.ReservationBoard,
+  RouterToken.PropertyList,
+  RouterToken.Contacts,
+  RouterToken.OrganizationConfiguration
+]);
+
+export const NAV_ITEMS_BY_ORGANIZATION_TYPE: Record<number, NavItemDefinition[]> = {
+  [OrganizationType.PropertyManagement]: PROPERTY_MANAGEMENT_NAV_ITEMS,
+  [OrganizationType.PropertyBroker]: PROPERTY_BROKER_NAV_ITEMS,
+  [OrganizationType.Partner]: PARTNER_NAV_ITEMS
+};
+
+const PARTNER_ALLOWED_SEGMENTS = new Set(PARTNER_NAV_ITEMS.map(item => item.url));
+//#endregion
+
 export const NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
 
 const routeRulesBySegment: Record<string, AccessRule> = {
-  [ROUTER_TOKEN.Dashboard]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.DashboardStaff]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.ReservationBoard]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.ReservationList]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.PropertyList]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.MaintenanceList]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.TicketList]: ticketAccess,
-  'work-order': openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.WorkOrderCreate]: openToAllExceptSuperAdmin,
-  receipt: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.EmailList]: openToAll,
-  [ROUTER_TOKEN.DocumentList]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.Contacts]: openToAllExceptSuperAdmin,
+  [RouterToken.Dashboard]: openToAllExceptSuperAdmin,
+  [RouterToken.DashboardStaff]: openToAllExceptSuperAdmin,
+  [RouterToken.ReservationBoard]: openToAllExceptSuperAdmin,
+  [RouterToken.ReservationList]: openToAllExceptSuperAdmin,
+  [RouterToken.PropertyList]: openToAllExceptSuperAdmin,
+  [RouterToken.MaintenanceList]: openToAllExceptSuperAdmin,
+  [RouterToken.TicketList]: ticketAccess,
+  [WORK_ORDER_SEGMENT]: openToAllExceptSuperAdmin,
+  [RouterToken.WorkOrderCreate]: openToAllExceptSuperAdmin,
+  [RECEIPT_SEGMENT]: openToAllExceptSuperAdmin,
+  [RouterToken.EmailList]: openToAll,
+  [RouterToken.DocumentList]: openToAllExceptSuperAdmin,
+  [RouterToken.Contacts]: openToAllExceptSuperAdmin,
 
-  [ROUTER_TOKEN.AccountingList]: accountingNavAccess,
-  leads: leadsAdminAndAgent,
-  [ROUTER_TOKEN.Owner]: openToAll,
-  [ROUTER_TOKEN.BillingList]: superAdminOnly,
-  [ROUTER_TOKEN.BillingCreate]: superAdminOnly,
-  [ROUTER_TOKEN.InvoiceCreate]: accountingNavAccess,
-  [ROUTER_TOKEN.CostCodesList]: accountingNavAccess,
+  [RouterToken.AccountingList]: accountingNavAccess,
+  [RouterToken.Leads]: leadsAdminAndAgent,
+  [RouterToken.OwnerShell]: openToAll,
+  [RouterToken.BillingList]: superAdminOnly,
+  [RouterToken.BillingCreate]: superAdminOnly,
+  [RouterToken.InvoiceCreate]: accountingNavAccess,
+  [RouterToken.CostCodesList]: accountingNavAccess,
 
-  [ROUTER_TOKEN.OrganizationConfiguration]: settingsAccess,
-  [ROUTER_TOKEN.OfficeList]: adminOnly,
-  [ROUTER_TOKEN.AccountingOfficeList]: adminOnly,
-  [ROUTER_TOKEN.AgentList]: adminOnly,
-  [ROUTER_TOKEN.AreaList]: adminOnly,
-  [ROUTER_TOKEN.BuildingList]: adminOnly,
-  [ROUTER_TOKEN.RegionList]: adminOnly,
-  [ROUTER_TOKEN.ColorList]: orgAdminOnly,
-  [ROUTER_TOKEN.UserList]: adminOnly,
-  [ROUTER_TOKEN.Logs]: orgAdminOnly,
+  [RouterToken.OrganizationConfiguration]: settingsAccess,
+  [RouterToken.OfficeList]: adminOnly,
+  [RouterToken.AccountingOfficeList]: adminOnly,
+  [RouterToken.AgentList]: adminOnly,
+  [RouterToken.AreaList]: adminOnly,
+  [RouterToken.BuildingList]: adminOnly,
+  [RouterToken.RegionList]: adminOnly,
+  [RouterToken.ColorList]: orgAdminOnly,
+  [RouterToken.UserList]: usersAccess,
+  [RouterToken.Logs]: logsAccess,
 
-  [ROUTER_TOKEN.OrganizationList]: superAdminOnly,
+  [RouterToken.OrganizationList]: superAdminOnly,
 
-  [ROUTER_TOKEN.DashboardOwner]: ownerOnly
+  [RouterToken.DashboardOwner]: ownerOnly
 };
 //#endregion
 
@@ -389,7 +392,7 @@ function getPrimaryAuthSegment(url: string): string | null {
     return null;
   }
 
-  const authIndex = parts.indexOf(ROUTER_TOKEN.Auth);
+  const authIndex = parts.indexOf(RouterToken.Auth);
   if (authIndex >= 0) {
     return parts[authIndex + 1] ?? null;
   }
@@ -413,7 +416,7 @@ export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boole
     return segment !== null && OWNER_REALTOR_ALLOWED_SEGMENTS.has(segment);
   }
   if (isOwnerOnlyUser(userGroups)) {
-    return segment === ROUTER_TOKEN.DashboardOwner;
+    return segment === RouterToken.DashboardOwner;
   }
   if (hasRealtorRole(userGroups)) {
     return segment !== null && REALTOR_ALLOWED_SEGMENTS.has(segment);
@@ -444,8 +447,8 @@ export function getUserGuideNavItems(userGroups: UserGroupInput): NavItemDefinit
 }
 
 function collapseUserGuideNavItems(items: NavItemDefinition[]): NavItemDefinition[] {
-  const dashboardUrls = new Set<string>([ROUTER_TOKEN.Dashboard, ROUTER_TOKEN.DashboardStaff, ROUTER_TOKEN.DashboardOwner]);
-  const companyDashboard = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
+  const dashboardUrls = new Set<string>([RouterToken.Dashboard, RouterToken.DashboardStaff, RouterToken.DashboardOwner]);
+  const companyDashboard = COMPANY_USERS_NAV_ITEMS.find(item => item.url === RouterToken.Dashboard);
   let insertedDashboard = false;
   const collapsed: NavItemDefinition[] = [];
   for (const item of items) {
@@ -456,27 +459,40 @@ function collapseUserGuideNavItems(items: NavItemDefinition[]): NavItemDefinitio
     if (insertedDashboard) {
       continue;
     }
-    collapsed.push(companyDashboard ? { ...companyDashboard } : { ...item, url: ROUTER_TOKEN.Dashboard, displayName: 'Dashboard' });
+    collapsed.push(companyDashboard ? { ...companyDashboard } : { ...item, url: RouterToken.Dashboard, displayName: 'Dashboard' });
     insertedDashboard = true;
   }
   return collapsed;
 }
 
+export function filterNavItemsForPartner(items: NavItemDefinition[]): NavItemDefinition[] {
+  return items.filter(item => PARTNER_ALLOWED_SEGMENTS.has(item.url));
+}
+
+export function canPartnerAccessUrl(url: string): boolean {
+  const segment = getPrimaryAuthSegment(url);
+  return segment !== null && PARTNER_ALLOWED_SEGMENTS.has(segment);
+}
+
+export function getPartnerFallbackUrl(): string {
+  return `/${RouterToken.Auth}/${RouterToken.ReservationBoard}`;
+}
+
 export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
   if (hasOwnerAndRealtorRoles(userGroups)) {
-    const ownerDashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
-    const realtorItems = COMPANY_USERS_NAV_ITEMS.filter(item => item.url === ROUTER_TOKEN.ReservationBoard);
+    const ownerDashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === RouterToken.Dashboard);
+    const realtorItems = COMPANY_USERS_NAV_ITEMS.filter(item => item.url === RouterToken.ReservationBoard);
     return [
-      ...(ownerDashboardItem ? [{ ...ownerDashboardItem, url: ROUTER_TOKEN.DashboardOwner }] : []),
+      ...(ownerDashboardItem ? [{ ...ownerDashboardItem, url: RouterToken.DashboardOwner }] : []),
       ...realtorItems
     ];
   }
   if (isOwnerOnlyUser(userGroups)) {
-    const dashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
-    return dashboardItem ? [{ ...dashboardItem, url: ROUTER_TOKEN.DashboardOwner }] : [];
+    const dashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === RouterToken.Dashboard);
+    return dashboardItem ? [{ ...dashboardItem, url: RouterToken.DashboardOwner }] : [];
   }
   if (hasRealtorRole(userGroups)) {
-    return COMPANY_USERS_NAV_ITEMS.filter(item => item.url === ROUTER_TOKEN.ReservationBoard);
+    return COMPANY_USERS_NAV_ITEMS.filter(item => item.url === RouterToken.ReservationBoard);
   }
   if (getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin)) {
     return SUPER_USER_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
@@ -490,10 +506,10 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
 
 export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
   if (isInspectorOnlyUser(userGroups)) {
-    return `/${ROUTER_TOKEN.Auth}/${ROUTER_TOKEN.DashboardStaff}`;
+    return `/${RouterToken.Auth}/${RouterToken.DashboardStaff}`;
   }
   const firstVisibleItem = getVisibleNavItems(userGroups)[0];
-  const token = firstVisibleItem?.url || ROUTER_TOKEN.Dashboard;
-  return `/${ROUTER_TOKEN.Auth}/${token}`;
+  const token = firstVisibleItem?.url || RouterToken.Dashboard;
+  return `/${RouterToken.Auth}/${token}`;
 }
 //#endregion

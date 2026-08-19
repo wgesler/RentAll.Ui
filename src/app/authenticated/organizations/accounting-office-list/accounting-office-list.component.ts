@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
@@ -27,8 +27,9 @@ import { OfficeService } from '../services/office.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 
-export class AccountingOfficeListComponent implements OnInit, OnDestroy {
+export class AccountingOfficeListComponent implements OnInit, OnChanges, OnDestroy {
 
+  @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyAccountingOfficeEvent = new EventEmitter<AccountingOfficeResponse>();
   accountingOfficeService = inject(AccountingOfficeService);
@@ -41,8 +42,6 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
-
-  organizationId = '';
   offices: OfficeResponse[] = [];
 
   allAccountingOffices: AccountingOfficeListDisplay[] = [];
@@ -69,8 +68,15 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
       this.markViewForCheck();
     });
 
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.organizationId = this.resolveOrganizationId();
     this.loadOffices();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['organizationId'] && !changes['organizationId'].firstChange) {
+      this.organizationId = this.resolveOrganizationId();
+      this.loadOffices();
+    }
   }
 
   addAccountingOffice(): void {
@@ -78,12 +84,15 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   }
 
   getAccountingOffices(forceRefresh = false): void {
+    const orgId = this.resolveOrganizationId();
     const load$ = forceRefresh
-      ? this.accountingOfficeService.refreshAccountingOffices()
-      : this.accountingOfficeService.ensureAccountingOfficesLoaded();
+      ? this.accountingOfficeService.refreshAccountingOffices(orgId)
+      : this.accountingOfficeService.ensureAccountingOfficesLoaded(orgId);
     load$.pipe(take(1)).subscribe({
       next: (response: AccountingOfficeResponse[]) => {
-        this.allAccountingOffices = this.mappingService.mapAccountingOffices(response, this.offices);
+        const officeIds = new Set(this.offices.map(office => office.officeId));
+        const scoped = (response || []).filter(office => officeIds.size === 0 || officeIds.has(office.officeId));
+        this.allAccountingOffices = this.mappingService.mapAccountingOffices(scoped, this.offices);
         this.applyFilters();
         this.markViewForCheck();
       },
@@ -120,10 +129,22 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
+  resolveOrganizationId(): string {
+    return (this.organizationId || this.authService.getUser()?.organizationId || '').trim();
+  }
+
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
-      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-        this.offices = offices || [];
+    const orgId = this.resolveOrganizationId();
+    if (!orgId) {
+      this.offices = [];
+      this.allAccountingOffices = [];
+      this.accountingOfficesDisplay = [];
+      this.markViewForCheck();
+      return;
+    }
+    this.officeService.ensureOfficesLoaded(orgId).pipe(take(1)).subscribe({
+      next: (offices) => {
+        this.offices = (offices || []).filter(office => office.organizationId === orgId);
         if (!this.offices.length) {
           this.allAccountingOffices = [];
           this.accountingOfficesDisplay = [];
@@ -132,7 +153,13 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
         }
         this.getAccountingOffices();
         this.markViewForCheck();
-      });
+      },
+      error: () => {
+        this.offices = [];
+        this.allAccountingOffices = [];
+        this.accountingOfficesDisplay = [];
+        this.markViewForCheck();
+      }
     });
   }
   //#endregion

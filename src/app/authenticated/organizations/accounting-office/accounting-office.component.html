@@ -239,6 +239,7 @@
                 <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
               </mat-expansion-panel>
 
+              @if (!isPartnerOrganization) {
               <!-- Bank Information Accordion -->
               <mat-expansion-panel [expanded]="false" class="mb-4">
                 <mat-expansion-panel-header>
@@ -683,6 +684,7 @@
                   Align Check Layout
                 </button>
               </mat-expansion-panel>
+              }
 
 
             </mat-accordion>

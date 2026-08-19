@@ -39,6 +39,7 @@ import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/mo
 import { BuildingListDisplay, BuildingResponse } from '../authenticated/organizations/models/building.model';
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
+import { getOrganizationType } from '../authenticated/organizations/models/organization-enum';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { UserGuideResponse, getUserGuidePageKey } from '../authenticated/organizations/models/user-guide.model';
 import { BankCardResponse } from '../authenticated/organizations/models/bank.model';
@@ -216,6 +217,7 @@ export class MappingService {
         organizationCode: org.organizationCode,
         name: org.name,
         organizationTypeId: org.organizationTypeId,
+        organizationType: getOrganizationType(org.organizationTypeId),
         address1: org.address1,
         address2: org.address2,
         suite: org.suite,

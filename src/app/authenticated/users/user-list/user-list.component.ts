@@ -131,6 +131,10 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteUser(user: UserListDisplay): void {
+    if (!this.isSuperAdminUser && (user.email || '').trim().toLowerCase().startsWith('admin@')) {
+      this.toastr.error('Only SuperAdmin can delete the default organization admin.', CommonMessage.Error);
+      return;
+    }
     this.userService.deleteUser(user.userId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('User deleted successfully', CommonMessage.Success);

@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { EmailRequest, EmailResponse } from '../authenticated/email/models/email.model';
+import { getOrganizationType } from '../authenticated/organizations/models/organization-enum';
 import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { ExternalCalendarImportRequest, ExternalCalendarImportResponse } from '../authenticated/reservations/models/external-calendar-import.model';
 import { OrganizationService } from '../authenticated/organizations/services/organization.service';
@@ -100,10 +101,28 @@ export class CommonService {
 
     this.organizationService.getOrganizationByGuid(user.organizationId).pipe(take(1)).subscribe({
       next: (response) => {
-        this.organization$.next(response);
+        this.organization$.next(this.withOrganizationType(response));
       },
       error: () => {}
     });
+  }
+
+  getOrganizationTypeId(): number {
+    return Number(this.organization$.value?.organizationTypeId ?? 0);
+  }
+
+  getOrganizationTypeName(): string {
+    return this.organization$.value?.organizationType || getOrganizationType(this.getOrganizationTypeId());
+  }
+
+  withOrganizationType(organization: OrganizationResponse | null): OrganizationResponse | null {
+    if (!organization) {
+      return organization;
+    }
+    return {
+      ...organization,
+      organizationType: getOrganizationType(organization.organizationTypeId)
+    };
   }
 
   sendEmail(request: EmailRequest): Observable<EmailResponse> {

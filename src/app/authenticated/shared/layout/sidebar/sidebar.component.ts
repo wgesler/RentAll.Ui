@@ -6,14 +6,16 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { Observable, Subject, forkJoin, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
+import { CommonService } from '../../../../services/common.service';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
-import { getVisibleNavItems } from '../../access/role-access';
+import { filterNavItemsForPartner, getVisibleNavItems } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
+import { OrganizationType } from '../../../organizations/models/organization-enum';
 import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
@@ -29,6 +31,7 @@ import { SidebarStateService } from '../services/sidebar-state.service';
 export class SidebarComponent implements OnInit, OnDestroy {
   router = inject(Router);
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private breakpointObserver = inject(BreakpointObserver);
   private sidebarStateService = inject(SidebarStateService);
   private ticketService = inject(TicketService);
@@ -105,6 +108,11 @@ markViewForCheck(): void {
       this.markViewForCheck();
     });
 
+    this.commonService.getOrganization().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.filterNavItemsByRole();
+      this.markViewForCheck();
+    });
+
     this.ticketService.ticketStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.refreshAssignedTicketBadge();
     });
@@ -146,6 +154,10 @@ markViewForCheck(): void {
         return url !== 'tickets' && !url.startsWith('tickets/')
           && url !== 'maintenance' && !url.startsWith('maintenance/');
       });
+    }
+    if (!this.authService.hasRole(UserGroups.SuperAdmin)
+      && Number(this.commonService.getOrganizationTypeId()) === OrganizationType.Partner) {
+      items = filterNavItemsForPartner(items);
     }
     this.navItems = items;
   }

@@ -8,30 +8,30 @@
             Settings
           </span>
         </span>
-        @if (isSuperAdmin) {
+        @if (isSuperAdmin || shouldShowOfficeTitleBarDropdown) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-title-bar-select
-              [label]="'Organization'"
-              [formFieldClass]="'titlebar-field-company'"
-              [value]="selectedOrganizationId"
-              [options]="organizationTitleBarOptions"
-              [nullOptionLabel]="'Select Organization'"
-              [noResultsText]="'No organizations match your search'"
-              (valueChange)="onSettingsOrganizationDropdownChange($event)">
-            </app-title-bar-select>
-          </div>
-        }
-        @if (shouldShowOfficeTitleBarDropdown) {
-          <div class="header-title form-titlebar-fields-wrap">
-            <app-title-bar-select
-              [label]="'Office'"
-              [formFieldClass]="'titlebar-field-office'"
-              [value]="selectedCostCodesOfficeId"
-              [options]="officeTitleBarOptions"
-              [nullOptionLabel]="'All Offices'"
-              [noResultsText]="'No offices match your search'"
-              (valueChange)="onSettingsOfficeDropdownChange($event)">
-            </app-title-bar-select>
+            @if (isSuperAdmin) {
+              <app-title-bar-select
+                [label]="'Organization'"
+                [formFieldClass]="'titlebar-field-company'"
+                [value]="selectedOrganizationId"
+                [options]="organizationTitleBarOptions"
+                [nullOptionLabel]="'Select Organization'"
+                [noResultsText]="'No organizations match your search'"
+                (valueChange)="onSettingsOrganizationDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (shouldShowOfficeTitleBarDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedCostCodesOfficeId"
+                [options]="officeTitleBarOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onSettingsOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
           </div>
         }
       </div>
@@ -60,7 +60,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser) {
+          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
             <!-- Accounting Offices Section -->
             <mat-expansion-panel [expanded]="expandedSections.accountingOffices"
               (opened)="onPanelOpened('accountingOffices')"
@@ -71,16 +71,16 @@
               </mat-expansion-panel-header>
               <div class="agents-container">
                 @if (!(isEditingAccountingOffice && accountingOfficeId)) {
-                  <app-accounting-office-list (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
+                  <app-accounting-office-list [organizationId]="effectiveOrganizationId" (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
                 }
                 @if (isEditingAccountingOffice && accountingOfficeId) {
-                  <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (savedEvent)="onAccountingOfficeSaved()" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                  <app-accounting-office [id]="accountingOfficeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyAccountingOfficeData" (savedEvent)="onAccountingOfficeSaved()" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
                 }
               </div>
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser) {
+          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
             <!-- Agents Section -->
             <mat-expansion-panel [expanded]="expandedSections.agents" 
               (opened)="onPanelOpened('agents')" 
@@ -100,6 +100,7 @@
             </mat-expansion-panel>
           }
 
+          @if (!isPartnerOrganization) {
           <!-- Trackers Section -->
           <mat-expansion-panel [expanded]="expandedSections.trackers"
             (opened)="onPanelOpened('trackers')"
@@ -117,8 +118,9 @@
               </div>
             }
           </mat-expansion-panel>
+          }
 
-          @if (isAdminLikeSettingsUser) {
+          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
             <!-- State Forms Section -->
             <mat-expansion-panel [expanded]="expandedSections.stateForms"
               (opened)="onPanelOpened('stateForms')"
@@ -198,7 +200,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser) {
+          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
               <!-- Chart of Accounts Section -->
               <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts"
                 (opened)="onPanelOpened('chartOfAccounts')"
@@ -232,7 +234,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isOrgAdminLikeSettingsUser) {
+          @if (isOrgAdminLikeSettingsUser && !isPartnerOrganization) {
             <!-- Color Section -->
             <mat-expansion-panel [expanded]="expandedSections.color" 
               (opened)="onPanelOpened('color')" 
