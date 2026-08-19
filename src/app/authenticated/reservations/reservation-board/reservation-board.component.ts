@@ -10,6 +10,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { CommonService } from '../../../services/common.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -27,6 +28,8 @@ import { PropertySelectionResponse } from '../../properties/models/property-sele
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
+import { PartnerService } from '../../partners/services/partner.service';
+import { PartnerContactResponse } from '../../partners/models/partner.model';
 import { hasRealtorRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
@@ -47,6 +50,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   @Input() readOnlyOwnerLayout: boolean = false;
   @Input() showReservationNames: boolean = true;
   private propertyService = inject(PropertyService);
+  private partnerService = inject(PartnerService);
   private reservationService = inject(ReservationService);
   private contactService = inject(ContactService);
   private colorService = inject(ColorService);
@@ -60,6 +64,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   private agentService = inject(AgentService);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private toastr = inject(ToastrService);
+  private formatterService = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
@@ -106,6 +111,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   organizationId: string = '';
   propertiesFiltered = false;
   furnishedPropertyToggleChecked = false;
+  partnersBoardToggleChecked = false;
+  isPartnerBoardLoading = false;
+  partnerContactByPropertyId = new Map<string, PartnerContactResponse>();
+  private loadingPartnerContactIds = new Set<string>();
+  hoveredPartnerPropertyId: string | null = null;
+  partnerContactPanelPosition = { x: 0, y: 0 };
   propertyStatusOptions = getPropertyStatuses().map(status => ({ value: status.value, label: status.label, letter: getPropertyStatusLetter(status.value)}));
   selectedPropertyIds = new Set<string>();
   contextMenuPosition = { x: 0, y: 0 };
@@ -136,6 +147,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.canFilterByAgent = this.authService.isAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.furnishedPropertyToggleChecked = this.globalSelectionService.getFurnishedPropertySelection() === true;
+    this.partnersBoardToggleChecked = this.globalSelectionService.getPartnersBoardSelection() === true;
     this.applyStickyDateRangeFromStorage();
     this.generateCalendarDays();
     this.loadContacts();
@@ -169,6 +182,18 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       next: value => {
         this.furnishedPropertyToggleChecked = value === true;
         this.applyBoardPropertyFilter();
+      }
+    });
+    this.globalSelectionService.getPartnersBoardSelection$().pipe(takeUntil(this.destroy$)).subscribe({
+      next: value => {
+        const wasPartnersMode = this.partnersBoardToggleChecked;
+        this.partnersBoardToggleChecked = value === true;
+        if (wasPartnersMode !== this.partnersBoardToggleChecked) {
+          this.lastLoadedOfficeId = null;
+          this.loadReservations(true);
+          this.loadBoardProperties();
+        }
+        this.markViewForCheck();
       }
     });
     this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -311,17 +336,53 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
   loadProperties(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (this.partnersBoardToggleChecked) {
+      this.loadPartnerProperties();
+      return;
+    }
+
     if (!this.userId) {
       this.allPropertyRows = [];
       this.propertyRows = [];
       this.properties = [];
+      this.isPartnerBoardLoading = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
       return;
     }
 
-    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => {
+      this.isPartnerBoardLoading = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+    })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         this.allPropertyRows = this.selectedOfficeId == null ? (properties || []) : (properties || []).filter(p => p.officeId === this.selectedOfficeId);
+        this.applyBoardPropertyFilter();
+      },
+      error: () => {
+        this.allPropertyRows = [];
+        this.propertyRows = [];
+        this.properties = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadPartnerProperties(): void {
+    if (!this.userId) {
+      this.allPropertyRows = [];
+      this.propertyRows = [];
+      this.properties = [];
+      this.isPartnerBoardLoading = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
+    }
+
+    this.partnerService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => {
+      this.isPartnerBoardLoading = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+    })).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        this.allPropertyRows = properties || [];
         this.applyBoardPropertyFilter();
       },
       error: () => {
@@ -395,7 +456,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     reservations$.pipe(take(1), finalize(() => { if (!silent) { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); } })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
-        this.apiReservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
+        this.apiReservations = this.partnersBoardToggleChecked
+          ? (reservations || [])
+          : (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
         this.loadExternalCalendarReservations();
         this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
@@ -556,6 +619,28 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.globalSelectionService.setFurnishedPropertySelection(event.checked);
   }
 
+  onPartnersToggle(event: MatSlideToggleChange): void {
+    this.beginPartnerBoardTransition();
+    this.globalSelectionService.setPartnersBoardSelection(event.checked);
+  }
+
+  beginPartnerBoardTransition(): void {
+    this.externalCalendarLoadSequence++;
+    this.allPropertyRows = [];
+    this.propertyRows = [];
+    this.properties = [];
+    this.apiReservations = [];
+    this.externalCalendarReservations = [];
+    this.reservations = [];
+    this.partnerContactByPropertyId.clear();
+    this.loadingPartnerContactIds.clear();
+    this.hoveredPartnerPropertyId = null;
+    this.partnerContactPanelPosition = { x: 0, y: 0 };
+    this.displayTextCache.clear();
+    this.isPartnerBoardLoading = true;
+    this.markViewForCheck();
+  }
+
   onOfficeDropdownChange(): void {
     this.lastLoadedOfficeId = null;
     this.syncSelectedAgentWithOfficeScope();
@@ -585,7 +670,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get showAgentDropdown(): boolean {
-    return this.canFilterByAgent && this.agentOptions.length > 0;
+    return !this.partnersBoardToggleChecked && this.canFilterByAgent && this.agentOptions.length > 0;
   }
 
   syncSelectedAgentWithOfficeScope(): void {
@@ -599,7 +684,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSelectedAgentCode(): string | null {
-    if (!this.canFilterByAgent || !this.selectedAgentId) {
+    if (this.partnersBoardToggleChecked || !this.canFilterByAgent || !this.selectedAgentId) {
       return null;
     }
     const agent = this.agents.find(item => item.agentId === this.selectedAgentId);
@@ -617,7 +702,15 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get showOfficeDropdown(): boolean {
-    return this.officeOptions.length > 1;
+    return !this.partnersBoardToggleChecked && this.officeOptions.length > 1;
+  }
+
+  get isPropertyStatusReadOnly(): boolean {
+    return this.readOnly || this.partnersBoardToggleChecked;
+  }
+
+  get isPropertyCodeNavigable(): boolean {
+    return !this.readOnly && !this.partnersBoardToggleChecked;
   }
 
   applyBoardPropertyFilter(): void {
@@ -1164,18 +1257,18 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (this.readOnly) {
       return;
     }
+    const partnersBoard = this.partnersBoardToggleChecked;
     if (!this.userId) {
-      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board' } });
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board', partnersBoard } });
       return;
     }
 
     this.propertyService.getPropertySelection(this.userId).pipe(take(1)).subscribe({
       next: (selection: PropertySelectionResponse) => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board', selection } });
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board', selection, partnersBoard } });
       },
       error: () => {
-        // Still allow navigation even if selection load fails
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board' } });
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board', partnersBoard } });
       }
     });
   }
@@ -1220,7 +1313,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onPropertyCodeClick(propertyId: string, event: MouseEvent): void {
-    if (this.readOnly) {
+    if (!this.isPropertyCodeNavigable) {
       return;
     }
 
@@ -1234,6 +1327,72 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.router.navigate([this.getPropertyRoute(propertyId)], {
       queryParams: { returnTo: 'reservation-board' }
     });
+  }
+
+  loadPartnerContact(propertyId: string): void {
+    const id = String(propertyId || '').trim();
+    if (!this.partnersBoardToggleChecked || !id || this.partnerContactByPropertyId.has(id) || this.loadingPartnerContactIds.has(id)) {
+      return;
+    }
+
+    this.loadingPartnerContactIds.add(id);
+    this.partnerService.getPartnerContact(id).pipe(take(1)).subscribe({
+      next: (contact: PartnerContactResponse | null) => {
+        if (contact) {
+          this.partnerContactByPropertyId.set(id, contact);
+        }
+        this.loadingPartnerContactIds.delete(id);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.loadingPartnerContactIds.delete(id);
+      }
+    });
+  }
+
+  onPartnerPropertyRowHover(propertyId: string, event: MouseEvent): void {
+    if (!this.partnersBoardToggleChecked) {
+      return;
+    }
+    this.hoveredPartnerPropertyId = String(propertyId || '').trim() || null;
+    this.partnerContactPanelPosition = {
+      x: event.clientX + 12,
+      y: event.clientY + 12
+    };
+    if (this.hoveredPartnerPropertyId) {
+      this.loadPartnerContact(this.hoveredPartnerPropertyId);
+    }
+    this.markViewForCheck();
+  }
+
+  onPartnerPropertyRowLeave(): void {
+    if (!this.partnersBoardToggleChecked) {
+      return;
+    }
+    this.hoveredPartnerPropertyId = null;
+    this.markViewForCheck();
+  }
+
+  getPartnerContact(propertyId: string): PartnerContactResponse | null {
+    const id = String(propertyId || '').trim();
+    if (!id) {
+      return null;
+    }
+    return this.partnerContactByPropertyId.get(id) ?? null;
+  }
+
+  isPartnerContactLoading(propertyId: string): boolean {
+    const id = String(propertyId || '').trim();
+    return !!id && this.loadingPartnerContactIds.has(id);
+  }
+
+  formatPartnerContactField(value: string | null | undefined): string {
+    const text = String(value || '').trim();
+    return text || '—';
+  }
+
+  formatPartnerContactPhone(phone: string | null | undefined): string {
+    return this.formatterService.phoneNumber(String(phone || '').trim()) || '—';
   }
 
   onPropertyRowContextMenu(event: MouseEvent): void {
@@ -1254,7 +1413,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onBoardPropertyStatusChange(property: BoardProperty, statusId: number): void {
-    if (this.readOnly || !property || this.updatingPropertyStatusIds.has(property.propertyId)) {
+    if (this.isPropertyStatusReadOnly || !property || this.updatingPropertyStatusIds.has(property.propertyId)) {
       return;
     }
 
@@ -1297,7 +1456,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   openBoardStatusDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
-    if (this.readOnly) {
+    if (this.isPropertyStatusReadOnly) {
       return;
     }
     event.stopPropagation();

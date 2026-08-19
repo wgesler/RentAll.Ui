@@ -34,9 +34,12 @@ export class GlobalSelectionService {
 
   private readonly officeStorageKey = 'rentall.globalOfficeId';
   private readonly furnishedPropertyStorageKey = 'rentall.furnishedPropertySelection';
+  private readonly partnersBoardStorageKey = 'rentall.partnersBoardSelection';
   private selectedOfficeId$ = new BehaviorSubject<number | null>(this.readOfficeIdFromStorage());
   /** false = furnished-only (non-unfurnished); true = unfurnished-only. Reset on login / clear session. */
   private furnishedPropertySelection$ = new BehaviorSubject<boolean>(this.readFurnishedPropertySelectionFromStorage());
+  /** false = standard board; true = partner organization properties across all partner orgs. */
+  private partnersBoardSelection$ = new BehaviorSubject<boolean>(this.readPartnersBoardSelectionFromStorage());
 
   getSelectedOfficeId$(): Observable<number | null> {
     return this.selectedOfficeId$.asObservable();
@@ -122,6 +125,25 @@ export class GlobalSelectionService {
   resetFurnishedPropertySelection(): void {
     this.furnishedPropertySelection$.next(false);
     localStorage.removeItem(this.furnishedPropertyStorageKey);
+  }
+
+  getPartnersBoardSelection(): boolean {
+    return this.partnersBoardSelection$.value;
+  }
+
+  getPartnersBoardSelection$(): Observable<boolean> {
+    return this.partnersBoardSelection$.asObservable();
+  }
+
+  setPartnersBoardSelection(value: boolean): void {
+    const v = value === true;
+    this.partnersBoardSelection$.next(v);
+    this.writePartnersBoardSelectionToStorage(v);
+  }
+
+  resetPartnersBoardSelection(): void {
+    this.partnersBoardSelection$.next(false);
+    localStorage.removeItem(this.partnersBoardStorageKey);
   }
 
   verifyMainProgramAccess(features?: FeatureResponse[]): boolean {
@@ -263,6 +285,23 @@ resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
       localStorage.removeItem(this.furnishedPropertyStorageKey);
     } else {
       localStorage.setItem(this.furnishedPropertyStorageKey, 'true');
+    }
+  }
+
+  readPartnersBoardSelectionFromStorage(): boolean {
+    const rawValue = localStorage.getItem(this.partnersBoardStorageKey);
+    if (rawValue == null || rawValue === '') {
+      return false;
+    }
+    const normalized = rawValue.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y';
+  }
+
+  writePartnersBoardSelectionToStorage(value: boolean): void {
+    if (!value) {
+      localStorage.removeItem(this.partnersBoardStorageKey);
+    } else {
+      localStorage.setItem(this.partnersBoardStorageKey, 'true');
     }
   }
 }

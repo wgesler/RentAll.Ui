@@ -8,9 +8,11 @@ import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationType } from '../../organizations/models/organization-enum';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
@@ -27,6 +29,7 @@ import { DashboardNavigationService } from '../../dashboards/services/dashboard-
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
   standalone: true,
@@ -51,6 +54,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   private router = inject(Router);
   private dialog = inject(MatDialog);
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private reservationService = inject(ReservationService);
@@ -70,6 +74,8 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
   isAddMode = false;
+  isPartnerAdmin = false;
+  isPartnerOrganization = false;
   routePropertyId: string | null = null;
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -87,7 +93,11 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   //#region Property-Shell
   ngOnInit(): void {
     this.isAdminUser = this.authService.isAdmin();
+    this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.commonService.getOrganization().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.isPartnerOrganization = this.commonService.getOrganizationTypeId() === OrganizationType.Partner;
+    });
     this.loadOffices();
     this.globalSelectionService
       .getSelectedOfficeId$()
@@ -116,13 +126,13 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       if (queryParams['tab'] === 'reservation-history') {
-        this.selectedTabIndex = this.historyTabIndex;
+        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs ? 0 : this.historyTabIndex;
       } else if (queryParams['tab'] === 'listing') {
         this.selectedTabIndex = this.listingTabIndex;
       } else if (queryParams['tab'] === 'departure-letter') {
-        this.selectedTabIndex = this.departureLetterTabIndex;
+        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs ? 0 : this.departureLetterTabIndex;
       } else if (queryParams['tab'] === 'welcome-letter') {
-        this.selectedTabIndex = this.welcomeLetterTabIndex;
+        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs ? 0 : this.welcomeLetterTabIndex;
       }
     });
   }
@@ -140,6 +150,17 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   //#endregion
 
   //#region Getter Methods
+  get isPartnerLimitedPropertyTabs(): boolean {
+    return this.isPartnerAdmin || this.isPartnerOrganization;
+  }
+
+  get showTitleBarReservation(): boolean {
+    if (this.isAddMode || this.isPartnerLimitedPropertyTabs) {
+      return false;
+    }
+    return this.selectedTabIndex === this.welcomeLetterTabIndex || this.selectedTabIndex === this.departureLetterTabIndex;
+  }
+
   /** Add-mode shell office; null means All Offices until the user picks one. */
   get addModeOfficeId(): number | null {
     return this.titleBarPropertyOfficeId;

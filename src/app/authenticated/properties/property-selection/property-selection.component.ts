@@ -65,6 +65,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   propertyTypes: { value: number; label: string }[] = getPropertyTypes();
   preloadedSelection: PropertySelectionResponse | null = null;
   returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
+  partnersBoardMode = false;
   reservationListReturnPath: string | null = null;
   formFilterTrackingSetup = false;
   selectionSticky = false;
@@ -86,17 +87,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.propertySelectionFilterService.setDateRange(null, null);
     this.initializePropertyStatuses();
     this.loadStates();
-    this.loadDropDownLookups();
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.applyOfficeFilterToLookups();
-    });
-
-    this.itemsToLoad$.pipe(map((s) => s.size),filter((n) => n === 0),take(1),takeUntil(this.destroy$) ).subscribe(() => {
-      this.setupFormFilterTrackingOnce();
-    });
-
-    // If we navigated here from the board or property list, it may have preloaded the selection.
     const state = history.state || {};
     const source = state['source'] as 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' | undefined;
     if (source === 'property-list') this.returnSource = 'property-list';
@@ -106,6 +97,19 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       this.reservationListReturnPath = path?.trim() || null;
     } else if (source === 'maintenance-list') this.returnSource = 'maintenance-list';
     else this.returnSource = 'reservation-board';
+
+    this.partnersBoardMode = state['partnersBoard'] === true
+      || this.globalSelectionService.getPartnersBoardSelection() === true;
+
+    this.loadDropDownLookups();
+
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.applyOfficeFilterToLookups();
+    });
+
+    this.itemsToLoad$.pipe(map((s) => s.size),filter((n) => n === 0),take(1),takeUntil(this.destroy$) ).subscribe(() => {
+      this.setupFormFilterTrackingOnce();
+    });
 
     const preloaded = (state['selection'] as PropertySelectionResponse) || null;
     if (preloaded) {
@@ -191,6 +195,11 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
 
   loadDropDownLookups(): void {
+    if (this.partnersBoardMode) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups');
+      return;
+    }
+
     const orgId = (this.authService.getUser()?.organizationId || '').trim();
     if (!orgId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups');

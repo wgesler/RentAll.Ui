@@ -109,6 +109,38 @@
   box-sizing: border-box;
 }
 
+.partner-board-mode {
+  --partner-header-bg: rgb(74, 132, 96);
+  --partner-header-border: rgb(52, 104, 74);
+}
+
+.partner-board-mode .header-row {
+  background-color: var(--partner-header-bg);
+  color: #fff;
+
+  th {
+    border-color: var(--partner-header-border) !important;
+    background-color: var(--partner-header-bg) !important;
+    color: #fff;
+  }
+
+  &.header-row-1 th,
+  &.header-row-2 th,
+  &.header-row-3 th {
+    background-color: var(--partner-header-bg) !important;
+    color: #fff;
+  }
+}
+
+.partner-board-mode .property-header-cell,
+.partner-board-mode .month-header-cell,
+.partner-board-mode .dow-header-cell,
+.partner-board-mode .date-header-cell {
+  background-color: var(--partner-header-bg) !important;
+  border-color: var(--partner-header-border) !important;
+  color: #fff !important;
+}
+
 .reservation-board-legend-above {
   display: flex;
   justify-content: flex-end;
@@ -261,6 +293,15 @@
   box-sizing: border-box;
   height: 100%;
   position: relative;
+}
+
+.board-loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 320px;
+  height: 100%;
 }
 
 .board-context-menu-anchor {
@@ -522,6 +563,47 @@
   &:hover {
     color: #1e40af;
   }
+}
+
+.partner-property-code {
+  color: #1e293b;
+}
+
+.property-row.partner-property-row {
+  cursor: default;
+}
+
+.partner-contact-hover-panel {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  padding: 8px 10px;
+  pointer-events: none;
+  min-width: 220px;
+  max-width: 360px;
+}
+
+.partner-contact-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.partner-contact-tooltip-label {
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.partner-contact-tooltip-value {
+  text-align: left;
+  word-break: break-word;
 }
 
 .reservation-property-code-link.reservation-property-code-link--gave-notice {

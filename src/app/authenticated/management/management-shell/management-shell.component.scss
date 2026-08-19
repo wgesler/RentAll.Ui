@@ -1,0 +1,17 @@
+.management-shell-wrap {
+  width: 100%;
+}
+
+.management-shell-card {
+  width: 100%;
+  max-width: none;
+}
+
+.management-shell-card ::ng-deep .content-card {
+  box-shadow: none;
+  margin: 0;
+}
+
+.management-shell-card ::ng-deep .content-card-wrap {
+  padding: 0;
+}

@@ -60,7 +60,11 @@ export class AuthService {
         this.clearSensitiveData();
         this.clearBootstrapCaches();
         return this.http.post<AuthResponse>(this.controller + 'login', request).pipe(
-            tap(() => this.injector.get(GlobalSelectionService).resetFurnishedPropertySelection()),
+            tap(() => {
+                const globalSelection = this.injector.get(GlobalSelectionService);
+                globalSelection.resetFurnishedPropertySelection();
+                globalSelection.resetPartnersBoardSelection();
+            }),
             tap((response: AuthResponse) => this.setAuthData(response))
         );
     }
@@ -273,8 +277,8 @@ export class AuthService {
         return this.hasOrganizationFeature(FeatureType.Owners, features);
     }
 
-    hasAccessToPropertyManagement(features?: FeatureResponse[]): boolean {
-        return this.hasOrganizationFeature(FeatureType.PropertyManagement, features);
+    hasAccessToManagement(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.Management, features);
     }
     //#endregion
 
@@ -429,7 +433,9 @@ export class AuthService {
         this.storageService.removeItem(StorageKey.AuthData);
         this.storageService.removeItem(StorageKey.AccessEvent);
         try {
-            this.injector.get(GlobalSelectionService).resetFurnishedPropertySelection();
+            const globalSelection = this.injector.get(GlobalSelectionService);
+            globalSelection.resetFurnishedPropertySelection();
+            globalSelection.resetPartnersBoardSelection();
         } catch {
             /* GlobalSelectionService may not be available during teardown */
         }

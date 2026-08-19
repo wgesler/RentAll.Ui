@@ -490,52 +490,88 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
     }
 
     try {
-      await this.uploadPhotosInParallel(files, activePropertyId);
+      const sortedFiles = this.sortPhotoFilesByNamePrefix(files);
+      await this.uploadPhotosInParallel(sortedFiles, activePropertyId);
     } finally {
       input.value = '';
       this.cdr.markForCheck();
     }
   }
 
+  sortPhotoFilesByNamePrefix(files: File[]): File[] {
+    return [...files].sort((left, right) => this.comparePhotoFileNames(left.name, right.name));
+  }
+
+  comparePhotoFileNames(leftName: string, rightName: string): number {
+    const leftPrefix = this.getPhotoFileNameNumericPrefix(leftName);
+    const rightPrefix = this.getPhotoFileNameNumericPrefix(rightName);
+    if (leftPrefix !== null && rightPrefix !== null && leftPrefix !== rightPrefix) {
+      return leftPrefix - rightPrefix;
+    }
+    if (leftPrefix !== null && rightPrefix === null) {
+      return -1;
+    }
+    if (leftPrefix === null && rightPrefix !== null) {
+      return 1;
+    }
+    return leftName.localeCompare(rightName, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  getPhotoFileNameNumericPrefix(fileName: string): number | null {
+    const baseName = fileName.replace(/\.[^.]+$/i, '');
+    const match = /^(\d+)/.exec(baseName);
+    if (!match) {
+      return null;
+    }
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   async uploadPhotosInParallel(files: File[], propertyId: string): Promise<void> {
-    const queue = [...files];
+    const baseOrder = this.listingPhotos.length;
+    const batch = files.map((file, index) => ({
+      file,
+      tempId: `temp-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+      targetOrder: baseOrder + index,
+      previewUrl: URL.createObjectURL(file)
+    }));
+
+    this.listingPhotos = [
+      ...this.listingPhotos,
+      ...batch.map(item => ({
+        id: item.tempId,
+        order: item.targetOrder,
+        fileDetails: {
+          contentType: item.file.type || 'image/jpeg',
+          fileName: item.file.name,
+          file: '',
+          dataUrl: item.previewUrl
+        },
+        isPending: true
+      }))
+    ];
+    this.cdr.markForCheck();
+
+    const queue = [...batch];
     const workerCount = Math.min(this.photoUploadConcurrency, queue.length);
 
     const runWorker = async (): Promise<void> => {
-      const file = queue.shift();
-      if (!file) {
+      const item = queue.shift();
+      if (!item) {
         return;
       }
 
-      await this.uploadSinglePhoto(file, propertyId);
+      await this.uploadSinglePhoto(item.file, propertyId, item.tempId, item.targetOrder, item.previewUrl);
       await runWorker();
     };
 
     await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+    this.listingPhotos = [...this.listingPhotos].sort((left, right) => left.order - right.order);
     this.normalizeInMemoryPhotoOrder();
     this.photosLoadedForPropertyId = propertyId;
   }
 
-  async uploadSinglePhoto(file: File, propertyId: string): Promise<void> {
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const previewUrl = URL.createObjectURL(file);
-
-    this.listingPhotos = [
-      ...this.listingPhotos,
-      {
-        id: tempId,
-        order: this.listingPhotos.length,
-        fileDetails: {
-          contentType: file.type || 'image/jpeg',
-          fileName: file.name,
-          file: '',
-          dataUrl: previewUrl
-        },
-        isPending: true
-      }
-    ];
-    this.cdr.markForCheck();
-
+  async uploadSinglePhoto(file: File, propertyId: string, tempId: string, targetOrder: number, previewUrl: string): Promise<void> {
     try {
       const fileDetails = await this.createOptimizedPhotoDetails(file);
       this.listingPhotos = this.listingPhotos.map(photo =>
@@ -544,7 +580,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
       this.cdr.markForCheck();
 
       const request: PropertyPhotoRequest = {
-        order: this.listingPhotos.findIndex(photo => photo.id === tempId),
+        order: targetOrder,
         fileDetails
       };
 
@@ -566,7 +602,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
           ? {
             ...photo,
             id: String(response.photoId),
-            order: response.order ?? photo.order,
+            order: response.order ?? targetOrder,
             fileDetails: response.fileDetails ?? fileDetails,
             photoPath: response.photoPath,
             isPending: false

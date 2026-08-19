@@ -19,3 +19,9 @@
 .property-titlebar-mat-required-asterisk--error {
   color: red;
 }
+
+:host ::ng-deep .partner-limited-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(3),
+:host ::ng-deep .partner-limited-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(4),
+:host ::ng-deep .partner-limited-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(6) {
+  display: none;
+}

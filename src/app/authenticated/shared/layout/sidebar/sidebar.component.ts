@@ -9,7 +9,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
-import { filterNavItemsForPartner, getVisibleNavItems } from '../../access/role-access';
+import { filterNavItemsForPartner, getVisibleNavItems, MANAGEMENT_FEATURE_NAV_URL } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
@@ -148,11 +148,10 @@ markViewForCheck(): void {
         return url !== 'owner' && !url.startsWith('owner/');
       });
     }
-    if (!this.authService.hasAccessToPropertyManagement()) {
+    if (!this.authService.hasAccessToManagement()) {
       items = items.filter(item => {
         const url = String(item.url || '');
-        return url !== 'tickets' && !url.startsWith('tickets/')
-          && url !== 'maintenance' && !url.startsWith('maintenance/');
+        return url !== MANAGEMENT_FEATURE_NAV_URL && !url.startsWith(`${MANAGEMENT_FEATURE_NAV_URL}/`);
       });
     }
     if (!this.authService.hasRole(UserGroups.SuperAdmin)
@@ -163,7 +162,7 @@ markViewForCheck(): void {
   }
 
   refreshAssignedTicketBadge(): void {
-    if (!this.authService.hasAccessToPropertyManagement()) {
+    if (!this.authService.hasTicketingAccess()) {
       this.hasAssignedTicketBadge = false;
       this.markViewForCheck();
       return;

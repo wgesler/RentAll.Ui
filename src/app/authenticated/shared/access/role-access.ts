@@ -162,6 +162,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'grid_view', displayName: 'Boards', url: RouterToken.ReservationBoard, ...openToAllExceptSuperAdmin },
   { icon: 'handshake', displayName: 'Reservations', url: RouterToken.ReservationList, ...openToAllExceptSuperAdmin },
   { icon: 'home', displayName: 'Properties', url: RouterToken.PropertyList, ...openToAllExceptSuperAdmin },
+  { icon: 'manage_accounts', displayName: 'Management', url: RouterToken.ManagementList, ...openToAllExceptSuperAdmin },
   { icon: 'confirmation_number', displayName: 'Tickets', url: RouterToken.TicketList, ...ticketAccess },
   { icon: 'build', displayName: 'Maintenance', url: RouterToken.MaintenanceList, ...openToAllExceptSuperAdmin },
   { icon: 'account_balance', displayName: 'Accounting', url: RouterToken.AccountingList, ...accountingNavAccess },
@@ -201,7 +202,7 @@ function getCompanyNavItemsByUrls(urls: readonly string[]): NavItemDefinition[] 
 }
 
 export const PROPERTY_MANAGEMENT_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
-export const PROPERTY_BROKER_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
+export const PROPERTY_PROVIDER_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
 export const PARTNER_NAV_ITEMS: NavItemDefinition[] = getCompanyNavItemsByUrls([
   RouterToken.ReservationBoard,
   RouterToken.PropertyList,
@@ -209,9 +210,11 @@ export const PARTNER_NAV_ITEMS: NavItemDefinition[] = getCompanyNavItemsByUrls([
   RouterToken.OrganizationConfiguration
 ]);
 
+export const MANAGEMENT_FEATURE_NAV_URL = RouterToken.ManagementList;
+
 export const NAV_ITEMS_BY_ORGANIZATION_TYPE: Record<number, NavItemDefinition[]> = {
   [OrganizationType.PropertyManagement]: PROPERTY_MANAGEMENT_NAV_ITEMS,
-  [OrganizationType.PropertyBroker]: PROPERTY_BROKER_NAV_ITEMS,
+  [OrganizationType.PropertyProvider]: PROPERTY_PROVIDER_NAV_ITEMS,
   [OrganizationType.Partner]: PARTNER_NAV_ITEMS
 };
 
@@ -226,6 +229,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [RouterToken.ReservationBoard]: openToAllExceptSuperAdmin,
   [RouterToken.ReservationList]: openToAllExceptSuperAdmin,
   [RouterToken.PropertyList]: openToAllExceptSuperAdmin,
+  [RouterToken.ManagementList]: openToAllExceptSuperAdmin,
   [RouterToken.MaintenanceList]: openToAllExceptSuperAdmin,
   [RouterToken.TicketList]: ticketAccess,
   [WORK_ORDER_SEGMENT]: openToAllExceptSuperAdmin,

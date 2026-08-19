@@ -58,7 +58,7 @@
               }
             </mat-form-field>
 
-            @if (!isAddMode && selectedTabIndex >= 2 && selectedTabIndex !== historyTabIndex) {
+            @if (showTitleBarReservation) {
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
@@ -91,7 +91,7 @@
               <input matInput [value]="sharedPropertyCode || titleBarPropertyCode || ''" readonly disabled class="readonly-field">
             </mat-form-field>
 
-            @if (!isAddMode && selectedTabIndex >= 2 && selectedTabIndex !== historyTabIndex) {
+            @if (showTitleBarReservation) {
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
@@ -124,7 +124,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" [class.partner-limited-tabs]="isPartnerLimitedPropertyTabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
           @if (selectedTabIndex === 0) {
             <app-property

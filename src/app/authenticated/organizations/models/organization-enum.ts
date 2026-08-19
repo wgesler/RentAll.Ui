@@ -2,7 +2,7 @@
 export enum OrganizationType {
   Unknown = 0,
   PropertyManagement = 1,
-  PropertyBroker = 2,
+  PropertyProvider = 2,
   Partner = 3
 }
 
@@ -14,7 +14,7 @@ export function getOrganizationType(organizationTypeId: number | undefined | nul
   const typeMap: { [key: number]: string } = {
     [OrganizationType.Unknown]: 'Unknown',
     [OrganizationType.PropertyManagement]: 'Property Management',
-    [OrganizationType.PropertyBroker]: 'Property Broker',
+    [OrganizationType.PropertyProvider]: 'Property Provider',
     [OrganizationType.Partner]: 'Partner'
   };
 
@@ -41,7 +41,7 @@ export enum FeatureType {
   Accounting = 4,
   Leads = 5,
   Owners = 6,
-  PropertyManagement = 7
+  Management = 7
 }
 
 export function getFeatureType(featureTypeId: number | undefined | null): string {
@@ -57,7 +57,7 @@ export function getFeatureType(featureTypeId: number | undefined | null): string
     [FeatureType.Accounting]: 'Accounting',
     [FeatureType.Leads]: 'Leads',
     [FeatureType.Owners]: 'Owners',
-    [FeatureType.PropertyManagement]: 'Property Management'
+    [FeatureType.Management]: 'Management'
   };
 
   return typeMap[featureTypeId] || '';
@@ -76,7 +76,7 @@ export function getFeatureTypeCode(featureTypeId: number | undefined | null): st
     [FeatureType.Accounting]: 'ACT',
     [FeatureType.Leads]: 'LEAD',
     [FeatureType.Owners]: 'OWN',
-    [FeatureType.PropertyManagement]: 'PM'
+    [FeatureType.Management]: 'PM'
   };
 
   return codeMap[featureTypeId] || '';

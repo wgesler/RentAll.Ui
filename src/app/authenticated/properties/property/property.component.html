@@ -20,6 +20,7 @@
               <div class="property-tab-actions-band__row">
                 <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
                   @if (!isOwnerView) {
+                    @if (!isPartnerOrganization) {
                     <div class="header-title flex-shrink-0">
                       <mat-form-field appearance="outline" class="titlebar-field-company">
                         <mat-label>Property Lease Type</mat-label>
@@ -30,6 +31,7 @@
                         </mat-select>
                       </mat-form-field>
                     </div>
+                    }
                     <mat-checkbox
                       color="primary"
                       class="flex-shrink-0"
@@ -173,7 +175,7 @@
                       class="basic-compact min-w-0 col-span-4"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
-                      [formFieldLabel]="'Inspected'"
+                      [formFieldLabel]="'Property Status'"
                       [required]="true"
                       [value]="form.get('propertyStatus')?.value ?? null"
                       [options]="propertyStatuses"
@@ -725,9 +727,10 @@
                       [renderInFormField]="true"
                       [formFieldLabel]="'Vendor'"
                       [required]="true"
+                      [disabled]="isPartnerOrganization"
                       [value]="form.get('vendorId')?.value ?? null"
                       [options]="vendorOptions"
-                      [showSearchInput]="true"
+                      [showSearchInput]="!isPartnerOrganization"
                       [searchPlaceholder]="'Type to filter vendors...'"
                       [nullOptionLabel]="''"
                       [noResultsText]="'No vendors match your search'"
@@ -975,7 +978,7 @@
               </mat-expansion-panel>
             }
 
-            @if (!isInOwnerMode) {
+            @if (!isInOwnerMode && !isPartnerLimitedPropertyForm) {
               <mat-expansion-panel [expanded]="expandedSections.propertyContacts" (opened)="onPanelOpened('propertyContacts')" (closed)="onPanelClosed('propertyContacts')" class="mb-4">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Property Contacts</mat-panel-title>

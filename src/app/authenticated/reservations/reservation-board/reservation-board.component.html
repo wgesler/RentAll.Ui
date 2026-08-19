@@ -19,7 +19,7 @@
         }
       </div>
     </div>
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar reservation-board-titlebar">
       <div class="flex items-center flex-wrap py-4">
           @if (readOnly) {
             <span class="flex-shrink-0 text-xl font-medium read-only-board-title">Reservation Board</span>
@@ -100,6 +100,9 @@
             <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
               Unfurnished
             </mat-slide-toggle>
+            <mat-slide-toggle color="primary" [checked]="partnersBoardToggleChecked" (change)="onPartnersToggle($event)">
+              Partners
+            </mat-slide-toggle>
             <button
               mat-raised-button
               type="button"
@@ -116,7 +119,35 @@
         }
     </div>
     <mat-card>
-      <div class="board-wrapper">
+      <div class="board-wrapper" [class.partner-board-mode]="partnersBoardToggleChecked">
+        @if (partnersBoardToggleChecked && hoveredPartnerPropertyId) {
+          <div
+            class="partner-contact-hover-panel"
+            [style.left.px]="partnerContactPanelPosition.x"
+            [style.top.px]="partnerContactPanelPosition.y">
+            @if (isPartnerContactLoading(hoveredPartnerPropertyId)) {
+              <span>Loading contact...</span>
+            } @else if (getPartnerContact(hoveredPartnerPropertyId); as contact) {
+              <div class="partner-contact-grid">
+                <span class="partner-contact-tooltip-label">Company:</span>
+                <span class="partner-contact-tooltip-value">{{ formatPartnerContactField(contact.companyName) }}</span>
+                <span class="partner-contact-tooltip-label">Contact:</span>
+                <span class="partner-contact-tooltip-value">{{ formatPartnerContactField(contact.name) }}</span>
+                <span class="partner-contact-tooltip-label">Phone:</span>
+                <span class="partner-contact-tooltip-value">{{ formatPartnerContactPhone(contact.phone) }}</span>
+                <span class="partner-contact-tooltip-label">Email:</span>
+                <span class="partner-contact-tooltip-value">{{ formatPartnerContactField(contact.email) }}</span>
+              </div>
+            } @else {
+              <span>Contact unavailable</span>
+            }
+          </div>
+        }
+        @if (isPartnerBoardLoading) {
+          <div class="board-loading-container">
+            <mat-spinner [diameter]="40"></mat-spinner>
+          </div>
+        } @else {
         <table class="reservation-table">
           <thead>
             <!-- Row 1: Empty property cells + Month headers -->
@@ -157,12 +188,17 @@
             @for (property of properties; track property.propertyId) {
               <tr class="property-row"
                   [class.row-selected]="isPropertySelected(property.propertyId)"
+                  [class.partner-property-row]="partnersBoardToggleChecked"
+                  (mouseenter)="onPartnerPropertyRowHover(property.propertyId, $event)"
+                  (mouseleave)="onPartnerPropertyRowLeave()"
                   (mousedown)="!readOnly && $event.shiftKey ? $event.preventDefault() : null"
                   (click)="onPropertyRowClick(property.propertyId, $event)"
                   (contextmenu)="onPropertyRowContextMenu($event)">
                 <td class="property-cell code-cell">
                   @if (readOnly) {
                     <span>{{ property.propertyCode }}</span>
+                  } @else if (partnersBoardToggleChecked) {
+                    <span class="partner-property-code">{{ property.propertyCode }}</span>
                   } @else {
                     <span
                       class="reservation-link reservation-property-code-link"
@@ -170,11 +206,11 @@
                       (click)="onPropertyCodeClick(property.propertyId, $event)">{{ property.propertyCode }}</span>
                   }
                 </td>
-                <td class="property-cell address-cell" [title]="property.address">{{ formatBoardAddressForCell(property.address) }}</td>
+                <td class="property-cell address-cell" [title]="partnersBoardToggleChecked ? null : property.address">{{ formatBoardAddressForCell(property.address) }}</td>
                 <td class="property-cell rent-cell">{{ getBoardRentDisplay(property) }}</td>
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
                 <td class="property-cell status-cell" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
-                  @if (readOnly) {
+                  @if (isPropertyStatusReadOnly) {
                     {{ property.statusLetter }}
                   } @else {
                     <div class="board-status-trigger" (click)="openBoardStatusDropdown($event, statusSelect)" (mousedown)="$event.stopPropagation()">
@@ -214,7 +250,7 @@
                               [style.backgroundColor]="bgColor"
                               [style.color]="getTextColor(bgColor)"
                               [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''"
-                              [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)"
+                              [matTooltipDisabled]="partnersBoardToggleChecked || !isExternalCalendarReservation(reservation.reservationId)"
                               (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
@@ -228,7 +264,7 @@
                               [style.backgroundColor]="bgColor"
                               [style.color]="getTextColor(bgColor)"
                               [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''"
-                              [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)"
+                              [matTooltipDisabled]="partnersBoardToggleChecked || !isExternalCalendarReservation(reservation.reservationId)"
                               (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             {{ getReservationDisplayText(reservation, day.date) }}
                           </td>
@@ -239,7 +275,7 @@
                             [style.backgroundColor]="bgColor"
                             [style.color]="getTextColor(bgColor)"
                             [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''"
-                            [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)"
+                            [matTooltipDisabled]="partnersBoardToggleChecked || !isExternalCalendarReservation(reservation.reservationId)"
                             (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                           {{ getReservationDisplayText(reservation, day.date) }}
                         </td>
@@ -247,7 +283,7 @@
                     } @else {
                       @if (getReservationDisplayText(reservation, day.date) === 'A' || getReservationDisplayText(reservation, day.date) === 'D') {
                         @if (getReservationStatusClass(reservation, day.date) === 'reservation-arrival' || getReservationStatusClass(reservation, day.date) === 'reservation-departure') {
-                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
+                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="partnersBoardToggleChecked || !isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             } @else {
@@ -255,12 +291,12 @@
                             }
                           </td>
                         } @else {
-                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
+                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="partnersBoardToggleChecked || !isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             {{ getReservationDisplayText(reservation, day.date) }}
                           </td>
                         }
                       } @else {
-                        <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
+                        <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="partnersBoardToggleChecked || !isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                           {{ getReservationDisplayText(reservation, day.date) }}
                         </td>
                       }
@@ -273,6 +309,7 @@
             }
           </tbody>
         </table>
+        }
       </div>
 
       <div

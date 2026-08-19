@@ -24,6 +24,7 @@ import { DocumentReloadService } from '../../documents/services/document-reload.
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationType } from '../../organizations/models/organization-enum';
 import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaService } from '../../organizations/services/area.service';
 import { BuildingService } from '../../organizations/services/building.service';
@@ -118,6 +119,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isAdmin = false;
   isInAccounting = false;
   isAgentAdmin = false;
+  isPartnerOrganization = false;
+  isPartnerAdmin = false;
   isServiceError: boolean = false;
   organizationId = '';
   form: FormGroup;
@@ -151,6 +154,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
+  vendorContacts: ContactResponse[] = [];
   trashDays: { value: number, label: string }[] = [];
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
@@ -186,7 +190,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     return this.isInOwnerMode && !this.disableOwnerModeLayout;
   }
 
+  get isPartnerLimitedPropertyForm(): boolean {
+    return this.isPartnerAdmin || this.isPartnerOrganization;
+  }
+
   get canShowPropertyAgreement(): boolean {
+    if (this.isPartnerLimitedPropertyForm) {
+      return false;
+    }
     if (!this.propertyId || this.isAddMode) {
       return false;
     }
@@ -242,7 +253,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.isAdmin = this.authService.isAdmin();
     this.isInAccounting = this.authService.isInAccounting();
     this.isAgentAdmin = this.authService.hasRole(UserGroups.AgentAdmin);
+    this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.commonService.getOrganization().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.applyPartnerOrganizationLeaseType();
+    });
     this.loadStates();
     this.loadContacts();
     this.loadOffices();
@@ -271,6 +286,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.buildForm();
     this.applyOwnerModeDefaults();
     this.applyOfficeControlState();
+    this.applyPartnerVendorControlState();
 
     const inputId = String(this.shellPropertyId ?? '').trim();
     if (inputId) {
@@ -651,7 +667,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       externalCalendar: formValue['externalCalendar'] == null ? null : String(formValue['externalCalendar']),
       checkInTimeId: this.parseIdValue(formValue['checkInTimeId'], 0),
       checkOutTimeId: this.parseIdValue(formValue['checkOutTimeId'], 0),
-      propertyLeaseTypeId: this.parseIdValue(formValue['propertyLeaseTypeId'], 0),
+      propertyLeaseTypeId: this.isPartnerOrganization ? PropertyLeaseType.Direct : this.parseIdValue(formValue['propertyLeaseTypeId'], 0),
       accomodates: formValue['accomodates'] ? Number(formValue['accomodates']) : 0,
       bedrooms: formValue['bedrooms'] ? Number(formValue['bedrooms']) : 0,
       bathrooms: formValue['bathrooms'] ? Number(formValue['bathrooms']) : 0,
@@ -912,7 +928,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       longitude: new FormControl('-0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       
       isActive: new FormControl(true),
-      propertyLeaseTypeId: new FormControl<number>(PropertyLeaseType.PropertyManagement, [Validators.required])
+      propertyLeaseTypeId: new FormControl<number>(this.defaultPropertyLeaseTypeId, [Validators.required])
     }, { validators: [this.bedSelectionValidator] });
   }
 
@@ -955,7 +971,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       formData.propertyType = propertyTypeValue;
       formData.noticeToVacateId = this.parseIdValue(this.property.noticeToVacateId, 0);
       formData.noticeStatusId = this.parseIdValue(this.property.noticeStatusId, 0);
-      formData.propertyLeaseTypeId = this.parseIdValue(this.property.propertyLeaseTypeId, 0);
+      formData.propertyLeaseTypeId = this.isPartnerOrganization ? PropertyLeaseType.Direct : this.parseIdValue(this.property.propertyLeaseTypeId, 0);
 
       const leaseNorm = this.parseIdValue(formData.propertyLeaseTypeId, 0);
       if (leaseNorm === PropertyLeaseType.PropertyManagement) {
@@ -1212,7 +1228,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     if (!this.form) return;
     this.form.patchValue({
       propertyCode: this.propertyCodeDefaultPrompt,
-      propertyLeaseTypeId: PropertyLeaseType.PropertyManagement,
+      propertyLeaseTypeId: this.defaultPropertyLeaseTypeId,
       vendorId: null,
       unitLevel: 1,
       bldgNo: '',
@@ -1229,6 +1245,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       fastInternet: true
     }, { emitEvent: false });
     this.applyOwnerVendorLeaseValidators();
+    this.applyDefaultPartnerVendor();
     this.captureSavedStateSignature();
     this.emitTitleBarContextToShell();
   }
@@ -1500,6 +1517,9 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   }
 
   onVendorDropdownChange(value: string | number | null): void {
+    if (this.isPartnerOrganization) {
+      return;
+    }
     const control = this.form.get('vendorId');
     const normalized = value == null || value === '' ? null : String(value);
     control?.setValue(normalized);
@@ -1676,6 +1696,10 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   //#endregion
 
   //#region Getter Methods
+  get defaultPropertyLeaseTypeId(): number {
+    return this.isPartnerOrganization ? PropertyLeaseType.Direct : PropertyLeaseType.PropertyManagement;
+  }
+
   get isPropertyManagementLease(): boolean {
     if (!this.form) {
       return true;
@@ -1700,11 +1724,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   get vendorContactsForOffice(): ContactResponse[] {
     const officeId = this.form?.get('officeId')?.value;
     if (!officeId) return [];
-    return this.contactService
-      .getAllContactsValue()
-      .filter(c =>
-        c.entityTypeId === EntityType.Vendor
-        && this.utilityService.contactHasOfficeAccess(c, Number(officeId)));
+    return this.vendorContacts.filter(c => this.utilityService.contactHasOfficeAccess(c, Number(officeId)));
   }
 
   get ownerOptions(): SearchableSelectOption[] {
@@ -1715,12 +1735,16 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   }
 
   get vendorOptions(): SearchableSelectOption[] {
+    const vendorChoices = this.vendorContactsForOffice.map(contact => ({
+      value: contact.contactId,
+      label: this.utilityService.getVendorDropdownLabel(contact)
+    }));
+    if (this.isPartnerOrganization) {
+      return vendorChoices;
+    }
     return [
       this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
-      ...this.vendorContactsForOffice.map(contact => ({
-        value: contact.contactId,
-        label: this.utilityService.getVendorDropdownLabel(contact)
-      }))
+      ...vendorChoices
     ];
   }
 
@@ -1803,6 +1827,9 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
 
   setupVendorSelectionHandlers(): void {
     this.form.get('vendorId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.isPartnerOrganization) {
+        return;
+      }
       if (this.newContactDialogService.isNewContactOptionValue(value, EntityType.Vendor)) {
         this.form.patchValue({ vendorId: null }, { emitEvent: false });
         this.openNewVendorDialog();
@@ -1958,10 +1985,14 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       next: () => {
         this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
           this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+          this.vendorContacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Vendor);
+          this.applyDefaultPartnerVendor();
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.contacts = [];
+        this.vendorContacts = [];
       }
     });
   }
@@ -2136,6 +2167,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
         owner3Id: null,
         vendorId: null
       }, { emitEvent: false });
+      this.applyDefaultPartnerVendor();
     }
   }
 
@@ -2341,6 +2373,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     codeControl?.updateValueAndValidity();
     this.applyOwnerVendorLeaseValidators();
     this.applyOfficeControlState();
+    this.applyPartnerVendorControlState();
     this.applyAddModeOfficeValidators();
 
     if (!this.isAddMode) {
@@ -2489,6 +2522,47 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   //#endregion
 
   //#region Utility Methods
+  applyPartnerOrganizationLeaseType(): void {
+    this.isPartnerOrganization = this.commonService.getOrganizationTypeId() === OrganizationType.Partner;
+    if (this.isPartnerOrganization && this.form) {
+      this.form.patchValue({ propertyLeaseTypeId: PropertyLeaseType.Direct }, { emitEvent: false });
+      this.applyOwnerVendorLeaseValidators();
+      this.applyDefaultPartnerVendor();
+    }
+    this.applyPartnerVendorControlState();
+    this.markViewForCheck();
+  }
+
+  applyPartnerVendorControlState(): void {
+    const vendorControl = this.form?.get('vendorId');
+    if (!vendorControl) {
+      return;
+    }
+    if (this.isPartnerOrganization) {
+      vendorControl.disable({ emitEvent: false });
+      return;
+    }
+    vendorControl.enable({ emitEvent: false });
+  }
+
+  applyDefaultPartnerVendor(): void {
+    if (!this.isAddMode || !this.isPartnerOrganization || !this.form || this.isOwnerMode) {
+      return;
+    }
+    const currentVendorId = String(this.form.get('vendorId')?.value ?? '').trim();
+    if (currentVendorId) {
+      return;
+    }
+    const officeVendors = this.vendorContactsForOffice;
+    const vendors = officeVendors.length > 0 ? officeVendors : this.vendorContacts;
+    if (vendors.length !== 1) {
+      return;
+    }
+    this.form.patchValue({ vendorId: vendors[0].contactId }, { emitEvent: false });
+    this.applyOwnerVendorLeaseValidators();
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
