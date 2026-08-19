@@ -8,14 +8,17 @@
       <mat-card-content class="centerContainer">
         <mat-card class="loginContainer">
         <mat-card-title>Login</mat-card-title>
-        <form [formGroup]="form" (submit)="onSubmit()">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
           <mat-form-field class="admin-login-field">
             <mat-label>Email</mat-label>
             <input matInput type="text" name="username" formControlName="username" id="username" (focus)="onCredentialFieldFocus($event)">
             <mat-icon matPrefix class="login-prefix-icon">person_outline</mat-icon>
-            @if (!form.get('username')?.valid) {
+            @if (form.get('username')?.hasError('required') && form.get('username')?.touched) {
               <mat-error>Email is required</mat-error>
+            }
+            @if (form.get('username')?.hasError('pattern') && form.get('username')?.touched && !form.get('username')?.hasError('required')) {
+              <mat-error>Enter a valid email</mat-error>
             }
           </mat-form-field>
 
@@ -36,7 +39,7 @@
           </section>
 
           <mat-card-actions id="admin-actions-wrap">
-            <button mat-raised-button color="primary">Login</button>
+            <button mat-raised-button type="submit" color="primary" [disabled]="isSubmitting">Login</button>
           </mat-card-actions>
         </form>
         </mat-card>

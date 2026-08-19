@@ -24,7 +24,8 @@ const COMPANY_ROLES: UserGroups[] = [
   UserGroups.Agent,
   UserGroups.AgentAdmin,
   UserGroups.PropertyManager,
-  UserGroups.PropertyManagerAdmin
+  UserGroups.PropertyManagerAdmin,
+  UserGroups.PartnerAdmin
 ];
 
 const OUTSIDE_ROLES: UserGroups[] = [
@@ -35,7 +36,8 @@ const OUTSIDE_ROLES: UserGroups[] = [
   UserGroups.Tenant,
   UserGroups.Owner,
   UserGroups.Inspector,
-  UserGroups.Realtor
+  UserGroups.Realtor,
+  
 ];
 //#endregion
 
@@ -116,7 +118,8 @@ const settingsAccess: AccessRule = {
     UserGroups.Agent,
     UserGroups.AgentAdmin,
     UserGroups.PropertyManager,
-    UserGroups.PropertyManagerAdmin
+    UserGroups.PropertyManagerAdmin,
+    UserGroups.PartnerAdmin
   ],
   excludedRoles: []
 };

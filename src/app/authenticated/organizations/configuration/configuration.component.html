@@ -60,7 +60,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
+          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
             <!-- Accounting Offices Section -->
             <mat-expansion-panel [expanded]="expandedSections.accountingOffices"
               (opened)="onPanelOpened('accountingOffices')"
@@ -80,7 +80,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
+          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
             <!-- Agents Section -->
             <mat-expansion-panel [expanded]="expandedSections.agents" 
               (opened)="onPanelOpened('agents')" 
@@ -100,7 +100,7 @@
             </mat-expansion-panel>
           }
 
-          @if (!isPartnerOrganization) {
+          @if (!isPartnerLimitedSettings) {
           <!-- Trackers Section -->
           <mat-expansion-panel [expanded]="expandedSections.trackers"
             (opened)="onPanelOpened('trackers')"
@@ -120,7 +120,7 @@
           </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
+          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
             <!-- State Forms Section -->
             <mat-expansion-panel [expanded]="expandedSections.stateForms"
               (opened)="onPanelOpened('stateForms')"
@@ -200,7 +200,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser && !isPartnerOrganization) {
+          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
               <!-- Chart of Accounts Section -->
               <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts"
                 (opened)="onPanelOpened('chartOfAccounts')"
@@ -234,7 +234,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isOrgAdminLikeSettingsUser && !isPartnerOrganization) {
+          @if (isOrgAdminLikeSettingsUser && !isPartnerLimitedSettings) {
             <!-- Color Section -->
             <mat-expansion-panel [expanded]="expandedSections.color" 
               (opened)="onPanelOpened('color')" 

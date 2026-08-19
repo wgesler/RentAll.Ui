@@ -82,6 +82,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.toastr.error('Enter a valid email and password', 'Login Failed...');
       return;
     }
     
@@ -112,6 +113,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: (allowed) => {
         if (!allowed) {
+          this.toastr.error('Main Program access is not enabled for this organization', 'Login Failed...');
           this.authService.logout();
           return;
         }

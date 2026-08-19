@@ -18,7 +18,8 @@ export enum UserGroups {
   Inspector = 15,
   OwnerAdmin = 16,
   OfficeAdmin = 17,
-  Realtor = 18
+  Realtor = 18,
+  PartnerAdmin = 19
 }
 
 export const UserGroupLabels: { value: UserGroups, label: string }[] = [
@@ -40,6 +41,7 @@ export const UserGroupLabels: { value: UserGroups, label: string }[] = [
   { value: UserGroups.OwnerAdmin, label: 'Owner Admin' },
   { value: UserGroups.OfficeAdmin, label: 'Office Admin' },
   { value: UserGroups.Realtor, label: 'Realtor' },
+  { value: UserGroups.PartnerAdmin, label: 'Partner Admin' },
 ];
 
 export function getUserGroup(userGroupId: number | undefined): string {
@@ -67,6 +69,7 @@ export function getUserGroup(userGroupId: number | undefined): string {
     [UserGroups.OwnerAdmin]: 'Owner Admin',
     [UserGroups.OfficeAdmin]: 'Office Admin',
     [UserGroups.Realtor]: 'Realtor',
+    [UserGroups.PartnerAdmin]: 'Partner Admin',
   };
 
   return groupMap[userGroupId] || '';

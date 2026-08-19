@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { skip, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { UserGroups } from '../../users/models/user-enums';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -40,6 +41,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
 
   EntityType = EntityType;
   selectedTabIndex: number = 0;
+  isPartnerAdmin = false;
   selectedOfficeId: number | null = null;
   showInactive: boolean = false;
   offices: OfficeResponse[] = [];
@@ -59,6 +61,10 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   //#region Contacts
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
+    if (this.isPartnerAdmin) {
+      this.selectedTabIndex = 0;
+    }
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
       pageOfficeId: this.selectedOfficeId,
@@ -78,7 +84,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, unknown>): void {
-    const tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
+    const tabIndex = this.isPartnerAdmin ? 0 : getNumberQueryParam(params, 'tab', 0, 3);
     if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
       this.selectedTabIndex = tabIndex;
     }

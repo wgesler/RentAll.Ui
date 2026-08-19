@@ -122,6 +122,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isAdminLikeSettingsUser: boolean = false;
   isOrgAdminLikeSettingsUser: boolean = false;
   isLimitedSettingsUser: boolean = false;
+  isPartnerAdmin = false;
   organizations: OrganizationResponse[] = [];
   offices: OfficeResponse[] = [];
   selectedOrganizationId: string | null = null;
@@ -139,7 +140,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
-    this.isAdminLikeSettingsUser = this.authService.isAdmin();
+    this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
+    this.isAdminLikeSettingsUser = this.authService.isAdmin() || this.isPartnerAdmin;
     this.isOrgAdminLikeSettingsUser = this.authService.isOrgAdmin() || this.authService.hasRole(UserGroups.SuperAdmin);
     this.isLimitedSettingsUser = !this.isAdminLikeSettingsUser &&
     (
@@ -285,6 +287,10 @@ refreshSettingsOfficeScopedLists(): void {
 
   get effectiveOrganizationId(): string | null {
     return this.selectedOrganizationId || this.currentUserOrganizationId;
+  }
+
+  get isPartnerLimitedSettings(): boolean {
+    return this.isPartnerAdmin || this.isPartnerOrganization;
   }
 
   get isPartnerOrganization(): boolean {
