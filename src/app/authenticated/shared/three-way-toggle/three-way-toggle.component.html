@@ -1,0 +1,25 @@
+<div class="three-way-toggle" [attr.aria-label]="resolvedAriaLabel">
+  <div class="three-way-toggle__control">
+    <div
+      class="three-way-toggle__switch"
+      role="slider"
+      [attr.aria-valuemin]="0"
+      [attr.aria-valuemax]="2"
+      [attr.aria-valuenow]="value"
+      [attr.aria-valuetext]="label"
+      tabindex="0"
+      (click)="onTrackClick($event)"
+      (keydown)="onKeydown($event)">
+      <span class="three-way-toggle__track" [attr.data-position]="value">
+        <span class="three-way-toggle__thumb" [attr.data-position]="value">
+          @if (value === 2) {
+            <span class="three-way-toggle__check" aria-hidden="true"></span>
+          } @else {
+            <span class="three-way-toggle__mark three-way-toggle__mark--horizontal" aria-hidden="true"></span>
+          }
+        </span>
+      </span>
+    </div>
+  </div>
+  <span class="three-way-toggle__label">{{ label }}</span>
+</div>

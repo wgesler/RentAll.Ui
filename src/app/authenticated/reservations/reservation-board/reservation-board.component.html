@@ -97,12 +97,43 @@
         </div>
         @if (!isOwnerScopedView && !readOnly) {
           <div class="form-titlebar-actions-wrap uniform-gap">
-            <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
-              Unfurnished
-            </mat-slide-toggle>
-            <mat-slide-toggle color="primary" [checked]="partnersBoardToggleChecked" (change)="onPartnersToggle($event)">
-              Partners
-            </mat-slide-toggle>
+            <div class="five-way-toggle" aria-label="Furnished property filter">
+              <div class="five-way-toggle__control">
+                <div
+                  class="five-way-toggle__switch"
+                  role="slider"
+                  aria-valuemin="0"
+                  aria-valuemax="4"
+                  [attr.aria-valuenow]="furnishedSliderIndex"
+                  [attr.aria-valuetext]="furnishedFilterLabel"
+                  tabindex="0"
+                  (click)="onFurnishedToggleTrackClick($event)"
+                  (keydown)="onFurnishedToggleKeydown($event)">
+                  <span class="five-way-toggle__track" [attr.data-position]="furnishedSliderIndex">
+                    <span class="five-way-toggle__thumb" [attr.data-position]="furnishedSliderIndex">
+                      @switch (furnishedSliderIndex) {
+                        @case (0) {
+                          <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                        }
+                        @case (1) {
+                          <span class="five-way-toggle__mark five-way-toggle__mark--dash" aria-hidden="true"></span>
+                        }
+                        @case (2) {
+                          <span class="five-way-toggle__plus" aria-hidden="true"></span>
+                        }
+                        @case (3) {
+                          <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                        }
+                        @case (4) {
+                          <span class="five-way-toggle__check" aria-hidden="true"></span>
+                        }
+                      }
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <span class="five-way-toggle__label">{{ furnishedFilterLabel }}</span>
+            </div>
             <button
               mat-raised-button
               type="button"

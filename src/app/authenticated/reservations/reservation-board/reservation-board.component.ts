@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatMenuTrigger } from '@angular/material/menu';
-import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, distinctUntilChanged, filter, finalize, forkJoin, interval, map, of, skip, take, takeUntil } from 'rxjs';
@@ -35,6 +34,8 @@ import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
+import { FiveWayToggleValue, getFiveWayFilterLabel} from '../models/property-filter-model';
+
 @Component({
     standalone: true,
     selector: 'app-reservation-board',
@@ -76,6 +77,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   readonly noticeStatusType = NoticeStatusType;
   properties: BoardProperty[] = [];
   allPropertyRows: PropertyListResponse[] = [];
+  standardPropertyRowsCache: PropertyListResponse[] | null = null;
+  partnerPropertyRowsCache: PropertyListResponse[] | null = null;
   propertyRows: PropertyListResponse[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
@@ -98,10 +101,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     ReservationStatus.OwnerBlocked
   ];
 
+  readonly externalCalendarReservationIdPrefix = 'extcal:';
+  readonly stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
+
   startDate: Date = null;
   endDate: Date = null;
   dateRangeSticky = false;
-  private readonly stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
   officeScopeResolved = false;
   selectedOfficeId: number | null = null;
   selectedAgentId: string | null = null;
@@ -111,10 +116,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   organizationId: string = '';
   propertiesFiltered = false;
   furnishedPropertyToggleChecked = false;
+  furnishedSliderIndex: FiveWayToggleValue = 0;
   partnersBoardToggleChecked = false;
   isPartnerBoardLoading = false;
   partnerContactByPropertyId = new Map<string, PartnerContactResponse>();
-  private loadingPartnerContactIds = new Set<string>();
+  loadingPartnerContactIds = new Set<string>();
   hoveredPartnerPropertyId: string | null = null;
   partnerContactPanelPosition = { x: 0, y: 0 };
   propertyStatusOptions = getPropertyStatuses().map(status => ({ value: status.value, label: status.label, letter: getPropertyStatusLetter(status.value)}));
@@ -124,17 +130,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   isLoadingReservations = false;
   lastLoadedOfficeId: number | null | undefined = undefined;
   officeUseDailyOnBoardById = new Map<number, boolean>();
-  private externalCalendarLoadSequence = 0;
-  private readonly externalCalendarReservationIdPrefix = 'extcal:';
+  externalCalendarLoadSequence = 0;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'officeScope']));
-  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Reservation-Board
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.markViewForCheck();
     });
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
@@ -149,6 +152,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.furnishedPropertyToggleChecked = this.globalSelectionService.getFurnishedPropertySelection() === true;
     this.partnersBoardToggleChecked = this.globalSelectionService.getPartnersBoardSelection() === true;
+    this.furnishedSliderIndex = this.resolveFiveWayToggleIndexFromGlobalState();
     this.applyStickyDateRangeFromStorage();
     this.generateCalendarDays();
     this.loadContacts();
@@ -174,20 +178,37 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe({
       next: value => {
+        const wasFiltered = this.propertiesFiltered;
         this.propertiesFiltered = value;
+        if (wasFiltered !== value && this.officeScopeResolved && !this.hasOwnerScope()) {
+          this.invalidateBoardPropertyCaches();
+          this.loadBoardProperties();
+        }
         this.markViewForCheck();
       }
     });
     this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe({
       next: value => {
         this.furnishedPropertyToggleChecked = value === true;
-        this.applyBoardPropertyFilter();
+        const globalIndex = (value ? 1 : 0) as FiveWayToggleValue;
+        if (this.furnishedSliderIndex <= 1 && !this.partnersBoardToggleChecked) {
+          this.furnishedSliderIndex = globalIndex;
+          if (!this.hasOwnerScope()) {
+            this.loadPropertiesForFiveWayFilterPosition(globalIndex);
+          }
+        }
+        this.markViewForCheck();
       }
     });
     this.globalSelectionService.getPartnersBoardSelection$().pipe(takeUntil(this.destroy$)).subscribe({
       next: value => {
         const wasPartnersMode = this.partnersBoardToggleChecked;
         this.partnersBoardToggleChecked = value === true;
+        if (this.partnersBoardToggleChecked) {
+          this.furnishedSliderIndex = 3;
+        } else if (this.furnishedSliderIndex === 3) {
+          this.furnishedSliderIndex = this.furnishedPropertyToggleChecked ? 1 : 0;
+        }
         if (wasPartnersMode !== this.partnersBoardToggleChecked) {
           this.lastLoadedOfficeId = null;
           this.loadReservations(true);
@@ -334,64 +355,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadProperties(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    if (this.partnersBoardToggleChecked) {
-      this.loadPartnerProperties();
+  loadBoardProperties(): void {
+    if (this.hasOwnerScope()) {
+      this.loadPropertiesForOwner();
       return;
     }
-
-    if (!this.userId) {
-      this.allPropertyRows = [];
-      this.propertyRows = [];
-      this.properties = [];
-      this.isPartnerBoardLoading = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      return;
-    }
-
-    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => {
-      this.isPartnerBoardLoading = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-    })).subscribe({
-      next: (properties: PropertyListResponse[]) => {
-        this.allPropertyRows = this.selectedOfficeId == null ? (properties || []) : (properties || []).filter(p => p.officeId === this.selectedOfficeId);
-        this.applyBoardPropertyFilter();
-      },
-      error: () => {
-        this.allPropertyRows = [];
-        this.propertyRows = [];
-        this.properties = [];
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  loadPartnerProperties(): void {
-    if (!this.userId) {
-      this.allPropertyRows = [];
-      this.propertyRows = [];
-      this.properties = [];
-      this.isPartnerBoardLoading = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      return;
-    }
-
-    this.partnerService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => {
-      this.isPartnerBoardLoading = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-    })).subscribe({
-      next: (properties: PropertyListResponse[]) => {
-        this.allPropertyRows = properties || [];
-        this.applyBoardPropertyFilter();
-      },
-      error: () => {
-        this.allPropertyRows = [];
-        this.propertyRows = [];
-        this.properties = [];
-        this.markViewForCheck();
-      }
-    });
+    this.loadPropertiesForFiveWayFilterPosition(this.furnishedSliderIndex);
   }
 
   loadPropertiesForOwner(): void {
@@ -429,14 +398,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
-  }
-
-  loadBoardProperties(): void {
-    if (this.hasOwnerScope()) {
-      this.loadPropertiesForOwner();
-      return;
-    }
-    this.loadProperties();
   }
 
   loadReservations(force: boolean = false, silent: boolean = false): void {
@@ -503,8 +464,39 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  resolveOfficeScope(officeId: number | null): void {
-    this.applyOfficeFromGlobal(officeId);
+  loadExternalCalendarReservations(): void {
+    const currentSequence = ++this.externalCalendarLoadSequence;
+    const propertiesWithExternalCalendar = (this.propertyRows || []).filter(property => String(property.externalCalendar || '').trim() !== '');
+    if (propertiesWithExternalCalendar.length === 0) {
+      this.externalCalendarReservations = [];
+      this.combineBoardReservations();
+      return;
+    }
+
+    const requests = propertiesWithExternalCalendar.map(property => {
+      const externalCalendarUrl = String(property.externalCalendar || '').trim();
+      return this.commonService.importExternalCalendar(externalCalendarUrl).pipe(
+        map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [])),
+        catchError(() => of([] as ReservationListResponse[]))
+      );
+    });
+
+    forkJoin(requests).pipe(take(1)).subscribe({
+      next: (reservationLists: ReservationListResponse[][]) => {
+        if (currentSequence !== this.externalCalendarLoadSequence) {
+          return;
+        }
+        this.externalCalendarReservations = reservationLists.flat();
+        this.combineBoardReservations();
+      },
+      error: () => {
+        if (currentSequence !== this.externalCalendarLoadSequence) {
+          return;
+        }
+        this.externalCalendarReservations = [];
+        this.combineBoardReservations();
+      }
+    });
   }
   //#endregion
 
@@ -600,61 +592,304 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     localStorage.removeItem(this.getStickyDateRangeStorageKey());
   }
 
-  getStickyDateRangeStorageKey(): string {
-    const userKey = this.userId?.trim() || 'anonymous';
-    return `${this.stickyDateRangeStorageKeyPrefix}-${userKey}`;
-  }
-  
-  getScopedOwnerId(): string {
-    return String(this.ownerContactId || this.ownerUserId || '').trim();
-  }
-
   hasOwnerScope(): boolean {
     return this.getScopedOwnerId() !== '';
   }
   //#endregion
 
-  //#region Board Supporting Methods
-  onUnfurnishedToggle(event: MatSlideToggleChange): void {
-    this.globalSelectionService.setFurnishedPropertySelection(event.checked);
+  //#region Five-Way Property Filter
+  resolveFiveWayToggleIndexFromGlobalState(): FiveWayToggleValue {
+    if (this.partnersBoardToggleChecked) {
+      return 3;
+    }
+    return this.furnishedPropertyToggleChecked ? 1 : 0;
   }
 
-  onPartnersToggle(event: MatSlideToggleChange): void {
-    this.beginPartnerBoardTransition();
-    this.globalSelectionService.setPartnersBoardSelection(event.checked);
+  loadPropertiesForFiveWayFilterPosition(index: FiveWayToggleValue): void {
+    if (index === 3) {
+      this.ensurePartnerPropertyCacheThen(() => this.applyFiveWayFilterFromCache(3));
+      return;
+    }
+    if (index === 4) {
+      this.ensureAllPropertyCachesThen(() => this.applyFiveWayFilterFromCache(4));
+      return;
+    }
+    this.ensureStandardPropertyCacheThen(() => this.applyFiveWayFilterFromCache(index));
   }
 
-  beginPartnerBoardTransition(): void {
-    this.externalCalendarLoadSequence++;
+  applyFiveWayFilterFromCache(index: FiveWayToggleValue): void {
+    const scopedStandard = this.scopeBoardPropertiesToOffice(this.standardPropertyRowsCache ?? []);
+    const partner = this.partnerPropertyRowsCache ?? [];
+
+    let rows: PropertyListResponse[];
+    switch (index) {
+      case 0:
+        rows = scopedStandard.filter(property => !this.mappingService.toBooleanValue(property.unfurnished));
+        break;
+      case 1:
+        rows = scopedStandard.filter(property => this.mappingService.toBooleanValue(property.unfurnished));
+        break;
+      case 2:
+        // Both — full standard property list, no furnished/unfurnished filter
+        rows = [...scopedStandard];
+        break;
+      case 3:
+        rows = partner;
+        break;
+      case 4:
+        rows = this.mergePropertyRowsById(scopedStandard, partner);
+        break;
+      default:
+        rows = scopedStandard;
+    }
+
+    this.applyFiveWayFilterPropertyRows(rows);
+  }
+
+  ensureStandardPropertyCacheThen(onReady: () => void): void {
+    if (this.standardPropertyRowsCache !== null) {
+      onReady();
+      return;
+    }
+    this.fetchStandardPropertyCache(onReady);
+  }
+
+  ensurePartnerPropertyCacheThen(onReady: () => void): void {
+    if (this.partnerPropertyRowsCache !== null) {
+      onReady();
+      return;
+    }
+    this.fetchPartnerPropertyCache(onReady);
+  }
+
+  ensureAllPropertyCachesThen(onReady: () => void): void {
+    const needStandard = this.standardPropertyRowsCache === null;
+    const needPartner = this.partnerPropertyRowsCache === null;
+    if (!needStandard && !needPartner) {
+      onReady();
+      return;
+    }
+    if (needStandard && needPartner) {
+      this.fetchStandardAndPartnerPropertyCaches(onReady);
+      return;
+    }
+    if (needStandard) {
+      this.fetchStandardPropertyCache(onReady);
+      return;
+    }
+    this.fetchPartnerPropertyCache(onReady);
+  }
+
+  fetchStandardPropertyCache(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.standardPropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        this.standardPropertyRowsCache = properties || [];
+        onReady();
+      },
+      error: () => {
+        this.standardPropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  fetchPartnerPropertyCache(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.partnerPropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    this.partnerService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        this.partnerPropertyRowsCache = properties || [];
+        onReady();
+      },
+      error: () => {
+        this.partnerPropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  fetchStandardAndPartnerPropertyCaches(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.standardPropertyRowsCache = [];
+      this.partnerPropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    forkJoin({
+      standard: this.propertyService.getActivePropertiesBySelectionCriteria(this.userId),
+      partner: this.partnerService.getActivePropertiesBySelectionCriteria(this.userId)
+    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: ({ standard, partner }) => {
+        this.standardPropertyRowsCache = standard || [];
+        this.partnerPropertyRowsCache = partner || [];
+        onReady();
+      },
+      error: () => {
+        this.standardPropertyRowsCache = [];
+        this.partnerPropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  completeBoardPropertyLoad(): void {
+    this.isPartnerBoardLoading = false;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+  }
+
+  mergePropertyRowsById(...lists: PropertyListResponse[][]): PropertyListResponse[] {
+    const byPropertyId = new Map<string, PropertyListResponse>();
+    lists.forEach(list => {
+      (list || []).forEach(property => byPropertyId.set(property.propertyId, property));
+    });
+    return Array.from(byPropertyId.values());
+  }
+
+  invalidateBoardPropertyCaches(): void {
+    this.standardPropertyRowsCache = null;
+    this.partnerPropertyRowsCache = null;
+  }
+
+  applyFiveWayFilterPropertyRows(properties: PropertyListResponse[]): void {
+    this.allPropertyRows = properties || [];
+    this.propertyRows = this.allPropertyRows;
+    this.isPartnerBoardLoading = false;
+    this.loadExternalCalendarReservations();
+  }
+
+  scopeBoardPropertiesToOffice(properties: PropertyListResponse[]): PropertyListResponse[] {
+    if (this.selectedOfficeId == null) {
+      return properties || [];
+    }
+    return (properties || []).filter(property => property.officeId === this.selectedOfficeId);
+  }
+
+  clearBoardPropertyRows(): void {
     this.allPropertyRows = [];
     this.propertyRows = [];
     this.properties = [];
-    this.apiReservations = [];
-    this.externalCalendarReservations = [];
-    this.reservations = [];
-    this.partnerContactByPropertyId.clear();
-    this.loadingPartnerContactIds.clear();
-    this.hoveredPartnerPropertyId = null;
-    this.partnerContactPanelPosition = { x: 0, y: 0 };
-    this.displayTextCache.clear();
-    this.isPartnerBoardLoading = true;
-    this.markViewForCheck();
   }
 
-  onOfficeDropdownChange(): void {
-    this.lastLoadedOfficeId = null;
-    this.syncSelectedAgentWithOfficeScope();
-    if (this.dateRangeSticky) {
-      this.persistStickyDateRange();
+  onFurnishedToggleTrackClick(event: MouseEvent): void {
+    const track = (event.currentTarget as HTMLElement).querySelector('.five-way-toggle__track');
+    if (!(track instanceof HTMLElement)) {
+      return;
     }
-    this.loadReservations(true);
-    this.loadBoardProperties();
+    this.setFurnishedSliderIndex(this.resolveFurnishedToggleIndexFromTrackClick(track, event.clientX));
+  }
+
+  onFurnishedToggleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.setFurnishedSliderIndex(Math.max(0, this.furnishedSliderIndex - 1) as FiveWayToggleValue);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.setFurnishedSliderIndex(Math.min(4, this.furnishedSliderIndex + 1) as FiveWayToggleValue);
+    }
+  }
+
+  resolveFurnishedToggleIndexFromTrackClick(track: HTMLElement, clientX: number): FiveWayToggleValue {
+    const rect = track.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const fifth = rect.width / 5;
+    if (x >= fifth * 4) {
+      return 4;
+    }
+    if (x >= fifth * 3) {
+      return 3;
+    }
+    if (x >= fifth * 2) {
+      return 2;
+    }
+    if (x >= fifth) {
+      return 1;
+    }
+    return 0;
+  }
+
+  setFurnishedSliderIndex(index: FiveWayToggleValue): void {
+    if (index === this.furnishedSliderIndex) {
+      return;
+    }
+    this.onFurnishedSliderPreviewChange(index);
+  }
+
+  onFurnishedSliderPreviewChange(index: FiveWayToggleValue): void {
+    const previousIndex = this.furnishedSliderIndex;
+    this.furnishedSliderIndex = index;
+
+    if (index === 3) {
+      if (!this.partnersBoardToggleChecked) {
+        this.beginPartnerBoardTransition();
+        this.globalSelectionService.setPartnersBoardSelection(true);
+      } else if (this.partnerPropertyRowsCache !== null) {
+        this.applyFiveWayFilterFromCache(3);
+      }
+      this.markViewForCheck();
+      return;
+    }
+
+    if (previousIndex === 3 && this.partnersBoardToggleChecked) {
+      this.beginPartnerBoardTransition();
+      this.globalSelectionService.setPartnersBoardSelection(false);
+    }
+
+    if (index === 0) {
+      this.globalSelectionService.setFurnishedPropertySelection(false);
+    } else if (index === 1) {
+      this.globalSelectionService.setFurnishedPropertySelection(true);
+    } else if (index === 2) {
+      this.applyBothPropertyFilter();
+    } else if (index === 4 && !this.hasOwnerScope() && !this.partnersBoardToggleChecked) {
+      this.loadPropertiesForFiveWayFilterPosition(index);
+    }
+
     this.markViewForCheck();
   }
 
-  onAgentDropdownChange(): void {
-    this.combineBoardReservations();
-    this.markViewForCheck();
+  /** Both — all standard properties, no furnished/unfurnished filter. */
+  applyBothPropertyFilter(): void {
+    if (this.hasOwnerScope()) {
+      return;
+    }
+    if (this.standardPropertyRowsCache !== null) {
+      this.applyFiveWayFilterFromCache(2);
+      return;
+    }
+    this.ensureStandardPropertyCacheThen(() => this.applyFiveWayFilterFromCache(2));
+  }
+  //#endregion
+
+  //#region Get Methods
+
+  get furnishedFilterLabel(): string {
+    return getFiveWayFilterLabel(this.furnishedSliderIndex);
   }
 
   get officeOptions(): OfficeResponse[] {
@@ -673,34 +908,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return !this.partnersBoardToggleChecked && this.canFilterByAgent && this.agentOptions.length > 0;
   }
 
-  syncSelectedAgentWithOfficeScope(): void {
-    if (!this.selectedAgentId) {
-      return;
-    }
-    if (!this.agentOptions.some(agent => agent.agentId === this.selectedAgentId)) {
-      this.selectedAgentId = null;
-      this.combineBoardReservations();
-    }
-  }
-
-  getSelectedAgentCode(): string | null {
-    if (this.partnersBoardToggleChecked || !this.canFilterByAgent || !this.selectedAgentId) {
-      return null;
-    }
-    const agent = this.agents.find(item => item.agentId === this.selectedAgentId);
-    const agentCode = (agent?.agentCode || '').trim();
-    return agentCode || null;
-  }
-
-  filterReservationsByAgent(reservations: ReservationListResponse[]): ReservationListResponse[] {
-    const agentCode = this.getSelectedAgentCode();
-    if (!agentCode) {
-      return reservations;
-    }
-    const normalizedAgentCode = agentCode.toLowerCase();
-    return (reservations || []).filter(reservation => (reservation.agentCode || '').trim().toLowerCase() === normalizedAgentCode);
-  }
-
   get showOfficeDropdown(): boolean {
     return !this.partnersBoardToggleChecked && this.officeOptions.length > 1;
   }
@@ -713,48 +920,22 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return !this.readOnly && !this.partnersBoardToggleChecked;
   }
 
-  applyBoardPropertyFilter(): void {
-    const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection() === true;
-    this.propertyRows = (this.allPropertyRows || []).filter(p => this.mappingService.toBooleanValue(p.unfurnished) === showUnfurnished);
-    this.loadExternalCalendarReservations();
+  getScopedOwnerId(): string {
+    return String(this.ownerContactId || this.ownerUserId || '').trim();
   }
 
-  generateCalendarDays(): void {
-    const days: CalendarDay[] = [];
-    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  getStickyDateRangeStorageKey(): string {
+    const userKey = this.userId?.trim() || 'anonymous';
+    return `${this.stickyDateRangeStorageKeyPrefix}-${userKey}`;
+  }
 
-    const start = this.startDate ? this.parseDateOnly(this.startDate) ?? new Date() : new Date();
-    const end = this.endDate ? this.parseDateOnly(this.endDate) ?? new Date() : new Date();
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-
-    const currentDate = new Date(start);
-    let lastMonth = -1;
-
-    // Inclusive range
-    while (currentDate.getTime() <= end.getTime()) {
-      const date = new Date(currentDate);
-      const dayOfWeek = dayNames[date.getDay()];
-      const dayNumber = date.getDate();
-      const monthIndex = date.getMonth();
-      const monthName = monthNames[monthIndex];
-      const isFirstOfMonth = monthIndex !== lastMonth;
-
-      days.push({
-        date: date,
-        dayOfWeek: dayOfWeek,
-        dayNumber: dayNumber,
-        monthName: monthName,
-        isFirstOfMonth: isFirstOfMonth
-      });
-
-      lastMonth = monthIndex;
-      currentDate.setDate(currentDate.getDate() + 1);
+  getSelectedAgentCode(): string | null {
+    if (this.partnersBoardToggleChecked || !this.canFilterByAgent || !this.selectedAgentId) {
+      return null;
     }
-
-    this.calendarDays = days;
-    this.displayTextCache.clear();
+    const agent = this.agents.find(item => item.agentId === this.selectedAgentId);
+    const agentCode = (agent?.agentCode || '').trim();
+    return agentCode || null;
   }
 
   getMonthGroups(): { monthName: string; days: number }[] {
@@ -781,56 +962,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return groups;
   }
 
-  parseDateOnly(value: string | Date | null | undefined): Date | null {
-    if (!value) {
-      return null;
-    }
-
-    if (value instanceof Date) {
-      const d = new Date(value);
-      d.setHours(0, 0, 0, 0);
-      return isNaN(d.getTime()) ? null : d;
-    }
-
-    // Parse YYYY-MM-DD as a local date to avoid timezone shifts.
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-    if (match) {
-      const year = Number(match[1]);
-      const month = Number(match[2]) - 1;
-      const day = Number(match[3]);
-      const parsed = new Date(year, month, day);
-      parsed.setHours(0, 0, 0, 0);
-      return isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    const fallback = new Date(value);
-    fallback.setHours(0, 0, 0, 0);
-    return isNaN(fallback.getTime()) ? null : fallback;
-  }
-
-  isDateBlockedByAvailability(property: BoardProperty, date: Date): boolean {
-    if (!property) {
-      return false;
-    }
-
-    const compareDate = this.parseDateOnly(date);
-    if (!compareDate) {
-      return false;
-    }
-
-    const availableFromDate = this.parseDateOnly(property.availableFrom);
-    if (availableFromDate && compareDate.getTime() < availableFromDate.getTime()) {
-      return true;
-    }
-
-    const availableUntilDate = this.parseDateOnly(property.availableUntil);
-    if (availableUntilDate && compareDate.getTime() > availableUntilDate.getTime()) {
-      return true;
-    }
-
-    return false;
-  }
-
   getReservationForPropertyAndDate(propertyId: string, date: Date): ReservationListResponse | null {
     const matchingReservations = this.reservations.filter(r => {
       if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
@@ -850,7 +981,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
 
-    // If multiple reservations overlap on the same date, prioritize most recent arrival date.
     matchingReservations.sort((a, b) => {
       const aIsExternal = this.isExternalCalendarReservation(a.reservationId);
       const bIsExternal = this.isExternalCalendarReservation(b.reservationId);
@@ -872,10 +1002,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return '';
     }
 
-    // Check if it's arrival or departure day first
     const compareDate = new Date(date);
     compareDate.setHours(0, 0, 0, 0);
-    
+
     const arrival = this.parseDateOnly(reservation.arrivalDate);
     const departure = this.parseDateOnly(reservation.departureDate);
     if (!arrival || !departure) {
@@ -885,7 +1014,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (compareDate.getTime() === arrival.getTime()) {
       return 'reservation-arrival';
     }
-    
+
     if (compareDate.getTime() === departure.getTime()) {
       return 'reservation-departure';
     }
@@ -897,10 +1026,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
 
-    // Check if it's arrival or departure day - use blue for these
     const compareDate = new Date(date);
     compareDate.setHours(0, 0, 0, 0);
-    
+
     const arrival = this.parseDateOnly(reservation.arrivalDate);
     const departure = this.parseDateOnly(reservation.departureDate);
     if (!arrival || !departure) {
@@ -911,13 +1039,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return this.colorMap.get(ReservationStatus.ArrivalDeparture) || null;
     }
 
-    // For Checked-In reservations, derive tone from notice period while keeping DB color as the base.
     if (reservation.reservationStatusId === ReservationStatus.CheckedIn) {
       const checkedInBaseColor = this.colorMap.get(ReservationStatus.CheckedIn) || null;
       return this.getCheckedInColorByNotice(reservation, checkedInBaseColor);
     }
 
-    // Get color from API based on reservation status
     const color = this.colorMap.get(reservation.reservationStatusId);
     return color || null;
   }
@@ -930,17 +1056,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (!backgroundColor) {
       return '';
     }
-    
-    // Convert hex to RGB
+
     const hex = backgroundColor.replace('#', '');
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
-    
-    // Calculate brightness using relative luminance formula
+
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    
-    // Return white for dark backgrounds, black for light backgrounds
+
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
@@ -966,11 +1089,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     const arrDate = arrivalDate ? this.parseDateOnly(arrivalDate) : null;
     const depDate = departureDate ? this.parseDateOnly(departureDate) : null;
 
-    // EOM: last day of month we may use. Never use the last day; if last day is Departure, EOM = last day - 2.
     const isDepartureOnLastDay = depDate && depDate.getFullYear() === year && depDate.getMonth() === month && depDate.getDate() === lastDayOfMonth;
     const EOM = isDepartureOnLastDay ? lastDayOfMonth - 2 : lastDayOfMonth - 1;
 
-    // SOM: When arrival is in this month, use arrival+2 first (so arrival day shows A). Else if partial first month use board first day. Else if day 1 is Arrival then 3, else 1.
     const isFirstMonthOnBoard = this.startDate && this.startDate.getFullYear() === year && this.startDate.getMonth() === month;
     const firstDayVisible = this.startDate?.getDate() ?? 1;
     const isPartialFirstMonth = isFirstMonthOnBoard && firstDayVisible > 1;
@@ -994,7 +1115,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (availableSpaces === 0) {
       content = '';
     } else if (normalizedName.length <= availableSpaces) {
-      // Rule 1: equal blanks on front/back (standard centering)
       const availableForBlanks = availableSpaces - normalizedName.length;
       const leadingBlanks = Math.floor(availableForBlanks / 2);
       const trailingBlanks = availableForBlanks - leadingBlanks;
@@ -1003,7 +1123,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       content = normalizedName.slice(0, availableSpaces);
     }
 
-    // Build full month string: spaces before SOM, content in SOM..EOM, spaces after EOM
     const prefix = ' '.repeat(SOM - 1);
     const suffix = ' '.repeat(lastDayOfMonth - EOM);
     return prefix + content + suffix;
@@ -1030,36 +1149,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /**
-   * Use two-month span only when we have two consecutive PARTIAL months (month before departure + departure month).
-   * First month partial = board starts in that month after day 1, or arrival is in that month.
-   * Second month partial = departure is before the last day of the month.
-   * If either month is full, treat each month independently (single-month logic per month).
-   */
-  shouldCenterAcrossReservation(arrival: Date, departure: Date): boolean {
-    const startMonthIndex = arrival.getFullYear() * 12 + arrival.getMonth();
-    const endMonthIndex = departure.getFullYear() * 12 + departure.getMonth();
-    if (endMonthIndex - startMonthIndex < 1) {
-      return false;
-    }
-
-    const y2 = departure.getFullYear();
-    const m2 = departure.getMonth();
-    const y1 = m2 === 0 ? y2 - 1 : y2;
-    const m1 = m2 === 0 ? 11 : m2 - 1;
-    const lastDay2 = new Date(y2, m2 + 1, 0).getDate();
-    const depDay = departure.getDate();
-
-    const firstMonthPartial = (this.startDate &&
-      this.startDate.getFullYear() === y1 &&
-      this.startDate.getMonth() === m1 &&
-      (this.startDate.getDate() ?? 1) > 1) ||
-      (arrival.getFullYear() === y1 && arrival.getMonth() === m1);
-    const secondMonthPartial = depDay < lastDay2;
-
-    return firstMonthPartial && secondMonthPartial;
-  }
-
-  /**
    * Two consecutive partial months = last two months of the reservation (month before departure + departure month).
    * First month can be partial because the board starts mid-month (viewable space); second because reservation ends mid-month.
    * SOM (month 1): board first day if board starts in that month; else arrival+2 if arrival in that month; else 1.
@@ -1068,7 +1157,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   getTwoMonthSpanAvailable(arrival: Date, departure: Date): { totalAvailable: number; getCharIndex: (d: Date) => number } {
     const y2 = departure.getFullYear();
     const m2 = departure.getMonth();
-    // First month of the span = month before departure
     const y1 = m2 === 0 ? y2 - 1 : y2;
     const m1 = m2 === 0 ? 11 : m2 - 1;
 
@@ -1076,7 +1164,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     const lastDay2 = new Date(y2, m2 + 1, 0).getDate();
     const depDay = departure.getDate();
 
-    // SOM for first month: when arrival is in this month, use arrival+2 so we skip arrival day (show A) and the day after; else if board starts here (partial view), use board first day; else 1
     const isBoardFirstMonth = this.startDate &&
       this.startDate.getFullYear() === y1 &&
       this.startDate.getMonth() === m1 &&
@@ -1093,9 +1180,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       SOM = 1;
     }
 
-    // When spanning 2 partial months, the last day of the first month gets a character (not blank)
     const EOM1 = lastDay1;
-    // Second month: full month (departure on last day) -> EOM2 = last day - 1; partial -> EOM2 = depDay - 2
     const isFullSecondMonth = depDay === lastDay2;
     const EOM2 = isFullSecondMonth ? lastDay2 - 1 : Math.max(0, depDay - 2);
 
@@ -1133,7 +1218,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return '';
     }
 
-    // Arrival day always shows A and departure day always shows D, regardless of status (including OwnerBlocked and Maintenance)
     if (compareDate.getTime() === arrival.getTime()) {
       return 'A';
     }
@@ -1149,7 +1233,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
     let result: string;
 
-    // For OwnerBlocked status, show "O" instead of "R"
     if (reservation.reservationStatusId === ReservationStatus.OwnerBlocked) {
       result = 'O';
     } else if (reservation.reservationStatusId === ReservationStatus.Maintenance) {
@@ -1208,13 +1291,277 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return result;
   }
 
-  //#endregion
-
-  //#region Navigation Methods
   getPropertyRoute(propertyId: string): string {
     return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
   }
 
+  getPartnerContact(propertyId: string): PartnerContactResponse | null {
+    const id = String(propertyId || '').trim();
+    if (!id) {
+      return null;
+    }
+    return this.partnerContactByPropertyId.get(id) ?? null;
+  }
+
+  getReservationLegendLabel(statusId: number): string {
+    return getReservationStatus(statusId);
+  }
+
+  getReservationLegendColor(statusId: number): string {
+    return this.colorMap.get(statusId) || '#94a3b8';
+  }
+
+  getBoardRentDisplay(property: BoardProperty): string {
+    const useDaily = this.officeUseDailyOnBoardById.get(property.officeId) === true;
+    const rate = useDaily ? property.dailyRate : property.monthlyRate;
+    const suffix = useDaily ? '/D' : '/M';
+    return `${this.formatCompactRate(rate)}${suffix}`;
+  }
+
+  getPropertyCodeClass(noticeStatusId: number | null | undefined): string {
+    if (noticeStatusId === NoticeStatusType.GaveNotice) {
+      return 'reservation-property-code-link--gave-notice';
+    }
+    if (noticeStatusId === NoticeStatusType.MonthToMonth) {
+      return 'reservation-property-code-link--month-to-month';
+    }
+    return '';
+  }
+
+  getCheckedInColorByNotice(reservation: ReservationListResponse, baseColor: string | null): string | null {
+    if (!baseColor) {
+      return null;
+    }
+
+    const noticeDays = this.getReservationNoticeDays(reservation);
+    if (noticeDays !== null) {
+      const noticeColor = this.checkedInNoticeColorMap.get(noticeDays);
+      if (noticeColor) {
+        return noticeColor;
+      }
+    }
+
+    return baseColor;
+  }
+
+  getReservationNoticeDays(reservation: ReservationListResponse): number | null {
+    const rawText = String(reservation.reservationNoticeId ?? '').trim();
+    if (rawText === '') {
+      return null;
+    }
+    const notice = Number(rawText);
+    if (!Number.isFinite(notice)) {
+      return null;
+    }
+
+    if (notice === 14 || notice === 15 || notice === 30 || notice === 60) {
+      return notice;
+    }
+    if (notice === ReservationNotice.ThirtyDays) {
+      return 30;
+    }
+    if (notice === ReservationNotice.FifteenDays) {
+      return 15;
+    }
+    if (notice === ReservationNotice.FourteenDays) {
+      return 14;
+    }
+    if (notice === ReservationNotice.SixtyDays) {
+      return 60;
+    }
+    if (notice === ReservationNotice.FirmEndDate) {
+      return null;
+    }
+    return null;
+  }
+
+  //#endregion
+
+  //#region Board Supporting Methods
+  beginPartnerBoardTransition(): void {
+    this.externalCalendarLoadSequence++;
+    this.allPropertyRows = [];
+    this.propertyRows = [];
+    this.properties = [];
+    this.apiReservations = [];
+    this.externalCalendarReservations = [];
+    this.reservations = [];
+    this.partnerContactByPropertyId.clear();
+    this.loadingPartnerContactIds.clear();
+    this.hoveredPartnerPropertyId = null;
+    this.partnerContactPanelPosition = { x: 0, y: 0 };
+    this.displayTextCache.clear();
+    this.isPartnerBoardLoading = true;
+    this.markViewForCheck();
+  }
+
+  onOfficeDropdownChange(): void {
+    this.lastLoadedOfficeId = null;
+    this.syncSelectedAgentWithOfficeScope();
+    if (this.dateRangeSticky) {
+      this.persistStickyDateRange();
+    }
+    this.loadReservations(true);
+    this.loadBoardProperties();
+    this.markViewForCheck();
+  }
+
+  onAgentDropdownChange(): void {
+    this.combineBoardReservations();
+    this.markViewForCheck();
+  }
+
+  syncSelectedAgentWithOfficeScope(): void {
+    if (!this.selectedAgentId) {
+      return;
+    }
+    if (!this.agentOptions.some(agent => agent.agentId === this.selectedAgentId)) {
+      this.selectedAgentId = null;
+      this.combineBoardReservations();
+    }
+  }
+
+  filterReservationsByAgent(reservations: ReservationListResponse[]): ReservationListResponse[] {
+    const agentCode = this.getSelectedAgentCode();
+    if (!agentCode) {
+      return reservations;
+    }
+    const normalizedAgentCode = agentCode.toLowerCase();
+    return (reservations || []).filter(reservation => (reservation.agentCode || '').trim().toLowerCase() === normalizedAgentCode);
+  }
+
+  applyBoardPropertyFilter(): void {
+    if (!this.hasOwnerScope() && (this.furnishedSliderIndex === 2 || this.furnishedSliderIndex === 3 || this.furnishedSliderIndex === 4)) {
+      this.propertyRows = this.allPropertyRows || [];
+      this.loadExternalCalendarReservations();
+      return;
+    }
+
+    const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection() === true;
+    this.propertyRows = (this.allPropertyRows || []).filter(p => this.mappingService.toBooleanValue(p.unfurnished) === showUnfurnished);
+    this.loadExternalCalendarReservations();
+  }
+
+  generateCalendarDays(): void {
+    const days: CalendarDay[] = [];
+    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+    const start = this.startDate ? this.parseDateOnly(this.startDate) ?? new Date() : new Date();
+    const end = this.endDate ? this.parseDateOnly(this.endDate) ?? new Date() : new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const currentDate = new Date(start);
+    let lastMonth = -1;
+
+    // Inclusive range
+    while (currentDate.getTime() <= end.getTime()) {
+      const date = new Date(currentDate);
+      const dayOfWeek = dayNames[date.getDay()];
+      const dayNumber = date.getDate();
+      const monthIndex = date.getMonth();
+      const monthName = monthNames[monthIndex];
+      const isFirstOfMonth = monthIndex !== lastMonth;
+
+      days.push({
+        date: date,
+        dayOfWeek: dayOfWeek,
+        dayNumber: dayNumber,
+        monthName: monthName,
+        isFirstOfMonth: isFirstOfMonth
+      });
+
+      lastMonth = monthIndex;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    this.calendarDays = days;
+    this.displayTextCache.clear();
+  }
+
+  parseDateOnly(value: string | Date | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      const d = new Date(value);
+      d.setHours(0, 0, 0, 0);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Parse YYYY-MM-DD as a local date to avoid timezone shifts.
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]) - 1;
+      const day = Number(match[3]);
+      const parsed = new Date(year, month, day);
+      parsed.setHours(0, 0, 0, 0);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const fallback = new Date(value);
+    fallback.setHours(0, 0, 0, 0);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  isDateBlockedByAvailability(property: BoardProperty, date: Date): boolean {
+    if (!property) {
+      return false;
+    }
+
+    const compareDate = this.parseDateOnly(date);
+    if (!compareDate) {
+      return false;
+    }
+
+    const availableFromDate = this.parseDateOnly(property.availableFrom);
+    if (availableFromDate && compareDate.getTime() < availableFromDate.getTime()) {
+      return true;
+    }
+
+    const availableUntilDate = this.parseDateOnly(property.availableUntil);
+    if (availableUntilDate && compareDate.getTime() > availableUntilDate.getTime()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Use two-month span only when we have two consecutive PARTIAL months (month before departure + departure month).
+   * First month partial = board starts in that month after day 1, or arrival is in that month.
+   * Second month partial = departure is before the last day of the month.
+   * If either month is full, treat each month independently (single-month logic per month).
+   */
+  shouldCenterAcrossReservation(arrival: Date, departure: Date): boolean {
+    const startMonthIndex = arrival.getFullYear() * 12 + arrival.getMonth();
+    const endMonthIndex = departure.getFullYear() * 12 + departure.getMonth();
+    if (endMonthIndex - startMonthIndex < 1) {
+      return false;
+    }
+
+    const y2 = departure.getFullYear();
+    const m2 = departure.getMonth();
+    const y1 = m2 === 0 ? y2 - 1 : y2;
+    const m1 = m2 === 0 ? 11 : m2 - 1;
+    const lastDay2 = new Date(y2, m2 + 1, 0).getDate();
+    const depDay = departure.getDate();
+
+    const firstMonthPartial = (this.startDate &&
+      this.startDate.getFullYear() === y1 &&
+      this.startDate.getMonth() === m1 &&
+      (this.startDate.getDate() ?? 1) > 1) ||
+      (arrival.getFullYear() === y1 && arrival.getMonth() === m1);
+    const secondMonthPartial = depDay < lastDay2;
+
+    return firstMonthPartial && secondMonthPartial;
+  }
+  //#endregion
+
+  //#region Navigation Methods
   navigateToReservation(reservationId: string, propertyId?: string | null): void {
     if (this.readOnly) {
       return;
@@ -1373,14 +1720,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  getPartnerContact(propertyId: string): PartnerContactResponse | null {
-    const id = String(propertyId || '').trim();
-    if (!id) {
-      return null;
-    }
-    return this.partnerContactByPropertyId.get(id) ?? null;
-  }
-
   isPartnerContactLoading(propertyId: string): boolean {
     const id = String(propertyId || '').trim();
     return !!id && this.loadingPartnerContactIds.has(id);
@@ -1453,6 +1792,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     };
     this.allPropertyRows.forEach(syncRow);
     this.propertyRows.forEach(syncRow);
+    this.standardPropertyRowsCache?.forEach(syncRow);
+    this.partnerPropertyRowsCache?.forEach(syncRow);
   }
 
   openBoardStatusDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
@@ -1487,25 +1828,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
     this.router.navigateByUrl(`${RouterUrl.QuoteCreate}?propertyIds=${selectedPropertyIds.join(',')}&returnTo=reservation-board`);
   }
-  //#endregion
-
-  //#region Legend Methods
-  getReservationLegendLabel(statusId: number): string {
-    return getReservationStatus(statusId);
-  }
-
-  getReservationLegendColor(statusId: number): string {
-    return this.colorMap.get(statusId) || '#94a3b8';
-  }
-  //#endregion
-
-  //#region Utility Methods
-  getBoardRentDisplay(property: BoardProperty): string {
-    const useDaily = this.officeUseDailyOnBoardById.get(property.officeId) === true;
-    const rate = useDaily ? property.dailyRate : property.monthlyRate;
-    const suffix = useDaily ? '/D' : '/M';
-    return `${this.formatCompactRate(rate)}${suffix}`;
-  }
 
   formatCompactRate(value: number | null | undefined): string {
     const normalized = Number(value ?? 0);
@@ -1526,65 +1848,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return text.slice(0, this.boardAddressMaxChars) + '…';
   }
 
-  getPropertyCodeClass(noticeStatusId: number | null | undefined): string {
-    if (noticeStatusId === NoticeStatusType.GaveNotice) {
-      return 'reservation-property-code-link--gave-notice';
-    }
-    if (noticeStatusId === NoticeStatusType.MonthToMonth) {
-      return 'reservation-property-code-link--month-to-month';
-    }
-    return '';
-  }
-
-  getCheckedInColorByNotice(reservation: ReservationListResponse, baseColor: string | null): string | null {
-    if (!baseColor) {
-      return null;
-    }
-
-    const noticeDays = this.getReservationNoticeDays(reservation);
-    if (noticeDays !== null) {
-      const noticeColor = this.checkedInNoticeColorMap.get(noticeDays);
-      if (noticeColor) {
-        return noticeColor;
-      }
-    }
-
-    // Default/base tone for 30-day notice or unknown notice values.
-    return baseColor;
-  }
-
-  getReservationNoticeDays(reservation: ReservationListResponse): number | null {
-    const rawText = String(reservation.reservationNoticeId ?? '').trim();
-    if (rawText === '') {
-      return null;
-    }
-    const notice = Number(rawText);
-    if (!Number.isFinite(notice)) {
-      return null;
-    }
-
-    // Supports either day values (14/15/30/60) or enum IDs from ReservationNotice.
-    if (notice === 14 || notice === 15 || notice === 30 || notice === 60) {
-      return notice;
-    }
-    if (notice === ReservationNotice.ThirtyDays) {
-      return 30;
-    }
-    if (notice === ReservationNotice.FifteenDays) {
-      return 15;
-    }
-    if (notice === ReservationNotice.FourteenDays) {
-      return 14;
-    }
-    if (notice === ReservationNotice.SixtyDays) {
-      return 60;
-    }
-    if (notice === ReservationNotice.FirmEndDate) {
-      return null;
-    }
-    return null;
-  }
-
   buildCheckedInNoticeColorMap(colors: ColorResponse[]): Map<number, string> {
     const mapByNotice = new Map<number, string>();
     (colors || [])
@@ -1596,45 +1859,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
         }
       });
     return mapByNotice;
-  }
-
-  markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
-  loadExternalCalendarReservations(): void {
-    const currentSequence = ++this.externalCalendarLoadSequence;
-    const propertiesWithExternalCalendar = (this.propertyRows || []).filter(property => String(property.externalCalendar || '').trim() !== '');
-    if (propertiesWithExternalCalendar.length === 0) {
-      this.externalCalendarReservations = [];
-      this.combineBoardReservations();
-      return;
-    }
-
-    const requests = propertiesWithExternalCalendar.map(property => {
-      const externalCalendarUrl = String(property.externalCalendar || '').trim();
-      return this.commonService.importExternalCalendar(externalCalendarUrl).pipe(
-        map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [])),
-        catchError(() => of([] as ReservationListResponse[]))
-      );
-    });
-
-    forkJoin(requests).pipe(take(1)).subscribe({
-      next: (reservationLists: ReservationListResponse[][]) => {
-        if (currentSequence !== this.externalCalendarLoadSequence) {
-          return;
-        }
-        this.externalCalendarReservations = reservationLists.flat();
-        this.combineBoardReservations();
-      },
-      error: () => {
-        if (currentSequence !== this.externalCalendarLoadSequence) {
-          return;
-        }
-        this.externalCalendarReservations = [];
-        this.combineBoardReservations();
-      }
-    });
   }
 
   combineBoardReservations(): void {
@@ -1649,14 +1873,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   isExternalCalendarReservation(reservationId: string | null | undefined): boolean {
     return String(reservationId || '').startsWith(this.externalCalendarReservationIdPrefix);
   }
+  //#endregion
 
-  ngOnDestroy(): void {
-    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
+  //#region Utility Methods
   onClearPins = (): void => {
     if (!this.dateRangeSticky) {
       return;
@@ -1664,5 +1883,16 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.dateRangeSticky = false;
     this.markViewForCheck();
   };
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
   //#endregion
 }

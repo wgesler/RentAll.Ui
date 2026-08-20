@@ -268,7 +268,7 @@ resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
     localStorage.setItem(this.officeStorageKey, officeId.toString());
   }
 
-   readFurnishedPropertySelectionFromStorage(): boolean {
+  readFurnishedPropertySelectionFromStorage(): boolean {
     const rawValue = localStorage.getItem(this.furnishedPropertyStorageKey);
     if (rawValue == null || rawValue === '') {
       return false;
@@ -280,7 +280,7 @@ resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
     return false;
   }
 
-   writeFurnishedPropertySelectionToStorage(value: boolean): void {
+  writeFurnishedPropertySelectionToStorage(value: boolean): void {
     if (!value) {
       localStorage.removeItem(this.furnishedPropertyStorageKey);
     } else {

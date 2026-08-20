@@ -3,6 +3,7 @@
 @use "./styles/theme";
 @use "./styles/debug-layout-bands";
 @use "./styles/financial-report-header";
+@use "./styles/three-way-toggle";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
