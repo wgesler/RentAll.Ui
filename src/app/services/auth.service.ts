@@ -276,10 +276,6 @@ export class AuthService {
     hasAccessToOwners(features?: FeatureResponse[]): boolean {
         return this.hasOrganizationFeature(FeatureType.Owners, features);
     }
-
-    hasAccessToManagement(features?: FeatureResponse[]): boolean {
-        return this.hasOrganizationFeature(FeatureType.Management, features);
-    }
     //#endregion
 
     getSessionId(): string | null {
