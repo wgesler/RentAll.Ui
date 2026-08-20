@@ -116,6 +116,17 @@
                 <mat-datepicker-toggle matIconSuffix [for]="maintenanceShellEndPicker"></mat-datepicker-toggle>
                 <mat-datepicker #maintenanceShellEndPicker></mat-datepicker>
               </mat-form-field>
+              <button
+                mat-icon-button
+                type="button"
+                class="maintenance-shell-date-pin-btn"
+                [class.maintenance-shell-date-pin-btn--active]="dateRangePinned"
+                [attr.aria-pressed]="dateRangePinned"
+                [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
+                [matTooltip]="dateRangePinned ? 'Unpin date range' : 'Keep date range fixed'"
+                (click)="toggleDateRangePin()">
+                <mat-icon>push_pin</mat-icon>
+              </button>
             </div>
             }
           </div>

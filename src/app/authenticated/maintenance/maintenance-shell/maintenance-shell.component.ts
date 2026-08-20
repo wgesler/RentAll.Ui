@@ -120,30 +120,28 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   openWithAllSelections = false;
   clearPropertyOnOpen = false;
   propertyLoadVersion = 0;
-  /** One-shot: auto-pick first Property Code when the shell opens with none selected. */
-  private hasAppliedInitialPropertySelection = false;
 
   startDate: Date | null = null;
   endDate: Date | null = null;
+  dateRangePinned = false;
   receiptSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   workOrderSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
+
+  private readonly clearPinsEventName = 'rentall-clear-pins';
+  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-maintenance-shell-pinned-dates';
 
   destroy$ = new Subject<void>();
 
   constructor() {
-    this.setDefaultDateRange();
+    this.applyPinnedDateRangeFromStorage();
     this.syncMaintenanceSearchRequests();
   }
 
   //#region Maintenance-Shell
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.openWithAllSelections = ((this.route.snapshot.queryParamMap.get('scope') || '').trim().toLowerCase() === 'all');
     this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
-    const routePropertyId = (this.route.snapshot.paramMap.get('id') || '').trim();
-    if (routePropertyId && routePropertyId !== 'all') {
-      // Route already targets a property — do not replace it with the first list item.
-      this.hasAppliedInitialPropertySelection = true;
-    }
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.selectedOfficeId = this.openWithAllSelections
@@ -171,33 +169,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         .filter(propertyId => propertyId !== '')
     );
 
-    this.route.queryParamMap.pipe(take(1)).subscribe(params => {
-      const tabParam = Number(params.get('tab'));
-      const normalizedTab = this.normalizeRequestedTab(tabParam);
-      if (normalizedTab !== null) {
-        this.selectedTabIndex = normalizedTab;
-      }
-
-      const receiptIdParam = (params.get('receiptId') || '').trim();
-      const workOrderIdParam = (params.get('workOrderId') || '').trim();
-      if (receiptIdParam !== '' && !workOrderIdParam) {
-        this.selectedTabIndex = this.receiptsTabIndex;
-        this.selectedReceiptId = receiptIdParam === 'new' ? 'new' : receiptIdParam;
-        this.showReceiptDetail = true;
-      }
-
-      if (this.showWorkOrdersTab && workOrderIdParam !== '') {
-        this.selectedTabIndex = this.workOrdersTabIndex;
-        this.selectedWorkOrderId = workOrderIdParam === 'new' ? 'new' : workOrderIdParam;
-        const receiptSplitKeyParam = (params.get('receiptSplitKey') || '').trim();
-        this.workOrderInitialReceiptId = receiptIdParam || null;
-        this.workOrderInitialReceiptSplitKey = receiptSplitKeyParam || null;
-        this.workOrderDetailInstance++;
-        this.showWorkOrderDetail = true;
-      }
-    });
+    this.applyInitialQueryParams(this.route.snapshot.queryParamMap);
 
     this.route.paramMap.pipe(filter(params => params.has('id')), takeUntil(this.destroy$)).subscribe(params => {
+      if (this.isReceiptsOrWorkOrdersListTab()) {
+        return;
+      }
       const id = params.get('id')!;
       if (id === 'all') {
         if (this.openWithAllSelections || this.clearPropertyOnOpen) {
@@ -605,7 +582,20 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.endDate = tmp;
     }
 
+    this.persistPinnedDateRangeIfActive();
     this.syncMaintenanceSearchRequests();
+  }
+
+  toggleDateRangePin(): void {
+    this.dateRangePinned = !this.dateRangePinned;
+    if (this.dateRangePinned) {
+      this.onDateRangeChange();
+      return;
+    }
+    this.clearPinnedDateRangeStorage();
+    this.setDefaultDateRange();
+    this.syncMaintenanceSearchRequests();
+    this.refreshVisibleMaintenanceLists();
   }
 
   onInspectionUnsavedChangesChange(hasChanges: boolean): void {
@@ -680,20 +670,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       }
     }
 
-    this.ensureInitialPropertySelected();
+    this.autoSelectPropertyForInspectionTab();
   }
 
-  /** On first open with no property, select the first code in the title-bar list. */
-  ensureInitialPropertySelected(): void {
-    if (this.hasAppliedInitialPropertySelection) {
+  autoSelectPropertyForInspectionTab(): void {
+    if (this.selectedTabIndex !== 0) {
       return;
     }
-
     if (this.selectedPropertyId || this.property?.propertyId) {
-      this.hasAppliedInitialPropertySelection = true;
       return;
     }
-
     if (this.isPropertyLoading || this.availableProperties.length === 0) {
       return;
     }
@@ -703,15 +689,33 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
-    this.hasAppliedInitialPropertySelection = true;
+    this.skipNextPropertyCodeChange = true;
     this.selectedPropertyId = firstPropertyId;
-    this.openWithAllSelections = false;
-    this.clearPropertyOnOpen = false;
     this.routePropertyId = firstPropertyId;
     this.loadProperty(firstPropertyId);
-    void this.router.navigateByUrl(
-      `${RouterUrl.replaceTokens(RouterUrl.Maintenance, [firstPropertyId])}?tab=${this.selectedTabIndex}`
-    );
+  }
+
+  clearPropertyForListTab(): void {
+    this.propertyLoadVersion++;
+    this.skipNextPropertyCodeChange = true;
+    this.selectedPropertyId = null;
+    this.property = null;
+    this.routePropertyId = null;
+    this.shellReservations = [];
+    this.titleBarReservationId = null;
+    this.isPropertyLoading = false;
+    this.syncMaintenanceSearchRequests();
+    this.refreshVisibleMaintenanceLists();
+  }
+
+  isReceiptsOrWorkOrdersListTab(): boolean {
+    if (this.selectedTabIndex === this.receiptsTabIndex && !this.showReceiptDetail) {
+      return true;
+    }
+    return this.showWorkOrdersTab
+      && this.selectedTabIndex === this.workOrdersTabIndex
+      && !this.showWorkOrderDetail
+      && !this.showWorkOrderCreate;
   }
 
   normalizeOfficeId(value: number | null | undefined): number | null {
@@ -797,43 +801,36 @@ applyPageOfficeChangeEffects(): void {
   //#endregion
 
   //#region Tab Methods
-  resolveInspectionPropertyId(): string | null {
-    const candidates = [
-      this.selectedPropertyId,
-      this.routePropertyId,
-      this.property?.propertyId ?? null,
-      this.selectedWorkOrder?.propertyId ?? null,
-      this.workOrderCreateContext?.propertyId ?? null
-    ];
-
-    for (const candidate of candidates) {
-      const propertyId = (candidate || '').trim();
-      if (propertyId) {
-        return propertyId;
-      }
+  applyInitialQueryParams(params: { get(name: string): string | null }): void {
+    const tabParam = Number(params.get('tab'));
+    const normalizedTab = this.normalizeRequestedTab(tabParam);
+    if (normalizedTab !== null) {
+      this.selectedTabIndex = normalizedTab;
     }
 
-    return null;
-  }
-
-  ensureInspectionTabReady(): void {
-    const propertyId = this.resolveInspectionPropertyId();
-    if (!propertyId) {
-      return;
+    const receiptIdParam = (params.get('receiptId') || '').trim();
+    const workOrderIdParam = (params.get('workOrderId') || '').trim();
+    if (receiptIdParam !== '' && !workOrderIdParam) {
+      this.selectedTabIndex = this.receiptsTabIndex;
+      this.selectedReceiptId = receiptIdParam === 'new' ? 'new' : receiptIdParam;
+      this.showReceiptDetail = true;
     }
 
-    if (this.property?.propertyId === propertyId) {
-      return;
+    if (this.showWorkOrdersTab && workOrderIdParam !== '') {
+      this.selectedTabIndex = this.workOrdersTabIndex;
+      this.selectedWorkOrderId = workOrderIdParam === 'new' ? 'new' : workOrderIdParam;
+      const receiptSplitKeyParam = (params.get('receiptSplitKey') || '').trim();
+      this.workOrderInitialReceiptId = receiptIdParam || null;
+      this.workOrderInitialReceiptSplitKey = receiptSplitKeyParam || null;
+      this.workOrderDetailInstance++;
+      this.showWorkOrderDetail = true;
     }
 
-    if (this.isPropertyLoading && this.routePropertyId === propertyId) {
-      return;
+    if (this.isReceiptsOrWorkOrdersListTab()) {
+      this.clearPropertyForListTab();
+      this.skipNextOfficeChange = true;
+      this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
     }
-
-    this.openWithAllSelections = false;
-    this.routePropertyId = propertyId;
-    this.selectedPropertyId = propertyId;
-    this.loadProperty(propertyId);
   }
 
   async onTabIndexChange(nextTabIndex: number): Promise<void> {
@@ -843,24 +840,23 @@ applyPageOfficeChangeEffects(): void {
 
     this.isHandlingTabGuard = true;
     const previousTabIndex = this.selectedTabIndex;
+    this.selectedTabIndex = nextTabIndex;
     try {
       const canLeave = await this.confirmChecklistNavigation({
         previousIndex: previousTabIndex,
         nextIndex: nextTabIndex
       });
       if (!canLeave) {
+        this.selectedTabIndex = previousTabIndex;
         return;
       }
 
-      this.selectedTabIndex = nextTabIndex;
-      if (nextTabIndex === 0) {
-        this.ensureInspectionTabReady();
-      }
-      if (nextTabIndex === this.receiptsTabIndex) {
-        this.titleBarReservationId = null;
-      }
       if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.workOrdersTabIndex) {
-        this.syncMaintenanceSearchRequests();
+        this.clearPropertyForListTab();
+        this.skipNextOfficeChange = true;
+        this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+      } else if (nextTabIndex === 0) {
+        this.autoSelectPropertyForInspectionTab();
       }
     } finally {
       this.isHandlingTabGuard = false;
@@ -1300,10 +1296,107 @@ resolveOfficeIdsForRequest(): number[] {
 
     return this.offices.map(office => office.officeId).filter(id => id > 0);
   }
+
+  //#region Pinned Date Range
+  applyPinnedDateRangeFromStorage(): void {
+    const stored = this.readPinnedDateRangeFromStorage();
+    if (stored?.enabled && stored.startDate && stored.endDate) {
+      const start = this.utilityService.parseCalendarDateInput(stored.startDate);
+      const end = this.utilityService.parseCalendarDateInput(stored.endDate);
+      if (start && end) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        this.dateRangePinned = true;
+        this.startDate = start;
+        this.endDate = end;
+        return;
+      }
+      this.clearPinnedDateRangeStorage();
+    }
+
+    this.dateRangePinned = false;
+    this.setDefaultDateRange();
+  }
+
+  persistPinnedDateRangeIfActive(): void {
+    if (!this.dateRangePinned) {
+      return;
+    }
+
+    this.persistPinnedDateRange();
+  }
+
+  persistPinnedDateRange(): void {
+    if (!this.dateRangePinned || !this.startDate || !this.endDate) {
+      return;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify({
+      enabled: true,
+      startDate,
+      endDate
+    }));
+  }
+
+  readPinnedDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getPinnedDateRangeStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string };
+      if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
+        return null;
+      }
+      return {
+        enabled: true,
+        startDate: String(parsed.startDate),
+        endDate: String(parsed.endDate)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearPinnedDateRangeStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.removeItem(this.getPinnedDateRangeStorageKey());
+  }
+
+  getPinnedDateRangeStorageKey(): string {
+    const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
+    return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
+  }
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedDateRangeStorage();
+    this.setDefaultDateRange();
+    this.syncMaintenanceSearchRequests();
+    this.refreshVisibleMaintenanceLists();
+  };
+  //#endregion
   //#endregion
 
   //#region Lifecycle
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
   }

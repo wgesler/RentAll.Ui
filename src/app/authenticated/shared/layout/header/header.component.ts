@@ -248,6 +248,9 @@ reconcileGlobalOfficeSelection(): void {
     if (normalizedKey.startsWith('rentall-accounting-shell-pinned-dates-')) {
       return true;
     }
+    if (normalizedKey.startsWith('rentall-maintenance-shell-pinned-dates-')) {
+      return true;
+    }
     if (normalizedKey.startsWith('rentall-datatable-sticky-')) {
       return true;
     }
