@@ -22,12 +22,14 @@
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
         @if (!isCompactView) {
-          <button mat-icon-button type="button" color="primary" id="property-list-ical-tester-button" class="flex-shrink-0 property-list-ical-tester-button !w-11 !h-11" (click)="goToPropertyCalendarTester()" aria-label="Open iCal tester">
-            <mat-icon class="!text-[28px] !w-7 !h-7">calendar_month</mat-icon>
-          </button>
-          <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
-            Unfurnished
-          </mat-slide-toggle>
+          @if (!isPartnerAdmin) {
+            <button mat-icon-button type="button" color="primary" id="property-list-ical-tester-button" class="flex-shrink-0 property-list-ical-tester-button !w-11 !h-11" (click)="goToPropertyCalendarTester()" aria-label="Open iCal tester">
+              <mat-icon class="!text-[28px] !w-7 !h-7">calendar_month</mat-icon>
+            </button>
+            <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
+              Unfurnished
+            </mat-slide-toggle>
+          }
           <button
             mat-raised-button
             type="button"
@@ -40,9 +42,11 @@
               [class.selection-button-star--active]="propertiesFiltered">star</mat-icon>
             Selection
           </button>
-          <button mat-icon-button type="button" color="warn" id="property-list-alert-button" class="flex-shrink-0 !w-11 !h-11" (click)="openAddAlertDialog()" aria-label="Add Alert">
-            <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
-          </button>
+          @if (!isPartnerAdmin) {
+            <button mat-icon-button type="button" color="warn" id="property-list-alert-button" class="flex-shrink-0 !w-11 !h-11" (click)="openAddAlertDialog()" aria-label="Add Alert">
+              <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
+            </button>
+          }
         }
       </div>
     </div>

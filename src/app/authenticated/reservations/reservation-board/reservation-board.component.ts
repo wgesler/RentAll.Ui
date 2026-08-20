@@ -35,6 +35,7 @@ import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationS
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 import { FiveWayToggleValue, getFiveWayFilterLabel} from '../models/property-filter-model';
+import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
     standalone: true,
@@ -113,6 +114,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   userId: string = '';
   isOwnerScopedView: boolean = false;
   canFilterByAgent: boolean = false;
+  isPartnerAdmin = false;
   organizationId: string = '';
   propertiesFiltered = false;
   furnishedPropertyToggleChecked = false;
@@ -149,6 +151,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       this.readOnly = true;
     }
     this.canFilterByAgent = this.authService.isAdmin();
+    this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.furnishedPropertyToggleChecked = this.globalSelectionService.getFurnishedPropertySelection() === true;
     this.partnersBoardToggleChecked = this.globalSelectionService.getPartnersBoardSelection() === true;

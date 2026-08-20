@@ -6,19 +6,21 @@
     class="content-card reservation-board-card"
     [class.read-only-board]="readOnly"
     [class.read-only-owner-layout]="readOnly && readOnlyOwnerLayout">
-    <div class="reservation-board-legend-above">
-      <div class="reservation-board-titlebar-legend" aria-label="Reservation board color legend">
-        @for (statusId of reservationBoardLegendStatusIds; track statusId) {
-          <span class="reservation-board-titlebar-legend-item">
-            <span
-              class="reservation-board-titlebar-dot"
-              [style.backgroundColor]="getReservationLegendColor(statusId)"
-              aria-hidden="true"></span>
-            <span>{{ getReservationLegendLabel(statusId) }}</span>
-          </span>
-        }
+    @if (!isPartnerAdmin) {
+      <div class="reservation-board-legend-above">
+        <div class="reservation-board-titlebar-legend" aria-label="Reservation board color legend">
+          @for (statusId of reservationBoardLegendStatusIds; track statusId) {
+            <span class="reservation-board-titlebar-legend-item">
+              <span
+                class="reservation-board-titlebar-dot"
+                [style.backgroundColor]="getReservationLegendColor(statusId)"
+                aria-hidden="true"></span>
+              <span>{{ getReservationLegendLabel(statusId) }}</span>
+            </span>
+          }
+        </div>
       </div>
-    </div>
+    }
     <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar reservation-board-titlebar">
       <div class="flex items-center flex-wrap py-4">
           @if (readOnly) {
@@ -97,6 +99,7 @@
         </div>
         @if (!isOwnerScopedView && !readOnly) {
           <div class="form-titlebar-actions-wrap uniform-gap">
+            @if (!isPartnerAdmin) {
             <div class="five-way-toggle" aria-label="Furnished property filter">
               <div class="five-way-toggle__control">
                 <div
@@ -134,6 +137,7 @@
               </div>
               <span class="five-way-toggle__label">{{ furnishedFilterLabel }}</span>
             </div>
+            }
             <button
               mat-raised-button
               type="button"

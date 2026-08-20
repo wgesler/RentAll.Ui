@@ -33,6 +33,7 @@ import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } fro
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyService } from '../services/property.service';
+import { UserGroups } from '../../users/models/user-enums';
 
 type PropertyListDisplayRow = PropertyListDisplay & {
   propertyStatusText: string;
@@ -93,6 +94,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private initialOfficeScopeApplied = false;
   user: any;
   isAdmin = false;
+  isPartnerAdmin = false;
   userId: string = '';
   organizationId: string = '';
   propertiesFiltered = false;
@@ -137,6 +139,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateDisplayedColumns();
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
+    this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.setIsActiveCheckboxEditability();
     this.userId = this.user?.userId || '';
     this.organizationId = this.user?.organizationId?.trim() ?? '';
