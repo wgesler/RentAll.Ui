@@ -25,6 +25,7 @@ import { WorkOrderDisplayList, WorkOrderPreviewSelection, WorkOrderResponse } fr
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { JournalEntryService } from '../../accounting/services/journal-entry.service';
+import { ThreeWayToggleComponent, ThreeWayToggleValue } from '../../shared/three-way-toggle/three-way-toggle.component';
 
 export interface WorkOrderSelection {
   workOrderId: string | null;
@@ -38,7 +39,7 @@ export interface WorkOrderSelection {
 @Component({
   standalone: true,
   selector: 'app-work-order-list',
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, ThreeWayToggleComponent],
   templateUrl: './work-order-list.component.html',
   styleUrl: './work-order-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -79,7 +80,11 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
-  showInactive: boolean = false;
+  readonly activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
+  activeFilterIndex: ThreeWayToggleValue = 0;
+  activeListCache: WorkOrderResponse[] | null = null;
+  inactiveListCache: WorkOrderResponse[] | null = null;
+  listCacheBaseKey: string | null = null;
   canViewEnteredInQb: boolean = false;
   workOrders: WorkOrderResponse[] = [];
   workOrdersDisplay: WorkOrderDisplayList[] = [];
@@ -137,7 +142,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       const searchCriteriaChanged = previousKey !== currentKey;
 
       if (propertyScopeChanged) {
-        this.lastWorkOrderSearchKey = null;
+        this.invalidateActiveFilterCaches();
       }
 
       if (changes['searchRequest'].firstChange || propertyScopeChanged || searchCriteriaChanged) {
@@ -173,7 +178,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       const triggerChanged = currentTrigger !== previousTrigger;
       const skipInitialDuplicate = changes['refreshTrigger'].firstChange && !!changes['searchRequest']?.firstChange;
       if (triggerChanged && !skipInitialDuplicate) {
-        this.lastWorkOrderSearchKey = null;
+        this.invalidateActiveFilterCaches();
         this.loadWorkOrdersForCurrentSearchCriteria(true);
       }
     }
@@ -193,56 +198,84 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   buildWorkOrderSearchKeyFromRequest(request?: MaintenanceListSearchRequest | null): string {
+    return this.buildListCacheBaseKeyFromRequest(request);
+  }
+
+  buildListCacheBaseKeyFromRequest(request?: MaintenanceListSearchRequest | null): string {
     const resolvedRequest = request ?? { officeIds: [] };
     return JSON.stringify({
       officeIds: [...this.resolveMaintenanceSearchOfficeIds(resolvedRequest)].sort((a, b) => a - b),
       propertyId: this.normalizeSearchPropertyId(resolvedRequest.propertyId),
       startDate: resolvedRequest.startDate ?? null,
-      endDate: resolvedRequest.endDate ?? null,
-      isActive: resolvedRequest.isActive ?? null
+      endDate: resolvedRequest.endDate ?? null
     });
+  }
+
+  buildListCacheBaseKey(): string {
+    return this.buildListCacheBaseKeyFromRequest(this.searchRequest);
+  }
+
+  invalidateActiveFilterCaches(): void {
+    this.activeListCache = null;
+    this.inactiveListCache = null;
+    this.listCacheBaseKey = null;
+    this.lastWorkOrderSearchKey = null;
+    this.workOrderSearchInFlightKey = null;
+  }
+
+  hasRequiredActiveFilterCache(): boolean {
+    if (this.activeFilterIndex === 0) {
+      return this.activeListCache !== null;
+    }
+    if (this.activeFilterIndex === 1) {
+      return this.inactiveListCache !== null;
+    }
+    return this.activeListCache !== null && this.inactiveListCache !== null;
   }
 
   getWorkOrders(force = false): void {
     if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
-      this.lastWorkOrderSearchKey = null;
-      this.workOrderSearchInFlightKey = null;
+      this.invalidateActiveFilterCaches();
+      this.workOrders = [];
+      this.allWorkOrders = [];
+      this.workOrdersDisplay = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
       this.markViewForCheck();
       return;
     }
 
-    let searchKey: string | null = null;
     if (this.embeddedInMaintenance) {
-      searchKey = this.buildWorkOrderSearchKey();
-      if (!force && (searchKey === this.lastWorkOrderSearchKey || searchKey === this.workOrderSearchInFlightKey)) {
+      const baseKey = this.buildListCacheBaseKey();
+      if (force) {
+        this.invalidateActiveFilterCaches();
+      } else if (baseKey === this.lastWorkOrderSearchKey && this.hasRequiredActiveFilterCache()) {
+        this.applyActiveFilterFromCache();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+        this.markViewForCheck();
         return;
       }
-      this.workOrderSearchInFlightKey = searchKey;
+      if (!force && baseKey === this.workOrderSearchInFlightKey) {
+        return;
+      }
+      this.ensureActiveFilterCachesThen(() => {
+        this.lastWorkOrderSearchKey = baseKey;
+        this.applyActiveFilterFromCache();
+      }, force);
+      return;
     }
 
     const loadId = ++this.workOrdersLoadId;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrders');
-    const load$ = this.embeddedInMaintenance
-      ? this.workOrderService.searchWorkOrders(this.buildMaintenanceSearchRequest())
-      : this.workOrderService.getWorkOrders(this.property?.propertyId ?? null, this.officeId ?? null);
-
-    load$.pipe(take(1), finalize(() => {
+    this.workOrderService.getWorkOrders(this.property?.propertyId ?? null, this.officeId ?? null).pipe(take(1), finalize(() => {
       if (this.workOrdersLoadId === loadId) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
-        if (this.embeddedInMaintenance && searchKey != null && this.workOrderSearchInFlightKey === searchKey) {
-          this.workOrderSearchInFlightKey = null;
-        }
       }
       this.markViewForCheck();
     })).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
         if (this.workOrdersLoadId !== loadId) {
           return;
-        }
-        if (this.embeddedInMaintenance && searchKey != null) {
-          this.lastWorkOrderSearchKey = searchKey;
         }
         this.workOrders = this.excludeBusinessPrivateWhenMaintenanceShell(workOrders || []);
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
@@ -260,6 +293,145 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
+  }
+
+  ensureActiveFilterCachesThen(onReady: () => void, force = false): void {
+    const baseKey = this.buildListCacheBaseKey();
+    if (this.listCacheBaseKey !== baseKey || force) {
+      this.activeListCache = null;
+      this.inactiveListCache = null;
+      this.listCacheBaseKey = baseKey;
+    }
+
+    const needActive = this.activeFilterIndex === 0 || this.activeFilterIndex === 2;
+    const needInactive = this.activeFilterIndex === 1 || this.activeFilterIndex === 2;
+    const hasActive = this.activeListCache !== null;
+    const hasInactive = this.inactiveListCache !== null;
+
+    if ((!needActive || hasActive) && (!needInactive || hasInactive)) {
+      onReady();
+      return;
+    }
+
+    const loadId = ++this.workOrdersLoadId;
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrders');
+    this.workOrderSearchInFlightKey = baseKey;
+
+    const fetchActive = needActive && !hasActive;
+    const fetchInactive = needInactive && !hasInactive;
+    const completeLoad = () => {
+      if (this.workOrdersLoadId !== loadId) {
+        return;
+      }
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+      if (this.workOrderSearchInFlightKey === baseKey) {
+        this.workOrderSearchInFlightKey = null;
+      }
+      onReady();
+      this.markViewForCheck();
+    };
+
+    if (fetchActive && fetchInactive) {
+      forkJoin({
+        active: this.workOrderService.searchWorkOrders(this.buildMaintenanceSearchRequestForSide(true)),
+        inactive: this.workOrderService.searchWorkOrders(this.buildMaintenanceSearchRequestForSide(false))
+      }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        next: ({ active, inactive }) => {
+          if (this.workOrdersLoadId !== loadId) {
+            return;
+          }
+          this.activeListCache = active ?? [];
+          this.inactiveListCache = inactive ?? [];
+          completeLoad();
+        },
+        error: () => {
+          if (this.workOrdersLoadId !== loadId) {
+            return;
+          }
+          this.isServiceError = true;
+          this.workOrders = [];
+          this.allWorkOrders = [];
+          this.workOrdersDisplay = [];
+          completeLoad();
+        }
+      });
+      return;
+    }
+
+    const side = fetchActive;
+    this.workOrderService.searchWorkOrders(this.buildMaintenanceSearchRequestForSide(side)).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: (workOrders: WorkOrderResponse[]) => {
+        if (this.workOrdersLoadId !== loadId) {
+          return;
+        }
+        if (side) {
+          this.activeListCache = workOrders ?? [];
+        } else {
+          this.inactiveListCache = workOrders ?? [];
+        }
+        completeLoad();
+      },
+      error: () => {
+        if (this.workOrdersLoadId !== loadId) {
+          return;
+        }
+        this.isServiceError = true;
+        this.workOrders = [];
+        this.allWorkOrders = [];
+        this.workOrdersDisplay = [];
+        completeLoad();
+      }
+    });
+  }
+
+  applyActiveFilterFromCache(): void {
+    let rows: WorkOrderResponse[];
+    switch (this.activeFilterIndex) {
+      case 1:
+        rows = this.inactiveListCache ?? [];
+        break;
+      case 2:
+        rows = this.mergeWorkOrderListsById(this.activeListCache ?? [], this.inactiveListCache ?? []);
+        break;
+      default:
+        rows = this.activeListCache ?? [];
+    }
+    this.workOrders = this.excludeBusinessPrivateWhenMaintenanceShell(rows);
+    this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+    this.applyFilters();
+  }
+
+  mergeWorkOrderListsById(active: WorkOrderResponse[], inactive: WorkOrderResponse[]): WorkOrderResponse[] {
+    const merged = new Map<string, WorkOrderResponse>();
+    for (const row of [...active, ...inactive]) {
+      const id = String(row.workOrderId || '').trim();
+      if (id) {
+        merged.set(id, row);
+      }
+    }
+    return Array.from(merged.values());
+  }
+
+  buildMaintenanceSearchRequestForSide(isActive: boolean): MaintenanceListSearchRequest {
+    const request = this.searchRequest ?? { officeIds: [] };
+    return {
+      ...request,
+      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      isActive,
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null
+    };
+  }
+
+  filterRowsByActiveFilter<T extends { isActive?: boolean }>(rows: T[]): T[] {
+    switch (this.activeFilterIndex) {
+      case 1:
+        return rows.filter(row => row.isActive === false);
+      case 2:
+        return rows;
+      default:
+        return rows.filter(row => row.isActive !== false);
+    }
   }
 
   addWorkOrder(): void {
@@ -477,10 +649,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Filter Methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
+  onActiveFilterChange(index: ThreeWayToggleValue): void {
+    if (index === this.activeFilterIndex) {
+      return;
+    }
+    this.activeFilterIndex = index;
     if (this.usesMaintenanceSearch()) {
-      this.loadWorkOrdersForCurrentSearchCriteria(true);
+      this.ensureActiveFilterCachesThen(() => this.applyActiveFilterFromCache());
       return;
     }
     this.applyFilters();
@@ -488,9 +663,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
 
   applyFilters(): void {
     const scopedWorkOrders = this.excludeBusinessPrivateWhenMaintenanceShell(this.allWorkOrders);
-    const activeScoped = this.showInactive
-      ? scopedWorkOrders.filter(workOrder => workOrder.isActive === false)
-      : scopedWorkOrders.filter(workOrder => workOrder.isActive !== false);
+    const activeScoped = this.usesMaintenanceSearch()
+      ? scopedWorkOrders
+      : this.filterRowsByActiveFilter(scopedWorkOrders);
 
     const effectiveWorkOrderTypeId = this.ownersOnly ? this.ownerWorkOrderTypeId : this.workOrderTypeId;
     const shouldApplyWorkOrderTypeFilter = effectiveWorkOrderTypeId !== null && effectiveWorkOrderTypeId !== undefined;
@@ -549,24 +724,11 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
-    const request = this.searchRequest ?? { officeIds: [] };
-    return {
-      ...request,
-      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
-      isActive: this.showInactive ? false : true,
-      propertyId: request.propertyId ?? this.property?.propertyId ?? null
-    };
+    return this.buildMaintenanceSearchRequestForSide(this.activeFilterIndex !== 1);
   }
 
   buildWorkOrderSearchKey(): string {
-    const request = this.buildMaintenanceSearchRequest();
-    return JSON.stringify({
-      officeIds: [...(request.officeIds || [])].sort((a, b) => a - b),
-      propertyId: request.propertyId ?? null,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null,
-      isActive: request.isActive ?? null
-    });
+    return this.buildListCacheBaseKey();
   }
     
   loadWorkOrdersForCurrentSearchCriteria(force = false): void {

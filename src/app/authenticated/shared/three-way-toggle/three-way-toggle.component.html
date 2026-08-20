@@ -12,10 +12,16 @@
       (keydown)="onKeydown($event)">
       <span class="three-way-toggle__track" [attr.data-position]="value">
         <span class="three-way-toggle__thumb" [attr.data-position]="value">
-          @if (value === 2) {
-            <span class="three-way-toggle__check" aria-hidden="true"></span>
-          } @else {
-            <span class="three-way-toggle__mark three-way-toggle__mark--horizontal" aria-hidden="true"></span>
+          @switch (value) {
+            @case (0) {
+              <span class="three-way-toggle__mark three-way-toggle__mark--horizontal" aria-hidden="true"></span>
+            }
+            @case (1) {
+              <span class="three-way-toggle__mark three-way-toggle__mark--dash" aria-hidden="true"></span>
+            }
+            @case (2) {
+              <span class="three-way-toggle__check" aria-hidden="true"></span>
+            }
           }
         </span>
       </span>

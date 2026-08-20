@@ -97,9 +97,11 @@
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
-            <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
-              InActive
-            </mat-slide-toggle>
+            <app-three-way-toggle
+              [labels]="activeFilterLabels"
+              [value]="activeFilterIndex"
+              ariaLabel="Receipt active filter"
+              (valueChange)="onActiveFilterChange($event)" />
             @if (embeddedInAccounting && accountingListMode === 'bills') {
               <mat-slide-toggle id="toggle-bills-show-paid" [checked]="showPaid" color="primary" (change)="onShowPaidToggleChange($event.checked)" class="whitespace-nowrap">
                 ShowPaid

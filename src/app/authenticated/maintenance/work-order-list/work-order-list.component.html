@@ -30,9 +30,11 @@
         (deleteEvent)="deleteWorkOrder($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-            <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
-              InActive
-            </mat-slide-toggle>
+            <app-three-way-toggle
+              [labels]="activeFilterLabels"
+              [value]="activeFilterIndex"
+              ariaLabel="Work order active filter"
+              (valueChange)="onActiveFilterChange($event)" />
             @if (showOwnersOnlyToggle) {
               <mat-slide-toggle [checked]="ownersOnly" color="primary" (change)="onOwnersOnlyToggleChange()">
                 OwnersOnly

@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Subject, concatMap, filter, finalize, from, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, concatMap, filter, finalize, forkJoin, from, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -34,11 +34,12 @@ import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptRes
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
+import { ThreeWayToggleComponent, ThreeWayToggleValue } from '../../shared/three-way-toggle/three-way-toggle.component';
 
 @Component({
   standalone: true,
   selector: 'app-receipts-list',
-  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, ThreeWayToggleComponent],
   templateUrl: './receipts-list.component.html',
   styleUrl: './receipts-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -80,7 +81,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipts']));
   destroy$ = new Subject<void>();
   accountingOffices: AccountingOfficeResponse[] = [];
-  showInactive: boolean = false;
+  readonly activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
+  activeFilterIndex: ThreeWayToggleValue = 0;
+  activeListCache: ReceiptResponse[] | null = null;
+  inactiveListCache: ReceiptResponse[] | null = null;
+  listCacheBaseKey: string | null = null;
   receipts: ReceiptResponse[] = [];
   receiptsDisplay: ReceiptDisplayList[] = [];
   allReceipts: ReceiptDisplayList[] = [];
@@ -275,7 +280,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const searchCriteriaChanged = previousKey !== currentKey;
 
       if (propertyScopeChanged) {
-        this.lastReceiptSearchKey = null;
+        this.invalidateActiveFilterCaches();
       }
 
       this.applyFilters();
@@ -319,7 +324,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const triggerChanged = currentTrigger !== previousTrigger;
       const skipInitialDuplicate = changes['refreshTrigger'].firstChange && !!changes['searchRequest']?.firstChange;
       if (triggerChanged && !skipInitialDuplicate) {
-        this.lastReceiptSearchKey = null;
+        this.invalidateActiveFilterCaches();
         this.loadReceiptsForCurrentSearchCriteria(true);
       }
     }
@@ -338,63 +343,85 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   buildReceiptSearchKeyFromRequest(request?: MaintenanceListSearchRequest | null): string {
+    return this.buildListCacheBaseKeyFromRequest(request);
+  }
+
+  buildListCacheBaseKeyFromRequest(request?: MaintenanceListSearchRequest | null): string {
     const resolvedRequest = request ?? { officeIds: [] };
     return JSON.stringify({
       officeIds: [...this.resolveMaintenanceSearchOfficeIds(resolvedRequest)].sort((a, b) => a - b),
       propertyId: this.normalizeSearchPropertyId(resolvedRequest.propertyId),
       startDate: resolvedRequest.startDate ?? null,
       endDate: resolvedRequest.endDate ?? null,
-      isActive: resolvedRequest.isActive ?? null,
-      includeInactive: resolvedRequest.includeInactive ?? false,
       receiptKind: this.resolveReceiptKindForSearch(),
       vendorId: resolvedRequest.vendorId ?? null
     });
   }
 
+  buildListCacheBaseKey(): string {
+    return this.buildListCacheBaseKeyFromRequest(this.searchRequest);
+  }
+
+  invalidateActiveFilterCaches(): void {
+    this.activeListCache = null;
+    this.inactiveListCache = null;
+    this.listCacheBaseKey = null;
+    this.lastReceiptSearchKey = null;
+    this.receiptSearchInFlightKey = null;
+  }
+
+  hasRequiredActiveFilterCache(): boolean {
+    if (this.activeFilterIndex === 0) {
+      return this.activeListCache !== null;
+    }
+    if (this.activeFilterIndex === 1) {
+      return this.inactiveListCache !== null;
+    }
+    return this.activeListCache !== null && this.inactiveListCache !== null;
+  }
+
   getReceipts(force = false): void {
     if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
-      this.lastReceiptSearchKey = null;
-      this.receiptSearchInFlightKey = null;
+      this.invalidateActiveFilterCaches();
+      this.receipts = [];
+      this.allReceipts = [];
+      this.receiptsDisplay = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
       this.markViewForCheck();
       return;
     }
 
-    let searchKey: string | null = null;
     if (this.embeddedInMaintenance) {
-      searchKey = this.buildReceiptSearchKey();
-      if (!force && searchKey === this.lastReceiptSearchKey) {
+      const baseKey = this.buildListCacheBaseKey();
+      if (force) {
+        this.invalidateActiveFilterCaches();
+      } else if (baseKey === this.lastReceiptSearchKey && this.hasRequiredActiveFilterCache()) {
+        this.applyActiveFilterFromCache();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
         this.markViewForCheck();
         return;
       }
-      if (!force && searchKey === this.receiptSearchInFlightKey) {
+      if (!force && baseKey === this.receiptSearchInFlightKey) {
         return;
       }
-      this.receiptSearchInFlightKey = searchKey;
+      this.ensureActiveFilterCachesThen(() => {
+        this.lastReceiptSearchKey = baseKey;
+        this.applyActiveFilterFromCache();
+      }, force);
+      return;
     }
 
     const loadId = ++this.receiptsLoadId;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'receipts');
-    const load$ = this.embeddedInMaintenance
-      ? this.receiptService.searchReceipts(this.buildMaintenanceSearchRequest())
-      : this.receiptService.getReceipts(this.property?.propertyId ?? null, this.officeId ?? null);
-
-    load$.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.receiptService.getReceipts(this.property?.propertyId ?? null, this.officeId ?? null).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
-        if (this.embeddedInMaintenance && searchKey != null && this.receiptSearchInFlightKey === searchKey) {
-          this.receiptSearchInFlightKey = null;
-        }
         this.markViewForCheck();
       })
     ).subscribe({
       next: (receipts: ReceiptResponse[]) => {
         if (this.receiptsLoadId !== loadId) {
           return;
-        }
-        if (this.embeddedInMaintenance && searchKey != null) {
-          this.lastReceiptSearchKey = searchKey;
         }
         this.receipts = this.excludeBusinessPrivateWhenMaintenanceShell(receipts || []);
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
@@ -413,6 +440,150 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
+  }
+
+  ensureActiveFilterCachesThen(onReady: () => void, force = false): void {
+    const baseKey = this.buildListCacheBaseKey();
+    if (this.listCacheBaseKey !== baseKey || force) {
+      this.activeListCache = null;
+      this.inactiveListCache = null;
+      this.listCacheBaseKey = baseKey;
+    }
+
+    const needActive = this.activeFilterIndex === 0 || this.activeFilterIndex === 2;
+    const needInactive = this.activeFilterIndex === 1 || this.activeFilterIndex === 2;
+    const hasActive = this.activeListCache !== null;
+    const hasInactive = this.inactiveListCache !== null;
+
+    if ((!needActive || hasActive) && (!needInactive || hasInactive)) {
+      onReady();
+      return;
+    }
+
+    const loadId = ++this.receiptsLoadId;
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'receipts');
+    this.receiptSearchInFlightKey = baseKey;
+
+    const fetchActive = needActive && !hasActive;
+    const fetchInactive = needInactive && !hasInactive;
+    const completeLoad = () => {
+      if (this.receiptsLoadId !== loadId) {
+        return;
+      }
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+      if (this.receiptSearchInFlightKey === baseKey) {
+        this.receiptSearchInFlightKey = null;
+      }
+      onReady();
+      this.markViewForCheck();
+    };
+
+    if (fetchActive && fetchInactive) {
+      forkJoin({
+        active: this.receiptService.searchReceipts(this.buildMaintenanceSearchRequestForSide(true)),
+        inactive: this.receiptService.searchReceipts(this.buildMaintenanceSearchRequestForSide(false))
+      }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        next: ({ active, inactive }) => {
+          if (this.receiptsLoadId !== loadId) {
+            return;
+          }
+          this.activeListCache = active ?? [];
+          this.inactiveListCache = inactive ?? [];
+          completeLoad();
+        },
+        error: () => {
+          if (this.receiptsLoadId !== loadId) {
+            return;
+          }
+          this.isServiceError = true;
+          this.receipts = [];
+          this.allReceipts = [];
+          this.receiptsDisplay = [];
+          completeLoad();
+        }
+      });
+      return;
+    }
+
+    const side = fetchActive;
+    this.receiptService.searchReceipts(this.buildMaintenanceSearchRequestForSide(side)).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: (receipts: ReceiptResponse[]) => {
+        if (this.receiptsLoadId !== loadId) {
+          return;
+        }
+        if (side) {
+          this.activeListCache = receipts ?? [];
+        } else {
+          this.inactiveListCache = receipts ?? [];
+        }
+        completeLoad();
+      },
+      error: () => {
+        if (this.receiptsLoadId !== loadId) {
+          return;
+        }
+        this.isServiceError = true;
+        this.receipts = [];
+        this.allReceipts = [];
+        this.receiptsDisplay = [];
+        completeLoad();
+      }
+    });
+  }
+
+  applyActiveFilterFromCache(): void {
+    let rows: ReceiptResponse[];
+    switch (this.activeFilterIndex) {
+      case 1:
+        rows = this.inactiveListCache ?? [];
+        break;
+      case 2:
+        rows = this.mergeReceiptListsById(this.activeListCache ?? [], this.inactiveListCache ?? []);
+        break;
+      default:
+        rows = this.activeListCache ?? [];
+    }
+    this.receipts = this.excludeBusinessPrivateWhenMaintenanceShell(rows);
+    this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+    this.applyReceiptDisplayMappings();
+    this.applyFilters();
+  }
+
+  mergeReceiptListsById(active: ReceiptResponse[], inactive: ReceiptResponse[]): ReceiptResponse[] {
+    const merged = new Map<string, ReceiptResponse>();
+    for (const row of [...active, ...inactive]) {
+      const id = String(row.receiptId || '').trim();
+      if (id) {
+        merged.set(id, row);
+      }
+    }
+    return Array.from(merged.values());
+  }
+
+  buildMaintenanceSearchRequestForSide(isActive: boolean): MaintenanceListSearchRequest {
+    const request = this.searchRequest ?? { officeIds: [] };
+    return {
+      ...request,
+      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      isActive,
+      includeInactive: !isActive,
+      propertyId: this.embeddedInMaintenance
+        ? (request.propertyId ?? null)
+        : (request.propertyId ?? this.property?.propertyId ?? null),
+      receiptKind: this.resolveReceiptKindForSearch()
+    };
+  }
+
+  filterRowsByActiveFilter<T extends { isActive?: boolean }>(rows: T[]): T[] {
+    switch (this.activeFilterIndex) {
+      case 1:
+        return rows.filter(row => row.isActive === false);
+      case 2:
+        return rows;
+      default:
+        return rows.filter(row => row.isActive !== false);
+    }
   }
 
   addReceipt(): void {
@@ -1029,10 +1200,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Filter Methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
+  onActiveFilterChange(index: ThreeWayToggleValue): void {
+    if (index === this.activeFilterIndex) {
+      return;
+    }
+    this.activeFilterIndex = index;
     if (this.usesMaintenanceSearch()) {
-      this.loadReceiptsForCurrentSearchCriteria();
+      this.ensureActiveFilterCachesThen(() => this.applyActiveFilterFromCache());
       return;
     }
     this.applyFilters();
@@ -1101,9 +1275,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       });
     }
 
-    this.receiptsDisplay = this.showInactive
-      ? filtered.filter(receipt => receipt.isActive === false)
-      : filtered.filter(receipt => receipt.isActive !== false);
+    if (!this.usesMaintenanceSearch()) {
+      filtered = this.filterRowsByActiveFilter(filtered);
+    }
+
+    this.receiptsDisplay = filtered;
     if (this.showBillsDetailRows) {
       this.updateIsAllExpanded();
     }
@@ -1259,17 +1435,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
-    const request = this.searchRequest ?? { officeIds: [] };
-    return {
-      ...request,
-      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
-      isActive: !this.showInactive,
-      includeInactive: this.showInactive,
-      propertyId: this.embeddedInMaintenance
-        ? (request.propertyId ?? null)
-        : (request.propertyId ?? this.property?.propertyId ?? null),
-      receiptKind: this.resolveReceiptKindForSearch()
-    };
+    return this.buildMaintenanceSearchRequestForSide(this.activeFilterIndex !== 1);
   }
 
   resolveReceiptKindForSearch(): 1 | 2 | null {
@@ -1289,17 +1455,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   buildReceiptSearchKey(): string {
-    const request = this.buildMaintenanceSearchRequest();
-    return JSON.stringify({
-      officeIds: [...(request.officeIds || [])].sort((a, b) => a - b),
-      propertyId: request.propertyId ?? null,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null,
-      isActive: request.isActive ?? null,
-      includeInactive: request.includeInactive ?? false,
-      receiptKind: request.receiptKind ?? null,
-      vendorId: request.vendorId ?? null
-    });
+    return this.buildListCacheBaseKey();
   }
   //#endregion
 

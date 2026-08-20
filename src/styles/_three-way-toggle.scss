@@ -1,5 +1,5 @@
 // Three-way toggle — 3-position control aligned with mat-slide-toggle (M3) sizing.
-// Position 1 (index 0) = off (grey), 2 (index 1) = on (primary), 3 (index 2) = both (check).
+// Position 1 (index 0) = primary + horizontal · 2 (index 1) = primary + dash · 3 (index 2) = primary + check.
 
 .three-way-toggle {
   --three-way-toggle-track-width: 58px;
@@ -37,11 +37,7 @@
   transition: background-color 75ms cubic-bezier(0.4, 0, 0.2, 1);
   overflow: visible;
 
-  &[data-position='0'] {
-    background-color: var(--mat-slide-toggle-unselected-track-color);
-    border: var(--mat-slide-toggle-track-outline-width, 2px) solid var(--mat-slide-toggle-track-outline-color);
-  }
-
+  &[data-position='0'],
   &[data-position='1'],
   &[data-position='2'] {
     background-color: var(--mat-slide-toggle-selected-track-color);
@@ -67,24 +63,23 @@
   pointer-events: none;
   line-height: 0;
 
-  &[data-position='0'] {
-    width: var(--mat-slide-toggle-unselected-handle-size, 16px);
-    height: var(--mat-slide-toggle-unselected-handle-size, 16px);
-    background-color: var(--mat-slide-toggle-unselected-handle-color);
-    transform: translate(0, -50%);
-  }
-
-  &[data-position='1'] {
-    width: var(--mat-slide-toggle-selected-handle-size, 24px);
-    height: var(--mat-slide-toggle-selected-handle-size, 24px);
-    background-color: var(--mat-sys-primary, #3f51b5);
-    transform: translate(calc((var(--three-way-toggle-track-width) - var(--mat-slide-toggle-selected-handle-size, 24px)) / 2), -50%);
-  }
-
+  &[data-position='0'],
+  &[data-position='1'],
   &[data-position='2'] {
     width: var(--mat-slide-toggle-selected-handle-size, 24px);
     height: var(--mat-slide-toggle-selected-handle-size, 24px);
     background-color: var(--mat-sys-primary, #3f51b5);
+  }
+
+  &[data-position='0'] {
+    transform: translate(0, -50%);
+  }
+
+  &[data-position='1'] {
+    transform: translate(calc((var(--three-way-toggle-track-width) - var(--mat-slide-toggle-selected-handle-size, 24px)) / 2), -50%);
+  }
+
+  &[data-position='2'] {
     transform: translate(calc(var(--three-way-toggle-track-width) - var(--mat-slide-toggle-selected-handle-size, 24px)), -50%);
   }
 }
@@ -95,6 +90,16 @@
   width: 10px;
   height: 2px;
   border-radius: 1px;
+}
+
+.three-way-toggle__mark--dash {
+  width: 2px;
+  height: 8px;
+}
+
+.three-way-toggle__mark--horizontal {
+  width: 10px;
+  height: 2px;
 }
 
 .three-way-toggle__check {
@@ -108,10 +113,7 @@
   flex-shrink: 0;
 }
 
-.three-way-toggle__thumb[data-position='0'] .three-way-toggle__mark {
-  background-color: var(--mat-slide-toggle-unselected-icon-color);
-}
-
+.three-way-toggle__thumb[data-position='0'] .three-way-toggle__mark,
 .three-way-toggle__thumb[data-position='1'] .three-way-toggle__mark {
   background-color: var(--mat-slide-toggle-selected-icon-color, #fff);
 }
