@@ -49,7 +49,7 @@
 } @else if (isServiceError) {
   <p class="empty-msg">Unable to load receipts.</p>
 } @else {
-  <div class="mat list-layout-standard dbg-band-main" [class.maintenance-list-tab-layout]="embeddedInMaintenance">
+  <div class="mat list-layout-standard dbg-band-main" [class.shell-list-tab-layout]="embeddedInMaintenance">
     <div class="tableDiv">
       <app-data-table
         tableName="receipts-list"

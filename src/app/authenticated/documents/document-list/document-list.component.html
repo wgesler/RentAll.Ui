@@ -2,7 +2,7 @@
   @if (hideHeader) {
     @if (hideFilters) {
       <!-- Same shell as receipts / work orders: title-bar filters only; table block matches maintenance lists. -->
-      <div class="mat list-layout-standard dbg-band-main">
+      <div class="mat list-layout-standard dbg-band-main" [class.shell-list-tab-layout]="usesShellTitleBarScope()">
         <div class="tableDiv">
           <app-data-table
             [data]="documentsDisplay"

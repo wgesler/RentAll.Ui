@@ -1,5 +1,5 @@
 @if (isPageReady) {
-  <div class="mat list-layout-standard">
+  <div class="mat list-layout-standard" [class.shell-list-tab-layout]="tabIndex != null">
     <div class="tableDiv">
       <app-data-table
         tableName="user-list"

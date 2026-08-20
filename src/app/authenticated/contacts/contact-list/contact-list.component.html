@@ -24,7 +24,7 @@
 }
 
 <ng-template #contactsTable>
-  <div class="mat list-layout-standard">
+  <div class="mat list-layout-standard" [class.shell-list-tab-layout]="tabIndex != null">
     @if (showOfficeDropdown && (entityTypeId === undefined || entityTypeId === null)) {
       <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap row-height-56">
         <div class="flex items-center gap-3 row-height-56">
