@@ -6,6 +6,28 @@
         <span class="flex-shrink-0 text-xl font-medium">User Guide</span>
       </span>
     </div>
+    <div class="form-titlebar-actions-wrap uniform-gap help-guide-titlebar-actions">
+      @if (!isEditing) {
+        @if (canEdit) {
+          <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady" (click)="startEdit()">
+            <mat-icon>edit</mat-icon>
+            Edit
+          </button>
+        }
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closePage()">
+          Close Tab
+        </button>
+      } @else {
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady || isSaving" (click)="saveUserGuide()">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isSaving" (click)="cancelEdit()">
+          <mat-icon>close</mat-icon>
+          Cancel
+        </button>
+      }
+    </div>
   </div>
 
   <div class="help-guide-body">
@@ -67,26 +89,5 @@
         }
       }
     </section>
-  </div>
-
-  <div class="help-guide-footer">
-    <div class="form-titlebar-actions-wrap">
-      @if (canEdit && !isEditing) {
-        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady" (click)="startEdit()">
-          <mat-icon>edit</mat-icon>
-          Edit
-        </button>
-      }
-      @if (canEdit && isEditing) {
-        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="!isPageReady || isSaving" (click)="saveUserGuide()">
-          <mat-icon>save</mat-icon>
-          Save
-        </button>
-      }
-      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closePage()">
-        <mat-icon>close</mat-icon>
-        Close Tab
-      </button>
-    </div>
   </div>
 </div>

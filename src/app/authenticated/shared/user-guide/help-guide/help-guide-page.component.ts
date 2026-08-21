@@ -50,6 +50,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   selectedUrl = USER_GUIDE_WELCOME_URL;
   selectedTitle = 'Welcome';
   userGuide: UserGuideResponse = emptyUserGuide();
+  userGuideSnapshot: UserGuideResponse | null = null;
   canEdit = false;
   isEditing = false;
   isSaving = false;
@@ -129,7 +130,21 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     if (!this.canEdit) {
       return;
     }
+    this.userGuideSnapshot = { ...this.userGuide };
     this.isEditing = true;
+    this.markViewForCheck();
+  }
+
+  cancelEdit(): void {
+    if (!this.canEdit || !this.isEditing || this.isSaving) {
+      return;
+    }
+    if (this.userGuideSnapshot) {
+      this.userGuide = { ...this.userGuideSnapshot };
+    }
+    this.userGuideSnapshot = null;
+    this.isEditing = false;
+    this.syncPageEditor();
     this.markViewForCheck();
   }
 
@@ -142,6 +157,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     this.organizationService.updateUserGuide(this.userGuide).pipe(take(1), finalize(() => { this.isSaving = false; this.markViewForCheck(); })).subscribe({
       next: userGuide => {
         this.userGuide = userGuide;
+        this.userGuideSnapshot = null;
         this.isEditing = false;
         this.toastr.success('User guide saved');
         this.markViewForCheck();
