@@ -126,6 +126,20 @@
   color: rgba(0, 0, 0, 0.72);
 }
 
+:host ::ng-deep .help-guide-article-body img,
+:host ::ng-deep .description-editor-input img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+.help-guide-image-input {
+  display: none;
+}
+
 :host ::ng-deep .help-guide-article-body :is(b, strong),
 :host ::ng-deep .help-guide-article p :is(b, strong),
 :host ::ng-deep .description-editor-input :is(b, strong) {

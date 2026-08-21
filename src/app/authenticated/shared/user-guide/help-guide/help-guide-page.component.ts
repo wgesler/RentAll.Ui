@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDe
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, firstValueFrom, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
@@ -45,6 +45,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     this.syncPageEditor();
   }
 
+  @ViewChild('pageImageInput') pageImageInput?: ElementRef<HTMLInputElement>;
   pageEditor?: ElementRef<HTMLDivElement>;
   tocTree: UserGuideTocNode[] = [];
   expandedTocIds = new Set<string>();
@@ -56,6 +57,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   canEdit = false;
   isEditing = false;
   isSaving = false;
+  isUploadingImage = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userGuide']));
   isPageReady = false;
   destroy$ = new Subject<void>();
@@ -210,6 +212,74 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
 
   preventEditorToolbarMouseDown(event: MouseEvent): void {
     event.preventDefault();
+  }
+
+  openPageImagePicker(): void {
+    this.pageImageInput?.nativeElement.click();
+  }
+
+  async onPageImageSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    await this.uploadAndInsertPageImage(file);
+  }
+
+  async onPageEditorPaste(event: ClipboardEvent): Promise<void> {
+    const clipboardItems = event.clipboardData?.items;
+    if (!clipboardItems?.length) {
+      return;
+    }
+    const imageItem = Array.from(clipboardItems).find(item => item.type.startsWith('image/'));
+    if (!imageItem) {
+      return;
+    }
+    const file = imageItem.getAsFile();
+    if (!file) {
+      return;
+    }
+    event.preventDefault();
+    await this.uploadAndInsertPageImage(file);
+  }
+
+  async uploadAndInsertPageImage(file: File): Promise<void> {
+    if (!this.canEdit || !this.isEditing || this.isUploadingImage) {
+      return;
+    }
+    this.isUploadingImage = true;
+    this.markViewForCheck();
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      const response = await firstValueFrom(this.organizationService.uploadUserGuideImage({ fileDetails: payload.fileDetails }));
+      if (!response?.imagePath) {
+        this.toastr.error('Unable to upload image');
+        return;
+      }
+      this.insertPageImageAtCursor(response.imagePath, payload.fileDetails.fileName);
+      this.toastr.success('Image inserted');
+    } catch {
+      this.toastr.error('Unable to upload image');
+    } finally {
+      this.isUploadingImage = false;
+      this.markViewForCheck();
+    }
+  }
+
+  insertPageImageAtCursor(imagePath: string, altText: string): void {
+    const editor = this.pageEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+    editor.focus();
+    const safePath = this.escapeEditorHtml(imagePath);
+    const safeAlt = this.escapeEditorHtml(altText || 'User guide image');
+    const imageHtml = `<p><img src="${safePath}" alt="${safeAlt}"></p>`;
+    this.execEditorCommand('insertHTML', false, imageHtml);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
+    this.markViewForCheck();
   }
 
   applyUnorderedListCommand(editor: HTMLDivElement): void {

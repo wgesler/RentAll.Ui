@@ -76,12 +76,17 @@
               <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyPageFormat('unorderedList')">
                 <mat-icon>format_list_bulleted</mat-icon>
               </button>
+              <button type="button" mat-stroked-button [disabled]="isUploadingImage" (mousedown)="preventEditorToolbarMouseDown($event)" (click)="openPageImagePicker()">
+                <mat-icon>image</mat-icon>
+              </button>
+              <input #pageImageInput type="file" accept="image/*,.heic,.heif" class="help-guide-image-input" (change)="onPageImageSelected($event)" />
             </div>
             <div
               #pageEditor
               class="description-editor-input description-editor-input--with-markers"
               contenteditable="true"
-              (input)="onPageEditorInput($event)">
+              (input)="onPageEditorInput($event)"
+              (paste)="onPageEditorPaste($event)">
             </div>
           </div>
         } @else {

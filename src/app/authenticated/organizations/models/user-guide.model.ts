@@ -21,6 +21,19 @@ export function cloneUserGuide(userGuide: UserGuideResponse): UserGuideResponse 
   };
 }
 
+export interface UserGuideImageUploadResponse {
+  imagePath: string;
+}
+
+export interface UserGuideImageUploadRequest {
+  fileDetails: {
+    fileName: string;
+    contentType: string;
+    file: string;
+    dataUrl: string;
+  };
+}
+
 export function normalizeUserGuideResponse(userGuide: UserGuideResponse | null | undefined): UserGuideResponse {
   if (!userGuide) {
     return emptyUserGuide();
