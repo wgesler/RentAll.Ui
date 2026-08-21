@@ -16,7 +16,7 @@ export interface PropertyMaintenance {
   officeName: string;
   bedrooms: number;
   bathrooms: number;
-  accomodates: number;
+  accommodates: number;
   squareFeet: number;
   propertyStatusId: number;
   availableFrom: CalendarDateString | null;

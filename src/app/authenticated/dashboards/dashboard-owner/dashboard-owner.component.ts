@@ -66,7 +66,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     shortAddress: { displayAs: 'Address', maxWidth: '20ch' },
     bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
     bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
-    accomodates: { displayAs: 'Accom', maxWidth: '12ch', alignment: 'center' },
+    accommodates: { displayAs: 'Accom', maxWidth: '12ch', alignment: 'center' },
     monthlyRate: { displayAs: 'Montly Target', maxWidth: '15ch', alignment: 'center' },
     dailyRate: { displayAs: 'Daily Target', maxWidth: '15ch', alignment: 'center' },
   };

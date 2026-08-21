@@ -4,7 +4,7 @@ export interface PropertySelectionRequest {
   toUnitLevel: number;
   fromBeds: number;
   toBeds: number;
-  accomodates: number;
+  accommodates: number;
   maxRent: number;
   propertyCode: string | null;
   propertyLeaseTypeId: number;
@@ -35,7 +35,7 @@ export interface PropertySelectionResponse {
   toUnitLevel: number;
   fromBeds: number;
   toBeds: number;
-  accomodates: number;
+  accommodates: number;
   maxRent: number;
   propertyCode: string | null;
   propertyLeaseTypeId: number;

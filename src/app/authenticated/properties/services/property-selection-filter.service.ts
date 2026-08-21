@@ -15,7 +15,7 @@ export function isPropertySelectionFiltered(s: PropertySelectionResponse | null 
     nonZero(s.toUnitLevel) ||
     nonZero(s.fromBeds) ||
     nonZero(s.toBeds) ||
-    nonZero(s.accomodates) ||
+    nonZero(s.accommodates) ||
     nonZero(s.maxRent)
   ) {
     return true;

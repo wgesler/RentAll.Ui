@@ -243,7 +243,7 @@ refreshCachedPropertyCodesAfterMutation(): void {
       toUnitLevel: 0,
       fromBeds: 0,
       toBeds: 0,
-      accomodates: 0,
+      accommodates: 0,
       maxRent: 0,
       propertyCode: null,
       propertyLeaseTypeId: 0,

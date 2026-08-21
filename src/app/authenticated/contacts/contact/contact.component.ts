@@ -1033,7 +1033,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       unitLevel: 0,
       bedrooms: 0,
       bathrooms: 0,
-      accomodates: 0,
+      accommodates: 0,
       squareFeet: 0,
       monthlyRate: 0,
       dailyRate: 0,

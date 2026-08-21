@@ -113,7 +113,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch', alignment: 'center'},
-    'accomodates': { displayAs: 'Accom', wrap: false , maxWidth: '10ch', alignment: 'center'},
+    'accommodates': { displayAs: 'Accom', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'unitLevel': { displayAs: 'Level', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'propertyLeaseType': { displayAs: 'Lease', wrap: false, maxWidth: '18ch' },

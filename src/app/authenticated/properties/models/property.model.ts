@@ -34,7 +34,7 @@ export interface PropertyRequest {
   bldgNo?: string | null;
   bedrooms: number;
   bathrooms: number;
-  accomodates: number;
+  accommodates: number;
   squareFeet: number;
   bedroomId1: number;
   bedroomId2: number;
@@ -180,7 +180,7 @@ export interface PropertyResponse {
   bldgNo?: string | null;
   bedrooms: number;
   bathrooms: number;
-  accomodates: number;
+  accommodates: number;
   squareFeet: number;
   bedroomId1: number;
   bedroomId2: number;
@@ -310,7 +310,7 @@ export interface PropertyListResponse{
   unitLevel: number;
   bedrooms: number;
   bathrooms: number;
-  accomodates: number;
+  accommodates: number;
   squareFeet: number;
   propertyTypeId: number;
   unfurnished?: boolean;
@@ -365,7 +365,7 @@ export interface PropertyListDisplay {
   unitLevel: number;
   bedrooms: number;
   bathrooms: number;
-  accomodates: number;
+  accommodates: number;
   squareFeet: number;
   monthlyRate: number;
   dailyRate: number;
