@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -9,7 +10,7 @@ import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { OrganizationType } from '../../../organizations/models/organization-enum';
 import { OrganizationService } from '../../../organizations/services/organization.service';
-import { emptyUserGuide, USER_GUIDE_WELCOME_URL, UserGuideResponse } from '../../../organizations/models/user-guide.model';
+import { cloneUserGuide, emptyUserGuide, normalizeUserGuideResponse, USER_GUIDE_WELCOME_URL, UserGuideResponse } from '../../../organizations/models/user-guide.model';
 import { UserGroups } from '../../../users/models/user-enums';
 import { filterNavItemsForPartner, getUserGuideNavItems } from '../../access/role-access';
 import {
@@ -36,6 +37,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('pageEditor') set pageEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
@@ -74,7 +76,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'userGuide');
     this.organizationService.getUserGuide().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'userGuide'); })).subscribe({
       next: userGuide => {
-        this.userGuide = userGuide || emptyUserGuide();
+        this.userGuide = normalizeUserGuideResponse(userGuide);
         this.selectTopic(initialTopicUrl);
       },
       error: () => {
@@ -123,14 +125,18 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   }
 
   getArticleHtml(): string {
-    return this.mappingService.getUserGuidePageHtml(this.userGuide, this.selectedUrl);
+    return this.mappingService.getUserGuideSectionHtml(this.userGuide, this.selectedTocId);
+  }
+
+  get safeArticleHtml(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getArticleHtml());
   }
 
   startEdit(): void {
     if (!this.canEdit) {
       return;
     }
-    this.userGuideSnapshot = { ...this.userGuide };
+    this.userGuideSnapshot = cloneUserGuide(this.userGuide);
     this.isEditing = true;
     this.markViewForCheck();
   }
@@ -140,7 +146,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
       return;
     }
     if (this.userGuideSnapshot) {
-      this.userGuide = { ...this.userGuideSnapshot };
+      this.userGuide = cloneUserGuide(this.userGuideSnapshot);
     }
     this.userGuideSnapshot = null;
     this.isEditing = false;
@@ -156,7 +162,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     this.isSaving = true;
     this.organizationService.updateUserGuide(this.userGuide).pipe(take(1), finalize(() => { this.isSaving = false; this.markViewForCheck(); })).subscribe({
       next: userGuide => {
-        this.userGuide = userGuide;
+        this.userGuide = normalizeUserGuideResponse(userGuide);
         this.userGuideSnapshot = null;
         this.isEditing = false;
         this.toastr.success('User guide saved');
@@ -176,7 +182,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   //#region Build Form
   onPageEditorInput(event: Event): void {
     const element = event.target as HTMLDivElement;
-    this.userGuide = this.mappingService.setUserGuidePageHtml(this.userGuide, this.selectedUrl, element.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, element.innerHTML);
   }
 
   applyPageFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
@@ -190,16 +196,16 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
       if (!inserted) {
         this.execEditorCommand('insertHTML', false, '<p><br></p>');
       }
-      this.userGuide = this.mappingService.setUserGuidePageHtml(this.userGuide, this.selectedUrl, editor.innerHTML);
+      this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
       return;
     }
     if (format === 'unorderedList') {
       this.applyUnorderedListCommand(editor);
-      this.userGuide = this.mappingService.setUserGuidePageHtml(this.userGuide, this.selectedUrl, editor.innerHTML);
+      this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
       return;
     }
     this.execEditorCommand(format, false);
-    this.userGuide = this.mappingService.setUserGuidePageHtml(this.userGuide, this.selectedUrl, editor.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
   }
 
   preventEditorToolbarMouseDown(event: MouseEvent): void {
@@ -335,7 +341,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     if (!editor) {
       return;
     }
-    this.userGuide = this.mappingService.setUserGuidePageHtml(this.userGuide, this.selectedUrl, editor.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
   }
 
   execEditorCommand(commandId: string, showUi = false, value?: string): boolean {

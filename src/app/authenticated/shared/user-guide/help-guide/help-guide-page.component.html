@@ -85,7 +85,7 @@
             </div>
           </div>
         } @else {
-          <div class="help-guide-article-body" [innerHTML]="getArticleHtml()"></div>
+          <div class="help-guide-article-body" [innerHTML]="safeArticleHtml"></div>
         }
       }
     </section>

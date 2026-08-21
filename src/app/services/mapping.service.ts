@@ -41,7 +41,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { getOrganizationType } from '../authenticated/organizations/models/organization-enum';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
-import { UserGuideResponse, getUserGuidePageKey } from '../authenticated/organizations/models/user-guide.model';
+import { UserGuideResponse } from '../authenticated/organizations/models/user-guide.model';
 import { BankCardResponse } from '../authenticated/organizations/models/bank.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
@@ -273,20 +273,24 @@ export class MappingService {
     return colorMap;
   }
 
-  getUserGuidePageHtml(userGuide: UserGuideResponse | null | undefined, url: string): string {
-    const key = getUserGuidePageKey(url);
-    if (!userGuide || !key) {
+  getUserGuideSectionHtml(userGuide: UserGuideResponse | null | undefined, topicKey: string): string {
+    if (!userGuide?.sections || !topicKey) {
       return '';
     }
-    return userGuide[key] || '';
+    return userGuide.sections[topicKey] || '';
   }
 
-  setUserGuidePageHtml(userGuide: UserGuideResponse, url: string, html: string): UserGuideResponse {
-    const key = getUserGuidePageKey(url);
-    if (!key) {
+  setUserGuideSectionHtml(userGuide: UserGuideResponse, topicKey: string, html: string): UserGuideResponse {
+    if (!topicKey) {
       return userGuide;
     }
-    return { ...userGuide, [key]: html };
+    return {
+      ...userGuide,
+      sections: {
+        ...userGuide.sections,
+        [topicKey]: html
+      }
+    };
   }
   //#endregion
 
