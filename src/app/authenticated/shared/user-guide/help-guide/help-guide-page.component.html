@@ -1,5 +1,5 @@
 <div class="help-guide">
-  <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+  <div class="flex justify-between items-center gap-3 bg-slate-300 py-0 pl-8 pr-4 property-titlebar help-guide-titlebar">
     <div class="flex items-center flex-wrap py-4">
       <span class="flex items-center gap-2 flex-shrink-0">
         <mat-icon class="flex-shrink-0">menu_book</mat-icon>
@@ -10,10 +10,21 @@
 
   <div class="help-guide-body">
     <nav class="help-guide-toc" aria-label="User guide topics">
-      @for (item of tocItems; track item.url) {
-        <button type="button" class="help-guide-toc-item" [class.help-guide-toc-item-active]="item.url === selectedUrl" (click)="selectTopic(item.url)">
-          <mat-icon>{{ item.icon }}</mat-icon>
-          <span>{{ item.displayName }}</span>
+      @for (row of visibleTocRows; track row.node.id) {
+        <button
+          type="button"
+          class="help-guide-toc-item"
+          [class.help-guide-toc-item-active]="row.node.id === selectedTocId"
+          [class.help-guide-toc-item-expanded]="row.node.children?.length && isTocExpanded(row.node.id)"
+          [style.padding-left.px]="getTocIndent(row.depth)"
+          (click)="onTocClick(row.node)">
+          @if (row.depth === 0 && row.node.icon) {
+            <mat-icon class="help-guide-toc-icon">{{ row.node.icon }}</mat-icon>
+          }
+          @if (showAccountingExpandChevron(row.node)) {
+            <mat-icon class="help-guide-toc-chevron">{{ isTocExpanded(row.node.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+          }
+          <span class="help-guide-toc-label">{{ row.node.displayName }}</span>
         </button>
       }
     </nav>
@@ -72,9 +83,9 @@
           Save
         </button>
       }
-      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closeDialog()">
+      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closePage()">
         <mat-icon>close</mat-icon>
-        Close
+        Close Tab
       </button>
     </div>
   </div>

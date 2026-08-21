@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
@@ -11,29 +11,25 @@ import { OrganizationType } from '../../../organizations/models/organization-enu
 import { OrganizationService } from '../../../organizations/services/organization.service';
 import { emptyUserGuide, USER_GUIDE_WELCOME_URL, UserGuideResponse } from '../../../organizations/models/user-guide.model';
 import { UserGroups } from '../../../users/models/user-enums';
-import { filterNavItemsForPartner, getUserGuideNavItems, NavItemDefinition } from '../../access/role-access';
-
-export interface HelpGuideDialogData {
-  topicUrl?: string;
-}
-
-interface HelpTocItem {
-  url: string;
-  displayName: string;
-  icon: string;
-}
+import { filterNavItemsForPartner, getUserGuideNavItems } from '../../access/role-access';
+import {
+  buildUserGuideTocAccessContext,
+  buildUserGuideTocTree,
+  expandUserGuideTocAncestors,
+  flattenVisibleUserGuideToc,
+  UserGuideTocNode
+} from '../user-guide-toc-registry';
 
 @Component({
   standalone: true,
-  selector: 'app-help-guide-dialog',
+  selector: 'app-help-guide-page',
   imports: [MaterialModule],
-  templateUrl: './help-guide-dialog.component.html',
-  styleUrl: './help-guide-dialog.component.scss',
+  templateUrl: './help-guide-page.component.html',
+  styleUrl: './help-guide-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class HelpGuideDialogComponent implements OnInit, OnDestroy {
-  private dialogRef = inject<MatDialogRef<HelpGuideDialogComponent>>(MatDialogRef);
-  private data = inject<HelpGuideDialogData>(MAT_DIALOG_DATA, { optional: true });
+export class HelpGuidePageComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
   private organizationService = inject(OrganizationService);
@@ -48,7 +44,9 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   }
 
   pageEditor?: ElementRef<HTMLDivElement>;
-  tocItems: HelpTocItem[] = [];
+  tocTree: UserGuideTocNode[] = [];
+  expandedTocIds = new Set<string>();
+  selectedTocId = USER_GUIDE_WELCOME_URL;
   selectedUrl = USER_GUIDE_WELCOME_URL;
   selectedTitle = 'Welcome';
   userGuide: UserGuideResponse = emptyUserGuide();
@@ -62,7 +60,7 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   //#region Help Guide
   ngOnInit(): void {
     this.canEdit = this.authService.hasRole(UserGroups.SuperAdmin);
-    this.tocItems = this.buildTocItems();
+    this.tocTree = this.buildTocTree();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
@@ -71,25 +69,54 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
   }
 
   loadUserGuide(): void {
+    const initialTopicUrl = this.getInitialTopicUrl();
     this.utilityService.addLoadItem(this.itemsToLoad$, 'userGuide');
     this.organizationService.getUserGuide().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'userGuide'); })).subscribe({
       next: userGuide => {
         this.userGuide = userGuide || emptyUserGuide();
-        this.selectTopic(this.data?.topicUrl || USER_GUIDE_WELCOME_URL);
+        this.selectTopic(initialTopicUrl);
       },
       error: () => {
         this.userGuide = emptyUserGuide();
-        this.selectTopic(this.data?.topicUrl || USER_GUIDE_WELCOME_URL);
+        this.selectTopic(initialTopicUrl);
       }
     });
+  }
+
+  getInitialTopicUrl(): string {
+    return this.route.snapshot.queryParamMap.get('topic') || USER_GUIDE_WELCOME_URL;
   }
 
   selectTopic(url: string): void {
     this.captureEditorHtml();
     const resolvedUrl = url === 'dashboard-staff' || url === 'dashboard-owner' ? 'dashboard' : url;
-    const match = this.tocItems.find(item => item.url === resolvedUrl);
-    this.selectedUrl = match ? match.url : USER_GUIDE_WELCOME_URL;
-    this.selectedTitle = match?.displayName || 'Welcome';
+    const match = this.findTocNodeByContentUrl(resolvedUrl) ?? this.findTocNodeById(USER_GUIDE_WELCOME_URL);
+    if (match) {
+      this.applyTocSelection(match, true);
+    } else {
+      this.selectedUrl = USER_GUIDE_WELCOME_URL;
+      this.selectedTitle = 'Welcome';
+      this.selectedTocId = USER_GUIDE_WELCOME_URL;
+    }
+    this.syncPageEditor();
+    this.markViewForCheck();
+  }
+
+  onTocClick(node: UserGuideTocNode): void {
+    this.captureEditorHtml();
+    if (node.children?.length) {
+      if (this.expandedTocIds.has(node.id)) {
+        this.collapseTocBranch(node.id);
+      } else {
+        this.expandedTocIds.clear();
+        expandUserGuideTocAncestors(this.tocTree, node.id, this.expandedTocIds);
+        this.expandedTocIds.add(node.id);
+      }
+    } else {
+      this.expandedTocIds.clear();
+      expandUserGuideTocAncestors(this.tocTree, node.id, this.expandedTocIds);
+    }
+    this.applyTocSelection(node, false);
     this.syncPageEditor();
     this.markViewForCheck();
   }
@@ -125,8 +152,8 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  closeDialog(): void {
-    this.dialogRef.close();
+  closePage(): void {
+    window.close();
   }
   //#endregion
 
@@ -190,16 +217,90 @@ export class HelpGuideDialogComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  buildTocItems(): HelpTocItem[] {
-    let navItems: NavItemDefinition[] = getUserGuideNavItems(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+  buildTocTree(): UserGuideTocNode[] {
+    let navItems = getUserGuideNavItems(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     if (!this.authService.hasRole(UserGroups.SuperAdmin)
       && Number(this.commonService.getOrganizationTypeId()) === OrganizationType.Partner) {
       navItems = filterNavItemsForPartner(navItems);
     }
-    return [
-      { url: USER_GUIDE_WELCOME_URL, displayName: 'Welcome', icon: 'menu_book' },
-      ...navItems.map(item => ({ url: item.url, displayName: item.displayName, icon: item.icon }))
-    ];
+    return buildUserGuideTocTree(
+      navItems,
+      buildUserGuideTocAccessContext(this.authService, this.commonService),
+      USER_GUIDE_WELCOME_URL
+    );
+  }
+
+  get visibleTocRows(): { node: UserGuideTocNode; depth: number }[] {
+    return flattenVisibleUserGuideToc(this.tocTree, this.expandedTocIds);
+  }
+
+  isTocExpanded(nodeId: string): boolean {
+    return this.expandedTocIds.has(nodeId);
+  }
+
+  getTocIndent(depth: number): number {
+    if (depth === 0) {
+      return 8;
+    }
+    if (depth === 1) {
+      return 36;
+    }
+    return 60 + (depth - 2) * 20;
+  }
+
+  showAccountingExpandChevron(node: UserGuideTocNode): boolean {
+    return !!node.children?.length && node.id.startsWith('accounting/');
+  }
+
+  applyTocSelection(node: UserGuideTocNode, expandPath: boolean): void {
+    if (expandPath) {
+      this.expandedTocIds.clear();
+      expandUserGuideTocAncestors(this.tocTree, node.id, this.expandedTocIds);
+      if (node.children?.length) {
+        this.expandedTocIds.add(node.id);
+      }
+    }
+    this.selectedUrl = node.contentUrl;
+    this.selectedTitle = node.displayName;
+    this.selectedTocId = node.id;
+  }
+
+  collapseTocBranch(nodeId: string): void {
+    for (const id of [...this.expandedTocIds]) {
+      if (id === nodeId || id.startsWith(`${nodeId}/`)) {
+        this.expandedTocIds.delete(id);
+      }
+    }
+  }
+
+  findTocNodeById(nodeId: string, nodes: UserGuideTocNode[] = this.tocTree): UserGuideTocNode | undefined {
+    for (const node of nodes) {
+      if (node.id === nodeId) {
+        return node;
+      }
+      if (node.children?.length) {
+        const match = this.findTocNodeById(nodeId, node.children);
+        if (match) {
+          return match;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  findTocNodeByContentUrl(contentUrl: string, nodes: UserGuideTocNode[] = this.tocTree): UserGuideTocNode | undefined {
+    for (const node of nodes) {
+      if (node.id === contentUrl) {
+        return node;
+      }
+      if (node.children?.length) {
+        const match = this.findTocNodeByContentUrl(contentUrl, node.children);
+        if (match) {
+          return match;
+        }
+      }
+    }
+    return undefined;
   }
 
   syncPageEditor(): void {

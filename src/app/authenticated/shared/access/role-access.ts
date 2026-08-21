@@ -415,6 +415,9 @@ export function getRouteRuleForUrl(url: string): AccessRule | null {
 //#region Navigation and Routing
 export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boolean {
   const segment = getPrimaryAuthSegment(url);
+  if (segment === RouterToken.UserGuide) {
+    return true;
+  }
   if (hasOwnerAndRealtorRoles(userGroups)) {
     return segment !== null && OWNER_REALTOR_ALLOWED_SEGMENTS.has(segment);
   }
@@ -474,6 +477,9 @@ export function filterNavItemsForPartner(items: NavItemDefinition[]): NavItemDef
 
 export function canPartnerAccessUrl(url: string): boolean {
   const segment = getPrimaryAuthSegment(url);
+  if (segment === RouterToken.UserGuide) {
+    return true;
+  }
   return segment !== null && PARTNER_ALLOWED_SEGMENTS.has(segment);
 }
 

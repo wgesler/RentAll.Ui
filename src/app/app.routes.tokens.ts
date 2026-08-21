@@ -59,6 +59,7 @@ export enum RouterToken {
   Leads = 'leads',
   OwnerShell = 'owner',
   Logs = 'logs',
+  UserGuide = 'user-guide',
   Default = RouterToken.ReservationBoard
 }
 
@@ -121,6 +122,7 @@ export enum RouterUrl {
   Leads                     = `${RouterToken.Auth}/${RouterToken.Leads}`,
   OwnerShell                = `${RouterToken.Auth}/${RouterToken.OwnerShell}`,
   Logs                      = `${RouterToken.Auth}/${RouterToken.Logs}`,
+  UserGuide                 = `/${RouterToken.UserGuide}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace

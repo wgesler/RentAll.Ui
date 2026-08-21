@@ -107,14 +107,11 @@ mat-toolbar#header.mat-toolbar.mat-primary .mdc-button__label {
 
 /* Prevent horizontal layout shift when page scrollbar appears/disappears. */
 html {
-  scrollbar-gutter: stable;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* Keep viewport gutter stable during fast shell view transitions (rent-roll -> bill editor). */
 body {
-  scrollbar-gutter: stable;
   overflow-x: hidden;
 }
 

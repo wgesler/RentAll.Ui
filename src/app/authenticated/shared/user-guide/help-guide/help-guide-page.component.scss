@@ -1,13 +1,27 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  background: #fff;
+  box-sizing: border-box;
+}
+
 .help-guide {
   display: flex;
   flex-direction: column;
-  min-height: 420px;
-  max-height: 80vh;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.help-guide-titlebar {
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .help-guide-body {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 280px 1fr;
   min-height: 0;
   flex: 1;
 }
@@ -24,7 +38,7 @@
 .help-guide-toc-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   padding: 8px 10px;
   border: 0;
@@ -33,20 +47,42 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  font-size: 13px;
 
-  mat-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-  }
-
-  &:hover {
+  &:hover:not(.help-guide-toc-item-active):not(.help-guide-toc-item-expanded) {
     background: var(--mat-sys-surface-container, #f5f5f5);
   }
 }
 
-.help-guide-toc-item-active {
-  background: var(--mat-sys-secondary-container, #e8f5e9);
+.help-guide-toc-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.help-guide-toc-chevron {
+  flex-shrink: 0;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  opacity: 0.72;
+}
+
+.help-guide-toc-label {
+  min-width: 0;
+}
+
+.help-guide-toc-item-expanded,
+.help-guide-toc-item-active,
+.help-guide-toc-item-expanded:hover,
+.help-guide-toc-item-active:hover,
+.help-guide-toc-item-expanded:focus,
+.help-guide-toc-item-active:focus,
+.help-guide-toc-item-expanded:focus-visible,
+.help-guide-toc-item-active:focus-visible {
+  background: var(--shell-tab-blue-wash, #dbeafe);
+  color: rgb(15 23 42);
   font-weight: 600;
 }
 
@@ -55,6 +91,7 @@
   justify-content: flex-end;
   padding: 12px 16px;
   border-top: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+  flex-shrink: 0;
 }
 
 .help-guide-article {
@@ -113,7 +150,7 @@
 }
 
 .description-editor-input {
-  min-height: 220px;
+  min-height: 320px;
   border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 4px;
   padding: 10px;

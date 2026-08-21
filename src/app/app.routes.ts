@@ -50,6 +50,7 @@ import { PropertySelectionComponent } from './authenticated/properties/property-
 import { ReservationBoardComponent } from './authenticated/reservations/reservation-board/reservation-board.component';
 import { ReservationListComponent } from './authenticated/reservations/reservation-list/reservation-list.component';
 import { ReservationShellComponent } from './authenticated/reservations/reservation-shell/reservation-shell.component';
+import { HelpGuidePageComponent } from './authenticated/shared/user-guide/help-guide/help-guide-page.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { UsersShellComponent } from './authenticated/users/users-shell/users-shell.component';
 import { UserComponent } from './authenticated/users/user/user.component';
@@ -131,6 +132,7 @@ export const routes: Routes = [
   { path: RouterToken.Login, component: LoginComponent, canActivate: [unAuthRouteGuard] },
   { path: 'listing/:token', component: PropertyListingPublicComponent },
   { path: 'owners/:token', component: OwnerShellComponent },
+  { path: RouterToken.UserGuide, component: HelpGuidePageComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Auth, component: LayoutComponent, children: authRoutes, canActivate: [authRouteGuard] },
   { path: '**', component: PageNotFoundComponent },
 ];
