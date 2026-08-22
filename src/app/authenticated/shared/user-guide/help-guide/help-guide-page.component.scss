@@ -163,6 +163,25 @@
   background: rgba(180, 0, 0, 0.88);
 }
 
+:host ::ng-deep .description-editor-input .help-guide-image-resize {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  cursor: nwse-resize;
+}
+
+:host ::ng-deep .description-editor-input .help-guide-image-wrap.is-resizing {
+  outline: 2px solid var(--global-primary, #1976d2);
+  outline-offset: 2px;
+}
+
 .help-guide-image-input {
   display: none;
 }

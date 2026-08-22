@@ -87,6 +87,7 @@ export function stripEditorImageChrome(html: string): string {
 
   const doc = parseHtmlFragment(html);
   doc.querySelectorAll('.help-guide-image-wrap').forEach(wrap => {
+    wrap.querySelectorAll('.help-guide-image-remove, .help-guide-image-resize').forEach(control => control.remove());
     const img = wrap.querySelector('img');
     if (img) {
       wrap.replaceWith(img);

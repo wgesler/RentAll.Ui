@@ -86,6 +86,7 @@
               class="description-editor-input description-editor-input--with-markers"
               contenteditable="true"
               (click)="onPageEditorClick($event)"
+              (mousedown)="onPageEditorMouseDown($event)"
               (input)="onPageEditorInput($event)"
               (paste)="onPageEditorPaste($event)">
             </div>

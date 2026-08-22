@@ -59,6 +59,8 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   isEditing = false;
   isSaving = false;
   isUploadingImage = false;
+  imageResizeCleanup: (() => void) | null = null;
+  readonly minGuideImageWidthPx = 120;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userGuide']));
   isPageReady = false;
   destroy$ = new Subject<void>();
@@ -208,6 +210,20 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     }
   }
 
+  onPageEditorMouseDown(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.help-guide-image-resize')) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const wrap = target.closest('.help-guide-image-wrap');
+    const img = wrap?.querySelector('img');
+    if (img instanceof HTMLImageElement) {
+      this.startImageResize(event, img);
+    }
+  }
+
   applyPageFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
     const editor = this.pageEditor?.nativeElement;
     if (!editor) {
@@ -304,7 +320,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     const safePath = this.escapeEditorHtml(imagePath);
     const safePreview = previewDataUrl;
     const safeAlt = this.escapeEditorHtml(altText || 'User guide image');
-    const imageHtml = `<span class="help-guide-image-wrap" contenteditable="false" ${USER_GUIDE_IMAGE_PATH_ATTR}="${safePath}"><button type="button" class="help-guide-image-remove" aria-label="Remove image">&times;</button><img src="${safePreview}" ${USER_GUIDE_IMAGE_PATH_ATTR}="${safePath}" alt="${safeAlt}"></span>`;
+    const imageHtml = `<span class="help-guide-image-wrap" contenteditable="false" ${USER_GUIDE_IMAGE_PATH_ATTR}="${safePath}"><button type="button" class="help-guide-image-remove" aria-label="Remove image">&times;</button><span class="help-guide-image-resize" aria-hidden="true"></span><img src="${safePreview}" ${USER_GUIDE_IMAGE_PATH_ATTR}="${safePath}" alt="${safeAlt}" style="max-width:100%;height:auto;"></span>`;
     this.execEditorCommand('insertHTML', false, imageHtml);
     this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(editor.innerHTML));
     this.markViewForCheck();
@@ -329,28 +345,108 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
 
   decorateEditorImages(editor: HTMLDivElement): void {
     editor.querySelectorAll('img').forEach(img => {
-      if (img.closest('.help-guide-image-wrap')) {
+      const existingWrap = img.closest('.help-guide-image-wrap');
+      if (existingWrap) {
+        this.ensureImageWrapControls(existingWrap, img);
         return;
       }
 
-      const storagePath = getImageStoragePathFromElement(img);
-      const wrap = document.createElement('span');
-      wrap.className = 'help-guide-image-wrap';
-      wrap.contentEditable = 'false';
-      if (storagePath) {
-        wrap.setAttribute(USER_GUIDE_IMAGE_PATH_ATTR, storagePath);
-      }
+      const wrap = this.createImageWrap(img);
+      img.parentNode?.insertBefore(wrap, img);
+      wrap.appendChild(img);
+    });
+  }
 
+  createImageWrap(img: HTMLImageElement): HTMLSpanElement {
+    const storagePath = getImageStoragePathFromElement(img);
+    const wrap = document.createElement('span');
+    wrap.className = 'help-guide-image-wrap';
+    wrap.contentEditable = 'false';
+    if (storagePath) {
+      wrap.setAttribute(USER_GUIDE_IMAGE_PATH_ATTR, storagePath);
+    }
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'help-guide-image-remove';
+    removeButton.setAttribute('aria-label', 'Remove image');
+    removeButton.textContent = '×';
+
+    const resizeHandle = document.createElement('span');
+    resizeHandle.className = 'help-guide-image-resize';
+    resizeHandle.setAttribute('aria-hidden', 'true');
+
+    wrap.appendChild(removeButton);
+    wrap.appendChild(resizeHandle);
+
+    if (!img.style.maxWidth) {
+      img.style.maxWidth = '100%';
+    }
+    if (!img.style.height) {
+      img.style.height = 'auto';
+    }
+
+    return wrap;
+  }
+
+  ensureImageWrapControls(wrap: Element, img: HTMLImageElement): void {
+    if (!wrap.querySelector('.help-guide-image-remove')) {
       const removeButton = document.createElement('button');
       removeButton.type = 'button';
       removeButton.className = 'help-guide-image-remove';
       removeButton.setAttribute('aria-label', 'Remove image');
       removeButton.textContent = '×';
+      wrap.insertBefore(removeButton, img);
+    }
 
-      img.parentNode?.insertBefore(wrap, img);
-      wrap.appendChild(removeButton);
-      wrap.appendChild(img);
-    });
+    if (!wrap.querySelector('.help-guide-image-resize')) {
+      const resizeHandle = document.createElement('span');
+      resizeHandle.className = 'help-guide-image-resize';
+      resizeHandle.setAttribute('aria-hidden', 'true');
+      wrap.insertBefore(resizeHandle, img);
+    }
+
+    if (!img.style.maxWidth) {
+      img.style.maxWidth = '100%';
+    }
+    if (!img.style.height) {
+      img.style.height = 'auto';
+    }
+  }
+
+  startImageResize(event: MouseEvent, img: HTMLImageElement): void {
+    this.finishImageResize();
+    const wrap = img.closest('.help-guide-image-wrap');
+    wrap?.classList.add('is-resizing');
+    const editor = this.pageEditor?.nativeElement;
+    const maxWidth = Math.max(this.minGuideImageWidthPx, (editor?.clientWidth ?? 900) - 24);
+    const startX = event.clientX;
+    const startWidth = img.getBoundingClientRect().width;
+
+    const onMove = (moveEvent: MouseEvent): void => {
+      const nextWidth = Math.round(Math.min(maxWidth, Math.max(this.minGuideImageWidthPx, startWidth + (moveEvent.clientX - startX))));
+      img.style.width = `${nextWidth}px`;
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+    };
+
+    const onUp = (): void => {
+      wrap?.classList.remove('is-resizing');
+      this.finishImageResize();
+      this.syncUserGuideFromEditor();
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    this.imageResizeCleanup = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }
+
+  finishImageResize(): void {
+    this.imageResizeCleanup?.();
+    this.imageResizeCleanup = null;
   }
 
   syncUserGuideFromEditor(): void {
@@ -511,6 +607,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.finishImageResize();
     this.destroy$.next();
     this.destroy$.complete();
   }
