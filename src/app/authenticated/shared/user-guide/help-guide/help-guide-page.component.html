@@ -85,6 +85,7 @@
               #pageEditor
               class="description-editor-input description-editor-input--with-markers"
               contenteditable="true"
+              (click)="onPageEditorClick($event)"
               (input)="onPageEditorInput($event)"
               (paste)="onPageEditorPaste($event)">
             </div>

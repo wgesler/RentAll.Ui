@@ -986,10 +986,14 @@ export class UtilityService {
         return;
       }
 
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, targetWidth, targetHeight);
-      context.drawImage(image, 0, 0, targetWidth, targetHeight);
-      canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+      try {
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, targetWidth, targetHeight);
+        context.drawImage(image, 0, 0, targetWidth, targetHeight);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+      } catch {
+        resolve(null);
+      }
     });
   }
 
@@ -1025,6 +1029,7 @@ export class UtilityService {
     options?: {
       targetMinBytes?: number;
       targetMaxBytes?: number;
+      maxDimension?: number;
       fallbackContentType?: string;
     }
   ): Promise<OptimizedUploadPayload> {
@@ -1033,7 +1038,8 @@ export class UtilityService {
     try {
       const optimizedBlob = await this.optimizeUploadedImage(file, {
         targetMinBytes: options?.targetMinBytes,
-        targetMaxBytes: options?.targetMaxBytes
+        targetMaxBytes: options?.targetMaxBytes,
+        maxDimension: options?.maxDimension
       });
       const optimizedDataUrl = await this.blobToDataUrl(optimizedBlob);
       const optimizedContentType = optimizedBlob.type || file.type || fallbackContentType;
@@ -1056,6 +1062,42 @@ export class UtilityService {
       };
     } catch (error) {
       throw new ImageOptimizationFailedError(file.name, error);
+    }
+  }
+
+  async buildUploadPayloadFromFile(file: File, fallbackContentType = 'image/png'): Promise<OptimizedUploadPayload> {
+    const dataUrl = await this.fileToDataUrl(file);
+    const contentType = file.type || this.getContentTypeFromPath(file.name) || fallbackContentType;
+    const base64String = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+    if (!base64String) {
+      throw new Error('Unable to read image file.');
+    }
+
+    return {
+      uploadFile: file,
+      fileDetails: {
+        contentType,
+        fileName: file.name,
+        file: base64String,
+        dataUrl
+      },
+      wasOptimized: false
+    };
+  }
+
+  async buildUserGuideImageUploadPayload(file: File): Promise<OptimizedUploadPayload> {
+    try {
+      return await this.buildOptimizedUploadPayload(file, {
+        targetMinBytes: 0,
+        targetMaxBytes: 2 * 1024 * 1024,
+        maxDimension: 2400,
+        fallbackContentType: 'image/png'
+      });
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        return this.buildUploadPayloadFromFile(file, 'image/png');
+      }
+      throw error;
     }
   }
   //#endregion

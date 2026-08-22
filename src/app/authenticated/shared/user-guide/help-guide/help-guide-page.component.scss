@@ -131,9 +131,36 @@
   display: block;
   max-width: 100%;
   height: auto;
-  margin: 12px 0;
+  margin: 0;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;
+}
+
+:host ::ng-deep .description-editor-input .help-guide-image-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 12px 0;
+}
+
+:host ::ng-deep .description-editor-input .help-guide-image-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+:host ::ng-deep .description-editor-input .help-guide-image-remove:hover {
+  background: rgba(180, 0, 0, 0.88);
 }
 
 .help-guide-image-input {

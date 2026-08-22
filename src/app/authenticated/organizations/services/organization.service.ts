@@ -1,7 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { SUPPRESS_GLOBAL_ERROR_TOAST } from '../../../interceptor/http-context';
 import { BrandingRequest, BrandingResponse } from '../models/branding.model';
 import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
 import { UserGuideImageUploadRequest, UserGuideImageUploadResponse, UserGuideRequest, UserGuideResponse } from '../models/user-guide.model';
@@ -16,6 +17,7 @@ export class OrganizationService {
 
   
   private readonly controller = this.configService.config().apiUrl + 'organization/';
+  private readonly imageHttpContext = new HttpContext().set(SUPPRESS_GLOBAL_ERROR_TOAST, true);
 
   // GET: Get all organizations
   getOrganizations(): Observable<OrganizationResponse[]> {
@@ -60,6 +62,21 @@ export class OrganizationService {
 
   uploadUserGuideImage(request: UserGuideImageUploadRequest): Observable<UserGuideImageUploadResponse> {
     return this.http.post<UserGuideImageUploadResponse>(this.controller + 'user-guide/image', request);
+  }
+
+  getUserGuideImageBlob(path: string): Observable<Blob> {
+    return this.http.get(this.controller + 'user-guide/image', {
+      params: { path },
+      responseType: 'blob',
+      context: this.imageHttpContext
+    });
+  }
+
+  deleteUserGuideImage(path: string): Observable<void> {
+    return this.http.delete<void>(this.controller + 'user-guide/image', {
+      params: { path },
+      context: this.imageHttpContext
+    });
   }
 }
 

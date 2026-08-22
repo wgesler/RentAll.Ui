@@ -7,7 +7,7 @@ import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { MappingService } from '../../../../services/mapping.service';
-import { UtilityService } from '../../../../services/utility.service';
+import { UtilityService, ImageOptimizationFailedError } from '../../../../services/utility.service';
 import { OrganizationType } from '../../../organizations/models/organization-enum';
 import { OrganizationService } from '../../../organizations/services/organization.service';
 import { cloneUserGuide, emptyUserGuide, normalizeUserGuideResponse, USER_GUIDE_WELCOME_URL, UserGuideResponse } from '../../../organizations/models/user-guide.model';
@@ -20,6 +20,7 @@ import {
   flattenVisibleUserGuideToc,
   UserGuideTocNode
 } from '../user-guide-toc-registry';
+import { normalizeUserGuideHtmlForSave, stripEditorImageChrome, USER_GUIDE_IMAGE_PATH_ATTR, getImageStoragePathFromElement } from '../user-guide-html.util';
 
 @Component({
   standalone: true,
@@ -141,6 +142,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     this.userGuideSnapshot = cloneUserGuide(this.userGuide);
     this.isEditing = true;
     this.markViewForCheck();
+    queueMicrotask(() => this.syncPageEditor());
   }
 
   cancelEdit(): void {
@@ -161,8 +163,14 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
       return;
     }
     this.captureEditorHtml();
+    const payload: UserGuideResponse = {
+      ...this.userGuide,
+      sections: Object.fromEntries(
+        Object.entries(this.userGuide.sections || {}).map(([topicKey, html]) => [topicKey, normalizeUserGuideHtmlForSave(html)])
+      )
+    };
     this.isSaving = true;
-    this.organizationService.updateUserGuide(this.userGuide).pipe(take(1), finalize(() => { this.isSaving = false; this.markViewForCheck(); })).subscribe({
+    this.organizationService.updateUserGuide(payload).pipe(take(1), finalize(() => { this.isSaving = false; this.markViewForCheck(); })).subscribe({
       next: userGuide => {
         this.userGuide = normalizeUserGuideResponse(userGuide);
         this.userGuideSnapshot = null;
@@ -184,7 +192,20 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   //#region Build Form
   onPageEditorInput(event: Event): void {
     const element = event.target as HTMLDivElement;
-    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, element.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(element.innerHTML));
+  }
+
+  onPageEditorClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.help-guide-image-remove')) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const wrap = target.closest('.help-guide-image-wrap');
+    if (wrap) {
+      void this.removePageImage(wrap);
+    }
   }
 
   applyPageFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
@@ -198,16 +219,16 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
       if (!inserted) {
         this.execEditorCommand('insertHTML', false, '<p><br></p>');
       }
-      this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
+      this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(editor.innerHTML));
       return;
     }
     if (format === 'unorderedList') {
       this.applyUnorderedListCommand(editor);
-      this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
+      this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(editor.innerHTML));
       return;
     }
     this.execEditorCommand(format, false);
-    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(editor.innerHTML));
   }
 
   preventEditorToolbarMouseDown(event: MouseEvent): void {
@@ -252,33 +273,96 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     this.isUploadingImage = true;
     this.markViewForCheck();
     try {
-      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      const payload = await this.utilityService.buildUserGuideImageUploadPayload(file);
       const response = await firstValueFrom(this.organizationService.uploadUserGuideImage({ fileDetails: payload.fileDetails }));
-      if (!response?.imagePath) {
+      const imagePath = response?.imagePath || (response as { ImagePath?: string } | null)?.ImagePath;
+      if (!imagePath) {
         this.toastr.error('Unable to upload image');
         return;
       }
-      this.insertPageImageAtCursor(response.imagePath, payload.fileDetails.fileName);
+      this.insertPageImageAtCursor(imagePath, payload.fileDetails.fileName, payload.fileDetails.dataUrl);
       this.toastr.success('Image inserted');
-    } catch {
-      this.toastr.error('Unable to upload image');
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name));
+        return;
+      }
+      const message = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(message || 'Unable to upload image');
     } finally {
       this.isUploadingImage = false;
       this.markViewForCheck();
     }
   }
 
-  insertPageImageAtCursor(imagePath: string, altText: string): void {
+  insertPageImageAtCursor(imagePath: string, altText: string, previewDataUrl: string): void {
     const editor = this.pageEditor?.nativeElement;
     if (!editor) {
       return;
     }
     editor.focus();
     const safePath = this.escapeEditorHtml(imagePath);
+    const safePreview = previewDataUrl;
     const safeAlt = this.escapeEditorHtml(altText || 'User guide image');
-    const imageHtml = `<p><img src="${safePath}" alt="${safeAlt}"></p>`;
+    const imageHtml = `<span class="help-guide-image-wrap" contenteditable="false" ${USER_GUIDE_IMAGE_PATH_ATTR}="${safePath}"><button type="button" class="help-guide-image-remove" aria-label="Remove image">&times;</button><img src="${safePreview}" ${USER_GUIDE_IMAGE_PATH_ATTR}="${safePath}" alt="${safeAlt}"></span>`;
     this.execEditorCommand('insertHTML', false, imageHtml);
-    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(editor.innerHTML));
+    this.markViewForCheck();
+  }
+
+  async removePageImage(wrap: Element): Promise<void> {
+    const storagePath = getImageStoragePathFromElement(wrap);
+    wrap.remove();
+    this.syncUserGuideFromEditor();
+
+    if (!storagePath) {
+      return;
+    }
+
+    try {
+      await firstValueFrom(this.organizationService.deleteUserGuideImage(storagePath));
+    } catch (error) {
+      const message = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(message || 'Unable to delete image file');
+    }
+  }
+
+  decorateEditorImages(editor: HTMLDivElement): void {
+    editor.querySelectorAll('img').forEach(img => {
+      if (img.closest('.help-guide-image-wrap')) {
+        return;
+      }
+
+      const storagePath = getImageStoragePathFromElement(img);
+      const wrap = document.createElement('span');
+      wrap.className = 'help-guide-image-wrap';
+      wrap.contentEditable = 'false';
+      if (storagePath) {
+        wrap.setAttribute(USER_GUIDE_IMAGE_PATH_ATTR, storagePath);
+      }
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'help-guide-image-remove';
+      removeButton.setAttribute('aria-label', 'Remove image');
+      removeButton.textContent = '×';
+
+      img.parentNode?.insertBefore(wrap, img);
+      wrap.appendChild(removeButton);
+      wrap.appendChild(img);
+    });
+  }
+
+  syncUserGuideFromEditor(): void {
+    const editor = this.pageEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(
+      this.userGuide,
+      this.selectedTocId,
+      stripEditorImageChrome(editor.innerHTML)
+    );
     this.markViewForCheck();
   }
 
@@ -401,8 +485,12 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
       return;
     }
     const nextHtml = this.getArticleHtml();
-    if (editor.innerHTML !== nextHtml) {
+    const currentHtml = stripEditorImageChrome(editor.innerHTML);
+    if (currentHtml !== nextHtml) {
       editor.innerHTML = nextHtml;
+    }
+    if (this.canEdit && this.isEditing) {
+      this.decorateEditorImages(editor);
     }
   }
 
@@ -411,7 +499,7 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     if (!editor) {
       return;
     }
-    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, editor.innerHTML);
+    this.userGuide = this.mappingService.setUserGuideSectionHtml(this.userGuide, this.selectedTocId, stripEditorImageChrome(editor.innerHTML));
   }
 
   execEditorCommand(commandId: string, showUi = false, value?: string): boolean {
