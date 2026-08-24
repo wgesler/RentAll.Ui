@@ -486,8 +486,7 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   padding-right: var(--global-page-inner-padding);
   padding-bottom: var(--global-page-inner-padding);
   box-sizing: border-box;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
 }
 
 .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel.financial-report-panel--content-sized {

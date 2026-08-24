@@ -123,7 +123,7 @@
       <div class="financial-report-panel dbg-band-main">
         <div
           class="financial-report-panel-inner"
-          [class.financial-report-panel-inner--fill-width]="hasMultipleAmountColumns"
+          [class.financial-report-panel-inner--content-sized]="hasMultipleAmountColumns"
           [style.max-width]="panelMaxWidthCss">
           @if (isServiceError) {
             <div class="financial-report-empty-state">
@@ -140,6 +140,7 @@
             <table
               class="financial-report-table"
               [class.financial-report-table--multi-column]="hasMultipleAmountColumns"
+              [class.financial-report-table--sticky-columns]="hasMultipleAmountColumns"
               [style.min-width]="hasMultipleAmountColumns ? reportTableMinWidth : null">
               <thead>
                 <tr>

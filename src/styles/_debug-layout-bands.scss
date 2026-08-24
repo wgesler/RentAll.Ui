@@ -250,8 +250,7 @@ body.dbg-page-debug-on {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow: visible;
   }
 
   .shell-tabs .mat-mdc-tab-body-content .accounting-shell-subview-title,

@@ -164,7 +164,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
 
     if (reportClassChanged || searchDateRangeChanged || asOfDateRangeChanged) {
       this.applyReportDisplay();
-      this.markViewForCheck();
     }
 
     const shouldReloadLines =
@@ -277,9 +276,9 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
         this.noActivityMessage = this.reportKind === 'balanceSheet'
           ? 'No balance sheet activity for the selected filters.'
           : 'No profit and loss activity for the selected filters and date range.';
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
         this.applyReportDisplay();
         this.refreshDrillDownView();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, this.reportDataLoadKey);
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
@@ -918,6 +917,8 @@ refreshDrillDownView(): void {
       this.visibleRows = [];
       this.clearPrintableHtml();
       this.noActivityMessage = 'Unable to build the financial report display.';
+    } finally {
+      this.markViewForCheck();
     }
   }
 
