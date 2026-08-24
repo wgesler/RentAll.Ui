@@ -1,0 +1,93 @@
+<div class="flex flex-col rent-roll-link-bill-dialog">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">link</mat-icon>
+      Link Bill to Rent Roll Line
+    </span>
+    <button mat-mini-fab mat-dialog-close type="button" class="bg-transparent rent-roll-link-bill-close" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="rent-roll-link-bill-body p-4">
+    <p class="rent-roll-link-bill-summary">
+      {{ data.propertyCode || 'Property' }}
+      @if (data.vendorName) {
+        · {{ data.vendorName }}
+      }
+      @if (data.billDate) {
+        · {{ data.billDate }}
+      }
+    </p>
+
+    @if (isLoading) {
+      <div class="rent-roll-link-bill-loading">
+        <mat-spinner [diameter]="36"></mat-spinner>
+        <span>Loading bills...</span>
+      </div>
+    } @else if (loadError) {
+      <p class="rent-roll-link-bill-empty">Unable to load bills.</p>
+    } @else if (billOptions.length === 0) {
+      <p class="rent-roll-link-bill-empty">No matching unlinked bills found for this line, property, vendor, and period.</p>
+    } @else {
+      <div class="rent-roll-link-bill-table-wrap">
+        <table mat-table [dataSource]="billOptions" class="rent-roll-link-bill-table">
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <mat-radio-button
+                [checked]="selectedReceiptId === row.receiptId"
+                [disabled]="!row.selectable"
+                (click)="selectBill(row.receiptId, row.selectable)">
+              </mat-radio-button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="receiptCode">
+            <th mat-header-cell *matHeaderCellDef>Bill</th>
+            <td mat-cell *matCellDef="let row">{{ row.receiptCode }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="receiptDate">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let row">{{ row.receiptDate || '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="vendorName">
+            <th mat-header-cell *matHeaderCellDef>Vendor</th>
+            <td mat-cell *matCellDef="let row">{{ row.vendorName }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>Description</th>
+            <td mat-cell *matCellDef="let row">{{ row.description }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="amountDisplay">
+            <th mat-header-cell *matHeaderCellDef>Amount</th>
+            <td mat-cell *matCellDef="let row">{{ row.amountDisplay }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="linkStatus">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let row">{{ row.linkStatus }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: displayedColumns"
+            [class.rent-roll-link-bill-row--disabled]="!row.selectable"
+            (click)="selectBill(row.receiptId, row.selectable)">
+          </tr>
+        </table>
+      </div>
+    }
+  </mat-dialog-content>
+
+  <mat-divider class="w-full"></mat-divider>
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button type="button" color="accent" (click)="onCancel()">Cancel</button>
+    <button mat-raised-button type="button" color="primary" [disabled]="!selectedReceiptId" (click)="onLink()">Link Bill</button>
+  </div>
+</div>

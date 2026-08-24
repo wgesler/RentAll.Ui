@@ -1,0 +1,37 @@
+.rent-roll-link-bill-close {
+  box-shadow: none !important;
+}
+
+.rent-roll-link-bill-body {
+  min-width: min(100%, 72rem);
+  box-sizing: border-box;
+}
+
+.rent-roll-link-bill-summary {
+  margin: 0 0 12px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.rent-roll-link-bill-loading,
+.rent-roll-link-bill-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 8rem;
+  margin: 0;
+}
+
+.rent-roll-link-bill-table-wrap {
+  overflow: auto;
+  max-height: 24rem;
+}
+
+.rent-roll-link-bill-table {
+  width: 100%;
+}
+
+.rent-roll-link-bill-row--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

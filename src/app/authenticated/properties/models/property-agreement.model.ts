@@ -3,6 +3,7 @@ import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface PropertyAgreementLineRequest {
   agreementLineId?: string | null;
+  propertyId?: string | null;
   title?: string | null;
   vendorId?: string | null;
   chartOfAccountId?: number | null;
@@ -18,6 +19,7 @@ export interface PropertyAgreementLineRequest {
 
 export interface PropertyAgreementLineResponse {
   agreementLineId?: string | null;
+  propertyId?: string | null;
   title?: string | null;
   vendorId?: string | null;
   vendorName?: string | null;

@@ -242,66 +242,27 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   saveReceipt(): void {
     this.updatePropertyRequirementByReceiptType();
     this.updateVendorFieldValidators();
+    this.commitPendingAmountEdits();
     this.saveValidationHighlightActive = true;
     this.saveValidationAttempted.emit();
     this.form.markAllAsTouched();
     this.receiptFileValidationError = !this.hasReceiptFileForSave();
 
-    if (!this.organizationId) {
+    const validationErrors = this.collectReceiptSaveValidationErrors();
+    if (validationErrors.length > 0) {
       this.pendingSaveAndNew = false;
-      this.showValidationErrorToast();
-      return;
-    }
-    if (this.form.invalid) {
-      this.pendingSaveAndNew = false;
-      this.showValidationErrorToast();
-      return;
-    }
-    const receiptDateValue = this.getReceiptDateForApi();
-    if (!receiptDateValue) {
-      this.pendingSaveAndNew = false;
-      this.form.get('receiptDate')?.markAsTouched();
-      this.showValidationErrorToast();
-      return;
-    }
-    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
-      this.pendingSaveAndNew = false;
-      this.form.get('dueDate')?.markAsTouched();
-      this.showValidationErrorToast();
-      return;
-    }
-    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value)) {
-      this.pendingSaveAndNew = false;
-      this.form.get('accountingPeriod')?.markAsTouched();
-      this.showValidationErrorToast();
-      return;
-    }
-    if (this.isAddMode && !this.property && this.isPropertySelectionRequired()) {
-      this.pendingSaveAndNew = false;
-      this.showValidationErrorToast();
-      return;
-    }
-    const selectedPropertyIds = this.getPayloadPropertyIds();
-    if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
-      this.pendingSaveAndNew = false;
-      this.form.get('propertyIds')?.markAsTouched();
-      this.showValidationErrorToast();
+      this.showValidationErrorToast(validationErrors);
       return;
     }
 
-    if (!this.hasReceiptFileForSave()) {
-      this.pendingSaveAndNew = false;
-      this.receiptFileValidationError = true;
-      this.showValidationErrorToast();
-      return;
-    }
-
+    const receiptDateValue = this.getReceiptDateForApi()!;
     const sendNewReceipt = this.hasNewReceiptUpload;
     const receiptPathValue = (this.form.get('receiptPath')?.value ?? this.receipt?.receiptPath ?? null)
       ?.toString()
       .trim() || null;
     const amountStr = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     const amountValue = parseFloat(amountStr) || 0;
+    const selectedPropertyIds = this.getPayloadPropertyIds();
     const payloadSplits = this.getPayloadSplitsFromForm().map(split => {
       const normalizedWorkOrderId = this.normalizeGuidOrNull(split.workOrderId);
       return {
@@ -309,17 +270,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         workOrderId: normalizedWorkOrderId
       };
     });
-    if (payloadSplits.length === 0) {
-      this.pendingSaveAndNew = false;
-      this.showValidationErrorToast();
-      return;
-    }
-    const missingRequiredSplitField = this.validateRequiredSplitFields();
-    if (missingRequiredSplitField) {
-      this.pendingSaveAndNew = false;
-      this.showValidationErrorToast();
-      return;
-    }
     const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
     if (this.isSplitTotalGreaterThanReceipt(splitTotalAmount, amountValue)) {
       this.pendingSaveAndNew = false;
@@ -332,24 +282,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const isBill = bankCardId === 0;
     const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
     const vendorName = (this.form.get('vendorName')?.value || '').toString().trim() || null;
-    if (!Number.isFinite(bankCardId) || bankCardId < 0) {
-      this.pendingSaveAndNew = false;
-      this.form.get('bankCardId')?.markAsTouched();
-      this.showValidationErrorToast();
-      return;
-    }
-    if (isBill && !vendorId) {
-      this.pendingSaveAndNew = false;
-      this.form.get('vendorId')?.markAsTouched();
-      this.showValidationErrorToast();
-      return;
-    }
-    if (!isBill && !vendorName) {
-      this.pendingSaveAndNew = false;
-      this.form.get('vendorName')?.markAsTouched();
-      this.showValidationErrorToast();
-      return;
-    }
     const payload: ReceiptRequest = {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
@@ -512,9 +444,141 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.resetForm();
   }
 
-  showValidationErrorToast(): void {
+  showValidationErrorToast(details?: string | string[]): void {
     this.cdr.markForCheck();
-    this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+    const messages = (Array.isArray(details) ? details : details ? [details] : [])
+      .map(message => (message || '').trim())
+      .filter(message => message.length > 0);
+    const detailText = messages.length > 0
+      ? ` ${messages.join('; ')}.`
+      : '';
+    this.toastr.error(`Please correct the highlighted fields before saving.${detailText}`, 'Error');
+  }
+
+  collectReceiptSaveValidationErrors(): string[] {
+    const errors: string[] = [];
+
+    if (!this.organizationId) {
+      errors.push('Organization context is missing');
+    }
+
+    errors.push(...this.collectFormValidationErrors());
+
+    if (!this.getReceiptDateForApi()) {
+      this.form.get('receiptDate')?.markAsTouched();
+      errors.push('Receipt/Bill Date is required');
+    }
+
+    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
+      this.form.get('dueDate')?.markAsTouched();
+      errors.push('Due Date is required');
+    }
+
+    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value)) {
+      this.form.get('accountingPeriod')?.markAsTouched();
+      errors.push('Accounting Period is required');
+    }
+
+    const selectedPropertyIds = this.getPayloadPropertyIds();
+    if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
+      this.form.get('propertyIds')?.markAsTouched();
+      errors.push('At least one Property is required');
+    }
+
+    if (!this.hasReceiptFileForSave()) {
+      this.receiptFileValidationError = true;
+      errors.push('Receipt image or PDF is required');
+    }
+
+    const payloadSplits = this.getPayloadSplitsFromForm();
+    if (payloadSplits.length === 0) {
+      errors.push('At least one split line is required');
+    }
+
+    const missingRequiredSplitField = this.validateRequiredSplitFields();
+    if (missingRequiredSplitField) {
+      errors.push(missingRequiredSplitField);
+    }
+
+    const bankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
+    const isBill = bankCardId === 0;
+    if (!Number.isFinite(bankCardId) || bankCardId < 0) {
+      this.form.get('bankCardId')?.markAsTouched();
+      errors.push('Bank Card is required');
+    }
+
+    const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
+    const vendorName = (this.form.get('vendorName')?.value || '').toString().trim() || null;
+    if (isBill && !vendorId) {
+      this.form.get('vendorId')?.markAsTouched();
+      errors.push('Vendor is required');
+    }
+    if (!isBill && !vendorName) {
+      this.form.get('vendorName')?.markAsTouched();
+      errors.push('Vendor is required');
+    }
+
+    return Array.from(new Set(errors));
+  }
+
+  collectFormValidationErrors(): string[] {
+    const errors: string[] = [];
+    const fieldLabels: Record<string, string> = {
+      receiptDate: 'Receipt/Bill Date',
+      dueDate: 'Due Date',
+      accountingPeriod: 'Accounting Period',
+      propertyIds: 'Properties',
+      amount: 'Amount',
+      description: 'Description',
+      bankCardId: 'Bank Card',
+      vendorId: 'Vendor',
+      vendorName: 'Vendor'
+    };
+
+    Object.entries(fieldLabels).forEach(([controlName, label]) => {
+      const control = this.form.get(controlName);
+      if (control?.invalid) {
+        errors.push(`${label} is required`);
+      }
+    });
+
+    this.splitsFormArray.controls.forEach((group, index) => {
+      const splitGroup = group as FormGroup;
+      const lineNumber = index + 1;
+      if (splitGroup.get('amount')?.invalid) {
+        errors.push(`Split line ${lineNumber}: Amount is required`);
+      }
+      if (splitGroup.get('description')?.invalid) {
+        errors.push(`Split line ${lineNumber}: Description is required`);
+      }
+      if (splitGroup.get('receiptTypeId')?.invalid) {
+        errors.push(`Split line ${lineNumber}: Type is required`);
+      }
+      if (splitGroup.get('chartOfAccountId')?.invalid) {
+        errors.push(`Split line ${lineNumber}: Account is required`);
+      }
+    });
+
+    return errors;
+  }
+
+  commitPendingAmountEdits(): void {
+    if (this.amountFocused) {
+      const raw = this.sanitizeSignedDecimalInput(this.amountEditValue);
+      const num = parseFloat(raw) || 0;
+      this.form.get('amount')?.setValue(num.toFixed(2), { emitEvent: false });
+      this.amountFocused = false;
+      this.amountEditValue = '';
+    }
+
+    if (this.focusedSplitAmountIndex !== null) {
+      const splitIndex = this.focusedSplitAmountIndex;
+      const raw = this.sanitizeSignedDecimalInput(this.splitAmountEditValue);
+      const num = parseFloat(raw) || 0;
+      this.splitsFormArray.at(splitIndex)?.get('amount')?.setValue(num.toFixed(2), { emitEvent: false });
+      this.focusedSplitAmountIndex = null;
+      this.splitAmountEditValue = '';
+    }
   }
 
   shouldShowControlError(control: AbstractControl | null | undefined): boolean {

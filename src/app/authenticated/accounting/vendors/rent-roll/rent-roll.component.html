@@ -33,6 +33,9 @@
           [hasPropertyCodeLink]="true"
           [hasActionsEdit]="true"
           [hasActionsDelete]="true"
+          [hasActionsLink]="true"
+          [linkActionTooltip]="'Link Bill'"
+          [linkActionColor]="'#4CAF50'"
           [hasActionsInvoice]="true"
           [hasActionsInfo]="true"
           [infoIconLarge]="true"
@@ -52,6 +55,7 @@
           (propertyCodeClickEvent)="onPropertyCodeClick($event)"
           (editEvent)="onEditAgreementLine($event)"
           (deleteEvent)="onDeleteAgreementLine($event)"
+          (linkEvent)="onLinkBill($event)"
           (invoiceEvent)="onCreateBill($event)">
         </app-data-table>
       </div>

@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RentRollPropertyAgreement } from '../../accounting/models/rent-roll.model';
 import { ConfigService } from '../../../services/config.service';
-import { PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
+import { PropertyAgreementLineRequest, PropertyAgreementLineResponse, PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 
 @Injectable({
   providedIn: 'root'
@@ -28,5 +28,17 @@ export class PropertyAgreementService {
 
   updatePropertyAgreement(agreement: PropertyAgreementRequest): Observable<PropertyAgreementResponse> {
     return this.http.put<PropertyAgreementResponse>(this.agreementUrl, agreement);
+  }
+
+  createRentRollAgreementLine(line: PropertyAgreementLineRequest): Observable<PropertyAgreementLineResponse> {
+    return this.http.post<PropertyAgreementLineResponse>(`${this.agreementUrl}/rent-roll/agreement-line`, line);
+  }
+
+  updateRentRollAgreementLine(line: PropertyAgreementLineRequest & { agreementLineId: string }): Observable<PropertyAgreementLineResponse> {
+    return this.http.put<PropertyAgreementLineResponse>(`${this.agreementUrl}/rent-roll/agreement-line`, line);
+  }
+
+  deleteRentRollAgreementLine(agreementLineId: string): Observable<void> {
+    return this.http.delete<void>(`${this.agreementUrl}/rent-roll/agreement-line/${agreementLineId}`);
   }
 }

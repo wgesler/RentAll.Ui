@@ -14,7 +14,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
-import { ReceiptResponse, ReceiptSelection } from '../../../maintenance/models/receipt.model';
+import { ReceiptResponse, ReceiptSelection, ReceiptRequest, isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../../../maintenance/models/receipt.model';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
@@ -24,6 +24,7 @@ import { PropertyAgreementService } from '../../../properties/services/property-
 import { ManagementFeeType, OwnerPaymentType } from '../../../properties/models/property-enums';
 import { RentRollCreateBillRequest, RentRollPropertyAgreement, RentRollRow, RentRollRowDisplay } from '../../models/rent-roll.model';
 import { RentRollEditLineDialogComponent, RentRollEditLineDialogData, RentRollEditLineDialogResult } from './rent-roll-edit-line-dialog.component';
+import { RentRollLinkBillDialogComponent, RentRollLinkBillDialogData, RentRollLinkBillDialogResult } from './rent-roll-link-bill-dialog.component';
 
 @Component({
   selector: 'app-rent-roll',
@@ -157,7 +158,13 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     if (this.officeId == null) {
       return propertyAgreements;
     }
-    return propertyAgreements.filter(propertyAgreement => propertyAgreement.officeId === this.officeId);
+    return propertyAgreements
+      .filter(propertyAgreement =>
+        propertyAgreement.officeId === this.officeId
+        || isReceiptCompanyPropertyId(propertyAgreement.propertyId))
+      .map(propertyAgreement => isReceiptCompanyPropertyId(propertyAgreement.propertyId)
+        ? { ...propertyAgreement, officeId: this.officeId }
+        : propertyAgreement);
   }
 
   rebuildRentRollRowsFromCachedAgreements(): void {
@@ -364,6 +371,87 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  onLinkBill(rowDisplay: RentRollRowDisplay): void {
+    const row = this.resolveRentRollRow(rowDisplay);
+    if (!row || !this.hasAgreementLineIdentifier(row)) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(RentRollLinkBillDialogComponent, {
+      width: '88rem',
+      data: {
+        officeId: row.officeId ?? this.officeId ?? null,
+        propertyId: row.propertyId,
+        propertyCode: row.propertyCode,
+        vendorId: row.vendorId,
+        vendorName: row.vendorName,
+        agreementLineId: row.agreementLineId || '',
+        billDate: row.billDate,
+        searchDateRange: this.searchDateRange
+      } as RentRollLinkBillDialogData
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result: RentRollLinkBillDialogResult | undefined) => {
+      const receiptId = (result?.receiptId || '').trim();
+      const agreementLineId = this.toAgreementLineIdNumber(row.agreementLineId);
+      if (!receiptId || !agreementLineId) {
+        return;
+      }
+
+      this.receiptService.getReceiptById(receiptId).pipe(take(1)).subscribe({
+        next: receipt => {
+          if (!receipt) {
+            this.toastr.error('Unable to load the selected bill.', 'Error');
+            return;
+          }
+          this.linkBillToAgreementLine(receipt, agreementLineId).pipe(take(1)).subscribe({
+            next: () => {
+              this.toastr.success('Bill linked to rent roll line.', 'Success');
+              this.loadExistingBillsForDateRange(this.loadSequence);
+            },
+            error: () => {
+              this.toastr.error('Unable to link bill to rent roll line.', 'Error');
+            }
+          });
+        },
+        error: () => {
+          this.toastr.error('Unable to load the selected bill.', 'Error');
+        }
+      });
+    });
+  }
+
+  linkBillToAgreementLine(receipt: ReceiptResponse, agreementLineId: number) {
+    const updateRequest: ReceiptRequest = {
+      receiptId: receipt.receiptId,
+      organizationId: receipt.organizationId,
+      officeId: receipt.officeId,
+      propertyIds: [...(receipt.propertyIds || [])],
+      agreementLineId,
+      receiptDate: receipt.receiptDate,
+      dueDate: receipt.dueDate,
+      accountingPeriod: receipt.accountingPeriod,
+      billNumber: receipt.billNumber ?? null,
+      ticketId: receipt.ticketId || '',
+      amount: Number(receipt.amount || 0),
+      paidAmount: Number(receipt.paidAmount || 0),
+      paidDate: receipt.paidDate ?? null,
+      description: (receipt.description || '').trim(),
+      bankCardId: receipt.bankCardId ?? null,
+      vendorId: receipt.vendorId ?? null,
+      vendorName: receipt.vendorName ?? null,
+      splits: [...(receipt.splits || [])],
+      receiptPath: receipt.receiptPath ?? null,
+      fileDetails: null,
+      paymentTypeId: Number(receipt.paymentTypeId || 0),
+      checkPrinted: !!receipt.checkPrinted,
+      isUtility: !!receipt.isUtility,
+      businessPrivate: !!receipt.businessPrivate,
+      isActive: !!receipt.isActive
+    };
+    return this.receiptService.updateReceipt(updateRequest);
+  }
+
   openAddAgreementLineDialog(row: RentRollRow | null): void {
     const dialogRef = this.dialog.open(RentRollEditLineDialogComponent, {
       width: '88rem',
@@ -402,23 +490,37 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const newLine: PropertyAgreementLineRequest = {
+      agreementLineId: null,
+      propertyId: isReceiptCompanyPropertyId(propertyId) ? RECEIPT_COMPANY_PROPERTY_ID : propertyId,
+      title: null,
+      vendorId: result.vendorId ?? null,
+      chartOfAccountId: result.chartOfAccountId ?? null,
+      startDate: result.startDate ?? null,
+      endDate: result.endDate ?? null,
+      deposit: result.deposit ?? 0,
+      oneTime: result.oneTime ?? 0,
+      monthly: result.monthly ?? 0,
+      daily: result.daily ?? 0,
+      isRent: !!result.isRent,
+      notes: (result.notes || '').trim() || null
+    };
+
+    if (isReceiptCompanyPropertyId(propertyId)) {
+      this.propertyAgreementService.createRentRollAgreementLine(newLine).pipe(take(1)).subscribe({
+        next: () => {
+          this.toastr.success('Agreement line added.', 'Success');
+          this.loadRentRoll();
+        },
+        error: () => {
+          this.toastr.error('Unable to add company agreement line.', 'Error');
+        }
+      });
+      return;
+    }
+
     this.propertyAgreementService.getPropertyAgreement(propertyId).pipe(take(1)).subscribe({
       next: agreement => {
-        const newLine: PropertyAgreementLineRequest = {
-          agreementLineId: null,
-          title: null,
-          vendorId: result.vendorId ?? null,
-          chartOfAccountId: result.chartOfAccountId ?? null,
-          startDate: result.startDate ?? null,
-          endDate: result.endDate ?? null,
-          deposit: result.deposit ?? 0,
-          oneTime: result.oneTime ?? 0,
-          monthly: result.monthly ?? 0,
-          daily: result.daily ?? 0,
-          isRent: !!result.isRent,
-          notes: (result.notes || '').trim() || null
-        };
-
         if (!agreement) {
           const createPayload: PropertyAgreementRequest = {
             propertyId,
@@ -505,7 +607,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
 
   onPropertyCodeClick(rowDisplay: RentRollRowDisplay): void {
     const propertyId = (rowDisplay?.propertyId || '').trim();
-    if (!propertyId) {
+    if (!propertyId || isReceiptCompanyPropertyId(propertyId)) {
       return;
     }
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]));
@@ -882,6 +984,24 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     const propertyAgreementsSnapshot = this.clonePropertyAgreements();
     this.applyOptimisticAgreementLineUpdate(row, updates, optimisticDisplayUpdates);
 
+    if (isReceiptCompanyPropertyId(propertyId)) {
+      const payload: PropertyAgreementLineRequest & { agreementLineId: string } = {
+        agreementLineId,
+        propertyId: RECEIPT_COMPANY_PROPERTY_ID,
+        ...updates
+      };
+      this.propertyAgreementService.updateRentRollAgreementLine(payload).pipe(take(1)).subscribe({
+        next: () => {
+          this.toastr.success('Agreement line updated.', 'Success');
+        },
+        error: () => {
+          this.restorePropertyAgreementsFromSnapshot(propertyAgreementsSnapshot);
+          this.toastr.error('Unable to update agreement line.', 'Error');
+        }
+      });
+      return;
+    }
+
     this.propertyAgreementService.getPropertyAgreement(propertyId).pipe(take(1)).subscribe({
       next: agreement => {
         if (!agreement) {
@@ -923,6 +1043,19 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     const propertyId = (row.propertyId || '').trim();
     const agreementLineId = row.agreementLineId;
     if (!propertyId || !agreementLineId) {
+      return;
+    }
+
+    if (isReceiptCompanyPropertyId(propertyId)) {
+      this.propertyAgreementService.deleteRentRollAgreementLine(agreementLineId).pipe(take(1)).subscribe({
+        next: () => {
+          this.toastr.success('Agreement line deleted.', 'Success');
+          this.loadRentRoll();
+        },
+        error: () => {
+          this.toastr.error('Unable to delete agreement line.', 'Error');
+        }
+      });
       return;
     }
 
@@ -978,7 +1111,9 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const propertyAgreement = (this.propertyAgreements || []).find(item => (item.propertyId || '').trim() === propertyId);
+    const propertyAgreement = (this.propertyAgreements || []).find(item =>
+      (item.propertyId || '').trim() === propertyId
+      || (isReceiptCompanyPropertyId(propertyId) && isReceiptCompanyPropertyId(item.propertyId)));
     const agreementLines = propertyAgreement?.agreementLines || [];
     const line = agreementLines.find(item => (item.agreementLineId || null) === agreementLineId) as PropertyAgreementLineResponse | undefined;
     if (!line) {

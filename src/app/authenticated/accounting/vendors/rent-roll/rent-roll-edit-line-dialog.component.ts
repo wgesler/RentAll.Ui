@@ -13,6 +13,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyCodeResponse } from '../../../properties/models/property.model';
 import { NewContactDialogService } from '../../../shared/contacts/new-contact-dialog.service';
+import { RECEIPT_COMPANY_PROPERTY_ID, isReceiptCompanyPropertyId } from '../../../maintenance/models/receipt.model';
 
 export interface RentRollEditLineDialogData {
   propertyId?: string | null;
@@ -211,17 +212,22 @@ export class RentRollEditLineDialogComponent {
           next: (properties: PropertyCodeResponse[]) => {
             const scopedProperties = (properties || [])
               .filter(property => !officeId || Number(property.officeId) === officeId);
-            this.propertyOptions = scopedProperties
-              .map(property => ({
-                value: (property.propertyId || '').trim(),
-                label: (property.propertyCode || '').trim() || (property.shortAddress || '').trim() || 'Property'
-              }))
-              .filter(option => !!option.value)
-              .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+            this.propertyOptions = [
+              { value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' },
+              ...scopedProperties
+                .map(property => ({
+                  value: (property.propertyId || '').trim(),
+                  label: (property.propertyCode || '').trim() || (property.shortAddress || '').trim() || 'Property'
+                }))
+                .filter(option => !!option.value)
+                .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+            ];
 
             const selectedPropertyId = this.normalizeOptionalText(this.form.get('propertyId')?.value);
             if (selectedPropertyId && !this.propertyOptions.some(option => option.value === selectedPropertyId)) {
-              this.form.patchValue({ propertyId: null }, { emitEvent: false });
+              if (!isReceiptCompanyPropertyId(selectedPropertyId)) {
+                this.form.patchValue({ propertyId: null }, { emitEvent: false });
+              }
             }
           },
           error: () => {
