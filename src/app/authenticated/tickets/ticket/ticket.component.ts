@@ -29,6 +29,7 @@ import { WorkOrderService } from '../../maintenance/services/work-order.service'
 import { TicketStateType, getTicketStateTypes } from '../models/ticket-enum';
 import { TicketNoteRequest, TicketResponse, TicketRequest } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
+import { TicketPrintService } from '../services/ticket-print.service';
 import { TicketReceiptDialogComponent } from './ticket-receipt-dialog.component';
 import { TicketWorkOrderDialogComponent } from './ticket-work-order-dialog.component';
 
@@ -64,6 +65,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   private workOrderService = inject(WorkOrderService);
   private userService = inject(UserService);
   private formatterService = inject(FormatterService);
+  private ticketPrintService = inject(TicketPrintService);
   private cdr = inject(ChangeDetectorRef);
 
   isServiceError: boolean = false;
@@ -1323,6 +1325,38 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       const control = this.form.get(controlName);
       control?.markAsDirty();
       control?.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+  //#endregion
+
+  //#region Print
+  onPrint(): void {
+    if (this.isAddMode || !this.ticket) {
+      this.toastr.warning('Save the ticket before printing.', 'No Ticket');
+      return;
+    }
+
+    this.syncDescriptionEditorFromForm();
+    const formValue = this.form.getRawValue();
+    const assigneeId = formValue.assigneeId == null ? null : String(formValue.assigneeId);
+    const agentId = formValue.reservationAgentId == null ? null : String(formValue.reservationAgentId);
+
+    this.ticketPrintService.printFromTicket(this.ticket, {
+      title: String(formValue.title || ''),
+      description: String(formValue.description || ''),
+      ticketStateTypeId: Number(formValue.ticketStateTypeId ?? this.ticket.ticketStateTypeId ?? 0),
+      assigneeName: this.resolveAssigneeDisplayName(this.normalizeId(assigneeId), this.ticket.assigneeName || this.ticket.assignee || null),
+      agentName: this.reservationAgentOptions.find(option => this.normalizeId(option.agentId) === this.normalizeId(agentId))?.displayName
+        || this.normalizeText(this.ticket.agentName ?? null)
+        || 'None',
+      isActive: !!formValue.isActive,
+      needPermissionToEnter: !!formValue.needPermissionToEnter,
+      permissionGranted: !!formValue.permissionGranted,
+      ownerContacted: !!formValue.ownerContacted,
+      confirmedWithTenant: !!formValue.confirmedWithTenant,
+      followedUpWithOwner: !!formValue.followedUpWithOwner,
+      workOrderCompleted: !!formValue.workOrderCompleted,
+      lastModifiedDisplay: this.lastModifiedDisplay
     });
   }
   //#endregion

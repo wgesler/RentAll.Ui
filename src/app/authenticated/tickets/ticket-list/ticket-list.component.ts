@@ -22,6 +22,7 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { getTicketStateType, getTicketStateTypes, TicketStateType } from '../models/ticket-enum';
 import { TicketAssigneeDropdownCell, TicketListDisplay, TicketOfficeFilterOption, TicketPropertyFilterOption, TicketReservationFilterOption } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
+import { TicketPrintService } from '../services/ticket-print.service';
 
 @Component({
   standalone: true,
@@ -33,7 +34,6 @@ import { TicketService } from '../services/ticket.service';
 })
 export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
-  @Input() embeddedInSettings: boolean = false;
   @Input() assigneeFilterMode: 'assignedToMe' | 'allOthers' | 'closed' = 'assignedToMe';
   @Input() currentUserId: string | null = null;
   @Input() currentUserAgentId: string | null = null;
@@ -51,6 +51,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   private reservationService = inject(ReservationService);
   private userService = inject(UserService);
   private utilityService = inject(UtilityService);
+  private ticketPrintService = inject(TicketPrintService);
   private cdr = inject(ChangeDetectorRef);
 
   showInactive = false;
@@ -86,10 +87,6 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Ticket-List
   ngOnChanges(changes: SimpleChanges): void {
-    if (!this.embeddedInSettings) {
-      return;
-    }
-
     if (changes['shellOfficeId'] || changes['shellPropertyId'] || changes['shellReservationId']) {
       this.applyShellFiltersFromInputs();
     }
@@ -106,12 +103,16 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   addTicket(): void {
-    if (this.embeddedInSettings) {
-      this.ticketSelected.emit({ ticketId: 'new', ticketCode: null, propertyId: null, propertyCode: null, reservationId: null, reservationCode: null, officeId: this.selectedOfficeId, officeName: this.selectedOffice?.officeName ?? null });
-      return;
-    }
-
-    this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, ['new'])}`);
+    this.ticketSelected.emit({
+      ticketId: 'new',
+      ticketCode: null,
+      propertyId: null,
+      propertyCode: null,
+      reservationId: null,
+      reservationCode: null,
+      officeId: this.selectedOfficeId,
+      officeName: this.selectedOffice?.officeName ?? null
+    });
   }
 
   getTickets(): void {
@@ -120,11 +121,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
         this.allTickets = (tickets || []).map(ticket => this.withAssigneeDropdownCell(this.mappingService.mapTicketToDisplay(ticket, this.ticketStateTypeOptions)));
         this.rebuildFilterOptions();
         this.rebuildAssigneeDropdowns();
-        if (this.embeddedInSettings) {
-          this.applyShellFiltersFromInputs();
-        } else {
-          this.applyFilters();
-        }
+        this.applyShellFiltersFromInputs();
         this.markViewForCheck();
       },
       error: () => {
@@ -169,26 +166,31 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   goToTicket(event: TicketListDisplay): void {
-    if (!event || event.ticketId === null || event.ticketId === undefined) return;
-
-    if (this.embeddedInSettings) {
-      this.ticketSelected.emit({
-        ticketId: event.ticketId,
-        ticketCode: event.ticketCode || null,
-        propertyId: String(event.propertyId || '').trim() || null,
-        propertyCode: String(event.propertyCode || '').trim() || null,
-        reservationId: String(event.reservationId || '').trim() || null,
-        reservationCode: String(event.reservationCode || '').trim() || null,
-        officeId: event.officeId ?? null,
-        officeName: String(event.officeName || '').trim() || null
-      });
+    if (!event || event.ticketId === null || event.ticketId === undefined) {
       return;
     }
 
-    this.router.navigateByUrl(
-      `/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`,
-      { state: { ticket: event } }
-    );
+    this.ticketSelected.emit({
+      ticketId: event.ticketId,
+      ticketCode: event.ticketCode || null,
+      propertyId: String(event.propertyId || '').trim() || null,
+      propertyCode: String(event.propertyCode || '').trim() || null,
+      reservationId: String(event.reservationId || '').trim() || null,
+      reservationCode: String(event.reservationCode || '').trim() || null,
+      officeId: event.officeId ?? null,
+      officeName: String(event.officeName || '').trim() || null
+    });
+  }
+
+  printTicket(event: TicketListDisplay): void {
+    if (!event?.ticketId) {
+      return;
+    }
+
+    this.ticketService.getTicketById(String(event.ticketId)).pipe(take(1)).subscribe({
+      next: ticket => this.ticketPrintService.printFromTicket(ticket),
+      error: () => this.toastr.error('Unable to load ticket for printing.', CommonMessage.Error)
+    });
   }
 
   goToProperty(event: TicketListDisplay): void {
@@ -495,25 +497,6 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
   onInactiveChange(checked: boolean): void {
     this.showInactive = checked;
-    this.applyFilters();
-  }
-
-  onOfficeFilterChange(officeId: number | null): void {
-    this.selectedOfficeId = officeId == null ? null : Number(officeId);
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.officeFilterOptions, this.selectedOfficeId);
-    this.selectedPropertyId = null;
-    this.selectedReservationId = null;
-    this.applyFilters();
-  }
-
-  onPropertyFilterChange(propertyId: string | null): void {
-    this.selectedPropertyId = propertyId;
-    this.selectedReservationId = null;
-    this.applyFilters();
-  }
-
-  onReservationFilterChange(reservationId: string | null): void {
-    this.selectedReservationId = reservationId;
     this.applyFilters();
   }
 

@@ -1,124 +1,42 @@
 @if (isPageReady) {
-  @if (embeddedInSettings) {
-    <div class="mat list-layout-tabbed">
-      <div class="tableDiv px-4">
-        <app-data-table
-          class="ticket-list-table"
-          [data]="ticketsDisplay"
-          [columns]="ticketsDisplayedColumns"
-          [hasColumnIndex]="true"
-          [hasFilter]="showListFiltersAndActions"
-          [hasToggleTop]="false"
-          [hasActionsRowClick]="true"
-          [hasActionsEdit]="true"
-          [hasActionsDelete]="true"
-          [hasPropertyCodeLink]="true"
-          [hasReservationCodeLink]="true"
-          [itemsPerPage]="10"
-          (dropdownChangeEvent)="onTicketDropdownChange($event)"
-          (editEvent)="goToTicket($event)"
-          (rowClickEvent)="goToTicket($event)"
-          (propertyCodeClickEvent)="goToProperty($event)"
-          (reservationCodeClickEvent)="goToReservation($event)"
-          (deleteEvent)="deleteTicket($event)"
-          (checkboxChangeEvent)="onTicketCheckboxChange($event)">
-          @if (showListFiltersAndActions) {
-            <div dataTableFilterActions>
-              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-                <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
-                  InActive
-                </mat-slide-toggle>
-                <button mat-raised-button type="button" color="primary" id="add-button-embedded" class="text-nowrap flex-shrink-0" (click)="addTicket()">
-                  <mat-icon>add</mat-icon>
-                  Add
-                </button>
-              </div>
-            </div>
-          }
-        </app-data-table>
-      </div>
-    </div>
-  } @else {
-    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-      <section class="content-card">
-        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
-          <div class="flex items-center flex-wrap py-4">
-            <span class="flex flex-column items-center gap-3 flex-shrink-0">
-              <mat-icon class="flex-shrink-0">confirmation_number</mat-icon>
-              <span class="flex-shrink-0 text-xl font-medium">Tickets</span>
-            </span>
-            <div class="header-title form-titlebar-fields-wrap">
-              <mat-form-field appearance="outline" class="titlebar-field-office">
-                <mat-label>Office</mat-label>
-                <mat-select [value]="selectedOfficeId" (selectionChange)="onOfficeFilterChange($event.value)" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of officeFilterOptions; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.officeName }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="titlebar-field-property-code">
-                <mat-label>Property Code</mat-label>
-                <mat-select [value]="selectedPropertyId" (selectionChange)="onPropertyFilterChange($event.value)" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Properties</mat-option>
-                  @for (property of propertyFilterOptions; track property.propertyId) {
-                    <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="titlebar-field-reservation">
-                <mat-label>Reservation Code</mat-label>
-                <mat-select [value]="selectedReservationId" (selectionChange)="onReservationFilterChange($event.value)" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Reservations</mat-option>
-                  @for (reservation of reservationFilterOptions; track reservation.reservationId) {
-                    <mat-option [value]="reservation.reservationId">{{ reservation.reservationCode }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+  <div class="mat list-layout-tabbed">
+    <div class="tableDiv px-4">
+      <app-data-table
+        class="ticket-list-table"
+        [data]="ticketsDisplay"
+        [columns]="ticketsDisplayedColumns"
+        [hasColumnIndex]="true"
+        [hasFilter]="showListFiltersAndActions"
+        [hasToggleTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="true"
+        [hasActionsPrint]="true"
+        [hasPropertyCodeLink]="true"
+        [hasReservationCodeLink]="true"
+        [itemsPerPage]="10"
+        (dropdownChangeEvent)="onTicketDropdownChange($event)"
+        (editEvent)="goToTicket($event)"
+        (rowClickEvent)="goToTicket($event)"
+        (propertyCodeClickEvent)="goToProperty($event)"
+        (reservationCodeClickEvent)="goToReservation($event)"
+        (deleteEvent)="deleteTicket($event)"
+        (printEvent)="printTicket($event)"
+        (checkboxChangeEvent)="onTicketCheckboxChange($event)">
+        @if (showListFiltersAndActions) {
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
+                InActive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addTicket()">
+                <mat-icon>add</mat-icon>
+                Add
+              </button>
             </div>
           </div>
-        </div>
-        <mat-card>
-          <div class="mat">
-            <div class="tableDiv">
-              <app-data-table
-                class="ticket-list-table"
-                [data]="ticketsDisplay"
-                [columns]="ticketsDisplayedColumns"
-                [hasColumnIndex]="true"
-                [hasFilter]="showListFiltersAndActions"
-                [hasToggleTop]="false"
-                [hasActionsRowClick]="true"
-                [hasActionsEdit]="true"
-                [hasActionsDelete]="true"
-                [hasPropertyCodeLink]="true"
-                [hasReservationCodeLink]="true"
-                [itemsPerPage]="10"
-                (dropdownChangeEvent)="onTicketDropdownChange($event)"
-                (editEvent)="goToTicket($event)"
-                (rowClickEvent)="goToTicket($event)"
-                (propertyCodeClickEvent)="goToProperty($event)"
-                (reservationCodeClickEvent)="goToReservation($event)"
-                (deleteEvent)="deleteTicket($event)"
-                (checkboxChangeEvent)="onTicketCheckboxChange($event)">
-                @if (showListFiltersAndActions) {
-                  <div dataTableFilterActions>
-                    <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-                      <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
-                        InActive
-                      </mat-slide-toggle>
-                      <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addTicket()">
-                        <mat-icon>add</mat-icon>
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                }
-              </app-data-table>
-            </div>
-          </div>
-        </mat-card>
-      </section>
+        }
+      </app-data-table>
     </div>
-  }
+  </div>
 }

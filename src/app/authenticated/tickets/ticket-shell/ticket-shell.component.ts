@@ -652,9 +652,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
     sections.forEach(section => {
-      section.onOfficeFilterChange(this.selectedOfficeId);
-      section.onPropertyFilterChange(this.selectedPropertyId);
-      section.onReservationFilterChange(this.selectedReservationId);
+      section.applyShellFiltersFromInputs();
     });
   }
 
