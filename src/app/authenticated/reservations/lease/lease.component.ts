@@ -1152,7 +1152,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getExtensionsPossible(): string {
     if (!this.selectedReservation) return 'No';
-    return this.selectedReservation.allowExtensions ? 'Yes' : 'No';
+    return this.selectedReservation.allowExtensions ? 'Based on Availability' : 'No';
   }
 
   getOrganizationName(): string {
