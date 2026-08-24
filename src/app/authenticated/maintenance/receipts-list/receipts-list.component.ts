@@ -687,6 +687,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       || resolveFirstRealReceiptPropertyId(this.selectedPropertyId ? [this.selectedPropertyId] : null)
       || null;
     const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
+    const receiptListReturnSelection = this.buildReceiptListWorkOrderReturnSelection();
 
     if (this.mappingService.isReceiptWorkOrderMissingDisplay(targetWorkOrderCode)) {
       const missingSplit = this.mappingService.resolveFirstMissingWorkOrderSplit(rowItem);
@@ -702,7 +703,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           propertyId,
           officeId,
           prefilledReceiptId: missingSplit.receiptId,
-          prefilledReceiptSplitKey: missingSplit.splitKey
+          prefilledReceiptSplitKey: missingSplit.splitKey,
+          ...receiptListReturnSelection
         });
         return;
       }
@@ -746,7 +748,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         if (this.embeddedInMaintenance) {
           this.workOrderSelect.emit({
             workOrderId,
-            propertyId: resolvedPropertyId
+            propertyId: resolvedPropertyId,
+            ...receiptListReturnSelection
           });
           return;
         }
@@ -765,6 +768,19 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
+  }
+
+  private buildReceiptListWorkOrderReturnSelection(): Pick<WorkOrderSelection, 'returnToReceiptList' | 'returnReceiptListKind'> {
+    if (this.embeddedInAccounting) {
+      return {
+        returnToReceiptList: true,
+        returnReceiptListKind: this.accountingListMode === 'receipts' ? 'receipts' : 'bills'
+      };
+    }
+    if (this.embeddedInMaintenance) {
+      return { returnToReceiptList: true };
+    }
+    return {};
   }
   //#endregion
 

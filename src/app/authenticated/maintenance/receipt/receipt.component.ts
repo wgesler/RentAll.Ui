@@ -31,6 +31,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { WorkOrderService } from '../services/work-order.service';
+import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { MappingService } from '../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
@@ -60,7 +61,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Output() savedAndNewEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
-  @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
+  @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   private newContactDialogService = inject(NewContactDialogService);
   private propertyService = inject(PropertyService);
   private officeService = inject(OfficeService);
@@ -1859,34 +1860,56 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  hasSplitWorkOrder(splitIndex: number): boolean {
+  getSplitWorkOrderDisplay(splitIndex: number): string {
+    return (this.splitsFormArray.at(splitIndex)?.get('workOrder')?.value || '').toString().trim();
+  }
+
+  isSplitWorkOrderMissing(splitIndex: number): boolean {
+    return this.mappingService.isReceiptWorkOrderMissingDisplay(this.getSplitWorkOrderDisplay(splitIndex));
+  }
+
+  isSplitWorkOrderClickable(splitIndex: number): boolean {
+    const display = this.getSplitWorkOrderDisplay(splitIndex);
+    if (!display) {
+      return false;
+    }
+    return this.isSplitWorkOrderMissing(splitIndex) || this.isSplitWorkOrderReal(splitIndex);
+  }
+
+  isSplitWorkOrderReal(splitIndex: number): boolean {
     const row = this.splitsFormArray.at(splitIndex);
     const workOrderId = (row?.get('workOrderId')?.value || '').toString().trim();
     if (workOrderId.length > 0) {
       return true;
     }
-    const workOrderDisplay = (row?.get('workOrder')?.value || '').toString().trim();
-    return workOrderDisplay.length > 0 && !this.mappingService.isReceiptWorkOrderMissingDisplay(workOrderDisplay);
+    return this.getSplitWorkOrderCode(splitIndex).length > 0;
   }
 
-  openWorkOrderFromSplit(splitIndex: number): void {
+  openWorkOrderFromSplit(event: Event, splitIndex: number): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    if (this.isSplitWorkOrderMissing(splitIndex)) {
+      this.openMissingWorkOrderFromSplit(splitIndex);
+      return;
+    }
+
     const targetWorkOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
     const targetWorkOrderCode = this.getSplitWorkOrderCode(splitIndex);
     if (!targetWorkOrderId && !targetWorkOrderCode) {
       return;
     }
 
-    const propertyId =
-      this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
-      || (this.selectedPropertyId || '').trim()
-      || (this.property?.propertyId || '').trim()
-      || null;
+    const propertyId = this.getSplitPropertyId(splitIndex);
     const officeId = this.getReceiptOfficeId();
+    const shellSelection = this.buildShellWorkOrderSelectionBase();
 
     if (targetWorkOrderId) {
-      this.workOrderSelect.emit({
+      this.emitWorkOrderSelection({
         workOrderId: targetWorkOrderId,
-        propertyId
+        propertyId,
+        officeId,
+        ...shellSelection
       });
       return;
     }
@@ -1908,13 +1931,87 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
 
-        this.workOrderSelect.emit({
+        this.emitWorkOrderSelection({
           workOrderId,
-          propertyId: resolvedPropertyId
+          propertyId: resolvedPropertyId,
+          officeId,
+          ...shellSelection
         });
       },
       error: () => {
         this.toastr.error('Unable to load work order.', 'Work Order');
+      }
+    });
+  }
+
+  openMissingWorkOrderFromSplit(splitIndex: number): void {
+    const receiptId = String(this.receipt?.receiptId ?? this.receiptId ?? '').trim();
+    if (!receiptId || receiptId === 'new') {
+      this.toastr.warning('Save the receipt before creating a work order.', 'Work Order');
+      return;
+    }
+
+    const row = this.splitsFormArray.at(splitIndex);
+    const receiptSplitId = row?.get('receiptSplitId')?.value;
+    const splitKey = this.mappingService.buildReceiptSplitKey(receiptId, splitIndex, receiptSplitId);
+    const propertyId = this.getSplitPropertyId(splitIndex);
+    if (!propertyId) {
+      this.toastr.error('Unable to open work order: missing property context.', 'Work Order');
+      return;
+    }
+
+    this.emitWorkOrderSelection({
+      workOrderId: 'new',
+      propertyId,
+      officeId: this.getReceiptOfficeId(),
+      prefilledReceiptId: receiptId,
+      prefilledReceiptSplitKey: splitKey,
+      ...this.buildShellWorkOrderSelectionBase()
+    });
+  }
+
+  private getSplitPropertyId(splitIndex: number): string | null {
+    const row = this.splitsFormArray.at(splitIndex);
+    const splitPropertyId = this.normalizeSplitPropertyId(row?.get('propertyId')?.value);
+    if (splitPropertyId) {
+      return splitPropertyId;
+    }
+    return this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
+      || (this.selectedPropertyId || '').trim()
+      || (this.property?.propertyId || '').trim()
+      || null;
+  }
+
+  private buildShellWorkOrderSelectionBase(): Pick<WorkOrderSelection, 'returnToReceiptDetail' | 'returnReceiptId'> {
+    if (!this.isEmbeddedInShell) {
+      return {};
+    }
+    const returnReceiptId = String(this.receipt?.receiptId ?? this.receiptId ?? '').trim() || null;
+    return {
+      returnToReceiptDetail: !!returnReceiptId && returnReceiptId !== 'new',
+      returnReceiptId
+    };
+  }
+
+  private emitWorkOrderSelection(selection: WorkOrderSelection): void {
+    if (this.isEmbeddedInShell) {
+      this.workOrderSelect.emit(selection);
+      return;
+    }
+
+    const propertyId = (selection.propertyId || '').trim();
+    const workOrderId = (selection.workOrderId || '').trim();
+    if (!propertyId || !workOrderId) {
+      this.toastr.error('Unable to open work order: missing navigation context.', 'Work Order');
+      return;
+    }
+
+    this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId])], {
+      queryParams: {
+        tab: 3,
+        workOrderId,
+        ...(selection.prefilledReceiptId ? { receiptId: selection.prefilledReceiptId } : {}),
+        ...(selection.prefilledReceiptSplitKey ? { receiptSplitKey: selection.prefilledReceiptSplitKey } : {})
       }
     });
   }

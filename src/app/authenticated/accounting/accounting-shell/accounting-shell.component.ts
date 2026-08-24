@@ -250,6 +250,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
     { kind: 'receipts', label: 'Receipts' },
+    { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'rentRoll', label: 'Rent Roll' }
   ];
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
@@ -354,6 +355,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   billsReceiptsWorkOrderInitialReceiptSplitKey: string | null = null;
   billsReceiptsWorkOrderProperty: PropertyResponse | null = null;
   billsReceiptsWorkOrderDetailInstance = 0;
+  billsReceiptsWorkOrdersRefreshTrigger = 0;
+  billsReceiptsWorkOrderReturnKind: AccountingShellBillsReceiptKind | null = null;
+  billsReceiptsWorkOrderReturnToReceiptList = false;
+  billsReceiptsWorkOrderReturnToReceiptDetail = false;
+  billsReceiptsWorkOrderReturnReceiptId: string | null = null;
   showDepositsDetail = false;
   selectedDepositId: string | null = null;
   selectedDeposit: DepositResponse | null = null;
@@ -1270,7 +1276,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.selectedTabIndex = this.tabBillsReceipts;
     this.selectedBillsReceiptKind = 'bills';
     this.billsReceiptOrigin = origin;
-    this.onBillsReceiptsWorkOrderBack();
+    this.resetBillsReceiptsWorkOrderDetailState();
+    this.clearBillsReceiptsWorkOrderReturnContext();
     this.billsReceiptProperty = propertyStub;
     this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
     this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
@@ -1305,6 +1312,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.billsReceiptAutoSaveAttemptToken = 0;
     this.selectedBillsReceiptKind = this.billsReceiptOrigin === 'rentRoll' ? 'rentRoll' : 'bills';
     this.billsReceiptOrigin = 'bills';
+    this.resetBillsReceiptsWorkOrderDetailState();
+    this.clearBillsReceiptsWorkOrderReturnContext();
     this.syncBillsSearchRequest();
     this.refreshActiveBillsReceiptList();
   }
@@ -1750,7 +1759,8 @@ hydrateSelectedInvoiceForActiveId(): void {
 
     this.selectedTabIndex = this.tabBillsReceipts;
     this.selectedBillsReceiptKind = 'receipts';
-    this.onBillsReceiptsWorkOrderBack();
+    this.resetBillsReceiptsWorkOrderDetailState();
+    this.clearBillsReceiptsWorkOrderReturnContext();
     this.receiptsReceiptProperty = propertyStub;
     const reopeningReceiptsReceiptAdd = receiptId === 'new'
       && this.showReceiptsReceiptDetail
@@ -1766,6 +1776,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showReceiptsReceiptDetail = false;
     this.selectedReceiptsReceiptId = null;
     this.receiptsReceiptProperty = null;
+    this.selectedBillsReceiptKind = 'receipts';
+    this.resetBillsReceiptsWorkOrderDetailState();
+    this.clearBillsReceiptsWorkOrderReturnContext();
     this.syncBillsSearchRequest();
     this.refreshActiveBillsReceiptList();
   }
@@ -1775,6 +1788,8 @@ hydrateSelectedInvoiceForActiveId(): void {
     const propertyId = (selection?.propertyId || '').trim() || null;
     const resolvedOfficeId = this.selectedOfficeId;
 
+    this.captureBillsReceiptsWorkOrderReturnContext(selection);
+
     this.selectedBillsReceiptsWorkOrder = selection?.workOrder ?? null;
     this.billsReceiptsWorkOrderInitialReceiptId = workOrderId === 'new' ? (selection?.prefilledReceiptId ?? null) : null;
     this.billsReceiptsWorkOrderInitialReceiptSplitKey = workOrderId === 'new' ? (selection?.prefilledReceiptSplitKey ?? null) : null;
@@ -1783,6 +1798,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       : this.buildBillsReceiptPropertyStub(resolvedOfficeId);
 
     this.selectedTabIndex = this.tabBillsReceipts;
+    this.selectedBillsReceiptKind = 'workOrders';
     const reopeningBillsReceiptsWorkOrderAdd = workOrderId === 'new'
       && this.showBillsReceiptsWorkOrderDetail
       && this.selectedBillsReceiptsWorkOrderId === 'new';
@@ -1794,7 +1810,51 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.cdr.detectChanges();
   }
 
-  onBillsReceiptsWorkOrderBack(): void {
+  private captureBillsReceiptsWorkOrderReturnContext(selection: WorkOrderSelection): void {
+    this.clearBillsReceiptsWorkOrderReturnContext();
+
+    if (selection?.returnToReceiptDetail && selection?.returnReceiptId) {
+      this.billsReceiptsWorkOrderReturnToReceiptDetail = true;
+      this.billsReceiptsWorkOrderReturnReceiptId = String(selection.returnReceiptId).trim() || null;
+      this.billsReceiptsWorkOrderReturnKind = this.showBillsReceiptDetail ? 'bills' : 'receipts';
+      return;
+    }
+
+    if (selection?.returnToReceiptList) {
+      this.billsReceiptsWorkOrderReturnToReceiptList = true;
+      this.billsReceiptsWorkOrderReturnKind = selection.returnReceiptListKind
+        ?? (this.selectedBillsReceiptKind === 'receipts' ? 'receipts' : 'bills');
+      return;
+    }
+
+    if (this.showBillsReceiptDetail) {
+      this.billsReceiptsWorkOrderReturnToReceiptDetail = true;
+      this.billsReceiptsWorkOrderReturnReceiptId = this.selectedBillsReceiptId;
+      this.billsReceiptsWorkOrderReturnKind = 'bills';
+      return;
+    }
+
+    if (this.showReceiptsReceiptDetail) {
+      this.billsReceiptsWorkOrderReturnToReceiptDetail = true;
+      this.billsReceiptsWorkOrderReturnReceiptId = this.selectedReceiptsReceiptId;
+      this.billsReceiptsWorkOrderReturnKind = 'receipts';
+      return;
+    }
+
+    if (this.selectedBillsReceiptKind === 'bills' || this.selectedBillsReceiptKind === 'receipts') {
+      this.billsReceiptsWorkOrderReturnToReceiptList = true;
+      this.billsReceiptsWorkOrderReturnKind = this.selectedBillsReceiptKind;
+    }
+  }
+
+  private clearBillsReceiptsWorkOrderReturnContext(): void {
+    this.billsReceiptsWorkOrderReturnKind = null;
+    this.billsReceiptsWorkOrderReturnToReceiptList = false;
+    this.billsReceiptsWorkOrderReturnToReceiptDetail = false;
+    this.billsReceiptsWorkOrderReturnReceiptId = null;
+  }
+
+  private resetBillsReceiptsWorkOrderDetailState(): void {
     this.showBillsReceiptsWorkOrderDetail = false;
     this.selectedBillsReceiptsWorkOrderId = null;
     this.selectedBillsReceiptsWorkOrder = null;
@@ -1803,11 +1863,62 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.billsReceiptsWorkOrderProperty = null;
   }
 
+  onBillsReceiptsWorkOrderBack(): void {
+    const returnToReceiptDetail = this.billsReceiptsWorkOrderReturnToReceiptDetail;
+    const returnToReceiptList = this.billsReceiptsWorkOrderReturnToReceiptList;
+    const returnKind = this.billsReceiptsWorkOrderReturnKind;
+    const returnReceiptId = this.billsReceiptsWorkOrderReturnReceiptId;
+
+    this.resetBillsReceiptsWorkOrderDetailState();
+    this.clearBillsReceiptsWorkOrderReturnContext();
+
+    if (returnToReceiptDetail && returnReceiptId && returnKind === 'bills') {
+      this.selectedBillsReceiptKind = 'bills';
+      this.selectedBillsReceiptId = returnReceiptId;
+      this.showBillsReceiptDetail = true;
+      this.billsReceiptDetailInstance++;
+      return;
+    }
+
+    if (returnToReceiptDetail && returnReceiptId && returnKind === 'receipts') {
+      this.selectedBillsReceiptKind = 'receipts';
+      this.selectedReceiptsReceiptId = returnReceiptId;
+      this.showReceiptsReceiptDetail = true;
+      this.receiptsReceiptDetailInstance++;
+      return;
+    }
+
+    if (returnToReceiptList && returnKind === 'bills') {
+      this.selectedBillsReceiptKind = 'bills';
+      this.showBillsReceiptDetail = false;
+      this.selectedBillsReceiptId = null;
+      this.billsRefreshTrigger++;
+      return;
+    }
+
+    if (returnToReceiptList && returnKind === 'receipts') {
+      this.selectedBillsReceiptKind = 'receipts';
+      this.showReceiptsReceiptDetail = false;
+      this.selectedReceiptsReceiptId = null;
+      this.receiptsRefreshTrigger++;
+      return;
+    }
+
+    this.selectedBillsReceiptKind = 'workOrders';
+    this.billsReceiptsWorkOrdersRefreshTrigger++;
+  }
+
   onBillsReceiptsWorkOrderSaved(): void {
-    if (this.selectedBillsReceiptKind === 'bills') {
+    if (this.billsReceiptsWorkOrderReturnKind === 'bills') {
+      this.billsRefreshTrigger++;
+    } else if (this.billsReceiptsWorkOrderReturnKind === 'receipts') {
+      this.receiptsRefreshTrigger++;
+    } else if (this.selectedBillsReceiptKind === 'bills') {
       this.billsRefreshTrigger++;
     } else if (this.selectedBillsReceiptKind === 'receipts') {
       this.receiptsRefreshTrigger++;
+    } else {
+      this.billsReceiptsWorkOrdersRefreshTrigger++;
     }
     this.onBillsReceiptsWorkOrderBack();
   }
@@ -1818,10 +1929,16 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.billsReceiptsWorkOrderInitialReceiptId = null;
     this.billsReceiptsWorkOrderInitialReceiptSplitKey = null;
     this.billsReceiptsWorkOrderDetailInstance++;
-    if (this.selectedBillsReceiptKind === 'bills') {
+    if (this.billsReceiptsWorkOrderReturnKind === 'bills') {
+      this.billsRefreshTrigger++;
+    } else if (this.billsReceiptsWorkOrderReturnKind === 'receipts') {
+      this.receiptsRefreshTrigger++;
+    } else if (this.selectedBillsReceiptKind === 'bills') {
       this.billsRefreshTrigger++;
     } else if (this.selectedBillsReceiptKind === 'receipts') {
       this.receiptsRefreshTrigger++;
+    } else {
+      this.billsReceiptsWorkOrdersRefreshTrigger++;
     }
   }
 
@@ -2587,7 +2704,8 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     if (event.index !== this.tabBillsReceipts) {
       this.onBillsReceiptBack();
       this.onReceiptsReceiptBack();
-      this.onBillsReceiptsWorkOrderBack();
+      this.resetBillsReceiptsWorkOrderDetailState();
+      this.clearBillsReceiptsWorkOrderReturnContext();
     }
     if (event.index !== this.tabOwners) {
       this.selectedOwnerStatementMonthLine = null;
@@ -2731,15 +2849,17 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
   selectBillsReceipt(kind: AccountingShellBillsReceiptKind): void {
     this.billsReceiptsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
-    const kindChanged = this.selectedBillsReceiptKind !== kind;
+    const previousKind = this.selectedBillsReceiptKind;
+    const kindChanged = previousKind !== kind;
 
     if (kindChanged) {
-      if (this.selectedBillsReceiptKind === 'bills') {
+      if (previousKind === 'bills') {
         this.onBillsReceiptBack();
-      } else if (this.selectedBillsReceiptKind === 'receipts') {
+      } else if (previousKind === 'receipts') {
         this.onReceiptsReceiptBack();
       }
-      this.onBillsReceiptsWorkOrderBack();
+      this.resetBillsReceiptsWorkOrderDetailState();
+      this.clearBillsReceiptsWorkOrderReturnContext();
     }
 
     this.selectedBillsReceiptKind = kind;
@@ -2981,6 +3101,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
     if (this.selectedBillsReceiptKind === 'receipts') {
       this.receiptsRefreshTrigger++;
+      return;
+    }
+    if (this.selectedBillsReceiptKind === 'workOrders') {
+      this.billsReceiptsWorkOrdersRefreshTrigger++;
       return;
     }
     this.rentRollRefreshTrigger++;
@@ -4659,7 +4783,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
 
   get isBillsReceiptsWorkOrderDetailActive(): boolean {
     return this.selectedTabIndex === this.tabBillsReceipts
-      && (this.selectedBillsReceiptKind === 'bills' || this.selectedBillsReceiptKind === 'receipts')
+      && this.selectedBillsReceiptKind === 'workOrders'
       && this.showBillsReceiptsWorkOrderDetail;
   }
 
@@ -5237,7 +5361,7 @@ captureOwnerStatementReturnContext(): void {
 
     if ('billsReceipt' in params) {
       const billsReceipt = params['billsReceipt'];
-      if (billsReceipt === 'bills' || billsReceipt === 'receipts' || billsReceipt === 'rentRoll') {
+      if (billsReceipt === 'bills' || billsReceipt === 'receipts' || billsReceipt === 'workOrders' || billsReceipt === 'rentRoll') {
         this.selectedBillsReceiptKind = billsReceipt;
       }
     }

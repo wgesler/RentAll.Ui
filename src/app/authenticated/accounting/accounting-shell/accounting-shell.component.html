@@ -1004,31 +1004,14 @@
                   Bills
                 } @else if (selectedBillsReceiptKind === 'receipts') {
                   Receipts
+                } @else if (selectedBillsReceiptKind === 'workOrders') {
+                  Work Orders
                 } @else {
                   Rent Roll
                 }
               </div>
               @if (selectedBillsReceiptKind === 'bills') {
-                @if (showBillsReceiptsWorkOrderDetail) {
-                  @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
-                    <app-work-order
-                      [property]="billsReceiptsWorkOrderProperty"
-                      [propertyId]="selectedBillsPropertyId ?? billsReceiptsWorkOrderProperty?.propertyId ?? null"
-                      [workOrderId]="selectedBillsReceiptsWorkOrderId"
-                      [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
-                      [officeId]="selectedOfficeId"
-                      [initialReceiptId]="billsReceiptsWorkOrderInitialReceiptId"
-                      [initialReceiptSplitKey]="billsReceiptsWorkOrderInitialReceiptSplitKey"
-                      [embeddedInMaintenance]="true"
-                      [shellContext]="'accounting'"
-                      [embedDocumentPreviewInShell]="true"
-                      [showBackButton]="false"
-                      (previewEvent)="onWorkOrderPreviewOpen($event)"
-                      (backEvent)="onBillsReceiptsWorkOrderBack()"
-                      (savedEvent)="onBillsReceiptsWorkOrderSaved()"
-                      (savedAndNewEvent)="onBillsReceiptsWorkOrderSavedAndNew()" />
-                  }
-                } @else if (showBillsReceiptDetail) {
+                @if (showBillsReceiptDetail) {
                   @for (instance of [billsReceiptDetailInstance]; track instance) {
                     <app-receipt
                     [property]="billsReceiptProperty"
@@ -1060,26 +1043,7 @@
                   </app-receipts-list>
                 }
               } @else if (selectedBillsReceiptKind === 'receipts') {
-                @if (showBillsReceiptsWorkOrderDetail) {
-                  @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
-                    <app-work-order
-                      [property]="billsReceiptsWorkOrderProperty"
-                      [propertyId]="selectedBillsPropertyId ?? billsReceiptsWorkOrderProperty?.propertyId ?? null"
-                      [workOrderId]="selectedBillsReceiptsWorkOrderId"
-                      [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
-                      [officeId]="selectedOfficeId"
-                      [initialReceiptId]="billsReceiptsWorkOrderInitialReceiptId"
-                      [initialReceiptSplitKey]="billsReceiptsWorkOrderInitialReceiptSplitKey"
-                      [embeddedInMaintenance]="true"
-                      [shellContext]="'accounting'"
-                      [embedDocumentPreviewInShell]="true"
-                      [showBackButton]="false"
-                      (previewEvent)="onWorkOrderPreviewOpen($event)"
-                      (backEvent)="onBillsReceiptsWorkOrderBack()"
-                      (savedEvent)="onBillsReceiptsWorkOrderSaved()"
-                      (savedAndNewEvent)="onBillsReceiptsWorkOrderSavedAndNew()" />
-                  }
-                } @else if (showReceiptsReceiptDetail) {
+                @if (showReceiptsReceiptDetail) {
                   @for (instance of [receiptsReceiptDetailInstance]; track instance) {
                     <app-receipt
                     [property]="receiptsReceiptProperty"
@@ -1105,6 +1069,37 @@
                     (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
+                }
+              } @else if (selectedBillsReceiptKind === 'workOrders') {
+                @if (showBillsReceiptsWorkOrderDetail) {
+                  @for (instance of [billsReceiptsWorkOrderDetailInstance]; track instance) {
+                    <app-work-order
+                      [property]="billsReceiptsWorkOrderProperty"
+                      [propertyId]="selectedBillsPropertyId ?? billsReceiptsWorkOrderProperty?.propertyId ?? null"
+                      [workOrderId]="selectedBillsReceiptsWorkOrderId"
+                      [prefetchedWorkOrder]="selectedBillsReceiptsWorkOrder"
+                      [officeId]="selectedOfficeId"
+                      [initialReceiptId]="billsReceiptsWorkOrderInitialReceiptId"
+                      [initialReceiptSplitKey]="billsReceiptsWorkOrderInitialReceiptSplitKey"
+                      [embeddedInMaintenance]="true"
+                      [shellContext]="'accounting'"
+                      [embedDocumentPreviewInShell]="true"
+                      [showBackButton]="false"
+                      (previewEvent)="onWorkOrderPreviewOpen($event)"
+                      (backEvent)="onBillsReceiptsWorkOrderBack()"
+                      (savedEvent)="onBillsReceiptsWorkOrderSaved()"
+                      (savedAndNewEvent)="onBillsReceiptsWorkOrderSavedAndNew()" />
+                  }
+                } @else {
+                  <app-work-order-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInMaintenance]="true"
+                    [shellContext]="'accounting'"
+                    [embedDocumentPreviewInShell]="true"
+                    [refreshTrigger]="billsReceiptsWorkOrdersRefreshTrigger"
+                    (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
+                    (previewEvent)="onWorkOrderPreviewOpen($event)" />
                 }
               } @else {
                 <app-rent-roll

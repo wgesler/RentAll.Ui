@@ -815,6 +815,7 @@ markViewForCheck(): void {
 
   onWorkOrderCodeClick(event: Event, rowItem: PurposefulAny, workOrderCode: string): void {
     event.stopPropagation();
+    event.preventDefault();
     this.workOrderCodeClickEvent.emit({ rowItem, workOrderCode });
   }
 
@@ -1106,7 +1107,7 @@ markViewForCheck(): void {
       return false;
     }
 
-    if (target.closest('input.editable-apply-amount, textarea.editable-apply-amount, .datatable-inline-edit-trigger, .datatable-editable-date-field, .datatable-editable-date-input')) {
+    if (target.closest('input.editable-apply-amount, textarea.editable-apply-amount, .datatable-inline-edit-trigger, .datatable-editable-date-field, .datatable-editable-date-input, .datatable-work-order-link, .work-order-missing-link')) {
       return true;
     }
 

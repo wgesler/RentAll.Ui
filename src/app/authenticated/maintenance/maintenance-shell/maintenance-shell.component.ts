@@ -101,6 +101,9 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   selectedWorkOrder: WorkOrderResponse | null = null;
   workOrderInitialReceiptId: string | null = null;
   workOrderInitialReceiptSplitKey: string | null = null;
+  workOrderReturnToReceiptList = false;
+  workOrderReturnToReceiptDetail = false;
+  workOrderReturnReceiptId: string | null = null;
   workOrderDetailInstance = 0;
   showWorkOrderCreate = false;
   workOrderCreateContext: WorkOrderPreviewSelection | null = null;
@@ -894,6 +897,9 @@ applyPageOfficeChangeEffects(): void {
       this.selectedTabIndex = this.receiptsTabIndex;
       this.showWorkOrderDetail = false;
       this.selectedWorkOrderId = null;
+      this.workOrderReturnToReceiptList = false;
+      this.workOrderReturnToReceiptDetail = false;
+      this.workOrderReturnReceiptId = null;
       this.showReceiptDetail = true;
     };
 
@@ -921,6 +927,12 @@ applyPageOfficeChangeEffects(): void {
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
+    this.selectedTabIndex = this.receiptsTabIndex;
+    this.showWorkOrderDetail = false;
+    this.selectedWorkOrderId = null;
+    this.workOrderReturnToReceiptList = false;
+    this.workOrderReturnToReceiptDetail = false;
+    this.workOrderReturnReceiptId = null;
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -969,6 +981,11 @@ applyPageOfficeChangeEffects(): void {
     this.selectedWorkOrder = selection?.workOrder ?? null;
     this.workOrderInitialReceiptId = workOrderId === 'new' ? (selection?.prefilledReceiptId ?? null) : null;
     this.workOrderInitialReceiptSplitKey = workOrderId === 'new' ? (selection?.prefilledReceiptSplitKey ?? null) : null;
+    this.workOrderReturnToReceiptList = !!selection?.returnToReceiptList;
+    this.workOrderReturnToReceiptDetail = !!selection?.returnToReceiptDetail;
+    this.workOrderReturnReceiptId = selection?.returnToReceiptDetail
+      ? (String(selection.returnReceiptId ?? selection.prefilledReceiptId ?? this.selectedReceiptId ?? '').trim() || null)
+      : null;
     const reopeningWorkOrderAdd = workOrderId === 'new'
       && this.showWorkOrderDetail
       && this.selectedWorkOrderId === 'new';
@@ -1026,6 +1043,9 @@ applyPageOfficeChangeEffects(): void {
   }
 
   onWorkOrderBack(): void {
+    const returnToReceiptList = this.workOrderReturnToReceiptList;
+    const returnToReceiptDetail = this.workOrderReturnToReceiptDetail;
+    const returnReceiptId = this.workOrderReturnReceiptId;
     this.propertyLoadVersion++;
     this.workOrderSaveValidationAttempted = false;
     this.titleBarReservationId = null;
@@ -1033,14 +1053,35 @@ applyPageOfficeChangeEffects(): void {
     this.selectedWorkOrder = null;
     this.workOrderInitialReceiptId = null;
     this.workOrderInitialReceiptSplitKey = null;
+    this.workOrderReturnToReceiptList = false;
+    this.workOrderReturnToReceiptDetail = false;
+    this.workOrderReturnReceiptId = null;
+    this.isServiceError = false;
+    this.showWorkOrderDetail = false;
+
+    if (returnToReceiptDetail && returnReceiptId) {
+      this.selectedTabIndex = this.receiptsTabIndex;
+      this.selectedReceiptId = returnReceiptId;
+      this.showReceiptDetail = true;
+      this.receiptDetailInstance++;
+      return;
+    }
+
+    if (returnToReceiptList) {
+      this.selectedTabIndex = this.receiptsTabIndex;
+      this.showReceiptDetail = false;
+      this.selectedReceiptId = null;
+      this.clearPropertyForListTab();
+      this.refreshReceiptsTrigger++;
+      return;
+    }
+
     this.selectedPropertyId = null;
     this.property = null;
     this.shellReservations = [];
     this.updateAvailableProperties();
     this.syncMaintenanceSearchRequests();
     this.refreshWorkOrdersTrigger++;
-    this.isServiceError = false;
-    this.showWorkOrderDetail = false;
   }
 
   onWorkOrderPreviewOpen(selection: WorkOrderPreviewSelection): void {

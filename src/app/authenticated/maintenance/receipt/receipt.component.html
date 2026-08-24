@@ -289,14 +289,24 @@
                               </td>
                               @if (!isOverallBillBankCard()) {
                                 <td class="split-col-work-order">
-                                  <input
-                                    type="text"
-                                    formControlName="workOrder"
-                                    readonly
-                                    class="split-readonly-input"
-                                    [class.split-work-order-link]="hasSplitWorkOrder(splitIndex)"
-                                    [attr.title]="hasSplitWorkOrder(splitIndex) ? 'Open work order' : null"
-                                    (click)="openWorkOrderFromSplit(splitIndex)">
+                                  @if (isSplitWorkOrderClickable(splitIndex)) {
+                                    <button
+                                      type="button"
+                                      class="split-readonly-input split-work-order-link-btn"
+                                      [class.split-work-order-link-btn--missing]="isSplitWorkOrderMissing(splitIndex)"
+                                      [class.split-work-order-link-btn--real]="!isSplitWorkOrderMissing(splitIndex)"
+                                      [attr.title]="isSplitWorkOrderMissing(splitIndex) ? 'Create work order' : 'Open work order'"
+                                      (click)="openWorkOrderFromSplit($event, splitIndex)">
+                                      {{ getSplitWorkOrderDisplay(splitIndex) }}
+                                    </button>
+                                  } @else {
+                                    <input
+                                      type="text"
+                                      readonly
+                                      tabindex="-1"
+                                      class="split-readonly-input"
+                                      [value]="getSplitWorkOrderDisplay(splitIndex)">
+                                  }
                                 </td>
                               }
                               <td class="split-col-actions">
@@ -533,14 +543,24 @@
                                 </select>
                               </td>
                               <td class="split-col-work-order">
-                                <input
-                                  type="text"
-                                  formControlName="workOrder"
-                                  readonly
-                                  class="split-readonly-input"
-                                  [class.split-work-order-link]="hasSplitWorkOrder(splitIndex)"
-                                  [attr.title]="hasSplitWorkOrder(splitIndex) ? 'Open work order' : null"
-                                  (click)="openWorkOrderFromSplit(splitIndex)">
+                                @if (isSplitWorkOrderClickable(splitIndex)) {
+                                  <button
+                                    type="button"
+                                    class="split-readonly-input split-work-order-link-btn"
+                                    [class.split-work-order-link-btn--missing]="isSplitWorkOrderMissing(splitIndex)"
+                                    [class.split-work-order-link-btn--real]="!isSplitWorkOrderMissing(splitIndex)"
+                                    [attr.title]="isSplitWorkOrderMissing(splitIndex) ? 'Create work order' : 'Open work order'"
+                                    (click)="openWorkOrderFromSplit($event, splitIndex)">
+                                    {{ getSplitWorkOrderDisplay(splitIndex) }}
+                                  </button>
+                                } @else {
+                                  <input
+                                    type="text"
+                                    readonly
+                                    tabindex="-1"
+                                    class="split-readonly-input"
+                                    [value]="getSplitWorkOrderDisplay(splitIndex)">
+                                }
                               </td>
                               <td class="split-col-actions">
                                 <button

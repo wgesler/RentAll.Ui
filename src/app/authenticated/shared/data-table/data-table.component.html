@@ -388,15 +388,17 @@
                       @for (workOrderCode of workOrderCodes; track workOrderCode; let codeIndex = $index) {
                         @if (workOrderCode === 'Missing') {
                           <span
-                            class="work-order-missing-link"
+                            class="work-order-missing-link datatable-work-order-link"
                             id="table-work-order-missing-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
+                            (mousedown)="$event.stopPropagation()"
                             (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
                             {{ workOrderCode }}
                           </span>
                         } @else {
                         <span
-                          class="text-blue-700 underline cursor-pointer"
+                          class="text-blue-700 underline cursor-pointer datatable-work-order-link"
                           id="table-work-order-code-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
+                          (mousedown)="$event.stopPropagation()"
                           (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
                           {{workOrderCode}}
                         </span>

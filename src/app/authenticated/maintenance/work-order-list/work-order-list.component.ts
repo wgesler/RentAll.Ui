@@ -34,6 +34,10 @@ export interface WorkOrderSelection {
   workOrder?: WorkOrderResponse | null;
   prefilledReceiptId?: string | null;
   prefilledReceiptSplitKey?: string | null;
+  returnToReceiptList?: boolean;
+  returnReceiptListKind?: 'bills' | 'receipts';
+  returnToReceiptDetail?: boolean;
+  returnReceiptId?: string | null;
 }
 
 @Component({

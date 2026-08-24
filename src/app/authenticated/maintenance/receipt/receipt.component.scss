@@ -446,10 +446,20 @@ select.split-editable-input {
   text-overflow: ellipsis;
 }
 
-.split-readonly-input.split-work-order-link {
-  color: #1d4ed8;
+.split-work-order-link-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.split-work-order-link-btn--real {
+  color: #1d4ed8;
+}
+
+.split-work-order-link-btn--missing {
+  color: #dc2626;
 }
 
 .split-input-invalid,
