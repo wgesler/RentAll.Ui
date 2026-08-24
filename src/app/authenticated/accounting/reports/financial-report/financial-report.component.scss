@@ -147,6 +147,15 @@
   background: #fff;
 }
 
+.financial-report-table-wrap--multi-column {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
 .financial-report-table {
   border-collapse: collapse;
   table-layout: auto;

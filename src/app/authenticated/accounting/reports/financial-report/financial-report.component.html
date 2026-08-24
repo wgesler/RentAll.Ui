@@ -123,7 +123,7 @@
       <div class="financial-report-panel dbg-band-main">
         <div
           class="financial-report-panel-inner"
-          [class.financial-report-panel-inner--content-sized]="hasMultipleAmountColumns"
+          [class.financial-report-panel-inner--fill-width]="hasMultipleAmountColumns"
           [style.max-width]="panelMaxWidthCss">
           @if (isServiceError) {
             <div class="financial-report-empty-state">
@@ -134,7 +134,9 @@
               <p>{{ noActivityMessage }}</p>
             </div>
           } @else {
-            <div class="financial-report-table-wrap">
+            <div
+              class="financial-report-table-wrap"
+              [class.financial-report-table-wrap--multi-column]="hasMultipleAmountColumns">
             <table
               class="financial-report-table"
               [class.financial-report-table--multi-column]="hasMultipleAmountColumns"
