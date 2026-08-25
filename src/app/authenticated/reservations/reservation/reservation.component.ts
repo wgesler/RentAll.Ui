@@ -45,6 +45,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { PasswordCheckDialogService } from '../../shared/modals/password-check-dialog/password-check-dialog.service';
 
 interface ValidationProblemDetails {
   title?: string;
@@ -107,6 +108,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private costCodesService = inject(CostCodesService);
   private globalSelectionService = inject(GlobalSelectionService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private passwordCheckDialogService = inject(PasswordCheckDialogService);
   private userService = inject(UserService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private invoiceService = inject(InvoiceService);
@@ -168,6 +170,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
+  arrivalChangeOverrideConfirmed = false;
+  billingStartAfterArrivalOverrideConfirmed = false;
+  dateOverrideDialogOpen = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation']));
   isPageReady = false;
@@ -323,6 +328,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.form.markAsDirty();
     this.validateNumberOfPeopleAgainstContacts();
     this.form.updateValueAndValidity({ emitEvent: false });
+
+    if (this.needsDateRuleOverride()) {
+      this.confirmDateChangeOverride();
+      return;
+    }
 
     if (!this.form.valid) {
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
@@ -808,10 +818,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(ReservationNotice.ThirtyDays, [Validators.required]),
-      arrivalDate: new FormControl(null, [Validators.required, this.arrivalBeforeDepartureValidator]),
+      arrivalDate: new FormControl(null, [Validators.required, this.arrivalBeforeDepartureValidator, this.arrivalNotChangedAfterStartValidator]),
       departureDate: new FormControl(null, [Validators.required, this.departureAfterArrivalValidator]),
-      billingStartDate: new FormControl<Date | null>(null, [this.billingStartBeforeArrivalValidator]),
-      billingEndDate: new FormControl<Date | null>(null, [this.billingEndAfterDepartureValidator]),
+      billingStartDate: new FormControl<Date | null>(null, [this.billingStartBeforeArrivalValidator, this.billingStartBeforeBillingEndValidator]),
+      billingEndDate: new FormControl<Date | null>(null, [this.billingEndAfterDepartureValidator, this.billingEndAfterBillingStartValidator]),
       numberOfStayDays: new FormControl<string | null>(null),
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
@@ -929,6 +939,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (!this.reservation || !this.form) {
       return;
     }
+
+    this.arrivalChangeOverrideConfirmed = false;
+    this.billingStartAfterArrivalOverrideConfirmed = false;
 
     const reservationOfficeId = this.reservation.officeId;
     this.selectedOffice = this.offices.find(o => o.officeId === reservationOfficeId) || null;
@@ -1280,6 +1293,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     return departure.getTime() > arrival.getTime() ? null : { arrivalBeforeDeparture: true };
   };
 
+  arrivalNotChangedAfterStartValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    if (this.canEditArrivalDate || this.arrivalChangeOverrideConfirmed) {
+      return null;
+    }
+    return this.isSameDateOnly(this.reservation?.arrivalDate, control.value) ? null : { arrivalNotChangedAfterStart: true };
+  };
+
   billingStartBeforeArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
     const group = control.parent;
     if (!group) {
@@ -1293,6 +1313,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const billingStart = this.parseDateOnly(billingStartRaw);
     const arrival = this.parseDateOnly(arrivalRaw);
     if (!billingStart || !arrival) {
+      return null;
+    }
+    if (this.billingStartAfterArrivalOverrideConfirmed || this.isPersistedBillingStartAfterArrivalPair(billingStart, arrival)) {
       return null;
     }
     return billingStart.getTime() <= arrival.getTime() ? null : { billingStartBeforeArrival: true };
@@ -1314,6 +1337,42 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return null;
     }
     return billingEnd.getTime() >= departure.getTime() ? null : { billingEndAfterDeparture: true };
+  };
+
+  billingStartBeforeBillingEndValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingStartRaw = control.value;
+    const billingEndRaw = group.get('billingEndDate')?.value;
+    if (!billingStartRaw || !billingEndRaw) {
+      return null;
+    }
+    const billingStart = this.parseDateOnly(billingStartRaw);
+    const billingEnd = this.parseDateOnly(billingEndRaw);
+    if (!billingStart || !billingEnd) {
+      return null;
+    }
+    return billingEnd.getTime() > billingStart.getTime() ? null : { billingStartBeforeBillingEnd: true };
+  };
+
+  billingEndAfterBillingStartValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingEndRaw = control.value;
+    const billingStartRaw = group.get('billingStartDate')?.value;
+    if (!billingStartRaw || !billingEndRaw) {
+      return null;
+    }
+    const billingStart = this.parseDateOnly(billingStartRaw);
+    const billingEnd = this.parseDateOnly(billingEndRaw);
+    if (!billingStart || !billingEnd) {
+      return null;
+    }
+    return billingEnd.getTime() > billingStart.getTime() ? null : { billingEndAfterBillingStart: true };
   };
 
   revalidateReservationDateFields(): void {
@@ -1510,6 +1569,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.setupMaidStartDateHandler();
     this.setupDepartureDateStartAtHandler();
     this.setupStayDaysHandler();
+    this.setupDateOverrideHandlers();
     this.updateCompanyContactRequirement();
     
     this.handlersSetup = true;
@@ -1753,6 +1813,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     });
   }
 
+  setupDateOverrideHandlers(): void {
+    this.form.get('arrivalDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.promptArrivalOverrideIfNeeded();
+    });
+    this.form.get('billingStartDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.promptBillingStartOverrideIfNeeded();
+    });
+  }
+
   initializeEnums(): void {
     this.availableClientTypes = getReservationTypes();
     this.allReservationStatuses = getReservationStatuses();
@@ -1925,8 +1994,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.enableFieldWithValidation('billingMethodId', [Validators.required]);
       this.enableFieldWithValidation('prorateTypeId', [Validators.required]);
       this.enableFieldWithValidation('billingRate', [Validators.required]);
-      this.enableFieldWithValidation('billingStartDate');
-      this.enableFieldWithValidation('billingEndDate');
+      this.enableFieldWithValidation('billingStartDate', [this.billingStartBeforeArrivalValidator, this.billingStartBeforeBillingEndValidator]);
+      this.enableFieldWithValidation('billingEndDate', [this.billingEndAfterDepartureValidator, this.billingEndAfterBillingStartValidator]);
       this.enableFieldWithValidation('depositType', [Validators.required]);
       this.enableFieldWithValidation('deposit', [Validators.required]);
       this.enableFieldWithValidation('departureFee', [Validators.required]);
@@ -3005,6 +3074,132 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     return arrivalStart > todayStart;
+  }
+
+  get canEditArrivalDate(): boolean {
+    if (this.isAddMode || !this.reservation) {
+      return true;
+    }
+    const isPreBooking = Number(this.reservation.reservationStatusId) === ReservationStatus.PreBooking;
+    if (isPreBooking) {
+      return true;
+    }
+    const arrival = this.parseDateOnly(this.reservation.arrivalDate);
+    if (!arrival) {
+      return true;
+    }
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now < arrival;
+  }
+
+  isPersistedBillingStartAfterArrivalPair(billingStart: Date, arrival: Date): boolean {
+    return this.isSameDateOnly(this.reservation?.billingStartDate, billingStart)
+      && this.isSameDateOnly(this.reservation?.arrivalDate, arrival);
+  }
+
+  canOverrideReservationDateRules(): boolean {
+    return this.authService.hasRole(UserGroups.SuperAdmin)
+      || this.authService.hasRole(UserGroups.Admin)
+      || this.authService.hasRole(UserGroups.OfficeAdmin)
+      || this.authService.hasRole(UserGroups.AccountingAdmin)
+      || this.authService.hasRole(UserGroups.Accounting);
+  }
+
+  needsDateRuleOverride(): boolean {
+    return !!this.form?.get('arrivalDate')?.hasError('arrivalNotChangedAfterStart')
+      || !!this.form?.get('billingStartDate')?.hasError('billingStartBeforeArrival');
+  }
+
+  promptArrivalOverrideIfNeeded(): void {
+    if (this.dateOverrideDialogOpen || this.syncingStayDayFields || this.arrivalChangeOverrideConfirmed || this.canEditArrivalDate) {
+      return;
+    }
+    if (this.isSameDateOnly(this.reservation?.arrivalDate, this.form.get('arrivalDate')?.value)) {
+      return;
+    }
+    if (!this.canOverrideReservationDateRules()) {
+      return;
+    }
+    this.dateOverrideDialogOpen = true;
+    this.passwordCheckDialogService.confirm({
+      message: 'This reservation has already started.',
+      hint: 'Enter your password to change the arrival date.'
+    }).pipe(take(1), finalize(() => { this.dateOverrideDialogOpen = false; })).subscribe(password => {
+      if (!password) {
+        this.form.get('arrivalDate')?.setValue(this.parseDateOnly(this.reservation?.arrivalDate), { emitEvent: false });
+        this.revalidateReservationDateFields();
+        this.syncStayDaysFromDates();
+        return;
+      }
+      this.arrivalChangeOverrideConfirmed = true;
+      this.form.get('arrivalDate')?.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  promptBillingStartOverrideIfNeeded(): void {
+    if (this.dateOverrideDialogOpen || this.syncingStayDayFields || this.billingStartAfterArrivalOverrideConfirmed) {
+      return;
+    }
+    const billingStart = this.parseDateOnly(this.form.get('billingStartDate')?.value);
+    const arrival = this.parseDateOnly(this.form.get('arrivalDate')?.value);
+    if (!billingStart || !arrival || billingStart.getTime() <= arrival.getTime() || this.isPersistedBillingStartAfterArrivalPair(billingStart, arrival)) {
+      return;
+    }
+    if (!this.canOverrideReservationDateRules()) {
+      return;
+    }
+    this.dateOverrideDialogOpen = true;
+    this.passwordCheckDialogService.confirm({
+      message: 'Billing start is after the arrival date.',
+      hint: 'Enter your password to save a billing start date after arrival.'
+    }).pipe(take(1), finalize(() => { this.dateOverrideDialogOpen = false; })).subscribe(password => {
+      if (!password) {
+        this.form.get('billingStartDate')?.setValue(this.parseDateOnly(this.reservation?.billingStartDate), { emitEvent: false });
+        this.revalidateReservationDateFields();
+        this.syncStayDaysFromDates();
+        return;
+      }
+      this.billingStartAfterArrivalOverrideConfirmed = true;
+      this.form.get('billingStartDate')?.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  confirmDateChangeOverride(): void {
+    const needsArrivalOverride = !!this.form.get('arrivalDate')?.hasError('arrivalNotChangedAfterStart');
+    const needsBillingStartOverride = !!this.form.get('billingStartDate')?.hasError('billingStartBeforeArrival');
+    if (!this.canOverrideReservationDateRules()) {
+      if (needsArrivalOverride) {
+        this.toastr.error('Arrival date cannot be changed after the reservation has started.', CommonMessage.Error);
+      } else {
+        this.toastr.error('Billing start must be on or before arrival date.', CommonMessage.Error);
+      }
+      return;
+    }
+    const message = needsArrivalOverride && needsBillingStartOverride
+      ? 'This reservation has already started, and billing start is after the arrival date.'
+      : needsArrivalOverride
+        ? 'This reservation has already started.'
+        : 'Billing start is after the arrival date.';
+    const hint = needsArrivalOverride && needsBillingStartOverride
+      ? 'Enter your password to save these date changes.'
+      : needsArrivalOverride
+        ? 'Enter your password to change the arrival date.'
+        : 'Enter your password to save a billing start date after arrival.';
+    this.passwordCheckDialogService.confirm({ message, hint }).pipe(take(1)).subscribe(password => {
+      if (!password) {
+        return;
+      }
+      if (needsArrivalOverride) {
+        this.arrivalChangeOverrideConfirmed = true;
+        this.form.get('arrivalDate')?.updateValueAndValidity({ emitEvent: false });
+      }
+      if (needsBillingStartOverride) {
+        this.billingStartAfterArrivalOverrideConfirmed = true;
+        this.form.get('billingStartDate')?.updateValueAndValidity({ emitEvent: false });
+      }
+      this.saveReservation();
+    });
   }
 
   getMinDepartureDate(): Date | null {
