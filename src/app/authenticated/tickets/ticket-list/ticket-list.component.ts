@@ -8,8 +8,11 @@ import {BehaviorSubject, concatMap, finalize, from, map, switchMap, take, toArra
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
@@ -46,7 +49,9 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   private router = inject(Router);
   private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
   private mappingService = inject(MappingService);
+  private officeService = inject(OfficeService);
   private ticketService = inject(TicketService);
   private reservationService = inject(ReservationService);
   private userService = inject(UserService);
@@ -67,6 +72,8 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   propertyFilterOptions: TicketPropertyFilterOption[] = [];
   reservationFilterOptions: TicketReservationFilterOption[] = [];
   users: UserResponse[] = [];
+  offices: OfficeResponse[] = [];
+  organizationId = '';
 
   ticketsDisplayedColumns: ColumnSet = {
     'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
@@ -98,6 +105,8 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
 
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
+    this.loadOffices();
     this.loadUsers();
     this.getTickets();
   }
@@ -240,6 +249,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
       assigneeChanged: false,
       currentAssigneeId: previousAssigneeId,
       hasReservation: !!this.utilityService.normalizeIdOrNull(sourceTicket.reservationId ?? null),
+      useStrictOnTickets: this.resolveUseStrictOnTickets(sourceTicket.officeId),
       areAllCommunicationCheckboxesChecked: this.areAllCommunicationCheckboxesChecked(sourceTicket)
     });
     if (!stateDecision.isAllowed) {
@@ -305,6 +315,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
       assigneeChanged: true,
       currentAssigneeId: nextAssigneeId,
       hasReservation: !!this.utilityService.normalizeIdOrNull(sourceTicket.reservationId ?? null),
+      useStrictOnTickets: this.resolveUseStrictOnTickets(sourceTicket.officeId),
       areAllCommunicationCheckboxesChecked: this.areAllCommunicationCheckboxesChecked(sourceTicket)
     });
     const nextStateTypeId = stateDecision.ticketStateTypeId;
@@ -540,6 +551,19 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion 
 
   //#region Data Loading Methods
+  loadOffices(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+        });
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
+  }
+
   loadUsers(): void {
     this.userService.getUsers().pipe(take(1)).subscribe({
       next: users => {
@@ -714,12 +738,21 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
       && !!ticket.workOrderCompleted;
   }
 
+  resolveUseStrictOnTickets(officeId: number | null | undefined): boolean {
+    const resolvedOfficeId = officeId == null ? 0 : officeId;
+    if (resolvedOfficeId <= 0) {
+      return false;
+    }
+    return this.offices.some(office => office.officeId === resolvedOfficeId && office.useStrictOnTickets === true);
+  }
+
   confirmTicketState(params: {
     currentStateTypeId: number;
     previousStateTypeId?: number;
     assigneeChanged: boolean;
     currentAssigneeId: string | null;
     hasReservation: boolean;
+    useStrictOnTickets: boolean;
     areAllCommunicationCheckboxesChecked: boolean;
   }): { ticketStateTypeId: number; assigneeId: string | null; isAllowed: boolean } {
     let resolvedStateTypeId = Number(params.currentStateTypeId ?? 0);
@@ -738,7 +771,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const isAttemptingClose = resolvedStateTypeId === TicketStateType.closed;
-    if (isAttemptingClose && params.hasReservation && !params.areAllCommunicationCheckboxesChecked) {
+    if (isAttemptingClose && params.hasReservation && params.useStrictOnTickets && !params.areAllCommunicationCheckboxesChecked) {
       return {
         ticketStateTypeId: Number(params.previousStateTypeId ?? TicketStateType.caseCreated),
         assigneeId: resolvedAssigneeId,

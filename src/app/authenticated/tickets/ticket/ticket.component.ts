@@ -10,7 +10,9 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { OfficeService } from '../../organizations/services/office.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
@@ -59,6 +61,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   private ticketService = inject(TicketService);
   private dialog = inject(MatDialog);
   private agentService = inject(AgentService);
+  private officeService = inject(OfficeService);
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
   private receiptService = inject(ReceiptService);
@@ -87,6 +90,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   ticketStateTypes = getTicketStateTypes();
 
   properties: PropertyListResponse[] = [];
+  offices: OfficeResponse[] = [];
   users: UserResponse[] = [];
   agents: AgentResponse[] = [];
   assigneeOptions: { userId: string; displayName: string }[] = [];
@@ -126,6 +130,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.buildForm();
     this.setupCommunicationStatusCommentTracking();
     this.loadProperties();
+    this.loadOffices();
     this.loadUsers();
     this.loadAgents();
     this.setupPropertySelectionSync();
@@ -242,6 +247,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       assigneeChanged: !this.isAddMode && assigneeChanged,
       currentAssigneeId: selectedAssigneeId,
       hasReservation: !!selectedReservationId,
+      useStrictOnTickets: this.resolveUseStrictOnTickets(selectedOfficeId),
       areAllCommunicationCheckboxesChecked
     });
     if (!ticketStateDecision.isAllowed) {
@@ -531,6 +537,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       assigneeChanged: currentAssigneeId !== this.currentAssignee,
       currentAssigneeId,
       hasReservation: !!reservationId,
+      useStrictOnTickets: this.resolveUseStrictOnTickets(this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId),
       areAllCommunicationCheckboxesChecked: !!formValue.needPermissionToEnter
         && !!formValue.permissionGranted
         && !!formValue.ownerContacted
@@ -559,6 +566,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       assigneeChanged: false,
       currentAssigneeId: this.normalizeId(this.form.get('assigneeId')?.value == null ? null : String(this.form.get('assigneeId')?.value)),
       hasReservation: !!reservationId,
+      useStrictOnTickets: this.resolveUseStrictOnTickets(this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId),
       areAllCommunicationCheckboxesChecked: !!formValue.needPermissionToEnter
         && !!formValue.permissionGranted
         && !!formValue.ownerContacted
@@ -825,6 +833,19 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   //#endregion
 
   //#region Data Loading Methods
+  loadOffices(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+        });
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
+  }
+
   loadProperties(): void {
     this.propertyService.getPropertyList().pipe(take(1)).subscribe({
       next: properties => {
@@ -1279,12 +1300,21 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     });
   }
 
+  resolveUseStrictOnTickets(officeId: number | null | undefined): boolean {
+    const resolvedOfficeId = officeId == null ? 0 : officeId;
+    if (resolvedOfficeId <= 0) {
+      return false;
+    }
+    return this.offices.some(office => office.officeId === resolvedOfficeId && office.useStrictOnTickets === true);
+  }
+
   confirmTicketState(params: {
     currentStateTypeId: number;
     previousStateTypeId?: number;
     assigneeChanged: boolean;
     currentAssigneeId: string | null;
     hasReservation: boolean;
+    useStrictOnTickets: boolean;
     areAllCommunicationCheckboxesChecked: boolean;
   }): { ticketStateTypeId: number; isAllowed: boolean } {
     let resolvedStateTypeId = Number(params.currentStateTypeId ?? 0);
@@ -1298,7 +1328,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
 
     const isAttemptingClose = resolvedStateTypeId === TicketStateType.closed;
-    if (isAttemptingClose && params.hasReservation && !params.areAllCommunicationCheckboxesChecked) {
+    if (isAttemptingClose && params.hasReservation && params.useStrictOnTickets && !params.areAllCommunicationCheckboxesChecked) {
       return {
         ticketStateTypeId: Number(params.previousStateTypeId ?? TicketStateType.caseCreated),
         isAllowed: false
