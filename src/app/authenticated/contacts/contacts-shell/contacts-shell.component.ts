@@ -7,8 +7,10 @@ import { AuthService } from '../../../services/auth.service';
 import { UserGroups } from '../../users/models/user-enums';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { OrganizationService } from '../../organizations/services/organization.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { ContactListComponent } from '../contact-list/contact-list.component';
 import { ContactComponent } from '../contact/contact.component';
@@ -32,6 +34,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private officeService = inject(OfficeService);
+  private organizationService = inject(OrganizationService);
   private globalSelectionService = inject(GlobalSelectionService);
   private contactService = inject(ContactService);
   private authService = inject(AuthService);
@@ -42,11 +45,14 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   EntityType = EntityType;
   selectedTabIndex: number = 0;
   isPartnerAdmin = false;
+  isSuperAdminUser = false;
   selectedOfficeId: number | null = null;
+  selectedOrganizationId: string | null = null;
   showInactive: boolean = false;
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
+  organizationOptions: { value: string; label: string }[] = [];
   organizationId = '';
   private initialOfficeScopeApplied = false;
   destroy$ = new Subject<void>();
@@ -62,8 +68,12 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
+    this.isSuperAdminUser = this.authService.hasRole(UserGroups.SuperAdmin);
     if (this.isPartnerAdmin) {
       this.selectedTabIndex = 0;
+    }
+    if (this.isSuperAdminUser) {
+      this.loadOrganizations();
     }
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
@@ -113,6 +123,28 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     }));
   }
 
+  loadOrganizations(): void {
+    this.organizationService.getOrganizations().pipe(take(1)).subscribe({
+      next: (organizations: OrganizationResponse[]) => {
+        this.organizationOptions = (organizations || []).map(organization => ({
+          value: organization.organizationId,
+          label: organization.name
+        }));
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.organizationOptions = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  onOrganizationDropdownChange(value: string | number | null): void {
+    this.selectedOrganizationId = value == null || value === '' ? null : String(value);
+    this.cdr.markForCheck();
+    this.propagateOrganizationToContactLists();
+  }
+
   onOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
     this.resolveOfficeScope(officeId);
@@ -154,7 +186,11 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     this.formEntityTypeId = null;
     this.formTabIndex = null;
     if (_event.saved) {
-      this.contactService.refreshContacts().pipe(take(1)).subscribe();
+      if (this.isSuperAdminUser) {
+        this.propagateOrganizationToContactLists();
+      } else {
+        this.contactService.refreshContacts().pipe(take(1)).subscribe();
+      }
     }
   }
 
@@ -172,7 +208,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
-        this.showOfficeDropdown = this.offices.length > 1;
+        this.showOfficeDropdown = !this.isSuperAdminUser && this.offices.length > 1;
 
         let didSetInitialOffice = false;
         if (!this.initialOfficeScopeApplied) {
@@ -231,9 +267,21 @@ applyOfficeFromGlobal(officeId: number | null): void {
 
 propagateOfficeToContactLists(): void {
     queueMicrotask(() => {
-      const scopeOfficeId = this.selectedOfficeId;
+      const scopeOfficeId = this.isSuperAdminUser ? null : this.selectedOfficeId;
       this.contactSections?.forEach(section => {
         section.resolveOfficeScope(scopeOfficeId);
+        section.markViewForCheck();
+      });
+    });
+  }
+
+  propagateOrganizationToContactLists(): void {
+    if (!this.isSuperAdminUser) {
+      return;
+    }
+    queueMicrotask(() => {
+      this.contactSections?.forEach(section => {
+        section.loadContacts();
         section.markViewForCheck();
       });
     });

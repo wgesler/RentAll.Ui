@@ -7,7 +7,17 @@
           <span class="flex-shrink-0 text-xl font-medium">Contacts</span>
         </span>
         <div class="header-title form-titlebar-fields-wrap">
-          @if (showOfficeDropdown) {
+          @if (isSuperAdminUser) {
+            <app-title-bar-select
+              [label]="'Organization'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="selectedOrganizationId"
+              [options]="organizationOptions"
+              [nullOptionLabel]="'All Organizations'"
+              [noResultsText]="'No organizations match your search'"
+              (valueChange)="onOrganizationDropdownChange($event)">
+            </app-title-bar-select>
+          } @else if (showOfficeDropdown) {
             <app-title-bar-select
               [label]="selectedOfficeId ? 'Office' : 'All Offices'"
               [formFieldClass]="'titlebar-field-office'"
@@ -34,31 +44,31 @@
         @if (!isPartnerAdmin) {
           <mat-tab label="Tenants">
             @if (showContactForm && formTabIndex === 0) {
-              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
+              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" [selectedOrganizationId]="selectedOrganizationId" (closed)="onContactClosed($event)" />
             } @else {
-              <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
+              <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Tenant" [officeId]="isSuperAdminUser ? null : selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
             }
           </mat-tab>
           <mat-tab label="Companies">
             @if (showContactForm && formTabIndex === 1) {
-              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
+              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" [selectedOrganizationId]="selectedOrganizationId" (closed)="onContactClosed($event)" />
             } @else {
-              <app-contact-list [tabIndex]="1" [entityTypeId]="EntityType.Company" [officeId]="selectedOfficeId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
+              <app-contact-list [tabIndex]="1" [entityTypeId]="EntityType.Company" [officeId]="isSuperAdminUser ? null : selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
             }
           </mat-tab>
           <mat-tab label="Owners">
             @if (showContactForm && formTabIndex === 2) {
-              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
+              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" [selectedOrganizationId]="selectedOrganizationId" (closed)="onContactClosed($event)" />
             } @else {
-              <app-contact-list [tabIndex]="2" [entityTypeId]="EntityType.Owner" [officeId]="selectedOfficeId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
+              <app-contact-list [tabIndex]="2" [entityTypeId]="EntityType.Owner" [officeId]="isSuperAdminUser ? null : selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
             }
           </mat-tab>
         }
         <mat-tab label="Vendors">
           @if (showContactForm && formTabIndex === (isPartnerAdmin ? 0 : 3)) {
-            <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
+            <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" [selectedOrganizationId]="selectedOrganizationId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="isPartnerAdmin ? 0 : 3" [entityTypeId]="EntityType.Vendor" [officeId]="selectedOfficeId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="isPartnerAdmin ? 0 : 3" [entityTypeId]="EntityType.Vendor" [officeId]="isSuperAdminUser ? null : selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" [showInactive]="showInactive" (showInactiveChange)="onShowInactiveChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
       </mat-tab-group>

@@ -315,6 +315,8 @@ export class MappingService {
 
     return {
       ...base,
+      organizationId: String(raw['organizationId'] ?? raw['OrganizationId'] ?? base.organizationId ?? '').trim(),
+      displayName: String(raw['displayName'] ?? raw['DisplayName'] ?? base.displayName ?? '').trim() || null,
       officeAccess,
       officeId,
       ownerTypeId,

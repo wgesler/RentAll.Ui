@@ -91,6 +91,23 @@ export class ContactService {
     );
   }
 
+  /** SuperAdmin only: contacts for one organization (does not update the global contact cache). */
+  getContactsByOrganization(organizationId: string): Observable<ContactResponse[]> {
+    const id = String(organizationId || '').trim();
+    if (!id) {
+      return of([]);
+    }
+    return this.http.get<ContactResponse[]>(`${this.controller}organization/${id}`).pipe(
+      map(contacts =>
+        (contacts || []).map(c => this.mappingService.mapContactResponse(c as unknown as Record<string, unknown>))
+      ),
+      catchError((err: HttpErrorResponse) => {
+        console.error('Contact Service - Error loading contacts by organization:', err);
+        return throwError(() => err);
+      })
+    );
+  }
+
   getContactByGuid(contactId: string): Observable<ContactResponse> {
     return this.http.get<ContactResponse>(this.controller + contactId).pipe(
       map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))

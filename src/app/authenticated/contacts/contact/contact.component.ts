@@ -47,6 +47,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @Input() copyFrom: string | null = null;
   @Input() presetEntityTypeId: number | null = null;
   @Input() presetOfficeId: number | null = null;
+  @Input() selectedOrganizationId: string | null = null;
   @Input() preselectPropertyCodes: string[] = [];
   @Input() preselectPropertyOfficeId: number | null = null;
   @Input() ownerLeadId: number | null = null;
@@ -144,7 +145,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.isInOwnerMode = value;
       this.syncDefaultOfficeOptions();
     });
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.organizationId = (this.selectedOrganizationId || this.authService.getUser()?.organizationId || '').trim();
     this.initializeContactTypes();
     this.availableOwnerTypes = getOwnerTypes();
     this.availableVendorTypes = getVendorTypes();
@@ -249,6 +250,12 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (changes['presetOfficeId']) {
       this.applyPresetOfficeScope();
+    }
+    if (changes['selectedOrganizationId'] && this.isAddMode) {
+      const organizationId = String(this.selectedOrganizationId || this.authService.getUser()?.organizationId || '').trim();
+      if (organizationId) {
+        this.organizationId = organizationId;
+      }
     }
     if (changes['preselectPropertyCodes'] || changes['preselectPropertyOfficeId']) {
       this.mergePreselectPropertiesFromContext();
@@ -416,8 +423,20 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const isInternational = formValue.isInternational || false;
     const strippedPhone = this.formatterService.stripPhoneFormatting(formValue.phone);
     const isCompanyType = entityTypeId === EntityType.Company;
-    const derivedDisplayName = isCompanyType && (formValue.displayName || '').trim()
-      ? (formValue.displayName || '').trim() : `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim() || null;
+    const isVendorType = entityTypeId === EntityType.Vendor;
+    const resolveDisplayName = (): string | null => {
+      const entered = (formValue.displayName || '').trim();
+      if (entered) {
+        return entered.slice(0, 10);
+      }
+      const fromNames = `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim();
+      if (isCompanyType || isVendorType) {
+        const vendorName = (formValue.companyName || '').trim();
+        const fallback = vendorName || fromNames;
+        return fallback ? fallback.slice(0, 10) : null;
+      }
+      return fromNames ? fromNames.slice(0, 10) : null;
+    };
     const contactRequest: ContactRequest = {
       ...contactFormFields,
       ownerLeadId: this.ownerLeadId ?? this.contact?.ownerLeadId ?? null,
@@ -435,7 +454,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       notes: this.compactDialogMode && this.contact ? (this.contact.notes ?? undefined) : (formValue.notes || undefined),
       markup: this.compactDialogMode && this.contact != null ? (this.contact.markup ?? this.formatterService.parsePercentageValue(formValue.markup, 25)) : this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
-      displayName: derivedDisplayName,
+      displayName: resolveDisplayName(),
       isInternational: isInternational,
       // Compact dialog: preserve W9/insurance not shown there.
       w9Path: this.compactDialogMode && this.contact ? (this.w9Path ?? this.contact.w9Path ?? null) : (this.hasNewW9Upload ? undefined : this.w9Path),
@@ -484,19 +503,27 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         }
       }
     }
-    const isCompany = entityTypeId === EntityType.Company;
-    contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
-
     const linkedContactId = String(this.linkedContactId || '').trim();
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
       contactRequest.contactCode = this.contact?.contactCode;
-      contactRequest.organizationId = this.contact?.organizationId || user?.organizationId || '';
+      contactRequest.organizationId = String(this.contact?.organizationId || this.selectedOrganizationId || '').trim();
       contactRequest.userId = this.contact?.userId;
+      if (!contactRequest.organizationId) {
+        this.toastr.error('Organization is required to save this contact.', CommonMessage.Error);
+        return;
+      }
     } else if (linkedContactId) {
       contactRequest.contactId = linkedContactId;
       contactRequest.contactCode = String(this.prefillContact?.['contactCode'] ?? contactRequest.contactCode ?? '').trim() || contactRequest.contactCode;
-      contactRequest.organizationId = user?.organizationId || '';
+      contactRequest.organizationId = String(this.selectedOrganizationId || user?.organizationId || '').trim();
+    } else {
+      contactRequest.organizationId = String(this.selectedOrganizationId || user?.organizationId || '').trim();
+    }
+
+    if (!contactRequest.organizationId) {
+      this.toastr.error('Organization is required to save this contact.', CommonMessage.Error);
+      return;
     }
 
     const save$ = this.isAddMode && !linkedContactId
@@ -609,7 +636,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
 
     this.form.get('entityTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(entityTypeId => {
       this.applyEntityTypeContactValidators(entityTypeId);
-      if (entityTypeId !== EntityType.Company) {
+      if (entityTypeId !== EntityType.Company && entityTypeId !== EntityType.Vendor) {
         this.form.get('displayName')?.setValue('', { emitEvent: false });
       }
       if (entityTypeId !== EntityType.Vendor) {
@@ -684,7 +711,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         officeId: patchOfficeId,
         companyName: companyName,
         companyEmail: this.contact.companyEmail ?? '',
-        displayName: this.contact.displayName ?? '',
+        displayName: this.resolveContactDisplayName(this.contact),
         address1: this.contact.address1 || '',
         address2: this.contact.address2 || '',
         city: this.contact.city || '',
@@ -723,6 +750,22 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.populateW9FromContact();
       this.populateInsuranceFromContact();
     }
+  }
+
+  private resolveContactDisplayName(contact: ContactResponse): string {
+    const stored = String(contact.displayName ?? '').trim();
+    if (stored) {
+      return stored;
+    }
+    const entityTypeId = contact.entityTypeId ?? EntityType.Unknown;
+    if (entityTypeId === EntityType.Company || entityTypeId === EntityType.Vendor) {
+      const companyName = String(contact.companyName ?? '').trim();
+      if (companyName) {
+        return companyName.slice(0, 10);
+      }
+    }
+    const fromNames = `${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim();
+    return fromNames ? fromNames.slice(0, 10) : '';
   }
   //#endregion
 

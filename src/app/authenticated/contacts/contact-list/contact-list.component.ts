@@ -17,6 +17,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { UserGroups } from '../../users/models/user-enums';
 import { EntityType } from '../models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
@@ -35,6 +36,7 @@ import { OwnersService } from '../../owners/services/owners.service';
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
+  @Input() selectedOrganizationId: string | null = null;
   @Input() propertyCode: string | null = null;
   @Input() showInactive: boolean = false;
   @Input() onlyOwnerNotReady: boolean = false;
@@ -65,6 +67,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = false;
   user: any;
   isAdmin = false;
+  isSuperAdminUser = false;
   organizationId: string = '';
 
   hasInitialLoad: boolean = false;
@@ -112,6 +115,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
+    this.isSuperAdminUser = this.authService.hasRole(UserGroups.SuperAdmin);
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.setIsActiveCheckboxEditability();
     this.organizationId = this.user?.organizationId?.trim() ?? '';
@@ -144,6 +148,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         this.resolveOfficeScope(newOfficeId);
         this.markViewForCheck();
       }
+    }
+
+    if (changes['selectedOrganizationId'] && !changes['selectedOrganizationId'].firstChange && this.isSuperAdminUser) {
+      this.loadContacts();
     }
 
     if (changes['showInactive'] && !changes['showInactive'].firstChange) {
@@ -363,7 +371,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const scopeOfficeId = this.officeId ?? this.selectedOffice?.officeId ?? null;
-    if (scopeOfficeId != null) {
+    if (scopeOfficeId != null && !this.isSuperAdminUser) {
       filtered = filtered.filter(contact => {
         const officeAccess = (contact.officeAccess || []).map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0);
         if (officeAccess.length > 0) {
@@ -435,6 +443,31 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadContacts(): void {
+    if (this.isSuperAdminUser) {
+      const organizationId = String(this.selectedOrganizationId || '').trim();
+      if (!organizationId) {
+        this.allContacts = [];
+        this.contactsDisplay = [];
+        this.hasInitialLoad = true;
+        this.markViewForCheck();
+        return;
+      }
+
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'contacts');
+      this.contactService.getContactsByOrganization(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+        next: (contacts) => {
+          this.syncContactsFromCache(contacts || []);
+        },
+        error: () => {
+          this.allContacts = [];
+          this.contactsDisplay = [];
+          this.hasInitialLoad = true;
+          this.markViewForCheck();
+        }
+      });
+      return;
+    }
+
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {

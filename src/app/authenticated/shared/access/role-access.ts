@@ -179,6 +179,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'receipt_long', displayName: 'Billing', url: RouterToken.BillingList, ...superAdminOnly },
   { icon: 'hub', displayName: 'Leads', url: RouterToken.Leads, ...leadsAdminAndAgent },
   { icon: 'person', displayName: 'Owners', url: RouterToken.OwnerShell, ...openToAll },
+  { icon: 'contacts', displayName: 'Contacts', url: RouterToken.Contacts, ...openToAll },
   { icon: 'people', displayName: 'Users', url: RouterToken.UserList, ...usersAccess },
   { icon: 'settings', displayName: 'Settings', url: RouterToken.OrganizationConfiguration, ...settingsAccess },
   { icon: 'article', displayName: 'Logs', url: RouterToken.Logs, ...logsAccess }
@@ -233,7 +234,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [RECEIPT_SEGMENT]: openToAllExceptSuperAdmin,
   [RouterToken.EmailList]: openToAll,
   [RouterToken.DocumentList]: openToAllExceptSuperAdmin,
-  [RouterToken.Contacts]: openToAllExceptSuperAdmin,
+  [RouterToken.Contacts]: openToAll,
 
   [RouterToken.AccountingList]: accountingNavAccess,
   [RouterToken.Leads]: leadsAdminAndAgent,
