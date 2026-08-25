@@ -1152,7 +1152,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getExtensionsPossible(): string {
     if (!this.selectedReservation) return 'No';
-    return this.selectedReservation.allowExtensions ? 'Based on Availability' : 'No';
+    return this.selectedReservation.allowExtensions ? 'Yes' : 'Based on Availability';
   }
 
   getOrganizationName(): string {
@@ -1482,8 +1482,38 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     // LAYER 2: Replace all other placeholders (reservation, property, contact, organization, etc.)
     result = this.replaceAllOtherPlaceholders(result);
+    return this.applyLeaseNoteStyles(result);
+  }
 
+  applyLeaseNoteStyles(html: string): string {
+    let result = html.replace(/(<div\b[^>]*>\s*<h2\b[^>]*>\s*Rental Information\s*<\/h2>[\s\S]*?<\/div>)/i, section => this.styleRentalInformationNotes(section));
+    if (!/\.rental-information\s+\.lease-note\s*\{/.test(result)) {
+      const leaseNoteCss = '.rental-information .lease-note { font-size: 8pt; }';
+      if (result.includes('</style>')) {
+        result = result.replace('</style>', `${leaseNoteCss}</style>`);
+      } else {
+        result = `<style>${leaseNoteCss}</style>${result}`;
+      }
+    }
     return result;
+  }
+
+  styleRentalInformationNotes(section: string): string {
+    let result = section;
+    if (!/\brental-information\b/.test(result)) {
+      result = result.replace(/<div\b([^>]*)>/i, (_match, attrs) => {
+        if (/\bclass\s*=/.test(attrs)) {
+          return `<div${String(attrs).replace(/class\s*=\s*["']([^"']*)["']/, 'class="$1 rental-information"')}>`;
+        }
+        return `<div class="rental-information"${attrs}>`;
+      });
+    }
+    return result.replace(/(<span[^>]*\blease-note\b[^>]*>)?\(([^<>)]*)\)(<\/span>)?/gi, (match, open, inner, close) => {
+      if (open && close) {
+        return match;
+      }
+      return `${open || ''}<span class="lease-note">(${inner})</span>${close || ''}`;
+    });
   }
 
   replaceConditionalSections(html: string): string {
@@ -1751,7 +1781,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       );
       result = result.replace(/\{\{checkInTime\}\}/g, this.getUnderlinedFillValue(getCheckInTime(this.selectedReservation.checkInTimeId) || ''));
       result = result.replace(/\{\{checkOutTime\}\}/g, this.getUnderlinedFillValue(getCheckOutTime(this.selectedReservation.checkOutTimeId) || ''));
-      result = result.replace(/\{\{reservationNotice\}\}/g, this.getUnderlinedFillValue(this.getReservationNoticeText()));
+      result = result.replace(/\{\{reservationNotice\}\}/g, this.escapeHtml(this.getReservationNoticeText()));
       result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getUnderlinedFillValue(this.getReservationDayNotice()));
       result = result.replace(/\{\{departureFee\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.departureFee || 0).toFixed(2)));
       result = result.replace(/\{\{tenantPets\}\}/g, this.getUnderlinedFillValue(this.getPetText()));
