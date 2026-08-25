@@ -21,7 +21,7 @@ export function getEmailType(emailTypeId: number | undefined): string {
 
   const typeMap: { [key: number]: string } = {
     [EmailType.Other]: 'Other',
-    [EmailType.PropertyLetter]: 'Welcome Letter',
+    [EmailType.PropertyLetter]: 'Property Letter',
     [EmailType.ReservationLease]: 'Reservation Lease',
     [EmailType.Invoice]: 'Invoice',
     [EmailType.WorkOrder]: 'Work Order',
@@ -37,5 +37,16 @@ export function getEmailType(emailTypeId: number | undefined): string {
   };
 
   return typeMap[emailTypeId] || '';
+}
+
+export function getEmailTypes(): { value: number, label: string }[] {
+  return Object.values(EmailType)
+    .filter((value): value is number => typeof value === 'number')
+    .map(value => ({
+      value,
+      label: getEmailType(value)
+    }))
+    .filter(type => !!type.label)
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 //#endregion

@@ -24,7 +24,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { EmailType, getEmailType } from '../models/email.enum';
+import { EmailType, getEmailType, getEmailTypes } from '../models/email.enum';
 
 @Component({
   selector: 'app-email-list',
@@ -522,13 +522,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   initializeEmailTypes(): void {
-    this.emailTypes = Object.values(EmailType)
-      .filter((value): value is number => typeof value === 'number')
-      .map(value => ({
-        value,
-        label: getEmailType(value)
-      }))
-      .filter(type => !!type.label);
+    this.emailTypes = getEmailTypes();
   }
 
   applyFilters(): void {
