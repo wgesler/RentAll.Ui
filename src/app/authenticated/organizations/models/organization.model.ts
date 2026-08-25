@@ -22,6 +22,7 @@ export interface OrganizationRequest {
   isInternational: boolean;
   currentInvoiceNo: number;
   sendGridName?: string;
+  suffixKeyName?: string;
   isActive: boolean;
 }
 
@@ -48,6 +49,7 @@ export interface OrganizationResponse {
   isInternational: boolean;
   currentInvoiceNo: number;
   sendGridName?: string;
+  suffixKeyName?: string;
   isActive: boolean;
 }
 
