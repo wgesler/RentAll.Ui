@@ -23,6 +23,7 @@ export interface OfficeRequest {
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
   useDailyOnResBoard: boolean
+  useStrictOnTickets: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;
@@ -103,6 +104,7 @@ export interface OfficeResponse {
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
   useDailyOnResBoard: boolean
+  useStrictOnTickets: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;

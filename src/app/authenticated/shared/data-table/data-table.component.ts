@@ -96,6 +96,9 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsPayable: boolean = false;
   @Input() hasActionsTransfer: boolean = false;
   @Input() hasActionsInvoice: boolean = false;
+  @Input() hasActionsSkip: boolean = false;
+  @Input() skipActionTooltip: string = 'Skip';
+  @Input() skipActionColor: string = '#FDD835';
   @Input() hasActionsInfo: boolean = false;
   @Input() userActionTooltip: string = 'Create User';
   @Input() userActionColor: string = '#7B1FA2';
@@ -204,6 +207,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
   @Output() transferEvent = new EventEmitter<PurposefulAny>();
   @Output() invoiceEvent = new EventEmitter<PurposefulAny>();
+  @Output() skipEvent = new EventEmitter<PurposefulAny>();
   @Output() infoEvent = new EventEmitter<PurposefulAny>();
   @Output() printEvent = new EventEmitter<PurposefulAny>();
   @Output() quoteEvent = new EventEmitter<PurposefulAny>();
@@ -596,6 +600,11 @@ markViewForCheck(): void {
   emitInfoEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.infoEvent.emit(rowItem);
+  }
+
+  emitSkipEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.skipEvent.emit(rowItem);
   }
 
   getButtonTooltip(buttonName: string, buttonTooltip: string, item: PurposefulAny): string {
@@ -1434,7 +1443,7 @@ normalizeFilterValue(value: unknown): string {
     }
     columns = { ...columns, ...rest };
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsPrint || this.hasActionsCancel || this.hasActionsLock || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsInvoice || this.hasActionsSkip || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsPrint || this.hasActionsCancel || this.hasActionsLock || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -1487,6 +1496,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
     if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: this.downloadActionColor, tooltip: this.downloadActionTooltip, tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
     if (this.hasActionsInfo && placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
+    if (this.hasActionsSkip) this.buttons.push({name: 'skip', callback: (event, rowItem) => this.emitSkipEvent(event, rowItem), color: this.skipActionColor, tooltip: this.skipActionTooltip, tooltipPosition: 'before', icon: 'event_busy', suspendOnUpdate: false});
     if (this.hasActionsDelete)   this.buttons.push({name: 'delete', callback: (event, rowItem) => this.emitDeleteEvent(event, rowItem), color: '#FA6868', tooltip: 'Delete', tooltipPosition: 'after', icon: 'delete', suspendOnUpdate: false});
     if (this.hasActionsCancel)   this.buttons.push({name: 'cancel', callback: (event, rowItem) => this.emitCancelEvent(event, rowItem), color: '#3F51B5', tooltip: 'Cancel', tooltipPosition: 'after', icon: 'cancel', suspendOnUpdate: false});
   }

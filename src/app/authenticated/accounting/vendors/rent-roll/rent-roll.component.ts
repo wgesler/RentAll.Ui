@@ -54,6 +54,8 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   isAdmin = false;
+  canSkipRentRollLine = false;
+  skippedRentRollKeys = new Set<string>();
 
   readonly rentRollDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
@@ -88,6 +90,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   //#region Rent Roll
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    this.canSkipRentRollLine = this.authService.isOrgAdmin();
     if (this.rentRollDisplayedColumns['isRent']) {
       this.rentRollDisplayedColumns['isRent'].checkboxEditable = this.isAdmin;
     }
@@ -192,7 +195,8 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       isRent: !!row.isRent,
       notes: row.notes || '',
       hasExistingBill: this.hasExistingBillForRow(row),
-      invoiceDisabled: false
+      invoiceDisabled: false,
+      skipDisabled: !this.canSkipRentRollLine || !this.getRentRollSkipKey(row)
     }));
     this.applyCreatedBillVisibilityFilter();
     this.rentRollTotalAmount = this.mappingService.sumRentRollTotal(this.rentRollRows);
@@ -321,6 +325,42 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     this.showCreatedBills = !this.showCreatedBills;
     this.applyCreatedBillVisibilityFilter();
     this.markViewForCheck();
+  }
+
+  onSkipRentRollRow(rowDisplay: RentRollRowDisplay): void {
+    if (!this.canSkipRentRollLine) {
+      return;
+    }
+    const row = this.resolveRentRollRow(rowDisplay);
+    if (!row) {
+      return;
+    }
+    const skipKey = this.getRentRollSkipKey(row);
+    const agreementLineId = this.toAgreementLineIdNumber(row.agreementLineId);
+    const billPeriod = this.resolveBillMatchPeriod(row.billDate) || this.resolveBillMatchPeriod(this.resolveDefaultBillDateForDisplay());
+    if (!skipKey || !agreementLineId || !billPeriod) {
+      this.toastr.warning('Unable to skip this line. Agreement line and bill period are required.', 'Skip');
+      return;
+    }
+    this.skippedRentRollKeys.add(skipKey);
+    this.applyCreatedBillVisibilityFilter();
+    this.markViewForCheck();
+    this.toastr.success(`Skipped agreement line for ${billPeriod}.`, 'Skip');
+  }
+
+  isRentRollRowSkipped(row: RentRollRow | RentRollRowDisplay): boolean {
+    const skipKey = this.getRentRollSkipKey(row);
+    return !!skipKey && this.skippedRentRollKeys.has(skipKey);
+  }
+
+  getRentRollSkipKey(row: RentRollRow | RentRollRowDisplay): string | null {
+    const propertyId = (row.propertyId || '').trim();
+    const agreementLineId = this.toAgreementLineIdNumber(row.agreementLineId);
+    const billPeriod = this.resolveBillMatchPeriod(row.billDate) || this.resolveBillMatchPeriod(this.resolveDefaultBillDateForDisplay());
+    if (!propertyId || !agreementLineId || !billPeriod) {
+      return null;
+    }
+    return this.buildAgreementLinePeriodKey(propertyId, agreementLineId, billPeriod);
   }
 
   onEditAgreementLine(rowDisplay: RentRollRowDisplay): void {
@@ -667,22 +707,22 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyCreatedBillVisibilityFilter(): void {
-    this.rentRollRowsDisplay = this.showCreatedBills
-      ? [...this.rentRollRowsDisplayAll]
-      : this.rentRollRowsDisplayAll.filter(row => !row.hasExistingBill);
+    this.rentRollRowsDisplay = this.getVisibleRentRollDisplayRows();
     this.selectedRentRollRows = [];
   }
 
   getVisibleRentRollRows(): RentRollRow[] {
-    return this.showCreatedBills
+    const rows = this.showCreatedBills
       ? this.rentRollRows
       : this.rentRollRows.filter(row => !this.hasExistingBillForRow(row));
+    return rows.filter(row => !this.isRentRollRowSkipped(row));
   }
 
   getVisibleRentRollDisplayRows(): RentRollRowDisplay[] {
-    return this.showCreatedBills
+    const rows = this.showCreatedBills
       ? this.rentRollRowsDisplayAll
       : this.rentRollRowsDisplayAll.filter(row => !row.hasExistingBill);
+    return rows.filter(row => !this.isRentRollRowSkipped(row));
   }
 
   loadExistingBillsForDateRange(loadSequence: number): void {

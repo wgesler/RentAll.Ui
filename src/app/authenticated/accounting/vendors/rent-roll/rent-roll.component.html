@@ -38,10 +38,13 @@
           [linkActionColor]="'#4CAF50'"
           [hasActionsInvoice]="true"
           [hasActionsInfo]="true"
+          [hasActionsSkip]="canSkipRentRollLine"
           [infoIconLarge]="true"
           [invoiceActionTooltip]="'Create Bill'"
           [invoiceActionColor]="'#FF9800'"
           [infoActionColor]="'#1E88E5'"
+          [skipActionTooltip]="'Skip'"
+          [skipActionColor]="'#FDD835'"
           [deleteConfirmTitle]="'Delete Agreement Line'"
           [deleteConfirmMessage]="'Are you sure you want to delete this agreement line?'"
           [totalsRow]="rentRollTotalsRow"
@@ -56,7 +59,8 @@
           (editEvent)="onEditAgreementLine($event)"
           (deleteEvent)="onDeleteAgreementLine($event)"
           (linkEvent)="onLinkBill($event)"
-          (invoiceEvent)="onCreateBill($event)">
+          (invoiceEvent)="onCreateBill($event)"
+          (skipEvent)="onSkipRentRollRow($event)">
         </app-data-table>
       </div>
     </div>

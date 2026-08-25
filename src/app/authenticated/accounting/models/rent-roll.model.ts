@@ -46,6 +46,7 @@ export interface RentRollRowDisplay {
   totalAmountValue?: number;
   hasExistingBill?: boolean;
   invoiceDisabled?: boolean;
+  skipDisabled?: boolean;
 }
 
 export interface RentRollPropertyAgreement {
