@@ -2614,6 +2614,27 @@ app-data-table .datatable-search-wrap {
   justify-content: flex-end !important;
 }
 
+/* Rich-text contenteditable lists (pasted HTML is not part of the component template). */
+.description-editor-input ul,
+.description-editor-input ol {
+  margin: 0.35rem 0 0.35rem 1.75rem !important;
+  padding-left: 1.25rem !important;
+  list-style-position: outside !important;
+}
+
+.description-editor-input ul {
+  list-style-type: disc !important;
+}
+
+.description-editor-input ol {
+  list-style-type: decimal !important;
+}
+
+.description-editor-input li {
+  display: list-item !important;
+  margin: 0 0 0.2rem !important;
+}
+
 /* Work Order Items table: force even column spacing (overrides reset and component encapsulation) */
 .work-order-items-table th,
 .work-order-items-table td {

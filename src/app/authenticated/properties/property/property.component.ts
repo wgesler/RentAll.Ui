@@ -11,6 +11,7 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
@@ -111,6 +112,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   private newContactDialogService = inject(NewContactDialogService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private ownersService = inject(OwnersService);
+  private documentHtmlService = inject(DocumentHtmlService);
 
   readonly EntityType = EntityType;
   readonly propertyCodeDefaultPrompt = 'Enter Code';
@@ -470,6 +472,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
 
     this.isSubmitting = true;
+    this.syncHtmlEditorsToForm();
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
     const formOverrides = this.buildPropertyFormOverrides(formValue, {
@@ -790,7 +793,11 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     ];
     optionalStringFields.forEach(field => {
       const raw = formValue[field as string];
-      overrides[field] = (raw === '' || raw == null ? undefined : String(raw)) as never;
+      let value = raw === '' || raw == null ? undefined : String(raw);
+      if (value && (field === 'description' || field === 'amenities')) {
+        value = this.documentHtmlService.normalizePastedEditorHtml(value);
+      }
+      overrides[field] = value as never;
     });
 
     const bldgNoTrim = String(formValue['bldgNo'] ?? '').trim();
@@ -2240,6 +2247,54 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     descriptionControl?.markAsTouched();
   }
 
+  onDescriptionPaste(event: ClipboardEvent): void {
+    this.onHtmlEditorPaste('description', event);
+  }
+
+  onAmenitiesPaste(event: ClipboardEvent): void {
+    this.onHtmlEditorPaste('amenities', event);
+  }
+
+  private onHtmlEditorPaste(controlName: 'description' | 'amenities', event: ClipboardEvent): void {
+    event.preventDefault();
+    const clipboard = event.clipboardData;
+    if (!clipboard) {
+      return;
+    }
+
+    const html = clipboard.getData('text/html');
+    const text = clipboard.getData('text/plain');
+    const insertHtml = html
+      ? this.documentHtmlService.sanitizeEditorListHtml(this.documentHtmlService.normalizePastedEditorHtml(html))
+      : this.documentHtmlService.sanitizeEditorListHtml(this.documentHtmlService.plainTextToEditorHtml(text || ''));
+
+    const editor = controlName === 'description'
+      ? this.descriptionEditor?.nativeElement
+      : this.amenitiesEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(range.createContextualFragment(insertHtml));
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      editor.insertAdjacentHTML('beforeend', insertHtml);
+    }
+
+    editor.innerHTML = this.documentHtmlService.sanitizeEditorListHtml(editor.innerHTML);
+
+    const control = this.form.get(controlName);
+    control?.setValue(editor.innerHTML, { emitEvent: false });
+    control?.markAsDirty();
+    control?.markAsTouched();
+  }
+
   /** Contenteditable toolbar; execCommand is deprecated in DOM typings but has no stable replacement yet. */
   private execEditorCommand(commandId: string, showUi = false, value?: string): boolean {
     return (document as unknown as { execCommand(commandId: string, showUI?: boolean, value?: string): boolean })
@@ -2577,6 +2632,18 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     const nextHtml = typeof description === 'string' ? description : String(description);
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
+    }
+  }
+
+  syncHtmlEditorsToForm(): void {
+    const descriptionEditor = this.descriptionEditor?.nativeElement;
+    if (descriptionEditor) {
+      this.form.get('description')?.setValue(descriptionEditor.innerHTML, { emitEvent: false });
+    }
+
+    const amenitiesEditor = this.amenitiesEditor?.nativeElement;
+    if (amenitiesEditor) {
+      this.form.get('amenities')?.setValue(amenitiesEditor.innerHTML, { emitEvent: false });
     }
   }
 

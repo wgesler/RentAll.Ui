@@ -741,7 +741,9 @@ input.no-spinner[type='number'] {
   padding: 10px;
   outline: none;
   line-height: 1.45;
-  white-space: pre-wrap;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .description-editor-input:focus {
@@ -749,8 +751,14 @@ input.no-spinner[type='number'] {
 }
 
 :host ::ng-deep .description-editor-input--with-markers :is(ul, ol) {
-  margin: 0 0 0.5rem 1.25rem;
-  padding-left: 1rem;
+  margin: 0.35rem 0 0.35rem 1.75rem !important;
+  padding-left: 1.25rem !important;
+  list-style-position: outside !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers p {
+  margin: 0 0 0.35rem;
+  position: relative;
 }
 
 :host ::ng-deep .description-editor-input--with-markers ul {
@@ -764,14 +772,15 @@ input.no-spinner[type='number'] {
 }
 
 :host ::ng-deep .description-editor-input--with-markers li {
-  display: list-item;
+  display: list-item !important;
+  margin: 0 0 0.2rem !important;
 }
 
-:host ::ng-deep .description-editor-input--with-markers :is(p, div, li) {
-  position: relative;
+:host ::ng-deep .description-editor-input--with-markers li::before {
+  content: none !important;
 }
 
-:host ::ng-deep .description-editor-input--with-markers :is(p, div)::before {
+:host ::ng-deep .description-editor-input--with-markers p::before {
   content: '¶';
   color: rgba(0, 0, 0, 0.35);
   font-size: 0.75rem;
