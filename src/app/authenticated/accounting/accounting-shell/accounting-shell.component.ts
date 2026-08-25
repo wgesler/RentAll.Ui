@@ -1310,6 +1310,7 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.billsReceiptAgreementLineId = null;
     this.billsReceiptAgreementLineNotes = null;
     this.billsReceiptAutoSaveAttemptToken = 0;
+    this.selectedBillsPropertyId = null;
     this.selectedBillsReceiptKind = this.billsReceiptOrigin === 'rentRoll' ? 'rentRoll' : 'bills';
     this.billsReceiptOrigin = 'bills';
     this.resetBillsReceiptsWorkOrderDetailState();
@@ -1776,6 +1777,7 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showReceiptsReceiptDetail = false;
     this.selectedReceiptsReceiptId = null;
     this.receiptsReceiptProperty = null;
+    this.selectedBillsPropertyId = null;
     this.selectedBillsReceiptKind = 'receipts';
     this.resetBillsReceiptsWorkOrderDetailState();
     this.clearBillsReceiptsWorkOrderReturnContext();
@@ -1892,6 +1894,8 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.selectedBillsReceiptKind = 'bills';
       this.showBillsReceiptDetail = false;
       this.selectedBillsReceiptId = null;
+      this.selectedBillsPropertyId = null;
+      this.syncBillsSearchRequest();
       this.billsRefreshTrigger++;
       return;
     }
@@ -1900,6 +1904,8 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.selectedBillsReceiptKind = 'receipts';
       this.showReceiptsReceiptDetail = false;
       this.selectedReceiptsReceiptId = null;
+      this.selectedBillsPropertyId = null;
+      this.syncBillsSearchRequest();
       this.receiptsRefreshTrigger++;
       return;
     }

@@ -933,26 +933,14 @@ applyPageOfficeChangeEffects(): void {
     this.workOrderReturnToReceiptList = false;
     this.workOrderReturnToReceiptDetail = false;
     this.workOrderReturnReceiptId = null;
-    this.selectedPropertyId = null;
-    this.property = null;
-    this.titleBarReservationId = null;
-    this.shellReservations = [];
-    this.updateAvailableProperties();
-    this.syncMaintenanceSearchRequests();
-    this.refreshReceiptsTrigger++;
+    this.clearPropertyForListTab();
   }
 
   onReceiptSaved(): void {
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
-    this.selectedPropertyId = null;
-    this.property = null;
-    this.titleBarReservationId = null;
-    this.shellReservations = [];
-    this.updateAvailableProperties();
-    this.syncMaintenanceSearchRequests();
-    this.refreshReceiptsTrigger++;
+    this.clearPropertyForListTab();
   }
 
   onReceiptSavedAndNew(): void {
