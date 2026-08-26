@@ -40,6 +40,7 @@ import { DepositComponent } from '../bank/deposit/deposit.component';
 import { DepositResponse, DepositSelection } from '../models/deposit.model';
 import { PaymentListComponent } from '../invoices/payment-list/payment-list.component';
 import { PaymentComponent } from '../invoices/payment/payment.component';
+import { PaymentDirection } from '../models/accounting-enum';
 import { PaymentResponse, PaymentSearchRequest, PaymentSelection } from '../models/payment.model';
 import { TransfersListComponent } from '../bank/transfers-list/transfers-list.component';
 import { TransferComponent } from '../bank/transfer/transfer.component';
@@ -252,8 +253,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'bills', label: 'Bills' },
     { kind: 'receipts', label: 'Receipts' },
     { kind: 'workOrders', label: 'Work Orders' },
-    { kind: 'rentRoll', label: 'Rent Roll' }
+    { kind: 'rentRoll', label: 'Rent Roll' },
+    { kind: 'payments', label: 'Bill Payments' }
   ];
+  readonly PaymentDirection = PaymentDirection;
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
     { kind: 'undepositedFunds', label: 'Undeposited Funds' },
     { kind: 'deposits', label: 'Deposits' },
@@ -1704,7 +1707,7 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.undepositedFundsRefreshTrigger++;
     this.untransferredFundsRefreshTrigger++;
     this.depositsRefreshTrigger++;
-    if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+    if (this.shouldRefreshPaymentsList()) {
       this.paymentsRefreshTrigger++;
     }
     this.transfersRefreshTrigger++;
@@ -2026,6 +2029,14 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   onPaymentSelect(selection: PaymentSelection): void {
+    this.openPaymentDetail(selection, 'invoices');
+  }
+
+  onVendorPaymentSelect(selection: PaymentSelection): void {
+    this.openPaymentDetail(selection, 'vendors');
+  }
+
+  private openPaymentDetail(selection: PaymentSelection, context: 'invoices' | 'vendors'): void {
     const paymentId = selection?.paymentId ?? null;
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
@@ -2035,11 +2046,21 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
     }
-    this.syncInvoiceSearchDateRange();
+
+    if (context === 'vendors') {
+      this.syncBillsSearchRequest();
+    } else {
+      this.syncInvoiceSearchDateRange();
+    }
 
     this.selectedPayment = selection?.payment ?? null;
-    this.selectedTabIndex = this.tabInvoices;
-    this.selectedInvoiceKind = 'payments';
+    if (context === 'vendors') {
+      this.selectedTabIndex = this.tabBillsReceipts;
+      this.selectedBillsReceiptKind = 'payments';
+    } else {
+      this.selectedTabIndex = this.tabInvoices;
+      this.selectedInvoiceKind = 'payments';
+    }
     this.paymentsListEngaged = true;
     const reopeningPaymentAdd = paymentId === 'new'
       && this.showPaymentsDetail
@@ -2726,6 +2747,9 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     if (event.index !== this.tabBillsReceipts) {
       this.onBillsReceiptBack();
       this.onReceiptsReceiptBack();
+      if (this.selectedBillsReceiptKind === 'payments') {
+        this.onPaymentBack();
+      }
       this.resetBillsReceiptsWorkOrderDetailState();
       this.clearBillsReceiptsWorkOrderReturnContext();
     }
@@ -2879,12 +2903,22 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
         this.onBillsReceiptBack();
       } else if (previousKind === 'receipts') {
         this.onReceiptsReceiptBack();
+      } else if (previousKind === 'payments') {
+        this.onPaymentBack();
       }
       this.resetBillsReceiptsWorkOrderDetailState();
       this.clearBillsReceiptsWorkOrderReturnContext();
     }
 
     this.selectedBillsReceiptKind = kind;
+    if (kind === 'payments') {
+      this.paymentsListEngaged = true;
+      if (kindChanged) {
+        this.paymentsRefreshTrigger++;
+      }
+    } else if (previousKind === 'payments') {
+      this.paymentsListEngaged = false;
+    }
 
     if (previousTab !== this.tabBillsReceipts) {
       this.onTabChange({ index: this.tabBillsReceipts });
@@ -3117,6 +3151,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
   }
 
   refreshActiveBillsReceiptList(): void {
+    if (this.selectedBillsReceiptKind === 'payments') {
+      this.paymentsRefreshTrigger++;
+      return;
+    }
     if (this.selectedBillsReceiptKind === 'bills') {
       this.billsRefreshTrigger++;
       return;
@@ -3946,7 +3984,7 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
   publishDateRangeState(): void {
     this.syncInvoiceSearchDateRange();
     this.syncBillsSearchRequest();
-    if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+    if (this.shouldRefreshPaymentsList()) {
       this.paymentsRefreshTrigger++;
     }
     if (this.selectedTabIndex === this.tabBillsReceipts) {
@@ -4816,9 +4854,30 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   }
 
   get isPaymentDetailActive(): boolean {
-    return this.selectedTabIndex === this.tabInvoices
-      && this.selectedInvoiceKind === 'payments'
-      && this.showPaymentsDetail;
+    return this.showPaymentsDetail && (
+      (this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments')
+      || (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments')
+    );
+  }
+
+  get isVendorPaymentsListActive(): boolean {
+    return this.selectedTabIndex === this.tabBillsReceipts
+      && this.selectedBillsReceiptKind === 'payments'
+      && !this.showPaymentsDetail;
+  }
+
+  get activePaymentDirection(): PaymentDirection {
+    return this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments'
+      ? PaymentDirection.Outbound
+      : PaymentDirection.Inbound;
+  }
+
+  shouldRefreshPaymentsList(): boolean {
+    if (!this.paymentsListEngaged) {
+      return false;
+    }
+    return (this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments')
+      || (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments');
   }
 
   get isTransferDetailActive(): boolean {
@@ -5383,8 +5442,11 @@ captureOwnerStatementReturnContext(): void {
 
     if ('billsReceipt' in params) {
       const billsReceipt = params['billsReceipt'];
-      if (billsReceipt === 'bills' || billsReceipt === 'receipts' || billsReceipt === 'workOrders' || billsReceipt === 'rentRoll') {
+      if (billsReceipt === 'bills' || billsReceipt === 'receipts' || billsReceipt === 'workOrders' || billsReceipt === 'rentRoll' || billsReceipt === 'payments') {
         this.selectedBillsReceiptKind = billsReceipt;
+        if (billsReceipt === 'payments') {
+          this.paymentsListEngaged = true;
+        }
       }
     }
 
@@ -5593,7 +5655,7 @@ captureOwnerStatementReturnContext(): void {
               this.undepositedFundsRefreshTrigger++;
               this.untransferredFundsRefreshTrigger++;
               this.depositsRefreshTrigger++;
-              if (this.paymentsListEngaged && this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments') {
+              if (this.shouldRefreshPaymentsList()) {
                 this.paymentsRefreshTrigger++;
               }
               this.transfersRefreshTrigger++;

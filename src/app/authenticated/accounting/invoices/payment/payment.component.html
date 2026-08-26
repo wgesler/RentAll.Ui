@@ -29,6 +29,78 @@
             </div>
 
             <div class="grid grid-cols-4 form-standard-grid payment-form-grid">
+              @if (isOutbound) {
+                <div class="col-span-4 payment-overall-row payment-overall-primary-row payment-overall-primary-row--outbound">
+                  <mat-form-field appearance="outline" class="payment-overall-code-field">
+                    <mat-label>Payment Code</mat-label>
+                    <input matInput [value]="isAddMode ? '' : (payment?.paymentCode || '')" readonly disabled>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="payment-overall-date-field">
+                    <mat-label>Payment Date</mat-label>
+                    <input matInput [matDatepicker]="paymentDatePicker" formControlName="paymentDate" required>
+                    <mat-datepicker-toggle matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #paymentDatePicker></mat-datepicker>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="payment-overall-accounting-period-field">
+                    <mat-label>Accounting Period</mat-label>
+                    <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
+                    <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #accountingPeriodPicker></mat-datepicker>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="payment-overall-type-field">
+                    <mat-label>Payment Type</mat-label>
+                    <mat-select formControlName="paymentTypeId" [compareWith]="comparePaymentTypeIds">
+                      <mat-option [value]="null">None</mat-option>
+                      @for (type of paymentTypeOptions; track type.value) {
+                        <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <app-searchable-select
+                    class="payment-overall-bank-account-field"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'payment-overall-bank-account-field'"
+                    [formFieldLabel]="'Bank Account'"
+                    [value]="form.get('chartOfAccountId')?.value ?? 0"
+                    [options]="bankAccountOptions"
+                    [required]="true"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter bank accounts...'"
+                    [showInstructionOption]="false"
+                    [noResultsText]="'No bank accounts match your search'"
+                    [showError]="shouldShowControlError(form.get('chartOfAccountId'))"
+                    errorText="Bank account is required"
+                    (valueChange)="onBankAccountSelectionChange($event)">
+                  </app-searchable-select>
+                </div>
+
+                <div class="col-span-4 payment-overall-row payment-overall-secondary-row payment-overall-secondary-row--outbound">
+                  <mat-form-field appearance="outline" class="payment-overall-amount-field"
+                    [class.mat-form-field-invalid]="shouldShowControlError(form.get('amount'))"
+                    [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('amount'))">
+                    <mat-label>Amount</mat-label>
+                    <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()" required
+                      (focus)="onAmountFocus($event)"
+                      (blur)="onAmountBlur($event)"
+                      (input)="onAmountInput($event)"
+                      (keydown.enter)="onAmountKeydown($event)">
+                    @if (shouldShowControlError(form.get('amount'))) {
+                      <mat-error>Amount must be greater than zero</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="payment-overall-description-field payment-overall-description-field--outbound">
+                    <mat-label>Description</mat-label>
+                    <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
+                  </mat-form-field>
+                </div>
+              } @else {
               <div class="col-span-4 payment-overall-row payment-overall-primary-row">
                 <mat-form-field appearance="outline" class="payment-overall-code-field">
                   <mat-label>Payment Code</mat-label>
@@ -40,15 +112,6 @@
                   <input matInput [matDatepicker]="paymentDatePicker" formControlName="paymentDate" required>
                   <mat-datepicker-toggle matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #paymentDatePicker></mat-datepicker>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="payment-overall-direction-field">
-                  <mat-label>Direction</mat-label>
-                  <mat-select formControlName="paymentDirectionId" [compareWith]="comparePaymentDirectionIds" [disabled]="true">
-                    @for (direction of paymentDirectionOptions; track direction.value) {
-                      <mat-option [value]="direction.value">{{ direction.label }}</mat-option>
-                    }
-                  </mat-select>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="payment-overall-type-field">
@@ -99,6 +162,7 @@
                   <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
                 </mat-form-field>
               </div>
+              }
 
               <div class="col-span-4 payment-overall-summary-row">
                 <div class="payment-overall-summary">
@@ -123,7 +187,7 @@
                     <thead>
                       <tr>
                         <th class="split-col-no">No</th>
-                        <th class="split-col-invoice">Invoice</th>
+                        <th class="split-col-invoice">{{ isOutbound ? 'Bill' : 'Invoice' }}</th>
                         <th class="split-col-amount">Amount</th>
                         <th class="split-col-description">Description</th>
                         <th class="split-col-actions"></th>
@@ -138,20 +202,20 @@
                               class="split-invoice-select"
                               [renderInFormField]="false"
                               [value]="splitGroup.get('invoiceId')?.value ?? ''"
-                              [options]="invoiceOptions"
+                              [options]="getSplitAllocationOptions(splitIndex)"
                               [required]="true"
                               [showInstructionOption]="true"
                               [instructionOptionValue]="''"
-                              nullOptionLabel="Select Invoice"
+                              [nullOptionLabel]="isOutbound ? 'Select Bill' : 'Select Invoice'"
                               [showSearchInput]="true"
                               [hideSearchHint]="false"
                               [hideSearchText]="false"
-                              searchPlaceholder="Type to filter invoices..."
-                              noResultsText="No invoices match your search"
+                              [searchPlaceholder]="isOutbound ? 'Type to filter bills...' : 'Type to filter invoices...'"
+                              [noResultsText]="isOutbound ? 'No bills match your search' : 'No invoices match your search'"
                               [selectClass]="getSplitInvoiceSelectClass(splitGroup)"
                               [showError]="shouldShowSplitControlError(splitGroup, 'invoiceId')"
-                              errorText="Invoice is required"
-                              (valueChange)="onSplitInvoiceSelectionChange(splitIndex, $event)" />
+                              [errorText]="isOutbound ? 'Bill is required' : 'Invoice is required'"
+                              (valueChange)="onSplitAllocationSelectionChange(splitIndex, $event)" />
                           </td>
                           <td class="split-col-amount">
                             <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"

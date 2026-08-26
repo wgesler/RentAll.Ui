@@ -235,6 +235,7 @@ export interface BillPaymentRequest {
   paymentTypeId: number;
   description: string;
   amount: number;
+  costCodeId?: number | null;
   bills: string[];
 }
 

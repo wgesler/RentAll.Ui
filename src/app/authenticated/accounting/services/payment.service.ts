@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { PaymentRequest, PaymentResponse, CreatePaymentWithAllocationsRequest, UpdatePaymentWithAllocationsRequest, ApplyInvoicePaymentRequest } from '../models/payment.model';
+import { PaymentDirection } from '../models/accounting-enum';
+import { PaymentResponse, CreatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, ApplyInvoicePaymentRequest, CreatePaymentWithBillAllocationsRequest, UpdatePaymentWithBillAllocationsRequest, UpdatePaymentInvoiceRequest, UpdatePaymentBillRequest } from '../models/payment.model';
 
 @Injectable({
   providedIn: 'root'
@@ -20,10 +21,11 @@ export class PaymentService {
     this.controller = this.configService.config().apiUrl + 'accounting/payment/';
   }
 
-  getPayments(officeId?: number | null): Observable<PaymentResponse[]> {
+  getPayments(officeId?: number | null, direction: PaymentDirection = PaymentDirection.Inbound): Observable<PaymentResponse[]> {
+    const directionSegment = direction === PaymentDirection.Outbound ? 'bill' : 'invoice';
     const request$ = officeId != null && Number.isFinite(officeId) && officeId > 0
-      ? this.http.get<PaymentResponse[]>(this.controller + 'inbound/office/' + officeId)
-      : this.http.get<PaymentResponse[]>(this.controller + 'inbound');
+      ? this.http.get<PaymentResponse[]>(this.controller + directionSegment + '/office/' + officeId)
+      : this.http.get<PaymentResponse[]>(this.controller + directionSegment);
 
     return request$.pipe(map(payments => (payments || []).map(payment => this.mappingService.mapPaymentResponse(payment))));
   }
@@ -33,13 +35,18 @@ export class PaymentService {
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 
-  createPayment(request: PaymentRequest): Observable<PaymentResponse> {
-    return this.http.post<PaymentResponse>(this.controller, request)
+  createPaymentWithInvoiceAllocations(request: CreatePaymentWithInvoiceAllocationsRequest): Observable<PaymentResponse> {
+    return this.http.post<PaymentResponse>(this.controller + 'invoice-allocations', request)
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 
-  createPaymentWithAllocations(request: CreatePaymentWithAllocationsRequest): Observable<PaymentResponse> {
-    return this.http.post<PaymentResponse>(this.controller + 'allocations', request)
+  createPaymentWithBillAllocations(request: CreatePaymentWithBillAllocationsRequest): Observable<PaymentResponse> {
+    return this.http.post<PaymentResponse>(this.controller + 'bill-allocations', request)
+      .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
+  }
+
+  updatePaymentWithBillAllocations(request: UpdatePaymentWithBillAllocationsRequest): Observable<PaymentResponse> {
+    return this.http.put<PaymentResponse>(this.controller + 'bill-allocations', request)
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 
@@ -48,13 +55,18 @@ export class PaymentService {
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 
-  updatePayment(request: PaymentRequest): Observable<PaymentResponse> {
-    return this.http.put<PaymentResponse>(this.controller, request)
+  updatePaymentInvoice(request: UpdatePaymentInvoiceRequest): Observable<PaymentResponse> {
+    return this.http.put<PaymentResponse>(this.controller + 'invoice', request)
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 
-  updatePaymentWithAllocations(request: UpdatePaymentWithAllocationsRequest): Observable<PaymentResponse> {
-    return this.http.put<PaymentResponse>(this.controller + 'allocations', request)
+  updatePaymentBill(request: UpdatePaymentBillRequest): Observable<PaymentResponse> {
+    return this.http.put<PaymentResponse>(this.controller + 'bill', request)
+      .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
+  }
+
+  updatePaymentWithInvoiceAllocations(request: UpdatePaymentWithInvoiceAllocationsRequest): Observable<PaymentResponse> {
+    return this.http.put<PaymentResponse>(this.controller + 'invoice-allocations', request)
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 

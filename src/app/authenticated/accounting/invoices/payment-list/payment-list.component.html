@@ -1,38 +1,38 @@
 <ng-template #paymentLedgerLinesTemplate let-payment>
   <div class="detail-lines-wrapper">
-    @if (payment?.ledgerLines?.length) {
+    @if (paymentHasAllocationDetails(payment)) {
       <table>
         <thead>
           <tr>
-            @for (columnName of getPaymentLedgerLineColumnNames(); track columnName) {
-              @if (paymentLedgerLineDisplayedColumns[columnName]) {
-                <th [style.max-width]="getPaymentLedgerLineColumnWidth(columnName)"
-                    [style.width]="getPaymentLedgerLineColumnWidth(columnName)"
-                    [style.min-width]="getPaymentLedgerLineColumnMinWidth(columnName)"
-                    [style.text-align]="paymentLedgerLineDisplayedColumns[columnName].headerAlignment || paymentLedgerLineDisplayedColumns[columnName].alignment || 'left'">
-                  {{ paymentLedgerLineDisplayedColumns[columnName].displayAs }}
+            @for (columnName of getPaymentAllocationColumnNames(); track columnName) {
+              @if (getPaymentAllocationColumnSet()[columnName]) {
+                <th [style.max-width]="getPaymentAllocationColumnWidth(columnName)"
+                    [style.width]="getPaymentAllocationColumnWidth(columnName)"
+                    [style.min-width]="getPaymentAllocationColumnMinWidth(columnName)"
+                    [style.text-align]="getPaymentAllocationColumnSet()[columnName].headerAlignment || getPaymentAllocationColumnSet()[columnName].alignment || 'left'">
+                  {{ getPaymentAllocationColumnSet()[columnName].displayAs }}
                 </th>
               }
             }
           </tr>
         </thead>
         <tbody>
-          @for (line of payment.ledgerLines; track $index; let lineIndex = $index) {
+          @for (line of getPaymentAllocationLines(payment); track $index; let lineIndex = $index) {
             <tr>
-              @for (columnName of getPaymentLedgerLineColumnNames(); track columnName) {
-                @if (paymentLedgerLineDisplayedColumns[columnName]) {
-                  <td [style.max-width]="getPaymentLedgerLineColumnWidth(columnName)"
-                      [style.width]="getPaymentLedgerLineColumnWidth(columnName)"
-                      [style.min-width]="getPaymentLedgerLineColumnMinWidth(columnName)"
-                      [style.text-align]="paymentLedgerLineDisplayedColumns[columnName].alignment || 'left'"
+              @for (columnName of getPaymentAllocationColumnNames(); track columnName) {
+                @if (getPaymentAllocationColumnSet()[columnName]) {
+                  <td [style.max-width]="getPaymentAllocationColumnWidth(columnName)"
+                      [style.width]="getPaymentAllocationColumnWidth(columnName)"
+                      [style.min-width]="getPaymentAllocationColumnMinWidth(columnName)"
+                      [style.text-align]="getPaymentAllocationColumnSet()[columnName].alignment || 'left'"
                       [class.no-wrap]="true">
-                    @if (columnName === 'invoiceCode' && (line.invoiceId || '').trim()) {
+                    @if (isInvoiceAllocationLink(line, columnName)) {
                       <span class="text-blue-700 underline cursor-pointer"
-                            (click)="goToInvoice($event, line)">
-                        {{ getPaymentLedgerLineColumnValue(line, columnName, lineIndex) }}
+                            (click)="onInvoiceAllocationClick($event, line)">
+                        {{ getPaymentAllocationColumnValue(line, columnName, lineIndex) }}
                       </span>
                     } @else {
-                      {{ getPaymentLedgerLineColumnValue(line, columnName, lineIndex) }}
+                      {{ getPaymentAllocationColumnValue(line, columnName, lineIndex) }}
                     }
                   </td>
                 }
@@ -42,7 +42,7 @@
         </tbody>
       </table>
     } @else {
-      <p class="no-lines">No invoice allocations linked to this payment.</p>
+      <p class="no-lines">{{ getPaymentAllocationEmptyMessage() }}</p>
     }
   </div>
 </ng-template>

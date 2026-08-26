@@ -29,13 +29,56 @@ export interface PaymentInvoiceAllocationRequest {
   description?: string;
 }
 
-export interface CreatePaymentWithAllocationsRequest extends PaymentRequest {
+export interface PaymentBillAllocationRequest {
+  receiptId: string;
+  amount: number;
+  description?: string;
+  costCodeId?: number | null;
+}
+
+export interface CreatePaymentWithBillAllocationsRequest {
+  organizationId: string;
+  officeId: number;
+  paymentDate: string;
+  amount: number;
+  description: string;
+  paymentTypeId?: number | null;
+  chartOfAccountId: number;
+  isActive: boolean;
+  allocations: PaymentBillAllocationRequest[];
+}
+
+export interface UpdatePaymentWithBillAllocationsRequest extends CreatePaymentWithBillAllocationsRequest {
+  paymentId: string;
+}
+
+export interface PaymentBillAllocation {
+  paymentBillAllocationId: string;
+  paymentId: string;
+  receiptId: string;
+  receiptCode: string;
+  lineNumber: number;
+  amount: number;
+  costCodeId?: number | null;
+  costCodeDescription?: string;
+  description: string;
+}
+
+export interface CreatePaymentWithInvoiceAllocationsRequest {
+  organizationId: string;
+  officeId: number;
+  paymentDate: string;
+  amount: number;
+  costCodeId: number;
+  description: string;
+  paymentTypeId?: number | null;
+  depositId?: string | null;
+  isActive: boolean;
   allocations: PaymentInvoiceAllocationRequest[];
 }
 
-export interface UpdatePaymentWithAllocationsRequest extends PaymentRequest {
+export interface UpdatePaymentWithInvoiceAllocationsRequest extends CreatePaymentWithInvoiceAllocationsRequest {
   paymentId: string;
-  allocations: PaymentInvoiceAllocationRequest[];
 }
 
 export interface ApplyInvoicePaymentRequest {
@@ -45,24 +88,34 @@ export interface ApplyInvoicePaymentRequest {
   amount: number;
   costCodeId: number;
   description: string;
-  paymentDirectionId: number;
   paymentTypeId?: number | null;
   isActive?: boolean;
   invoices?: string[];
   allocations?: PaymentInvoiceAllocationRequest[];
 }
 
-export interface PaymentRequest {
-  paymentId?: string;
+export interface UpdatePaymentInvoiceRequest {
+  paymentId: string;
   organizationId: string;
   officeId: number;
   paymentDate: string;
   amount: number;
   costCodeId: number;
   description: string;
-  paymentDirectionId: number;
   paymentTypeId?: number | null;
   depositId?: string | null;
+  isActive: boolean;
+}
+
+export interface UpdatePaymentBillRequest {
+  paymentId: string;
+  organizationId: string;
+  officeId: number;
+  paymentDate: string;
+  amount: number;
+  description: string;
+  paymentTypeId?: number | null;
+  chartOfAccountId: number;
   isActive: boolean;
 }
 
@@ -84,7 +137,11 @@ export interface PaymentResponse {
   depositCode?: string;
   postingStatusId?: number | null;
   isActive: boolean;
+  invoiceAllocations: PaymentLedgerLine[];
+  /** @deprecated Use invoiceAllocations — kept for internal component compatibility. */
   ledgerLines: PaymentLedgerLine[];
+  billAllocations?: PaymentBillAllocation[];
+  chartOfAccountId?: number | null;
   createdOn?: string;
   createdBy?: string;
   createdByName?: string;
@@ -108,10 +165,13 @@ export interface PaymentDisplayList {
   hasDeposit: boolean;
   descriptionDisplay?: string;
   invoiceSummaryDisplay?: string;
+  billSummaryDisplay?: string;
   allocatedAmount?: number;
   allocatedAmountDisplay?: string;
   ledgerLineSummaryDisplay?: string;
   ledgerLines: PaymentLedgerLine[];
+  billAllocations?: PaymentBillAllocation[];
+  paymentDirectionId?: number;
   isActive: boolean;
   createdBy?: string;
   createdByName?: string;

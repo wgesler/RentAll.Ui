@@ -3,21 +3,26 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
-import { PaymentDirection, PaymentDirectionLabels, PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
+import { AccountType, PaymentDirection, PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
+import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
-import { CreatePaymentWithAllocationsRequest, UpdatePaymentWithAllocationsRequest, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../../models/payment.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentResponse } from '../../models/payment.model';
+import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
+import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { CostCodesService } from '../../services/cost-codes.service';
+import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { InvoiceService } from '../../services/invoice.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
 import { PaymentService } from '../../services/payment.service';
+import { ContactService } from '../../../contacts/services/contact.service';
 
 @Component({
   standalone: true,
@@ -30,6 +35,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
   @Input() paymentId: string | null = null;
+  @Input() paymentDirection: PaymentDirection = PaymentDirection.Inbound;
   @Input() prefetchedPayment: PaymentResponse | null = null;
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
@@ -38,8 +44,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   private authService = inject(AuthService);
   private paymentService = inject(PaymentService);
   private invoiceService = inject(InvoiceService);
+  private receiptService = inject(ReceiptService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
   private journalEntryService = inject(JournalEntryService);
   private costCodesService = inject(CostCodesService);
+  private contactService = inject(ContactService);
   private utilityService = inject(UtilityService);
   private mappingService = inject(MappingService);
   formatter = inject(FormatterService);
@@ -54,11 +63,13 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   organizationId = '';
   payment: PaymentResponse | null = null;
   invoices: InvoiceResponse[] = [];
+  bills: ReceiptResponse[] = [];
   costCodeOptions: SearchableSelectOption<number>[] = [];
-  invoiceOptions: SearchableSelectOption<string>[] = [];
-  readonly paymentDirectionOptions = PaymentDirectionLabels;
+  bankAccountOptions: SearchableSelectOption<number>[] = [];
+  private officeCostCodes: CostCodesResponse[] = [];
+  private officeChartOfAccounts: ChartOfAccountResponse[] = [];
+  allocationOptions: SearchableSelectOption<string>[] = [];
   readonly paymentTypeOptions = PaymentTypeLabels;
-  readonly comparePaymentDirectionIds = (left: number | null, right: number | null): boolean => left === right;
   readonly comparePaymentTypeIds = (left: number | null, right: number | null): boolean => left === right;
   amountFocused = false;
   amountEditValue = '';
@@ -85,10 +96,14 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     return Number.isFinite(costCodeId) && costCodeId > 0 ? null : { required: true };
   };
 
-  readonly requireInvoiceId = (control: AbstractControl): ValidationErrors | null => {
-    const invoiceId = (control.value || '').toString().trim();
-    return invoiceId.length > 0 ? null : { required: true };
+  readonly requireAllocationId = (control: AbstractControl): ValidationErrors | null => {
+    const allocationId = (control.value || '').toString().trim();
+    return allocationId.length > 0 ? null : { required: true };
   };
+
+  get isOutbound(): boolean {
+    return this.paymentDirection === PaymentDirection.Outbound;
+  }
 
   constructor() {
     this.form = this.fb.group({});
@@ -98,11 +113,14 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
+    this.applyPaymentDirectionFormRules();
+    this.setupOutboundFormHandlers();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
     this.isAddMode = this.paymentId === 'new';
     this.loadCostCodesForOffice();
+    this.loadBankAccountsForOffice();
     if (this.isAddMode) {
-      this.loadInvoicesForOffice();
+      this.loadAllocationsForOffice();
       this.ensureAtLeastOneSplit();
       this.isPaymentContentReady = true;
       this.clearPaymentLoading();
@@ -136,7 +154,13 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.loadCostCodesForOffice();
-      this.loadInvoicesForOffice();
+      this.loadBankAccountsForOffice();
+      this.loadAllocationsForOffice();
+    }
+    if (changes['paymentDirection'] && !changes['paymentDirection'].firstChange) {
+      this.loadBankAccountsForOffice();
+      this.loadAllocationsForOffice();
+      this.applyPaymentDirectionFormRules();
     }
   }
 
@@ -162,6 +186,13 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const paymentTypeId = this.resolvePaymentTypeIdFromForm();
+
+    if (this.isOutbound) {
+      this.saveOutboundPayment(paymentDateValue, paymentTypeId);
+      return;
+    }
+
     const amountValue = parseFloat(this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '')) || 0;
     const costCodeId = Number(this.form.get('costCodeId')?.value ?? 0);
     if (!Number.isFinite(costCodeId) || costCodeId <= 0) {
@@ -170,15 +201,12 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const paymentDirectionId = this.resolvePaymentDirectionIdFromForm();
-    const paymentTypeId = this.resolvePaymentTypeIdFromForm();
-
     if (!this.isAddMode && !this.payment?.paymentId) {
       this.toastr.error('Payment is still loading.', 'Error');
       return;
     }
 
-    const payload = this.mappingService.buildPaymentSaveRequest(
+    const payload = this.mappingService.buildPaymentInvoiceAllocationsRequest(
       this.isAddMode ? null : this.payment,
       this.organizationId,
       this.getPaymentOfficeId(),
@@ -187,7 +215,6 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
         amount: amountValue,
         costCodeId,
         description: (this.form.get('description')?.value || '').trim(),
-        paymentDirectionId,
         paymentTypeId,
         isActive: !!this.form.get('isActive')?.value
       }
@@ -207,11 +234,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       this.splitTotalValidationError = false;
 
       this.isSubmitting = true;
-      const createPayload: CreatePaymentWithAllocationsRequest = {
+      const createPayload: CreatePaymentWithInvoiceAllocationsRequest = {
         ...payload,
         allocations
       };
-      this.paymentService.createPaymentWithAllocations(createPayload).pipe(take(1), finalize(() => {
+      this.paymentService.createPaymentWithInvoiceAllocations(createPayload).pipe(take(1), finalize(() => {
         this.isSubmitting = false;
         this.cdr.markForCheck();
       })).subscribe({
@@ -246,12 +273,12 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
     const savePayment = () => {
       this.isSubmitting = true;
-      const updatePayload: UpdatePaymentWithAllocationsRequest = {
+      const updatePayload: UpdatePaymentWithInvoiceAllocationsRequest = {
         ...payload,
         paymentId: this.payment!.paymentId,
         allocations
       };
-      this.paymentService.updatePaymentWithAllocations(updatePayload).pipe(take(1), finalize(() => {
+      this.paymentService.updatePaymentWithInvoiceAllocations(updatePayload).pipe(take(1), finalize(() => {
         this.isSubmitting = false;
         this.cdr.markForCheck();
       })).subscribe({
@@ -278,6 +305,125 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       savePayment();
     });
   }
+
+  saveOutboundPayment(paymentDateValue: string, paymentTypeId: number | null): void {
+    const accountingPeriodValue = this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value);
+    if (!accountingPeriodValue) {
+      this.form.get('accountingPeriod')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
+
+    const chartOfAccountId = Number(this.form.get('chartOfAccountId')?.value ?? 0);
+    if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+      this.form.get('chartOfAccountId')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
+
+    const allocations = this.getPayloadAllocationsFromForm();
+    if (allocations.length === 0) {
+      this.showValidationErrorToast();
+      return;
+    }
+    if (this.isAllocationTotalOutOfBalance()) {
+      this.splitTotalValidationError = true;
+      this.showValidationErrorToast();
+      return;
+    }
+    this.splitTotalValidationError = false;
+
+    const request = this.buildOutboundBillAllocationsRequest(
+      paymentDateValue,
+      paymentTypeId ?? PaymentType.Check,
+      chartOfAccountId,
+      allocations
+    );
+
+    const postingStatusIds = allocations.map(allocation => {
+      const bill = this.bills.find(item => item.receiptId === allocation.invoiceId);
+      return bill?.postingStatusId;
+    });
+
+    const persistOutboundPayment = () => {
+      this.isSubmitting = true;
+      const saveRequest$ = this.isAddMode
+        ? this.paymentService.createPaymentWithBillAllocations(request)
+        : this.paymentService.updatePaymentWithBillAllocations({
+          ...request,
+          paymentId: this.payment!.paymentId
+        });
+
+      saveRequest$.pipe(
+        take(1),
+        finalize(() => {
+          this.isSubmitting = false;
+          this.cdr.markForCheck();
+        })
+      ).subscribe({
+        next: (payment: PaymentResponse) => {
+          this.payment = payment;
+          this.isAddMode = false;
+          this.saveValidationHighlightActive = false;
+          this.toastr.success('Payment saved successfully.', 'Success');
+          this.savedEvent.emit(payment);
+          if (this.autoBackOnSave) {
+            this.backEvent.emit();
+          }
+        },
+        error: (_err: HttpErrorResponse) => {
+          this.toastr.error('Unable to save payment.', 'Error');
+        }
+      });
+    };
+
+    if (this.isAddMode) {
+      this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Receipt').pipe(take(1)).subscribe(canProceed => {
+        if (!canProceed) {
+          return;
+        }
+        persistOutboundPayment();
+      });
+      return;
+    }
+
+    this.journalEntryService.confirmUpdateIfAllowed(this.payment?.postingStatusId, 'Payment').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        return;
+      }
+      persistOutboundPayment();
+    });
+  }
+
+  buildOutboundBillAllocationsRequest(
+    paymentDateValue: string,
+    paymentTypeId: number,
+    chartOfAccountId: number,
+    allocations: CreatePaymentWithInvoiceAllocationsRequest['allocations']
+  ): CreatePaymentWithBillAllocationsRequest {
+    const overallDescription = (this.form.get('description')?.value || '').trim();
+    const amountValue = parseFloat(this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '')) || 0;
+
+    return {
+      organizationId: this.organizationId,
+      officeId: this.getPaymentOfficeId(),
+      paymentDate: paymentDateValue,
+      amount: amountValue,
+      description: overallDescription,
+      paymentTypeId,
+      chartOfAccountId,
+      isActive: !!this.form.get('isActive')?.value,
+      allocations: allocations.map(allocation => {
+        const bill = this.bills.find(item => item.receiptId === allocation.invoiceId);
+        return {
+          receiptId: allocation.invoiceId,
+          amount: allocation.amount,
+          description: (allocation.description || overallDescription).trim(),
+          costCodeId: this.resolveBillCostCodeId(bill)
+        };
+      })
+    };
+  }
   //#endregion
 
   //#region Build Form
@@ -286,9 +432,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     today.setHours(0, 0, 0, 0);
     this.form = this.fb.group({
       paymentDate: new FormControl<Date | null>(today, [Validators.required]),
+      accountingPeriod: new FormControl<Date | null>(this.firstDayOfMonthDate(today)),
       amount: new FormControl('0.00', [Validators.required, this.requirePositiveAmount]),
       costCodeId: new FormControl<number>(0, [Validators.required, this.requireCostCodeId]),
-      paymentDirectionId: new FormControl<number>(PaymentDirection.Inbound),
+      chartOfAccountId: new FormControl<number>(0),
       paymentTypeId: new FormControl<number | null>(PaymentType.Check),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true),
@@ -296,17 +443,64 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  applyPaymentDirectionFormRules(): void {
+    const headerCostCodeControl = this.form.get('costCodeId');
+    if (headerCostCodeControl) {
+      if (this.isOutbound) {
+        headerCostCodeControl.clearValidators();
+        headerCostCodeControl.setValue(0, { emitEvent: false });
+      } else {
+        headerCostCodeControl.setValidators([Validators.required, this.requireCostCodeId]);
+      }
+      headerCostCodeControl.updateValueAndValidity({ emitEvent: false });
+    }
+  }
+
+  setupOutboundFormHandlers(): void {
+    this.form.get('paymentDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(paymentDateValue => {
+      if (!this.isOutbound) {
+        return;
+      }
+      const parsed = this.utilityService.parseCalendarDateInput(paymentDateValue);
+      if (parsed) {
+        this.syncAccountingPeriodFromPaymentDate(parsed);
+      }
+    });
+  }
+
+  firstDayOfMonthDate(value: Date | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const first = new Date(value.getFullYear(), value.getMonth(), 1);
+    first.setHours(0, 0, 0, 0);
+    return first;
+  }
+
+  syncAccountingPeriodFromPaymentDate(paymentDate: Date): void {
+    const firstOfMonth = this.firstDayOfMonthDate(paymentDate);
+    if (firstOfMonth) {
+      this.form.get('accountingPeriod')?.setValue(firstOfMonth, { emitEvent: false });
+    }
+  }
+
   populateForm(payment: PaymentResponse): void {
+    const paymentDate = this.getDateControlValue(payment.paymentDate);
     this.form.patchValue({
-      paymentDate: this.getDateControlValue(payment.paymentDate),
+      paymentDate,
+      accountingPeriod: this.firstDayOfMonthDate(paymentDate ?? new Date()),
       description: payment.description || '',
       amount: payment.amount != null ? this.formatter.currency(payment.amount) : '0.00',
       costCodeId: payment.costCodeId ?? 0,
-      paymentDirectionId: PaymentDirection.Inbound,
+      chartOfAccountId: payment.chartOfAccountId ?? 0,
       paymentTypeId: payment.paymentTypeId ?? null,
       isActive: payment.isActive
     });
-    this.replaceSplitLinesFromLedgerLines(payment.ledgerLines || []);
+    if (this.isOutbound) {
+      this.replaceSplitLinesFromBillAllocations(payment.billAllocations || []);
+      return;
+    }
+    this.replaceSplitLinesFromLedgerLines(payment.invoiceAllocations ?? payment.ledgerLines ?? []);
   }
 
   resetForm(): void {
@@ -315,14 +509,12 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.clearPaymentLoading();
     this.buildForm();
     this.loadCostCodesForOffice();
-    this.loadInvoicesForOffice();
+    this.loadBankAccountsForOffice();
+    this.loadAllocationsForOffice();
     this.ensureAtLeastOneSplit();
+    this.applyPaymentDirectionFormRules();
   }
   //#endregion
-
-  resolvePaymentDirectionIdFromForm(): number {
-    return PaymentDirection.Inbound;
-  }
 
   resolvePaymentTypeIdFromForm(): number | null {
     const raw = this.form.get('paymentTypeId')?.value;
@@ -392,16 +584,35 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  replaceSplitLinesFromBillAllocations(allocations: PaymentBillAllocation[]): void {
+    while (this.splitsFormArray.length > 0) {
+      this.splitsFormArray.removeAt(0);
+    }
+
+    if (!allocations.length) {
+      this.ensureAtLeastOneSplit();
+      return;
+    }
+
+    allocations.forEach(allocation => {
+      this.splitsFormArray.push(this.createSplitGroup({
+        invoiceId: allocation.receiptId,
+        amount: allocation.amount,
+        description: allocation.description
+      }));
+    });
+  }
+
   createSplitGroup(split?: { invoiceId?: string; amount?: number; description?: string }): FormGroup {
     const amount = Number(split?.amount);
     return this.fb.group({
-      invoiceId: new FormControl((split?.invoiceId || '').trim(), [Validators.required, this.requireInvoiceId]),
+      invoiceId: new FormControl((split?.invoiceId || '').trim(), [Validators.required, this.requireAllocationId]),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required])
     });
   }
 
-  getPayloadAllocationsFromForm(): CreatePaymentWithAllocationsRequest['allocations'] {
+  getPayloadAllocationsFromForm(): CreatePaymentWithInvoiceAllocationsRequest['allocations'] {
     return this.splitsFormArray.controls.map(control => {
       const group = control as FormGroup;
       const amount = parseFloat(this.sanitizeSignedDecimalInput(group.get('amount')?.value?.toString() ?? '')) || 0;
@@ -448,19 +659,34 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  onSplitInvoiceSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
-    const invoiceId = (value ?? '').toString().trim();
+  onSplitAllocationSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
+    const allocationId = (value ?? '').toString().trim();
     const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
-    splitGroup?.get('invoiceId')?.setValue(invoiceId);
+    splitGroup?.get('invoiceId')?.setValue(allocationId);
     splitGroup?.get('invoiceId')?.markAsTouched();
-    if (invoiceId.length > 0) {
-      const balanceDue = this.getInvoiceBalanceDue(invoiceId);
+    if (allocationId.length > 0) {
+      const balanceDue = this.isOutbound
+        ? this.getBillBalanceDue(allocationId)
+        : this.getInvoiceBalanceDue(allocationId);
       splitGroup?.get('amount')?.setValue(balanceDue.toFixed(2), { emitEvent: false });
       splitGroup?.get('amount')?.markAsTouched();
       splitGroup?.get('amount')?.updateValueAndValidity({ emitEvent: false });
+
+      if (this.isOutbound) {
+        const bill = this.bills.find(item => item.receiptId === allocationId);
+        const splitDescription = this.buildBillSplitLineDescription(bill);
+        if (splitDescription) {
+          splitGroup?.get('description')?.setValue(splitDescription, { emitEvent: false });
+          splitGroup?.get('description')?.markAsTouched();
+        }
+      }
     }
     this.syncPaymentAmountFromSplits();
     this.cdr.markForCheck();
+  }
+
+  onSplitInvoiceSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
+    this.onSplitAllocationSelectionChange(splitIndex, value);
   }
 
   getInvoiceBalanceDue(invoiceId: string): number {
@@ -470,6 +696,16 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const balance = Math.round(((Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0)) * 100) / 100;
+    return balance > 0 ? balance : 0;
+  }
+
+  getBillBalanceDue(receiptId: string): number {
+    const bill = this.bills.find(item => item.receiptId === receiptId);
+    if (!bill) {
+      return 0;
+    }
+
+    const balance = Math.round(((Number(bill.amount) || 0) - (Number(bill.paidAmount) || 0)) * 100) / 100;
     return balance > 0 ? balance : 0;
   }
 
@@ -536,6 +772,52 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   shouldShowSplitControlError(splitGroup: AbstractControl, controlName: string): boolean {
     return this.shouldShowControlError((splitGroup as FormGroup).get(controlName));
+  }
+
+  getSplitAllocationOptions(splitIndex: number): SearchableSelectOption<string>[] {
+    if (!this.isOutbound) {
+      return this.allocationOptions;
+    }
+
+    return this.buildBillOptionsForSplit(splitIndex);
+  }
+
+  buildBillOptionsForSplit(splitIndex: number): SearchableSelectOption<string>[] {
+    const excludeReceiptIds = new Set<string>();
+    this.splitsFormArray.controls.forEach((control, index) => {
+      if (index === splitIndex) {
+        return;
+      }
+
+      const receiptId = (control.get('invoiceId')?.value || '').toString().trim();
+      if (receiptId.length > 0) {
+        excludeReceiptIds.add(receiptId);
+      }
+    });
+
+    const currentReceiptId = (this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.value || '').toString().trim();
+    const options = this.buildBillOptions(this.bills, excludeReceiptIds);
+
+    if (currentReceiptId.length > 0 && !options.some(option => option.value === currentReceiptId)) {
+      const bill = this.bills.find(item => item.receiptId === currentReceiptId);
+      if (bill) {
+        options.push({
+          value: bill.receiptId,
+          label: this.buildBillOptionLabel(bill)
+        });
+      } else {
+        const allocation = (this.payment?.billAllocations || []).find(item => item.receiptId === currentReceiptId);
+        const receiptCode = (allocation?.receiptCode || currentReceiptId).trim();
+        options.push({
+          value: currentReceiptId,
+          label: receiptCode.length > 0 ? `${receiptCode} — Bal $0.00` : currentReceiptId
+        });
+      }
+
+      options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+    }
+
+    return options;
   }
 
   buildInvoiceOptions(
@@ -615,7 +897,8 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.payment = payment;
     this.populateForm(payment);
     this.loadCostCodesForOffice();
-    this.loadInvoicesForOffice();
+    this.loadBankAccountsForOffice();
+    this.loadAllocationsForOffice();
     this.clearPaymentLoading();
     this.isPaymentContentReady = true;
     this.cdr.markForCheck();
@@ -625,21 +908,116 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     const officeId = this.getPaymentOfficeId();
     if (!officeId) {
       this.costCodeOptions = [];
+      this.officeCostCodes = [];
       return;
     }
 
     this.costCodesService.getCostCodesByOfficeId(officeId).pipe(take(1)).subscribe({
       next: (costCodes: CostCodesResponse[]) => {
-        this.costCodeOptions = (costCodes || [])
-          .filter(code => code.isActive !== false && code.transactionTypeId === TransactionType.Payment)
-          .map(code => ({
-            value: code.costCodeId,
-            label: `${(code.costCode || '').trim()} - ${(code.description || '').trim()}`.replace(/ - $/, '')
-          }));
+        this.officeCostCodes = (costCodes || []).filter(code => code.isActive !== false);
+        if (this.isOutbound) {
+          this.costCodeOptions = [];
+        } else {
+          this.costCodeOptions = this.officeCostCodes
+            .filter(code => code.transactionTypeId === TransactionType.Payment)
+            .map(code => ({
+              value: code.costCodeId,
+              label: `${(code.costCode || '').trim()} - ${(code.description || '').trim()}`.replace(/ - $/, '')
+            }));
+        }
         this.cdr.markForCheck();
       },
       error: () => {
         this.costCodeOptions = [];
+        this.officeCostCodes = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  loadAllocationsForOffice(): void {
+    if (this.isOutbound) {
+      this.loadBillsForOffice();
+      return;
+    }
+    this.loadInvoicesForOffice();
+  }
+
+  loadBankAccountsForOffice(): void {
+    if (!this.isOutbound) {
+      this.bankAccountOptions = [];
+      return;
+    }
+
+    const officeId = this.getPaymentOfficeId();
+    if (!officeId) {
+      this.bankAccountOptions = [];
+      return;
+    }
+
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(take(1)).subscribe({
+        next: (accounts: ChartOfAccountResponse[]) => {
+          this.officeChartOfAccounts = (accounts || []).filter(account => account.officeId === officeId);
+          this.bankAccountOptions = this.officeChartOfAccounts
+            .filter(account => Number(account.accountTypeId) === AccountType.Bank)
+            .sort((left, right) =>
+              this.utilityService.getChartOfAccountDropdownLabel(left).localeCompare(
+                this.utilityService.getChartOfAccountDropdownLabel(right),
+                undefined,
+                { sensitivity: 'base' }
+              )
+            )
+            .map(account => ({
+              value: Number(account.accountId),
+              label: this.utilityService.getChartOfAccountDropdownLabel(account)
+            }));
+
+          const currentValue = Number(this.form.get('chartOfAccountId')?.value ?? 0);
+          const hasCurrent = this.bankAccountOptions.some(option => option.value === currentValue);
+          if (!hasCurrent && this.bankAccountOptions.length > 0) {
+            this.form.patchValue({ chartOfAccountId: this.bankAccountOptions[0].value });
+          }
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.bankAccountOptions = [];
+          this.cdr.markForCheck();
+        }
+      });
+    });
+  }
+
+  loadBillsForOffice(): void {
+    const officeId = this.getPaymentOfficeId();
+    if (!officeId) {
+      this.bills = [];
+      this.allocationOptions = [];
+      return;
+    }
+
+    this.contactService.ensureContactsLoaded().pipe(
+      take(1),
+      switchMap(() => this.receiptService.searchReceipts({
+        officeIds: [officeId],
+        isActive: true,
+        includeInactive: false,
+        receiptKind: 1,
+        startDate: null,
+        endDate: null
+      })),
+      take(1)
+    ).subscribe({
+      next: (receipts: ReceiptResponse[]) => {
+        this.bills = (receipts || [])
+          .filter(receipt => (receipt.bankCardId ?? 0) === 0)
+          .filter(receipt => this.isBillUnpaid(receipt));
+        this.allocationOptions = this.buildBillOptions(this.bills);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.bills = [];
+        this.allocationOptions = [];
         this.cdr.markForCheck();
       }
     });
@@ -649,7 +1027,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     const officeId = this.getPaymentOfficeId();
     if (!officeId) {
       this.invoices = [];
-      this.invoiceOptions = [];
+      this.allocationOptions = [];
       return;
     }
 
@@ -662,16 +1040,127 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }).pipe(take(1)).subscribe({
       next: (invoices: InvoiceResponse[]) => {
         this.invoices = invoices || [];
-        const allocatedLedgerLines = this.isAddMode ? [] : (this.payment?.ledgerLines || []);
-        this.invoiceOptions = this.buildInvoiceOptions(this.invoices, allocatedLedgerLines);
+        const allocatedLedgerLines = this.isAddMode ? [] : (this.payment?.invoiceAllocations ?? this.payment?.ledgerLines ?? []);
+        this.allocationOptions = this.buildInvoiceOptions(this.invoices, allocatedLedgerLines);
         this.cdr.markForCheck();
       },
       error: () => {
         this.invoices = [];
-        this.invoiceOptions = [];
+        this.allocationOptions = [];
         this.cdr.markForCheck();
       }
     });
+  }
+
+  onBankAccountSelectionChange(value: number | string): void {
+    this.form.patchValue({ chartOfAccountId: Number(value) || 0 });
+    this.form.get('chartOfAccountId')?.markAsTouched();
+  }
+
+  buildBillOptions(bills: ReceiptResponse[], excludeReceiptIds: Set<string> = new Set<string>()): SearchableSelectOption<string>[] {
+    return (bills || [])
+      .filter(bill => this.isBillUnpaid(bill))
+      .filter(bill => !excludeReceiptIds.has(bill.receiptId))
+      .map(bill => ({
+        value: bill.receiptId,
+        label: this.buildBillOptionLabel(bill)
+      }))
+      .filter(option => option.value.length > 0)
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }
+
+  private buildBillSplitLineDescription(bill: ReceiptResponse | undefined): string {
+    if (!bill) {
+      return '';
+    }
+
+    const splitDescriptions = (bill.splits || [])
+      .filter(split => Number(split.receiptTypeId) !== 4 && Number(split.amount) !== 0)
+      .map(split => (split.description || '').trim())
+      .filter(description => description.length > 0);
+
+    if (splitDescriptions.length > 0) {
+      return splitDescriptions.join(' — ');
+    }
+
+    return (bill.description || '').trim();
+  }
+
+  private buildBillOptionLabel(bill: ReceiptResponse): string {
+    const receiptCode = (bill.receiptCode || '').trim();
+    const vendor = this.resolveBillVendorLabel(bill);
+    const balanceLabel = this.formatter.currencyUsd(this.getBillBalanceDueAmount(bill));
+    const codePrefix = receiptCode.length > 0 ? `${receiptCode} — ` : '';
+    return `${codePrefix}${vendor} — ${balanceLabel}`;
+  }
+
+  private resolveBillCostCodeId(bill: ReceiptResponse | undefined): number | null {
+    if (!bill) {
+      return null;
+    }
+
+    const officeId = Number(bill.officeId ?? 0);
+    const eligibleSplits = (bill.splits || [])
+      .filter(split => Number(split.receiptTypeId) !== 4 && Number(split.amount) !== 0)
+      .sort((left, right) => Math.abs(Number(right.amount) || 0) - Math.abs(Number(left.amount) || 0));
+
+    for (const split of eligibleSplits) {
+      const chartOfAccountId = Number(split.chartOfAccountId ?? 0);
+      if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+        continue;
+      }
+
+      const account = this.officeChartOfAccounts.find(item =>
+        Number(item.accountId) === chartOfAccountId && Number(item.officeId) === officeId);
+      if (!account) {
+        continue;
+      }
+
+      const accountCode = this.mappingService.normalizeAccountCodeForMatch(account.accountNo);
+      if (!accountCode) {
+        continue;
+      }
+
+      const matchingCostCode = this.officeCostCodes.find(code =>
+        Number(code.officeId) === officeId
+        && this.mappingService.normalizeAccountCodeForMatch(code.costCode) === accountCode);
+      if (matchingCostCode?.costCodeId) {
+        return Number(matchingCostCode.costCodeId);
+      }
+    }
+
+    return null;
+  }
+
+  private resolveBillVendorLabel(bill: ReceiptResponse): string {
+    const headerVendor = (bill.vendorName || '').trim();
+    if (headerVendor.length > 0) {
+      return headerVendor;
+    }
+
+    const vendorId = (bill.vendorId || '').trim();
+    if (vendorId.length > 0) {
+      const vendor = this.contactService.getAllContactsValue().find(
+        contact => String(contact.contactId || '').trim().toLowerCase() === vendorId.toLowerCase()
+      );
+      const vendorLabel = vendor ? this.utilityService.getVendorDropdownLabel(vendor).trim() : '';
+      if (vendorLabel.length > 0) {
+        return vendorLabel;
+      }
+    }
+
+    const splitVendor = (bill.splits || [])
+      .map(split => (split.vendorName || '').trim())
+      .find(name => name.length > 0);
+    return splitVendor || 'Unknown Vendor';
+  }
+
+  private isBillUnpaid(bill: ReceiptResponse): boolean {
+    return this.getBillBalanceDueAmount(bill) > 0.005;
+  }
+
+  private getBillBalanceDueAmount(bill: ReceiptResponse): number {
+    return Math.round(((Number(bill.amount) || 0) - (Number(bill.paidAmount) || 0)) * 100) / 100;
   }
   //#endregion
 

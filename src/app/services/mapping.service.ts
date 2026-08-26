@@ -28,7 +28,7 @@ import { MaintenanceListSearchRequest } from '../authenticated/maintenance/model
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
-import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
 import { PaymentDirection, getPaymentDirectionLabel, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -3955,9 +3955,14 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     const modifiedBy = String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim();
     const isActiveRaw = rawRecord['isActive'] ?? rawRecord['IsActive'] ?? base.isActive;
     const isActive = isActiveRaw === true || isActiveRaw === 'true' || isActiveRaw === 1;
-    const ledgerLines = this.mapPaymentLedgerLinesFromApi(
-      (rawRecord['ledgerLines'] ?? rawRecord['LedgerLines'] ?? base.ledgerLines) as PaymentLedgerLine[] | undefined | null
+    const invoiceAllocations = this.mapPaymentLedgerLinesFromApi(
+      (rawRecord['invoiceAllocations'] ?? rawRecord['InvoiceAllocations'] ?? rawRecord['ledgerLines'] ?? rawRecord['LedgerLines'] ?? base.invoiceAllocations ?? base.ledgerLines) as PaymentLedgerLine[] | undefined | null
     );
+    const billAllocations = this.mapPaymentBillAllocationsFromApi(
+      (rawRecord['billAllocations'] ?? rawRecord['BillAllocations'] ?? base.billAllocations) as PaymentBillAllocation[] | undefined | null
+    );
+    const chartOfAccountIdRaw = rawRecord['chartOfAccountId'] ?? rawRecord['ChartOfAccountId'] ?? base.chartOfAccountId;
+    const chartOfAccountId = chartOfAccountIdRaw == null ? null : Number(chartOfAccountIdRaw) || null;
 
     return {
       ...base,
@@ -3979,7 +3984,10 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       depositCode: String(rawRecord['depositCode'] ?? rawRecord['DepositCode'] ?? base.depositCode ?? '').trim(),
       postingStatusId: this.mapOptionalPostingStatusId(rawRecord, base.postingStatusId),
       isActive,
-      ledgerLines,
+      invoiceAllocations,
+      ledgerLines: invoiceAllocations,
+      billAllocations,
+      chartOfAccountId,
       createdOn,
       createdBy: createdBy || createdByName,
       createdByName: createdByName || createdBy,
@@ -3990,6 +3998,29 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
 
   mapPaymentLedgerLinesFromApi(lines: PaymentLedgerLine[] | undefined | null): PaymentLedgerLine[] {
     return (lines || []).map(line => this.mapPaymentLedgerLineFromApi(line));
+  }
+
+  mapPaymentBillAllocationsFromApi(allocations: PaymentBillAllocation[] | undefined | null): PaymentBillAllocation[] {
+    return (allocations || []).map(allocation => this.mapPaymentBillAllocationFromApi(allocation));
+  }
+
+  mapPaymentBillAllocationFromApi(raw: PaymentBillAllocation | Record<string, unknown>): PaymentBillAllocation {
+    const base = raw as PaymentBillAllocation;
+    const rawRecord = raw as Record<string, unknown>;
+    const costCodeIdRaw = rawRecord['costCodeId'] ?? rawRecord['CostCodeId'] ?? base.costCodeId;
+    const costCodeId = costCodeIdRaw == null ? null : Number(costCodeIdRaw) || null;
+
+    return {
+      paymentBillAllocationId: String(rawRecord['paymentBillAllocationId'] ?? rawRecord['PaymentBillAllocationId'] ?? base.paymentBillAllocationId ?? '').trim(),
+      paymentId: String(rawRecord['paymentId'] ?? rawRecord['PaymentId'] ?? base.paymentId ?? '').trim(),
+      receiptId: String(rawRecord['receiptId'] ?? rawRecord['ReceiptId'] ?? base.receiptId ?? '').trim(),
+      receiptCode: String(rawRecord['receiptCode'] ?? rawRecord['ReceiptCode'] ?? base.receiptCode ?? '').trim(),
+      lineNumber: Number(rawRecord['lineNumber'] ?? rawRecord['LineNumber'] ?? base.lineNumber ?? 0) || 0,
+      amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,
+      costCodeId,
+      costCodeDescription: String(rawRecord['costCodeDescription'] ?? rawRecord['CostCodeDescription'] ?? base.costCodeDescription ?? '').trim(),
+      description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim()
+    };
   }
 
   mapPaymentLedgerLineFromApi(raw: PaymentLedgerLine | Record<string, unknown>): PaymentLedgerLine {
@@ -4030,15 +4061,17 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
 
   mapPaymentDisplays(payments: PaymentResponse[]): PaymentDisplayList[] {
     return (payments || []).map((payment: PaymentResponse): PaymentDisplayList => {
-      const ledgerLines = this.mapPaymentLedgerLinesFromApi(payment.ledgerLines);
-      const allocatedAmount = ledgerLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
-      const invoiceCodes = Array.from(
-        new Set(
-          ledgerLines
-            .map(line => (line.invoiceCode || '').trim())
-            .filter(code => code.length > 0)
-        )
-      );
+      const paymentDirectionId = this.normalizePaymentDirectionId(payment.paymentDirectionId);
+      const isOutbound = paymentDirectionId === PaymentDirection.Outbound;
+      const ledgerLines = this.mapPaymentLedgerLinesFromApi(payment.invoiceAllocations ?? payment.ledgerLines);
+      const billAllocations = this.mapPaymentBillAllocationsFromApi(payment.billAllocations);
+      const allocatedAmount = isOutbound
+        ? billAllocations.reduce((sum, allocation) => sum + (Number(allocation.amount) || 0), 0)
+        : ledgerLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
+      const allocationCodes = isOutbound
+        ? Array.from(new Set(billAllocations.map(allocation => (allocation.receiptCode || '').trim()).filter(code => code.length > 0)))
+        : Array.from(new Set(ledgerLines.map(line => (line.invoiceCode || '').trim()).filter(code => code.length > 0)));
+      const allocationLineCount = isOutbound ? billAllocations.length : ledgerLines.length;
 
       return {
         paymentId: payment.paymentId,
@@ -4050,17 +4083,20 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
         amountDisplay: this.formatter.currencyUsd(Number(payment.amount) || 0),
         costCodeId: payment.costCodeId,
         costCodeDescription: (payment.costCodeDescription || '').trim(),
-        paymentDirectionDescription: getPaymentDirectionLabel(this.normalizePaymentDirectionId(payment.paymentDirectionId)),
+        paymentDirectionId,
+        paymentDirectionDescription: getPaymentDirectionLabel(paymentDirectionId),
         paymentTypeDescription: (payment.paymentTypeDescription || '').trim()
           || getPaymentTypeLabel(this.normalizePaymentTypeId(payment.paymentTypeId)),
         depositCode: (payment.depositCode || '').trim(),
-        hasDeposit: this.hasLinkedDeposit(payment.depositId),
+        hasDeposit: !isOutbound && this.hasLinkedDeposit(payment.depositId),
         descriptionDisplay: (payment.description || '').trim(),
-        invoiceSummaryDisplay: invoiceCodes.join(', '),
+        invoiceSummaryDisplay: allocationCodes.join(', '),
+        billSummaryDisplay: allocationCodes.join(', '),
         allocatedAmount,
         allocatedAmountDisplay: this.formatter.currencyUsd(allocatedAmount),
-        ledgerLineSummaryDisplay: `${ledgerLines.length} line${ledgerLines.length === 1 ? '' : 's'}`,
+        ledgerLineSummaryDisplay: `${allocationLineCount} line${allocationLineCount === 1 ? '' : 's'}`,
         ledgerLines,
+        billAllocations,
         isActive: payment.isActive,
         createdBy: payment.createdBy ?? payment.createdByName ?? '',
         createdByName: payment.createdByName ?? payment.createdBy ?? '',
@@ -4070,7 +4106,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     });
   }
 
-  buildPaymentSaveRequest(
+  buildPaymentInvoiceAllocationsRequest(
     source: PaymentResponse | null | undefined,
     organizationId: string,
     shellOfficeId: number | null | undefined,
@@ -4079,39 +4115,53 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       amount: number;
       costCodeId: number;
       description: string;
-      paymentDirectionId: number;
       paymentTypeId: number | null;
       isActive: boolean;
     }
-  ): PaymentRequest {
+  ): Omit<CreatePaymentWithInvoiceAllocationsRequest, 'allocations'> {
     const resolvedOfficeId = source?.officeId
       ?? (shellOfficeId != null && Number.isFinite(shellOfficeId) && shellOfficeId > 0 ? shellOfficeId : 0);
 
     return {
-      paymentId: source?.paymentId,
       organizationId: (source?.organizationId || organizationId || '').trim(),
       officeId: resolvedOfficeId,
       paymentDate: fields.paymentDate,
       amount: fields.amount,
       costCodeId: fields.costCodeId,
       description: fields.description,
-      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: fields.paymentTypeId,
       depositId: source?.depositId ?? null,
       isActive: fields.isActive
     };
   }
 
-  mapPaymentUpdateRequest(payment: PaymentResponse, isActive: boolean): PaymentRequest {
-    return this.buildPaymentSaveRequest(payment, payment.organizationId, payment.officeId, {
+  mapPaymentInvoiceUpdateRequest(payment: PaymentResponse, isActive: boolean): UpdatePaymentInvoiceRequest {
+    return {
+      paymentId: payment.paymentId,
+      organizationId: (payment.organizationId || '').trim(),
+      officeId: payment.officeId,
       paymentDate: payment.paymentDate,
       amount: Number(payment.amount) || 0,
       costCodeId: payment.costCodeId,
       description: (payment.description || '').trim(),
-      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: payment.paymentTypeId ?? null,
+      depositId: payment.depositId ?? null,
       isActive
-    });
+    };
+  }
+
+  mapPaymentBillUpdateRequest(payment: PaymentResponse, isActive: boolean): UpdatePaymentBillRequest {
+    return {
+      paymentId: payment.paymentId,
+      organizationId: (payment.organizationId || '').trim(),
+      officeId: payment.officeId,
+      paymentDate: payment.paymentDate,
+      amount: Number(payment.amount) || 0,
+      description: (payment.description || '').trim(),
+      paymentTypeId: payment.paymentTypeId ?? null,
+      chartOfAccountId: Number(payment.chartOfAccountId) || 0,
+      isActive
+    };
   }
   //#endregion
 

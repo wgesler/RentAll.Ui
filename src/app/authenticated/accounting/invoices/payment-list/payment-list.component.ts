@@ -14,7 +14,8 @@ import { MappingService } from '../../../../services/mapping.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { PaymentDisplayList, PaymentResponse, PaymentSearchRequest, PaymentSelection, PaymentLedgerLine } from '../../models/payment.model';
+import { PaymentBillAllocation, PaymentDisplayList, PaymentResponse, PaymentSearchRequest, PaymentSelection, PaymentLedgerLine } from '../../models/payment.model';
+import { PaymentDirection } from '../../models/accounting-enum';
 import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { ReservationListResponse } from '../../../reservations/models/reservation-model';
@@ -34,6 +35,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
   @Input() companyId: string | null = null;
+  @Input() paymentDirection: PaymentDirection = PaymentDirection.Inbound;
   @Input() searchRequest?: PaymentSearchRequest | null;
   @Input() embeddedInAccounting = false;
   @Input() refreshTrigger = 0;
@@ -53,9 +55,6 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   @ViewChild('paymentLedgerLinesTemplate') paymentLedgerLinesTemplate?: TemplateRef<unknown>;
 
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['payments']));
-  destroy$ = new Subject<void>();
   showInactive = false;
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -70,9 +69,14 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   paymentsLoadId = 0;
   lastPaymentSearchKey: string | null = null;
   paymentSearchInFlightKey: string | null = null;
-  private cancelPaymentsLoad$ = new Subject<void>();
+  cancelPaymentsLoad$ = new Subject<void>();
 
-  readonly paymentDisplayedColumns: ColumnSet = {
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['payments']));
+  destroy$ = new Subject<void>();
+
+  activePaymentDisplayedColumns: ColumnSet = {};
+  readonly invoicePaymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     paymentDirectionDescription: { displayAs: 'Direction', wrap: false, maxWidth: '14ch' },
@@ -80,26 +84,33 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '25ch' },
     invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
-  activePaymentDisplayedColumns: ColumnSet = {
-    expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+  readonly billPaymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    paymentDirectionDescription: { displayAs: 'Direction', wrap: false, maxWidth: '14ch' },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
-    costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '25ch' },
-    invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },
+    billSummaryDisplay: { displayAs: 'Bills', wrap: true, maxWidth: '36ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
-    hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '18ch' }
   };
+
+  readonly paymentBillAllocationDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    receiptCode: { displayAs: 'Bill', maxWidth: '15ch', wrap: false, sortType: 'natural' },
+    description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
+  };
+
+  get isOutboundPaymentList(): boolean {
+    return this.paymentDirection === PaymentDirection.Outbound;
+  }
 
   readonly paymentLedgerLineDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
@@ -157,6 +168,11 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       this.loadPaymentsForCurrentSearchCriteria();
     }
 
+    if (changes['paymentDirection'] && !changes['paymentDirection'].firstChange) {
+      this.syncActivePaymentDisplayedColumns();
+      this.loadPaymentsForCurrentSearchCriteria(true);
+    }
+
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadPaymentsForCurrentSearchCriteria(true);
     }
@@ -194,7 +210,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'payments');
 
     const scopedOfficeId = this.resolveScopedOfficeId();
-    this.paymentService.getPayments(scopedOfficeId).pipe(
+    this.paymentService.getPayments(scopedOfficeId, this.paymentDirection).pipe(
       take(1),
       takeUntil(merge(this.cancelPaymentsLoad$, this.destroy$)),
       finalize(() => {
@@ -295,6 +311,25 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
     void this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Billing, [invoiceId])}`);
   }
+
+  isInvoiceAllocationLink(
+    line: PaymentLedgerLine | PaymentBillAllocation,
+    columnName: string
+  ): line is PaymentLedgerLine {
+    if (this.isOutboundPaymentList || columnName !== 'invoiceCode') {
+      return false;
+    }
+
+    return !!(line as PaymentLedgerLine).invoiceId?.trim();
+  }
+
+  onInvoiceAllocationClick(event: Event, line: PaymentLedgerLine | PaymentBillAllocation): void {
+    if (!this.isInvoiceAllocationLink(line, 'invoiceCode')) {
+      return;
+    }
+
+    this.goToInvoice(event, line);
+  }
   //#endregion
 
   //#region Data Load Methods
@@ -362,6 +397,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   buildPaymentSearchKey(request: PaymentSearchRequest | null | undefined = this.searchRequest): string {
     const resolvedRequest = request ?? { officeIds: [] };
     return JSON.stringify({
+      paymentDirection: this.paymentDirection,
       officeIds: this.resolveAccountingSearchOfficeIds(resolvedRequest),
       startDate: resolvedRequest.startDate,
       endDate: resolvedRequest.endDate,
@@ -412,9 +448,15 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.paymentService.getPaymentById(event.paymentId).pipe(
       take(1),
-      switchMap((payment: PaymentResponse) => this.paymentService.updatePayment(
-        this.mappingService.mapPaymentUpdateRequest(payment, nextValue)
-      ).pipe(take(1))),
+      switchMap((payment: PaymentResponse) => {
+        if (this.paymentDirection === PaymentDirection.Outbound) {
+          const request = this.mappingService.mapPaymentBillUpdateRequest(payment, nextValue);
+          return this.paymentService.updatePaymentBill(request).pipe(take(1));
+        }
+
+        const request = this.mappingService.mapPaymentInvoiceUpdateRequest(payment, nextValue);
+        return this.paymentService.updatePaymentInvoice(request).pipe(take(1));
+      }),
       finalize(() => {
         this.applyFilters();
         this.markViewForCheck();
@@ -512,32 +554,101 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   syncActivePaymentDisplayedColumns(): void {
     this.activePaymentDisplayedColumns = {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-      ...this.paymentDisplayedColumns
+      ...(this.isOutboundPaymentList ? this.billPaymentDisplayedColumns : this.invoicePaymentDisplayedColumns)
     };
   }
 
-  getPaymentLedgerLineColumnNames(): string[] {
-    return Object.keys(this.paymentLedgerLineDisplayedColumns);
+  getPaymentAllocationColumnNames(): string[] {
+    return Object.keys(this.getPaymentAllocationColumnSet());
   }
 
-  getPaymentLedgerLineColumnWidth(columnName: string): string | null {
-    if (this.isPaymentLedgerLineGrowColumn(columnName)) {
+  getPaymentAllocationColumnSet(): ColumnSet {
+    return this.isOutboundPaymentList
+      ? this.paymentBillAllocationDisplayedColumns
+      : this.paymentLedgerLineDisplayedColumns;
+  }
+
+  getPaymentAllocationColumnWidth(columnName: string): string | null {
+    if (this.isPaymentAllocationGrowColumn(columnName)) {
       return null;
     }
 
-    return this.paymentLedgerLineDisplayedColumns[columnName]?.maxWidth ?? null;
+    return this.getPaymentAllocationColumnSet()[columnName]?.maxWidth ?? null;
+  }
+
+  getPaymentAllocationColumnMinWidth(columnName: string): string | null {
+    if (this.isPaymentAllocationGrowColumn(columnName)) {
+      return this.getPaymentAllocationColumnSet()[columnName]?.maxWidth ?? '38ch';
+    }
+
+    return this.getPaymentAllocationColumnWidth(columnName);
+  }
+
+  isPaymentAllocationGrowColumn(columnName: string): boolean {
+    return columnName === 'description';
+  }
+
+  paymentHasAllocationDetails(payment: PaymentDisplayList): boolean {
+    if (this.isOutboundPaymentList) {
+      return (payment.billAllocations?.length ?? 0) > 0;
+    }
+
+    return (payment.ledgerLines?.length ?? 0) > 0;
+  }
+
+  getPaymentAllocationLines(payment: PaymentDisplayList): Array<PaymentLedgerLine | PaymentBillAllocation> {
+    return this.isOutboundPaymentList
+      ? (payment.billAllocations ?? [])
+      : (payment.ledgerLines ?? []);
+  }
+
+  getPaymentAllocationEmptyMessage(): string {
+    return this.isOutboundPaymentList
+      ? 'No bill allocations linked to this payment.'
+      : 'No invoice allocations linked to this payment.';
+  }
+
+  getPaymentBillAllocationColumnValue(allocation: PaymentBillAllocation, columnName: string, lineIndex: number): string {
+    switch (columnName) {
+      case 'lineNo':
+        return String(lineIndex + 1);
+      case 'receiptCode':
+        return (allocation.receiptCode || '').trim() || '—';
+      case 'description':
+        return (allocation.description || '').trim() || '—';
+      case 'amount':
+        return this.formatter.currencyUsd(Number(allocation.amount) || 0);
+      default:
+        return '—';
+    }
+  }
+
+  getPaymentAllocationColumnValue(
+    line: PaymentLedgerLine | PaymentBillAllocation,
+    columnName: string,
+    lineIndex: number
+  ): string {
+    if (this.isOutboundPaymentList) {
+      return this.getPaymentBillAllocationColumnValue(line as PaymentBillAllocation, columnName, lineIndex);
+    }
+
+    return this.getPaymentLedgerLineColumnValue(line as PaymentLedgerLine, columnName, lineIndex);
+  }
+
+  getPaymentLedgerLineColumnNames(): string[] {
+    return this.getPaymentAllocationColumnNames();
+  }
+
+  getPaymentLedgerLineColumnWidth(columnName: string): string | null {
+    return this.getPaymentAllocationColumnWidth(columnName);
   }
 
   getPaymentLedgerLineColumnMinWidth(columnName: string): string | null {
-    if (this.isPaymentLedgerLineGrowColumn(columnName)) {
-      return this.paymentLedgerLineDisplayedColumns[columnName]?.maxWidth ?? '38ch';
-    }
-
-    return this.getPaymentLedgerLineColumnWidth(columnName);
+    return this.getPaymentAllocationColumnMinWidth(columnName);
   }
 
   isPaymentLedgerLineGrowColumn(columnName: string): boolean {
-    return columnName === 'description';
+    return this.isPaymentAllocationGrowColumn(columnName);
   }
 
   getPaymentLedgerLineColumnValue(line: PaymentLedgerLine, columnName: string, lineIndex: number): string {
@@ -579,7 +690,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
-    this.paymentDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+    this.invoicePaymentDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+    this.billPaymentDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
     this.syncActivePaymentDisplayedColumns();
   }
 
@@ -668,8 +780,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   paymentMatchesCompanyFilter(paymentId: string): boolean {
-    if (!this.selectedCompanyContact) {
-      return true;
+    if (!this.selectedCompanyContact || this.isOutboundPaymentList) {
+      return !this.selectedCompanyContact;
     }
 
     const payment = this.payments.find(item => item.paymentId === paymentId);
@@ -677,7 +789,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       return false;
     }
 
-    const ledgerLines = payment.ledgerLines || [];
+    const ledgerLines = payment.invoiceAllocations ?? payment.ledgerLines ?? [];
     if (ledgerLines.length === 0) {
       return false;
     }

@@ -12,7 +12,7 @@ import { MappingService } from '../../../services/mapping.service';
 
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 
-import { BillPaymentRequest, BillPaymentResponse, ReceiptRequest, ReceiptResponse, isReceiptCompanyPropertyId } from '../models/receipt.model';
+import { ReceiptRequest, ReceiptResponse, isReceiptCompanyPropertyId } from '../models/receipt.model';
 
 
 
@@ -169,14 +169,6 @@ export class ReceiptService {
   deleteReceipt(receiptId: string): Observable<void> {
 
     return this.http.delete<void>(this.controller + receiptId);
-
-  }
-
-
-
-  applyBillPayment(payment: BillPaymentRequest): Observable<BillPaymentResponse> {
-
-    return this.http.put<BillPaymentResponse>(this.configService.config().apiUrl + 'accounting/bill/payment', payment);
 
   }
 

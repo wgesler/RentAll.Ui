@@ -46,21 +46,37 @@
     grid-template-columns:
       minmax(0, 0.9fr)
       minmax(0, 0.9fr)
-      minmax(0, 0.9fr)
-      minmax(0, 1.1fr)
+      minmax(0, 1.2fr)
       minmax(0, 1.2fr)
       minmax(0, 0.8fr)
       minmax(0, 1.6fr);
     width: 100%;
     max-width: 100%;
   }
+
+  .payment-overall-primary-row--outbound {
+    grid-template-columns:
+      minmax(0, 0.9fr)
+      minmax(0, 0.9fr)
+      minmax(0, 0.9fr)
+      minmax(0, 1.1fr)
+      minmax(0, 1.4fr);
+  }
+
+  .payment-overall-secondary-row--outbound {
+    margin-top: var(--global-form-field-gap-x);
+    grid-template-columns:
+      minmax(0, 0.8fr)
+      minmax(0, 3.2fr);
+  }
 }
 
 .payment-overall-date-field,
-.payment-overall-direction-field,
+.payment-overall-accounting-period-field,
 .payment-overall-type-field,
 .payment-overall-amount-field,
-.payment-overall-description-field {
+.payment-overall-description-field,
+.payment-overall-bank-account-field {
   width: 100%;
   min-width: 0;
   max-width: none;

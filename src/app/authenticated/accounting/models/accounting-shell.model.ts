@@ -4,7 +4,7 @@ export type AccountingShellInvoiceKind = 'invoices' | 'missingInvoiceReport' | '
 
 export type AccountingShellReportKind = FinancialReportKind | 'arAging' | 'apAging' | 'reconcileAccountSummary' | 'reconcileAccountDetail';
 
-export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'workOrders' | 'rentRoll';
+export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'workOrders' | 'rentRoll' | 'payments';
 
 export type AccountingShellBankActivityKind = 'undepositedFunds' | 'untransferredFunds' | 'deposits' | 'transfers' | 'transferReport' | 'printChecks' | 'securityDeposits' | 'reconcile';
 

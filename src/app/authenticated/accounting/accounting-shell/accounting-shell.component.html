@@ -274,7 +274,7 @@
               [noResultsText]="'No properties match your search'"
               (valueChange)="onShellBillsPropertyDropdownChange($event)">
             </app-title-bar-select>
-            @if (selectedBillsReceiptKind === 'bills') {
+            @if (selectedBillsReceiptKind === 'bills' || selectedBillsReceiptKind === 'payments') {
               <app-title-bar-select
                 [label]="'Vendors'"
                 [formFieldClass]="'titlebar-field-company'"
@@ -950,6 +950,7 @@
                       [paymentId]="selectedPaymentId"
                       [prefetchedPayment]="selectedPayment"
                       [officeId]="selectedOfficeId"
+                      [paymentDirection]="PaymentDirection.Inbound"
                       (backEvent)="onPaymentBack()"
                       (savedEvent)="onPaymentSaved()" />
                   }
@@ -959,6 +960,7 @@
                     [companyId]="selectedCompanyId"
                     [searchRequest]="paymentSearchRequest"
                     [embeddedInAccounting]="true"
+                    [paymentDirection]="PaymentDirection.Inbound"
                     [refreshTrigger]="paymentsRefreshTrigger"
                     (paymentSelect)="onPaymentSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
@@ -1006,11 +1008,35 @@
                   Receipts
                 } @else if (selectedBillsReceiptKind === 'workOrders') {
                   Work Orders
+                } @else if (selectedBillsReceiptKind === 'payments') {
+                  Bill Payments
                 } @else {
                   Rent Roll
                 }
               </div>
-              @if (selectedBillsReceiptKind === 'bills') {
+              @if (selectedBillsReceiptKind === 'payments') {
+                @if (showPaymentsDetail) {
+                  @for (instance of [paymentDetailInstance]; track instance) {
+                    <app-payment
+                      [paymentId]="selectedPaymentId"
+                      [prefetchedPayment]="selectedPayment"
+                      [officeId]="selectedOfficeId"
+                      [paymentDirection]="PaymentDirection.Outbound"
+                      (backEvent)="onPaymentBack()"
+                      (savedEvent)="onPaymentSaved()" />
+                  }
+                } @else if (paymentsListEngaged) {
+                  <app-payment-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="paymentSearchRequest"
+                    [embeddedInAccounting]="true"
+                    [paymentDirection]="PaymentDirection.Outbound"
+                    [refreshTrigger]="paymentsRefreshTrigger"
+                    (paymentSelect)="onVendorPaymentSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-payment-list>
+                }
+              } @else if (selectedBillsReceiptKind === 'bills') {
                 @if (showBillsReceiptDetail) {
                   @for (instance of [billsReceiptDetailInstance]; track instance) {
                     <app-receipt

@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Subject, concatMap, filter, finalize, forkJoin, from, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, filter, finalize, forkJoin, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -20,6 +20,7 @@ import { ChartOfAccountResponse } from '../../accounting/models/chart-of-account
 import { AccountType, PaymentType, PaymentTypeLabels } from '../../accounting/models/accounting-enum';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { JournalEntryService } from '../../accounting/services/journal-entry.service';
+import { PaymentService } from '../../accounting/services/payment.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -30,7 +31,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
@@ -71,6 +72,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   private router = inject(Router);
   private toastr = inject(ToastrService);
   private journalEntryService = inject(JournalEntryService);
+  private paymentService = inject(PaymentService);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
@@ -2379,11 +2381,30 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const officeId = this.resolvedPaymentOfficeId;
+    if (officeId == null || officeId <= 0) {
+      this.toastr.warning('Unable to apply payment: office is required.');
+      return;
+    }
+
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.toastr.warning('Unable to apply payment: organization is required.');
+      return;
+    }
+
+    const paymentDateValue =
+      this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString();
+    const totalApplied = this.utilityService.sumCurrencyAmounts(paymentData.map(item => item.paidAmount));
+    if (!this.utilityService.areCurrencyAmountsEqual(totalApplied, this.paymentAmount)) {
+      this.toastr.warning('Applied bill amounts must equal the payment amount.');
+      return;
+    }
+
     const postingStatusIds = paymentData.map(({ receipt }) =>
       this.receipts.find(item => item.receiptId === receipt.receiptId)?.postingStatusId
     );
 
-    let appliedPaymentCount = 0;
     this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Receipt').pipe(
       take(1),
       switchMap(canProceed => {
@@ -2392,40 +2413,34 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         this.isSubmittingPayment = true;
-        return from(paymentData).pipe(
-          concatMap(({ billId, paidAmount }) => {
-            const paymentRequest: BillPaymentRequest = {
-              paymentDate:
-                this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
-              chartOfAccountId: selectedChartOfAccountId,
-              paymentTypeId: this.selectedPaymentTypeId,
-              description: paymentDescription,
-              amount: paidAmount,
-              bills: [billId]
-            };
-            return this.receiptService.applyBillPayment(paymentRequest).pipe(
-              take(1),
-              map((response: BillPaymentResponse) => ({ response, paidAmount }))
-            );
-          }),
+        return this.paymentService.createPaymentWithBillAllocations({
+          organizationId,
+          officeId,
+          paymentDate: paymentDateValue,
+          amount: totalApplied,
+          description: paymentDescription,
+          paymentTypeId: this.selectedPaymentTypeId,
+          chartOfAccountId: selectedChartOfAccountId,
+          isActive: true,
+          allocations: paymentData.map(({ billId, paidAmount }) => ({
+            receiptId: billId,
+            amount: paidAmount,
+            description: paymentDescription
+          }))
+        }).pipe(
+          take(1),
           finalize(() => {
             this.isSubmittingPayment = false;
             this.clearPaymentForm();
-            if (appliedPaymentCount > 0) {
-              this.journalEntriesChanged.emit();
-            }
             this.markViewForCheck();
           })
         );
       })
     ).subscribe({
-      next: ({ response, paidAmount }) => {
-        appliedPaymentCount++;
-        const updatedBills = response?.bills ?? [];
-        updatedBills.forEach(bill => {
-          this.syncReceiptRowFromServer(this.mappingService.mapReceiptResponse(bill));
-        });
-        this.toastr.success(`Payment of $${this.formatter.currency(paidAmount)} applied`, CommonMessage.Success);
+      next: () => {
+        this.toastr.success(`Payment of $${this.formatter.currency(totalApplied)} saved`, CommonMessage.Success);
+        this.journalEntriesChanged.emit();
+        this.loadReceiptsForCurrentSearchCriteria(true);
         this.markViewForCheck();
       },
       error: () => {

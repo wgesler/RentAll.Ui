@@ -1566,7 +1566,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       amount: this.roundCurrencyValue(amount),
       costCodeId: this.selectedPaymentCostCodeId,
       description: this.getPaymentRequestDescription(),
-      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: PaymentType.Check,
       isActive: true,
       invoices: options?.invoiceIds,
