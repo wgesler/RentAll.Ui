@@ -2830,7 +2830,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       bankCardId: Number.isFinite(bankCardId) ? bankCardId : 0,
       vendorId,
       vendorName: vendorId ? null : vendorName,
-      billNumber: (this.prefill.billNumber || '').trim() || null
+      billNumber: (this.prefill.billNumber || '').trim() || null,
+      businessPrivate: this.prefill.businessPrivate === true
+        || propertyIds.some(propertyId => isReceiptCompanyPropertyId(propertyId))
     }, { emitEvent: false });
 
     const split = this.prefill.split || null;

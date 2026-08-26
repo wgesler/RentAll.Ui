@@ -221,6 +221,7 @@ export interface ReceiptPrefill {
   vendorName?: string | null;
   agreementLineId?: number | null;
   billNumber?: string | null;
+  businessPrivate?: boolean;
   split?: {
     amount?: number | null;
     description?: string | null;

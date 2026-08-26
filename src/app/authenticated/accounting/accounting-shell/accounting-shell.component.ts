@@ -1415,7 +1415,8 @@ hydrateSelectedInvoiceForActiveId(): void {
           description: (request.description || '').trim(),
           receiptTypeId: isReceiptCompanyPropertyId(propertyId) ? ReceiptType.Company : ReceiptType.Owner,
           chartOfAccountId: request.chartOfAccountId
-        }
+        },
+        businessPrivate: isCompanyProperty
       };
       this.billsReceiptAgreementLineId = this.toAgreementLineId(request.agreementLineId);
       this.billsReceiptAgreementLineNotes = (request.notes || '').trim() || null;
@@ -1583,7 +1584,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       receiptPath: null,
       fileDetails: null,
       isUtility: false,
-      businessPrivate: false,
+      businessPrivate: isReceiptCompanyPropertyId(propertyId),
       isActive: true
       };
   }
