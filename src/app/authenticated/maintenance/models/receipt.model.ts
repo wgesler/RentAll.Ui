@@ -42,7 +42,7 @@ export function buildBillSplitLineDescription(
     return splitDescriptions.join(' — ');
   }
 
-  return (bill.description || '').trim();
+  return '';
 }
 
 export interface Split {

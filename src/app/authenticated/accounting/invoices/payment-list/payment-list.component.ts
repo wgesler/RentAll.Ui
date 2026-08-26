@@ -16,7 +16,10 @@ import { DataTableFilterActionsDirective } from '../../../shared/data-table/data
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PaymentBillAllocation, PaymentDisplayList, PaymentResponse, PaymentSearchRequest, PaymentSelection, PaymentLedgerLine } from '../../models/payment.model';
 import { PaymentDirection } from '../../models/accounting-enum';
+import { buildBillSplitLineDescription, ReceiptResponse } from '../../../maintenance/models/receipt.model';
+import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { ContactResponse } from '../../../contacts/models/contact.model';
+import { EntityType } from '../../../contacts/models/contact-enum';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { ReservationListResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
@@ -49,6 +52,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private journalEntryService = inject(JournalEntryService);
   private contactService = inject(ContactService);
+  private receiptService = inject(ReceiptService);
   private reservationService = inject(ReservationService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
@@ -59,6 +63,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   isAdmin = false;
   canEditIsActiveCheckbox = false;
   companyContacts: ContactResponse[] = [];
+  vendorContacts: ContactResponse[] = [];
+  billReceiptsById = new Map<string, ReceiptResponse>();
   selectedCompanyContact: ContactResponse | null = null;
   reservations: ReservationListResponse[] = [];
   payments: PaymentResponse[] = [];
@@ -135,6 +141,10 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       this.loadCompanyContacts();
       this.loadReservations();
     }
+    if (this.isOutboundPaymentList) {
+      this.loadVendorContacts();
+      this.loadBillReceipts();
+    }
     this.loadPaymentsForCurrentSearchCriteria(true);
   }
 
@@ -166,11 +176,22 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.syncSelectedCompanyContact();
       this.applyFilters();
+      if (this.isOutboundPaymentList) {
+        this.loadBillReceipts();
+      }
       this.loadPaymentsForCurrentSearchCriteria();
+    }
+
+    if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.isOutboundPaymentList) {
+      this.loadBillReceipts();
     }
 
     if (changes['paymentDirection'] && !changes['paymentDirection'].firstChange) {
       this.syncActivePaymentDisplayedColumns();
+      if (this.isOutboundPaymentList) {
+        this.loadVendorContacts();
+        this.loadBillReceipts();
+      }
       this.loadPaymentsForCurrentSearchCriteria(true);
     }
 
@@ -353,6 +374,46 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       error: () => {
         this.companyContacts = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadVendorContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: (contacts) => {
+        this.vendorContacts = (contacts || []).filter(contact => contact.entityTypeId === EntityType.Vendor);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.vendorContacts = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadBillReceipts(): void {
+    const officeIds = this.resolveAccountingSearchOfficeIds();
+    if (officeIds.length === 0) {
+      this.billReceiptsById = new Map();
+      return;
+    }
+
+    this.receiptService.searchReceipts({
+      officeIds,
+      includeInactive: true,
+      isActive: null
+    }).pipe(take(1)).subscribe({
+      next: (receipts) => {
+        this.billReceiptsById = new Map(
+          (receipts || [])
+            .map(receipt => [String(receipt.receiptId || '').trim(), receipt] as const)
+            .filter(([receiptId]) => receiptId.length > 0)
+        );
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.billReceiptsById = new Map();
         this.markViewForCheck();
       }
     });
@@ -616,14 +677,40 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       case 'receiptCode':
         return (allocation.receiptCode || '').trim() || '—';
       case 'vendorName':
-        return (allocation.vendorName || '').trim() || '—';
+        return this.resolveBillAllocationVendorName(allocation) || '—';
       case 'description':
-        return (allocation.description || '').trim() || '—';
+        return this.resolveBillAllocationDescription(allocation) || '—';
       case 'amount':
         return this.formatter.currencyUsd(Number(allocation.amount) || 0);
       default:
         return '—';
     }
+  }
+
+  resolveBillAllocationVendorName(allocation: PaymentBillAllocation): string {
+    const directName = (allocation.vendorName || '').trim();
+    if (directName) {
+      return directName;
+    }
+
+    const vendorId = (allocation.vendorId || '').trim();
+    if (!vendorId) {
+      return '';
+    }
+
+    const vendorContact = this.vendorContacts.find(contact => contact.contactId === vendorId);
+    return this.utilityService.getVendorDropdownLabel(vendorContact);
+  }
+
+  resolveBillAllocationDescription(allocation: PaymentBillAllocation): string {
+    const receiptId = (allocation.receiptId || '').trim();
+    const bill = receiptId ? this.billReceiptsById.get(receiptId) : undefined;
+    const splitDescription = buildBillSplitLineDescription(bill);
+    if (splitDescription) {
+      return splitDescription;
+    }
+
+    return (allocation.description || '').trim();
   }
 
   getPaymentAllocationColumnValue(

@@ -4015,6 +4015,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       paymentId: String(rawRecord['paymentId'] ?? rawRecord['PaymentId'] ?? base.paymentId ?? '').trim(),
       receiptId: String(rawRecord['receiptId'] ?? rawRecord['ReceiptId'] ?? base.receiptId ?? '').trim(),
       receiptCode: String(rawRecord['receiptCode'] ?? rawRecord['ReceiptCode'] ?? base.receiptCode ?? '').trim(),
+      vendorId: String(rawRecord['vendorId'] ?? rawRecord['VendorId'] ?? base.vendorId ?? '').trim() || null,
       vendorName: String(rawRecord['vendorName'] ?? rawRecord['VendorName'] ?? base.vendorName ?? '').trim(),
       lineNumber: Number(rawRecord['lineNumber'] ?? rawRecord['LineNumber'] ?? base.lineNumber ?? 0) || 0,
       amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,

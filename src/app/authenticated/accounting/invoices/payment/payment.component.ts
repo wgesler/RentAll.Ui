@@ -657,9 +657,21 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
     this.splitsFormArray.controls.forEach(control => {
       const descriptionControl = control.get('description');
-      if (!(descriptionControl?.value || '').toString().trim()) {
-        descriptionControl?.setValue(overallDescription, { emitEvent: false });
+      if ((descriptionControl?.value || '').toString().trim()) {
+        return;
       }
+
+      if (this.isOutbound) {
+        const receiptId = (control.get('invoiceId')?.value || '').toString().trim();
+        const bill = this.bills.find(item => item.receiptId === receiptId);
+        const splitDescription = buildBillSplitLineDescription(bill);
+        if (splitDescription) {
+          descriptionControl?.setValue(splitDescription, { emitEvent: false });
+          return;
+        }
+      }
+
+      descriptionControl?.setValue(overallDescription, { emitEvent: false });
     });
   }
 
