@@ -184,18 +184,9 @@
     padding: 0 !important;
   }
 
-  ::ng-deep .shell-tabs .mat-mdc-tab-header {
-    display: none;
-  }
-
-  ::ng-deep .shell-tabs .mat-mdc-tab-body-wrapper,
-  ::ng-deep .shell-tabs .mat-mdc-tab-body-content,
-  ::ng-deep .shell-tabs form.info-form {
-    min-height: 0 !important;
-  }
-
   ::ng-deep form.reservation-shell-form {
     padding-top: 0 !important;
+    min-height: 0 !important;
   }
 }
 

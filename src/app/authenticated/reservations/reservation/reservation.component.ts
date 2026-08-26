@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChildren, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -18,7 +18,6 @@ import { MappingService } from '../../../services/mapping.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DashboardNavigationService } from '../../dashboards/services/dashboard-navigation.service';
-import { InvoiceListComponent } from '../../accounting/invoices/invoice-list/invoice-list.component';
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
@@ -26,10 +25,7 @@ import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { ContactService } from '../../contacts/services/contact.service';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
 import { EmailRequest } from '../../email/models/email.model';
-import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailService } from '../../email/services/email.service';
 import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
@@ -60,7 +56,6 @@ interface ReservationNotificationFormValue {
 }
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
-import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
 import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
@@ -73,7 +68,7 @@ import { UserService } from '../../users/services/user.service';
 @Component({
     standalone: true,
     selector: 'app-reservation',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitleBarSelectComponent, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitleBarSelectComponent],
     templateUrl: './reservation.component.html',
     styleUrl: './reservation.component.scss'
 })
@@ -112,12 +107,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private userService = inject(UserService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private invoiceService = inject(InvoiceService);
-  @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
-  @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
 
   isServiceError: boolean = false;
-  selectedTabIndex: number = 0;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
@@ -125,8 +117,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   billingPanelOpen: boolean = true;
   ReservationType = ReservationType;
   EntityType = EntityType;
-  DocumentType = DocumentType;
-  EmailType = EmailType;
   departureDateStartAt: Date | null = null;
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
@@ -212,8 +202,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-        this.selectedTabIndex = 0;
-
         if (!this.shellMode && queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
           const officeId = parseInt(queryParams['officeId'], 10);
           if (!isNaN(officeId)) {

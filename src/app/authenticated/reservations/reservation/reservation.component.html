@@ -31,11 +31,11 @@
                   <app-title-bar-select
                     [label]="'Reservation'"
                     [formFieldClass]="'header-title-reservation titlebar-field-reservation'"
-                    [required]="selectedTabIndex === 0"
+                    [required]="true"
                     [value]="selectedHeaderReservationId ?? null"
                     [options]="[]"
-                    [showInstructionOption]="selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4"
-                    [nullOptionLabel]="selectedTabIndex === 1 ? 'Select Reservation' : 'All Reservations'"
+                    [showInstructionOption]="false"
+                    [nullOptionLabel]="'Select Reservation'"
                     [noResultsText]="'No reservations match your search'"
                     (valueChange)="selectedHeaderReservationId = ($event == null ? null : ($event + ''))">
                   </app-title-bar-select>
@@ -60,8 +60,6 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="selectedTabIndex = $event.index">
-          <mat-tab label="Reservation">
             @if (form) {
             <div class="mat">
             </div>
@@ -947,54 +945,6 @@
             </div>
           </form>
             }
-          </mat-tab>
-          
-          <mat-tab label="Lease">
-            <app-lease 
-              [reservationId]="(selectedHeaderReservationId ?? null) ?? ''" 
-              [propertyId]="sharedPropertyId ?? ''"
-              [officeId]="sharedOfficeId"
-              [lockOfficeSelection]="true"
-              (officeIdChange)="onLeaseOfficeIdChange($event)">
-            </app-lease>
-          </mat-tab>
-
-          <mat-tab label="Invoices">
-            <app-invoice-list 
-              [officeId]="sharedOfficeId"
-              [reservationId]="selectedHeaderReservationId ?? null"
-              [source]="'reservation'">
-            </app-invoice-list>
-          </mat-tab>
-
-          <mat-tab label="Emails">
-            <app-email-list
-              #reservationEmailList
-              [propertyId]="sharedPropertyId"
-              [propertyCode]="sharedPropertyCode"
-              [hideFilters]="true"
-              [officeId]="sharedOfficeId"
-              [reservationId]="selectedHeaderReservationId ?? null"
-              [emailTypeId]="EmailType.ReservationLease"
-              [source]="'reservation'"
-              [hideHeader]="true">
-            </app-email-list>
-          </mat-tab>
-          
-          <mat-tab label="Documents">
-            <app-document-list 
-              #reservationDocumentList
-              [propertyId]="sharedPropertyId" 
-              [propertyCode]="sharedPropertyCode"
-              [documentTypeIds]="[DocumentType.ReservationLease]"
-              [hideFilters]="true"
-              [officeId]="sharedOfficeId"
-              [reservationId]="selectedHeaderReservationId ?? null"
-              [source]="'reservation'"
-              [hideHeader]="true">
-            </app-document-list>
-          </mat-tab>
-        </mat-tab-group>
       </mat-card>
     </section>
   </div>

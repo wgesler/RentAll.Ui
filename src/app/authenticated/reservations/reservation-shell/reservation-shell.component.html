@@ -223,6 +223,20 @@
             }
           }
         </mat-tab>
+
+        <mat-tab label="Emails">
+          @if (selectedTabIndex === getEmailsTabIndex() && displayOfficeId !== null && selectedPropertyId && activeReservationId) {
+            <app-email-list
+              [hideHeader]="true"
+              [hideFilters]="true"
+              [source]="'reservation'"
+              [officeId]="displayOfficeId"
+              [propertyId]="selectedPropertyId"
+              [propertyCode]="activePropertyCode"
+              [reservationId]="activeReservationId">
+            </app-email-list>
+          }
+        </mat-tab>
       </mat-tab-group>
     </mat-card>
   </section>
