@@ -76,7 +76,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   isOwnerAdmin = false;
   private readonly baseColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
-    'companyName': { displayAs: 'Company', maxWidth: '30ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '35ch' },
     'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },

@@ -44,6 +44,8 @@ export interface ContactRequest {
   routingNumber?: string | null;
   accountNumber?: string | null;
   paymentTermsId?: number | null;
+  prorateTypeId?: number | null;
+  invoiceMethodTypeId?: number | null;
   addAsUser?: number | null;
   isOwnerReady?: boolean;
   isActive: boolean;
@@ -95,6 +97,8 @@ export interface ContactResponse {
   routingNumber?: string | null;
   accountNumber?: string | null;
   paymentTermsId?: number | null;
+  prorateTypeId?: number | null;
+  invoiceMethodTypeId?: number | null;
   addAsUser?: number | null;
   isOwnerReady?: boolean;
   isActive: boolean;

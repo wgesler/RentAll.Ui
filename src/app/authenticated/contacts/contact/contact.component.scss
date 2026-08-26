@@ -106,9 +106,15 @@
   min-width: 0;
 }
 
-/** Company/Vendor row 3 / Tenant+Owner row 2: First (2) + Last (2) + Phone (2) + Extension (1) + Email (3). */
-.form-grid-tenths {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+/** Company row: Payment Terms (2) + Prorate Type (2) + Invoice Method (2) + Email (3). */
+.form-grid-ninths {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  min-width: 0;
+}
+
+/** First-name row: First (3) + Last (3) + Preferred (3) + Phone (2) + Extension (1). */
+.form-grid-twelfths {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   min-width: 0;
 }
 

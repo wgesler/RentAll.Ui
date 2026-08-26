@@ -170,16 +170,16 @@
                       </mat-form-field>
                     }
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-tenths">
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-twelfths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>First Name</mat-label>
                       <input matInput formControlName="firstName" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Preferred Name</mat-label>
                       <input matInput formControlName="preferredName">
                     </mat-form-field>
@@ -192,10 +192,6 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Extension</mat-label>
                       <input matInput formControlName="extension" maxlength="20">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                      <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" required>
                     </mat-form-field>
                   </div>
               } @else {
@@ -233,16 +229,16 @@
                       </mat-form-field>
                     }
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-tenths">
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-twelfths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>First Name</mat-label>
                       <input matInput formControlName="firstName" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Preferred Name</mat-label>
                       <input matInput formControlName="preferredName">
                     </mat-form-field>
@@ -255,10 +251,6 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Extension</mat-label>
                       <input matInput formControlName="extension" maxlength="20">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                      <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" required>
                     </mat-form-field>
                   </div>
                 } @else if (form.get('entityTypeId')?.value === EntityType.Company) {
@@ -295,39 +287,60 @@
                       </mat-form-field>
                     }
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-eighths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Company Name</mat-label>
                       <input matInput formControlName="companyName" placeholder="Enter company name" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Display Name</mat-label>
                       <input matInput formControlName="displayName" placeholder="Enter display name" required maxlength="10">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Accounting Email</mat-label>
                       <input matInput type="email" formControlName="companyEmail" placeholder="Enter company email" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                  </div>
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-ninths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Payment Terms</mat-label>
                       <mat-select formControlName="paymentTermsId">
-                        <mat-option [value]="null">—</mat-option>
                         @for (term of availablePaymentTerms; track term.value) {
                           <mat-option [value]="term.value">{{ term.label }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
-                  </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-tenths">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Prorate Type</mat-label>
+                      <mat-select formControlName="prorateTypeId">
+                        @for (prorateType of availableProrateTypes; track prorateType.value) {
+                          <mat-option [value]="prorateType.value">{{ prorateType.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Invoice Method</mat-label>
+                      <mat-select formControlName="invoiceMethodTypeId">
+                        @for (invoiceMethod of availableInvoiceMethods; track invoiceMethod.value) {
+                          <mat-option [value]="invoiceMethod.value">{{ invoiceMethod.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                      <mat-label>Email</mat-label>
+                      <input matInput type="email" formControlName="email" required>
+                    </mat-form-field>
+                  </div>
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-twelfths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>First Name</mat-label>
                       <input matInput formControlName="firstName">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Preferred Name</mat-label>
                       <input matInput formControlName="preferredName">
                     </mat-form-field>
@@ -340,10 +353,6 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Extension</mat-label>
                       <input matInput formControlName="extension" maxlength="20">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                      <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" required>
                     </mat-form-field>
                   </div>
                 } @else if (form.get('entityTypeId')?.value === EntityType.Vendor) {
@@ -404,23 +413,22 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Payment Terms</mat-label>
                       <mat-select formControlName="paymentTermsId">
-                        <mat-option [value]="null">—</mat-option>
                         @for (term of availablePaymentTerms; track term.value) {
                           <mat-option [value]="term.value">{{ term.label }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-tenths">
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-twelfths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>First Name</mat-label>
                       <input matInput formControlName="firstName" [required]="vendorFirstLastRequired()">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName" [required]="vendorFirstLastRequired()">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Preferred Name</mat-label>
                       <input matInput formControlName="preferredName">
                     </mat-form-field>
@@ -433,10 +441,6 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Extension</mat-label>
                       <input matInput formControlName="extension" maxlength="20">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                      <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" required>
                     </mat-form-field>
                   </div>
                 } @else if (form.get('entityTypeId')?.value === EntityType.Property) {
@@ -549,10 +553,6 @@
                       <mat-label>Extension</mat-label>
                       <input matInput formControlName="extension" maxlength="20">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
-                      <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" [required]="form.get('entityTypeId')?.value !== EntityType.Property">
-                    </mat-form-field>
                   </div>
                 } @else {
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
@@ -565,10 +565,6 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Extension</mat-label>
                       <input matInput formControlName="extension" maxlength="20">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                      <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" [required]="form.get('entityTypeId')?.value !== EntityType.Property">
                     </mat-form-field>
                   </div>
                 }
@@ -615,21 +611,34 @@
                 </div>
               }
 
+              @if (form.get('entityTypeId')?.value === EntityType.Owner && !isInOwnerMode) {
+                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>Email</mat-label>
+                    <input matInput type="email" formControlName="email" required>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-4">
+                    <mat-label>Properties</mat-label>
+                    <mat-select formControlName="propertyCodes" multiple>
+                      @for (prop of availablePropertyCodes; track prop.value) {
+                        <mat-option [value]="prop.value">{{ prop.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              } @else if (form.get('entityTypeId')?.value !== EntityType.Company) {
+                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-twelfths">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-6">
+                    <mat-label>Email</mat-label>
+                    <input matInput type="email" formControlName="email" [required]="form.get('entityTypeId')?.value !== EntityType.Property">
+                  </mat-form-field>
+                </div>
+              }
+
               @if (form.get('entityTypeId')?.value === EntityType.Owner && ownerCompanyNameVisible()) {
                 <mat-form-field appearance="outline" class="col-span-4 field-min-0">
                   <mat-label>Company Name</mat-label>
                   <input matInput formControlName="companyName" placeholder="Enter company name" [required]="ownerCompanyNameRequired()">
-                </mat-form-field>
-              }
-
-              @if (form.get('entityTypeId')?.value === EntityType.Owner && !isInOwnerMode) {
-                <mat-form-field appearance="outline" class="col-span-4 field-min-0">
-                  <mat-label>Properties</mat-label>
-                  <mat-select formControlName="propertyCodes" multiple>
-                    @for (prop of availablePropertyCodes; track prop.value) {
-                      <mat-option [value]="prop.value">{{ prop.label }}</mat-option>
-                    }
-                  </mat-select>
                 </mat-form-field>
               }
 

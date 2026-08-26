@@ -21,6 +21,8 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes } from '../models/contact-enum';
+import { getInvoiceMethods } from '../../accounting/models/accounting-enum';
+import { getProrateTypes } from '../../reservations/models/reservation-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
@@ -104,6 +106,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   availableOwnerTypes: { value: number; label: string }[] = [];
   availableVendorTypes: { value: number; label: string }[] = [];
   availablePaymentTerms: { value: number; label: string }[] = [];
+  availableProrateTypes: { value: number; label: string }[] = [];
+  availableInvoiceMethods: { value: number; label: string }[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -150,6 +154,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.availableOwnerTypes = getOwnerTypes();
     this.availableVendorTypes = getVendorTypes();
     this.availablePaymentTerms = getTermTypes();
+    this.availableProrateTypes = getProrateTypes();
+    this.availableInvoiceMethods = getInvoiceMethods();
     this.loadStates();
     this.loadOffices();
     this.loadAllProperties();
@@ -486,6 +492,12 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       paymentTermsId: this.compactDialogMode && this.contact
         ? (this.contact.paymentTermsId ?? null)
         : (formValue.paymentTermsId ?? null),
+      prorateTypeId: isCompanyType
+        ? (this.compactDialogMode && this.contact ? (this.contact.prorateTypeId ?? null) : (formValue.prorateTypeId ?? null))
+        : null,
+      invoiceMethodTypeId: isCompanyType
+        ? (this.compactDialogMode && this.contact ? (this.contact.invoiceMethodTypeId ?? null) : (formValue.invoiceMethodTypeId ?? null))
+        : null,
       isOwnerReady: !!formValue.isOwnerReady
     };
     this.applyEntityTypeSpecificContactFields(contactRequest, entityTypeId, formValue);
@@ -629,6 +641,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       isActive: new FormControl(true),
       insuranceExpiration: new FormControl<Date | null>(null),
       paymentTermsId: new FormControl<number | null>(null),
+      prorateTypeId: new FormControl<number | null>(null),
+      invoiceMethodTypeId: new FormControl<number | null>(null),
       addAsUser: new FormControl(false)
     });
 
@@ -737,6 +751,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         isActive: isActiveValue,
         insuranceExpiration: insuranceExpirationDate,
         paymentTermsId: this.contact.paymentTermsId ?? null,
+        prorateTypeId: this.contact.prorateTypeId ?? null,
+        invoiceMethodTypeId: this.contact.invoiceMethodTypeId ?? null,
         addAsUser: (this.contact.addAsUser ?? 0) === 1
       }, { emitEvent: false });
 
@@ -1813,6 +1829,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
       accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
       paymentTermsId: savedContact.paymentTermsId ?? originalRequest.paymentTermsId ?? null,
+      prorateTypeId: savedContact.prorateTypeId ?? originalRequest.prorateTypeId ?? null,
+      invoiceMethodTypeId: savedContact.invoiceMethodTypeId ?? originalRequest.invoiceMethodTypeId ?? null,
       isOwnerReady: savedContact.isOwnerReady ?? originalRequest.isOwnerReady ?? false,
       addAsUser: savedContact.addAsUser ?? originalRequest.addAsUser ?? 0,
       isActive
