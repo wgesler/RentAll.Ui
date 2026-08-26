@@ -92,6 +92,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     emailTypeName: { displayAs: 'Email Type', maxWidth: '20ch' },
     subject: { displayAs: 'Subject', maxWidth: '50ch' },
+    attachmentPath: { displayAs: 'Attachment', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
@@ -584,6 +585,17 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadEmails();
   }
 
+  openEmailAttachment(email: EmailListDisplay): void {
+    const documentId = (email?.documentId || '').trim();
+    if (!documentId) {
+      this.toastr.warning('No document is linked to this attachment.', CommonMessage.Error);
+      return;
+    }
+
+    const url = this.router.serializeUrl(this.router.createUrlTree([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])]));
+    window.open(url, '_blank', 'noopener');
+  }
+
   viewEmail(email: EmailListDisplay): void {
     const emailId = (email?.emailId || '').trim();
     if (!emailId) {
@@ -610,6 +622,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.emailCreateDraftService.setDraft({
       viewOnly: true,
       returnUrl: this.router.url,
+      attachmentDocumentId: email.documentId ?? email.attachmentDocumentId ?? null,
       emailConfig: {
         subject: email.subject || '',
         toEmail: to?.email || email.toEmail || '',

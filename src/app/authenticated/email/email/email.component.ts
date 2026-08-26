@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
 import { MaterialModule } from '../../../material.module';
@@ -27,6 +29,7 @@ export class EmailComponent implements OnInit, OnChanges, OnDestroy {
   private emailService = inject(EmailService);
   private formatter = inject(FormatterService);
   private authService = inject(AuthService);
+  private toastr = inject(ToastrService);
 
   currentEmailId = '';
   email: EmailResponse | null = null;
@@ -143,6 +146,10 @@ export class EmailComponent implements OnInit, OnChanges, OnDestroy {
     return from.email || from.name || '';
   }
 
+  get attachmentDocumentId(): string {
+    return (this.email?.documentId || this.email?.attachmentDocumentId || '').trim();
+  }
+
   getMaintenanceShellEmailTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
@@ -151,6 +158,17 @@ export class EmailComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  openAttachment(): void {
+    const documentId = this.attachmentDocumentId;
+    if (!documentId) {
+      this.toastr.warning('No document is linked to this attachment.', CommonMessage.Error);
+      return;
+    }
+
+    const url = this.router.serializeUrl(this.router.createUrlTree([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])]));
+    window.open(url, '_blank', 'noopener');
+  }
+
   back(): void {
     if (this.embeddedInEmailShell) {
       this.backEvent.emit();

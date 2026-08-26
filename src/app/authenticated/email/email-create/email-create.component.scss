@@ -87,6 +87,16 @@
   color: #0f172a;
 }
 
+.email-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+
 .email-attachment-name {
   flex: 1 1 auto;
   min-width: 0;

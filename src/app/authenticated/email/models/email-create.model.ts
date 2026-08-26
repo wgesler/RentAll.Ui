@@ -6,4 +6,5 @@ export interface EmailCreateDraft {
   returnUrl: string;
   /** When true, open the compose template read-only to view a sent email. */
   viewOnly?: boolean;
+  attachmentDocumentId?: string | null;
 }

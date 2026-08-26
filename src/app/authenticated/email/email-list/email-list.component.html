@@ -24,6 +24,7 @@
             [itemsPerPage]="10"
             (viewEvent)="viewEmail($event)"
             (rowClickEvent)="viewEmail($event)"
+            (attachmentClickEvent)="openEmailAttachment($event)"
             (deleteEvent)="deleteEmail($event)"/>
         </div>
       </div>
@@ -119,6 +120,7 @@
                 [itemsPerPage]="10"
                 (viewEvent)="viewEmail($event)"
                 (rowClickEvent)="viewEmail($event)"
+                (attachmentClickEvent)="openEmailAttachment($event)"
                 (deleteEvent)="deleteEmail($event)"/>
             </div>
           </div>
@@ -226,6 +228,7 @@
               [itemsPerPage]="10"
               (viewEvent)="viewEmail($event)"
               (rowClickEvent)="viewEmail($event)"
+              (attachmentClickEvent)="openEmailAttachment($event)"
               (deleteEvent)="deleteEmail($event)"/>
           </div>
         </div>

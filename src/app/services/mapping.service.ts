@@ -1399,7 +1399,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       fromName: email?.fromRecipient?.name ?? email?.fromName ?? '',
       subject: email?.subject ?? '',
       attachmentName: email?.attachmentName ?? '',
-      attachmentPath: email?.attachmentPath ?? '',
+      attachmentPath: email?.attachmentPath || email?.documentId || email?.attachmentDocumentId || '',
       documentId: email?.documentId ?? email?.attachmentDocumentId ?? undefined,
       emailTypeId: Number(email?.emailTypeId ?? 0),
       documentTypeId:

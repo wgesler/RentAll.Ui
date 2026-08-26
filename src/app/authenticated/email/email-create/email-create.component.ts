@@ -82,6 +82,10 @@ export class EmailCreateComponent implements OnInit {
     return this.draft?.emailConfig.fileDetails?.fileName || (this.isViewOnly ? '' : 'document.pdf');
   }
 
+  get attachmentDocumentId(): string {
+    return (this.draft?.attachmentDocumentId || '').trim();
+  }
+
   get canAddMoreAttachments(): boolean {
     return this.additionalAttachments.length < this.maxAdditionalAttachments;
   }
@@ -220,6 +224,17 @@ export class EmailCreateComponent implements OnInit {
 
   cancel(): void {
     this.navigateBackAndClear();
+  }
+
+  openAttachment(): void {
+    const documentId = this.attachmentDocumentId;
+    if (!documentId) {
+      this.toastr.warning('No document is linked to this attachment.', CommonMessage.Error);
+      return;
+    }
+
+    const url = this.router.serializeUrl(this.router.createUrlTree([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])]));
+    window.open(url, '_blank', 'noopener');
   }
 
   navigateBackAndClear(): void {

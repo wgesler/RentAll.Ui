@@ -66,8 +66,15 @@
       <span class="line-label">Attachments:</span>
       <span class="line-value">
         @if (email?.attachmentName) {
-          {{ email?.attachmentName }}
-          <mat-icon class="attachment-icon">attach_file</mat-icon>
+          @if (attachmentDocumentId) {
+            <button type="button" class="email-attachment-link text-blue-700 underline cursor-pointer" (click)="openAttachment()">
+              {{ email?.attachmentName }}
+              <mat-icon class="attachment-icon">attach_file</mat-icon>
+            </button>
+          } @else {
+            {{ email?.attachmentName }}
+            <mat-icon class="attachment-icon">attach_file</mat-icon>
+          }
         } @else {
           None
         }
