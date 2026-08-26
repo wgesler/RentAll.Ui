@@ -2092,8 +2092,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
 
-    const selectedContactFullName = (this.selectedContact.fullName || '').trim() ||
-      `${this.selectedContact.firstName || ''} ${this.selectedContact.lastName || ''}`.trim();
+    const givenName = String(this.selectedContact.preferredName || this.selectedContact.firstName || '').trim();
+    const lastName = String(this.selectedContact.lastName || '').trim();
+    const selectedContactFullName = `${givenName} ${lastName}`.trim();
 
     // Phone, email and companyName remain disabled (read-only) - just update their values. Prefer displayName so e.g. "Harvard" not "Harvard University".
     const selectedCompanyName = (this.selectedContact.displayName ?? (this.utilityService.getCompanyDisplayToken(this.selectedContact.companyName ?? null) || this.selectedContact.companyName || '')).trim();
@@ -3274,7 +3275,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (contact.entityTypeId === EntityType.Company) {
       return `${contact.displayName ?? contact.companyName}: ${contact.firstName} ${contact.lastName}`;
     }
-    return `${contact.firstName} ${contact.lastName}`;
+    const givenName = String(contact.preferredName || contact.firstName || '').trim();
+    const lastName = String(contact.lastName || '').trim();
+    return `${givenName} ${lastName}`.trim();
   }
 
   getSelectedContactIdsFromForm(): string[] {

@@ -77,7 +77,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly baseColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '30ch' },
-    'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
@@ -85,7 +85,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   private readonly tenantColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
-    'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
@@ -93,11 +93,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   private readonly ownerColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
-    'companyName': { displayAs: 'Company', maxWidth: '30ch' },
-    'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '20ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '30ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
