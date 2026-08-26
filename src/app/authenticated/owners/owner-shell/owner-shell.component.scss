@@ -73,7 +73,10 @@
 
 .owner-shell-property-info-form {
   padding-top: 0 !important;
+  padding-left: var(--global-page-inner-padding) !important;
+  padding-right: var(--global-page-inner-padding) !important;
   margin-top: var(--global-accordion-gap) !important;
+  box-sizing: border-box;
 }
 
 .owner-shell-property-info-form .owner-shell-accordion {

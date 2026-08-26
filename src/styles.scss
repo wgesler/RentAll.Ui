@@ -262,11 +262,11 @@ app-owner-shell .shell-tabs app-property .info-form {
 }
 
 app-owner-shell .shell-tabs .owner-shell-property-info-form {
-  /* Same vertical rhythm as stacked mat-expansion-panels above (no extra gap for hidden Property Agreement). */
+  /* Same vertical rhythm and horizontal inset as the Property accordions above. */
   margin-top: var(--global-accordion-gap) !important;
   padding-top: 0 !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+  padding-left: var(--global-page-inner-padding) !important;
+  padding-right: var(--global-page-inner-padding) !important;
   box-sizing: border-box;
 }
 
