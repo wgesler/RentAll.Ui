@@ -9,7 +9,9 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
 import { ContactService } from '../../../contacts/services/contact.service';
 import { ContactResponse } from '../../../contacts/models/contact.model';
 import { EntityType, TermType, getTermType } from '../../../contacts/models/contact-enum';
+import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
+import { OfficeService } from '../../../organizations/services/office.service';
 import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyCodeResponse } from '../../../properties/models/property.model';
 import { NewContactDialogService } from '../../../shared/contacts/new-contact-dialog.service';
@@ -35,6 +37,7 @@ export interface RentRollEditLineDialogData {
 }
 
 export interface RentRollEditLineDialogResult {
+  officeId: number | null;
   propertyId: string | null;
   vendorId: string | null;
   vendorName: string;
@@ -65,19 +68,25 @@ export class RentRollEditLineDialogComponent {
   private contactService = inject(ContactService);
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
   private newContactDialogService = inject(NewContactDialogService);
 
   form: FormGroup;
+  officeOptions: SearchableSelectOption<number>[] = [];
   vendorOptions: SearchableSelectOption<string>[] = [];
   propertyOptions: SearchableSelectOption<string>[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
   readonly defaultTerms = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
   private vendorById = new Map<string, ContactResponse>();
+  private propertyOfficeById = new Map<string, number>();
+  private allPropertyCodes: PropertyCodeResponse[] = [];
 
   constructor() {
     const data = this.data;
 
     this.form = this.fb.group({
+      officeId: [this.parseNullablePositiveInteger(data.officeId), Validators.required],
       propertyId: [this.normalizeOptionalText(data.propertyId)],
       vendorId: [(data.vendorId || '').trim()],
       vendorName: [data.vendorName || ''],
@@ -96,6 +105,7 @@ export class RentRollEditLineDialogComponent {
       this.form.get('propertyId')?.setValidators([Validators.required]);
       this.form.get('propertyId')?.updateValueAndValidity({ emitEvent: false });
     }
+    this.loadOfficeOptions();
     this.loadPropertyOptions();
     this.loadVendorOptions();
     this.loadChartOfAccountOptions();
@@ -113,6 +123,7 @@ export class RentRollEditLineDialogComponent {
 
     const value = this.form.getRawValue();
     this.dialogRef.close({
+      officeId: this.parseNullablePositiveInteger(value.officeId),
       propertyId: this.normalizeOptionalText(value.propertyId),
       vendorId: this.normalizeOptionalText(value.vendorId),
       vendorName: (value.vendorName || '').toString().trim(),
@@ -202,35 +213,109 @@ export class RentRollEditLineDialogComponent {
     this.form.patchValue({
       propertyId
     }, { emitEvent: false });
+    this.applyOfficeFromSelectedProperty();
+  }
+
+  onOfficeChange(value: string | number | null): void {
+    const officeId = this.parseNullablePositiveInteger(value);
+    const previousOfficeId = this.parseNullablePositiveInteger(this.form.get('officeId')?.value);
+    this.form.patchValue({ officeId }, { emitEvent: false });
+    if (officeId !== previousOfficeId) {
+      const selectedPropertyId = this.normalizeOptionalText(this.form.get('propertyId')?.value);
+      const propertyMatchesOffice = !!selectedPropertyId
+        && (isReceiptCompanyPropertyId(selectedPropertyId)
+          || this.propertyOfficeById.get(selectedPropertyId) === officeId);
+      this.form.patchValue({
+        propertyId: this.data.allowPropertySelection && !propertyMatchesOffice
+          ? null
+          : this.form.get('propertyId')?.value,
+        vendorId: null,
+        vendorName: '',
+        chartOfAccountId: null
+      }, { emitEvent: false });
+      this.form.get('terms')?.setValue(this.defaultTerms, { emitEvent: false });
+    }
+    this.applyPropertyOptions();
+    this.loadVendorOptions();
+    this.loadChartOfAccountOptions();
+  }
+
+  applyOfficeFromSelectedProperty(): void {
+    const propertyId = this.normalizeOptionalText(this.form.get('propertyId')?.value);
+    if (!propertyId || isReceiptCompanyPropertyId(propertyId)) {
+      return;
+    }
+
+    const propertyOfficeId = this.propertyOfficeById.get(propertyId) ?? null;
+    if (!propertyOfficeId) {
+      return;
+    }
+
+    const currentOfficeId = this.parseNullablePositiveInteger(this.form.get('officeId')?.value);
+    if (currentOfficeId === propertyOfficeId) {
+      return;
+    }
+
+    this.form.patchValue({ officeId: propertyOfficeId }, { emitEvent: false });
+    this.applyPropertyOptions();
+    this.loadVendorOptions();
+    this.loadChartOfAccountOptions();
+  }
+
+  selectedOfficeId(): number {
+    return this.parseNullablePositiveInteger(this.form.get('officeId')?.value) ?? 0;
+  }
+
+  loadOfficeOptions(): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() || '';
+    if (!organizationId) {
+      this.officeOptions = [];
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe({
+          next: offices => {
+            this.officeOptions = (offices || [])
+              .filter(office => office.organizationId === organizationId && office.isActive)
+              .map(office => ({
+                value: office.officeId,
+                label: office.name
+              }))
+              .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+          },
+          error: () => {
+            this.officeOptions = [];
+          }
+        });
+      },
+      error: () => {
+        this.officeOptions = [];
+      }
+    });
   }
 
   loadPropertyOptions(): void {
-    const officeId = Number(this.data.officeId ?? 0);
     this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.propertyService.getAllPropertyCodes().pipe(take(1)).subscribe({
           next: (properties: PropertyCodeResponse[]) => {
-            const scopedProperties = (properties || [])
-              .filter(property => !officeId || Number(property.officeId) === officeId);
-            this.propertyOptions = [
-              { value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' },
-              ...scopedProperties
-                .map(property => ({
-                  value: (property.propertyId || '').trim(),
-                  label: (property.propertyCode || '').trim() || (property.shortAddress || '').trim() || 'Property'
-                }))
-                .filter(option => !!option.value)
-                .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
-            ];
-
-            const selectedPropertyId = this.normalizeOptionalText(this.form.get('propertyId')?.value);
-            if (selectedPropertyId && !this.propertyOptions.some(option => option.value === selectedPropertyId)) {
-              if (!isReceiptCompanyPropertyId(selectedPropertyId)) {
-                this.form.patchValue({ propertyId: null }, { emitEvent: false });
+            this.allPropertyCodes = properties || [];
+            this.propertyOfficeById = new Map<string, number>();
+            for (const property of this.allPropertyCodes) {
+              const propertyId = (property.propertyId || '').trim();
+              const officeId = Number(property.officeId || 0);
+              if (propertyId && Number.isFinite(officeId) && officeId > 0) {
+                this.propertyOfficeById.set(propertyId, officeId);
               }
             }
+            this.applyOfficeFromSelectedProperty();
+            this.applyPropertyOptions();
           },
           error: () => {
+            this.allPropertyCodes = [];
+            this.propertyOfficeById = new Map<string, number>();
             this.propertyOptions = [];
           }
         });
@@ -238,13 +323,36 @@ export class RentRollEditLineDialogComponent {
     });
   }
 
+  applyPropertyOptions(): void {
+    const officeId = this.selectedOfficeId();
+    const scopedProperties = this.allPropertyCodes
+      .filter(property => !officeId || Number(property.officeId) === officeId);
+    this.propertyOptions = [
+      { value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' },
+      ...scopedProperties
+        .map(property => ({
+          value: (property.propertyId || '').trim(),
+          label: (property.propertyCode || '').trim() || (property.shortAddress || '').trim() || 'Property'
+        }))
+        .filter(option => !!option.value)
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+    ];
+
+    const selectedPropertyId = this.normalizeOptionalText(this.form.get('propertyId')?.value);
+    if (selectedPropertyId && !this.propertyOptions.some(option => option.value === selectedPropertyId)) {
+      if (!isReceiptCompanyPropertyId(selectedPropertyId)) {
+        this.form.patchValue({ propertyId: null }, { emitEvent: false });
+      }
+    }
+  }
+
   loadVendorOptions(preferredVendorId?: string | null): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
-        const officeId = Number(this.data.officeId ?? 0);
+        const officeId = this.selectedOfficeId();
         const vendors = (this.contactService.getAllContactsValue() || [])
           .filter(contact => contact.entityTypeId === EntityType.Vendor)
-          .filter(contact => !officeId || this.utilityService.contactHasOfficeAccess(contact, officeId));
+          .filter(contact => !!officeId && this.utilityService.contactHasOfficeAccess(contact, officeId));
         this.vendorById = new Map<string, ContactResponse>();
         const vendorOptions = vendors
           .map(contact => {
@@ -273,7 +381,7 @@ export class RentRollEditLineDialogComponent {
   openNewVendorDialog(): void {
     this.newContactDialogService.openNewContactDialog({
       entityTypeId: EntityType.Vendor,
-      preselectPropertyOfficeId: this.data.officeId ?? null
+      preselectPropertyOfficeId: this.selectedOfficeId() || null
     }).pipe(take(1)).subscribe(result => {
       const contactId = String(result?.contactId || '').trim();
       if (!result?.saved || !contactId) {
@@ -288,7 +396,7 @@ export class RentRollEditLineDialogComponent {
   }
 
   loadChartOfAccountOptions(): void {
-    const officeId = Number(this.data.officeId ?? 0);
+    const officeId = this.selectedOfficeId();
     if (!officeId) {
       this.chartOfAccountOptions = [];
       return;

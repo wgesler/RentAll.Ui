@@ -529,10 +529,15 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       this.toastr.error('Unable to add agreement line: missing property.', 'Error');
       return;
     }
+    if (!result.officeId) {
+      this.toastr.error('Unable to add agreement line: missing office.', 'Error');
+      return;
+    }
 
     const newLine: PropertyAgreementLineRequest = {
       agreementLineId: null,
       propertyId: isReceiptCompanyPropertyId(propertyId) ? RECEIPT_COMPANY_PROPERTY_ID : propertyId,
+      officeId: result.officeId ?? null,
       title: null,
       vendorId: result.vendorId ?? null,
       chartOfAccountId: result.chartOfAccountId ?? null,

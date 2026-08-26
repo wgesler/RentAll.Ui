@@ -12,6 +12,28 @@
   <mat-dialog-content class="rent-roll-edit-line-body p-6">
     <form [formGroup]="form" class="rent-roll-edit-line-form">
       <div class="rent-roll-edit-line-row rent-roll-edit-line-row--meta">
+        <div class="rent-roll-edit-line-field">
+          <app-searchable-select
+            [renderInFormField]="true"
+            [formFieldLabel]="'Office'"
+            [formFieldClass]="'rent-roll-edit-line-form-field'"
+            [required]="true"
+            [value]="form.get('officeId')?.value ?? null"
+            [options]="officeOptions"
+            [showInstructionOption]="true"
+            [instructionOptionValue]="null"
+            nullOptionLabel="Select Office"
+            [showSearchInput]="true"
+            [hideSearchHint]="false"
+            [hideSearchText]="false"
+            searchPlaceholder="Type to filter offices..."
+            noResultsText="No offices match your search"
+            selectClass="rent-roll-edit-line-select-control"
+            [showError]="form.get('officeId')?.invalid && form.get('officeId')?.touched"
+            errorText="Office is required"
+            (valueChange)="onOfficeChange($event)" />
+        </div>
+
         @if (data.allowPropertySelection) {
           <div class="rent-roll-edit-line-field">
             <app-searchable-select

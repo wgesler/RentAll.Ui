@@ -27,6 +27,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
+import { ReceiptType } from '../../maintenance/models/maintenance-enums';
 import { ReceiptPrefill, ReceiptRequest, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
@@ -1255,6 +1256,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
       this.refreshBillsPropertyOptions();
+      this.persistPinnedTopBarIfActive();
     }
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
@@ -1368,11 +1370,22 @@ hydrateSelectedInvoiceForActiveId(): void {
 
   openRentRollBillEditor(request: RentRollCreateBillRequest): void {
     const propertyId = (request.propertyId || '').trim();
+    const isCompanyProperty = isReceiptCompanyPropertyId(propertyId);
     const officeId = request.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) && Number(officeId) > 0
+      ? Number(officeId)
+      : null;
+    if (resolvedOfficeId != null && this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.refreshBillsPropertyOptions();
+      this.persistPinnedTopBarIfActive();
+    }
     const billDate = request.billDate || this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
     const dueDate = request.dueDate || billDate;
     const editorPrefillKey = `${request.agreementLineId || 'line'}-${Date.now()}`;
-    this.selectedBillsPropertyId = propertyId || null;
+    this.selectedBillsPropertyId = isCompanyProperty ? null : (propertyId || null);
     this.syncBillsSearchRequest();
     const openBillEditor = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
@@ -1382,7 +1395,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.billsReceiptProperty = property;
       this.billsReceiptPrefill = {
         key: editorPrefillKey,
-        officeId,
+        officeId: resolvedOfficeId ?? officeId,
         propertyIds: propertyId ? [propertyId] : [],
         agreementLineId: this.toAgreementLineId(request.agreementLineId),
         agreementLineNotes: (request.notes || '').trim() || null,
@@ -1397,7 +1410,7 @@ hydrateSelectedInvoiceForActiveId(): void {
         split: {
           amount: Number(request.amount || 0),
           description: (request.description || '').trim(),
-          receiptTypeId: 1,
+          receiptTypeId: isReceiptCompanyPropertyId(propertyId) ? ReceiptType.Company : ReceiptType.Owner,
           chartOfAccountId: request.chartOfAccountId
         }
       };
@@ -1407,13 +1420,16 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.showBillsReceiptDetail = true;
     };
 
-    const initialProperty = this.buildBillsReceiptPropertyStub(officeId);
-    if (propertyId) {
+    const initialProperty = this.buildBillsReceiptPropertyStub(resolvedOfficeId ?? officeId);
+    if (isCompanyProperty) {
+      initialProperty.propertyId = propertyId;
+      initialProperty.propertyCode = 'Company';
+    } else if (propertyId) {
       initialProperty.propertyId = propertyId;
     }
     openBillEditor(initialProperty);
 
-    if (!propertyId) {
+    if (!propertyId || isCompanyProperty) {
       return;
     }
 

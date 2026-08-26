@@ -91,8 +91,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     emailTypeName: { displayAs: 'Email Type', maxWidth: '20ch' },
-    subject: { displayAs: 'Subject', maxWidth: '50ch' },
     attachmentPath: { displayAs: 'Attachment', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    subject: { displayAs: 'Subject', maxWidth: '50ch' },
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }

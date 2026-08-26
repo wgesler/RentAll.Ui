@@ -4,6 +4,7 @@ import type { CalendarDateString } from '../../../services/utility.service';
 export interface PropertyAgreementLineRequest {
   agreementLineId?: string | null;
   propertyId?: string | null;
+  officeId?: number | null;
   title?: string | null;
   vendorId?: string | null;
   chartOfAccountId?: number | null;

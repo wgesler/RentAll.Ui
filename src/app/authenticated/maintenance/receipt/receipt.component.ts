@@ -164,6 +164,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.normalizeAccountingCompanyPropertySelection(value, previous);
       this.lastPropertyIdsValue = this.getFormPropertyIds();
       this.syncSelectedPropertyIdFromForm();
+      this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
       this.updatePropertyRequirementByReceiptType();
       this.syncSplitPropertySelectionsToCurrentScope();
       this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) }, { emitEvent: false });
@@ -1728,7 +1729,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   createSplitFormGroup(split?: Partial<Split>): FormGroup {
     const amount = Number(split?.amount);
     const normalizedReceiptTypeId = split?.receiptTypeId
-      ?? (this.isAccountingShell && this.isAddMode ? ReceiptType.Company : ReceiptType.Tenant);
+      ?? (this.isAccountingCompanySelected() || (this.isAccountingShell && this.isAddMode) ? ReceiptType.Company : ReceiptType.Tenant);
     const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
     const workOrderDisplay = this.mappingService.resolveReceiptSplitWorkOrderDisplay({
       receiptTypeId: normalizedReceiptTypeId,
@@ -2317,8 +2318,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Property Selection Methods
   applyPropertyInputToForm(): void {
-    if (this.property?.propertyId) {
+    if (this.property?.propertyId && !isReceiptCompanyPropertyId(this.property.propertyId)) {
       this.selectedPropertyId = this.property.propertyId;
+    } else if (isReceiptCompanyPropertyId(this.property?.propertyId)) {
+      this.selectedPropertyId = null;
     }
     if (!this.form) {
       const propertyOfficeId = this.normalizeOfficeId(this.property?.officeId);
@@ -2330,7 +2333,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.isAddMode) {
       return;
     }
-    if (this.showAccountingCompanyPropertyOption && !this.property?.propertyId && this.shouldDefaultToAccountingCompany()) {
+    if (this.showAccountingCompanyPropertyOption
+      && (!this.property?.propertyId || isReceiptCompanyPropertyId(this.property.propertyId))
+      && this.shouldDefaultToAccountingCompany()) {
       this.applyAccountingCompanySelection();
       return;
     }
@@ -2387,7 +2392,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }, { emitEvent: false });
     this.lastPropertyIdsValue = [RECEIPT_COMPANY_PROPERTY_ID];
     this.selectedPropertyId = null;
+    this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
     this.updatePropertyRequirementByReceiptType();
+  }
+
+  applyCompanyReceiptTypeWhenCompanyPropertySelected(): void {
+    if (!this.form || !this.isAccountingCompanySelected()) {
+      return;
+    }
+
+    for (let splitIndex = 0; splitIndex < this.splitsFormArray.length; splitIndex++) {
+      const row = this.splitsFormArray.at(splitIndex) as FormGroup;
+      const currentType = Number(row.get('receiptTypeId')?.value);
+      if (currentType === ReceiptType.Company) {
+        continue;
+      }
+      if (!this.isAddMode && currentType !== ReceiptType.Tenant) {
+        continue;
+      }
+
+      row.get('receiptTypeId')?.setValue(ReceiptType.Company, { emitEvent: false });
+      this.applyDefaultSplitAccountFromReceiptType(splitIndex, true);
+    }
   }
 
   normalizeAccountingCompanyPropertySelection(current: string[] | null | undefined, previous: string[]): void {
@@ -2829,6 +2855,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.updatePropertyRequirementByReceiptType();
     this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.syncSelectedPropertyIdFromForm();
+    this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
     this.appliedPrefillKey = prefillKey;
     this.cdr.markForCheck();
   }
