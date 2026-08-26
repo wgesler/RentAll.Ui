@@ -312,6 +312,16 @@ export class MappingService {
       rawPaymentTermsId === undefined || rawPaymentTermsId === null || rawPaymentTermsId === ''
         ? null
         : (Number.isFinite(Number(rawPaymentTermsId)) ? Number(rawPaymentTermsId) : null);
+    const rawProrateTypeId = raw['prorateTypeId'] ?? raw['ProrateTypeId'];
+    const prorateTypeId =
+      rawProrateTypeId === undefined || rawProrateTypeId === null || rawProrateTypeId === ''
+        ? null
+        : (Number.isFinite(Number(rawProrateTypeId)) ? Number(rawProrateTypeId) : null);
+    const rawInvoiceMethodTypeId = raw['invoiceMethodTypeId'] ?? raw['InvoiceMethodTypeId'];
+    const invoiceMethodTypeId =
+      rawInvoiceMethodTypeId === undefined || rawInvoiceMethodTypeId === null || rawInvoiceMethodTypeId === ''
+        ? null
+        : (Number.isFinite(Number(rawInvoiceMethodTypeId)) ? Number(rawInvoiceMethodTypeId) : null);
 
     return {
       ...base,
@@ -321,7 +331,9 @@ export class MappingService {
       officeId,
       ownerTypeId,
       vendorTypeId,
-      paymentTermsId
+      paymentTermsId,
+      prorateTypeId,
+      invoiceMethodTypeId
     };
   }
 

@@ -1617,6 +1617,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
       this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
       this.updateContactFields();
+      this.applyCompanyBillingDefaults(this.selectedContact);
     });
   }
 
@@ -2050,6 +2051,23 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
+  applyCompanyBillingDefaults(company: ContactResponse | null | undefined): void {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    if (reservationTypeId !== ReservationType.Corporate && reservationTypeId !== ReservationType.Platform) {
+      return;
+    }
+    if (!company || company.entityTypeId !== EntityType.Company) {
+      return;
+    }
+
+    if (company.prorateTypeId != null && Number.isFinite(Number(company.prorateTypeId))) {
+      this.form.get('prorateTypeId')?.setValue(Number(company.prorateTypeId), { emitEvent: false });
+    }
+    if (company.invoiceMethodTypeId != null && Number.isFinite(Number(company.invoiceMethodTypeId))) {
+      this.form.get('invoiceMethodId')?.setValue(normalizeInvoiceMethodId(company.invoiceMethodTypeId), { emitEvent: false });
+    }
+  }
+
   applyDefaultDepositTypeByReservationType(reservationTypeId: number | null): void {
     const depositTypeControl = this.form.get('depositType');
     if (!depositTypeControl) {
@@ -2262,6 +2280,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.form.patchValue({ contactId: result.contactId }, { emitEvent: false });
       this.selectedContact = this.contacts.find(c => c.contactId === result.contactId) || null;
       this.updateContactFields();
+      if (result.entityTypeId === EntityType.Company) {
+        this.applyCompanyBillingDefaults(this.selectedContact);
+      }
     });
   }
 
@@ -2886,6 +2907,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       phone: this.formatterService.phoneNumber(selectedCompanyContact.phone) || '',
       email: selectedCompanyContact.email || ''
     }, { emitEvent: false });
+    this.applyCompanyBillingDefaults(selectedCompanyContact);
   }
 
   onReservationNumberDropdownChange(controlName: 'reservationTypeId' | 'reservationStatusId' | 'reservationNoticeId' | 'checkInTimeId' | 'checkOutTimeId', value: string | number | null): void {
