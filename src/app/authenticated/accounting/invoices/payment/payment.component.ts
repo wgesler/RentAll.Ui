@@ -15,7 +15,7 @@ import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentResponse } from '../../models/payment.model';
-import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
+import { ReceiptResponse, buildBillSplitLineDescription } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
@@ -418,7 +418,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
         return {
           receiptId: allocation.invoiceId,
           amount: allocation.amount,
-          description: (allocation.description || overallDescription).trim(),
+          description: (
+            buildBillSplitLineDescription(bill) ||
+            (allocation.description || '').trim() ||
+            overallDescription
+          ).trim(),
           costCodeId: this.resolveBillCostCodeId(bill)
         };
       })
@@ -674,7 +678,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
       if (this.isOutbound) {
         const bill = this.bills.find(item => item.receiptId === allocationId);
-        const splitDescription = this.buildBillSplitLineDescription(bill);
+        const splitDescription = buildBillSplitLineDescription(bill);
         if (splitDescription) {
           splitGroup?.get('description')?.setValue(splitDescription, { emitEvent: false });
           splitGroup?.get('description')?.markAsTouched();
@@ -1067,23 +1071,6 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       }))
       .filter(option => option.value.length > 0)
       .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
-  }
-
-  private buildBillSplitLineDescription(bill: ReceiptResponse | undefined): string {
-    if (!bill) {
-      return '';
-    }
-
-    const splitDescriptions = (bill.splits || [])
-      .filter(split => Number(split.receiptTypeId) !== 4 && Number(split.amount) !== 0)
-      .map(split => (split.description || '').trim())
-      .filter(description => description.length > 0);
-
-    if (splitDescriptions.length > 0) {
-      return splitDescriptions.join(' — ');
-    }
-
-    return (bill.description || '').trim();
   }
 
   private buildBillOptionLabel(bill: ReceiptResponse): string {

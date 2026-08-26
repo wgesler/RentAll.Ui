@@ -31,7 +31,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, buildBillSplitLineDescription, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
@@ -2422,11 +2422,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           paymentTypeId: this.selectedPaymentTypeId,
           chartOfAccountId: selectedChartOfAccountId,
           isActive: true,
-          allocations: paymentData.map(({ billId, paidAmount }) => ({
-            receiptId: billId,
-            amount: paidAmount,
-            description: paymentDescription
-          }))
+          allocations: paymentData.map(({ billId, paidAmount, receipt }) => {
+            const bill = this.receipts.find(item => item.receiptId === receipt.receiptId) ?? receipt;
+            return {
+              receiptId: billId,
+              amount: paidAmount,
+              description: buildBillSplitLineDescription(bill) || paymentDescription
+            };
+          })
         }).pipe(
           take(1),
           finalize(() => {

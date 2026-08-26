@@ -1,5 +1,6 @@
 import { FileDetails } from "../../documents/models/document.model";
 import type { CalendarDateString } from '../../../services/utility.service';
+import { ReceiptType } from './maintenance-enums';
 
 /** Persisted on receipt propertyIds when the user selects Company at the receipt level. */
 export const RECEIPT_COMPANY_PROPERTY_ID = '00000000-0000-0000-0000-000000000000';
@@ -23,6 +24,25 @@ export function resolveFirstRealReceiptPropertyId(propertyIds: string[] | null |
   return (propertyIds || [])
     .map(propertyId => (propertyId || '').trim())
     .find(propertyId => propertyId.length > 0 && !isReceiptCompanyPropertyId(propertyId)) ?? null;
+}
+
+export function buildBillSplitLineDescription(
+  bill: Pick<ReceiptResponse, 'description' | 'splits'> | Pick<ReceiptDisplayList, 'description' | 'splits'> | null | undefined
+): string {
+  if (!bill) {
+    return '';
+  }
+
+  const splitDescriptions = (bill.splits || [])
+    .filter(split => Number(split.receiptTypeId) !== ReceiptType.NonExpense && Number(split.amount) !== 0)
+    .map(split => (split.description || '').trim())
+    .filter(description => description.length > 0);
+
+  if (splitDescriptions.length > 0) {
+    return splitDescriptions.join(' — ');
+  }
+
+  return (bill.description || '').trim();
 }
 
 export interface Split {

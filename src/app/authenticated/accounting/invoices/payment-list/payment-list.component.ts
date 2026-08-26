@@ -104,6 +104,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   readonly paymentBillAllocationDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     receiptCode: { displayAs: 'Bill', maxWidth: '15ch', wrap: false, sortType: 'natural' },
+    vendorName: { displayAs: 'Vendor', maxWidth: '24ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
@@ -614,6 +615,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
         return String(lineIndex + 1);
       case 'receiptCode':
         return (allocation.receiptCode || '').trim() || '—';
+      case 'vendorName':
+        return (allocation.vendorName || '').trim() || '—';
       case 'description':
         return (allocation.description || '').trim() || '—';
       case 'amount':

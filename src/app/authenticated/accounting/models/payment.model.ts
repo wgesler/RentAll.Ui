@@ -57,6 +57,7 @@ export interface PaymentBillAllocation {
   paymentId: string;
   receiptId: string;
   receiptCode: string;
+  vendorName?: string;
   lineNumber: number;
   amount: number;
   costCodeId?: number | null;
