@@ -64,7 +64,7 @@ export class DocuSignSignersDialogComponent {
   }
 
   getContactLabel(contact: ContactResponse): string {
-    const name = String(contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim()).trim();
+    const name = String(contact.legalName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim()).trim();
     const email = String(contact.email || '').trim();
     if (name && email) {
       return `${name} (${email})`;

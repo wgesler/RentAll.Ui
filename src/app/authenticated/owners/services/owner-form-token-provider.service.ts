@@ -329,7 +329,7 @@ getPropertyOwnerName(contacts: ContactResponse[], contactId: string | null | und
     const contact = (contacts || []).find(item =>
       String(item.contactId || '').trim().toLowerCase() === normalizedContactId
     );
-    return String(contact?.fullName || `${contact?.firstName || ''} ${contact?.lastName || ''}`.trim()).trim();
+    return String(contact?.legalName || `${contact?.firstName || ''} ${contact?.lastName || ''}`.trim()).trim();
   }
 }
 

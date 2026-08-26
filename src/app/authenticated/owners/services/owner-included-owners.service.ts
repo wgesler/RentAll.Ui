@@ -9,7 +9,7 @@ export class OwnerIncludedOwnersService {
     if (!contact) {
       return '';
     }
-    return String(contact.fullName || '').trim()
+    return String(contact.legalName || '').trim()
       || `${String(contact.firstName || '').trim()} ${String(contact.lastName || '').trim()}`.trim();
   }
 

@@ -69,6 +69,7 @@ export interface ContactResponse {
   lastName?: string | null;
   preferredName?: string | null;
   fullName?: string | null;
+  legalName?: string | null;
   address1?: string;
   address2?: string;
   city?: string;
@@ -107,6 +108,7 @@ export interface ContactListDisplay {
   officeName: string;
   officeAccess?: number[];
   fullName?: string | null;
+  legalName?: string | null;
   contactType: string;
   entityTypeId?: number;
   ownerTypeId: number;

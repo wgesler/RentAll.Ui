@@ -674,12 +674,12 @@ export class UtilityService {
     switch (reservationTypeId) {
       case ReservationType.Corporate:
       case ReservationType.Platform:
-         return (contact.companyName || contact.displayName || contact.fullName || '').trim();
+         return (contact.companyName || contact.displayName || this.getContactLegalName(contact) || '').trim();
       default:
         if (contact.entityTypeId === EntityType.Company) {
-          return (contact.companyName || contact.displayName || contact.fullName || '').trim();
+          return (contact.companyName || contact.displayName || this.getContactLegalName(contact) || '').trim();
         }
-        return (`${contact.firstName || ''} ${contact.lastName || ''}`).trim();
+        return this.getContactLegalName(contact);
     }
   }
 
@@ -736,6 +736,18 @@ export class UtilityService {
       return '';
     }
     return (contact.companyName || '').trim();
+  }
+
+  getContactLegalName(contact: Pick<ContactResponse, 'legalName' | 'firstName' | 'lastName'> | null | undefined): string {
+    return String(contact?.legalName || `${contact?.firstName || ''} ${contact?.lastName || ''}`).trim();
+  }
+
+  getFriendlyContactFullName(contact: Pick<ContactResponse, 'preferredName' | 'firstName' | 'lastName'> | null | undefined): string {
+    const firstName = String(contact?.firstName || '').trim();
+    const preferredName = String(contact?.preferredName || '').trim();
+    const lastName = String(contact?.lastName || '').trim();
+    const preferredPart = preferredName ? `(${preferredName})` : '';
+    return `${firstName} ${preferredPart} ${lastName}`.replace(/\s+/g, ' ').trim();
   }
 
   getContactSalutationName(contact: Pick<ContactResponse, 'preferredName' | 'firstName'> | null | undefined): string {
