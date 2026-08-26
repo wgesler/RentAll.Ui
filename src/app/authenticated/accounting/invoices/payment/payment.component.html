@@ -44,7 +44,7 @@
 
                 <mat-form-field appearance="outline" class="payment-overall-direction-field">
                   <mat-label>Direction</mat-label>
-                  <mat-select formControlName="paymentDirectionId" [compareWith]="comparePaymentDirectionIds" disabled>
+                  <mat-select formControlName="paymentDirectionId" [compareWith]="comparePaymentDirectionIds" [disabled]="true">
                     @for (direction of paymentDirectionOptions; track direction.value) {
                       <mat-option [value]="direction.value">{{ direction.label }}</mat-option>
                     }
