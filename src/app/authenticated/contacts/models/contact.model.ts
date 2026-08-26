@@ -18,6 +18,7 @@ export interface ContactRequest {
   displayName?: string |null;
   firstName?: string | null;
   lastName?: string | null;
+  preferredName?: string | null;
   address1?: string;
   address2?: string;
   city?: string;
@@ -66,6 +67,7 @@ export interface ContactResponse {
   displayName?: string |null;
   firstName?: string | null;
   lastName?: string | null;
+  preferredName?: string | null;
   fullName?: string | null;
   address1?: string;
   address2?: string;

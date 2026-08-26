@@ -1266,7 +1266,7 @@ initializeWorkOrderPreview(): void {
     return {
       email: this.selectedContact?.email || '',
       name: this.selectedContact?.fullName || `${this.selectedContact?.firstName || ''} ${this.selectedContact?.lastName || ''}`.trim(),
-      salutationName: `${this.selectedContact?.firstName || ''}`.trim()
+      salutationName: this.utilityService.getContactSalutationName(this.selectedContact)
     };
   }
 

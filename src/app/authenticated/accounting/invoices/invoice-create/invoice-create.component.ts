@@ -875,7 +875,7 @@ initializeInvoicePreview(): void {
     const toName =  (this.contact?.entityTypeId === EntityType.Company) ? `${this.contact?.companyName || ''}`.trim() : `${this.contact?.fullName || ''}`.trim();
     const ccEmail = (this.contact?.entityTypeId === EntityType.Company) ? (this.contact?.email || '') : null;
     const ccEmails = [ccEmail];
-    const salutationName = `${this.contact?.firstName || ''}`.trim();
+    const salutationName = this.utilityService.getContactSalutationName(this.contact);
     const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';

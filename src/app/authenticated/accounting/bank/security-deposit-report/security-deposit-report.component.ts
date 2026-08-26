@@ -507,7 +507,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
       return;
     }
 
-    const salutationName = `${this.contact?.firstName || ''}`.trim() || toName.trim().split(/\s+/)[0] || '';
+    const salutationName = this.utilityService.getContactSalutationName(this.contact) || toName.trim().split(/\s+/)[0] || '';
     const tenantName = `${this.reservation?.tenantName || this.detail.reservation.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';

@@ -481,7 +481,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return;
     }
 
-    const salutationName = `${this.ownerContact?.firstName || ''}`.trim() || toName.trim().split(/\s+/)[0] || '';
+    const salutationName = this.utilityService.getContactSalutationName(this.ownerContact) || toName.trim().split(/\s+/)[0] || '';
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();

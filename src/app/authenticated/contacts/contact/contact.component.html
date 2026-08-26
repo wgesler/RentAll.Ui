@@ -180,6 +180,10 @@
                       <input matInput formControlName="lastName" required>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Preferred Name</mat-label>
+                      <input matInput formControlName="preferredName">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Phone</mat-label>
                       <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
                         [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
@@ -237,6 +241,10 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName" required>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Preferred Name</mat-label>
+                      <input matInput formControlName="preferredName">
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Phone</mat-label>
@@ -318,6 +326,10 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Preferred Name</mat-label>
+                      <input matInput formControlName="preferredName">
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Phone</mat-label>
@@ -409,6 +421,10 @@
                       <input matInput formControlName="lastName" [required]="vendorFirstLastRequired()">
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Preferred Name</mat-label>
+                      <input matInput formControlName="preferredName">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Phone</mat-label>
                       <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
                         [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
@@ -450,6 +466,10 @@
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName">
                     </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Preferred Name</mat-label>
+                      <input matInput formControlName="preferredName">
+                    </mat-form-field>
                   </div>
                 } @else {
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
@@ -473,6 +493,10 @@
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName" required>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Preferred Name</mat-label>
+                      <input matInput formControlName="preferredName">
                     </mat-form-field>
                   </div>
                 }

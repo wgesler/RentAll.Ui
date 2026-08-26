@@ -2456,7 +2456,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   override async onEmail(): Promise<void> {
     const toEmail = this.contact?.email || '';
     const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
-    const salutationName = `${this.contact?.firstName|| ''}`.trim();
+    const salutationName = this.utilityService.getContactSalutationName(this.contact);
     const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';

@@ -738,6 +738,10 @@ export class UtilityService {
     return (contact.companyName || '').trim();
   }
 
+  getContactSalutationName(contact: Pick<ContactResponse, 'preferredName' | 'firstName'> | null | undefined): string {
+    return String(contact?.preferredName || contact?.firstName || '').trim();
+  }
+
   getVendorDropdownLabel(contact: Pick<ContactResponse, 'companyName' | 'firstName' | 'lastName'> | null | undefined): string {
     if (!contact) {
       return '';

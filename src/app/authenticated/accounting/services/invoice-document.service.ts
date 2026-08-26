@@ -196,7 +196,7 @@ export class InvoiceDocumentService {
         const toName = isCompany ? `${contact.companyName || ''}`.trim() : `${contact.fullName || ''}`.trim();
         const ccEmail = isCompany ? (contact.email || '') : null;
         const ccEmails = ccEmail ? [ccEmail] : [];
-        const salutationName = `${contact.firstName || ''}`.trim();
+        const salutationName = this.utilityService.getContactSalutationName(contact);
         const tenantName = `${data.reservation.tenantName || ''}`.trim();
         const accountingName = selectedAccountingOffice?.name || '';
         const accountingPhone = this.formatterService.phoneNumber(selectedAccountingOffice?.phone) || '';

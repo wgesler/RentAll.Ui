@@ -1057,7 +1057,7 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     const contact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) || null;
     const toName = contact?.fullName;
     const toEmail = contact?.email || '';
-    const salutationName = `${contact?.firstName|| ''}`.trim();
+    const salutationName = this.utilityService.getContactSalutationName(contact);
     const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const agentName = currentUser.firstName + ' ' + currentUser.lastName;
