@@ -42,6 +42,15 @@
                   <mat-datepicker #paymentDatePicker></mat-datepicker>
                 </mat-form-field>
 
+                <mat-form-field appearance="outline" class="payment-overall-direction-field">
+                  <mat-label>Direction</mat-label>
+                  <mat-select formControlName="paymentDirectionId" [compareWith]="comparePaymentDirectionIds" disabled>
+                    @for (direction of paymentDirectionOptions; track direction.value) {
+                      <mat-option [value]="direction.value">{{ direction.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="payment-overall-type-field">
                   <mat-label>Payment Type</mat-label>
                   <mat-select formControlName="paymentTypeId" [compareWith]="comparePaymentTypeIds">

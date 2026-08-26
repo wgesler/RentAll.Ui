@@ -29,7 +29,7 @@ import { InspectionDisplayList, InspectionResponse } from '../authenticated/main
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { PaymentDisplayList, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../authenticated/accounting/models/payment.model';
-import { getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { PaymentDirection, getPaymentDirectionLabel, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
@@ -3903,6 +3903,14 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
   }
 
+  normalizePaymentDirectionId(raw: unknown): number {
+    if (raw === null || raw === undefined || raw === '') {
+      return 0;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  }
+
   hasLinkedDeposit(depositId: string | null | undefined): boolean {
     const normalizedDepositId = (depositId || '').trim();
     return normalizedDepositId.length > 0
@@ -3936,6 +3944,8 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     const depositId = depositIdRaw == null || String(depositIdRaw).trim().length === 0
       ? null
       : String(depositIdRaw).trim();
+    const paymentDirectionIdRaw = rawRecord['paymentDirectionId'] ?? rawRecord['PaymentDirectionId'] ?? base.paymentDirectionId;
+    const paymentDirectionId = this.normalizePaymentDirectionId(paymentDirectionIdRaw);
     const paymentTypeIdRaw = rawRecord['paymentTypeId'] ?? rawRecord['PaymentTypeId'] ?? base.paymentTypeId;
     const paymentTypeId = this.normalizePaymentTypeId(paymentTypeIdRaw);
     const costCodeIdRaw = rawRecord['costCodeId'] ?? rawRecord['CostCodeId'] ?? base.costCodeId;
@@ -3961,6 +3971,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       costCodeId,
       costCodeDescription: String(rawRecord['costCodeDescription'] ?? rawRecord['CostCodeDescription'] ?? base.costCodeDescription ?? '').trim(),
       description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
+      paymentDirectionId,
       paymentTypeId,
       paymentTypeDescription: (String(rawRecord['paymentTypeDescription'] ?? rawRecord['PaymentTypeDescription'] ?? base.paymentTypeDescription ?? '').trim())
         || getPaymentTypeLabel(paymentTypeId),
@@ -4039,6 +4050,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
         amountDisplay: this.formatter.currencyUsd(Number(payment.amount) || 0),
         costCodeId: payment.costCodeId,
         costCodeDescription: (payment.costCodeDescription || '').trim(),
+        paymentDirectionDescription: getPaymentDirectionLabel(this.normalizePaymentDirectionId(payment.paymentDirectionId)),
         paymentTypeDescription: (payment.paymentTypeDescription || '').trim()
           || getPaymentTypeLabel(this.normalizePaymentTypeId(payment.paymentTypeId)),
         depositCode: (payment.depositCode || '').trim(),
@@ -4067,6 +4079,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       amount: number;
       costCodeId: number;
       description: string;
+      paymentDirectionId: number;
       paymentTypeId: number | null;
       isActive: boolean;
     }
@@ -4082,6 +4095,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       amount: fields.amount,
       costCodeId: fields.costCodeId,
       description: fields.description,
+      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: fields.paymentTypeId,
       depositId: source?.depositId ?? null,
       isActive: fields.isActive
@@ -4094,6 +4108,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       amount: Number(payment.amount) || 0,
       costCodeId: payment.costCodeId,
       description: (payment.description || '').trim(),
+      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: payment.paymentTypeId ?? null,
       isActive
     });

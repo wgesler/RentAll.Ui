@@ -75,6 +75,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   readonly paymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    paymentDirectionDescription: { displayAs: 'Direction', wrap: false, maxWidth: '14ch' },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
     costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '25ch' },
     invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },
@@ -89,6 +90,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    paymentDirectionDescription: { displayAs: 'Direction', wrap: false, maxWidth: '14ch' },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
     costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '25ch' },
     invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },

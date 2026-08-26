@@ -25,7 +25,7 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { UserGroups } from '../../../users/models/user-enums';
-import { TransactionType, TransactionTypeLabels, PaymentType } from '../../models/accounting-enum';
+import { PaymentDirection, PaymentType, TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceGetRequest, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, LedgerLineResponse } from '../../models/invoice.model';
@@ -1566,6 +1566,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       amount: this.roundCurrencyValue(amount),
       costCodeId: this.selectedPaymentCostCodeId,
       description: this.getPaymentRequestDescription(),
+      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: PaymentType.Check,
       isActive: true,
       invoices: options?.invoiceIds,

@@ -625,6 +625,47 @@ export function getPaymentTypeLabel(
 }
 //#endregion
 
+//#region PaymentDirection
+export enum PaymentDirection {
+  Inbound = 0,
+  Outbound = 1
+}
+
+export const PaymentDirectionLabels: { value: PaymentDirection; label: string }[] = [
+  { value: PaymentDirection.Inbound, label: 'Inbound' },
+  { value: PaymentDirection.Outbound, label: 'Outbound' },
+];
+
+export function getPaymentDirection(paymentDirectionId: number | undefined | null): string {
+  if (paymentDirectionId === undefined || paymentDirectionId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [PaymentDirection.Inbound]: 'Inbound',
+    [PaymentDirection.Outbound]: 'Outbound',
+  };
+
+  return typeMap[paymentDirectionId] || '';
+}
+
+export function getPaymentDirections(): { value: number; label: string }[] {
+  return PaymentDirectionLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function getPaymentDirectionLabel(
+  paymentDirectionId: number | undefined | null,
+  paymentDirections?: { value: number; label: string }[]
+): string {
+  if (paymentDirectionId === undefined || paymentDirectionId === null) {
+    return '';
+  }
+
+  const options = paymentDirections?.length ? paymentDirections : PaymentDirectionLabels;
+  return options.find(type => type.value === paymentDirectionId)?.label ?? getPaymentDirection(paymentDirectionId);
+}
+//#endregion
+
 //#region Class
 export enum Class {
   TotalOnly = 0,

@@ -10,7 +10,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
-import { PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
+import { PaymentDirection, PaymentDirectionLabels, PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { CreatePaymentWithAllocationsRequest, UpdatePaymentWithAllocationsRequest, PaymentLedgerLine, PaymentRequest, PaymentResponse } from '../../models/payment.model';
@@ -56,7 +56,9 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   invoices: InvoiceResponse[] = [];
   costCodeOptions: SearchableSelectOption<number>[] = [];
   invoiceOptions: SearchableSelectOption<string>[] = [];
+  readonly paymentDirectionOptions = PaymentDirectionLabels;
   readonly paymentTypeOptions = PaymentTypeLabels;
+  readonly comparePaymentDirectionIds = (left: number | null, right: number | null): boolean => left === right;
   readonly comparePaymentTypeIds = (left: number | null, right: number | null): boolean => left === right;
   amountFocused = false;
   amountEditValue = '';
@@ -168,6 +170,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const paymentDirectionId = this.resolvePaymentDirectionIdFromForm();
     const paymentTypeId = this.resolvePaymentTypeIdFromForm();
 
     if (!this.isAddMode && !this.payment?.paymentId) {
@@ -184,6 +187,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
         amount: amountValue,
         costCodeId,
         description: (this.form.get('description')?.value || '').trim(),
+        paymentDirectionId,
         paymentTypeId,
         isActive: !!this.form.get('isActive')?.value
       }
@@ -284,6 +288,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       paymentDate: new FormControl<Date | null>(today, [Validators.required]),
       amount: new FormControl('0.00', [Validators.required, this.requirePositiveAmount]),
       costCodeId: new FormControl<number>(0, [Validators.required, this.requireCostCodeId]),
+      paymentDirectionId: new FormControl<number>(PaymentDirection.Inbound),
       paymentTypeId: new FormControl<number | null>(PaymentType.Check),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true),
@@ -297,6 +302,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       description: payment.description || '',
       amount: payment.amount != null ? this.formatter.currency(payment.amount) : '0.00',
       costCodeId: payment.costCodeId ?? 0,
+      paymentDirectionId: PaymentDirection.Inbound,
       paymentTypeId: payment.paymentTypeId ?? null,
       isActive: payment.isActive
     });
@@ -313,6 +319,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.ensureAtLeastOneSplit();
   }
   //#endregion
+
+  resolvePaymentDirectionIdFromForm(): number {
+    return PaymentDirection.Inbound;
+  }
 
   resolvePaymentTypeIdFromForm(): number | null {
     const raw = this.form.get('paymentTypeId')?.value;

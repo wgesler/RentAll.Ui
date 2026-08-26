@@ -45,6 +45,7 @@ export interface ApplyInvoicePaymentRequest {
   amount: number;
   costCodeId: number;
   description: string;
+  paymentDirectionId: number;
   paymentTypeId?: number | null;
   isActive?: boolean;
   invoices?: string[];
@@ -59,6 +60,7 @@ export interface PaymentRequest {
   amount: number;
   costCodeId: number;
   description: string;
+  paymentDirectionId: number;
   paymentTypeId?: number | null;
   depositId?: string | null;
   isActive: boolean;
@@ -75,6 +77,7 @@ export interface PaymentResponse {
   costCodeId: number;
   costCodeDescription: string;
   description: string;
+  paymentDirectionId: number;
   paymentTypeId?: number | null;
   paymentTypeDescription?: string;
   depositId?: string | null;
@@ -99,6 +102,7 @@ export interface PaymentDisplayList {
   amountDisplay?: string;
   costCodeId: number;
   costCodeDescription: string;
+  paymentDirectionDescription?: string;
   paymentTypeDescription?: string;
   depositCode?: string;
   hasDeposit: boolean;

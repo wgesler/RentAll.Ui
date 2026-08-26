@@ -22,8 +22,8 @@ export class PaymentService {
 
   getPayments(officeId?: number | null): Observable<PaymentResponse[]> {
     const request$ = officeId != null && Number.isFinite(officeId) && officeId > 0
-      ? this.http.get<PaymentResponse[]>(this.controller + 'office/' + officeId)
-      : this.http.get<PaymentResponse[]>(this.controller);
+      ? this.http.get<PaymentResponse[]>(this.controller + 'inbound/office/' + officeId)
+      : this.http.get<PaymentResponse[]>(this.controller + 'inbound');
 
     return request$.pipe(map(payments => (payments || []).map(payment => this.mappingService.mapPaymentResponse(payment))));
   }
