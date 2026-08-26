@@ -496,7 +496,8 @@ iframeLoadHandler?: () => void;
   back(): void {
     if (this.returnTo === 'reservationTab' && this.reservationId) {
       const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [this.reservationId]);
-      const params: string[] = ['tab=documents', `reservationId=${this.reservationId}`];
+      const tab = this.route.snapshot.queryParams['tab'] || 'documents';
+      const params: string[] = [`tab=${tab}`, `reservationId=${this.reservationId}`];
       if (this.propertyId) {
         params.push(`propertyId=${this.propertyId}`);
       }
@@ -569,6 +570,21 @@ iframeLoadHandler?: () => void;
     }
 
     if (this.returnTo === 'email') {
+      this.router.navigateByUrl(RouterUrl.EmailList);
+      return;
+    }
+
+    if (this.returnTo === 'emailCreate') {
+      this.router.navigateByUrl(RouterUrl.EmailCreate);
+      return;
+    }
+
+    if (this.returnTo === 'emailDetail') {
+      const emailId = String(this.route.snapshot.queryParams['emailId'] || '').trim();
+      if (emailId) {
+        this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Email, [emailId]));
+        return;
+      }
       this.router.navigateByUrl(RouterUrl.EmailList);
       return;
     }

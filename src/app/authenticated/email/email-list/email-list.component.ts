@@ -592,8 +592,18 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const url = this.router.serializeUrl(this.router.createUrlTree([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])]));
-    window.open(url, '_blank', 'noopener');
+    const reservationId = this.reservationId || email.reservationId || null;
+    const queryParams = this.source === 'reservation' && reservationId
+      ? {
+          returnTo: 'reservationTab',
+          tab: 'emails',
+          reservationId,
+          ...(this.propertyId ? { propertyId: this.propertyId } : {}),
+          ...(this.selectedOfficeId != null ? { officeId: String(this.selectedOfficeId) } : {})
+        }
+      : { returnTo: 'email' };
+
+    this.router.navigate([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])], { queryParams });
   }
 
   viewEmail(email: EmailListDisplay): void {

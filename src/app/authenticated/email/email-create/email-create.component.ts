@@ -233,8 +233,7 @@ export class EmailCreateComponent implements OnInit {
       return;
     }
 
-    const url = this.router.serializeUrl(this.router.createUrlTree([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])]));
-    window.open(url, '_blank', 'noopener');
+    this.router.navigate([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])], { queryParams: { returnTo: 'emailCreate' } });
   }
 
   navigateBackAndClear(): void {
