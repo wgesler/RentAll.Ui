@@ -23,6 +23,48 @@
   margin-bottom: 0.75rem;
 }
 
+.maintenance-property-meta {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.maintenance-property-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1rem 2rem;
+}
+
+.maintenance-meta-field {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.maintenance-meta-field--address {
+  flex: 1 1 280px;
+}
+
+.maintenance-meta-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.maintenance-meta-value {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 500;
+  word-break: break-word;
+}
+
 .maintenance-top-actions {
   display: flex;
   justify-content: flex-end;

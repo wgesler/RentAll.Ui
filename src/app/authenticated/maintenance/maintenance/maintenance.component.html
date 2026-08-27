@@ -13,6 +13,18 @@
         Save
       </button>
     </div>
+    <div class="maintenance-property-meta">
+      <div class="maintenance-property-meta-row">
+        <div class="maintenance-meta-field">
+          <p class="maintenance-meta-label">Property Code:</p>
+          <p class="maintenance-meta-value">{{ property?.propertyCode || 'N/A' }}</p>
+        </div>
+        <div class="maintenance-meta-field maintenance-meta-field--address">
+          <p class="maintenance-meta-label">Address:</p>
+          <p class="maintenance-meta-value">{{ propertyAddress }}</p>
+        </div>
+      </div>
+    </div>
     <div class="maintenance-form-row form-standard-grid">
       <mat-form-field appearance="outline" class="maintenance-field-full">
         <mat-label>Notes</mat-label>

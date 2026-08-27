@@ -87,6 +87,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   maintenanceDiscardRequestToken = 0;
   inspectionSaveResolver: ((success: boolean) => void) | null = null;
   maintenanceSaveResolver: ((success: boolean) => void) | null = null;
+  inspectionDetailInstance = 0;
+  maintenanceDetailInstance = 0;
 
   showReceiptDetail = false;
   receiptDetailInstance = 0;
@@ -242,6 +244,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.syncTitleBarSelections();
         this.syncMaintenanceSearchRequests();
         this.isPropertyLoading = false;
+        this.inspectionDetailInstance++;
+        this.maintenanceDetailInstance++;
         this.cdr.markForCheck();
         onLoaded?.();
       },
@@ -489,7 +493,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     if (this.skipNextPropertyCodeChange) {
       this.skipNextPropertyCodeChange = false;
-      this.refreshActiveTabFromTitleBar();
+      this.syncPropertyScopedTabToTitleBarSelection();
       return;
     }
     if (this.selectedPropertyId === this.property?.propertyId) {
@@ -533,22 +537,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.selectedReceiptId = null;
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
-    this.titleBarReservationId = null;
-    this.shellReservations = [];
-    this.property = null;
     this.isServiceError = false;
+    this.openWithAllSelections = false;
     if (!this.selectedPropertyId) {
-      this.clearPropertyContext();
+      this.clearPropertyContext(true);
       this.refreshActiveTabFromTitleBar();
       return;
     }
 
-    this.openWithAllSelections = false;
-    this.routePropertyId = this.selectedPropertyId;
-    this.loadProperty(this.selectedPropertyId, () => {
-      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId!])}?tab=${this.selectedTabIndex}`);
-      this.refreshActiveTabFromTitleBar();
-    });
+    this.syncPropertyScopedTabToTitleBarSelection();
+    this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
   }
 
   onReservationDropdownChange(value: string | number | null): void {
@@ -681,13 +679,29 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return this.availableProperties.some(property => property.propertyId === this.selectedPropertyId);
   }
 
-  clearPropertyContext(): void {
+  clearPropertyContext(clearSelectedPropertyId: boolean = false): void {
     this.propertyLoadVersion++;
     this.property = null;
     this.shellReservations = [];
     this.titleBarReservationId = null;
     this.isPropertyLoading = false;
     this.isServiceError = false;
+    if (clearSelectedPropertyId) {
+      this.selectedPropertyId = null;
+    }
+  }
+
+  syncPropertyScopedTabToTitleBarSelection(forceReload: boolean = false): void {
+    this.updateAvailableProperties();
+    if (this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope()) {
+      this.clearPropertyContext(true);
+      this.updateAvailableProperties();
+    } else if (this.property && this.selectedPropertyId && this.property.propertyId !== this.selectedPropertyId) {
+      this.clearPropertyContext(false);
+    } else if (this.property && this.selectedOfficeId != null && this.property.officeId !== this.selectedOfficeId) {
+      this.clearPropertyContext(false);
+    }
+    this.refreshActiveTabFromTitleBar({ forcePropertyReload: forceReload });
   }
 
   refreshActiveTabFromTitleBar(options?: { forcePropertyReload?: boolean }): void {
@@ -713,19 +727,17 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   ensurePropertyScopedTabLoaded(forceReload: boolean = false): void {
-    if (this.isPropertyLoading) {
-      return;
-    }
-
     if (this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope()) {
-      this.clearPropertyContext();
-      this.selectedPropertyId = null;
+      this.clearPropertyContext(true);
+      this.updateAvailableProperties();
+    } else if (this.property && this.selectedPropertyId && this.property.propertyId !== this.selectedPropertyId) {
+      this.clearPropertyContext(false);
     }
 
     if (!this.selectedPropertyId) {
       const firstPropertyId = (this.availableProperties[0]?.propertyId || '').trim();
       if (!firstPropertyId) {
-        this.clearPropertyContext();
+        this.clearPropertyContext(false);
         return;
       }
 
@@ -801,14 +813,19 @@ applyPageOfficeChangeEffects(): void {
     this.updateAvailableProperties();
 
     if (!skipUserOfficeEffects) {
-      const propertyOutOfOfficeScope = this.property
+      const selectedPropertyOutOfScope = !!this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope();
+      const loadedPropertyOutOfOfficeScope = !!this.property
         && this.selectedOfficeId != null
         && this.property.officeId !== this.selectedOfficeId;
-      const selectedPropertyOutOfScope = !!this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope();
-      if (propertyOutOfOfficeScope || selectedPropertyOutOfScope) {
-        this.clearPropertyContext();
-        this.selectedPropertyId = null;
+      const loadedPropertyMismatch = !!this.selectedPropertyId
+        && !!this.property
+        && this.property.propertyId !== this.selectedPropertyId;
+
+      if (selectedPropertyOutOfScope) {
+        this.clearPropertyContext(true);
         this.updateAvailableProperties();
+      } else if (loadedPropertyOutOfOfficeScope || loadedPropertyMismatch) {
+        this.clearPropertyContext(false);
       }
 
       if (!keepReceiptAddDetailOpen) {
@@ -829,7 +846,7 @@ applyPageOfficeChangeEffects(): void {
       }
     }
 
-    this.refreshActiveTabFromTitleBar({ forcePropertyReload: !skipUserOfficeEffects });
+    this.syncPropertyScopedTabToTitleBarSelection(!skipUserOfficeEffects);
   }
 
   setTitleBarReservationForCurrentProperty(reservationId: string | null): void {

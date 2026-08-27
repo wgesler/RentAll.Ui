@@ -149,6 +149,7 @@
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
           <mat-tab label="Inspection">
             @if (selectedTabIndex === 0 && property) {
+              @for (instance of [inspectionDetailInstance]; track instance) {
               <app-inspection
                 [property]="property"
                 [checklistType]="'inspection'"
@@ -162,6 +163,7 @@
                 (unsavedChangesChange)="onInspectionUnsavedChangesChange($event)"
                 (saveRequestCompleted)="onInspectionSaveRequestCompleted($event)"
                 (inspectionSubmitted)="onInspectionSubmitted()" />
+              }
             } @else if (selectedTabIndex === 0 && isPropertyLoading) {
               <div class="loading-container">
                 <mat-spinner [diameter]="40"></mat-spinner>
@@ -175,12 +177,14 @@
           </mat-tab>
           <mat-tab label="Maintenance">
             @if (selectedTabIndex === 1) {
+            @for (instance of [maintenanceDetailInstance]; track instance) {
             <app-maintenance
               [property]="property"
               [saveRequestToken]="maintenanceSaveRequestToken"
               [discardRequestToken]="maintenanceDiscardRequestToken"
               (unsavedChangesChange)="onMaintenanceUnsavedChangesChange($event)"
               (saveRequestCompleted)="onMaintenanceSaveRequestCompleted($event)" />
+            }
             }
           </mat-tab>
           <mat-tab label="Receipts">

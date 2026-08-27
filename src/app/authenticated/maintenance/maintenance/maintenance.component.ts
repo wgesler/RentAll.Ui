@@ -514,6 +514,24 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  get propertyAddress(): string {
+    if (!this.property) {
+      return 'N/A';
+    }
+
+    const suitePart = String(this.property.suite ?? '').trim();
+    const parts = [
+      this.property.address1,
+      this.property.address2,
+      suitePart ? `#${suitePart.replace(/^#/, '')}` : '',
+      this.property.city,
+      this.property.state,
+      this.property.zip
+    ].map(part => String(part ?? '').trim()).filter(part => part.length > 0);
+
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
