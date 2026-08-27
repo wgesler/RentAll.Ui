@@ -183,7 +183,9 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     if (changes['property']) {
       const propertyId = this.property?.propertyId ?? null;
-      if (propertyId && propertyId !== this.lastPropertyIdLoaded) {
+      const propertyReferenceChanged = !changes['property'].firstChange
+        && changes['property'].previousValue !== changes['property'].currentValue;
+      if (propertyId && (propertyId !== this.lastPropertyIdLoaded || propertyReferenceChanged)) {
         this.initializeChecklistState();
         this.syncPropertyDrivenSections();
         this.loadChecklistContext();

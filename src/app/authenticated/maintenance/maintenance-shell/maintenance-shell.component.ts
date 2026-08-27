@@ -312,6 +312,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
               : propertyRows;
             this.syncTitleBarSelections();
             this.syncMaintenanceSearchRequests();
+            this.refreshActiveTabFromTitleBar();
           },
           error: () => {
             this.allProperties = [];
@@ -464,9 +465,20 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   //#endregion
 
   //#region Top Bar Event Methods
-  onOfficeDropdownChange(value: string | number | null): void {
+  async onOfficeDropdownChange(value: string | number | null): Promise<void> {
     const officeId = value == null || value === '' ? null : Number(value);
-    this.applyPageOfficeScope(officeId);
+    const normalizedOfficeId = this.normalizeOfficeId(officeId);
+    if (normalizedOfficeId === this.selectedOfficeId) {
+      this.refreshActiveTabFromTitleBar({ forcePropertyReload: true });
+      return;
+    }
+
+    const canLeave = await this.confirmChecklistNavigation();
+    if (!canLeave) {
+      return;
+    }
+
+    this.applyPageOfficeScope(normalizedOfficeId);
     this.applyPageOfficeChangeEffects();
   }
 
@@ -477,13 +489,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     if (this.skipNextPropertyCodeChange) {
       this.skipNextPropertyCodeChange = false;
-      this.syncMaintenanceSearchRequests();
-      this.refreshVisibleMaintenanceLists();
+      this.refreshActiveTabFromTitleBar();
       return;
     }
     if (this.selectedPropertyId === this.property?.propertyId) {
-      this.syncMaintenanceSearchRequests();
-      this.refreshVisibleMaintenanceLists();
+      this.refreshActiveTabFromTitleBar({ forcePropertyReload: true });
       return;
     }
 
@@ -499,16 +509,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.workOrderDetailInstance++;
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
-        this.property = null;
-        this.syncMaintenanceSearchRequests();
-        this.refreshReceiptsTrigger++;
-        this.refreshWorkOrdersTrigger++;
+        this.clearPropertyContext();
+        this.refreshActiveTabFromTitleBar();
         return;
       }
-      this.loadProperty(this.selectedPropertyId);
-      this.syncMaintenanceSearchRequests();
-      this.refreshReceiptsTrigger++;
-      this.refreshWorkOrdersTrigger++;
+      this.loadProperty(this.selectedPropertyId, () => this.refreshActiveTabFromTitleBar());
       return;
     }
     if (keepReceiptAddDetailOpen) {
@@ -516,16 +521,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.selectedReceiptId = 'new';
       this.isServiceError = false;
       if (!this.selectedPropertyId) {
-        this.property = null;
-        this.syncMaintenanceSearchRequests();
-        this.refreshReceiptsTrigger++;
-        this.refreshWorkOrdersTrigger++;
+        this.clearPropertyContext();
+        this.refreshActiveTabFromTitleBar();
         return;
       }
-      this.loadProperty(this.selectedPropertyId);
-      this.syncMaintenanceSearchRequests();
-      this.refreshReceiptsTrigger++;
-      this.refreshWorkOrdersTrigger++;
+      this.loadProperty(this.selectedPropertyId, () => this.refreshActiveTabFromTitleBar());
       return;
     }
 
@@ -538,20 +538,17 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.property = null;
     this.isServiceError = false;
     if (!this.selectedPropertyId) {
-      this.property = null;
-      this.syncMaintenanceSearchRequests();
-      this.refreshReceiptsTrigger++;
-      this.refreshWorkOrdersTrigger++;
+      this.clearPropertyContext();
+      this.refreshActiveTabFromTitleBar();
       return;
     }
 
     this.openWithAllSelections = false;
     this.routePropertyId = this.selectedPropertyId;
-    this.loadProperty(this.selectedPropertyId);
-    this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
-    this.syncMaintenanceSearchRequests();
-    this.refreshReceiptsTrigger++;
-    this.refreshWorkOrdersTrigger++;
+    this.loadProperty(this.selectedPropertyId, () => {
+      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId!])}?tab=${this.selectedTabIndex}`);
+      this.refreshActiveTabFromTitleBar();
+    });
   }
 
   onReservationDropdownChange(value: string | number | null): void {
@@ -664,38 +661,85 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       .map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }))
       .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
 
-    if (this.selectedPropertyId && !this.availableProperties.some(property => property.propertyId === this.selectedPropertyId)) {
-      const keepRouteProperty = this.property?.propertyId === this.selectedPropertyId
-        || this.routePropertyId === this.selectedPropertyId
-        || (this.isPropertyLoading && this.routePropertyId === this.selectedPropertyId);
-      if (!keepRouteProperty && this.availableProperties.length > 0) {
+    if (this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope()) {
+      const keepRouteProperty = this.isPropertyLoading && this.routePropertyId === this.selectedPropertyId;
+      if (!keepRouteProperty) {
         this.selectedPropertyId = null;
       }
     }
-
-    this.autoSelectPropertyForInspectionTab();
   }
 
-  autoSelectPropertyForInspectionTab(): void {
-    if (this.selectedTabIndex !== 0) {
-      return;
+  isPropertyScopedTab(): boolean {
+    return this.selectedTabIndex === 0 || this.selectedTabIndex === 1;
+  }
+
+  isSelectedPropertyInAvailableScope(): boolean {
+    if (!this.selectedPropertyId) {
+      return false;
     }
-    if (this.selectedPropertyId || this.property?.propertyId) {
-      return;
-    }
-    if (this.isPropertyLoading || this.availableProperties.length === 0) {
+
+    return this.availableProperties.some(property => property.propertyId === this.selectedPropertyId);
+  }
+
+  clearPropertyContext(): void {
+    this.propertyLoadVersion++;
+    this.property = null;
+    this.shellReservations = [];
+    this.titleBarReservationId = null;
+    this.isPropertyLoading = false;
+    this.isServiceError = false;
+  }
+
+  refreshActiveTabFromTitleBar(options?: { forcePropertyReload?: boolean }): void {
+    this.syncMaintenanceSearchRequests();
+
+    if (this.selectedTabIndex === this.receiptsTabIndex) {
+      if (!this.showReceiptDetail) {
+        this.refreshReceiptsTrigger++;
+      }
       return;
     }
 
-    const firstPropertyId = (this.availableProperties[0]?.propertyId || '').trim();
-    if (!firstPropertyId) {
+    if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex) {
+      if (!this.showWorkOrderDetail && !this.showWorkOrderCreate) {
+        this.refreshWorkOrdersTrigger++;
+      }
       return;
     }
 
-    this.skipNextPropertyCodeChange = true;
-    this.selectedPropertyId = firstPropertyId;
-    this.routePropertyId = firstPropertyId;
-    this.loadProperty(firstPropertyId);
+    if (this.isPropertyScopedTab()) {
+      this.ensurePropertyScopedTabLoaded(options?.forcePropertyReload === true);
+    }
+  }
+
+  ensurePropertyScopedTabLoaded(forceReload: boolean = false): void {
+    if (this.isPropertyLoading) {
+      return;
+    }
+
+    if (this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope()) {
+      this.clearPropertyContext();
+      this.selectedPropertyId = null;
+    }
+
+    if (!this.selectedPropertyId) {
+      const firstPropertyId = (this.availableProperties[0]?.propertyId || '').trim();
+      if (!firstPropertyId) {
+        this.clearPropertyContext();
+        return;
+      }
+
+      this.skipNextPropertyCodeChange = true;
+      this.selectedPropertyId = firstPropertyId;
+      this.routePropertyId = firstPropertyId;
+      this.loadProperty(firstPropertyId);
+      return;
+    }
+
+    if (forceReload || !this.property || this.property.propertyId !== this.selectedPropertyId) {
+      this.routePropertyId = this.selectedPropertyId;
+      this.loadProperty(this.selectedPropertyId);
+    }
   }
 
   clearPropertyForListTab(): void {
@@ -747,28 +791,26 @@ applyPageOfficeScope(officeId: number | null): void {
 applyPageOfficeChangeEffects(): void {
     this.workOrderSaveValidationAttempted = false;
     this.receiptSaveValidationAttempted = false;
-    if (this.skipNextOfficeChange) {
+    const skipUserOfficeEffects = this.skipNextOfficeChange;
+    if (skipUserOfficeEffects) {
       this.skipNextOfficeChange = false;
-      this.updateAvailableProperties();
-      this.syncMaintenanceSearchRequests();
-      return;
     }
+
     const keepWorkOrderAddDetailOpen = this.isWorkOrderAddMode;
     const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     this.updateAvailableProperties();
-    if (this.property && this.selectedOfficeId !== this.property.officeId) {
-      const keepLoadedProperty = this.selectedPropertyId === this.property.propertyId
-        || this.routePropertyId === this.property.propertyId;
-      if (keepLoadedProperty) {
-        this.skipNextOfficeChange = true;
-        this.applyPageOfficeScope(this.property.officeId ?? null);
-        this.syncMaintenanceSearchRequests();
-        return;
+
+    if (!skipUserOfficeEffects) {
+      const propertyOutOfOfficeScope = this.property
+        && this.selectedOfficeId != null
+        && this.property.officeId !== this.selectedOfficeId;
+      const selectedPropertyOutOfScope = !!this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope();
+      if (propertyOutOfOfficeScope || selectedPropertyOutOfScope) {
+        this.clearPropertyContext();
+        this.selectedPropertyId = null;
+        this.updateAvailableProperties();
       }
-      this.selectedPropertyId = null;
-      this.property = null;
-      this.titleBarReservationId = null;
-      this.shellReservations = [];
+
       if (!keepReceiptAddDetailOpen) {
         this.showReceiptDetail = false;
         this.selectedReceiptId = null;
@@ -786,7 +828,8 @@ applyPageOfficeChangeEffects(): void {
         this.workOrderDetailInstance++;
       }
     }
-    this.syncMaintenanceSearchRequests();
+
+    this.refreshActiveTabFromTitleBar({ forcePropertyReload: !skipUserOfficeEffects });
   }
 
   setTitleBarReservationForCurrentProperty(reservationId: string | null): void {
@@ -858,8 +901,8 @@ applyPageOfficeChangeEffects(): void {
         this.clearPropertyForListTab();
         this.skipNextOfficeChange = true;
         this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
-      } else if (nextTabIndex === 0) {
-        this.autoSelectPropertyForInspectionTab();
+      } else if (nextTabIndex === 0 || nextTabIndex === 1) {
+        this.refreshActiveTabFromTitleBar();
       }
     } finally {
       this.isHandlingTabGuard = false;
