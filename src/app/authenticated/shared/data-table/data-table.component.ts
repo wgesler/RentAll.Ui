@@ -1437,7 +1437,7 @@ normalizeFilterValue(value: unknown): string {
         displayAs: 'No',
         wrap: false,
         sort: false,
-        maxWidth: '5ch',
+        maxWidth: '7ch',
         ...userNoColumn
       };
     }
