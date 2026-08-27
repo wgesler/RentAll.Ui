@@ -1331,6 +1331,45 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return '';
   }
 
+  getPropertyCodeTooltip(property: BoardProperty): string {
+    const noticeStatusId = property.noticeStatusId ?? NoticeStatusType.None;
+    if (noticeStatusId === NoticeStatusType.GaveNotice) {
+      return 'Notice: Gave Notice';
+    }
+    if (noticeStatusId === NoticeStatusType.MonthToMonth) {
+      return 'Notice: Month To Month';
+    }
+    if (this.propertyHasActiveLease(property.propertyId)) {
+      return 'Notice: Current Lease';
+    }
+    return 'Notice: None';
+  }
+
+  propertyHasActiveLease(propertyId: string): boolean {
+    const normalizedPropertyId = String(propertyId || '').trim();
+    if (!normalizedPropertyId) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return (this.reservations || []).some(reservation => {
+      if (!reservation.isActive || reservation.propertyId !== normalizedPropertyId) {
+        return false;
+      }
+      if (!reservation.arrivalDate || !reservation.departureDate) {
+        return false;
+      }
+      const arrival = this.parseDateOnly(reservation.arrivalDate);
+      const departure = this.parseDateOnly(reservation.departureDate);
+      if (!arrival || !departure) {
+        return false;
+      }
+      return today.getTime() >= arrival.getTime() && today.getTime() <= departure.getTime();
+    });
+  }
+
   getCheckedInColorByNotice(reservation: ReservationListResponse, baseColor: string | null): string | null {
     if (!baseColor) {
       return null;

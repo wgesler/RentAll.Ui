@@ -238,6 +238,7 @@
                     <span
                       class="reservation-link reservation-property-code-link"
                       [ngClass]="getPropertyCodeClass(property.noticeStatusId)"
+                      [matTooltip]="getPropertyCodeTooltip(property)"
                       (click)="onPropertyCodeClick(property.propertyId, $event)">{{ property.propertyCode }}</span>
                   }
                 </td>
