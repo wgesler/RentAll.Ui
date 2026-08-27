@@ -369,6 +369,7 @@ export interface PropertyListDisplay {
   squareFeet: number;
   monthlyRate: number;
   dailyRate: number;
+  rateDisplay: string;
   propertyTypeId: number;
   propertyType: string;
   unfurnished: boolean;

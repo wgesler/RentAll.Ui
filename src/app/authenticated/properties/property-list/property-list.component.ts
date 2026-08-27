@@ -118,7 +118,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'propertyLeaseType': { displayAs: 'Lease', wrap: false, maxWidth: '18ch' },
     'propertyType': { displayAs: 'Type', maxWidth: '13ch', wrap: false },
-    'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch', alignment: 'center'},
+    'rateDisplay': { displayAs: 'Rate', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {

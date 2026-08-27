@@ -24,6 +24,23 @@ export class FormatterService {
         return numeric < 0 ? `-$${absoluteDisplay}` : `$${absoluteDisplay}`;
     }
 
+    formatPropertyListRate(monthlyRate: number | null | undefined, dailyRate: number | null | undefined): string {
+        const monthly = Number(monthlyRate) || 0;
+        const daily = Number(dailyRate) || 0;
+
+        if (monthly > 0) {
+            const formatted = this.decimalPipe.transform(monthly, '1.0-0') ?? '0';
+            return `$${formatted}/m`;
+        }
+
+        if (daily > 0) {
+            const formatted = this.decimalPipe.transform(daily, '1.0-0') ?? '0';
+            return `$${formatted}/d`;
+        }
+
+        return '0';
+    }
+
     percentage(value: number): string{
         return this.decimalPipe.transform(value*100,'1.2-4');
     }

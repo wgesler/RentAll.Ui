@@ -1969,6 +1969,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         squareFeet: o.squareFeet,
         monthlyRate: o.monthlyRate,
         dailyRate: o.dailyRate,
+        rateDisplay: this.formatter.formatPropertyListRate(o.monthlyRate, o.dailyRate),
         propertyTypeId: o.propertyTypeId,
         propertyType: (PropertyType[o.propertyTypeId as PropertyType] as string) ?? getPropertyType(o.propertyTypeId),
         departureFee: o.departureFee,
