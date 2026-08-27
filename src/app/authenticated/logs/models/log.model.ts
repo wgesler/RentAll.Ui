@@ -68,3 +68,19 @@ export interface GeneralErrorLogResponse {
   exception: string | null;
   createdOn: string;
 }
+
+export interface PropertyUploadLogResponse {
+  id: number;
+  organizationId: string;
+  officeId: number | null;
+  vendorId: string | null;
+  propertyId: string | null;
+  propertyCode: string | null;
+  eventType: string;
+  status: string;
+  importId: string | null;
+  photoId: number | null;
+  url: string | null;
+  message: string;
+  createdOn: string;
+}

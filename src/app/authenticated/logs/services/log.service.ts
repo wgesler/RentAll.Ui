@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse } from '../models/log.model';
+import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse, PropertyUploadLogResponse } from '../models/log.model';
 
 @Injectable({
   providedIn: 'root'
@@ -80,6 +80,20 @@ export class LogService {
 
   deleteAllGeneralError(): Observable<void> {
     return this.http.delete<void>(this.controller + 'general-error');
+  }
+  //#endregion
+
+  //#region Property Upload Log Methods
+  getAllPropertyUploadLog(): Observable<PropertyUploadLogResponse[]> {
+    return this.http.get<PropertyUploadLogResponse[]>(this.controller + 'property-upload');
+  }
+
+  getPropertyUploadLogById(id: number): Observable<PropertyUploadLogResponse> {
+    return this.http.get<PropertyUploadLogResponse>(this.controller + 'property-upload/' + id);
+  }
+
+  deleteAllPropertyUploadLog(): Observable<void> {
+    return this.http.delete<void>(this.controller + 'property-upload');
   }
   //#endregion
 }

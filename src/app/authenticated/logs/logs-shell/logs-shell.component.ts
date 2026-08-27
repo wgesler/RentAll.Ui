@@ -13,7 +13,9 @@ import { DatabaseErrorLogComponent } from '../database-error-log/database-error-
 import { DatabaseErrorLogListComponent } from '../database-error-log-list/database-error-log-list.component';
 import { GeneralErrorLogComponent } from '../general-error-log/general-error-log.component';
 import { GeneralErrorLogListComponent } from '../general-error-log-list/general-error-log-list.component';
-import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse } from '../models/log.model';
+import { PropertyUploadLogComponent } from '../property-upload-log/property-upload-log.component';
+import { PropertyUploadLogListComponent } from '../property-upload-log-list/property-upload-log-list.component';
+import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse, PropertyUploadLogResponse } from '../models/log.model';
 import { LogService } from '../services/log.service';
 
 @Component({
@@ -33,7 +35,9 @@ import { LogService } from '../services/log.service';
     DatabaseErrorLogListComponent,
     DatabaseErrorLogComponent,
     GeneralErrorLogListComponent,
-    GeneralErrorLogComponent
+    GeneralErrorLogComponent,
+    PropertyUploadLogListComponent,
+    PropertyUploadLogComponent
   ]
 })
 export class LogsShellComponent implements OnInit, OnDestroy {
@@ -49,6 +53,7 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   selectedApplicationLog: ApplicationLogResponse | null = null;
   selectedDatabaseError: DatabaseErrorLogResponse | null = null;
   selectedGeneralError: GeneralErrorLogResponse | null = null;
+  selectedPropertyUploadLog: PropertyUploadLogResponse | null = null;
 
   //#region Logs-Shell
   ngOnInit(): void {}
@@ -67,7 +72,8 @@ export class LogsShellComponent implements OnInit, OnDestroy {
       this.logService.deleteAllDatabaseError(),
       this.logService.deleteAllGeneralError(),
       this.logService.deleteAllAccountingLog(),
-      this.logService.deleteAllApplicationLog()
+      this.logService.deleteAllApplicationLog(),
+      this.logService.deleteAllPropertyUploadLog()
     ]).pipe(take(1), finalize(() => this.isDeletingAll = false)).subscribe({
       next: () => {
         this.closeAccountingErrorLog();
@@ -75,6 +81,7 @@ export class LogsShellComponent implements OnInit, OnDestroy {
         this.closeGeneralErrorLog();
         this.closeAccountingLog();
         this.closeApplicationLog();
+        this.closePropertyUploadLog();
         this.reloadToken++;
       },
       error: () => {
@@ -97,6 +104,8 @@ export class LogsShellComponent implements OnInit, OnDestroy {
         return !!this.selectedDatabaseError;
       case 4:
         return !!this.selectedGeneralError;
+      case 5:
+        return !!this.selectedPropertyUploadLog;
       default:
         return false;
     }
@@ -110,6 +119,7 @@ export class LogsShellComponent implements OnInit, OnDestroy {
     this.closeGeneralErrorLog();
     this.closeAccountingLog();
     this.closeApplicationLog();
+    this.closePropertyUploadLog();
     this.reloadToken++;
   }
 
@@ -152,6 +162,14 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   closeGeneralErrorLog(): void {
     this.selectedGeneralError = null;
   }
+
+  openPropertyUploadLog(row: PropertyUploadLogResponse): void {
+    this.selectedPropertyUploadLog = row;
+  }
+
+  closePropertyUploadLog(): void {
+    this.selectedPropertyUploadLog = null;
+  }
   //#endregion
 
   //#region Utility Methods
@@ -171,6 +189,9 @@ export class LogsShellComponent implements OnInit, OnDestroy {
         return;
       case 4:
         this.closeGeneralErrorLog();
+        return;
+      case 5:
+        this.closePropertyUploadLog();
         return;
       default:
         return;

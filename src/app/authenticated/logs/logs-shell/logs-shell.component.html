@@ -60,6 +60,13 @@
             <app-general-error-log [row]="selectedGeneralError" />
           }
         </mat-tab>
+
+        <mat-tab label="Property Uploads">
+          <app-property-upload-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedPropertyUploadLog" (openPropertyUploadLog)="openPropertyUploadLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedPropertyUploadLog) {
+            <app-property-upload-log [row]="selectedPropertyUploadLog" />
+          }
+        </mat-tab>
       </mat-tab-group>
     </mat-card>
   </section>
