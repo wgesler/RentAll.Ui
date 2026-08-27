@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Subject, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, catchError, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -20,7 +20,7 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
-import { getInspectionType, getInspectionTypes, InspectionType } from '../models/maintenance-enums';
+import { getInspectionType, getInspectionTypeFileSegment, getInspectionTypes, InspectionType } from '../models/maintenance-enums';
 import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { InspectionService } from '../services/inspection.service';
@@ -82,7 +82,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
 
   readonly inspectionTypeOptions = getInspectionTypes();
-  inspectionTypeIdControl = new FormControl<number>(InspectionType.Online, { nonNullable: true });
+  inspectionTypeIdControl = new FormControl<number>(InspectionType.MoveOut, { nonNullable: true });
   shellReservationFieldTouched = false;
   destroy$ = new Subject<void>();
   private formOutputBindingVersion$ = new Subject<void>();
@@ -104,6 +104,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   isSavingAnswersInternal: boolean = false;
 
   lastPropertyIdLoaded: string | null = null;
+  propertyInspectionsCache: InspectionResponse[] = [];
   maintenanceRecord: MaintenanceResponse | null = null;
 
   inspectorName: string = '';
@@ -139,13 +140,12 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       if (this.isReadonlyMode || this.isTemplateMode) {
         return;
       }
-      if (type === InspectionType.MoveIn || type === InspectionType.MoveOut) {
-        if (!this.hasShellReservationSelected) {
-          this.shellReservationFieldTouched = true;
-        }
-      } else {
+      if (type === InspectionType.Online) {
         this.shellReservationFieldTouched = false;
         this.titleBarReservationSync.emit(null);
+      }
+      if (this.hasInitialized) {
+        this.applyDraftForCurrentInspectionType();
       }
       this.emitShellStateOutputs();
       this.cdr.markForCheck();
@@ -168,6 +168,10 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     if (changes['shellTabActive']?.currentValue === true) {
       this.emitTitleBarReservationSync();
       this.emitShellStateOutputs();
+      const propertyId = this.property?.propertyId ?? null;
+      if (propertyId && !this.isReadonlyMode && !this.isTemplateMode) {
+        this.loadChecklistAnswers(propertyId);
+      }
     }
 
     if (!this.hasInitialized) {
@@ -750,7 +754,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       if (this.isReadonlyMode || this.isTemplateMode || this.isSavingInProgress) {
         return;
       }
-      this.saveAnswersData();
+      this.saveAnswersData(false);
     };
 
     this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
@@ -787,14 +791,52 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     return null;
   }
 
-  validateShellReservationForSave(): boolean {
+  validateShellReservationForSubmit(): boolean {
     if (!this.shellReservationRequired || this.hasShellReservationSelected) {
       return true;
     }
     this.shellReservationFieldTouched = true;
     this.cdr.markForCheck();
-    this.toastr.error('Reservation is required for Move-In and Move-Out inspections.', CommonMessage.Error);
+    this.toastr.error('Reservation is required to submit Move-In and Move-Out inspections.', CommonMessage.Error);
     return false;
+  }
+
+  inspectionDraftDocumentPath(): string {
+    return this.utilityService.generateInspectionDraftFileName(
+      this.property?.propertyCode,
+      getInspectionTypeFileSegment(this.inspectionTypeIdControl.value)
+    );
+  }
+
+  deleteInspectionDraftDocument() {
+    const officeId = this.maintenanceRecord?.officeId || this.property?.officeId;
+    const propertyId = this.property?.propertyId;
+    if (!officeId || !propertyId) {
+      return of(void 0);
+    }
+
+    const draftFileName = this.inspectionDraftDocumentPath().replace(/\.pdf$/i, '');
+    return this.documentService.getDocuments({
+      officeIds: [officeId],
+      propertyId,
+      documentTypeIds: DocumentType.Inspection
+    }).pipe(
+      take(1),
+      switchMap(documents => {
+        const draftDocument = (documents || []).find(doc =>
+          String(doc.fileName ?? '').trim().toLowerCase() === draftFileName.toLowerCase()
+        );
+        if (!draftDocument?.documentId) {
+          return of(void 0);
+        }
+        return this.documentService.deleteDocument(draftDocument.documentId).pipe(map(() => void 0));
+      }),
+      catchError(() => of(void 0))
+    );
+  }
+
+  handleInspectionSubmitted(): void {
+    this.inspectionSubmitted.emit();
   }
 
   syncInspectionTypeIdControlDisabledForSave(): void {
@@ -816,7 +858,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     const id =
       (this.isReadonlyMode ? this.readonlyInspectionTypeId : null) ??
       this.activeInspection?.inspectionTypeId ??
-      InspectionType.Online;
+      InspectionType.MoveOut;
     this.inspectionTypeIdControl.setValue(id, { emitEvent: false });
     this.inspectionTypeIdControl.markAsPristine();
     if (this.hasReservationResolved) {
@@ -877,13 +919,22 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    const savedAnswersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
+    const draft = this.getDraftInspectionForType(
+      this.propertyInspectionsCache,
+      this.inspectionTypeIdControl.value
+    );
+    this.activeInspection = draft;
+    const savedAnswersJson = draft?.inspectionCheckList?.trim() ?? '';
     if (savedAnswersJson.length > 0) {
       this.applySavedAnswersJson(savedAnswersJson);
     } else {
       this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
     }
-    this.patchInspectionTypeFromContext();
+    if (draft?.reservationId) {
+      this.titleBarReservationSync.emit(draft.reservationId);
+    } else if (this.inspectionTypeIdControl.value === InspectionType.Online) {
+      this.titleBarReservationSync.emit(null);
+    }
     this.captureSavedStateSignature();
     this.emitShellStateOutputs();
   }
@@ -1002,17 +1053,19 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    if (!this.validateShellReservationForSave()) {
+    const shouldSubmitInspection = submitRequested && this.isChecklistFullyComplete(inspectionChecklistJson);
+    if (shouldSubmitInspection && !this.validateShellReservationForSubmit()) {
       complete(false);
       return;
     }
 
-    const shouldSubmitInspection = submitRequested && this.isChecklistFullyComplete(inspectionChecklistJson);
     this.isSavingAnswersInternal = true;
     this.isServiceError = false;
     this.syncInspectionTypeIdControlDisabledForSave();
 
-    const persistInspection = (documentPath: string | null): void => {
+    const persistInspection = (generatedDocumentPath: string | null): void => {
+      const resolvedDocumentPath = generatedDocumentPath
+        ?? (shouldSubmitInspection ? null : this.inspectionDraftDocumentPath());
       if (this.activeInspection) {
         this.inspectionService.getInspectionById(this.activeInspection.inspectionId).pipe(take(1)).subscribe({
           next: (latestInspection) => {
@@ -1025,8 +1078,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               maintenanceId: latestInspection.maintenanceId,
               inspectionTypeId: this.inspectionTypeIdControl.value,
               inspectionCheckList: inspectionChecklistJson,
-              documentPath: documentPath ?? latestInspection.documentPath ?? null,
-              isActive: shouldSubmitInspection ? false : latestInspection.isActive
+              documentPath: resolvedDocumentPath,
+              isActive: !shouldSubmitInspection
             };
 
             this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => {
@@ -1036,11 +1089,13 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.upsertPropertyInspectionCache(savedInspection);
                 this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
-                  this.inspectionSubmitted.emit();
+                  this.activeInspection = null;
+                  this.handleInspectionSubmitted();
                 }
                 complete(true);
               },
@@ -1062,8 +1117,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               maintenanceId: this.activeInspection!.maintenanceId,
               inspectionTypeId: this.inspectionTypeIdControl.value,
               inspectionCheckList: inspectionChecklistJson,
-              documentPath: documentPath ?? this.activeInspection!.documentPath ?? null,
-              isActive: shouldSubmitInspection ? false : this.activeInspection!.isActive
+              documentPath: resolvedDocumentPath,
+              isActive: !shouldSubmitInspection
             };
             this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => {
               this.isSavingAnswersInternal = false;
@@ -1072,11 +1127,13 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.upsertPropertyInspectionCache(savedInspection);
                 this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
-                  this.inspectionSubmitted.emit();
+                  this.activeInspection = null;
+                  this.handleInspectionSubmitted();
                 }
                 complete(true);
               },
@@ -1098,7 +1155,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         maintenanceId: this.maintenanceRecord?.maintenanceId || '',
         inspectionTypeId: this.inspectionTypeIdControl.value,
         inspectionCheckList: inspectionChecklistJson,
-        documentPath,
+        documentPath: resolvedDocumentPath,
         isActive: shouldSubmitInspection ? false : true,
         reservationId: this.reservationIdForInspectionPayload(this.activeInspection?.reservationId)
       };
@@ -1112,7 +1169,10 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       }
       this.inspectionService.getInspectionsByPropertyId(createPayload.propertyId).pipe(take(1)).subscribe({
         next: (existingInspections) => {
-          const existingActiveInspection = this.getLatestInspectionRecord(existingInspections || []);
+          const existingActiveInspection = this.getDraftInspectionForType(
+            existingInspections || [],
+            this.inspectionTypeIdControl.value
+          );
           if (existingActiveInspection) {
             const updatePayload: InspectionRequest = {
               inspectionId: existingActiveInspection.inspectionId,
@@ -1123,8 +1183,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               maintenanceId: existingActiveInspection.maintenanceId,
               inspectionTypeId: this.inspectionTypeIdControl.value,
               inspectionCheckList: inspectionChecklistJson,
-              documentPath: documentPath ?? existingActiveInspection.documentPath ?? null,
-              isActive: shouldSubmitInspection ? false : existingActiveInspection.isActive
+              documentPath: resolvedDocumentPath,
+              isActive: !shouldSubmitInspection
             };
             this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => {
               this.isSavingAnswersInternal = false;
@@ -1133,11 +1193,13 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.upsertPropertyInspectionCache(savedInspection);
                 this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
-                  this.inspectionSubmitted.emit();
+                  this.activeInspection = null;
+                  this.handleInspectionSubmitted();
                 }
                 complete(true);
               },
@@ -1157,11 +1219,13 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
             next: (savedInspectionResponse: InspectionResponse) => {
               const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
               this.activeInspection = savedInspection;
+              this.upsertPropertyInspectionCache(savedInspection);
               this.patchInspectionTypeFromContext();
               this.captureSavedStateSignature();
               this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
               if (shouldSubmitInspection) {
-                this.inspectionSubmitted.emit();
+                this.activeInspection = null;
+                this.handleInspectionSubmitted();
               }
               complete(true);
             },
@@ -1180,11 +1244,13 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
             next: (savedInspectionResponse: InspectionResponse) => {
               const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
               this.activeInspection = savedInspection;
+              this.upsertPropertyInspectionCache(savedInspection);
               this.patchInspectionTypeFromContext();
               this.captureSavedStateSignature();
               this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
               if (shouldSubmitInspection) {
-                this.inspectionSubmitted.emit();
+                this.activeInspection = null;
+                this.handleInspectionSubmitted();
               }
               complete(true);
             },
@@ -1198,23 +1264,25 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       });
     };
 
-    if (!shouldSubmitInspection) {
-      persistInspection(null);
-      return;
-    }
-
-    const inspectionDto = this.buildChecklistGenerateDto(
-      inspectionChecklistJson,
-      this.maintenanceRecord?.organizationId || this.user?.organizationId || this.property.organizationId || '',
-      this.maintenanceRecord?.officeId || this.property.officeId,
-      this.property.propertyId,
-      this.utilityService.generateDocumentFileName(
+    const organizationId =
+      this.maintenanceRecord?.organizationId || this.user?.organizationId || this.property.organizationId || '';
+    const officeId = this.maintenanceRecord?.officeId || this.property.officeId;
+    const fileName = shouldSubmitInspection
+      ? this.utilityService.generateDocumentFileName(
         'inspection',
         this.property.propertyCode,
         this.reservationDisplayTextForSubmittedPdf() || undefined,
         getInspectionType(this.inspectionTypeIdControl.value) || undefined
-      ),
-      'Inspection Checklist',
+      )
+      : this.inspectionDraftDocumentPath();
+
+    const inspectionDto = this.buildChecklistGenerateDto(
+      inspectionChecklistJson,
+      organizationId,
+      officeId,
+      this.property.propertyId,
+      fileName,
+      shouldSubmitInspection ? 'Inspection Checklist' : 'Inspection Checklist (Draft)',
       DocumentType.Inspection
     );
     if (!inspectionDto) {
@@ -1226,20 +1294,30 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    // Final submit: generate one standalone PDF (htmlContent has embedded images) and save it; documentPath = saved PDF
-    this.documentService.generate(inspectionDto).pipe(take(1)).subscribe({
+    const generateDocument$ = shouldSubmitInspection
+      ? this.deleteInspectionDraftDocument().pipe(switchMap(() => this.documentService.generate(inspectionDto)))
+      : this.documentService.generate(inspectionDto);
+
+    generateDocument$.pipe(take(1)).subscribe({
       next: (documentResponse: DocumentResponse) => {
         const documentPath = documentResponse.documentPath || null;
-        this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
-          next: () => persistInspection(documentPath),
-          error: () => persistInspection(documentPath)
-        });
+        if (shouldSubmitInspection) {
+          this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
+            next: () => persistInspection(documentPath),
+            error: () => persistInspection(documentPath)
+          });
+          return;
+        }
+        persistInspection(documentPath);
       },
       error: (_err: HttpErrorResponse) => {
         this.isSavingAnswersInternal = false;
         this.syncInspectionTypeIdControlDisabledForSave();
         this.isServiceError = true;
-        this.toastr.error('Failed to generate inspection document', CommonMessage.Error);
+        this.toastr.error(
+          shouldSubmitInspection ? 'Failed to generate inspection document' : 'Failed to save inspection draft',
+          CommonMessage.Error
+        );
         complete(false);
       }
     });
@@ -1256,6 +1334,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
 
     this.lastPropertyIdLoaded = propertyId;
+    this.propertyInspectionsCache = [];
 
     const providedTemplateJson = this.templateJson?.trim() ?? '';
     if (providedTemplateJson.length > 0) {
@@ -1272,23 +1351,20 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               this.applySavedChecklistJson(maintenanceTemplateJson);
             }
           }
-          this.loadChecklistAnswers(propertyId);
-          return;
+        } else {
+          const hasLocalMaintenanceForProperty =
+            this.maintenanceRecord?.propertyId === propertyId
+            && typeof this.maintenanceRecord?.maintenanceId === 'string'
+            && this.maintenanceRecord.maintenanceId.trim().length > 0;
+          if (!hasLocalMaintenanceForProperty) {
+            this.createMaintenanceWithDefaultTemplate(propertyId);
+          }
         }
-
-        const hasLocalMaintenanceForProperty =
-          this.maintenanceRecord?.propertyId === propertyId
-          && typeof this.maintenanceRecord?.maintenanceId === 'string'
-          && this.maintenanceRecord.maintenanceId.trim().length > 0;
-        if (hasLocalMaintenanceForProperty) {
-          this.loadChecklistAnswers(propertyId);
-          return;
-        }
-
-        this.createMaintenanceWithDefaultTemplate(propertyId);
+        this.loadChecklistAnswers(propertyId);
       },
       error: () => {
         this.maintenanceRecord = null;
+        this.loadChecklistAnswers(propertyId);
       }
     });
   }
@@ -1305,26 +1381,96 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: (result) => {
-        this.activeInspection = this.getLatestInspectionRecord(result || []);
-        this.patchInspectionTypeFromContext();
-        const answersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
-        if (answersJson.length > 0) {
-          this.applySavedAnswersJson(answersJson);
-          this.captureSavedStateSignature();
-          return;
-        }
-        this.captureSavedStateSignature();
+        this.propertyInspectionsCache = (result || []).map(item => this.mappingService.mapInspection(item));
+        this.preselectInspectionTypeFromActiveDraft();
+        this.applyDraftForCurrentInspectionType();
       },
       error: () => {
+        this.propertyInspectionsCache = [];
         this.activeInspection = null;
-        this.patchInspectionTypeFromContext();
+        this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
         this.captureSavedStateSignature();
       }
     });
   }
 
-  getLatestInspectionRecord(inspections: InspectionResponse[]): InspectionResponse | null {
-    const activeInspections = inspections.filter(inspection => inspection.isActive == true);
+  applyDraftForCurrentInspectionType(): void {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return;
+    }
+
+    const draft = this.getDraftInspectionForType(
+      this.propertyInspectionsCache,
+      this.inspectionTypeIdControl.value
+    );
+    this.activeInspection = draft;
+    const answersJson = draft?.inspectionCheckList?.trim() ?? '';
+    if (answersJson.length > 0) {
+      this.applySavedAnswersJson(answersJson);
+    } else {
+      this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
+    }
+    if (draft?.reservationId) {
+      this.titleBarReservationSync.emit(draft.reservationId);
+    } else if (this.inspectionTypeIdControl.value === InspectionType.Online) {
+      this.titleBarReservationSync.emit(null);
+    }
+    this.captureSavedStateSignature();
+    this.emitShellStateOutputs();
+  }
+
+  preselectInspectionTypeFromActiveDraft(): void {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return;
+    }
+
+    const activeDraft = this.getLatestActiveDraftInspection(this.propertyInspectionsCache);
+    if (!activeDraft) {
+      return;
+    }
+
+    this.inspectionTypeIdControl.setValue(activeDraft.inspectionTypeId, { emitEvent: false });
+  }
+
+  getLatestActiveDraftInspection(inspections: InspectionResponse[]): InspectionResponse | null {
+    const activeInspections = inspections.filter(inspection => this.mappingService.toBooleanFlag(inspection.isActive));
+    if (activeInspections.length === 0) {
+      return null;
+    }
+
+    return activeInspections.reduce((latest, current) => {
+      const latestTimestamp = Date.parse(latest.modifiedOn || '');
+      const currentTimestamp = Date.parse(current.modifiedOn || '');
+
+      if (Number.isNaN(currentTimestamp)) {
+        return latest;
+      }
+      if (Number.isNaN(latestTimestamp)) {
+        return current;
+      }
+
+      return currentTimestamp > latestTimestamp ? current : latest;
+    });
+  }
+
+  upsertPropertyInspectionCache(inspection: InspectionResponse): void {
+    const index = this.propertyInspectionsCache.findIndex(
+      item => item.inspectionId === inspection.inspectionId
+    );
+    if (index >= 0) {
+      this.propertyInspectionsCache[index] = inspection;
+      return;
+    }
+    this.propertyInspectionsCache.push(inspection);
+  }
+
+  getDraftInspectionForType(
+    inspections: InspectionResponse[],
+    inspectionTypeId: number
+  ): InspectionResponse | null {
+    const activeInspections = inspections.filter(
+      inspection => this.mappingService.toBooleanFlag(inspection.isActive) && inspection.inspectionTypeId === inspectionTypeId
+    );
     if (activeInspections.length === 0) {
       return null;
     }
@@ -2522,14 +2668,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     return issues;
   }
 
-  get saveButtonText(): string {
-    if (!this.isTemplateMode && this.canSubmitInspection) {
-      return 'Submit';
-    }
-
-    return 'Save';
-  }
-
   get canSubmitInspection(): boolean {
     if (this.isTemplateMode || this.isReadonlyMode || !this.form || this.sections.length === 0) {
       return false;
@@ -2546,7 +2684,10 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return false;
     }
     const t = this.inspectionTypeIdControl.value;
-    return t === InspectionType.MoveIn || t === InspectionType.MoveOut;
+    if (t !== InspectionType.MoveIn && t !== InspectionType.MoveOut) {
+      return false;
+    }
+    return this.canSubmitInspection;
   }
 
   get hasShellReservationSelected(): boolean {

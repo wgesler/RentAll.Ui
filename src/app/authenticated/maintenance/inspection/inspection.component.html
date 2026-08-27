@@ -100,9 +100,16 @@
           @if (isTemplateMode) {
             <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="resetChecklist()">Reset</button>
           }
-          <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
-            {{ saveButtonText }}
-          </button>
+          @if (!isTemplateMode) {
+            <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(false)">
+              Save
+            </button>
+          }
+          @if (!isTemplateMode && canSubmitInspection) {
+            <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(true)">
+              Submit
+            </button>
+          }
         }
       </div>
     </div>

@@ -2262,9 +2262,11 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   //#region Maintenance Mapping
 
   mapInspection(inspection: InspectionResponse): InspectionResponse {
+    const raw = inspection as unknown as Record<string, unknown>;
+    const isActive = raw['isActive'] ?? raw['IsActive'];
     return {
       ...inspection,
-      isActive: this.toBooleanFlag((inspection as unknown as Record<string, unknown>)['isActive'])
+      isActive: this.toBooleanFlag(isActive)
     };
   }
   

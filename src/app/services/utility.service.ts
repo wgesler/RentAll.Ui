@@ -847,6 +847,16 @@ export class UtilityService {
     }
   }
 
+  /** One server draft per property + inspection type; no date stamp. */
+  generateInspectionDraftFileName(
+    propertyCode?: string | null,
+    inspectionTypeFileSegment?: string | null
+  ): string {
+    const pc = this.sanitizeFileNameSegment(String(propertyCode ?? '')) || 'Property';
+    const sub = this.sanitizeFileNameSegment(String(inspectionTypeFileSegment ?? '')) || 'Online';
+    return `${pc}_${sub}_draft.pdf`;
+  }
+
   sanitizeFileNameSegment(value: string): string {
     const raw = value.trim();
     if (!raw) {

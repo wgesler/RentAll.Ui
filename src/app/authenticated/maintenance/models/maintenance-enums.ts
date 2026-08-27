@@ -76,9 +76,9 @@ export function getReceiptTypes(): { value: number; label: string }[] {
 
 //#region InspectionType
 export enum InspectionType {
-  Online = 0,
+  MoveOut = 0,
   MoveIn = 1,
-  MoveOut = 2
+  Online = 2
 }
 
 export function getInspectionType(inspectionTypeId: number | undefined | null): string {
@@ -87,20 +87,33 @@ export function getInspectionType(inspectionTypeId: number | undefined | null): 
   }
 
   const typeMap: { [key: number]: string } = {
-    [InspectionType.Online]: 'Online',
+    [InspectionType.MoveOut]: 'Move-Out',
     [InspectionType.MoveIn]: 'Move-In',
-    [InspectionType.MoveOut]: 'Move-Out'
+    [InspectionType.Online]: 'Online'
   };
 
   return typeMap[inspectionTypeId] || '';
 }
 
+/** Compact segment for draft document paths, e.g. MoveIn / MoveOut / Online. */
+export function getInspectionTypeFileSegment(inspectionTypeId: number | undefined | null): string {
+  if (inspectionTypeId === undefined || inspectionTypeId === null) {
+    return 'Online';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [InspectionType.MoveOut]: 'MoveOut',
+    [InspectionType.MoveIn]: 'MoveIn',
+    [InspectionType.Online]: 'Online'
+  };
+
+  return typeMap[inspectionTypeId] || 'Online';
+}
+
 export function getInspectionTypes(): { value: number; label: string }[] {
-  return Object.keys(InspectionType)
-    .filter(key => isNaN(Number(key)))
-    .map(key => ({
-      value: InspectionType[key as keyof typeof InspectionType],
-      label: getInspectionType(InspectionType[key as keyof typeof InspectionType])
-    }));
+  return [InspectionType.MoveOut, InspectionType.MoveIn, InspectionType.Online].map(value => ({
+    value,
+    label: getInspectionType(value)
+  }));
 }
 //#endregion
