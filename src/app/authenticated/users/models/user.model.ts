@@ -18,6 +18,7 @@ export interface UserRequest {
   defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
+  docuSignUserId?: string | null;
   contactId?: string | null;
   lastLoginOn?: string | null;
   lastSeenOn?: string | null;
@@ -45,6 +46,7 @@ export interface UserResponse {
   defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
+  docuSignUserId?: string | null;
   contactId?: string | null;
   lastLoginOn?: string | null;
   lastSeenOn?: string | null;

@@ -30,9 +30,10 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit } from '../models/reservation-enum';
+import { ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE } from '../models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { InvoiceService } from '../../accounting/services/invoice.service';
+import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
@@ -63,6 +64,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   private dialog = inject(MatDialog);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private invoiceService = inject(InvoiceService);
+  private securityDepositService = inject(SecurityDepositService);
   private cdr = inject(ChangeDetectorRef);
   
   panelOpenState: boolean = true;
@@ -769,17 +771,23 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     }
 
     if (!nextValue) {
-      void this.attemptReservationDeactivation(event.reservationId, previousValue);
+      void this.attemptReservationDeactivation(event.reservationId, previousValue, event.reservationTypeId);
       return;
     }
 
     this.updateReservationIsActive(event.reservationId, previousValue, nextValue);
   }
 
-  async attemptReservationDeactivation(reservationId: string, previousValue: boolean): Promise<void> {
+  async attemptReservationDeactivation(
+    reservationId: string,
+    previousValue: boolean,
+    reservationTypeId?: number | null
+  ): Promise<void> {
     try {
-      const reservation = await firstValueFrom(this.reservationService.getReservationByGuid(reservationId));
-      if (blocksInactivationForUnreturnedSecurityDeposit(reservation.depositTypeId, reservation.depositReturned)) {
+      const shouldBlock = await firstValueFrom(
+        this.securityDepositService.shouldBlockReservationInactivation(reservationId, reservationTypeId)
+      );
+      if (shouldBlock) {
         this.applyReservationIsActiveValue(reservationId, true);
         this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
         this.applyFilters();

@@ -17,10 +17,13 @@ import { fileValidator } from '../../../validators/file-validator';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AgentResponse } from '../../organizations/models/agent.model';
+import { FeatureType } from '../../organizations/models/organization-enum';
+import { FeatureResponse } from '../../organizations/models/organization-feature.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationListService } from '../../organizations/services/organization-list.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
+import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { UserGroups, getStartupPages, getUserGroupOptions } from '../models/user-enums';
@@ -54,6 +57,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private organizationListService = inject(OrganizationListService);
   private organizationService = inject(OrganizationService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
   private officeService = inject(OfficeService);
   private agentService = inject(AgentService);
   private authService = inject(AuthService);
@@ -90,6 +94,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   isPopulatingUserForm: boolean = false;
   isPrivilegedOfficeEditor: boolean = false;
   isCurrentUserSuperAdmin: boolean = false;
+  hasDocuSignAccess = false;
   organizationId = '';
   
   // Profile picture properties
@@ -134,6 +139,10 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.loadProperties();
     this.loadAgents();
+    this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(features => {
+      this.applyUserFeatureAccess(features);
+    });
+    this.loadUserFeatureAccess();
     
     // If opened in dialog, use dialog data
     if (this.isDialog && this.userId) {
@@ -184,6 +193,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
         this.isDefaultOrgAdminReadOnly = this.isDefaultOrgAdminUser(response) && !this.isCurrentUserSuperAdmin;
         this.buildForm();
         this.setupPasswordValidation();
+        this.loadUserFeatureAccess();
         // Use setTimeout to defer form population to avoid ExpressionChangedAfterItHasBeenCheckedError
         setTimeout(() => {
           this.populateForm();
@@ -300,6 +310,9 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
       defaultOfficeId: defaultOfficeIdValue,
       agentId: formValue.agentId || null,
       commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
+      docuSignUserId: this.showDocuSignUserIdField
+        ? this.parseOptionalGuid(formValue.docuSignUserId)
+        : (this.user?.docuSignUserId ?? null),
       isActive: formValue.isActive
     };
 
@@ -323,6 +336,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
       userRequest.defaultOfficeId = this.user.defaultOfficeId ?? userRequest.defaultOfficeId;
       userRequest.agentId = this.user.agentId || null;
       userRequest.commissionRate = this.user.commissionRate ?? null;
+      userRequest.docuSignUserId = this.user.docuSignUserId ?? null;
       userRequest.isActive = this.user.isActive;
     }
     
@@ -369,6 +383,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
         userRequest.isActive !== this.user.isActive ||
         userRequest.organizationId !== this.user.organizationId ||
         userRequest.commissionRate !== (this.user.commissionRate ?? null) ||
+        userRequest.docuSignUserId !== (this.user.docuSignUserId ?? null) ||
         hasProfilePictureChange
       ) : true; // If user data not loaded, assume there are updates to save
 
@@ -597,6 +612,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       defaultPageSize: new FormControl(10, [Validators.required, Validators.min(1)]),
       agentId: new FormControl(null),
       commissionRate: new FormControl('0.00'),
+      docuSignUserId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
       isActive: new FormControl(true)
     };
 
@@ -757,6 +773,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       } else {
         this.filterOfficesByOrganization();
       }
+      this.loadUserFeatureAccess();
       // Clear office access only for user-initiated organization changes.
       // Do not clear during initial populate from the loaded user record.
       if (!this.isPopulatingUserForm) {
@@ -834,6 +851,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
         commissionRate: this.user.commissionRate !== null && this.user.commissionRate !== undefined
           ? Number(this.user.commissionRate).toFixed(2)
           : '0.00',
+        docuSignUserId: this.user.docuSignUserId || '',
         isActive: this.user.isActive
       }, { emitEvent: false });
       
@@ -965,6 +983,64 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
   get showAgentCommissionFields(): boolean {
     const selectedGroups = this.form?.get('userGroups')?.value || [];
     return Array.isArray(selectedGroups) && selectedGroups.some(group => ['Agent', 'AgentAdmin'].includes(group));
+  }
+
+  get showDocuSignUserIdField(): boolean {
+    if (!this.hasDocuSignAccess) {
+      return false;
+    }
+
+    const selectedGroups = this.form?.get('userGroups')?.value || [];
+    if (!Array.isArray(selectedGroups)) {
+      return false;
+    }
+
+    const eligibleGroups = ['Agent', 'AgentAdmin', 'Admin', 'OfficeAdmin'];
+    return selectedGroups.some(group => eligibleGroups.includes(group));
+  }
+  //#endregion
+
+  //#region Feature Access
+  loadUserFeatureAccess(): void {
+    const organizationId = this.resolveUserOrganizationId();
+    if (!organizationId) {
+      this.hasDocuSignAccess = false;
+      this.markViewForCheck();
+      return;
+    }
+
+    this.organizationFeatureService.ensureFeaturesLoaded(organizationId).pipe(take(1)).subscribe();
+  }
+
+  applyUserFeatureAccess(features: FeatureResponse[]): void {
+    const organizationId = this.resolveUserOrganizationId();
+    if (!organizationId) {
+      this.hasDocuSignAccess = false;
+      this.markViewForCheck();
+      return;
+    }
+
+    this.hasDocuSignAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.DocuSign, features);
+    this.markViewForCheck();
+  }
+
+  resolveUserOrganizationId(): string {
+    const formOrganizationId = (this.form?.get('organizationId')?.value || '').trim();
+    if (formOrganizationId) {
+      return formOrganizationId;
+    }
+
+    const userOrganizationId = (this.user?.organizationId || '').trim();
+    if (userOrganizationId) {
+      return userOrganizationId;
+    }
+
+    return (this.selectedOrganizationId || this.organizationId || '').trim();
+  }
+
+  parseOptionalGuid(value: unknown): string | null {
+    const raw = (value ?? '').toString().trim();
+    return raw || null;
   }
   //#endregion
 

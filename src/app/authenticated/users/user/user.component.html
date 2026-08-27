@@ -155,6 +155,16 @@
                       (blur)="formatCommissionRate()">
                   </mat-form-field>
                 }
+
+                @if (showDocuSignUserIdField) {
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>DocuSign User Id</mat-label>
+                    <input matInput formControlName="docuSignUserId" placeholder="00000000-0000-0000-0000-000000000000">
+                    @if (form.get('docuSignUserId')?.hasError('pattern') && form.get('docuSignUserId')?.touched) {
+                      <mat-error>Enter a valid GUID or leave blank</mat-error>
+                    }
+                  </mat-form-field>
+                }
               }
 
               @if (isPrivilegedOfficeEditor || isAddMode) {

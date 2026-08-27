@@ -1,15 +1,11 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, take } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, take, throwError } from 'rxjs';
 import { SUPPRESS_GLOBAL_ERROR_TOAST } from '../../../interceptor/http-context';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
-import {
-  ReservationDepartureResponse,
-  ReservationResponse,
-  SecurityDepositReturnRequest,
-  UnreturnedSecurityDepositsResponse
-} from '../../reservations/models/reservation-model';
+import { ReservationDepartureResponse, ReservationResponse, SecurityDepositReturnRequest, UnreturnedSecurityDepositsResponse} from '../../reservations/models/reservation-model';
+import { ReservationType } from '../../reservations/models/reservation-enum';
 
 export interface SecurityDepositsOutstandingRefreshOptions {
   /** Wait before calling the API (used after login to avoid startup connection storms). */
@@ -38,6 +34,76 @@ export class SecurityDepositService {
     }
 
     return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned', { params });
+  }
+
+  /**
+   * Same Bank → Security Deposits list query. Blocks inactivation only when the reservation
+   * appears on that list and still has outstanding TBR (balance minus paid).
+   * Owner-type reservations skip the API call — they never carry billable security deposits.
+   */
+  shouldBlockReservationInactivation(
+    reservationId: string,
+    reservationTypeId?: number | null
+  ): Observable<boolean> {
+    if (this.isOwnerReservationType(reservationTypeId)) {
+      return of(false);
+    }
+
+    const normalizedReservationId = this.utility.normalizeId(reservationId);
+    if (!normalizedReservationId) {
+      return of(false);
+    }
+
+    return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned', {
+      context: new HttpContext().set(SUPPRESS_GLOBAL_ERROR_TOAST, true)
+    }).pipe(
+      map(response => this.shouldBlockReservationInactivationFromRows(response?.rows, normalizedReservationId)),
+      catchError(error => throwError(() => error))
+    );
+  }
+
+  isOwnerReservationType(reservationTypeId?: number | null): boolean {
+    return Number(reservationTypeId) === ReservationType.Owner;
+  }
+
+  findUnreturnedSecurityDepositRow(
+    rows: ReservationDepartureResponse[] | null | undefined,
+    reservationId: string
+  ): ReservationDepartureResponse | undefined {
+    const normalizedReservationId = this.utility.normalizeId(reservationId);
+    if (!normalizedReservationId) {
+      return undefined;
+    }
+
+    return (rows || []).find(row => this.utility.normalizeId(row.reservationId) === normalizedReservationId);
+  }
+
+  /** Balance shown in Bank → Security Deposits TBR column. */
+  getTbrBalanceAmount(row: ReservationDepartureResponse): number {
+    const collectedAmount = Number(row.collectedAmount ?? 0);
+    const owedAmount = Number(row.owedAmount ?? 0);
+    const balanceAmount = Number.isFinite(Number(row.balanceAmount))
+      ? Number(row.balanceAmount)
+      : Math.max(0, collectedAmount - owedAmount);
+    return Math.max(0, balanceAmount);
+  }
+
+  /** Remaining tenant return after the Paid column. */
+  getRemainingTbrAmount(row: ReservationDepartureResponse): number {
+    const paidAmount = Number(row.returnedAmount ?? 0);
+    return Math.max(0, this.getTbrBalanceAmount(row) - paidAmount);
+  }
+
+  shouldBlockReservationInactivationFromRows(
+    rows: ReservationDepartureResponse[] | null | undefined,
+    reservationId: string
+  ): boolean {
+    const row = this.findUnreturnedSecurityDepositRow(rows, reservationId);
+    if (!row) {
+      return false;
+    }
+
+    return this.getRemainingTbrAmount(row) > 0.005;
   }
 
   applySecurityDepositReturn(request: SecurityDepositReturnRequest): Observable<ReservationResponse> {
@@ -88,7 +154,7 @@ export class SecurityDepositService {
     this.securityDepositsOutstandingSubject.next(false);
   }
 
-  private executeSecurityDepositsOutstandingRefresh(): void {
+  executeSecurityDepositsOutstandingRefresh(): void {
     const loadId = ++this.securityDepositsOutstandingLoadId;
 
     this.getUnreturnedSecurityDepositsForBadge().pipe(take(1)).subscribe({
@@ -109,14 +175,14 @@ export class SecurityDepositService {
     });
   }
 
-  private getUnreturnedSecurityDepositsForBadge(): Observable<UnreturnedSecurityDepositsResponse> {
+  getUnreturnedSecurityDepositsForBadge(): Observable<UnreturnedSecurityDepositsResponse> {
     // Same endpoint as the list, all offices in access (no officeId) — used for sidebar/login badge.
     return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned', {
       context: new HttpContext().set(SUPPRESS_GLOBAL_ERROR_TOAST, true)
     });
   }
 
-  private cancelScheduledSecurityDepositsOutstandingRefresh(): void {
+  cancelScheduledSecurityDepositsOutstandingRefresh(): void {
     if (this.scheduledRefreshTimer == null) {
       return;
     }
@@ -159,7 +225,7 @@ export class SecurityDepositService {
     return remainingReturn > 0.005 || remainingTransfer > 0.005;
   }
 
-  private hasSecurityDepositsNeedingAttention(rows: ReservationDepartureResponse[] | null | undefined): boolean {
+  hasSecurityDepositsNeedingAttention(rows: ReservationDepartureResponse[] | null | undefined): boolean {
     return (rows || []).some(row => this.isSecurityDepositNeedingAttention(row));
   }
 }

@@ -5,8 +5,9 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, catchError, filter, finalize, map, of, pairwise, skip, startWith, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, filter, finalize, firstValueFrom, map, of, pairwise, skip, startWith, switchMap, take, takeUntil } from 'rxjs';
 import { InvoiceService } from '../../accounting/services/invoice.service';
+import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -56,7 +57,7 @@ interface ReservationNotificationFormValue {
 }
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, blocksInactivationForUnreturnedSecurityDeposit, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
 import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
@@ -107,6 +108,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private userService = inject(UserService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private invoiceService = inject(InvoiceService);
+  private securityDepositService = inject(SecurityDepositService);
   @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
 
   isServiceError: boolean = false;
@@ -335,12 +337,30 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   performSave(): void {
+    void this.performSaveAsync();
+  }
+
+  private async performSaveAsync(): Promise<void> {
     const formValue = this.form.getRawValue();
     const nextIsActive = (formValue['isActive'] as boolean | null | undefined) ?? true;
-    if (!nextIsActive && this.shouldBlockInactivationForUnreturnedSecurityDeposit()) {
-      this.form.get('isActive')?.setValue(true, { emitEvent: false });
-      this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
-      return;
+    if (!nextIsActive && !this.isAddMode && this.reservationId && this.reservationId !== 'new') {
+      try {
+        const shouldBlock = await firstValueFrom(
+          this.securityDepositService.shouldBlockReservationInactivation(
+            this.reservationId,
+            Number(this.form.get('reservationTypeId')?.value ?? this.reservation?.reservationTypeId)
+          )
+        );
+        if (shouldBlock) {
+          this.form.get('isActive')?.setValue(true, { emitEvent: false });
+          this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+          return;
+        }
+      } catch {
+        this.form.get('isActive')?.setValue(true, { emitEvent: false });
+        this.toastr.error('Unable to verify security deposit status.', CommonMessage.Error);
+        return;
+      }
     }
 
     this.isSubmitting = true;
@@ -1653,21 +1673,28 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   setupIsActiveInactivationGuard(): void {
     this.form.get('isActive')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isActive => {
-      if (isActive !== false) {
+      if (isActive !== false || this.isAddMode || !this.reservationId || this.reservationId === 'new') {
         return;
       }
 
-      if (this.shouldBlockInactivationForUnreturnedSecurityDeposit()) {
-        this.form.get('isActive')?.setValue(true, { emitEvent: false });
-        this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
-      }
-    });
-  }
+      this.securityDepositService.shouldBlockReservationInactivation(
+        this.reservationId,
+        Number(this.form.get('reservationTypeId')?.value ?? this.reservation?.reservationTypeId)
+      ).pipe(take(1)).subscribe({
+        next: shouldBlock => {
+          if (!shouldBlock) {
+            return;
+          }
 
-  shouldBlockInactivationForUnreturnedSecurityDeposit(): boolean {
-    const depositTypeId = Number(this.form.get('depositType')?.value);
-    const depositReturned = this.reservation?.depositReturned ?? false;
-    return blocksInactivationForUnreturnedSecurityDeposit(depositTypeId, depositReturned);
+          this.form.get('isActive')?.setValue(true, { emitEvent: false });
+          this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+        },
+        error: () => {
+          this.form.get('isActive')?.setValue(true, { emitEvent: false });
+          this.toastr.error('Unable to verify security deposit status.', CommonMessage.Error);
+        }
+      });
+    });
   }
 
   setupBillingTypeHandler(): void {
@@ -2062,7 +2089,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
 
-    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+    if (reservationTypeId === ReservationType.Corporate
+      || reservationTypeId === ReservationType.Platform
+      || reservationTypeId === ReservationType.Owner) {
       depositTypeControl.setValue(DepositType.CLR, { emitEvent: false });
     } else {
       depositTypeControl.setValue(DepositType.Deposit, { emitEvent: false });
