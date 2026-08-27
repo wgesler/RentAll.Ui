@@ -301,6 +301,7 @@
                 [formFieldClass]="'titlebar-field-office'"
                 [value]="selectedOfficeId"
                 [options]="shellOfficeTitleBarOptions"
+                [disabled]="isReconcileOfficeTitleBarReadonly"
                 [nullOptionLabel]="'All Offices'"
                 [noResultsText]="'No offices match your search'"
                 (valueChange)="onShellOfficeDropdownChange($event)">
@@ -312,6 +313,7 @@
                 [formFieldClass]="'titlebar-field-chart-of-account'"
                 [value]="selectedChartOfAccountId"
                 [options]="shellReconcileChartOfAccountTitleBarOptions"
+                [disabled]="isReconcileTitleBarReadonly"
                 [nullOptionLabel]="'Select Account'"
                 [noResultsText]="'No accounts match your search'"
                 [showSearchInput]="true"
@@ -639,8 +641,9 @@
                 [matDatepicker]="accountingStartPicker"
                 [(ngModel)]="startDate"
                 [ngModelOptions]="{ standalone: true }"
+                [disabled]="isReconcileTitleBarReadonly"
                 (dateChange)="onShellStartDateChange()" />
-              <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker" [disabled]="isReconcileTitleBarReadonly"></mat-datepicker-toggle>
               <mat-datepicker #accountingStartPicker></mat-datepicker>
             </mat-form-field>
           }
@@ -653,8 +656,9 @@
                   [matDatepicker]="accountingEndPicker"
                   [(ngModel)]="endDate"
                   [ngModelOptions]="{ standalone: true }"
+                  [disabled]="isReconcileTitleBarReadonly"
                   (dateChange)="onShellEndDateChange()" />
-                <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker"></mat-datepicker-toggle>
+                <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker" [disabled]="isReconcileTitleBarReadonly"></mat-datepicker-toggle>
                 <mat-datepicker #accountingEndPicker></mat-datepicker>
               </mat-form-field>
               <button
@@ -665,6 +669,7 @@
                 [attr.aria-pressed]="dateRangePinned"
                 [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
                 [matTooltip]="dateRangePinned ? 'Unpin date range' : 'Keep date range fixed'"
+                [disabled]="isReconcileTitleBarReadonly"
                 (click)="toggleDateRangePin()">
                 <mat-icon>push_pin</mat-icon>
               </button>

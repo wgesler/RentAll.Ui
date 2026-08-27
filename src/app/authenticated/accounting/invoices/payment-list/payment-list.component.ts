@@ -100,6 +100,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
+    vendorSummaryDisplay: { displayAs: 'Vendor', wrap: true, maxWidth: '28ch' },
     billSummaryDisplay: { displayAs: 'Bills', wrap: true, maxWidth: '36ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
@@ -110,7 +111,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   readonly paymentBillAllocationDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     receiptCode: { displayAs: 'Bill', maxWidth: '15ch', wrap: false, sortType: 'natural' },
-    vendorName: { displayAs: 'Vendor', maxWidth: '24ch', wrap: true },
+    billNumber: { displayAs: 'Bill Number', maxWidth: '24ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
@@ -383,6 +384,10 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: (contacts) => {
         this.vendorContacts = (contacts || []).filter(contact => contact.entityTypeId === EntityType.Vendor);
+        if (this.payments.length > 0) {
+          this.allPayments = this.buildPaymentDisplayList(this.payments);
+          this.applyFilters();
+        }
         this.markViewForCheck();
       },
       error: () => {
@@ -676,8 +681,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
         return String(lineIndex + 1);
       case 'receiptCode':
         return (allocation.receiptCode || '').trim() || '—';
-      case 'vendorName':
-        return this.resolveBillAllocationVendorName(allocation) || '—';
+      case 'billNumber':
+        return this.resolveBillAllocationBillNumber(allocation) || '—';
       case 'description':
         return this.resolveBillAllocationDescription(allocation) || '—';
       case 'amount':
@@ -700,6 +705,21 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
     const vendorContact = this.vendorContacts.find(contact => contact.contactId === vendorId);
     return this.utilityService.getVendorDropdownLabel(vendorContact);
+  }
+
+  resolveBillAllocationBillNumber(allocation: PaymentBillAllocation): string {
+    const receiptId = (allocation.receiptId || '').trim();
+    const bill = receiptId ? this.billReceiptsById.get(receiptId) : undefined;
+    return (bill?.billNumber || '').trim();
+  }
+
+  buildVendorSummaryDisplay(allocations: PaymentBillAllocation[] | undefined): string {
+    const vendorNames = Array.from(new Set(
+      (allocations ?? [])
+        .map(allocation => this.resolveBillAllocationVendorName(allocation))
+        .filter(name => name.length > 0)
+    ));
+    return vendorNames.join(', ');
   }
 
   resolveBillAllocationDescription(allocation: PaymentBillAllocation): string {
@@ -902,6 +922,9 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       const postingStatusId = payment?.postingStatusId ?? null;
       return {
         ...display,
+        vendorSummaryDisplay: this.isOutboundPaymentList
+          ? this.buildVendorSummaryDisplay(display.billAllocations)
+          : undefined,
         postingStatusId,
         deleteDisabled: !this.journalEntryService.canDeleteApplicationObject(postingStatusId)
       };

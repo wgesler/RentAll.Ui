@@ -3601,8 +3601,7 @@ ensureBeginReconciliationSetup(): void {
       return;
     }
 
-    // Leave clears the account on purpose; do not force the begin dialog until an account is selected again.
-    if (this.selectedChartOfAccountId == null) {
+    if (this.selectedOfficeId == null || this.selectedOfficeId <= 0) {
       return;
     }
 
@@ -3634,21 +3633,10 @@ applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
     this.reconcileAccountReportContext = null;
     this.selectedChartOfAccountId = null;
     this.clearReconcileHistorySelection(false);
-    this.selectedTabIndex = this.tabBankActivities;
-    this.selectedBankActivityKind = 'reconcile';
-    // Explicitly clear any stale report= param so merge does not bounce us to Reports.
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: this.buildShellQueryParams({
-        tab: String(this.tabBankActivities),
-        bankActivity: 'reconcile',
-        report: null,
-        chartOfAccountId: null
-      }),
-      queryParamsHandling: 'merge'
-    });
-    this.persistPinnedTopBarIfActive();
-    this.cdr.markForCheck();
+    this.selectedInvoiceKind = 'invoices';
+    this.paymentsListEngaged = false;
+    this.clearInvoiceShellDetailState();
+    this.onTabChange({ index: this.tabInvoices });
   }
 
   onReconcileAccountReportViewChange(view: 'summary' | 'detail'): void {
@@ -5234,6 +5222,14 @@ captureOwnerStatementReturnContext(): void {
       && this.selectedBankActivityKind === 'reconcile';
   }
 
+  get isReconcileTitleBarReadonly(): boolean {
+    return this.isReconcileBankActivityActive;
+  }
+
+  get isReconcileOfficeTitleBarReadonly(): boolean {
+    return this.isReconcileBankActivityActive && this.reconcileSetup != null;
+  }
+
   usesGeneralLedgerTitleBarFilters(): boolean {
     return this.selectedTabIndex === this.tabGeneralLedger;
   }
@@ -5356,6 +5352,9 @@ captureOwnerStatementReturnContext(): void {
     if (this.selectedTabIndex === this.tabBankActivities) {
       this.onGeneralLedgerBack();
       this.refreshActiveBankActivityList();
+      if (this.selectedBankActivityKind === 'reconcile' && this.reconcileSetup == null) {
+        queueMicrotask(() => this.ensureBeginReconciliationSetup());
+      }
     }
     if (this.selectedTabIndex === this.tabOwners) {
       this.onOwnersUtilityReceiptBack();

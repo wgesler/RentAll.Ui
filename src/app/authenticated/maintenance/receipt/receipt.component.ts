@@ -145,6 +145,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
     this.setupAccountingBillDateHandlers();
+    this.setupHeaderToInitialSplitSyncHandlers();
     this.setupVendorSelectionHandlers();
     this.setupIsUtilityDisplayHandlers();
     this.applyPropertyInputToForm();
@@ -244,6 +245,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.updatePropertyRequirementByReceiptType();
     this.updateVendorFieldValidators();
     this.commitPendingAmountEdits();
+    this.syncInitialSplitWithOverallIfNeeded();
     this.saveValidationHighlightActive = true;
     this.saveValidationAttempted.emit();
     this.form.markAllAsTouched();
@@ -580,6 +582,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.focusedSplitAmountIndex = null;
       this.splitAmountEditValue = '';
     }
+
+    this.syncInitialSplitWithOverallIfNeeded();
   }
 
   shouldShowControlError(control: AbstractControl | null | undefined): boolean {
@@ -1278,6 +1282,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Accounting Bill Date Methods
   getReceiptAmountValue(): number {
+    if (this.amountFocused) {
+      const raw = this.sanitizeSignedDecimalInput(this.amountEditValue);
+      return parseFloat(raw) || 0;
+    }
+
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     return parseFloat(raw) || 0;
   }
@@ -1343,6 +1352,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
       parsedReceiptDate.setHours(0, 0, 0, 0);
       this.form.get('accountingPeriod')?.setValue(new Date(parsedReceiptDate.getTime()), { emitEvent: false });
+    });
+  }
+
+  setupHeaderToInitialSplitSyncHandlers(): void {
+    this.form.get('description')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (!this.isAddMode) {
+        return;
+      }
+      this.syncInitialSplitWithOverallIfNeeded();
     });
   }
 
@@ -1468,12 +1486,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const value = input?.value ?? '';
     this.amountEditValue = this.sanitizeSignedDecimalInput(value);
     this.form.get('amount')?.setValue(this.amountEditValue, { emitEvent: false });
+    if (this.isAddMode) {
+      this.syncInitialSplitWithOverallIfNeeded();
+    }
   }
 
   onOverallDescriptionBlur(): void {
-    if (this.amountFocused) {
-      return;
-    }
     this.syncInitialSplitWithOverallIfNeeded();
   }
   //#endregion
@@ -1838,7 +1856,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   syncInitialSplitWithOverallIfNeeded(): void {
-    if (this.isSyncingInitialSplit || this.splitsFormArray.length !== 1) {
+    if (!this.isAddMode || this.isSyncingInitialSplit || this.splitsFormArray.length !== 1) {
       return;
     }
 
@@ -1848,12 +1866,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const splitAmountRaw = this.sanitizeSignedDecimalInput(splitAmountControl?.value?.toString() ?? '').trim();
     const splitAmountValue = parseFloat(splitAmountRaw);
     const splitDescription = (splitDescriptionControl?.value || '').trim();
-    const splitWorkOrder = (
-      splitGroup.get('workOrderCode')?.value
-      || splitGroup.get('workOrder')?.value
-      || ''
-    ).trim();
-    if (splitWorkOrder) {
+    const hasRealWorkOrder = !!(
+      (splitGroup.get('workOrderId')?.value || '').toString().trim()
+      || (splitGroup.get('workOrderCode')?.value || '').toString().trim()
+    );
+    if (hasRealWorkOrder) {
       return;
     }
 
@@ -1867,7 +1884,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (shouldSyncSplitAmountToOverall && overallAmount) {
       patch.amount = overallAmount;
     }
-    if (!splitDescription && overallDescription) {
+    const hasUserEditedSplitDescription = splitDescriptionControl?.dirty === true;
+    const shouldSyncSplitDescription = !splitDescription || !hasUserEditedSplitDescription;
+    if (shouldSyncSplitDescription) {
       patch.description = overallDescription;
     }
     if (Object.keys(patch).length === 0) {
@@ -1876,7 +1895,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.isSyncingInitialSplit = true;
     splitGroup.patchValue(patch, { emitEvent: false });
+    splitAmountControl?.updateValueAndValidity({ emitEvent: false });
+    splitDescriptionControl?.updateValueAndValidity({ emitEvent: false });
     this.isSyncingInitialSplit = false;
+    this.cdr.markForCheck();
   }
 
   applyBillDescriptionToAllSplitLines(): void {
@@ -2854,6 +2876,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       dueDate: prefillDueDate,
       accountingPeriod: prefillAccountingPeriod
     }, { emitEvent: false });
+    if (!split) {
+      this.syncInitialSplitWithOverallIfNeeded();
+    }
     this.updatePropertyRequirementByReceiptType();
     this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.syncSelectedPropertyIdFromForm();

@@ -168,6 +168,7 @@ export interface PaymentDisplayList {
   descriptionDisplay?: string;
   invoiceSummaryDisplay?: string;
   billSummaryDisplay?: string;
+  vendorSummaryDisplay?: string;
   allocatedAmount?: number;
   allocatedAmountDisplay?: string;
   ledgerLineSummaryDisplay?: string;

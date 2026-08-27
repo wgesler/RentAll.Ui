@@ -1244,8 +1244,8 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   max-width: 200px;
 }
 
-/* Hide office dropdown arrow when title-bar office is read-only/disabled. */
-.header-title app-searchable-select .titlebar-field-office .mat-mdc-select.mat-mdc-select-disabled .mat-mdc-select-arrow-wrapper {
+/* Hide title-bar dropdown arrow when the select is read-only/disabled. */
+.header-title app-searchable-select .mat-mdc-select.mat-mdc-select-disabled .mat-mdc-select-arrow-wrapper {
   display: none !important;
 }
 
