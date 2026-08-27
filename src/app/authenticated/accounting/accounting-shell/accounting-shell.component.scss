@@ -588,6 +588,11 @@ mat-card {
   gap: 0.5rem;
 }
 
+:host-context(body.accounting-reconcile-setup-dialog-open) .content-card-wrap {
+  pointer-events: none;
+  user-select: none;
+}
+
 .accounting-shell-transition-lock .tableDiv {
   overflow: hidden !important;
 }

@@ -3534,6 +3534,8 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
   //#endregion
 
   //#region Reconcile
+  private static readonly reconcileSetupDialogBodyClass = 'accounting-reconcile-setup-dialog-open';
+
   openBeginReconciliationDialog(activateOnContinue = false): void {
     if (this.beginReconciliationDialogOpen) {
       return;
@@ -3546,12 +3548,14 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
 
     const selectedAccount = this.resolveSelectedReconcileChartOfAccount();
     this.beginReconciliationDialogOpen = true;
+    this.lockShellForReconcileSetupDialog();
 
     this.dialog.open(BeginReconciliationDialogComponent, {
       width: '95vw',
       maxWidth: '56rem',
       maxHeight: '95vh',
       panelClass: 'accounting-form-dialog-panel',
+      disableClose: true,
       data: {
         organizationId: this.organizationId,
         officeId: this.selectedOfficeId,
@@ -3562,9 +3566,13 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
         defaultStatementDate: this.endDate ?? this.utilityService.parseCalendarDateInput(selectedAccount?.statementDate ?? null),
         existingSetup: this.reconcileSetup
       }
-    }).afterClosed().pipe(take(1)).subscribe((result?: BeginReconciliationDialogResult) => {
-      this.beginReconciliationDialogOpen = false;
-
+    }).afterClosed().pipe(
+      take(1),
+      finalize(() => {
+        this.beginReconciliationDialogOpen = false;
+        this.unlockShellForReconcileSetupDialog();
+      })
+    ).subscribe((result?: BeginReconciliationDialogResult) => {
       if (!result) {
         if (this.selectedBankActivityKind === 'reconcile' && this.reconcileSetup == null) {
           this.activateBankActivity('undepositedFunds');
@@ -3578,6 +3586,14 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
 
       this.applyBeginReconciliationResult(result);
     });
+  }
+
+  private lockShellForReconcileSetupDialog(): void {
+    document.body.classList.add(AccountingShellComponent.reconcileSetupDialogBodyClass);
+  }
+
+  private unlockShellForReconcileSetupDialog(): void {
+    document.body.classList.remove(AccountingShellComponent.reconcileSetupDialogBodyClass);
   }
 
 ensureBeginReconciliationSetup(): void {
@@ -6341,6 +6357,7 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
       clearTimeout(this.ownerViewLoadingFlashTimeoutId);
       this.ownerViewLoadingFlashTimeoutId = null;
     }
+    this.unlockShellForReconcileSetupDialog();
     this.releaseRentRollTransitionLock();
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
