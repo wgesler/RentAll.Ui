@@ -19,6 +19,7 @@ export async function sendDocumentDocuSign(
     senderName: string;
     userId?: string | null;
     apiAccountId?: string | null;
+    baseUri?: string | null;
   }
 ): Promise<SendDocumentForSignatureResponse> {
   const htmlWithStyles = deps.documentHtmlService.getPdfHtmlWithStyles(
@@ -41,6 +42,7 @@ export async function sendDocumentDocuSign(
     senderName: senderContext.senderName,
     userId: senderContext.userId || null,
     apiAccountId: senderContext.apiAccountId || null,
+    baseUri: senderContext.baseUri || null,
     signers: docuSignConfig.signers.map(signer => ({
       email: signer.email.trim(),
       name: signer.name.trim(),

@@ -18,6 +18,7 @@ export interface SendDocumentForSignatureRequest {
   senderName: string;
   userId?: string | null;
   apiAccountId?: string | null;
+  baseUri?: string | null;
   signers: DocuSignSigner[];
 }
 

@@ -279,6 +279,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quoteDepartureFee: !!formValue.quoteDepartureFee,
       quoteMaidFee: !!formValue.quoteMaidFee,
       docuSignApiAccountId: this.parseOptionalGuid(formValue.docuSignApiAccountId),
+      docuSignBaseUri: (formValue.docuSignBaseUri || '').trim() || null,
       qbNameTypeId: this.parseOptionalQbTypeId(formValue.qbNameTypeId),
       qbClassTypeId: this.parseOptionalQbTypeId(formValue.qbClassTypeId),
       ...this.buildValidCostCodeRequest(formValue)
@@ -507,6 +508,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quoteDepartureFee: new FormControl<boolean>(false),
       quoteMaidFee: new FormControl<boolean>(false),
       docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
+      docuSignBaseUri: new FormControl<string>('', [Validators.pattern(/^$|^https?:\/\/.+/i)]),
       qbNameTypeId: new FormControl<number | null>(null),
       qbClassTypeId: new FormControl<number | null>(null)
     });
@@ -593,6 +595,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           quoteDepartureFee: this.office.quoteDepartureFee ?? false,
           quoteMaidFee: this.office.quoteMaidFee ?? false,
           docuSignApiAccountId: this.office.docuSignApiAccountId || '',
+          docuSignBaseUri: this.office.docuSignBaseUri || '',
           qbNameTypeId: this.office.qbNameTypeId ?? null,
           qbClassTypeId: this.office.qbClassTypeId ?? null
         });
@@ -676,6 +679,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quoteDepartureFee: o.quoteDepartureFee ?? false,
       quoteMaidFee: o.quoteMaidFee ?? false,
       docuSignApiAccountId: o.docuSignApiAccountId || '',
+      docuSignBaseUri: o.docuSignBaseUri || '',
       qbNameTypeId: o.qbNameTypeId ?? null,
       qbClassTypeId: o.qbClassTypeId ?? null
     }, { emitEvent: false });

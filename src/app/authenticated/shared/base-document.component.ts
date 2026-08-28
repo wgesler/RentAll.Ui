@@ -277,7 +277,7 @@ export abstract class BaseDocumentComponent {
     docuSignWindow.document.body.innerHTML =
       '<p style="font-family: Arial, sans-serif; padding: 12px;">Preparing DocuSign...</p>';
 
-    const { userId, apiAccountId } = this.resolveDocuSignCredentials(config.selectedOfficeId);
+    const { userId, apiAccountId, baseUri } = this.resolveDocuSignCredentials(config.selectedOfficeId);
 
     this.isSendingDocuSign = true;
 
@@ -298,7 +298,8 @@ export abstract class BaseDocumentComponent {
           senderEmail,
           senderName,
           userId,
-          apiAccountId
+          apiAccountId,
+          baseUri
         }
       );
 
@@ -320,18 +321,19 @@ export abstract class BaseDocumentComponent {
     }
   }
 
-resolveDocuSignCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
+resolveDocuSignCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null; baseUri: string | null } {
     const docuSignUserId = this.authService.getUser()?.docuSignUserId?.trim() || null;
 
     const resolvedOfficeId = officeId ?? this.docuSignGlobalSelectionService.getSelectedOfficeIdValue();
     if (!resolvedOfficeId) {
-      return { userId: docuSignUserId, apiAccountId: null };
+      return { userId: docuSignUserId, apiAccountId: null, baseUri: null };
     }
 
     const office = this.docuSignOfficeService.getAllOfficesValue().find(o => o.officeId === resolvedOfficeId);
     return {
       userId: docuSignUserId,
-      apiAccountId: office?.docuSignApiAccountId?.trim() || null
+      apiAccountId: office?.docuSignApiAccountId?.trim() || null,
+      baseUri: office?.docuSignBaseUri?.trim() || null
     };
   }
 

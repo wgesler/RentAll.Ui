@@ -76,6 +76,7 @@ export interface OfficeRequest {
   quoteDepartureFee: boolean;
   quoteMaidFee: boolean;
   docuSignApiAccountId?: string | null;
+  docuSignBaseUri?: string | null;
   qbNameTypeId?: number | null;
   qbClassTypeId?: number | null;
 }
@@ -156,6 +157,7 @@ export interface OfficeResponse {
   quoteDepartureFee: boolean;
   quoteMaidFee: boolean;
   docuSignApiAccountId?: string | null;
+  docuSignBaseUri?: string | null;
   qbNameTypeId?: number | null;
   qbClassTypeId?: number | null;
 

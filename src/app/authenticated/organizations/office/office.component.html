@@ -825,6 +825,13 @@
                   </mat-expansion-panel-header>
                   <div class="grid grid-cols-4 form-standard-grid">
                     <mat-form-field appearance="outline" class="col-span-2 w-full">
+                      <mat-label>Base Uri</mat-label>
+                      <input matInput formControlName="docuSignBaseUri" placeholder="https://na4.docusign.net">
+                      @if (form.get('docuSignBaseUri')?.hasError('pattern') && form.get('docuSignBaseUri')?.touched) {
+                        <mat-error>Enter a valid URL starting with http:// or https://</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-2 w-full">
                       <mat-label>Api Account Id</mat-label>
                       <input matInput formControlName="docuSignApiAccountId" placeholder="00000000-0000-0000-0000-000000000000">
                       @if (form.get('docuSignApiAccountId')?.hasError('pattern') && form.get('docuSignApiAccountId')?.touched) {
