@@ -47,6 +47,7 @@ export interface AccountingOfficeRequest {
   defaultOwnActPayableAccountId?: number | null;
   defaultPrePayAccountId?: number | null;
   defaultRetainedEarningsAccountId?: number | null;
+  defaultInterOfficeAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
   currentCheckNumber: number;
@@ -100,6 +101,7 @@ export interface AccountingOfficeResponse {
   defaultOwnActPayableAccountId?: number | null;
   defaultPrePayAccountId?: number | null;
   defaultRetainedEarningsAccountId?: number | null;
+  defaultInterOfficeAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
   checkStockPath?: string | null;

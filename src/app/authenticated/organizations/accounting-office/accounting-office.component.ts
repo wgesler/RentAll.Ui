@@ -141,7 +141,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   defaultAccountFieldsEscrow: { controlName: string; label: string }[] = [
     { controlName: 'defaultEscrowDepositAccountId', label: 'Escrow Deposits' },
     { controlName: 'defaultEscrowSecDepAccountId', label: 'Escrow Security Deposit' },
-    { controlName: 'defaultEscrowSdwAccountId', label: 'Escrow Security Deposit Waiver' }
+    { controlName: 'defaultEscrowSdwAccountId', label: 'Escrow Security Deposit Waiver' },
+    { controlName: 'defaultInterOfficeAccountId', label: 'Inter-Office' }
   ];
   defaultAccountFieldsRow3: { controlName: string; label: string }[] = [
     { controlName: 'defaultEscrowOwnersAccountId', label: 'Escrow Owners' },
@@ -371,6 +372,7 @@ parseOfficeId(id: string | number | null): number | null {
       defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
       defaultPrePayAccountId: this.parseOptionalAccountId(formValue.defaultPrePayAccountId),
       defaultRetainedEarningsAccountId: this.parseOptionalAccountId(formValue.defaultRetainedEarningsAccountId),
+      defaultInterOfficeAccountId: this.parseOptionalAccountId(formValue.defaultInterOfficeAccountId),
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
       isActive: formValue.isActive
@@ -525,6 +527,7 @@ parseOfficeId(id: string | number | null): number | null {
       defaultOwnActPayableAccountId: new FormControl<number | null>(null),
       defaultPrePayAccountId: new FormControl<number | null>(null),
       defaultRetainedEarningsAccountId: new FormControl<number | null>(null),
+      defaultInterOfficeAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       checkStockUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['pdf'], ['application/pdf'], 10000000, true)] }),
       isActive: new FormControl(true)
@@ -610,6 +613,7 @@ parseOfficeId(id: string | number | null): number | null {
         defaultOwnActPayableAccountId: this.accountingOffice.defaultOwnActPayableAccountId ?? null,
         defaultPrePayAccountId: this.accountingOffice.defaultPrePayAccountId ?? null,
         defaultRetainedEarningsAccountId: this.accountingOffice.defaultRetainedEarningsAccountId ?? null,
+        defaultInterOfficeAccountId: this.accountingOffice.defaultInterOfficeAccountId ?? null,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
     }
@@ -661,6 +665,7 @@ parseOfficeId(id: string | number | null): number | null {
       defaultOwnActPayableAccountId: o.defaultOwnActPayableAccountId ?? null,
       defaultPrePayAccountId: o.defaultPrePayAccountId ?? null,
       defaultRetainedEarningsAccountId: o.defaultRetainedEarningsAccountId ?? null,
+      defaultInterOfficeAccountId: o.defaultInterOfficeAccountId ?? null,
       isActive: o.isActive
     }, { emitEvent: false });
     this.resetBankCards();
