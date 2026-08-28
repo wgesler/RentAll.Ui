@@ -1,0 +1,32 @@
+<div class="docusign-consent-dialog">
+  <div class="docusign-consent-dialog__header">
+    <span class="docusign-consent-dialog__title">
+      <mat-icon color="primary">draw</mat-icon>
+      DocuSign Consent Required
+    </span>
+  </div>
+
+  <mat-dialog-content class="docusign-consent-dialog__content">
+    <p class="docusign-consent-dialog__help">
+      DocuSign needs one-time consent before RentAll can send documents on your behalf.
+      Sign in as the DocuSign user whose User Id is on your RentAll user record, then grant access.
+    </p>
+    <p class="docusign-consent-dialog__link-wrap">
+      <a
+        class="docusign-consent-dialog__link"
+        [href]="data.consentUrl"
+        target="_blank"
+        rel="noopener noreferrer">
+        Open DocuSign consent page
+      </a>
+    </p>
+  </mat-dialog-content>
+
+  <div class="docusign-consent-dialog__actions">
+    <button mat-raised-button type="button" color="accent" (click)="close()">Close</button>
+    <button mat-raised-button type="button" color="primary" (click)="openConsentPage()">
+      <mat-icon>open_in_new</mat-icon>
+      Grant consent
+    </button>
+  </div>
+</div>

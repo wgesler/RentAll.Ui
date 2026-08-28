@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { take } from 'rxjs';
 import { DocumentExportService } from '../../services/document-export.service';
@@ -15,8 +16,10 @@ import { DocuSignService } from '../email/services/docusign.service';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
 import { FileDetails } from '../documents/models/document.model';
+import { extractDocuSignConsentUrl, isDocuSignConsentRequired } from '../email/utils/docusign-error.util';
 import { sendDocumentDocuSign } from '../email/utils/send-document-docusign';
 import { sendDocumentEmail } from '../email/utils/send-document-email';
+import { DocuSignConsentDialogComponent } from './modals/docusign-consent-dialog/docusign-consent-dialog.component';
 
 export interface DocumentConfig {
   previewIframeHtml: string;
@@ -79,6 +82,7 @@ export abstract class BaseDocumentComponent {
   protected docuSignService = inject(DocuSignService);
   private readonly docuSignGlobalSelectionService = inject(GlobalSelectionService);
   private readonly docuSignOfficeService = inject(OfficeService);
+  private readonly dialog = inject(MatDialog);
   isSendingDocuSign = false;
 
   get hasDocuSignAccess(): boolean {
@@ -310,9 +314,7 @@ export abstract class BaseDocumentComponent {
     } catch (error) {
       docuSignWindow.close();
       const fallbackMsg = docuSignConfig.errorMessage || 'Error sending document for signature. Please try again.';
-      const errorMsg = this.getDocuSignErrorMessage(error, fallbackMsg);
-      this.toastr.error(errorMsg, 'Error');
-      console.error('DocuSign error:', error);
+      this.handleDocuSignError(error, fallbackMsg);
     } finally {
       this.isSendingDocuSign = false;
     }
@@ -350,6 +352,24 @@ resolveDocuSignSenderViewUrl(
   injectStylesIntoIframe(): void {
     const config = this.getDocumentConfig();
     this.documentHtmlService.injectStylesIntoIframe(config.previewIframeStyles);
+  }
+
+handleDocuSignError(error: unknown, fallbackMsg: string): void {
+    const errorMsg = this.getDocuSignErrorMessage(error, fallbackMsg);
+    console.error('DocuSign error:', error);
+
+    if (isDocuSignConsentRequired(errorMsg)) {
+      const consentUrl = extractDocuSignConsentUrl(errorMsg);
+      if (consentUrl) {
+        this.dialog.open(DocuSignConsentDialogComponent, {
+          data: { consentUrl },
+          width: '32rem'
+        });
+        return;
+      }
+    }
+
+    this.toastr.error(errorMsg, 'Error');
   }
 
 getDocuSignErrorMessage(error: unknown, fallbackMsg: string): string {

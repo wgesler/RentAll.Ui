@@ -1,0 +1,48 @@
+.docusign-consent-dialog {
+  min-width: min(100%, 32rem);
+  box-sizing: border-box;
+}
+
+.docusign-consent-dialog__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #e2e8f0;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+}
+
+.docusign-consent-dialog__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.docusign-consent-dialog__content {
+  padding: 1rem !important;
+}
+
+.docusign-consent-dialog__help {
+  margin: 0 0 1rem;
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.docusign-consent-dialog__link-wrap {
+  margin: 0;
+}
+
+.docusign-consent-dialog__link {
+  color: #2563eb;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.docusign-consent-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 1rem;
+}
