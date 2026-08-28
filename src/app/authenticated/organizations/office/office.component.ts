@@ -278,7 +278,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePetFee: !!formValue.quotePetFee,
       quoteDepartureFee: !!formValue.quoteDepartureFee,
       quoteMaidFee: !!formValue.quoteMaidFee,
-      docuSignUserId: this.parseOptionalGuid(formValue.docuSignUserId),
       docuSignApiAccountId: this.parseOptionalGuid(formValue.docuSignApiAccountId),
       qbNameTypeId: this.parseOptionalQbTypeId(formValue.qbNameTypeId),
       qbClassTypeId: this.parseOptionalQbTypeId(formValue.qbClassTypeId),
@@ -507,7 +506,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePetFee: new FormControl<boolean>(false),
       quoteDepartureFee: new FormControl<boolean>(false),
       quoteMaidFee: new FormControl<boolean>(false),
-      docuSignUserId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
       docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
       qbNameTypeId: new FormControl<number | null>(null),
       qbClassTypeId: new FormControl<number | null>(null)
@@ -594,7 +592,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           quotePetFee: this.office.quotePetFee ?? false,
           quoteDepartureFee: this.office.quoteDepartureFee ?? false,
           quoteMaidFee: this.office.quoteMaidFee ?? false,
-          docuSignUserId: this.office.docuSignUserId || '',
           docuSignApiAccountId: this.office.docuSignApiAccountId || '',
           qbNameTypeId: this.office.qbNameTypeId ?? null,
           qbClassTypeId: this.office.qbClassTypeId ?? null
@@ -678,7 +675,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePetFee: o.quotePetFee ?? false,
       quoteDepartureFee: o.quoteDepartureFee ?? false,
       quoteMaidFee: o.quoteMaidFee ?? false,
-      docuSignUserId: o.docuSignUserId || '',
       docuSignApiAccountId: o.docuSignApiAccountId || '',
       qbNameTypeId: o.qbNameTypeId ?? null,
       qbClassTypeId: o.qbClassTypeId ?? null

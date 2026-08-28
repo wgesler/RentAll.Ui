@@ -52,6 +52,10 @@ export class JwtContainer {
             ? (typeof defaultOfficeIdRaw === 'number' ? defaultOfficeIdRaw : parseInt(String(defaultOfficeIdRaw), 10))
             : null;
         const agentId = user.agentId ?? null;
+        const docuSignUserIdRaw = user.docuSignUserId ?? user.DocuSignUserId ?? null;
+        const docuSignUserId = docuSignUserIdRaw == null || String(docuSignUserIdRaw).trim() === ''
+            ? null
+            : String(docuSignUserIdRaw).trim();
         const userGuid = user.userGuid || user.userId || '';
 
         const enabledFeaturesRaw = user.enabledFeatures ?? user.EnabledFeatures;
@@ -82,7 +86,8 @@ export class JwtContainer {
             defaultOfficeId,
             agentId,
             properties,
-            enabledFeatureTypeIds
+            enabledFeatureTypeIds,
+            docuSignUserId
         );
     }
 }
@@ -104,6 +109,7 @@ export class JwtUser {
     agentId: string | null;
     properties: string[];
     enabledFeatureTypeIds?: number[];
+    docuSignUserId?: string | null;
   
 
 
@@ -121,7 +127,8 @@ export class JwtUser {
         defaultOfficeId: number | null = null,
         agentId: string | null = null,
         properties: string[] = [],
-        enabledFeatureTypeIds?: number[]
+        enabledFeatureTypeIds?: number[],
+        docuSignUserId: string | null = null
     ) {
         this.userGuid = userGuid;
         // Keep userId for backward compatibility in existing UI code paths.
@@ -141,5 +148,6 @@ export class JwtUser {
         this.agentId = agentId;
         this.properties = properties;
         this.enabledFeatureTypeIds = enabledFeatureTypeIds;
+        this.docuSignUserId = docuSignUserId;
     }
 }

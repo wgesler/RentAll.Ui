@@ -269,7 +269,7 @@ export abstract class BaseDocumentComponent {
     docuSignWindow.document.body.innerHTML =
       '<p style="font-family: Arial, sans-serif; padding: 12px;">Preparing DocuSign...</p>';
 
-    const { userId, apiAccountId } = this.resolveDocuSignOfficeCredentials(config.selectedOfficeId);
+    const { userId, apiAccountId } = this.resolveDocuSignCredentials(config.selectedOfficeId);
 
     this.isSendingDocuSign = true;
 
@@ -314,15 +314,17 @@ export abstract class BaseDocumentComponent {
     }
   }
 
-resolveDocuSignOfficeCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
+resolveDocuSignCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
+    const docuSignUserId = this.authService.getUser()?.docuSignUserId?.trim() || null;
+
     const resolvedOfficeId = officeId ?? this.docuSignGlobalSelectionService.getSelectedOfficeIdValue();
     if (!resolvedOfficeId) {
-      return { userId: null, apiAccountId: null };
+      return { userId: docuSignUserId, apiAccountId: null };
     }
 
     const office = this.docuSignOfficeService.getAllOfficesValue().find(o => o.officeId === resolvedOfficeId);
     return {
-      userId: office?.docuSignUserId?.trim() || null,
+      userId: docuSignUserId,
       apiAccountId: office?.docuSignApiAccountId?.trim() || null
     };
   }
