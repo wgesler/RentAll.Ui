@@ -124,17 +124,6 @@
                   </mat-select>
                 </mat-form-field>
 
-                @if (showInspectorPropertiesField) {
-                  <mat-form-field appearance="outline" class="col-span-2">
-                    <mat-label>Properties</mat-label>
-                    <mat-select formControlName="properties" multiple>
-                      @for (property of availableProperties; track property.value) {
-                        <mat-option [value]="property.value">{{ property.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                }
-
                 @if (showAgentCommissionFields) {
                   <mat-form-field appearance="outline" class="col-span-1">
                     <mat-label>Agent</mat-label>
@@ -163,6 +152,17 @@
                     @if (form.get('docuSignUserId')?.hasError('pattern') && form.get('docuSignUserId')?.touched) {
                       <mat-error>Enter a valid GUID or leave blank</mat-error>
                     }
+                  </mat-form-field>
+                }
+
+                @if (showInspectorPropertiesField) {
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Properties</mat-label>
+                    <mat-select formControlName="properties" multiple>
+                      @for (property of availableProperties; track property.value) {
+                        <mat-option [value]="property.value">{{ property.label }}</mat-option>
+                      }
+                    </mat-select>
                   </mat-form-field>
                 }
               }
