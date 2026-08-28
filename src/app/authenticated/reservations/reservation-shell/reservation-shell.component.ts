@@ -451,6 +451,13 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     return this.selectedReservationSummary?.propertyCode ?? this.reservationSection?.sharedPropertyCode ?? 'Code';
   }
 
+  get selectedReservationDisplay(): string {
+    if (this.selectedReservationSummary) {
+      return this.getReservationDropdownLabel(this.selectedReservationSummary);
+    }
+    return this.activeReservationCode || '';
+  }
+
   get showTopbarReservationInfoIcon(): boolean {
     return !this.isInvoiceCreateActive
       && !this.showInvoicePreviewAll

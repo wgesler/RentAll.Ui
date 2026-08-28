@@ -545,6 +545,72 @@ resolveOfficeIdsForRequest(): number[] {
   //#endregion
 
   //#region Document Buttons
+  editDocument(event: DocumentListDisplay): void {
+    const queryParams: any = {};
+    const reservationIdToUse = this.selectedReservationId || this.reservationId || event.reservationId || null;
+
+    if (this.source === 'reservation' && reservationIdToUse) {
+      queryParams.returnTo = 'reservationTab';
+      queryParams.tab = 'documents';
+      queryParams.reservationId = reservationIdToUse;
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+      if (this.propertyId) {
+        queryParams.propertyId = this.propertyId;
+      }
+    } else if (this.source === 'property' && this.propertyId) {
+      queryParams.returnTo = 'documentList';
+      queryParams.propertyId = this.propertyId;
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+    } else if (this.source === 'maintenance' && this.propertyId) {
+      queryParams.returnTo = 'maintenanceTab';
+      queryParams.propertyId = this.propertyId;
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+    } else if (this.source === 'invoice') {
+      queryParams.returnTo = 'accountingTab';
+      queryParams.tab = '3';
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+      if (this.selectedCompany?.contactId) {
+        queryParams.companyId = this.selectedCompany.contactId;
+      } else if (this.companyId) {
+        queryParams.companyId = this.companyId;
+      }
+    } else if (this.source === 'documents') {
+      queryParams.returnTo = 'documentList';
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+      const propertyFilterId = this.propertyId || this.selectedPropertyId;
+      if (propertyFilterId) {
+        queryParams.propertyId = propertyFilterId;
+      }
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+    }
+
+    this.router.navigate(
+      [RouterUrl.replaceTokens(RouterUrl.Document, [event.documentId])],
+      { queryParams }
+    );
+  }
+
   viewDocument(event: DocumentListDisplay): void {
     const queryParams: any = {};
     const reservationIdToUse = this.selectedReservationId || this.reservationId || event.reservationId || null;

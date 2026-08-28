@@ -79,17 +79,10 @@
             }
             @if (!isAddMode || routeReservationId) {
               <div class="titlebar-reservation-slot invoice-titlebar-reservation-wrap">
-                <app-title-bar-select
-                  [label]="'Reservation'"
-                  [formFieldClass]="'header-title-reservation titlebar-field-reservation'"
-                  [required]="false"
-                  [value]="selectedHeaderReservationId ?? null"
-                  [options]="availableHeaderReservations"
-                  [showInstructionOption]="true"
-                  [nullOptionLabel]="'Select Reservation'"
-                  [noResultsText]="'No reservations match your search'"
-                  (valueChange)="onHeaderReservationDropdownChange($event)">
-                </app-title-bar-select>
+                <mat-form-field appearance="outline" class="titlebar-field-reservation">
+                  <mat-label>Reservation</mat-label>
+                  <input matInput [value]="selectedReservationDisplay" readonly [disabled]="true" class="readonly-field">
+                </mat-form-field>
                 @if (showTopbarReservationInfoIcon) {
                   <button
                     type="button"
