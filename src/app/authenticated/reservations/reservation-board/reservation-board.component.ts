@@ -119,6 +119,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   propertiesFiltered = false;
   furnishedPropertyToggleChecked = false;
   furnishedSliderIndex: FiveWayToggleValue = 0;
+  hasPartnerIntegration = false;
   partnersBoardToggleChecked = false;
   isPartnerBoardLoading = false;
   partnerContactByPropertyId = new Map<string, PartnerContactResponse>();
@@ -153,8 +154,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.canFilterByAgent = this.authService.isAdmin();
     this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.hasPartnerIntegration = this.authService.hasPartnerIntegrationAccess();
     this.furnishedPropertyToggleChecked = this.globalSelectionService.getFurnishedPropertySelection() === true;
-    this.partnersBoardToggleChecked = this.globalSelectionService.getPartnersBoardSelection() === true;
+    this.partnersBoardToggleChecked = this.hasPartnerIntegration && this.globalSelectionService.getPartnersBoardSelection() === true;
+    if (!this.hasPartnerIntegration && this.globalSelectionService.getPartnersBoardSelection()) {
+      this.globalSelectionService.setPartnersBoardSelection(false);
+    }
     this.furnishedSliderIndex = this.resolveFiveWayToggleIndexFromGlobalState();
     this.applyStickyDateRangeFromStorage();
     this.generateCalendarDays();
@@ -205,6 +210,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.globalSelectionService.getPartnersBoardSelection$().pipe(takeUntil(this.destroy$)).subscribe({
       next: value => {
+        if (!this.hasPartnerIntegration) {
+          if (value === true) {
+            this.globalSelectionService.setPartnersBoardSelection(false);
+          }
+          return;
+        }
         const wasPartnersMode = this.partnersBoardToggleChecked;
         this.partnersBoardToggleChecked = value === true;
         if (this.partnersBoardToggleChecked) {
@@ -602,22 +613,31 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Five-Way Property Filter
   resolveFiveWayToggleIndexFromGlobalState(): FiveWayToggleValue {
-    if (this.partnersBoardToggleChecked) {
+    if (this.hasPartnerIntegration && this.partnersBoardToggleChecked) {
       return 3;
     }
     return this.furnishedPropertyToggleChecked ? 1 : 0;
   }
 
+  get furnishedToggleMaxIndex(): FiveWayToggleValue {
+    return this.hasPartnerIntegration ? 4 : 2;
+  }
+
+  clampFurnishedSliderIndex(index: number): FiveWayToggleValue {
+    return Math.max(0, Math.min(this.furnishedToggleMaxIndex, index)) as FiveWayToggleValue;
+  }
+
   loadPropertiesForFiveWayFilterPosition(index: FiveWayToggleValue): void {
-    if (index === 3) {
+    const clampedIndex = this.clampFurnishedSliderIndex(index);
+    if (clampedIndex === 3) {
       this.ensurePartnerPropertyCacheThen(() => this.applyFiveWayFilterFromCache(3));
       return;
     }
-    if (index === 4) {
+    if (clampedIndex === 4) {
       this.ensureAllPropertyCachesThen(() => this.applyFiveWayFilterFromCache(4));
       return;
     }
-    this.ensureStandardPropertyCacheThen(() => this.applyFiveWayFilterFromCache(index));
+    this.ensureStandardPropertyCacheThen(() => this.applyFiveWayFilterFromCache(clampedIndex));
   }
 
   applyFiveWayFilterFromCache(index: FiveWayToggleValue): void {
@@ -810,44 +830,56 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   onFurnishedToggleKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      this.setFurnishedSliderIndex(Math.max(0, this.furnishedSliderIndex - 1) as FiveWayToggleValue);
+      this.setFurnishedSliderIndex(this.clampFurnishedSliderIndex(this.furnishedSliderIndex - 1));
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      this.setFurnishedSliderIndex(Math.min(4, this.furnishedSliderIndex + 1) as FiveWayToggleValue);
+      this.setFurnishedSliderIndex(this.clampFurnishedSliderIndex(this.furnishedSliderIndex + 1));
     }
   }
 
   resolveFurnishedToggleIndexFromTrackClick(track: HTMLElement, clientX: number): FiveWayToggleValue {
     const rect = track.getBoundingClientRect();
     const x = clientX - rect.left;
-    const fifth = rect.width / 5;
-    if (x >= fifth * 4) {
+    const stepCount = this.furnishedToggleMaxIndex + 1;
+    const stepWidth = rect.width / stepCount;
+    if (stepCount === 3) {
+      if (x >= stepWidth * 2) {
+        return 2;
+      }
+      if (x >= stepWidth) {
+        return 1;
+      }
+      return 0;
+    }
+    if (x >= stepWidth * 4) {
       return 4;
     }
-    if (x >= fifth * 3) {
+    if (x >= stepWidth * 3) {
       return 3;
     }
-    if (x >= fifth * 2) {
+    if (x >= stepWidth * 2) {
       return 2;
     }
-    if (x >= fifth) {
+    if (x >= stepWidth) {
       return 1;
     }
     return 0;
   }
 
   setFurnishedSliderIndex(index: FiveWayToggleValue): void {
-    if (index === this.furnishedSliderIndex) {
+    const clampedIndex = this.clampFurnishedSliderIndex(index);
+    if (clampedIndex === this.furnishedSliderIndex) {
       return;
     }
-    this.onFurnishedSliderPreviewChange(index);
+    this.onFurnishedSliderPreviewChange(clampedIndex);
   }
 
   onFurnishedSliderPreviewChange(index: FiveWayToggleValue): void {
     const previousIndex = this.furnishedSliderIndex;
-    this.furnishedSliderIndex = index;
+    const nextIndex = this.clampFurnishedSliderIndex(index);
+    this.furnishedSliderIndex = nextIndex;
 
-    if (index === 3) {
+    if (nextIndex === 3) {
       if (!this.partnersBoardToggleChecked) {
         this.beginPartnerBoardTransition();
         this.globalSelectionService.setPartnersBoardSelection(true);
@@ -863,14 +895,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       this.globalSelectionService.setPartnersBoardSelection(false);
     }
 
-    if (index === 0) {
+    if (nextIndex === 0) {
       this.globalSelectionService.setFurnishedPropertySelection(false);
-    } else if (index === 1) {
+    } else if (nextIndex === 1) {
       this.globalSelectionService.setFurnishedPropertySelection(true);
-    } else if (index === 2) {
+    } else if (nextIndex === 2) {
       this.applyBothPropertyFilter();
-    } else if (index === 4 && !this.hasOwnerScope() && !this.partnersBoardToggleChecked) {
-      this.loadPropertiesForFiveWayFilterPosition(index);
+    } else if (nextIndex === 4 && !this.hasOwnerScope() && !this.partnersBoardToggleChecked) {
+      this.loadPropertiesForFiveWayFilterPosition(nextIndex);
     }
 
     this.markViewForCheck();

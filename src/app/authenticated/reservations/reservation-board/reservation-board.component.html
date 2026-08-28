@@ -100,13 +100,13 @@
         @if (!isOwnerScopedView && !readOnly) {
           <div class="form-titlebar-actions-wrap uniform-gap">
             @if (!isPartnerAdmin) {
-            <div class="five-way-toggle" aria-label="Furnished property filter">
+            <div class="five-way-toggle" [class.five-way-toggle--three]="!hasPartnerIntegration" aria-label="Furnished property filter">
               <div class="five-way-toggle__control">
                 <div
                   class="five-way-toggle__switch"
                   role="slider"
                   aria-valuemin="0"
-                  aria-valuemax="4"
+                  [attr.aria-valuemax]="furnishedToggleMaxIndex"
                   [attr.aria-valuenow]="furnishedSliderIndex"
                   [attr.aria-valuetext]="furnishedFilterLabel"
                   tabindex="0"

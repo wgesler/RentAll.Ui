@@ -286,6 +286,24 @@
   background-color: var(--mat-slide-toggle-selected-icon-color, #fff);
 }
 
+.five-way-toggle--three {
+  --five-way-toggle-track-width: 64px;
+
+  .five-way-toggle__thumb[data-position='1'] {
+    transform: translate(
+      calc((var(--five-way-toggle-track-width) - var(--mat-slide-toggle-selected-handle-size, 24px)) * 1 / 2),
+      -50%
+    );
+  }
+
+  .five-way-toggle__thumb[data-position='2'] {
+    transform: translate(
+      calc(var(--five-way-toggle-track-width) - var(--mat-slide-toggle-selected-handle-size, 24px)),
+      -50%
+    );
+  }
+}
+
 .five-way-toggle__label {
   flex: 0 0 5.75rem;
   width: 5.75rem;
