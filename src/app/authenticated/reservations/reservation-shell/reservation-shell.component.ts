@@ -14,6 +14,7 @@ import { ReservationInvoicePreviewComponent } from '../../accounting/invoices/re
 import { InvoiceComponent } from '../../accounting/invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../../accounting/invoices/invoice-create/invoice-create.component';
 import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../../accounting/models/invoice.model';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -41,7 +42,8 @@ import { ReservationService } from '../services/reservation.service';
     InvoiceCreateComponent,
     InvoiceListComponent,
     ReservationInvoicePreviewComponent,
-    EmailListComponent
+    EmailListComponent,
+    DocumentListComponent
   ],
   templateUrl: './reservation-shell.component.html',
   styleUrl: './reservation-shell.component.scss'
@@ -195,6 +197,8 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
         return this.getInvoicesTabIndex();
       case 'emails':
         return this.getEmailsTabIndex();
+      case 'documents':
+        return this.getDocumentsTabIndex();
       default:
         return 0;
     }
@@ -212,6 +216,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     }
     if (tabIndex === this.getEmailsTabIndex()) {
       return 'emails';
+    }
+    if (tabIndex === this.getDocumentsTabIndex()) {
+      return 'documents';
     }
     return null;
   }
@@ -642,6 +649,10 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
 
   getEmailsTabIndex(): number {
     return this.isAdmin ? 4 : 3;
+  }
+
+  getDocumentsTabIndex(): number {
+    return this.isAdmin ? 5 : 4;
   }
   //#endregion
 

@@ -1,19 +1,25 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { MappingService } from '../../../services/mapping.service';
+import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
 import { hasInspectorRole } from '../../shared/access/role-access';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { PropertyCodeResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
 import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentRequest, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
@@ -25,7 +31,8 @@ import { DocumentService } from '../services/document.service';
         CommonModule,
         MaterialModule,
         FormsModule,
-        ReactiveFormsModule
+        ReactiveFormsModule,
+        TitleBarSelectComponent
     ],
     templateUrl: './document.component.html',
     styleUrls: ['./document.component.scss']
@@ -39,8 +46,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
-  private mappingService = inject(MappingService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
   private utilityService = inject(UtilityService);
+  private pdfThumbnailService = inject(PdfThumbnailService);
 
   isServiceError: boolean = false;
   documentId: string;
@@ -48,13 +57,16 @@ export class DocumentComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  saveAttempted: boolean = false;
   selectedFile: File | null = null;
   filePreview: string | null = null;
+  pdfThumbnailUrl: string | null = null;
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
- organizationId: string = '';
+  properties: PropertyCodeResponse[] = [];
+  reservations: ReservationCodeResponse[] = [];
+  organizationId: string = '';
 
   documentTypes: { value: DocumentType, label: string }[] = getDocumentTypes();
 
@@ -71,6 +83,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
     this.loadOffices();
+    this.loadPropertyCodes();
+    this.loadReservationCodes();
 
     this.route.paramMap.pipe(take(1)).subscribe(params => {
       const id = params.get('id');
@@ -98,7 +112,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
       next: (document) => {
         this.document = document;
         this.buildForm();
-        this.patchForm(document);
+        this.populateForm(document);
       },
       error: () => {
         this.isServiceError = true;
@@ -111,31 +125,31 @@ export class DocumentComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.saveAttempted = true;
     this.form.markAllAsTouched();
     this.form.updateValueAndValidity({ emitEvent: false });
 
-    if (!this.form.valid) {
+    const rawValue = this.form.getRawValue();
+    if (!this.form.valid || rawValue.officeId == null || rawValue.documentType == null || !rawValue.fileName || !rawValue.fileExtension || !rawValue.contentType) {
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 
     this.isSubmitting = true;
-    const formValue = this.form.value;
-    // Convert DocumentType enum to documentTypeId (number) for API request
-    const documentTypeId = Number(formValue.documentType);
-    
+    const documentTypeId = Number(rawValue.documentType);
     const documentRequest: DocumentRequest = {
-      documentId: this.isAddMode ? undefined : formValue.documentId,
-      organizationId: formValue.organizationId,
-      officeId: formValue.officeId,
+      documentId: this.isAddMode ? undefined : rawValue.documentId,
+      organizationId: rawValue.organizationId,
+      officeId: rawValue.officeId,
+      propertyId: rawValue.propertyId || null,
+      reservationId: rawValue.reservationId || null,
       documentTypeId: documentTypeId,
-      fileName: formValue.fileName,
-      fileExtension: formValue.fileExtension,
-      contentType: formValue.contentType,
-      documentPath: '', // Set to empty string since it's removed from form
-      // Only send fileDetails if a new file was uploaded (not from API response)
+      fileName: rawValue.fileName,
+      fileExtension: rawValue.fileExtension,
+      contentType: rawValue.contentType,
+      documentPath: '',
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
-      isDeleted: formValue.isDeleted
+      isDeleted: rawValue.isDeleted
     };
 
     const saveOperation = this.isAddMode
@@ -157,52 +171,46 @@ export class DocumentComponent implements OnInit, OnDestroy {
     });
   }
 
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.selectedFile = input.files[0];
-      const fileName = this.selectedFile.name;
-      const fileExtension = fileName.split('.').pop() || '';
-      const contentType = this.selectedFile.type;
-
-      // Update form with file information
-      this.form.patchValue({
-        fileName: fileName.replace('.' + fileExtension, ''),
-        fileExtension: fileExtension,
-        contentType: contentType
-      });
-
-      // Collect FileDetails similar to company logo
-      this.hasNewFileUpload = true; // Mark that this is a new file upload
-      
-      this.fileDetails = <FileDetails>({ 
-        contentType: this.selectedFile.type, 
-        fileName: this.selectedFile.name, 
-        file: '', 
-        dataUrl: '' 
-      });
-      
-      const fileReader = new FileReader();
-      fileReader.onload = (): void => {
-        // Convert file to base64 string
-        const base64String = btoa(fileReader.result as string);
-        this.fileDetails.file = base64String;
-        this.fileDetails.dataUrl = `data:${this.selectedFile.type};base64,${base64String}`;
-        
-        // Create preview for images
-        if (this.selectedFile.type.startsWith('image/')) {
-          this.filePreview = this.fileDetails.dataUrl;
-        } else {
-          this.filePreview = null;
-        }
-      };
-      fileReader.readAsBinaryString(this.selectedFile);
+  async onFileSelected(event: Event): Promise<void> {
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      return;
     }
+
+    this.selectedFile = file;
+    const fileName = file.name;
+    const fileExtension = fileName.split('.').pop() || '';
+    const contentType = file.type || this.utilityService.getContentTypeFromPath(file.name) || '';
+    this.form.patchValue({
+      fileName: fileName.replace('.' + fileExtension, ''),
+      fileExtension: fileExtension,
+      contentType: contentType
+    });
+    this.hasNewFileUpload = true;
+
+    try {
+      const payload = await this.utilityService.buildUploadPayloadFromFile(file, contentType || 'application/octet-stream');
+      this.fileDetails = payload.fileDetails;
+      this.filePreview = payload.fileDetails.contentType?.startsWith('image/') ? payload.fileDetails.dataUrl : null;
+      this.setPdfThumbnail(payload.fileDetails.dataUrl, payload.fileDetails.contentType || contentType);
+    } catch {
+      this.fileDetails = null;
+      this.filePreview = null;
+      this.pdfThumbnailUrl = null;
+      this.hasNewFileUpload = false;
+    }
+
+    const inputElement = event.target as HTMLInputElement | null;
+    if (inputElement) {
+      inputElement.value = '';
+    }
+    this.markViewForCheck();
   }
 
   removeFile(): void {
     this.selectedFile = null;
     this.filePreview = null;
+    this.pdfThumbnailUrl = null;
     this.fileDetails = null;
     this.hasNewFileUpload = false;
     
@@ -220,27 +228,68 @@ export class DocumentComponent implements OnInit, OnDestroy {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.applySingleOfficeDefault();
+        this.markViewForCheck();
       });
+    });
+  }
+
+  loadPropertyCodes(): void {
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.properties = properties || [];
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.properties = [];
+            this.markViewForCheck();
+          }
+        });
+      }
+    });
+  }
+
+  loadReservationCodes(): void {
+    this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: reservations => {
+            this.reservations = reservations || [];
+            this.markViewForCheck();
+          },
+          error: () => {
+            this.reservations = [];
+            this.markViewForCheck();
+          }
+        });
+      }
     });
   }
   //#endregion
 
-  //#region Form Methods
+  //#region Build Form
   buildForm(): void {
     this.form = this.fb.group({
       documentId: new FormControl(''),
       organizationId: new FormControl(this.organizationId, [Validators.required]),
-      officeId: new FormControl<number | null>(null),
-      documentType: new FormControl<DocumentType>(DocumentType.Other, [Validators.required]),
-      fileName: new FormControl('', [Validators.required]),
-      fileExtension: new FormControl('', [Validators.required]),
-      contentType: new FormControl('', [Validators.required]),
+      officeId: new FormControl<number | null>(null, [Validators.required]),
+      propertyId: new FormControl<string | null>(null),
+      reservationId: new FormControl<string | null>(null),
+      documentType: new FormControl<DocumentType | null>(null, [Validators.required]),
+      fileName: new FormControl({ value: '', disabled: true }, [Validators.required]),
+      fileExtension: new FormControl({ value: '', disabled: true }, [Validators.required]),
+      contentType: new FormControl({ value: '', disabled: true }, [Validators.required]),
       isDeleted: new FormControl(false)
     });
+    if (this.isAddMode) {
+      this.applyAddContextFromQuery();
+      this.applySingleOfficeDefault();
+    }
   }
 
-  patchForm(document: DocumentResponse): void {
+  populateForm(document: DocumentResponse): void {
     if (!this.form) return;
 
     // Convert documentTypeId (number) to DocumentType enum for form
@@ -253,13 +302,11 @@ export class DocumentComponent implements OnInit, OnDestroy {
         fileName: document.fileDetails.fileName || document.fileName || '',
         contentType: document.fileDetails.contentType || document.contentType || '',
         file: document.fileDetails.file,
-        dataUrl: document.fileDetails.dataUrl || (document.fileDetails.contentType && document.fileDetails.file 
-          ? `data:${document.fileDetails.contentType};base64,${document.fileDetails.file}` 
+        dataUrl: document.fileDetails.dataUrl || (document.fileDetails.file
+          ? `data:${document.fileDetails.contentType || document.contentType || 'application/pdf'};base64,${document.fileDetails.file}`
           : '')
       };
-      this.hasNewFileUpload = false; // FileDetails from API, not a new upload
-      
-      // Set filePreview for display (images only)
+      this.hasNewFileUpload = false;
       if (document.contentType?.startsWith('image/')) {
         this.filePreview = this.fileDetails.dataUrl || `data:${this.fileDetails.contentType};base64,${this.fileDetails.file}`;
       } else {
@@ -268,22 +315,186 @@ export class DocumentComponent implements OnInit, OnDestroy {
     } else {
       this.fileDetails = null;
       this.filePreview = null;
+      this.pdfThumbnailUrl = null;
     }
 
     this.form.patchValue({
       documentId: document.documentId,
       organizationId: document.organizationId,
       officeId: document.officeId,
+      propertyId: document.propertyId ?? null,
+      reservationId: document.reservationId ?? null,
       documentType: documentTypeValue as DocumentType,
       fileName: document.fileName,
       fileExtension: document.fileExtension,
       contentType: document.contentType,
       isDeleted: document.isDeleted
     });
+    if (this.fileDetails?.dataUrl) {
+      this.setPdfThumbnail(this.fileDetails.dataUrl, this.fileDetails.contentType || document.contentType);
+    }
+  }
+
+  applyAddContextFromQuery(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const queryParams = this.route.snapshot.queryParams;
+    const officeIdRaw = queryParams['officeId'];
+    const propertyId = queryParams['propertyId'] || null;
+    const reservationId = queryParams['reservationId'] || null;
+    let officeId: number | null = null;
+    if (officeIdRaw !== null && officeIdRaw !== undefined && officeIdRaw !== '') {
+      const parsed = Number(officeIdRaw);
+      if (Number.isFinite(parsed)) {
+        officeId = parsed;
+      }
+    }
+
+    this.form.patchValue({
+      officeId,
+      propertyId,
+      reservationId
+    });
   }
   //#endregion
 
   //#region Utility Methods
+  get hasUploadedFile(): boolean {
+    return !!(this.fileDetails && this.fileDetails.file);
+  }
+
+  get isPdfFile(): boolean {
+    const contentType = this.fileDetails?.contentType || '';
+    const extension = this.form?.getRawValue()?.fileExtension || '';
+    return contentType === 'application/pdf' || extension === 'pdf';
+  }
+
+  get fileNameDisplay(): string {
+    return this.form?.getRawValue()?.fileName || '';
+  }
+
+  get fileExtensionDisplay(): string {
+    return this.form?.getRawValue()?.fileExtension || '';
+  }
+
+  get contentTypeDisplay(): string {
+    return this.form?.getRawValue()?.contentType || '';
+  }
+
+  setPdfThumbnail(dataUrl: string | null, contentType: string | null): void {
+    const extension = (this.form?.getRawValue()?.fileExtension || '').toLowerCase();
+    const isPdf = (contentType || '').toLowerCase().includes('pdf') || extension === 'pdf';
+    if (!dataUrl || !isPdf) {
+      this.pdfThumbnailUrl = null;
+      return;
+    }
+    this.pdfThumbnailUrl = null;
+    this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
+      this.pdfThumbnailUrl = url;
+      this.markViewForCheck();
+    });
+  }
+
+  get officeOptions(): SearchableSelectOption[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  get propertyOptions(): SearchableSelectOption[] {
+    const officeId = this.form?.get('officeId')?.value ?? null;
+    const filteredProperties = officeId == null
+      ? this.properties
+      : this.properties.filter(property => property.officeId === officeId);
+    return filteredProperties.map(property => ({
+      value: property.propertyId,
+      label: property.propertyCode
+    }));
+  }
+
+  get reservationOptions(): SearchableSelectOption[] {
+    const officeId = this.form?.get('officeId')?.value ?? null;
+    const propertyId = this.form?.get('propertyId')?.value ?? null;
+    const officeFilteredReservations = officeId == null
+      ? this.reservations
+      : this.reservations.filter(reservation => reservation.officeId === officeId);
+    const filteredReservations = propertyId == null
+      ? officeFilteredReservations
+      : officeFilteredReservations.filter(reservation => reservation.propertyId === propertyId);
+    return filteredReservations.map(reservation => ({
+      value: reservation.reservationId,
+      label: this.utilityService.getReservationDropdownLabel(reservation, null)
+    }));
+  }
+
+  get documentTypeOptions(): SearchableSelectOption[] {
+    return this.documentTypes.map(type => ({
+      value: type.value,
+      label: type.label
+    }));
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.form.patchValue({ officeId: Number.isFinite(officeId) ? officeId : null });
+    this.clearOutOfScopeSelections();
+  }
+
+  onPropertyDropdownChange(value: string | number | null): void {
+    const propertyId = value == null || value === '' ? null : String(value);
+    this.form.patchValue({ propertyId });
+    this.clearOutOfScopeSelections();
+  }
+
+  onReservationDropdownChange(value: string | number | null): void {
+    const reservationId = value == null || value === '' ? null : String(value);
+    const reservation = this.reservations.find(item => item.reservationId === reservationId) || null;
+    this.form.patchValue({
+      reservationId,
+      propertyId: reservation?.propertyId ?? this.form.get('propertyId')?.value ?? null,
+      officeId: reservation?.officeId ?? this.form.get('officeId')?.value ?? null
+    });
+  }
+
+  onDocumentTypeDropdownChange(value: string | number | null): void {
+    const documentType = value == null || value === '' ? null : Number(value);
+    this.form.patchValue({ documentType });
+  }
+
+  applySingleOfficeDefault(): void {
+    if (!this.isAddMode || !this.form || this.form.get('officeId')?.value != null || this.offices.length !== 1) {
+      return;
+    }
+    this.form.patchValue({ officeId: this.offices[0].officeId });
+  }
+
+  get showOfficeValidationError(): boolean {
+    return this.saveAttempted && !!this.form?.get('officeId')?.invalid;
+  }
+
+  get showDocumentTypeValidationError(): boolean {
+    return this.saveAttempted && !!this.form?.get('documentType')?.invalid;
+  }
+
+  clearOutOfScopeSelections(): void {
+    const officeId = this.form.get('officeId')?.value ?? null;
+    const propertyId = this.form.get('propertyId')?.value ?? null;
+    const reservationId = this.form.get('reservationId')?.value ?? null;
+    const property = this.properties.find(item => item.propertyId === propertyId);
+    if (propertyId && (!property || (officeId != null && property.officeId !== officeId))) {
+      this.form.patchValue({ propertyId: null, reservationId: null });
+      return;
+    }
+
+    const reservation = this.reservations.find(item => item.reservationId === reservationId);
+    if (reservationId && (!reservation || (officeId != null && reservation.officeId !== officeId) || (propertyId && reservation.propertyId !== propertyId))) {
+      this.form.patchValue({ reservationId: null });
+    }
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

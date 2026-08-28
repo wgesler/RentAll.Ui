@@ -5,13 +5,61 @@
 } @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">description</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Document' : 'Edit Document' }}
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">description</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add Document' : 'Edit Document' }}
+            </span>
           </span>
-        </span>
+          @if (form) {
+            <div class="header-title form-titlebar-fields-wrap">
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="form.get('officeId')?.value ?? null"
+                [options]="officeOptions"
+                [required]="true"
+                [nullOptionLabel]="'Select Office'"
+                [noResultsText]="'No offices match your search'"
+                [showError]="showOfficeValidationError"
+                [errorText]="'Office is required'"
+                (valueChange)="onOfficeDropdownChange($event)">
+              </app-title-bar-select>
+              <app-title-bar-select
+                [label]="'Property Code'"
+                [formFieldClass]="'titlebar-field-property-code'"
+                [value]="form.get('propertyId')?.value ?? null"
+                [options]="propertyOptions"
+                [nullOptionLabel]="'Properties'"
+                [noResultsText]="'No properties match your search'"
+                (valueChange)="onPropertyDropdownChange($event)">
+              </app-title-bar-select>
+              <app-title-bar-select
+                [label]="'Reservations'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="form.get('reservationId')?.value ?? null"
+                [options]="reservationOptions"
+                [nullOptionLabel]="'All Reservations'"
+                [noResultsText]="'No reservations match your search'"
+                (valueChange)="onReservationDropdownChange($event)">
+              </app-title-bar-select>
+              <app-title-bar-select
+                [label]="'Document Type'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="form.get('documentType')?.value ?? null"
+                [options]="documentTypeOptions"
+                [required]="true"
+                [nullOptionLabel]="'Select Document Type'"
+                [noResultsText]="'No document types match your search'"
+                [showError]="showDocumentTypeValidationError"
+                [errorText]="'Document Type is required'"
+                (valueChange)="onDocumentTypeDropdownChange($event)">
+              </app-title-bar-select>
+            </div>
+          }
+        </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
             class="scale-90 text-nowrap flex-shrink-0">
@@ -23,7 +71,6 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveDocument()" class="info-form mb-8 pt-5 form-hide-error-text">
-          <!-- First line: IsDeleted and save button right justified -->
           <div class="form-standard-row flex justify-end items-center">
             <mat-checkbox formControlName="isDeleted" color="primary">
               Is Deleted
@@ -35,95 +82,51 @@
             </button>
           </div>
 
-          <!-- Document Type and Office -->
-          <div class="form-standard-row flex items-center">
-            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
-              <mat-label>Document Type</mat-label>
-              <mat-select formControlName="documentType" required>
-                <mat-option value="">Select Type</mat-option>
-                @for (docType of documentTypes; track docType.value) {
-                  <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+          <div class="form-standard-row flex items-center gap-3">
+            @if (hasUploadedFile) {
+              <div class="document-upload-thumb flex items-center justify-center border rounded bg-slate-100">
+                @if (pdfThumbnailUrl) {
+                  <img [src]="pdfThumbnailUrl" alt="Document preview" />
+                } @else if (filePreview) {
+                  <img [src]="filePreview" alt="Document preview" />
+                } @else if (isPdfFile) {
+                  <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                } @else {
+                  <mat-icon>description</mat-icon>
                 }
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
-              <mat-label>Office</mat-label>
-              <mat-select formControlName="officeId">
-                <mat-option [value]="null">None</mat-option>
-                @for (office of offices; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <!-- File Information -->
-          <div class="form-standard-row flex items-center">
-            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
-              <mat-label>File Name</mat-label>
-              <input matInput formControlName="fileName" required>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" style="flex: 0.5; min-width: 120px;">
-              <mat-label>File Extension</mat-label>
-              <input matInput formControlName="fileExtension" required>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
-              <mat-label>Content Type</mat-label>
-              <input matInput formControlName="contentType" required>
-            </mat-form-field>
-          </div>
-
-          <!-- File Upload Section -->
-          <div class="mb-4">
-            <h3 class="pt-3 mb-3">File</h3>
-            <div class="flex justify-start items-start mb-4 gap-4">
-              @if (fileDetails && fileDetails.file) {
-                <!-- Display existing file (from API or newly selected) -->
-                <div class="flex flex-col items-start">
-                  @if (filePreview) {
-                    <!-- Image preview -->
-                    <img class="object-contain max-w-xs max-h-44 border-2 border-gray-300 rounded p-2" id="file-preview" alt="File Preview" title="File Preview" [src]="filePreview" />
-                  } @else {
-                    <!-- Non-image file icon/placeholder -->
-                    <div class="flex items-center justify-center max-w-xs max-h-44 border-2 border-gray-300 rounded p-8">
-                      <mat-icon class="text-6xl text-gray-400">description</mat-icon>
-                    </div>
-                  }
-                  @if (fileDetails.fileName) {
-                    <span class="text-sm font-semibold mt-2">{{ fileDetails.fileName }}</span>
-                  }
-                </div>
-                <div class="flex flex-col gap-2">
-                  <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="fileInput.click()" style="width: auto; min-width: 120px;">
-                    Choose File
-                  </button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeFile()" style="width: auto; min-width: 120px;">
-                    Remove File
-                  </button>
-                </div>
-              } @else {
-                <!-- No file selected - show file input button -->
-                <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="fileInput.click()">
-                  Choose File
+              </div>
+            }
+            <div class="flex flex-col gap-2">
+              <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="fileInput.click()">
+                <span class="flex items-center gap-2">
+                  <mat-icon>attach_file</mat-icon>
+                  Upload
+                </span>
+              </button>
+              @if (hasUploadedFile) {
+                <button type="button" color="accent" mat-raised-button (click)="removeFile()">
+                  Delete
                 </button>
               }
-              <!-- Hidden file input -->
-              <input 
-                type="file" 
-                #fileInput
-                id="fileInput"
-                (change)="onFileSelected($event)" 
-                accept="*/*"
-                style="display: none;">
             </div>
+            <input
+              type="file"
+              #fileInput
+              id="fileInput"
+              (change)="onFileSelected($event)"
+              accept="*/*"
+              class="document-file-input">
           </div>
 
+          @if (hasUploadedFile) {
+            <div class="document-file-meta">
+              <div>File Name: {{ fileNameDisplay }}</div>
+              <div>File Extension: {{ fileExtensionDisplay }}</div>
+              <div>Content Type: {{ contentTypeDisplay }}</div>
+            </div>
+          }
         </form>
       </mat-card>
     </section>
   </div>
 }
-

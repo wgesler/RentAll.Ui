@@ -237,6 +237,20 @@
             </app-email-list>
           }
         </mat-tab>
+
+        <mat-tab label="Documents">
+          @if (selectedTabIndex === getDocumentsTabIndex() && displayOfficeId !== null && selectedPropertyId && activeReservationId) {
+            <app-document-list
+              [hideHeader]="true"
+              [hideFilters]="true"
+              [source]="'reservation'"
+              [officeId]="displayOfficeId"
+              [propertyId]="selectedPropertyId"
+              [propertyCode]="activePropertyCode"
+              [reservationId]="activeReservationId">
+            </app-document-list>
+          }
+        </mat-tab>
       </mat-tab-group>
     </mat-card>
   </section>
