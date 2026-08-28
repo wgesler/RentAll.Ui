@@ -129,8 +129,8 @@ export class CommonService {
     return this.http.post<EmailResponse>(this.controller + 'send-email', request);
   }
 
-  importExternalCalendar(externalCalendarUrl: string): Observable<ExternalCalendarImportResponse> {
-    const request: ExternalCalendarImportRequest = { externalCalendarUrl };
+  importExternalCalendar(externalCalendarUrl: string, propertyCode?: string): Observable<ExternalCalendarImportResponse> {
+    const request: ExternalCalendarImportRequest = { externalCalendarUrl, propertyCode };
     return this.http.post<ExternalCalendarImportResponse>(this.controller + 'calendar/import', request);
   }
 }

@@ -2,6 +2,7 @@ import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface ExternalCalendarImportRequest {
   externalCalendarUrl: string;
+  propertyCode?: string;
 }
 
 export interface ExternalCalendarImportEvent {

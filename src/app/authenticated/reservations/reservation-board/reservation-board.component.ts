@@ -489,7 +489,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
     const requests = propertiesWithExternalCalendar.map(property => {
       const externalCalendarUrl = String(property.externalCalendar || '').trim();
-      return this.commonService.importExternalCalendar(externalCalendarUrl).pipe(
+      return this.commonService.importExternalCalendar(externalCalendarUrl, property.propertyCode).pipe(
         map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [])),
         catchError(() => of([] as ReservationListResponse[]))
       );
