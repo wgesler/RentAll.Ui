@@ -85,7 +85,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   private ownerAgreementContext: OwnerAgreementContext | null = null;
 
   get canShowDocuSignButton(): boolean {
-    return isOwnerAuthorizedAdmin(this.ownerAuthorization) && this.hasDocuSignAccess;
+    return isOwnerAuthorizedAdmin(this.ownerAuthorization) && this.canUseDocuSign;
   }
 
   constructor() {

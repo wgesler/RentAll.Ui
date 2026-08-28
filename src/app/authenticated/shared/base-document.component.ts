@@ -85,6 +85,10 @@ export abstract class BaseDocumentComponent {
     return this.authService.hasDocuSignAccess();
   }
 
+  get canUseDocuSign(): boolean {
+    return this.authService.canUseDocuSign();
+  }
+
   protected abstract getDocumentConfig(): DocumentConfig;
   protected abstract setDownloading(value: boolean): void;
 
@@ -210,7 +214,7 @@ export abstract class BaseDocumentComponent {
   }
 
   async onDocuSign(docuSignConfig: DocuSignConfig): Promise<void> {
-    if (!this.hasDocuSignAccess) {
+    if (!this.canUseDocuSign) {
       return;
     }
 

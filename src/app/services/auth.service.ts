@@ -251,6 +251,14 @@ export class AuthService {
         return this.hasOrganizationFeature(FeatureType.DocuSign, features);
     }
 
+    hasDocuSignUserId(): boolean {
+        return (this.getUser()?.docuSignUserId?.trim() ?? '').length > 0;
+    }
+
+    canUseDocuSign(features?: FeatureResponse[]): boolean {
+        return this.hasDocuSignAccess(features) && this.hasDocuSignUserId();
+    }
+
     hasQuickBooksAccess(features?: FeatureResponse[]): boolean {
         return this.hasOrganizationFeature(FeatureType.QuickBooks, features);
     }
