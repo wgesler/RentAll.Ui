@@ -1403,12 +1403,14 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabOwners) {
-              @if (selectedOwnerKind === 'utilities' || selectedOwnerKind === 'workOrders') {
+              @if (selectedOwnerKind === 'utilities' || selectedOwnerKind === 'workOrders' || selectedOwnerKind === 'ownerPayments') {
                 <div class="accounting-shell-subview-title">
                   @if (selectedOwnerKind === 'utilities') {
                     Utilities & Bills
-                  } @else {
+                  } @else if (selectedOwnerKind === 'workOrders') {
                     Work Orders
+                  } @else {
+                    Owner Payments
                   }
                 </div>
               }
@@ -1478,6 +1480,15 @@
                     (workOrderSelect)="onOwnersWorkOrderSelect($event)"
                     (previewEvent)="onWorkOrderPreviewOpen($event)" />
                 }
+              } @else if (selectedOwnerKind === 'ownerPayments') {
+                <app-payment-list
+                  [officeId]="selectedOfficeId"
+                  [searchRequest]="paymentSearchRequest"
+                  [embeddedInAccounting]="true"
+                  [paymentKind]="PaymentKind.Owner"
+                  [refreshTrigger]="paymentsRefreshTrigger"
+                  (journalEntriesChanged)="onJournalEntriesChanged()">
+                </app-payment-list>
               } @else if (selectedOwnerKind === 'ownerStatements') {
                 @if (selectedOwnerStatementMonthLine) {
                   <app-owner-statement-create

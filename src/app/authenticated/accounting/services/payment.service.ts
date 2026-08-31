@@ -22,7 +22,7 @@ export class PaymentService {
   }
 
   getPayments(officeId?: number | null, kind: PaymentKind = PaymentKind.Invoice): Observable<PaymentResponse[]> {
-    const kindSegment = kind === PaymentKind.Bill ? 'bill' : 'invoice';
+    const kindSegment = kind === PaymentKind.Bill ? 'bill' : kind === PaymentKind.Owner ? 'owner' : 'invoice';
     const request$ = officeId != null && Number.isFinite(officeId) && officeId > 0
       ? this.http.get<PaymentResponse[]>(this.controller + kindSegment + '/office/' + officeId)
       : this.http.get<PaymentResponse[]>(this.controller + kindSegment);

@@ -66,6 +66,18 @@ export interface PaymentBillAllocation {
   description: string;
 }
 
+export interface PaymentOwnerAllocation {
+  paymentOwnerAllocationId: string;
+  paymentId: string;
+  ownerId: string;
+  ownerName?: string;
+  propertyId: string;
+  propertyCode?: string;
+  lineNumber: number;
+  amount: number;
+  description: string;
+}
+
 export interface CreatePaymentWithInvoiceAllocationsRequest {
   organizationId: string;
   officeId: number;
@@ -143,6 +155,7 @@ export interface PaymentResponse {
   /** @deprecated Use invoiceAllocations — kept for internal component compatibility. */
   ledgerLines: PaymentLedgerLine[];
   billAllocations?: PaymentBillAllocation[];
+  ownerAllocations?: PaymentOwnerAllocation[];
   chartOfAccountId?: number | null;
   createdOn?: string;
   createdBy?: string;
@@ -169,11 +182,14 @@ export interface PaymentDisplayList {
   invoiceSummaryDisplay?: string;
   billSummaryDisplay?: string;
   vendorSummaryDisplay?: string;
+  ownerSummaryDisplay?: string;
+  propertySummaryDisplay?: string;
   allocatedAmount?: number;
   allocatedAmountDisplay?: string;
   ledgerLineSummaryDisplay?: string;
   ledgerLines: PaymentLedgerLine[];
   billAllocations?: PaymentBillAllocation[];
+  ownerAllocations?: PaymentOwnerAllocation[];
   paymentKindId?: number;
   isActive: boolean;
   createdBy?: string;

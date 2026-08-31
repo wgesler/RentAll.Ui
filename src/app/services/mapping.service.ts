@@ -28,7 +28,7 @@ import { MaintenanceListSearchRequest } from '../authenticated/maintenance/model
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
-import { CreatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
 import { PaymentKind, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -3956,6 +3956,9 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     const billAllocations = this.mapPaymentBillAllocationsFromApi(
       (rawRecord['billAllocations'] ?? rawRecord['BillAllocations'] ?? base.billAllocations) as PaymentBillAllocation[] | undefined | null
     );
+    const ownerAllocations = this.mapPaymentOwnerAllocationsFromApi(
+      (rawRecord['ownerAllocations'] ?? rawRecord['OwnerAllocations'] ?? base.ownerAllocations) as PaymentOwnerAllocation[] | undefined | null
+    );
     const chartOfAccountIdRaw = rawRecord['chartOfAccountId'] ?? rawRecord['ChartOfAccountId'] ?? base.chartOfAccountId;
     const chartOfAccountId = chartOfAccountIdRaw == null ? null : Number(chartOfAccountIdRaw) || null;
 
@@ -3982,6 +3985,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       invoiceAllocations,
       ledgerLines: invoiceAllocations,
       billAllocations,
+      ownerAllocations,
       chartOfAccountId,
       createdOn,
       createdBy: createdBy || createdByName,
@@ -3997,6 +4001,27 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
 
   mapPaymentBillAllocationsFromApi(allocations: PaymentBillAllocation[] | undefined | null): PaymentBillAllocation[] {
     return (allocations || []).map(allocation => this.mapPaymentBillAllocationFromApi(allocation));
+  }
+
+  mapPaymentOwnerAllocationsFromApi(allocations: PaymentOwnerAllocation[] | undefined | null): PaymentOwnerAllocation[] {
+    return (allocations || []).map(allocation => this.mapPaymentOwnerAllocationFromApi(allocation));
+  }
+
+  mapPaymentOwnerAllocationFromApi(raw: PaymentOwnerAllocation | Record<string, unknown>): PaymentOwnerAllocation {
+    const base = raw as PaymentOwnerAllocation;
+    const rawRecord = raw as Record<string, unknown>;
+
+    return {
+      paymentOwnerAllocationId: String(rawRecord['paymentOwnerAllocationId'] ?? rawRecord['PaymentOwnerAllocationId'] ?? base.paymentOwnerAllocationId ?? '').trim(),
+      paymentId: String(rawRecord['paymentId'] ?? rawRecord['PaymentId'] ?? base.paymentId ?? '').trim(),
+      ownerId: String(rawRecord['ownerId'] ?? rawRecord['OwnerId'] ?? base.ownerId ?? '').trim(),
+      ownerName: String(rawRecord['ownerName'] ?? rawRecord['OwnerName'] ?? base.ownerName ?? '').trim(),
+      propertyId: String(rawRecord['propertyId'] ?? rawRecord['PropertyId'] ?? base.propertyId ?? '').trim(),
+      propertyCode: String(rawRecord['propertyCode'] ?? rawRecord['PropertyCode'] ?? base.propertyCode ?? '').trim(),
+      lineNumber: Number(rawRecord['lineNumber'] ?? rawRecord['LineNumber'] ?? base.lineNumber ?? 0) || 0,
+      amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,
+      description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim()
+    };
   }
 
   mapPaymentBillAllocationFromApi(raw: PaymentBillAllocation | Record<string, unknown>): PaymentBillAllocation {
@@ -4060,15 +4085,22 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     return (payments || []).map((payment: PaymentResponse): PaymentDisplayList => {
       const paymentKindId = Number(payment.paymentKindId ?? 0) || 0;
       const isOutbound = paymentKindId === PaymentKind.Bill;
+      const isOwner = paymentKindId === PaymentKind.Owner;
       const ledgerLines = this.mapPaymentLedgerLinesFromApi(payment.invoiceAllocations ?? payment.ledgerLines);
       const billAllocations = this.mapPaymentBillAllocationsFromApi(payment.billAllocations);
+      const ownerAllocations = this.mapPaymentOwnerAllocationsFromApi(payment.ownerAllocations);
       const allocatedAmount = isOutbound
         ? billAllocations.reduce((sum, allocation) => sum + (Number(allocation.amount) || 0), 0)
-        : ledgerLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
+        : isOwner
+          ? ownerAllocations.reduce((sum, allocation) => sum + (Number(allocation.amount) || 0), 0)
+          : ledgerLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
       const allocationCodes = isOutbound
         ? Array.from(new Set(billAllocations.map(allocation => (allocation.receiptCode || '').trim()).filter(code => code.length > 0)))
-        : Array.from(new Set(ledgerLines.map(line => (line.invoiceCode || '').trim()).filter(code => code.length > 0)));
-      const allocationLineCount = isOutbound ? billAllocations.length : ledgerLines.length;
+        : isOwner
+          ? Array.from(new Set(ownerAllocations.map(allocation => (allocation.propertyCode || '').trim()).filter(code => code.length > 0)))
+          : Array.from(new Set(ledgerLines.map(line => (line.invoiceCode || '').trim()).filter(code => code.length > 0)));
+      const allocationLineCount = isOutbound ? billAllocations.length : isOwner ? ownerAllocations.length : ledgerLines.length;
+      const ownerNames = Array.from(new Set(ownerAllocations.map(allocation => (allocation.ownerName || '').trim()).filter(name => name.length > 0)));
 
       return {
         paymentId: payment.paymentId,
@@ -4089,11 +4121,14 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
         descriptionDisplay: (payment.description || '').trim(),
         invoiceSummaryDisplay: allocationCodes.join(', '),
         billSummaryDisplay: allocationCodes.join(', '),
+        ownerSummaryDisplay: ownerNames.join(', '),
+        propertySummaryDisplay: allocationCodes.join(', '),
         allocatedAmount,
         allocatedAmountDisplay: this.formatter.currencyUsd(allocatedAmount),
         ledgerLineSummaryDisplay: `${allocationLineCount} line${allocationLineCount === 1 ? '' : 's'}`,
         ledgerLines,
         billAllocations,
+        ownerAllocations,
         isActive: payment.isActive,
         createdBy: payment.createdBy ?? payment.createdByName ?? '',
         createdByName: payment.createdByName ?? payment.createdBy ?? '',

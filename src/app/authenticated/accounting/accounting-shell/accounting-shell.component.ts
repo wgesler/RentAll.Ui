@@ -273,7 +273,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'statements', label: 'Accrual & Cash' },
     { kind: 'apAging', label: 'AP Aging' },
     { kind: 'escrow', label: 'Escrow (E2)' },
-    { kind: 'ownerStatements', label: 'Owner Statements' }
+    { kind: 'ownerStatements', label: 'Owner Statements' },
+    { kind: 'ownerPayments', label: 'Owner Payments' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
     { kind: 'profitLoss', label: 'Profit & Loss' },
@@ -3022,6 +3023,15 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.isApAgingDrillDownActive = false;
     }
 
+    if (kind === 'ownerPayments') {
+      this.paymentsListEngaged = true;
+      if (kindChanged) {
+        this.paymentsRefreshTrigger++;
+      }
+    } else if (kindChanged) {
+      this.paymentsListEngaged = false;
+    }
+
     if (previousTab !== this.tabOwners) {
       if (this.shouldFlashOwnerViewLoading(kind)) {
         this.flashOwnerViewLoading();
@@ -3240,6 +3250,10 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     if (this.selectedOwnerKind === 'apAging') {
       this.syncApAgingReportFilters();
       this.financialReportsRefreshTrigger++;
+      return;
+    }
+    if (this.selectedOwnerKind === 'ownerPayments') {
+      this.paymentsRefreshTrigger++;
       return;
     }
     if (this.selectedOwnerKind === 'escrow') {
@@ -5496,6 +5510,7 @@ captureOwnerStatementReturnContext(): void {
         || ownerKind === 'workOrders'
         || ownerKind === 'statements'
         || ownerKind === 'ownerStatements'
+        || ownerKind === 'ownerPayments'
         || ownerKind === 'apAging'
         || ownerKind === 'escrow'
       ) {

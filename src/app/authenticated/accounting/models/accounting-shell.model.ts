@@ -13,6 +13,7 @@ export type AccountingShellOwnerKind =
   | 'workOrders'
   | 'statements'
   | 'ownerStatements'
+  | 'ownerPayments'
   | 'apAging'
   | 'escrow';
 
