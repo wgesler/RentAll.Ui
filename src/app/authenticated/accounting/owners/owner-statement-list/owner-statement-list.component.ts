@@ -61,7 +61,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     income: { displayAs: 'Income', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    ownerPayment: { displayAs: 'Owed', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     ownerPaymentPaid: { displayAs: 'Paid', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
@@ -337,7 +337,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return this.ownerStatementBaseColumns;
     }
 
-    const { ownerPaymentPaid, endingBalance, ...leadingColumns } = this.ownerStatementBaseColumns;
+    const { ownerPayment, ownerPaymentPaid, endingBalance, ...leadingColumns } = this.ownerStatementBaseColumns;
     return {
       ...leadingColumns,
       ...this.ownerStatementToBePaidColumn,
@@ -391,10 +391,9 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       startingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('startingBalance')),
       income: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('income')),
       expenses: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('expenses')),
-      ownerPayment: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPayment')),
       ...(this.showToBePaidColumn
         ? { toBePaid: this.formatter.currencyUsd(this.getOwnerStatementToBePaidSum()) }
-        : {}),
+        : { ownerPayment: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPayment')) }),
       ownerPaymentPaid: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPaymentPaid')),
       endingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('endingBalance'))
     };

@@ -3949,6 +3949,8 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       : String(depositIdRaw).trim();
     const paymentDirectionIdRaw = rawRecord['paymentDirectionId'] ?? rawRecord['PaymentDirectionId'] ?? base.paymentDirectionId;
     const paymentDirectionId = this.normalizePaymentDirectionId(paymentDirectionIdRaw);
+    const paymentKindIdRaw = rawRecord['paymentKindId'] ?? rawRecord['PaymentKindId'] ?? base.paymentKindId;
+    const paymentKindId = Number(paymentKindIdRaw ?? 0) || 0;
     const paymentTypeIdRaw = rawRecord['paymentTypeId'] ?? rawRecord['PaymentTypeId'] ?? base.paymentTypeId;
     const paymentTypeId = this.normalizePaymentTypeId(paymentTypeIdRaw);
     const costCodeIdRaw = rawRecord['costCodeId'] ?? rawRecord['CostCodeId'] ?? base.costCodeId;
@@ -3980,6 +3982,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       costCodeDescription: String(rawRecord['costCodeDescription'] ?? rawRecord['CostCodeDescription'] ?? base.costCodeDescription ?? '').trim(),
       description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
       paymentDirectionId,
+      paymentKindId,
       paymentTypeId,
       paymentTypeDescription: (String(rawRecord['paymentTypeDescription'] ?? rawRecord['PaymentTypeDescription'] ?? base.paymentTypeDescription ?? '').trim())
         || getPaymentTypeLabel(paymentTypeId),

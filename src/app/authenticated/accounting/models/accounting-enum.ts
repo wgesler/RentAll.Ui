@@ -625,6 +625,34 @@ export function getPaymentTypeLabel(
 }
 //#endregion
 
+//#region PaymentKind
+export enum PaymentKind {
+  Invoice = 0,
+  Bill = 1,
+  Owner = 2
+}
+
+export const PaymentKindLabels: { value: PaymentKind; label: string }[] = [
+  { value: PaymentKind.Invoice, label: 'Invoice' },
+  { value: PaymentKind.Bill, label: 'Bill' },
+  { value: PaymentKind.Owner, label: 'Owner' },
+];
+
+export function getPaymentKind(paymentKindId: number | undefined | null): string {
+  if (paymentKindId === undefined || paymentKindId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [PaymentKind.Invoice]: 'Invoice',
+    [PaymentKind.Bill]: 'Bill',
+    [PaymentKind.Owner]: 'Owner',
+  };
+
+  return typeMap[paymentKindId] || '';
+}
+//#endregion
+
 //#region PaymentDirection
 export enum PaymentDirection {
   Inbound = 0,

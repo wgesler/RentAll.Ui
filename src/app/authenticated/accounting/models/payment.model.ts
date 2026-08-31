@@ -133,6 +133,7 @@ export interface PaymentResponse {
   costCodeDescription: string;
   description: string;
   paymentDirectionId: number;
+  paymentKindId: number;
   paymentTypeId?: number | null;
   paymentTypeDescription?: string;
   depositId?: string | null;
