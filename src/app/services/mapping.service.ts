@@ -2561,6 +2561,7 @@ resolveWorkOrderTitle(
       activityId: String(raw['activityId'] ?? raw['ActivityId'] ?? '').trim() || null,
       sourceId: String(raw['sourceId'] ?? raw['SourceId'] ?? '').trim() || null,
       journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || null,
+      journalEntryKindId: Number(raw['journalEntryKindId'] ?? raw['JournalEntryKindId'] ?? 0) || 0,
       activityType: String(raw['activityType'] ?? raw['ActivityType'] ?? ''),
       activityDate: this.utility.coerceCalendarDateStringFromApi(raw['activityDate'] ?? raw['ActivityDate']) ?? '',
       accountingPeriod: String(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? '').trim(),
@@ -3030,6 +3031,12 @@ resolveWorkOrderTitle(
     return (lines ?? [])
       .filter(line => {
         if ((line.propertyId || '').trim() !== propertyId) {
+          return false;
+        }
+
+        const journalEntryKindId = Number(line.journalEntryKindId) || 0;
+        if (journalEntryKindId === JournalEntryKind.PrePaymentReceive
+          || journalEntryKindId === JournalEntryKind.PrePaymentApply) {
           return false;
         }
 

@@ -144,6 +144,7 @@ export interface OwnerStatementPropertyActivityLineResponse {
   activityId?: string | null;
   sourceId?: string | null;
   journalEntryLineId?: string | null;
+  journalEntryKindId?: number;
   activityType: string;
   activityDate: string;
   accountingPeriod?: string;
