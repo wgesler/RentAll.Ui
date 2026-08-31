@@ -255,19 +255,25 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     return 'default';
   }
 
-  shouldShowLineProperty(line: EditableJournalEntryLine): boolean {
+  isLinePropertyRequired(line: EditableJournalEntryLine): boolean {
     const mode = this.getLineContextMode(line);
-    return mode === 'accountsPayable'
-      || mode === 'ownerPayable'
-      || mode === 'accountsReceivable';
+    return mode === 'ownerPayable' || mode === 'accountsReceivable';
+  }
+
+  isLineReservationRequired(line: EditableJournalEntryLine): boolean {
+    return this.getLineContextMode(line) === 'accountsReceivable';
+  }
+
+  shouldShowLineProperty(_line: EditableJournalEntryLine): boolean {
+    return true;
   }
 
   shouldShowLineContact(line: EditableJournalEntryLine): boolean {
     return this.getLineContextMode(line) === 'accountsPayable';
   }
 
-  shouldShowLineReservation(line: EditableJournalEntryLine): boolean {
-    return this.getLineContextMode(line) === 'accountsReceivable';
+  shouldShowLineReservation(_line: EditableJournalEntryLine): boolean {
+    return true;
   }
 
   shouldShowLineContactColumn(): boolean {
@@ -317,7 +323,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   buildLineReservationOptions(line: EditableJournalEntryLine): SearchableSelectOption<string>[] {
     const filteredReservations = this.getReservationsForProperty(
       line.propertyId,
-      this.shouldShowLineReservation(line)
+      this.isLineReservationRequired(line)
     );
 
     return filteredReservations.map(reservation => ({
@@ -412,8 +418,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return false;
     }
 
-    const mode = this.getLineContextMode(line);
-    if (mode !== 'accountsReceivable' && mode !== 'ownerPayable') {
+    if (!this.isLinePropertyRequired(line)) {
       return false;
     }
 
@@ -425,7 +430,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return false;
     }
 
-    if (!this.shouldShowLineReservation(line)) {
+    if (!this.isLineReservationRequired(line)) {
       return false;
     }
 
@@ -467,14 +472,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyLineContextVisibilityRules(line: EditableJournalEntryLine): void {
-    if (!this.shouldShowLineProperty(line)) {
-      line.propertyId = null;
-    }
-
-    if (!this.shouldShowLineReservation(line)) {
-      line.reservationId = null;
-    }
-
     if (!this.shouldShowLineContact(line)) {
       line.contactId = null;
     }

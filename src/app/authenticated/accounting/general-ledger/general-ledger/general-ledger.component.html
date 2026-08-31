@@ -196,38 +196,36 @@
                           [showError]="shouldShowLineAccountError(line)"
                           (valueChange)="onAccountSelectionChange(line.lineKey, $event)" />
                       </td>
-                      <td class="split-col-property" [class.split-col-context-inactive]="!shouldShowLineProperty(line)">
+                      <td class="split-col-property">
                         <app-searchable-select
                           class="split-account-select"
                           [renderInFormField]="false"
                           [panelWidth]="null"
                           [value]="line.propertyId"
                           [options]="getLinePropertyOptions(line)"
-                          [disabled]="!shouldShowLineProperty(line)"
-                          [required]="shouldShowLineProperty(line) && (getLineContextMode(line) === 'accountsReceivable' || getLineContextMode(line) === 'ownerPayable')"
-                          [showInstructionOption]="shouldShowLineProperty(line)"
+                          [required]="isLinePropertyRequired(line)"
+                          [showInstructionOption]="true"
                           [instructionOptionValue]="null"
-                          [nullOptionLabel]="shouldShowLineProperty(line) ? getLinePropertyNullLabel(line) : '—'"
-                          [showSearchInput]="shouldShowLineProperty(line)"
+                          [nullOptionLabel]="getLinePropertyNullLabel(line)"
+                          [showSearchInput]="true"
                           searchPlaceholder="Type to filter properties..."
                           noResultsText="No properties match your search"
                           [selectClass]="getLineContextSelectClass(line, 'property')"
                           [showError]="shouldShowLinePropertyError(line)"
                           (valueChange)="onLinePropertySelectionChange(line.lineKey, $event)" />
                       </td>
-                      <td class="split-col-reservation" [class.split-col-context-inactive]="!shouldShowLineReservation(line)">
+                      <td class="split-col-reservation">
                         <app-searchable-select
                           class="split-account-select"
                           [renderInFormField]="false"
                           [panelWidth]="null"
                           [value]="line.reservationId"
                           [options]="getLineReservationOptions(line)"
-                          [disabled]="!shouldShowLineReservation(line)"
-                          [required]="shouldShowLineReservation(line)"
-                          [showInstructionOption]="shouldShowLineReservation(line)"
+                          [required]="isLineReservationRequired(line)"
+                          [showInstructionOption]="true"
                           [instructionOptionValue]="null"
-                          [nullOptionLabel]="shouldShowLineReservation(line) ? getLineReservationNullLabel() : '—'"
-                          [showSearchInput]="shouldShowLineReservation(line)"
+                          [nullOptionLabel]="getLineReservationNullLabel()"
+                          [showSearchInput]="true"
                           searchPlaceholder="Type to filter reservations..."
                           noResultsText="No reservations match your search"
                           [selectClass]="getLineContextSelectClass(line, 'reservation')"
