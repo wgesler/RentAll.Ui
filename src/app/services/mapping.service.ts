@@ -2525,6 +2525,8 @@ resolveWorkOrderTitle(
       .map(row => {
         const ownerId = (row.ownerId || '').trim();
         const propertyId = (row.propertyId || '').trim();
+        const grossOwed = Number(row.ownerPayment) || 0;
+        const paidAmount = Number(row.ownerPaymentPaid) || 0;
         return {
           allocationId: `${ownerId}|${propertyId}`,
           ownerId,
@@ -2532,15 +2534,15 @@ resolveWorkOrderTitle(
           officeId: row.officeId,
           ownerName: (row.ownerNameLine || row.ownerNames || '').trim(),
           propertyCode: (row.propertyCode || '').trim(),
-          owedAmount: Number(row.ownerPayment) || 0,
-          paidAmount: Number(row.ownerPaymentPaid) || 0
+          owedAmount: this.calculateOwnerStatementRemainingOwed(grossOwed, paidAmount),
+          paidAmount
         };
       })
       .filter(option => option.ownerId.length > 0 && option.propertyId.length > 0 && option.owedAmount > 0.005);
   }
 
-  isOwnerOwedFullyPaid(owedAmount: number, paidAmount: number): boolean {
-    return this.utility.areCurrencyAmountsEqual(owedAmount, paidAmount) && Math.abs(paidAmount) > 0.005;
+  isOwnerOwedFullyPaid(remainingOwedAmount: number, _paidAmount: number): boolean {
+    return remainingOwedAmount <= 0.005;
   }
 
   mapOwnerOwedAllocationOptionLabel(option: OwnerOwedAllocationOption): string {
@@ -2946,10 +2948,26 @@ resolveWorkOrderTitle(
     const periodStartDate = (request.startDate ?? '').trim();
     const periodEndDate = (request.endDate ?? request.startDate ?? '').trim();
     const monthDate = periodEndDate || periodStartDate;
+    const activityLinesByProperty = this.groupOwnerStatementActivityLinesByProperty(
+      report.propertyActivityLines ?? [],
+      request.startDate,
+      request.endDate ?? request.startDate
+    );
 
     return (report.rows ?? []).map(row => {
       const ownerId = (row.ownerId || '').trim();
       const propertyId = (row.propertyId || '').trim();
+      const propertyKey = this.getOwnerStatementPropertyActivityKey(row.officeId, propertyId);
+      const statementActivity = activityLinesByProperty.get(propertyKey) ?? [];
+      const income = statementActivity.reduce((sum, line) => sum + (Number(line.receivedIncome) || 0), 0);
+      const expenses = statementActivity.reduce((sum, line) => sum + (Number(line.expenses) || 0), 0);
+      const startingBalance = Number(row.startingBalance) || 0;
+      const workingCapital = Number(row.workingCapital) || 0;
+      const grossOwed = this.calculateOwnerStatementOwed(startingBalance, income, expenses, workingCapital);
+      const paid = Number(row.ownerPaymentPaid) || 0;
+      const ownerPayment = this.calculateOwnerStatementRemainingOwed(grossOwed, paid);
+      const endingBalance = this.calculateOwnerStatementEndingBalance(startingBalance, income, expenses, grossOwed);
+
       return {
         ownerStatementLineId: [row.officeId, ownerId, propertyId].join('|'),
         officeId: row.officeId,
@@ -2967,15 +2985,15 @@ resolveWorkOrderTitle(
         prePaid: 0,
         paidIncome: 0,
         outstanding: 0,
-        startingBalance: row.startingBalance,
-        income: row.receivedIncome,
-        expenses: row.ownerExpenses,
-        balance: row.receivedIncome - row.ownerExpenses,
-        ownerPayment: row.ownerPayment,
+        startingBalance,
+        income,
+        expenses,
+        balance: income - expenses,
+        ownerPayment,
         ownerPaymentPaid: row.ownerPaymentPaid,
-        endingBalance: row.endingBalance,
-        workingCapital: row.workingCapital,
-        workingCapitalBalanceDue: row.receivedIncome - row.ownerExpenses
+        endingBalance,
+        workingCapital,
+        workingCapitalBalanceDue: income - expenses
       };
     });
   }
@@ -3089,41 +3107,91 @@ resolveWorkOrderTitle(
     return `${month}.${year}`;
   }
 
+  isOwnerStatementActivityLineInPeriodRange(
+    line: OwnerStatementPropertyActivityLineResponse,
+    startDate: string | null | undefined,
+    endDate: string | null | undefined
+  ): boolean {
+    const journalEntryKindId = Number(line.journalEntryKindId) || 0;
+    if (journalEntryKindId === JournalEntryKind.PrePaymentReceive
+      || journalEntryKindId === JournalEntryKind.PrePaymentApply) {
+      return false;
+    }
+
+    const periodMonth = this.getOwnerStatementAccountingPeriodMonthOrdinal(line.accountingPeriod);
+    if (periodMonth == null) {
+      return false;
+    }
+
+    const rangeStart = this.utility.parseCalendarDateInput(startDate);
+    const rangeEnd = this.utility.parseCalendarDateInput(endDate ?? startDate);
+    const startMonth = rangeStart ? this.getCalendarMonthOrdinal(rangeStart) : null;
+    const endMonth = rangeEnd ? this.getCalendarMonthOrdinal(rangeEnd) : startMonth;
+    if (startMonth != null && periodMonth < startMonth) {
+      return false;
+    }
+    if (endMonth != null && periodMonth > endMonth) {
+      return false;
+    }
+    return true;
+  }
+
+  getOwnerStatementPropertyActivityKey(officeId: number, propertyId: string): string {
+    return `${officeId}|${(propertyId || '').trim()}`;
+  }
+
+  groupOwnerStatementActivityLinesByProperty(
+    lines: OwnerStatementPropertyActivityLineResponse[],
+    startDate: string | null | undefined,
+    endDate: string | null | undefined
+  ): Map<string, OwnerStatementPropertyActivityLineResponse[]> {
+    const grouped = new Map<string, OwnerStatementPropertyActivityLineResponse[]>();
+    for (const line of lines ?? []) {
+      if (!this.isOwnerStatementActivityLineInPeriodRange(line, startDate, endDate)) {
+        continue;
+      }
+
+      const key = this.getOwnerStatementPropertyActivityKey(line.officeId, line.propertyId || '');
+      const bucket = grouped.get(key) ?? [];
+      bucket.push(line);
+      grouped.set(key, bucket);
+    }
+    return grouped;
+  }
+
+  calculateOwnerStatementOwed(startingBalance: number, income: number, expenses: number, workingCapital: number): number {
+    const owed = startingBalance + income - expenses - workingCapital;
+    return owed < 0 ? 0 : Math.round(owed * 100) / 100;
+  }
+
+  calculateOwnerStatementRemainingOwed(grossOwed: number, paidAmount: number): number {
+    const remaining = grossOwed - (Number(paidAmount) || 0);
+    return remaining <= 0 ? 0 : Math.round(remaining * 100) / 100;
+  }
+
+  calculateOwnerStatementEndingBalance(
+    startingBalance: number,
+    income: number,
+    expenses: number,
+    ownerPayment: number
+  ): number {
+    const endingBalance = startingBalance + income - expenses - ownerPayment;
+    return endingBalance < 0 ? 0 : Math.round(endingBalance * 100) / 100;
+  }
+
   filterOwnerStatementPropertyActivityLines(
     lines: OwnerStatementPropertyActivityLineResponse[],
     request: OwnerStatementPropertyActivityLineSearchRequest
   ): OwnerStatementPropertyActivityLineResponse[] {
     const propertyId = (request.propertyId || '').trim();
-    const rangeStart = this.utility.parseCalendarDateInput(request.startDate);
-    const rangeEnd = this.utility.parseCalendarDateInput(request.endDate ?? request.startDate);
 
     return (lines ?? [])
-      .filter(line => {
-        if ((line.propertyId || '').trim() !== propertyId) {
-          return false;
-        }
-
-        const journalEntryKindId = Number(line.journalEntryKindId) || 0;
-        if (journalEntryKindId === JournalEntryKind.PrePaymentReceive
-          || journalEntryKindId === JournalEntryKind.PrePaymentApply) {
-          return false;
-        }
-
-        const periodMonth = this.getOwnerStatementAccountingPeriodMonthOrdinal(line.accountingPeriod);
-        if (periodMonth == null) {
-          return false;
-        }
-
-        const startMonth = rangeStart ? this.getCalendarMonthOrdinal(rangeStart) : null;
-        const endMonth = rangeEnd ? this.getCalendarMonthOrdinal(rangeEnd) : startMonth;
-        if (startMonth != null && periodMonth < startMonth) {
-          return false;
-        }
-        if (endMonth != null && periodMonth > endMonth) {
-          return false;
-        }
-        return true;
-      })
+      .filter(line => (line.propertyId || '').trim() === propertyId)
+      .filter(line => this.isOwnerStatementActivityLineInPeriodRange(
+        line,
+        request.startDate,
+        request.endDate ?? request.startDate
+      ))
       .sort((a, b) => this.compareOwnerReportPropertyActivityLines(a, b, 'accrual'));
   }
 
