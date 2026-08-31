@@ -187,7 +187,7 @@
                     <thead>
                       <tr>
                         <th class="split-col-no">No</th>
-                        <th class="split-col-invoice">{{ isOutbound ? 'Bill' : 'Invoice' }}</th>
+                        <th class="split-col-invoice">{{ allocationColumnLabel }}</th>
                         <th class="split-col-amount">Amount</th>
                         <th class="split-col-description">Description</th>
                         <th class="split-col-actions"></th>
@@ -206,15 +206,15 @@
                               [required]="true"
                               [showInstructionOption]="true"
                               [instructionOptionValue]="''"
-                              [nullOptionLabel]="isOutbound ? 'Select Bill' : 'Select Invoice'"
+                              [nullOptionLabel]="allocationNullOptionLabel"
                               [showSearchInput]="true"
                               [hideSearchHint]="false"
                               [hideSearchText]="false"
-                              [searchPlaceholder]="isOutbound ? 'Type to filter bills...' : 'Type to filter invoices...'"
-                              [noResultsText]="isOutbound ? 'No bills match your search' : 'No invoices match your search'"
+                              [searchPlaceholder]="allocationSearchPlaceholder"
+                              [noResultsText]="allocationNoResultsText"
                               [selectClass]="getSplitInvoiceSelectClass(splitGroup)"
                               [showError]="shouldShowSplitControlError(splitGroup, 'invoiceId')"
-                              [errorText]="isOutbound ? 'Bill is required' : 'Invoice is required'"
+                              [errorText]="allocationErrorText"
                               (valueChange)="onSplitAllocationSelectionChange(splitIndex, $event)" />
                           </td>
                           <td class="split-col-amount">

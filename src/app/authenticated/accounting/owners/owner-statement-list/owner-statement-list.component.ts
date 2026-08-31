@@ -2,6 +2,8 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, concatMap, finalize, from, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -11,11 +13,16 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
+import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
+import { BankCardResponse } from '../../../organizations/models/bank.model';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { PaymentType } from '../../models/accounting-enum';
+import { AccountType, PaymentType, PaymentTypeLabels } from '../../models/accounting-enum';
+import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
+import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
@@ -23,9 +30,9 @@ import { OwnerStatementService } from '../../services/owner-statement.service';
 @Component({
   selector: 'app-owner-statement-list',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './owner-statement-list.component.html',
-  styleUrls: ['./owner-statement-list.component.scss', '../owner-report/owner-report.component.scss'],
+  styleUrls: ['./owner-statement-list.component.scss', '../owner-report/owner-report.component.scss', '../../invoices/invoice-list/invoice-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
@@ -39,6 +46,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private ownerStatementService = inject(OwnerStatementService);
   private ownerStatementDocumentService = inject(OwnerStatementDocumentService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -49,8 +58,23 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   isServiceError = false;
   isPayingOwners = false;
   isDownloadingOwnerStatements = false;
+  showPaid = true;
+  showPaymentForm = false;
+  paymentDate: Date | null = new Date();
+  paymentDescription = '';
+  paymentAmount = 0;
+  paymentAmountDisplay = '$0.00';
+  selectedPaymentTypeId = PaymentType.Check;
+  selectedPaymentChartOfAccountId: number | null = null;
+  selectedPaymentCreditCardId: number | null = null;
+  paymentChartOfAccounts: { value: number; label: string }[] = [];
+  paymentCreditCardOptions: { value: number; label: string; chartOfAccountId: number }[] = [];
+  paymentTypeOptions = PaymentTypeLabels;
+  allChartOfAccounts: ChartOfAccountResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   companyName = '';
   noDataMessage = 'Press Go to run the report.';
+  allLines: OwnerStatementMonthLineListDisplay[] = [];
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
   private customToBePaidByLineId = new Map<string, string>();
@@ -86,6 +110,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       this.markViewForCheck();
     });
     this.loadOrganization();
+    this.loadChartOfAccounts();
+    this.loadAccountingOffices();
     this.loadOwnerStatementList();
   }
 
@@ -129,6 +155,10 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   onSelectionSet(selection: SelectionModel<unknown>): void {
     this.selectedOwnerStatementLines = (selection?.selected ?? []) as OwnerStatementMonthLineListDisplay[];
     this.syncToBePaidColumns();
+    if (this.showPaymentForm) {
+      this.syncPaymentAmountFromOwnerSelection();
+      this.refreshPaymentAccountsForResolvedOffice();
+    }
     this.markViewForCheck();
   }
 
@@ -140,6 +170,9 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     const amount = this.mappingService.parseCurrencyValue(row.toBePaid);
     row.toBePaid = this.formatter.currencyUsd(amount);
     this.customToBePaidByLineId.set(row.ownerStatementLineId, row.toBePaid);
+    if (this.showPaymentForm) {
+      this.syncPaymentAmountFromOwnerSelection();
+    }
     this.markViewForCheck();
   }
 
@@ -191,12 +224,25 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   onPayOwners(): void {
-    if (this.isPayingOwners) {
-      return;
-    }
+    this.openApplyPaymentDialog();
+  }
 
-    if (this.selectedOwnerStatementLines.length === 0) {
-      this.toastr.error('Select owners to be paid.', CommonMessage.Error);
+  openApplyPaymentDialog(): void {
+    this.paymentDate = this.utilityService.parseCalendarDateInput(this.searchRequest?.endDate) ?? this.paymentDate ?? new Date();
+    this.refreshPaymentAccountsForResolvedOffice();
+    this.showPaymentForm = true;
+    this.syncPaymentAmountFromOwnerSelection();
+    this.markViewForCheck();
+  }
+
+  cancelPaymentForm(): void {
+    this.showPaymentForm = false;
+    this.clearPaymentForm();
+    this.markViewForCheck();
+  }
+
+  submitPayment(): void {
+    if (this.isPayingOwners || !this.isPaymentFormValid) {
       return;
     }
 
@@ -221,6 +267,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         this.selectedOwnerStatementLines = [];
         this.customToBePaidByLineId.clear();
         this.syncToBePaidColumns();
+        this.clearPaymentForm();
         this.ownersPaid.emit();
         this.markViewForCheck();
       },
@@ -233,35 +280,247 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   buildOwnerPaymentsRequest(lines: OwnerStatementMonthLineListDisplay[]): OwnerPaymentsRequest | null {
-    const paymentDate = this.utilityService.toDateOnlyJsonString(this.searchRequest?.endDate)
+    const paymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate)
+      ?? this.utilityService.toDateOnlyJsonString(this.searchRequest?.endDate)
       ?? this.utilityService.todayAsCalendarDateString();
-    const payments = lines
-      .map(line => ({
-        officeId: line.officeId,
-        ownerId: line.ownerId,
-        propertyId: line.propertyId,
-        paymentTypeId: PaymentType.Ach,
-        amount: this.mappingService.parseCurrencyValue(line.toBePaid || line.ownerPayment)
-      }))
-      .filter(payment => payment.officeId > 0
-        && !!payment.ownerId
-        && !!payment.propertyId
-        && payment.amount !== 0);
+    const chartOfAccountId = this.resolveSelectedPaymentChartOfAccountId();
+    if (chartOfAccountId == null) {
+      this.toastr.warning(this.isCreditCardPaymentTypeSelected ? 'Please select a credit card' : 'Please select a bank account');
+      return null;
+    }
 
-    if (payments.length === 0) {
+    const officeIds = [...new Set(lines.map(line => line.officeId).filter(officeId => officeId > 0))];
+    if (officeIds.length > 1) {
+      this.toastr.warning('Select owners from one office to apply payment.');
+      return null;
+    }
+
+    const request = this.mappingService.mapOwnerPaymentsRequest(
+      lines,
+      paymentDate,
+      this.selectedPaymentTypeId,
+      chartOfAccountId,
+      this.paymentDescription
+    );
+
+    if (request.payments.length === 0) {
       this.toastr.warning('Selected lines have no payment amount to apply.', CommonMessage.Error);
       return null;
     }
 
-    return {
-      paymentDate,
-      payments
+    const selectedTotal = request.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    if (!this.utilityService.areCurrencyAmountsEqual(selectedTotal, this.paymentAmount)) {
+      this.toastr.warning('Applied owner amounts must equal the payment amount.');
+      return null;
+    }
+
+    return request;
+  }
+
+  syncPaymentAmountFromOwnerSelection(): void {
+    if (!this.showPaymentForm) {
+      return;
+    }
+
+    const total = this.selectedOwnerStatementLines.reduce((sum, line) => {
+      return sum + this.mappingService.parseCurrencyValue(line.toBePaid || line.ownerPayment);
+    }, 0);
+    this.paymentAmount = this.roundCurrencyValue(total);
+    this.paymentAmountDisplay = this.formatPaymentAmountDisplay(this.paymentAmount);
+  }
+
+  get resolvedPaymentOfficeId(): number | null {
+    return this.resolvePaymentOfficeId();
+  }
+
+  resolvePaymentOfficeId(): number | null {
+    const selectedOfficeIds = [...new Set(
+      this.selectedOwnerStatementLines
+        .map(line => line.officeId)
+        .filter(officeId => Number.isFinite(officeId) && officeId > 0)
+    )];
+    if (selectedOfficeIds.length === 1) {
+      return selectedOfficeIds[0];
+    }
+
+    const requestOfficeIds = (this.searchRequest?.officeIds ?? []).filter(officeId => officeId > 0);
+    if (requestOfficeIds.length === 1) {
+      return requestOfficeIds[0];
+    }
+    if (selectedOfficeIds.length > 0) {
+      return selectedOfficeIds[0];
+    }
+    if (requestOfficeIds.length > 0) {
+      return requestOfficeIds[0];
+    }
+    return null;
+  }
+
+  get isCreditCardPaymentTypeSelected(): boolean {
+    return Number(this.selectedPaymentTypeId) === PaymentType.CreditCard;
+  }
+
+  get isPaymentFormValid(): boolean {
+    const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
+    const hasPaymentAccount = this.resolveSelectedPaymentChartOfAccountId() != null;
+    return hasPaymentDate && hasPaymentAccount && this.paymentAmount !== 0;
+  }
+
+  refreshPaymentAccountsForResolvedOffice(): void {
+    this.refreshPaymentChartOfAccountsForResolvedOffice();
+    this.refreshPaymentCreditCardOptionsForResolvedOffice();
+  }
+
+  refreshPaymentChartOfAccountsForResolvedOffice(): void {
+    const officeId = this.resolvePaymentOfficeId();
+    if (!officeId) {
+      this.paymentChartOfAccounts = [];
+      this.selectedPaymentChartOfAccountId = null;
+      return;
+    }
+
+    this.paymentChartOfAccounts = this.allChartOfAccounts
+      .filter(account => account.officeId === officeId)
+      .filter(account => Number(account.accountTypeId) === AccountType.Bank)
+      .sort((left, right) =>
+        this.utilityService.getChartOfAccountDropdownLabel(left).localeCompare(
+          this.utilityService.getChartOfAccountDropdownLabel(right),
+          undefined,
+          { sensitivity: 'base' }
+        )
+      )
+      .map(account => ({
+        value: Number(account.accountId),
+        label: this.utilityService.getChartOfAccountDropdownLabel(account)
+      }));
+
+    const hasValidSelection =
+      this.selectedPaymentChartOfAccountId != null
+      && this.paymentChartOfAccounts.some(account => account.value === this.selectedPaymentChartOfAccountId);
+    this.selectedPaymentChartOfAccountId = hasValidSelection
+      ? this.selectedPaymentChartOfAccountId
+      : this.paymentChartOfAccounts[0]?.value ?? null;
+  }
+
+  refreshPaymentCreditCardOptionsForResolvedOffice(): void {
+    const officeId = this.resolvePaymentOfficeId();
+    const options = new Map<number, { value: number; label: string; chartOfAccountId: number }>();
+    const addOfficeCards = (targetOfficeId: number): void => {
+      const office = (this.accountingOffices || []).find(item => Number(item.officeId) === targetOfficeId) || null;
+      const mappedCards = this.mappingService.mapBankCardsFromResponse(office?.bankCards as BankCardResponse[]);
+      mappedCards.forEach(card => {
+        const bankCardId = Number(card.bankCardId ?? 0);
+        const chartOfAccountId = Number(card.chartOfAccountId ?? 0);
+        if (!Number.isFinite(bankCardId) || bankCardId <= 0 || !Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+          return;
+        }
+        if (!options.has(bankCardId)) {
+          options.set(bankCardId, {
+            value: bankCardId,
+            label: (card.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card),
+            chartOfAccountId
+          });
+        }
+      });
     };
+
+    if (officeId) {
+      addOfficeCards(officeId);
+    } else {
+      (this.accountingOffices || []).forEach(office => addOfficeCards(Number(office.officeId)));
+    }
+
+    this.paymentCreditCardOptions = Array.from(options.values())
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+
+    const hasValidSelection =
+      this.selectedPaymentCreditCardId != null
+      && this.paymentCreditCardOptions.some(option => option.value === this.selectedPaymentCreditCardId);
+    this.selectedPaymentCreditCardId = hasValidSelection
+      ? this.selectedPaymentCreditCardId
+      : this.paymentCreditCardOptions[0]?.value ?? null;
+  }
+
+  onPaymentTypeChange(paymentTypeId: number): void {
+    this.selectedPaymentTypeId = Number(paymentTypeId);
+    if (this.isCreditCardPaymentTypeSelected) {
+      this.refreshPaymentCreditCardOptionsForResolvedOffice();
+    }
+    this.markViewForCheck();
+  }
+
+  onPaymentChartOfAccountChange(accountId: number | null): void {
+    this.selectedPaymentChartOfAccountId = accountId;
+    this.markViewForCheck();
+  }
+
+  resolveSelectedPaymentChartOfAccountId(): number | null {
+    if (this.isCreditCardPaymentTypeSelected) {
+      const selectedCard = this.paymentCreditCardOptions.find(option => option.value === this.selectedPaymentCreditCardId) || null;
+      return selectedCard?.chartOfAccountId ?? null;
+    }
+    return this.selectedPaymentChartOfAccountId ?? null;
+  }
+
+  formatPaymentAmountDisplay(amount: number): string {
+    return amount < 0
+      ? '-$' + this.formatter.currency(-amount)
+      : '$' + this.formatter.currency(amount);
+  }
+
+  roundCurrencyValue(amount: number): number {
+    if (!Number.isFinite(amount)) {
+      return 0;
+    }
+    return Math.round(amount * 100) / 100;
+  }
+
+  onPaymentAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9.-]/g, '');
+    const hasLeadingMinus = value.startsWith('-');
+    const unsignedValue = value.replace(/-/g, '');
+    const normalizedValue = hasLeadingMinus ? `-${unsignedValue}` : unsignedValue;
+    const parts = normalizedValue.split('.');
+    input.value = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : normalizedValue;
+    this.paymentAmountDisplay = input.value;
+  }
+
+  onPaymentAmountBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const rawValue = input.value.replace(/[^0-9.-]/g, '').trim();
+    const parsed = rawValue ? parseFloat(rawValue) : NaN;
+    this.paymentAmount = this.roundCurrencyValue(isNaN(parsed) ? 0 : parsed);
+    this.paymentAmountDisplay = this.formatPaymentAmountDisplay(this.paymentAmount);
+    input.value = this.paymentAmountDisplay;
+    this.markViewForCheck();
+  }
+
+  onPaymentAmountFocus(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.value = this.paymentAmount.toString();
+    input.select();
+  }
+
+  onPaymentAmountEnter(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.blur();
+  }
+
+  clearPaymentForm(): void {
+    this.showPaymentForm = false;
+    this.selectedPaymentTypeId = PaymentType.Check;
+    this.paymentDescription = '';
+    this.paymentDate = this.utilityService.parseCalendarDateInput(this.searchRequest?.endDate) ?? new Date();
+    this.paymentAmount = 0;
+    this.paymentAmountDisplay = this.formatPaymentAmountDisplay(0);
+    this.refreshPaymentAccountsForResolvedOffice();
   }
   //#endregion
 
   //#region Data Loading Methods
   clearOwnerStatementDisplay(): void {
+    this.allLines = [];
     this.lines = [];
     this.selectedOwnerStatementLines = [];
     this.customToBePaidByLineId.clear();
@@ -281,9 +540,42 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     });
   }
 
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+          this.allChartOfAccounts = accounts || [];
+          this.refreshPaymentAccountsForResolvedOffice();
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.allChartOfAccounts = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices || [];
+          this.refreshPaymentAccountsForResolvedOffice();
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
   loadOwnerStatementList(): void {
     const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
+      this.allLines = [];
       this.lines = [];
       this.isServiceError = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
@@ -294,6 +586,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(
       this.mappingService.mapOwnerReportSearchRequest(this.searchRequest)
     )) {
+      this.allLines = [];
       this.lines = [];
       this.noDataMessage = 'Press Go to run the report.';
       this.isServiceError = false;
@@ -304,6 +597,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
     const cashReport = this.ownerReportsCacheService.getCashReport();
     if (!cashReport) {
+      this.allLines = [];
       this.lines = [];
       this.noDataMessage = 'Press Go to run the report.';
       this.isServiceError = false;
@@ -319,11 +613,29 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     if (propertyId) {
       monthLines = monthLines.filter(line => (line.propertyId || '').trim() === propertyId);
     }
-    this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(monthLines);
+    this.allLines = this.mappingService.mapOwnerStatementMonthLineDisplays(monthLines);
     this.customToBePaidByLineId.clear();
-    this.syncToBePaidColumns();
+    this.applyShowPaidFilter();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
     this.markViewForCheck();
+  }
+
+  onShowPaidToggleChange(event: MatSlideToggleChange): void {
+    this.showPaid = event.checked;
+    this.applyShowPaidFilter();
+    this.markViewForCheck();
+  }
+
+  applyShowPaidFilter(): void {
+    this.lines = this.showPaid
+      ? [...this.allLines]
+      : this.allLines.filter(line => !this.mappingService.isOwnerOwedFullyPaid(
+        this.mappingService.parseCurrencyValue(line.ownerPayment),
+        this.mappingService.parseCurrencyValue(line.ownerPaymentPaid)
+      ));
+    const visibleLineIds = new Set(this.lines.map(line => line.ownerStatementLineId));
+    this.selectedOwnerStatementLines = this.selectedOwnerStatementLines.filter(line => visibleLineIds.has(line.ownerStatementLineId));
+    this.syncToBePaidColumns();
   }
 
   //#endregion

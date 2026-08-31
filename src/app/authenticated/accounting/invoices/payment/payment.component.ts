@@ -14,7 +14,8 @@ import { AccountType, PaymentKind, PaymentType, PaymentTypeLabels, TransactionTy
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
-import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentResponse } from '../../models/payment.model';
+import { OwnerCashReportRowResponse } from '../../models/owner-report.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, OwnerOwedAllocationOption, UpdatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse } from '../../models/payment.model';
 import { ReceiptResponse, buildBillSplitLineDescription } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { CostCodesService } from '../../services/cost-codes.service';
@@ -22,6 +23,8 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
 import { InvoiceService } from '../../services/invoice.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
 import { PaymentService } from '../../services/payment.service';
+import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
+import { ReportService } from '../../services/report.service';
 import { ContactService } from '../../../contacts/services/contact.service';
 
 @Component({
@@ -37,12 +40,16 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() paymentId: string | null = null;
   @Input() paymentKind: PaymentKind = PaymentKind.Invoice;
   @Input() prefetchedPayment: PaymentResponse | null = null;
+  @Input() owedStartDate: string | null = null;
+  @Input() owedEndDate: string | null = null;
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<PaymentResponse>();
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private paymentService = inject(PaymentService);
+  private reportService = inject(ReportService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private invoiceService = inject(InvoiceService);
   private receiptService = inject(ReceiptService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -64,6 +71,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   payment: PaymentResponse | null = null;
   invoices: InvoiceResponse[] = [];
   bills: ReceiptResponse[] = [];
+  owedOwners: OwnerOwedAllocationOption[] = [];
   costCodeOptions: SearchableSelectOption<number>[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
   private officeCostCodes: CostCodesResponse[] = [];
@@ -101,8 +109,47 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     return allocationId.length > 0 ? null : { required: true };
   };
 
+  get isOwnerPayment(): boolean {
+    return this.paymentKind === PaymentKind.Owner;
+  }
+
   get isOutbound(): boolean {
-    return this.paymentKind === PaymentKind.Bill;
+    return this.paymentKind === PaymentKind.Bill || this.isOwnerPayment;
+  }
+
+  get allocationColumnLabel(): string {
+    if (this.isOwnerPayment) {
+      return 'Owner';
+    }
+    return this.paymentKind === PaymentKind.Bill ? 'Bill' : 'Invoice';
+  }
+
+  get allocationNullOptionLabel(): string {
+    if (this.isOwnerPayment) {
+      return 'Select Owner';
+    }
+    return this.paymentKind === PaymentKind.Bill ? 'Select Bill' : 'Select Invoice';
+  }
+
+  get allocationSearchPlaceholder(): string {
+    if (this.isOwnerPayment) {
+      return 'Type to filter owners...';
+    }
+    return this.paymentKind === PaymentKind.Bill ? 'Type to filter bills...' : 'Type to filter invoices...';
+  }
+
+  get allocationNoResultsText(): string {
+    if (this.isOwnerPayment) {
+      return 'No owners with an owed amount match your search';
+    }
+    return this.paymentKind === PaymentKind.Bill ? 'No bills match your search' : 'No invoices match your search';
+  }
+
+  get allocationErrorText(): string {
+    if (this.isOwnerPayment) {
+      return 'Owner is required';
+    }
+    return this.paymentKind === PaymentKind.Bill ? 'Bill is required' : 'Invoice is required';
   }
 
   constructor() {
@@ -162,6 +209,9 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       this.loadAllocationsForOffice();
       this.applyPaymentKindFormRules();
     }
+    if (this.isOwnerPayment && (changes['owedStartDate'] || changes['owedEndDate']) && !changes['owedStartDate']?.firstChange && !changes['owedEndDate']?.firstChange) {
+      this.loadOwedOwnersForOffice();
+    }
   }
 
   savePayment(): void {
@@ -188,7 +238,12 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
     const paymentTypeId = this.resolvePaymentTypeIdFromForm();
 
-    if (this.isOutbound) {
+    if (this.isOwnerPayment) {
+      this.saveOwnerPayment(paymentDateValue, paymentTypeId);
+      return;
+    }
+
+    if (this.paymentKind === PaymentKind.Bill) {
       this.saveOutboundPayment(paymentDateValue, paymentTypeId);
       return;
     }
@@ -395,6 +450,105 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  saveOwnerPayment(paymentDateValue: string, paymentTypeId: number | null): void {
+    const chartOfAccountId = Number(this.form.get('chartOfAccountId')?.value ?? 0);
+    if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+      this.form.get('chartOfAccountId')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
+
+    const allocations = this.getPayloadAllocationsFromForm();
+    if (allocations.length === 0) {
+      this.showValidationErrorToast();
+      return;
+    }
+    if (this.isAllocationTotalOutOfBalance()) {
+      this.splitTotalValidationError = true;
+      this.showValidationErrorToast();
+      return;
+    }
+    this.splitTotalValidationError = false;
+
+    const request = this.buildOwnerAllocationsRequest(
+      paymentDateValue,
+      paymentTypeId ?? PaymentType.Check,
+      chartOfAccountId,
+      allocations
+    );
+    if (!request) {
+      this.showValidationErrorToast();
+      return;
+    }
+
+    if (!this.isAddMode) {
+      this.toastr.error('Unable to save payment.', 'Error');
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.paymentService.createPaymentWithOwnerAllocations(request).pipe(
+      take(1),
+      finalize(() => {
+        this.isSubmitting = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe({
+      next: (payment: PaymentResponse) => {
+        this.payment = payment;
+        this.isAddMode = false;
+        this.saveValidationHighlightActive = false;
+        this.toastr.success('Payment saved successfully.', 'Success');
+        this.savedEvent.emit(payment);
+        if (this.autoBackOnSave) {
+          this.backEvent.emit();
+        }
+      },
+      error: (_err: HttpErrorResponse) => {
+        this.toastr.error('Unable to save payment.', 'Error');
+      }
+    });
+  }
+
+  buildOwnerAllocationsRequest(
+    paymentDateValue: string,
+    paymentTypeId: number,
+    chartOfAccountId: number,
+    allocations: CreatePaymentWithInvoiceAllocationsRequest['allocations']
+  ): CreatePaymentWithOwnerAllocationsRequest | null {
+    const overallDescription = (this.form.get('description')?.value || '').trim();
+    const amountValue = parseFloat(this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '')) || 0;
+    const ownerAllocations = allocations.map(allocation => {
+      const parsed = this.mappingService.parseOwnerOwedAllocationId(allocation.invoiceId);
+      if (!parsed) {
+        return null;
+      }
+      const owner = this.owedOwners.find(item => item.allocationId === allocation.invoiceId);
+      return {
+        ownerId: parsed.ownerId,
+        propertyId: parsed.propertyId,
+        amount: allocation.amount,
+        description: (allocation.description || owner?.ownerName || overallDescription).trim()
+      };
+    }).filter((allocation): allocation is NonNullable<typeof allocation> => allocation != null);
+
+    if (ownerAllocations.length === 0) {
+      return null;
+    }
+
+    return {
+      organizationId: this.organizationId,
+      officeId: this.getPaymentOfficeId(),
+      paymentDate: paymentDateValue,
+      amount: amountValue,
+      description: overallDescription,
+      paymentTypeId,
+      chartOfAccountId,
+      isActive: !!this.form.get('isActive')?.value,
+      allocations: ownerAllocations
+    };
+  }
+
   buildOutboundBillAllocationsRequest(
     paymentDateValue: string,
     paymentTypeId: number,
@@ -500,7 +654,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       paymentTypeId: payment.paymentTypeId ?? null,
       isActive: payment.isActive
     });
-    if (this.isOutbound) {
+    if (this.isOwnerPayment) {
+      this.replaceSplitLinesFromOwnerAllocations(payment.ownerAllocations || []);
+      return;
+    }
+    if (this.paymentKind === PaymentKind.Bill) {
       this.replaceSplitLinesFromBillAllocations(payment.billAllocations || []);
       return;
     }
@@ -607,6 +765,25 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  replaceSplitLinesFromOwnerAllocations(allocations: PaymentOwnerAllocation[]): void {
+    while (this.splitsFormArray.length > 0) {
+      this.splitsFormArray.removeAt(0);
+    }
+
+    if (!allocations.length) {
+      this.ensureAtLeastOneSplit();
+      return;
+    }
+
+    allocations.forEach(allocation => {
+      this.splitsFormArray.push(this.createSplitGroup({
+        invoiceId: this.mappingService.mapOwnerOwedAllocationId(allocation.ownerId, allocation.propertyId),
+        amount: allocation.amount,
+        description: allocation.description
+      }));
+    });
+  }
+
   createSplitGroup(split?: { invoiceId?: string; amount?: number; description?: string }): FormGroup {
     const amount = Number(split?.amount);
     return this.fb.group({
@@ -681,14 +858,23 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     splitGroup?.get('invoiceId')?.setValue(allocationId);
     splitGroup?.get('invoiceId')?.markAsTouched();
     if (allocationId.length > 0) {
-      const balanceDue = this.isOutbound
-        ? this.getBillBalanceDue(allocationId)
-        : this.getInvoiceBalanceDue(allocationId);
+      const balanceDue = this.isOwnerPayment
+        ? this.getOwnerOwedAmount(allocationId)
+        : this.paymentKind === PaymentKind.Bill
+          ? this.getBillBalanceDue(allocationId)
+          : this.getInvoiceBalanceDue(allocationId);
       splitGroup?.get('amount')?.setValue(balanceDue.toFixed(2), { emitEvent: false });
       splitGroup?.get('amount')?.markAsTouched();
       splitGroup?.get('amount')?.updateValueAndValidity({ emitEvent: false });
 
-      if (this.isOutbound) {
+      if (this.isOwnerPayment) {
+        const owner = this.owedOwners.find(item => item.allocationId === allocationId);
+        const splitDescription = (owner?.ownerName || owner?.propertyCode || '').trim();
+        if (splitDescription) {
+          splitGroup?.get('description')?.setValue(splitDescription, { emitEvent: false });
+          splitGroup?.get('description')?.markAsTouched();
+        }
+      } else if (this.paymentKind === PaymentKind.Bill) {
         const bill = this.bills.find(item => item.receiptId === allocationId);
         const splitDescription = buildBillSplitLineDescription(bill);
         if (splitDescription) {
@@ -713,6 +899,12 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
     const balance = Math.round(((Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0)) * 100) / 100;
     return balance > 0 ? balance : 0;
+  }
+
+  getOwnerOwedAmount(allocationId: string): number {
+    const owner = this.owedOwners.find(item => item.allocationId === allocationId);
+    const owed = Number(owner?.owedAmount) || 0;
+    return owed > 0 ? owed : 0;
   }
 
   getBillBalanceDue(receiptId: string): number {
@@ -791,11 +983,57 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSplitAllocationOptions(splitIndex: number): SearchableSelectOption<string>[] {
-    if (!this.isOutbound) {
-      return this.allocationOptions;
+    if (this.isOwnerPayment) {
+      return this.buildOwnerOptionsForSplit(splitIndex);
+    }
+    if (this.paymentKind === PaymentKind.Bill) {
+      return this.buildBillOptionsForSplit(splitIndex);
+    }
+    return this.allocationOptions;
+  }
+
+  buildOwnerOptionsForSplit(splitIndex: number): SearchableSelectOption<string>[] {
+    const excludeAllocationIds = new Set<string>();
+    this.splitsFormArray.controls.forEach((control, index) => {
+      if (index === splitIndex) {
+        return;
+      }
+
+      const allocationId = (control.get('invoiceId')?.value || '').toString().trim();
+      if (allocationId.length > 0) {
+        excludeAllocationIds.add(allocationId);
+      }
+    });
+
+    const currentAllocationId = (this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.value || '').toString().trim();
+    const options = this.owedOwners
+      .filter(owner => !this.mappingService.isOwnerOwedFullyPaid(owner.owedAmount, owner.paidAmount))
+      .filter(owner => !excludeAllocationIds.has(owner.allocationId))
+      .map(owner => ({
+        value: owner.allocationId,
+        label: this.mappingService.mapOwnerOwedAllocationOptionLabel(owner)
+      }));
+
+    if (currentAllocationId.length > 0 && !options.some(option => option.value === currentAllocationId)) {
+      const owner = this.owedOwners.find(item => item.allocationId === currentAllocationId);
+      if (owner) {
+        options.push({
+          value: owner.allocationId,
+          label: this.mappingService.mapOwnerOwedAllocationOptionLabel(owner)
+        });
+      } else {
+        const allocation = (this.payment?.ownerAllocations || []).find(item =>
+          this.mappingService.mapOwnerOwedAllocationId(item.ownerId, item.propertyId) === currentAllocationId);
+        const ownerName = (allocation?.ownerName || '').trim();
+        const propertyCode = (allocation?.propertyCode || '').trim();
+        options.push({
+          value: currentAllocationId,
+          label: [ownerName, propertyCode, 'Owed $0.00'].filter(part => part.length > 0).join(' — ') || currentAllocationId
+        });
+      }
     }
 
-    return this.buildBillOptionsForSplit(splitIndex);
+    return options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
   }
 
   buildBillOptionsForSplit(splitIndex: number): SearchableSelectOption<string>[] {
@@ -952,11 +1190,66 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAllocationsForOffice(): void {
-    if (this.isOutbound) {
+    if (this.isOwnerPayment) {
+      this.loadOwedOwnersForOffice();
+      return;
+    }
+    if (this.paymentKind === PaymentKind.Bill) {
       this.loadBillsForOffice();
       return;
     }
     this.loadInvoicesForOffice();
+  }
+
+  loadOwedOwnersForOffice(): void {
+    const officeId = this.getPaymentOfficeId();
+    if (!officeId) {
+      this.owedOwners = [];
+      this.allocationOptions = [];
+      return;
+    }
+
+    const cachedReport = this.ownerReportsCacheService.getCashReport();
+    const cachedRows = (cachedReport?.rows ?? []).filter(row => row.officeId === officeId);
+    if (cachedRows.length > 0) {
+      this.applyOwedOwners(cachedRows);
+      return;
+    }
+
+    const startDate = (this.owedStartDate || '').trim()
+      || this.utilityService.formatDateOnlyForApi(this.firstDayOfMonthDate(this.utilityService.parseCalendarDateInput(this.form.get('paymentDate')?.value) ?? new Date()));
+    const endDate = (this.owedEndDate || '').trim()
+      || this.utilityService.formatDateOnlyForApi(this.lastDayOfMonthDate(this.utilityService.parseCalendarDateInput(this.form.get('paymentDate')?.value) ?? new Date()));
+    this.reportService.searchOwnerCashReport({
+      officeIds: [officeId],
+      startDate,
+      endDate
+    }).pipe(take(1)).subscribe({
+      next: report => {
+        this.applyOwedOwners((report.rows ?? []).filter(row => row.officeId === officeId));
+      },
+      error: () => {
+        this.owedOwners = [];
+        this.allocationOptions = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  applyOwedOwners(rows: OwnerCashReportRowResponse[]): void {
+    this.owedOwners = this.mappingService.mapOwnerOwedAllocationOptions(rows)
+      .filter(owner => !this.mappingService.isOwnerOwedFullyPaid(owner.owedAmount, owner.paidAmount));
+    this.allocationOptions = this.owedOwners.map(owner => ({
+      value: owner.allocationId,
+      label: this.mappingService.mapOwnerOwedAllocationOptionLabel(owner)
+    }));
+    this.cdr.markForCheck();
+  }
+
+  lastDayOfMonthDate(value: Date): Date {
+    const last = new Date(value.getFullYear(), value.getMonth() + 1, 0);
+    last.setHours(0, 0, 0, 0);
+    return last;
   }
 
   loadBankAccountsForOffice(): void {

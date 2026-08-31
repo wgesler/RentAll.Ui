@@ -1481,14 +1481,29 @@
                     (previewEvent)="onWorkOrderPreviewOpen($event)" />
                 }
               } @else if (selectedOwnerKind === 'ownerPayments') {
-                <app-payment-list
-                  [officeId]="selectedOfficeId"
-                  [searchRequest]="paymentSearchRequest"
-                  [embeddedInAccounting]="true"
-                  [paymentKind]="PaymentKind.Owner"
-                  [refreshTrigger]="paymentsRefreshTrigger"
-                  (journalEntriesChanged)="onJournalEntriesChanged()">
-                </app-payment-list>
+                @if (showPaymentsDetail) {
+                  @for (instance of [paymentDetailInstance]; track instance) {
+                    <app-payment
+                      [paymentId]="selectedPaymentId"
+                      [prefetchedPayment]="selectedPayment"
+                      [officeId]="selectedOfficeId"
+                      [paymentKind]="PaymentKind.Owner"
+                      [owedStartDate]="billsSearchRequest.startDate ?? null"
+                      [owedEndDate]="billsSearchRequest.endDate ?? null"
+                      (backEvent)="onPaymentBack()"
+                      (savedEvent)="onPaymentSaved()" />
+                  }
+                } @else if (paymentsListEngaged) {
+                  <app-payment-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="paymentSearchRequest"
+                    [embeddedInAccounting]="true"
+                    [paymentKind]="PaymentKind.Owner"
+                    [refreshTrigger]="paymentsRefreshTrigger"
+                    (paymentSelect)="onOwnerPaymentSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-payment-list>
+                }
               } @else if (selectedOwnerKind === 'ownerStatements') {
                 @if (selectedOwnerStatementMonthLine) {
                   <app-owner-statement-create

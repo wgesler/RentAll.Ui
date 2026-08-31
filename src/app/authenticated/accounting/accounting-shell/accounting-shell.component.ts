@@ -2038,7 +2038,11 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.openPaymentDetail(selection, 'vendors');
   }
 
-  private openPaymentDetail(selection: PaymentSelection, context: 'invoices' | 'vendors'): void {
+  onOwnerPaymentSelect(selection: PaymentSelection): void {
+    this.openPaymentDetail(selection, 'owners');
+  }
+
+  openPaymentDetail(selection: PaymentSelection, context: 'invoices' | 'vendors' | 'owners'): void {
     const paymentId = selection?.paymentId ?? null;
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
@@ -2051,7 +2055,7 @@ hydrateSelectedInvoiceForActiveId(): void {
 
     if (context === 'vendors') {
       this.syncBillsSearchRequest();
-    } else {
+    } else if (context === 'invoices') {
       this.syncInvoiceSearchDateRange();
     }
 
@@ -2059,6 +2063,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     if (context === 'vendors') {
       this.selectedTabIndex = this.tabBillsReceipts;
       this.selectedBillsReceiptKind = 'payments';
+    } else if (context === 'owners') {
+      this.selectedTabIndex = this.tabOwners;
+      this.selectedOwnerKind = 'ownerPayments';
     } else {
       this.selectedTabIndex = this.tabInvoices;
       this.selectedInvoiceKind = 'payments';
@@ -2761,6 +2768,9 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       this.onOwnersWorkOrderBack();
       this.onOwnerStatementJournalEntryLinesBack();
       this.clearWorkOrderCreateState();
+      if (this.selectedOwnerKind === 'ownerPayments') {
+        this.onPaymentBack();
+      }
     }
     if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
@@ -3002,6 +3012,9 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.onOwnersWorkOrderBack();
       this.onOwnerStatementJournalEntryLinesBack();
       this.clearWorkOrderCreateState();
+      if (this.selectedOwnerKind === 'ownerPayments') {
+        this.onPaymentBack();
+      }
     }
 
     this.selectedOwnerKind = kind;
@@ -4876,6 +4889,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.showPaymentsDetail && (
       (this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments')
       || (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments')
+      || (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerPayments')
     );
   }
 
@@ -4886,9 +4900,13 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   }
 
   get activePaymentKind(): PaymentKind {
-    return this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments'
-      ? PaymentKind.Bill
-      : PaymentKind.Invoice;
+    if (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments') {
+      return PaymentKind.Bill;
+    }
+    if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerPayments') {
+      return PaymentKind.Owner;
+    }
+    return PaymentKind.Invoice;
   }
 
   shouldRefreshPaymentsList(): boolean {
@@ -4896,7 +4914,8 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       return false;
     }
     return (this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'payments')
-      || (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments');
+      || (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments')
+      || (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerPayments');
   }
 
   get isTransferDetailActive(): boolean {
@@ -5517,6 +5536,9 @@ captureOwnerStatementReturnContext(): void {
         this.selectedOwnerKind = ownerKind;
         if (ownerKind === 'statements') {
           this.selectedOwnerStatementReportKind = params['ownerReport'] === 'cash' ? 'cash' : 'accrual';
+        }
+        if (ownerKind === 'ownerPayments') {
+          this.paymentsListEngaged = true;
         }
       } else if (ownerKind === 'ownerAccrualReport') {
         this.selectedOwnerKind = 'statements';

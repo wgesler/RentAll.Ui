@@ -324,6 +324,8 @@ export interface OwnerPaymentRequest {
   ownerId: string;
   propertyId: string;
   paymentTypeId: number;
+  chartOfAccountId?: number;
+  description?: string;
   amount: number;
 }
 

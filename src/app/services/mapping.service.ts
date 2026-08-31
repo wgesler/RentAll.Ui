@@ -10,7 +10,7 @@ import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntr
 import { PrintableReportDocument, PrintableReportRow, PrintableReportRowKind } from '../authenticated/accounting/models/printable-report.model';
 import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../authenticated/accounting/models/reconcile-account-report.model';
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
-import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
@@ -28,7 +28,7 @@ import { MaintenanceListSearchRequest } from '../authenticated/maintenance/model
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
-import { CreatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
 import { PaymentKind, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -2520,6 +2520,48 @@ resolveWorkOrderTitle(
     };
   }
 
+  mapOwnerOwedAllocationOptions(rows: OwnerCashReportRowResponse[]): OwnerOwedAllocationOption[] {
+    return (rows ?? [])
+      .map(row => {
+        const ownerId = (row.ownerId || '').trim();
+        const propertyId = (row.propertyId || '').trim();
+        return {
+          allocationId: `${ownerId}|${propertyId}`,
+          ownerId,
+          propertyId,
+          officeId: row.officeId,
+          ownerName: (row.ownerNameLine || row.ownerNames || '').trim(),
+          propertyCode: (row.propertyCode || '').trim(),
+          owedAmount: Number(row.ownerPayment) || 0,
+          paidAmount: Number(row.ownerPaymentPaid) || 0
+        };
+      })
+      .filter(option => option.ownerId.length > 0 && option.propertyId.length > 0 && option.owedAmount > 0.005);
+  }
+
+  isOwnerOwedFullyPaid(owedAmount: number, paidAmount: number): boolean {
+    return this.utility.areCurrencyAmountsEqual(owedAmount, paidAmount) && Math.abs(paidAmount) > 0.005;
+  }
+
+  mapOwnerOwedAllocationOptionLabel(option: OwnerOwedAllocationOption): string {
+    const balanceLabel = this.formatter.currencyUsd(option.owedAmount);
+    return [option.ownerName, option.propertyCode, `Owed ${balanceLabel}`].filter(part => part.length > 0).join(' — ');
+  }
+
+  mapOwnerOwedAllocationId(ownerId: string | null | undefined, propertyId: string | null | undefined): string {
+    return `${(ownerId || '').trim()}|${(propertyId || '').trim()}`;
+  }
+
+  parseOwnerOwedAllocationId(allocationId: string | null | undefined): { ownerId: string; propertyId: string } | null {
+    const parts = (allocationId || '').split('|');
+    const ownerId = (parts[0] || '').trim();
+    const propertyId = (parts[1] || '').trim();
+    if (!ownerId || !propertyId) {
+      return null;
+    }
+    return { ownerId, propertyId };
+  }
+
   mapOwnerCashReportResponse(raw: Record<string, unknown>): OwnerCashReportResponse {
     const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
     const activityLinesRaw = raw['propertyActivityLines'] ?? raw['PropertyActivityLines'] ?? [];
@@ -2938,6 +2980,33 @@ resolveWorkOrderTitle(
     });
   }
 
+  mapOwnerPaymentsRequest(
+    lines: OwnerStatementMonthLineListDisplay[],
+    paymentDate: string,
+    paymentTypeId: number,
+    chartOfAccountId: number,
+    description: string
+  ): OwnerPaymentsRequest {
+    const trimmedDescription = (description || '').trim();
+    return {
+      paymentDate,
+      payments: (lines ?? [])
+        .map(line => ({
+          officeId: line.officeId,
+          ownerId: (line.ownerId || '').trim(),
+          propertyId: (line.propertyId || '').trim(),
+          paymentTypeId,
+          chartOfAccountId,
+          description: trimmedDescription,
+          amount: this.parseCurrencyValue(line.toBePaid || line.ownerPayment)
+        }))
+        .filter(payment => payment.officeId > 0
+          && !!payment.ownerId
+          && !!payment.propertyId
+          && payment.amount !== 0)
+    };
+  }
+
   mapOwnerStatementMonthLineDisplays(rows: OwnerStatementMonthLineResponse[]): OwnerStatementMonthLineListDisplay[] {
     return (rows || []).map(row => ({
       ownerStatementLineId: (row.ownerStatementLineId || '').trim(),
@@ -3040,18 +3109,17 @@ resolveWorkOrderTitle(
           return false;
         }
 
-        const activityDate = this.utility.parseCalendarDateInput(line.activityDate);
-        if (!activityDate) {
+        const periodMonth = this.getOwnerStatementAccountingPeriodMonthOrdinal(line.accountingPeriod);
+        if (periodMonth == null) {
           return false;
         }
 
-        const activity = this.utility.formatDateOnlyForApi(activityDate);
-        const start = rangeStart ? this.utility.formatDateOnlyForApi(rangeStart) : null;
-        const end = rangeEnd ? this.utility.formatDateOnlyForApi(rangeEnd) : start;
-        if (start && activity < start) {
+        const startMonth = rangeStart ? this.getCalendarMonthOrdinal(rangeStart) : null;
+        const endMonth = rangeEnd ? this.getCalendarMonthOrdinal(rangeEnd) : startMonth;
+        if (startMonth != null && periodMonth < startMonth) {
           return false;
         }
-        if (end && activity > end) {
+        if (endMonth != null && periodMonth > endMonth) {
           return false;
         }
         return true;
@@ -3101,30 +3169,39 @@ compareOwnerReportPropertyActivityLines(
     return (a.documentCode || '').localeCompare(b.documentCode || '', undefined, { sensitivity: 'base' });
   }
 
+  getOwnerStatementAccountingPeriodMonthOrdinal(value: string | null | undefined): number | null {
+    const trimmed = (value || '').trim();
+    if (!trimmed || trimmed === '—') {
+      return null;
+    }
+
+    const monthYearMatch = /^(\d{2})\.(\d{2})$/.exec(trimmed);
+    if (monthYearMatch) {
+      const month = Number(monthYearMatch[1]);
+      const year = 2000 + Number(monthYearMatch[2]);
+      if (Number.isFinite(month) && Number.isFinite(year) && month >= 1 && month <= 12) {
+        return year * 100 + month;
+      }
+    }
+
+    const dateOrdinal = this.utility.parseCalendarDateToOrdinal(trimmed);
+    if (dateOrdinal == null) {
+      return null;
+    }
+
+    return Math.floor(dateOrdinal / 100);
+  }
+
+  getCalendarMonthOrdinal(date: Date): number {
+    return date.getFullYear() * 100 + (date.getMonth() + 1);
+  }
+
 compareOwnerReportAccountingPeriods(
     a: string | null | undefined,
     b: string | null | undefined
   ): number {
-    const toOrdinal = (value: string | null | undefined): number | null => {
-      const trimmed = (value || '').trim();
-      if (!trimmed) {
-        return null;
-      }
-
-      const monthYearMatch = /^(\d{2})\.(\d{2})$/.exec(trimmed);
-      if (monthYearMatch) {
-        const month = Number(monthYearMatch[1]);
-        const year = 2000 + Number(monthYearMatch[2]);
-        if (Number.isFinite(month) && Number.isFinite(year) && month >= 1 && month <= 12) {
-          return year * 100 + month;
-        }
-      }
-
-      return this.utility.parseCalendarDateToOrdinal(trimmed);
-    };
-
-    const left = toOrdinal(a);
-    const right = toOrdinal(b);
+    const left = this.getOwnerStatementAccountingPeriodMonthOrdinal(a);
+    const right = this.getOwnerStatementAccountingPeriodMonthOrdinal(b);
     if (left === null && right === null) {
       return 0;
     }

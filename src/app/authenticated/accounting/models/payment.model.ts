@@ -78,6 +78,36 @@ export interface PaymentOwnerAllocation {
   description: string;
 }
 
+export interface OwnerOwedAllocationOption {
+  allocationId: string;
+  ownerId: string;
+  propertyId: string;
+  officeId: number;
+  ownerName: string;
+  propertyCode: string;
+  owedAmount: number;
+  paidAmount: number;
+}
+
+export interface PaymentOwnerAllocationRequest {
+  ownerId: string;
+  propertyId: string;
+  amount: number;
+  description?: string;
+}
+
+export interface CreatePaymentWithOwnerAllocationsRequest {
+  organizationId: string;
+  officeId: number;
+  paymentDate: string;
+  amount: number;
+  description: string;
+  paymentTypeId?: number | null;
+  chartOfAccountId: number;
+  isActive: boolean;
+  allocations: PaymentOwnerAllocationRequest[];
+}
+
 export interface CreatePaymentWithInvoiceAllocationsRequest {
   organizationId: string;
   officeId: number;
