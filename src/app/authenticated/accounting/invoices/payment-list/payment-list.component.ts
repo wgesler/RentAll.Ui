@@ -364,17 +364,17 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isInvoiceAllocationLink(
-    line: PaymentLedgerLine | PaymentBillAllocation,
+    line: PaymentLedgerLine | PaymentBillAllocation | PaymentOwnerAllocation,
     columnName: string
   ): line is PaymentLedgerLine {
-    if (this.isOutboundPaymentList || columnName !== 'invoiceCode') {
+    if (this.isBillStylePaymentList || columnName !== 'invoiceCode') {
       return false;
     }
 
     return !!(line as PaymentLedgerLine).invoiceId?.trim();
   }
 
-  onInvoiceAllocationClick(event: Event, line: PaymentLedgerLine | PaymentBillAllocation): void {
+  onInvoiceAllocationClick(event: Event, line: PaymentLedgerLine | PaymentBillAllocation | PaymentOwnerAllocation): void {
     if (!this.isInvoiceAllocationLink(line, 'invoiceCode')) {
       return;
     }
