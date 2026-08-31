@@ -59,8 +59,8 @@ export class OwnerStatementHtmlBuilderService {
     const startingBalance = this.mappingService.parseCurrencyValue(line.startingBalance);
     const income = this.mappingService.parseCurrencyValue(line.income);
     const expenses = this.mappingService.parseCurrencyValue(line.expenses);
-    const ownerPayment = this.mappingService.parseCurrencyValue(line.ownerPayment);
-    const endingBalance = this.mappingService.parseCurrencyValue(line.endingBalance);
+    const workingCapital = this.mappingService.parseCurrencyValue(line.workingCapital);
+    const ownerPaymentPaid = this.mappingService.parseCurrencyValue(line.ownerPaymentPaid);
     const incomeActivities = (ctx.statementActivityLines || [])
       .filter(activity => Number(activity.receivedIncome) !== 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
@@ -141,17 +141,26 @@ export class OwnerStatementHtmlBuilderService {
       chargesRows = this.buildBlankLedgerRow();
     }
 
+    if (workingCapital > 0) {
+      runningTotal -= workingCapital;
+      chargesRows = [
+        chargesRows,
+        this.buildChargeRow(closingBalanceDate, '', 'Working Capital', workingCapital, runningTotal)
+      ].filter(row => row.length > 0).join('\n');
+    }
+
     let paymentsRows = '';
-    if (ownerPayment !== 0) {
-      runningTotal -= ownerPayment;
-      paymentsRows = this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPayment, runningTotal);
+    if (ownerPaymentPaid > 0) {
+      runningTotal -= ownerPaymentPaid;
+      paymentsRows = this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPaymentPaid, runningTotal);
     }
     if (!paymentsRows) {
       paymentsRows = this.buildBlankLedgerRow();
     }
 
+    const closingBalanceAmount = Math.max(0, Math.round(runningTotal * 100) / 100);
     const closingBalanceRows = [
-      this.buildSummaryBalanceRow('Ending Balance', closingBalanceDate, endingBalance, true)
+      this.buildSummaryBalanceRow('Ending Balance', closingBalanceDate, closingBalanceAmount, true)
     ].join('\n');
 
     const companyName = this.escapeHtml(ctx.organization?.name || '');
@@ -185,9 +194,9 @@ export class OwnerStatementHtmlBuilderService {
     result = result.replace(/\{\{closingBalanceLedgerLineRows\}\}/g, closingBalanceRows);
     result = result.replace(/\{\{statementNotes\}\}/g, this.buildStatementNotesContent(ctx));
     result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, '');
-    result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currencyUsd(endingBalance));
-    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currencyUsd(0));
-    result = result.replace(/\{\{statementBalanceDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
+    result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currencyUsd(closingBalanceAmount));
+    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currencyUsd(ownerPaymentPaid));
+    result = result.replace(/\{\{statementBalanceDue\}\}/g, this.formatterService.currencyUsd(closingBalanceAmount));
     result = result.replace(/\{\{totalChargesRowStyle\}\}/g, 'display: none;');
     result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, '');
     result = result.replace(/\{\{paymentsSectionStyle\}\}/g, 'display: none;');
@@ -212,8 +221,8 @@ export class OwnerStatementHtmlBuilderService {
     result = result.replace(/\{\{startDate\}\}/g, this.escapeHtml(periodTitle) || '');
     result = result.replace(/\{\{endDate\}\}/g, this.escapeHtml(periodTitle) || '');
     result = result.replace(/\{\{statementDate\}\}/g, this.utilityService.todayAsCalendarDateString());
-    result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currencyUsd(0));
-    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
+    result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currencyUsd(ownerPaymentPaid));
+    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(closingBalanceAmount));
     return result.replace(/\{\{[^}]+\}\}/g, '');
   }
 
