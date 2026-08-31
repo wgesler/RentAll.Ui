@@ -10,7 +10,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
-import { AccountType, PaymentDirection, PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
+import { AccountType, PaymentKind, PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
@@ -35,7 +35,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
   @Input() paymentId: string | null = null;
-  @Input() paymentDirection: PaymentDirection = PaymentDirection.Inbound;
+  @Input() paymentKind: PaymentKind = PaymentKind.Invoice;
   @Input() prefetchedPayment: PaymentResponse | null = null;
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
@@ -102,7 +102,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   get isOutbound(): boolean {
-    return this.paymentDirection === PaymentDirection.Outbound;
+    return this.paymentKind === PaymentKind.Bill;
   }
 
   constructor() {
@@ -113,7 +113,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
-    this.applyPaymentDirectionFormRules();
+    this.applyPaymentKindFormRules();
     this.setupOutboundFormHandlers();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
     this.isAddMode = this.paymentId === 'new';
@@ -157,10 +157,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       this.loadBankAccountsForOffice();
       this.loadAllocationsForOffice();
     }
-    if (changes['paymentDirection'] && !changes['paymentDirection'].firstChange) {
+    if (changes['paymentKind'] && !changes['paymentKind'].firstChange) {
       this.loadBankAccountsForOffice();
       this.loadAllocationsForOffice();
-      this.applyPaymentDirectionFormRules();
+      this.applyPaymentKindFormRules();
     }
   }
 
@@ -447,7 +447,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  applyPaymentDirectionFormRules(): void {
+  applyPaymentKindFormRules(): void {
     const headerCostCodeControl = this.form.get('costCodeId');
     if (headerCostCodeControl) {
       if (this.isOutbound) {
@@ -516,7 +516,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.loadBankAccountsForOffice();
     this.loadAllocationsForOffice();
     this.ensureAtLeastOneSplit();
-    this.applyPaymentDirectionFormRules();
+    this.applyPaymentKindFormRules();
   }
   //#endregion
 

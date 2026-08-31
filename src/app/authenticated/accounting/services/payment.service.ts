@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { PaymentDirection } from '../models/accounting-enum';
+import { PaymentKind } from '../models/accounting-enum';
 import { PaymentResponse, CreatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, ApplyInvoicePaymentRequest, CreatePaymentWithBillAllocationsRequest, UpdatePaymentWithBillAllocationsRequest, UpdatePaymentInvoiceRequest, UpdatePaymentBillRequest } from '../models/payment.model';
 
 @Injectable({
@@ -21,11 +21,11 @@ export class PaymentService {
     this.controller = this.configService.config().apiUrl + 'accounting/payment/';
   }
 
-  getPayments(officeId?: number | null, direction: PaymentDirection = PaymentDirection.Inbound): Observable<PaymentResponse[]> {
-    const directionSegment = direction === PaymentDirection.Outbound ? 'bill' : 'invoice';
+  getPayments(officeId?: number | null, kind: PaymentKind = PaymentKind.Invoice): Observable<PaymentResponse[]> {
+    const kindSegment = kind === PaymentKind.Bill ? 'bill' : 'invoice';
     const request$ = officeId != null && Number.isFinite(officeId) && officeId > 0
-      ? this.http.get<PaymentResponse[]>(this.controller + directionSegment + '/office/' + officeId)
-      : this.http.get<PaymentResponse[]>(this.controller + directionSegment);
+      ? this.http.get<PaymentResponse[]>(this.controller + kindSegment + '/office/' + officeId)
+      : this.http.get<PaymentResponse[]>(this.controller + kindSegment);
 
     return request$.pipe(map(payments => (payments || []).map(payment => this.mappingService.mapPaymentResponse(payment))));
   }

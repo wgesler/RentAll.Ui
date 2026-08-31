@@ -25,7 +25,7 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { UserGroups } from '../../../users/models/user-enums';
-import { PaymentDirection, PaymentType, TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
+import { PaymentType, TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceGetRequest, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, LedgerLineResponse } from '../../models/invoice.model';

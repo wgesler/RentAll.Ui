@@ -15,7 +15,7 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PaymentBillAllocation, PaymentDisplayList, PaymentResponse, PaymentSearchRequest, PaymentSelection, PaymentLedgerLine } from '../../models/payment.model';
-import { PaymentDirection } from '../../models/accounting-enum';
+import { PaymentKind } from '../../models/accounting-enum';
 import { buildBillSplitLineDescription, ReceiptResponse } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { ContactResponse } from '../../../contacts/models/contact.model';
@@ -38,7 +38,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
   @Input() companyId: string | null = null;
-  @Input() paymentDirection: PaymentDirection = PaymentDirection.Inbound;
+  @Input() paymentKind: PaymentKind = PaymentKind.Invoice;
   @Input() searchRequest?: PaymentSearchRequest | null;
   @Input() embeddedInAccounting = false;
   @Input() refreshTrigger = 0;
@@ -85,7 +85,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   readonly invoicePaymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    paymentDirectionDescription: { displayAs: 'Direction', wrap: false, maxWidth: '14ch' },
+    paymentKindDescription: { displayAs: 'Kind', wrap: false, maxWidth: '14ch' },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
     costCodeDescription: { displayAs: 'Cost Code', wrap: false, maxWidth: '25ch' },
     invoiceSummaryDisplay: { displayAs: 'Invoices', wrap: true, maxWidth: '36ch' },
@@ -117,7 +117,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   get isOutboundPaymentList(): boolean {
-    return this.paymentDirection === PaymentDirection.Outbound;
+    return this.paymentKind === PaymentKind.Bill;
   }
 
   readonly paymentLedgerLineDisplayedColumns: ColumnSet = {
@@ -187,7 +187,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
       this.loadBillReceipts();
     }
 
-    if (changes['paymentDirection'] && !changes['paymentDirection'].firstChange) {
+    if (changes['paymentKind'] && !changes['paymentKind'].firstChange) {
       this.syncActivePaymentDisplayedColumns();
       if (this.isOutboundPaymentList) {
         this.loadVendorContacts();
@@ -233,7 +233,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'payments');
 
     const scopedOfficeId = this.resolveScopedOfficeId();
-    this.paymentService.getPayments(scopedOfficeId, this.paymentDirection).pipe(
+    this.paymentService.getPayments(scopedOfficeId, this.paymentKind).pipe(
       take(1),
       takeUntil(merge(this.cancelPaymentsLoad$, this.destroy$)),
       finalize(() => {
@@ -464,7 +464,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   buildPaymentSearchKey(request: PaymentSearchRequest | null | undefined = this.searchRequest): string {
     const resolvedRequest = request ?? { officeIds: [] };
     return JSON.stringify({
-      paymentDirection: this.paymentDirection,
+      paymentKind: this.paymentKind,
       officeIds: this.resolveAccountingSearchOfficeIds(resolvedRequest),
       startDate: resolvedRequest.startDate,
       endDate: resolvedRequest.endDate,
@@ -516,7 +516,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     this.paymentService.getPaymentById(event.paymentId).pipe(
       take(1),
       switchMap((payment: PaymentResponse) => {
-        if (this.paymentDirection === PaymentDirection.Outbound) {
+        if (this.paymentKind === PaymentKind.Bill) {
           const request = this.mappingService.mapPaymentBillUpdateRequest(payment, nextValue);
           return this.paymentService.updatePaymentBill(request).pipe(take(1));
         }

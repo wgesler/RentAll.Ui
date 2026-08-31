@@ -132,7 +132,6 @@ export interface PaymentResponse {
   costCodeId: number;
   costCodeDescription: string;
   description: string;
-  paymentDirectionId: number;
   paymentKindId: number;
   paymentTypeId?: number | null;
   paymentTypeDescription?: string;
@@ -162,7 +161,7 @@ export interface PaymentDisplayList {
   amountDisplay?: string;
   costCodeId: number;
   costCodeDescription: string;
-  paymentDirectionDescription?: string;
+  paymentKindDescription?: string;
   paymentTypeDescription?: string;
   depositCode?: string;
   hasDeposit: boolean;
@@ -175,7 +174,7 @@ export interface PaymentDisplayList {
   ledgerLineSummaryDisplay?: string;
   ledgerLines: PaymentLedgerLine[];
   billAllocations?: PaymentBillAllocation[];
-  paymentDirectionId?: number;
+  paymentKindId?: number;
   isActive: boolean;
   createdBy?: string;
   createdByName?: string;

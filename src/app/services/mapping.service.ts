@@ -29,7 +29,7 @@ import { InspectionDisplayList, InspectionResponse } from '../authenticated/main
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
-import { PaymentDirection, getPaymentDirectionLabel, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { PaymentKind, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
@@ -3906,14 +3906,6 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
   }
 
-  normalizePaymentDirectionId(raw: unknown): number {
-    if (raw === null || raw === undefined || raw === '') {
-      return 0;
-    }
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-  }
-
   hasLinkedDeposit(depositId: string | null | undefined): boolean {
     const normalizedDepositId = (depositId || '').trim();
     return normalizedDepositId.length > 0
@@ -3947,8 +3939,6 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     const depositId = depositIdRaw == null || String(depositIdRaw).trim().length === 0
       ? null
       : String(depositIdRaw).trim();
-    const paymentDirectionIdRaw = rawRecord['paymentDirectionId'] ?? rawRecord['PaymentDirectionId'] ?? base.paymentDirectionId;
-    const paymentDirectionId = this.normalizePaymentDirectionId(paymentDirectionIdRaw);
     const paymentKindIdRaw = rawRecord['paymentKindId'] ?? rawRecord['PaymentKindId'] ?? base.paymentKindId;
     const paymentKindId = Number(paymentKindIdRaw ?? 0) || 0;
     const paymentTypeIdRaw = rawRecord['paymentTypeId'] ?? rawRecord['PaymentTypeId'] ?? base.paymentTypeId;
@@ -3981,7 +3971,6 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
       costCodeId,
       costCodeDescription: String(rawRecord['costCodeDescription'] ?? rawRecord['CostCodeDescription'] ?? base.costCodeDescription ?? '').trim(),
       description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
-      paymentDirectionId,
       paymentKindId,
       paymentTypeId,
       paymentTypeDescription: (String(rawRecord['paymentTypeDescription'] ?? rawRecord['PaymentTypeDescription'] ?? base.paymentTypeDescription ?? '').trim())
@@ -4069,8 +4058,8 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
 
   mapPaymentDisplays(payments: PaymentResponse[]): PaymentDisplayList[] {
     return (payments || []).map((payment: PaymentResponse): PaymentDisplayList => {
-      const paymentDirectionId = this.normalizePaymentDirectionId(payment.paymentDirectionId);
-      const isOutbound = paymentDirectionId === PaymentDirection.Outbound;
+      const paymentKindId = Number(payment.paymentKindId ?? 0) || 0;
+      const isOutbound = paymentKindId === PaymentKind.Bill;
       const ledgerLines = this.mapPaymentLedgerLinesFromApi(payment.invoiceAllocations ?? payment.ledgerLines);
       const billAllocations = this.mapPaymentBillAllocationsFromApi(payment.billAllocations);
       const allocatedAmount = isOutbound
@@ -4091,8 +4080,8 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
         amountDisplay: this.formatter.currencyUsd(Number(payment.amount) || 0),
         costCodeId: payment.costCodeId,
         costCodeDescription: (payment.costCodeDescription || '').trim(),
-        paymentDirectionId,
-        paymentDirectionDescription: getPaymentDirectionLabel(paymentDirectionId),
+        paymentKindId,
+        paymentKindDescription: getPaymentKind(paymentKindId),
         paymentTypeDescription: (payment.paymentTypeDescription || '').trim()
           || getPaymentTypeLabel(this.normalizePaymentTypeId(payment.paymentTypeId)),
         depositCode: (payment.depositCode || '').trim(),

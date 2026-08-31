@@ -40,7 +40,7 @@ import { DepositComponent } from '../bank/deposit/deposit.component';
 import { DepositResponse, DepositSelection } from '../models/deposit.model';
 import { PaymentListComponent } from '../invoices/payment-list/payment-list.component';
 import { PaymentComponent } from '../invoices/payment/payment.component';
-import { PaymentDirection } from '../models/accounting-enum';
+import { PaymentKind } from '../models/accounting-enum';
 import { PaymentResponse, PaymentSearchRequest, PaymentSelection } from '../models/payment.model';
 import { TransfersListComponent } from '../bank/transfers-list/transfers-list.component';
 import { TransferComponent } from '../bank/transfer/transfer.component';
@@ -256,7 +256,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'rentRoll', label: 'Rent Roll' },
     { kind: 'payments', label: 'Bill Payments' }
   ];
-  readonly PaymentDirection = PaymentDirection;
+  readonly PaymentKind = PaymentKind;
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
     { kind: 'undepositedFunds', label: 'Undeposited Funds' },
     { kind: 'deposits', label: 'Deposits' },
@@ -4871,10 +4871,10 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       && !this.showPaymentsDetail;
   }
 
-  get activePaymentDirection(): PaymentDirection {
+  get activePaymentKind(): PaymentKind {
     return this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments'
-      ? PaymentDirection.Outbound
-      : PaymentDirection.Inbound;
+      ? PaymentKind.Bill
+      : PaymentKind.Invoice;
   }
 
   shouldRefreshPaymentsList(): boolean {

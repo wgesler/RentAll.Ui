@@ -955,7 +955,7 @@
                       [paymentId]="selectedPaymentId"
                       [prefetchedPayment]="selectedPayment"
                       [officeId]="selectedOfficeId"
-                      [paymentDirection]="PaymentDirection.Inbound"
+                      [paymentKind]="PaymentKind.Invoice"
                       (backEvent)="onPaymentBack()"
                       (savedEvent)="onPaymentSaved()" />
                   }
@@ -965,7 +965,7 @@
                     [companyId]="selectedCompanyId"
                     [searchRequest]="paymentSearchRequest"
                     [embeddedInAccounting]="true"
-                    [paymentDirection]="PaymentDirection.Inbound"
+                    [paymentKind]="PaymentKind.Invoice"
                     [refreshTrigger]="paymentsRefreshTrigger"
                     (paymentSelect)="onPaymentSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
@@ -1026,7 +1026,7 @@
                       [paymentId]="selectedPaymentId"
                       [prefetchedPayment]="selectedPayment"
                       [officeId]="selectedOfficeId"
-                      [paymentDirection]="PaymentDirection.Outbound"
+                      [paymentKind]="PaymentKind.Bill"
                       (backEvent)="onPaymentBack()"
                       (savedEvent)="onPaymentSaved()" />
                   }
@@ -1035,7 +1035,7 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="paymentSearchRequest"
                     [embeddedInAccounting]="true"
-                    [paymentDirection]="PaymentDirection.Outbound"
+                    [paymentKind]="PaymentKind.Bill"
                     [refreshTrigger]="paymentsRefreshTrigger"
                     (paymentSelect)="onVendorPaymentSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
