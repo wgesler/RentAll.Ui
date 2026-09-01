@@ -160,6 +160,7 @@ toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLin
       reservationCode: row.reservationCode,
       contactId: null,
       contactName: '',
+      chartOfAccountId: 0,
       account: '',
       description: '',
       journalEntryMemo: '',

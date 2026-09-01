@@ -229,6 +229,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   openApplyPaymentDialog(): void {
     this.paymentDate = this.utilityService.parseCalendarDateInput(this.searchRequest?.endDate) ?? this.paymentDate ?? new Date();
+    this.selectedPaymentChartOfAccountId = null;
+    this.selectedPaymentCreditCardId = null;
     this.refreshPaymentAccountsForResolvedOffice();
     this.showPaymentForm = true;
     this.syncPaymentAmountFromOwnerSelection();
@@ -397,9 +399,29 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     const hasValidSelection =
       this.selectedPaymentChartOfAccountId != null
       && this.paymentChartOfAccounts.some(account => account.value === this.selectedPaymentChartOfAccountId);
-    this.selectedPaymentChartOfAccountId = hasValidSelection
-      ? this.selectedPaymentChartOfAccountId
-      : this.paymentChartOfAccounts[0]?.value ?? null;
+    if (hasValidSelection) {
+      return;
+    }
+
+    const defaultOwnerEscrowAccountId = this.resolveDefaultOwnerEscrowBankAccountId(officeId);
+    if (
+      defaultOwnerEscrowAccountId != null
+      && this.paymentChartOfAccounts.some(account => account.value === defaultOwnerEscrowAccountId)
+    ) {
+      this.selectedPaymentChartOfAccountId = defaultOwnerEscrowAccountId;
+      return;
+    }
+
+    this.selectedPaymentChartOfAccountId = this.paymentChartOfAccounts[0]?.value ?? null;
+  }
+
+  resolveDefaultOwnerEscrowBankAccountId(officeId: number): number | null {
+    const office = (this.accountingOffices || []).find(item => Number(item.officeId) === Number(officeId)) || null;
+    const defaultOwnerEscrowAccountId = Number(office?.defaultEscrowOwnersAccountId ?? 0);
+    if (!Number.isFinite(defaultOwnerEscrowAccountId) || defaultOwnerEscrowAccountId <= 0) {
+      return null;
+    }
+    return defaultOwnerEscrowAccountId;
   }
 
   refreshPaymentCreditCardOptionsForResolvedOffice(): void {
@@ -510,6 +532,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   clearPaymentForm(): void {
     this.showPaymentForm = false;
     this.selectedPaymentTypeId = PaymentType.Check;
+    this.selectedPaymentChartOfAccountId = null;
+    this.selectedPaymentCreditCardId = null;
     this.paymentDescription = '';
     this.paymentDate = this.utilityService.parseCalendarDateInput(this.searchRequest?.endDate) ?? new Date();
     this.paymentAmount = 0;

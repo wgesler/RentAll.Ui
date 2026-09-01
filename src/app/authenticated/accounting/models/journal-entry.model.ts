@@ -276,6 +276,7 @@ export interface JournalEntryLineListDisplay {
   reservationCode: string;
   contactId?: string | null;
   contactName: string;
+  chartOfAccountId: number;
   account: string;
   description: string;
   journalEntryMemo: string;

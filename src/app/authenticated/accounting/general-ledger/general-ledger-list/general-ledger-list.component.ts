@@ -158,7 +158,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
-    description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
+    account: { displayAs: 'Account', maxWidth: '34ch', wrap: true },
+    description: { displayAs: 'Description', maxWidth: '32ch', wrap: true },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
@@ -1265,7 +1266,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   getDetailLineColumnMinWidth(columnName: string): string | null {
     if (this.isDetailLineGrowColumn(columnName)) {
-      return this.activeDetailLineDisplayedColumns[columnName]?.maxWidth ?? '38ch';
+      return this.activeDetailLineDisplayedColumns[columnName]?.maxWidth ?? '32ch';
     }
 
     return this.getDetailLineColumnWidth(columnName);
@@ -2618,6 +2619,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       reservationCode: contextLine.reservationCode,
       contactId: split.contactId,
       contactName: contextLine.contactName,
+      chartOfAccountId: Number(split.chartOfAccountId) || 0,
       account: accountLabel,
       description: (split.description || '').trim() || 'Transfer to Escrow Accounts',
       journalEntryMemo: contextLine.journalEntryMemo,

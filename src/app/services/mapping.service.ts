@@ -1068,6 +1068,7 @@ resolveJournalEntryLineSourceDisplay(
       reservationCode: (line.reservationCode || '').trim(),
       contactId: line.contactId ?? null,
       contactName: (line.contactName || '').trim(),
+      chartOfAccountId: Number(line.chartOfAccountId) || 0,
       account: accountLabel,
       description,
       journalEntryMemo,
@@ -2948,25 +2949,18 @@ resolveWorkOrderTitle(
     const periodStartDate = (request.startDate ?? '').trim();
     const periodEndDate = (request.endDate ?? request.startDate ?? '').trim();
     const monthDate = periodEndDate || periodStartDate;
-    const activityLinesByProperty = this.groupOwnerStatementActivityLinesByProperty(
-      report.propertyActivityLines ?? [],
-      request.startDate,
-      request.endDate ?? request.startDate
-    );
 
     return (report.rows ?? []).map(row => {
       const ownerId = (row.ownerId || '').trim();
       const propertyId = (row.propertyId || '').trim();
-      const propertyKey = this.getOwnerStatementPropertyActivityKey(row.officeId, propertyId);
-      const statementActivity = activityLinesByProperty.get(propertyKey) ?? [];
-      const income = statementActivity.reduce((sum, line) => sum + (Number(line.receivedIncome) || 0), 0);
-      const expenses = statementActivity.reduce((sum, line) => sum + (Number(line.expenses) || 0), 0);
+      const income = Number(row.receivedIncome) || 0;
+      const expenses = Number(row.ownerExpenses) || 0;
       const startingBalance = Number(row.startingBalance) || 0;
       const workingCapital = Number(row.workingCapital) || 0;
-      const grossOwed = this.calculateOwnerStatementOwed(startingBalance, income, expenses, workingCapital);
+      const grossOwed = Number(row.ownerPayment) || 0;
       const paid = Number(row.ownerPaymentPaid) || 0;
       const ownerPayment = this.calculateOwnerStatementRemainingOwed(grossOwed, paid);
-      const endingBalance = this.calculateOwnerStatementEndingBalance(startingBalance, income, expenses, grossOwed);
+      const endingBalance = Number(row.endingBalance) || 0;
 
       return {
         ownerStatementLineId: [row.officeId, ownerId, propertyId].join('|'),
@@ -3187,11 +3181,6 @@ resolveWorkOrderTitle(
 
     return (lines ?? [])
       .filter(line => (line.propertyId || '').trim() === propertyId)
-      .filter(line => this.isOwnerStatementActivityLineInPeriodRange(
-        line,
-        request.startDate,
-        request.endDate ?? request.startDate
-      ))
       .sort((a, b) => this.compareOwnerReportPropertyActivityLines(a, b, 'accrual'));
   }
 

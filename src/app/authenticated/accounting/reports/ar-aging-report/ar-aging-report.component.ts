@@ -650,6 +650,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         reservationCode: '',
         contactId: null,
         contactName: '',
+        chartOfAccountId: 0,
         account: '',
         description: '',
         journalEntryMemo: '',

@@ -257,7 +257,7 @@ export class OwnerStatementHtmlBuilderService {
 
     if (remainingOwed > 0) {
       runningTotal -= remainingOwed;
-      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', remainingOwed, runningTotal));
+      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Payment Owed', remainingOwed, runningTotal));
     }
 
     return {
