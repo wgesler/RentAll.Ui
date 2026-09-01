@@ -63,8 +63,7 @@ export class OwnerStatementHtmlBuilderService {
     const remainingOwed = this.mappingService.parseCurrencyValue(line.ownerPayment);
     const ownerPaymentPaid = this.mappingService.parseCurrencyValue(line.ownerPaymentPaid);
     const incomeActivities = (ctx.statementActivityLines || [])
-      .filter(activity => Number(activity.receivedIncome) !== 0)
-      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
+      .filter(activity => Number(activity.receivedIncome) !== 0);
     const expenseActivities = (ctx.statementActivityLines || [])
       .filter(activity => this.isOwnerStatementChargeActivity(activity))
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
@@ -76,47 +75,66 @@ export class OwnerStatementHtmlBuilderService {
 
     let incomeRows = '';
     const unpaidIncomeEntries = this.getUnpaidAccrualEntries(ctx);
-    const incomeLineRows: { sortDate: string; html: string }[] = [];
+    const incomeLineDrafts: {
+      rentalFeeSortKey: string;
+      refNo: string;
+      displayDate: string;
+      description: string;
+      amount: number;
+      isUnpaid: boolean;
+    }[] = [];
 
     if (incomeActivities.length > 0) {
       incomeActivities.forEach(activity => {
         const amount = Number(activity.receivedIncome) || 0;
-        runningTotal += amount;
         const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Income');
-        incomeLineRows.push({
-          sortDate: activity.activityDate,
-          html: this.buildChargeRow(
-            this.formatActivityDateForStatement(activity, closingBalanceDate),
-            refNo,
-            description,
-            amount,
-            runningTotal)
+        incomeLineDrafts.push({
+          rentalFeeSortKey: this.getRentalFeePeriodStartSortKey(description, periodStartDate, activity.activityDate),
+          refNo,
+          displayDate: this.formatActivityDateForStatement(activity, closingBalanceDate),
+          description,
+          amount,
+          isUnpaid: false
         });
       });
     } else if (income !== 0) {
-      runningTotal += income;
-      incomeLineRows.push({
-        sortDate: periodEndDate,
-        html: this.buildChargeRow(closingBalanceDate, '', 'Income', income, runningTotal)
+      incomeLineDrafts.push({
+        rentalFeeSortKey: periodEndDate,
+        refNo: '',
+        displayDate: closingBalanceDate,
+        description: 'Income',
+        amount: income,
+        isUnpaid: false
       });
     }
 
     unpaidIncomeEntries.forEach(entry => {
       const { refNo, description } = this.parseActivityRefAndDescription(entry.line, 'Income');
-      incomeLineRows.push({
-        sortDate: entry.line.activityDate,
-        html: this.buildChargeRow(
-          this.formatActivityDateForStatement(entry.line, closingBalanceDate),
-          refNo,
-          description,
-          entry.unpaidAmount,
-          runningTotal,
-          true)
+      incomeLineDrafts.push({
+        rentalFeeSortKey: this.getRentalFeePeriodStartSortKey(description, periodStartDate, entry.line.activityDate),
+        refNo,
+        displayDate: this.formatActivityDateForStatement(entry.line, closingBalanceDate),
+        description,
+        amount: entry.unpaidAmount,
+        isUnpaid: true
       });
     });
 
-    incomeLineRows.sort((a, b) => this.utilityService.compareCalendarDateStrings(a.sortDate, b.sortDate));
-    incomeRows = incomeLineRows.map(row => row.html).join('\n');
+    incomeLineDrafts.sort((a, b) => this.compareOwnerStatementIncomeLines(a, b));
+    const incomeLineRows = incomeLineDrafts.map(draft => {
+      if (!draft.isUnpaid) {
+        runningTotal += draft.amount;
+      }
+
+      return this.buildChargeRow(
+        draft.displayDate,
+        draft.refNo,
+        draft.description,
+        draft.amount,
+        runningTotal,
+        draft.isUnpaid);
+    });
+    incomeRows = incomeLineRows.join('\n');
     if (!incomeRows) {
       incomeRows = this.buildBlankLedgerRow();
     }
@@ -352,6 +370,35 @@ export class OwnerStatementHtmlBuilderService {
       ? 'ledger-line-row ledger-summary-balance-row ledger-summary-balance-row--ending'
       : 'ledger-line-row ledger-summary-balance-row ledger-summary-balance-row--opening';
     return `              <tr class="${rowClass}"><td>${this.escapeHtml(date)}</td><td></td><td>${this.escapeHtml(`${label}:`)}</td><td class="amount-col"></td><td class="amount-col">${totalCell}</td></tr>`;
+  }
+
+  private compareOwnerStatementIncomeLines(
+    a: { rentalFeeSortKey: string; refNo: string },
+    b: { rentalFeeSortKey: string; refNo: string }
+  ): number {
+    const dateCompare = this.utilityService.compareCalendarDateStrings(a.rentalFeeSortKey, b.rentalFeeSortKey);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return (a.refNo || '').localeCompare(b.refNo || '', undefined, { sensitivity: 'base' });
+  }
+
+  private getRentalFeePeriodStartSortKey(description: string, statementPeriodStart: string, fallbackSortDate: string): string {
+    const rentalPeriodMatch = (description || '').trim().match(/\((\d{1,2})\/(\d{1,2})\s*-\s*\d{1,2}\/\d{1,2}\)/);
+    if (!rentalPeriodMatch) {
+      return (fallbackSortDate || '').trim();
+    }
+
+    const month = Number(rentalPeriodMatch[1]);
+    const day = Number(rentalPeriodMatch[2]);
+    if (!Number.isFinite(month) || !Number.isFinite(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+      return (fallbackSortDate || '').trim();
+    }
+
+    const periodDate = this.utilityService.parseCalendarDateInput(statementPeriodStart);
+    const year = periodDate?.getFullYear() ?? new Date().getFullYear();
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
   private parseActivityRefAndDescription(
