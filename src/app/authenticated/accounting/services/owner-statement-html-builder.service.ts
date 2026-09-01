@@ -143,14 +143,7 @@ export class OwnerStatementHtmlBuilderService {
       chargesRows = this.buildBlankLedgerRow();
     }
 
-    const grossOwnerRentDue = Math.max(0, remainingOwed + ownerPaymentPaid);
-    const paymentLedger = this.buildOwnerPaymentLedgerRows(
-      ctx,
-      closingBalanceDate,
-      ownerPaymentPaid,
-      grossOwnerRentDue,
-      runningTotal
-    );
+    const paymentLedger = this.buildOwnerPaymentLedgerRows(ctx, closingBalanceDate, ownerPaymentPaid, runningTotal);
     runningTotal = paymentLedger.runningTotal;
     let paymentsRows = paymentLedger.rows;
     if (!paymentsRows) {
@@ -227,34 +220,18 @@ export class OwnerStatementHtmlBuilderService {
     return result.replace(/\{\{[^}]+\}\}/g, '');
   }
 
-  private buildOwnerPaymentLedgerRows(
-    ctx: OwnerStatementPrintContext,
-    closingBalanceDate: string,
-    ownerPaymentPaid: number,
-    grossOwnerRentDue: number,
-    runningTotal: number
-  ): { rows: string; runningTotal: number } {
+  private buildOwnerPaymentLedgerRows(ctx: OwnerStatementPrintContext, closingBalanceDate: string, ownerPaymentPaid: number, runningTotal: number): { rows: string; runningTotal: number } {
     const paymentRows: string[] = [];
     const paymentActivities = (ctx.statementActivityLines ?? [])
       .filter(activity => Number(activity.ownerPayment) > 0)
       .sort((left, right) => this.utilityService.compareCalendarDateStrings(left.activityDate, right.activityDate));
 
-    if (grossOwnerRentDue > 0) {
-      runningTotal += grossOwnerRentDue;
-      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Owner Rent Due', grossOwnerRentDue, runningTotal));
-    }
-
     if (paymentActivities.length > 0) {
       paymentActivities.forEach(activity => {
         const amount = Number(activity.ownerPayment) || 0;
         runningTotal -= amount;
-        const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Owner Payment');
-        paymentRows.push(this.buildChargeRow(
-          this.formatActivityDateForStatement(activity, closingBalanceDate),
-          refNo,
-          description || 'Owner Payment',
-          amount,
-          runningTotal));
+        const { refNo } = this.parseActivityRefAndDescription(activity, 'Owner Payment');
+        paymentRows.push(this.buildChargeRow(this.formatActivityDateForStatement(activity, closingBalanceDate), refNo, 'Owner Payment', amount, runningTotal));
       });
     } else if (ownerPaymentPaid > 0) {
       runningTotal -= ownerPaymentPaid;
