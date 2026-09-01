@@ -2705,6 +2705,7 @@ resolveWorkOrderTitle(
   ): OwnerInvoiceOutstandingResponse[] {
     const propertyId = (request.propertyId || '').trim();
     const officeIds = new Set((request.officeIds ?? []).filter(id => id > 0));
+    const endDate = (request.endDate || request.startDate || '').trim();
 
     return (rows ?? []).filter(row => {
       if (propertyId && (row.propertyId || '').trim() !== propertyId) {
@@ -2713,6 +2714,13 @@ resolveWorkOrderTitle(
 
       if (officeIds.size > 0 && !officeIds.has(row.officeId)) {
         return false;
+      }
+
+      if (endDate) {
+        const rowAccountingPeriod = (row.accountingPeriod || '').trim();
+        if (rowAccountingPeriod && rowAccountingPeriod >= endDate) {
+          return false;
+        }
       }
 
       return Number(row.outstanding) > 0;
