@@ -60,7 +60,9 @@ export class OwnerStatementHtmlBuilderService {
     const income = this.mappingService.parseCurrencyValue(line.income);
     const expenses = this.mappingService.parseCurrencyValue(line.expenses);
     const workingCapital = this.mappingService.parseCurrencyValue(line.workingCapital);
+    const remainingOwed = this.mappingService.parseCurrencyValue(line.ownerPayment);
     const ownerPaymentPaid = this.mappingService.parseCurrencyValue(line.ownerPaymentPaid);
+    const endingBalance = this.mappingService.parseCurrencyValue(line.endingBalance);
     const incomeActivities = (ctx.statementActivityLines || [])
       .filter(activity => Number(activity.receivedIncome) !== 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
@@ -141,24 +143,22 @@ export class OwnerStatementHtmlBuilderService {
       chargesRows = this.buildBlankLedgerRow();
     }
 
-    if (workingCapital > 0) {
-      runningTotal -= workingCapital;
-      chargesRows = [
-        chargesRows,
-        this.buildChargeRow(closingBalanceDate, '', 'Working Capital', workingCapital, runningTotal)
-      ].filter(row => row.length > 0).join('\n');
-    }
-
-    let paymentsRows = '';
-    if (ownerPaymentPaid > 0) {
-      runningTotal -= ownerPaymentPaid;
-      paymentsRows = this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPaymentPaid, runningTotal);
-    }
+    const paymentLedger = this.buildOwnerPaymentLedgerRows(
+      ctx,
+      closingBalanceDate,
+      ownerPaymentPaid,
+      remainingOwed,
+      runningTotal
+    );
+    runningTotal = paymentLedger.runningTotal;
+    let paymentsRows = paymentLedger.rows;
     if (!paymentsRows) {
       paymentsRows = this.buildBlankLedgerRow();
     }
 
-    const closingBalanceAmount = Math.max(0, Math.round(runningTotal * 100) / 100);
+    const closingBalanceAmount = endingBalance > 0
+      ? endingBalance
+      : Math.max(0, Math.round(runningTotal * 100) / 100);
     const closingBalanceRows = [
       this.buildSummaryBalanceRow('Ending Balance', closingBalanceDate, closingBalanceAmount, true)
     ].join('\n');
@@ -195,7 +195,7 @@ export class OwnerStatementHtmlBuilderService {
     result = result.replace(/\{\{statementNotes\}\}/g, this.buildStatementNotesContent(ctx));
     result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, '');
     result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currencyUsd(closingBalanceAmount));
-    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currencyUsd(ownerPaymentPaid));
+    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currencyUsd(remainingOwed));
     result = result.replace(/\{\{statementBalanceDue\}\}/g, this.formatterService.currencyUsd(closingBalanceAmount));
     result = result.replace(/\{\{totalChargesRowStyle\}\}/g, 'display: none;');
     result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, '');
@@ -222,8 +222,48 @@ export class OwnerStatementHtmlBuilderService {
     result = result.replace(/\{\{endDate\}\}/g, this.escapeHtml(periodTitle) || '');
     result = result.replace(/\{\{statementDate\}\}/g, this.utilityService.todayAsCalendarDateString());
     result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currencyUsd(ownerPaymentPaid));
-    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(closingBalanceAmount));
+    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(remainingOwed));
     return result.replace(/\{\{[^}]+\}\}/g, '');
+  }
+
+  private buildOwnerPaymentLedgerRows(
+    ctx: OwnerStatementPrintContext,
+    closingBalanceDate: string,
+    ownerPaymentPaid: number,
+    remainingOwed: number,
+    runningTotal: number
+  ): { rows: string; runningTotal: number } {
+    const paymentRows: string[] = [];
+    const paymentActivities = (ctx.statementActivityLines ?? [])
+      .filter(activity => Number(activity.ownerPayment) > 0)
+      .sort((left, right) => this.utilityService.compareCalendarDateStrings(left.activityDate, right.activityDate));
+
+    if (paymentActivities.length > 0) {
+      paymentActivities.forEach(activity => {
+        const amount = Number(activity.ownerPayment) || 0;
+        runningTotal -= amount;
+        const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Owner Payment');
+        paymentRows.push(this.buildChargeRow(
+          this.formatActivityDateForStatement(activity, closingBalanceDate),
+          refNo,
+          description,
+          amount,
+          runningTotal));
+      });
+    } else if (ownerPaymentPaid > 0) {
+      runningTotal -= ownerPaymentPaid;
+      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPaymentPaid, runningTotal));
+    }
+
+    if (remainingOwed > 0) {
+      runningTotal -= remainingOwed;
+      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', remainingOwed, runningTotal));
+    }
+
+    return {
+      rows: paymentRows.join('\n'),
+      runningTotal
+    };
   }
 
   private buildStatementNotesContent(ctx: OwnerStatementPrintContext): string {
