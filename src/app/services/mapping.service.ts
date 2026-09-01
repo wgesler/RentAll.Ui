@@ -2960,7 +2960,7 @@ resolveWorkOrderTitle(
       const grossOwed = Number(row.ownerPayment) || 0;
       const paid = Number(row.ownerPaymentPaid) || 0;
       const ownerPayment = this.calculateOwnerStatementRemainingOwed(grossOwed, paid);
-      const endingBalance = Number(row.endingBalance) || 0;
+      const endingBalance = this.calculateOwnerStatementEndingBalance(startingBalance, income, expenses, paid);
 
       return {
         ownerStatementLineId: [row.officeId, ownerId, propertyId].join('|'),
@@ -3167,9 +3167,9 @@ resolveWorkOrderTitle(
     startingBalance: number,
     income: number,
     expenses: number,
-    ownerPayment: number
+    ownerPaymentPaid: number
   ): number {
-    const endingBalance = startingBalance + income - expenses - ownerPayment;
+    const endingBalance = startingBalance + income - expenses - (Number(ownerPaymentPaid) || 0);
     return endingBalance < 0 ? 0 : Math.round(endingBalance * 100) / 100;
   }
 

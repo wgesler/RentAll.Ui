@@ -62,7 +62,6 @@ export class OwnerStatementHtmlBuilderService {
     const workingCapital = this.mappingService.parseCurrencyValue(line.workingCapital);
     const remainingOwed = this.mappingService.parseCurrencyValue(line.ownerPayment);
     const ownerPaymentPaid = this.mappingService.parseCurrencyValue(line.ownerPaymentPaid);
-    const endingBalance = this.mappingService.parseCurrencyValue(line.endingBalance);
     const incomeActivities = (ctx.statementActivityLines || [])
       .filter(activity => Number(activity.receivedIncome) !== 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
@@ -150,9 +149,7 @@ export class OwnerStatementHtmlBuilderService {
       paymentsRows = this.buildBlankLedgerRow();
     }
 
-    const closingBalanceAmount = endingBalance > 0
-      ? endingBalance
-      : Math.max(0, Math.round(runningTotal * 100) / 100);
+    const closingBalanceAmount = Math.max(0, Math.round(runningTotal * 100) / 100);
     const closingBalanceRows = [
       this.buildSummaryBalanceRow('Ending Balance', closingBalanceDate, closingBalanceAmount, true)
     ].join('\n');
