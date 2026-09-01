@@ -269,7 +269,7 @@ export class OwnerStatementHtmlBuilderService {
 
   private isOwnerStatementChargeActivity(activity: OwnerStatementPropertyActivityLineResponse): boolean {
     const expenses = Number(activity.expenses) || 0;
-    if (expenses <= 0) {
+    if (expenses === 0) {
       return false;
     }
 
@@ -277,12 +277,20 @@ export class OwnerStatementHtmlBuilderService {
       return false;
     }
 
-    const description = (activity.description || '').trim();
-    if (/owner'?s?\s+payment/i.test(description)) {
+    return !this.isOwnerPaymentChargeDescription(activity.description);
+  }
+
+  private isOwnerPaymentChargeDescription(description: string | undefined): boolean {
+    const text = (description || '').trim();
+    if (!text) {
       return false;
     }
 
-    return true;
+    if (/: Owner: Payment:/i.test(text)) {
+      return true;
+    }
+
+    return /^owner'?s?\s+payments?\b/i.test(text);
   }
 
   private buildStatementNotesContent(ctx: OwnerStatementPrintContext): string {
