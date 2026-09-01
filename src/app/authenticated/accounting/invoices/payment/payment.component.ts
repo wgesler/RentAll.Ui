@@ -15,7 +15,7 @@ import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { OwnerCashReportRowResponse } from '../../models/owner-report.model';
-import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, OwnerOwedAllocationOption, UpdatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse } from '../../models/payment.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, OwnerOwedAllocationOption, UpdatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithOwnerAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse } from '../../models/payment.model';
 import { ReceiptResponse, buildBillSplitLineDescription } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { CostCodesService } from '../../services/cost-codes.service';
@@ -481,32 +481,49 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (!this.isAddMode) {
-      this.toastr.error('Unable to save payment.', 'Error');
+    const persistOwnerPayment = () => {
+      this.isSubmitting = true;
+      const saveRequest$ = this.isAddMode
+        ? this.paymentService.createPaymentWithOwnerAllocations(request)
+        : this.paymentService.updatePaymentWithOwnerAllocations({
+          ...request,
+          paymentId: this.payment!.paymentId
+        });
+
+      saveRequest$.pipe(
+        take(1),
+        finalize(() => {
+          this.isSubmitting = false;
+          this.cdr.markForCheck();
+        })
+      ).subscribe({
+        next: (payment: PaymentResponse) => {
+          this.payment = payment;
+          this.isAddMode = false;
+          this.saveValidationHighlightActive = false;
+          this.toastr.success('Payment saved successfully.', 'Success');
+          this.savedEvent.emit(payment);
+          if (this.autoBackOnSave) {
+            this.backEvent.emit();
+          }
+        },
+        error: (_err: HttpErrorResponse) => {
+          this.toastr.error('Unable to save payment.', 'Error');
+        }
+      });
+    };
+
+    if (this.isAddMode) {
+      persistOwnerPayment();
       return;
     }
 
-    this.isSubmitting = true;
-    this.paymentService.createPaymentWithOwnerAllocations(request).pipe(
-      take(1),
-      finalize(() => {
-        this.isSubmitting = false;
-        this.cdr.markForCheck();
-      })
-    ).subscribe({
-      next: (payment: PaymentResponse) => {
-        this.payment = payment;
-        this.isAddMode = false;
-        this.saveValidationHighlightActive = false;
-        this.toastr.success('Payment saved successfully.', 'Success');
-        this.savedEvent.emit(payment);
-        if (this.autoBackOnSave) {
-          this.backEvent.emit();
-        }
-      },
-      error: (_err: HttpErrorResponse) => {
-        this.toastr.error('Unable to save payment.', 'Error');
+    this.journalEntryService.confirmUpdateIfAllowed(this.payment?.postingStatusId, 'Payment').pipe(take(1)).subscribe(canProceed => {
+      if (!canProceed) {
+        return;
       }
+
+      persistOwnerPayment();
     });
   }
 

@@ -5,7 +5,7 @@ import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { PaymentKind } from '../models/accounting-enum';
-import { PaymentResponse, CreatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, ApplyInvoicePaymentRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, UpdatePaymentWithBillAllocationsRequest, UpdatePaymentInvoiceRequest, UpdatePaymentBillRequest } from '../models/payment.model';
+import { PaymentResponse, CreatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithInvoiceAllocationsRequest, ApplyInvoicePaymentRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, UpdatePaymentWithBillAllocationsRequest, UpdatePaymentWithOwnerAllocationsRequest, UpdatePaymentInvoiceRequest, UpdatePaymentBillRequest } from '../models/payment.model';
 
 @Injectable({
   providedIn: 'root'
@@ -47,6 +47,11 @@ export class PaymentService {
 
   createPaymentWithOwnerAllocations(request: CreatePaymentWithOwnerAllocationsRequest): Observable<PaymentResponse> {
     return this.http.post<PaymentResponse>(this.controller + 'owner-allocations', request)
+      .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
+  }
+
+  updatePaymentWithOwnerAllocations(request: UpdatePaymentWithOwnerAllocationsRequest): Observable<PaymentResponse> {
+    return this.http.put<PaymentResponse>(this.controller + 'owner-allocations', request)
       .pipe(map(payment => this.mappingService.mapPaymentResponse(payment)));
   }
 

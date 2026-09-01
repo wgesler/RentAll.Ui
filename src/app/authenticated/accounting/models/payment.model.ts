@@ -108,6 +108,10 @@ export interface CreatePaymentWithOwnerAllocationsRequest {
   allocations: PaymentOwnerAllocationRequest[];
 }
 
+export interface UpdatePaymentWithOwnerAllocationsRequest extends CreatePaymentWithOwnerAllocationsRequest {
+  paymentId: string;
+}
+
 export interface CreatePaymentWithInvoiceAllocationsRequest {
   organizationId: string;
   officeId: number;
