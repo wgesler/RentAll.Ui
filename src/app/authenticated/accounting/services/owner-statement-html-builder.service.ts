@@ -67,7 +67,7 @@ export class OwnerStatementHtmlBuilderService {
       .filter(activity => Number(activity.receivedIncome) !== 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
     const expenseActivities = (ctx.statementActivityLines || [])
-      .filter(activity => Number(activity.expenses) !== 0)
+      .filter(activity => this.isOwnerStatementChargeActivity(activity))
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
 
     let runningTotal = startingBalance;
@@ -143,11 +143,12 @@ export class OwnerStatementHtmlBuilderService {
       chargesRows = this.buildBlankLedgerRow();
     }
 
+    const grossOwnerRentDue = Math.max(0, remainingOwed + ownerPaymentPaid);
     const paymentLedger = this.buildOwnerPaymentLedgerRows(
       ctx,
       closingBalanceDate,
       ownerPaymentPaid,
-      remainingOwed,
+      grossOwnerRentDue,
       runningTotal
     );
     runningTotal = paymentLedger.runningTotal;
@@ -230,13 +231,18 @@ export class OwnerStatementHtmlBuilderService {
     ctx: OwnerStatementPrintContext,
     closingBalanceDate: string,
     ownerPaymentPaid: number,
-    remainingOwed: number,
+    grossOwnerRentDue: number,
     runningTotal: number
   ): { rows: string; runningTotal: number } {
     const paymentRows: string[] = [];
     const paymentActivities = (ctx.statementActivityLines ?? [])
       .filter(activity => Number(activity.ownerPayment) > 0)
       .sort((left, right) => this.utilityService.compareCalendarDateStrings(left.activityDate, right.activityDate));
+
+    if (grossOwnerRentDue > 0) {
+      runningTotal += grossOwnerRentDue;
+      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Owner Rent Due', grossOwnerRentDue, runningTotal));
+    }
 
     if (paymentActivities.length > 0) {
       paymentActivities.forEach(activity => {
@@ -246,7 +252,7 @@ export class OwnerStatementHtmlBuilderService {
         paymentRows.push(this.buildChargeRow(
           this.formatActivityDateForStatement(activity, closingBalanceDate),
           refNo,
-          description,
+          description || 'Owner Payment',
           amount,
           runningTotal));
       });
@@ -255,15 +261,28 @@ export class OwnerStatementHtmlBuilderService {
       paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPaymentPaid, runningTotal));
     }
 
-    if (remainingOwed > 0) {
-      runningTotal -= remainingOwed;
-      paymentRows.push(this.buildChargeRow(closingBalanceDate, '', 'Payment Owed', remainingOwed, runningTotal));
-    }
-
     return {
       rows: paymentRows.join('\n'),
       runningTotal
     };
+  }
+
+  private isOwnerStatementChargeActivity(activity: OwnerStatementPropertyActivityLineResponse): boolean {
+    const expenses = Number(activity.expenses) || 0;
+    if (expenses <= 0) {
+      return false;
+    }
+
+    if (Number(activity.ownerPayment) > 0) {
+      return false;
+    }
+
+    const description = (activity.description || '').trim();
+    if (/owner'?s?\s+payment/i.test(description)) {
+      return false;
+    }
+
+    return true;
   }
 
   private buildStatementNotesContent(ctx: OwnerStatementPrintContext): string {
