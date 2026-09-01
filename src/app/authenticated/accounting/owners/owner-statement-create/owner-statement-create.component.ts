@@ -34,7 +34,7 @@ import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyHtmlService } from '../../../properties/services/property-html.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
 import { OwnerStatementPrintContext } from '../../models/owner-statement-print-context.model';
-import { OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from '../../models/owner-statement.model';
+import { OwnerStatementMonthLineListDisplay, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse } from '../../models/owner-statement.model';
 import { OwnerStatementHtmlBuilderService } from '../../services/owner-statement-html-builder.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 import { DocumentService } from '../../../documents/services/document.service';
@@ -88,6 +88,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   propertyHtml: PropertyHtmlResponse | null = null;
   statementActivityLines: OwnerStatementPropertyActivityLineResponse[] = [];
   statementAccrualActivityLines: OwnerStatementPropertyActivityLineResponse[] = [];
+  outstandingInvoices: OwnerInvoiceOutstandingResponse[] = [];
   previewIframeHtml = '';
   previewIframeStyles = '';
   safePreviewIframeHtml: SafeHtml = '';
@@ -188,6 +189,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     if (!this.line) {
       this.statementActivityLines = [];
       this.statementAccrualActivityLines = [];
+      this.outstandingInvoices = [];
       this.clearPreview();
       return;
     }
@@ -276,6 +278,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     if (!this.line?.propertyId || !this.line?.officeId) {
       this.statementActivityLines = [];
       this.statementAccrualActivityLines = [];
+      this.outstandingInvoices = [];
       this.tryGeneratePreview();
       return;
     }
@@ -292,16 +295,19 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
     forkJoin({
       cashLines: this.ownerStatementService.searchOwnerStatementPropertyActivityLines(searchRequest),
-      accrualLines: this.ownerStatementService.searchOwnerStatementAccrualPropertyActivityLines(searchRequest)
+      accrualLines: this.ownerStatementService.searchOwnerStatementAccrualPropertyActivityLines(searchRequest),
+      outstandingInvoices: this.ownerStatementService.searchOwnerStatementOutstandingInvoices(searchRequest)
     }).pipe(take(1)).subscribe({
-      next: ({ cashLines, accrualLines }) => {
+      next: ({ cashLines, accrualLines, outstandingInvoices }) => {
         this.statementActivityLines = cashLines || [];
         this.statementAccrualActivityLines = accrualLines || [];
+        this.outstandingInvoices = outstandingInvoices || [];
         this.tryGeneratePreview();
       },
       error: () => {
         this.statementActivityLines = [];
         this.statementAccrualActivityLines = [];
+        this.outstandingInvoices = [];
         this.tryGeneratePreview();
       }
     });
@@ -384,7 +390,8 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       ownerContact: this.ownerContact,
       property: this.property,
       statementActivityLines: this.statementActivityLines,
-      statementAccrualActivityLines: this.statementAccrualActivityLines
+      statementAccrualActivityLines: this.statementAccrualActivityLines,
+      outstandingInvoices: this.outstandingInvoices
     };
   }
 

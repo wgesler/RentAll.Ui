@@ -158,6 +158,18 @@ export interface OwnerStatementPropertyActivityLineResponse {
   ownerPayment?: number;
 }
 
+export interface OwnerInvoiceOutstandingResponse {
+  propertyId: string;
+  officeId: number;
+  invoiceId: string;
+  invoiceCode: string;
+  accountingPeriod: string;
+  description: string;
+  expectedAmount: number;
+  actualAmount: number;
+  outstanding: number;
+}
+
 export type OwnerStatementDrillDownMetric = 'expected' | 'prePaid' | 'paidIncome' | 'outstanding' | 'income' | 'expenses' | 'balance';
 
 export interface OwnerStatementListDisplay {

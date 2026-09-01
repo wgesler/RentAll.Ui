@@ -309,17 +309,23 @@ export class OwnerStatementHtmlBuilderService {
   }
 
   private getUnpaidAccrualEntries(ctx: OwnerStatementPrintContext): { line: OwnerStatementPropertyActivityLineResponse; unpaidAmount: number }[] {
-    const collectedIncomeBySourceRef = this.buildCollectedIncomeBySourceRef(ctx.statementActivityLines);
-
-    return (ctx.statementAccrualActivityLines || [])
-      .map(line => {
-        const sourceRef = (line.sourceDocumentCode || '').trim().toLowerCase();
-        const expectedIncome = Number(line.expectedIncome) || 0;
-        const receivedIncome = Number(line.receivedIncome) || 0;
-        const collectedOnCash = sourceRef ? (collectedIncomeBySourceRef.get(sourceRef) || 0) : 0;
-        const unpaidAmount = Math.max(0, expectedIncome - Math.max(receivedIncome, collectedOnCash));
-        return { line, unpaidAmount };
-      })
+    return (ctx.outstandingInvoices || [])
+      .map(row => ({
+        line: {
+          propertyId: row.propertyId,
+          officeId: row.officeId,
+          activityType: 'Income',
+          activityDate: row.accountingPeriod,
+          accountingPeriod: row.accountingPeriod,
+          documentCode: row.invoiceCode,
+          sourceDocumentCode: row.invoiceCode,
+          description: row.description,
+          expectedIncome: row.expectedAmount,
+          receivedIncome: row.actualAmount,
+          expenses: 0
+        },
+        unpaidAmount: Number(row.outstanding) || 0
+      }))
       .filter(entry => entry.unpaidAmount > 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.line.activityDate, b.line.activityDate));
   }

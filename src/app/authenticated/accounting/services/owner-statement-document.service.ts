@@ -20,7 +20,7 @@ import { PropertyHtmlResponse } from '../../properties/models/property-html.mode
 import { PropertyHtmlService } from '../../properties/services/property-html.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from '../models/owner-statement.model';
+import { OwnerStatementMonthLineListDisplay, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse } from '../models/owner-statement.model';
 import { OwnerStatementPrintContext } from '../models/owner-statement-print-context.model';
 import { OwnerStatementHtmlBuilderService } from './owner-statement-html-builder.service';
 import { OwnerStatementService } from './owner-statement.service';
@@ -35,6 +35,7 @@ interface OwnerStatementDownloadData {
   propertyHtml: PropertyHtmlResponse | null;
   statementActivityLines: OwnerStatementPropertyActivityLineResponse[];
   statementAccrualActivityLines: OwnerStatementPropertyActivityLineResponse[];
+  outstandingInvoices: OwnerInvoiceOutstandingResponse[];
   fallbackTemplateHtml: string;
 }
 
@@ -176,6 +177,7 @@ export class OwnerStatementDocumentService {
       ),
       cashLines: this.ownerStatementService.searchOwnerStatementPropertyActivityLines(searchRequest).pipe(take(1)),
       accrualLines: this.ownerStatementService.searchOwnerStatementAccrualPropertyActivityLines(searchRequest).pipe(take(1)),
+      outstandingInvoices: this.ownerStatementService.searchOwnerStatementOutstandingInvoices(searchRequest).pipe(take(1)),
       fallbackTemplateHtml: (environment.local || environment.dev)
         ? this.http.get('assets/owner-statement.html', { responseType: 'text' }).pipe(take(1), catchError(() => of('')))
         : of('')
@@ -190,6 +192,7 @@ export class OwnerStatementDocumentService {
         propertyHtml: result.propertyHtml,
         statementActivityLines: result.cashLines || [],
         statementAccrualActivityLines: result.accrualLines || [],
+        outstandingInvoices: result.outstandingInvoices || [],
         fallbackTemplateHtml: result.fallbackTemplateHtml
       }))
     );
@@ -228,7 +231,8 @@ export class OwnerStatementDocumentService {
       ownerContact,
       property: data.property,
       statementActivityLines: data.statementActivityLines,
-      statementAccrualActivityLines: data.statementAccrualActivityLines
+      statementAccrualActivityLines: data.statementAccrualActivityLines,
+      outstandingInvoices: data.outstandingInvoices
     };
   }
 }

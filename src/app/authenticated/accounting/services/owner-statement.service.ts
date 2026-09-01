@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { map, Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { OwnerPaymentResponse, OwnerPaymentsRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
+import { OwnerPaymentResponse, OwnerPaymentsRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
 import { OwnerReportsCacheService } from './owner-reports-cache.service';
 import { ReportService } from './report.service';
 
@@ -88,6 +88,32 @@ export class OwnerStatementService {
       endDate: request.endDate ?? null
     }).pipe(
       map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.accrual.propertyActivityLines ?? [], request))
+    );
+  }
+
+  searchOwnerStatementOutstandingInvoices(request: OwnerStatementPropertyActivityLineSearchRequest): Observable<OwnerInvoiceOutstandingResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search owner statement outstanding invoices.');
+    }
+
+    const propertyId = (request.propertyId || '').trim();
+    if (!propertyId) {
+      throw new Error('PropertyId is required to search owner statement outstanding invoices.');
+    }
+
+    const cachedOutstanding = this.ownerReportsCacheService.getOutstandingInvoices();
+    if (this.ownerReportsCacheService.isBundleLoaded()) {
+      return of(this.mappingService.filterOwnerStatementOutstandingInvoices(cachedOutstanding, request));
+    }
+
+    return this.reportService.searchOwnerReports({
+      officeIds,
+      propertyId,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    }).pipe(
+      map(bundle => this.mappingService.filterOwnerStatementOutstandingInvoices(bundle.outstandingInvoices ?? [], request))
     );
   }
 

@@ -10,7 +10,7 @@ import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntr
 import { PrintableReportDocument, PrintableReportRow, PrintableReportRowKind } from '../authenticated/accounting/models/printable-report.model';
 import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../authenticated/accounting/models/reconcile-account-report.model';
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
-import { OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerInvoiceOutstandingResponse, OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
@@ -2666,11 +2666,57 @@ resolveWorkOrderTitle(
     const cashRaw = (raw['cash'] ?? raw['Cash'] ?? {}) as Record<string, unknown>;
     const accrualRaw = (raw['accrual'] ?? raw['Accrual'] ?? {}) as Record<string, unknown>;
     const recapRaw = (raw['recap'] ?? raw['Recap'] ?? {}) as Record<string, unknown>;
+    const outstandingRaw = raw['outstandingInvoices'] ?? raw['OutstandingInvoices'];
     return {
       cash: this.mapOwnerCashReportResponse(cashRaw),
       accrual: this.mapOwnerAccrualReportResponse(accrualRaw),
-      recap: this.mapRecapReportResponse(recapRaw)
+      recap: this.mapRecapReportResponse(recapRaw),
+      outstandingInvoices: this.mapOwnerInvoiceOutstandingRows(outstandingRaw)
     };
+  }
+
+  mapOwnerInvoiceOutstandingRows(raw: unknown): OwnerInvoiceOutstandingResponse[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(row => this.mapOwnerInvoiceOutstandingRow(row as Record<string, unknown>));
+  }
+
+  mapOwnerInvoiceOutstandingRow(raw: Record<string, unknown>): OwnerInvoiceOutstandingResponse {
+    const accountingPeriodRaw = raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? '';
+    const accountingPeriod = String(accountingPeriodRaw).trim();
+    return {
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim(),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
+      invoiceId: String(raw['invoiceId'] ?? raw['InvoiceId'] ?? '').trim(),
+      invoiceCode: String(raw['invoiceCode'] ?? raw['InvoiceCode'] ?? '').trim(),
+      accountingPeriod,
+      description: String(raw['description'] ?? raw['Description'] ?? '').trim(),
+      expectedAmount: Number(raw['expectedAmount'] ?? raw['ExpectedAmount'] ?? 0),
+      actualAmount: Number(raw['actualAmount'] ?? raw['ActualAmount'] ?? 0),
+      outstanding: Number(raw['outstanding'] ?? raw['Outstanding'] ?? 0)
+    };
+  }
+
+  filterOwnerStatementOutstandingInvoices(
+    rows: OwnerInvoiceOutstandingResponse[] | null | undefined,
+    request: OwnerStatementPropertyActivityLineSearchRequest
+  ): OwnerInvoiceOutstandingResponse[] {
+    const propertyId = (request.propertyId || '').trim();
+    const officeIds = new Set((request.officeIds ?? []).filter(id => id > 0));
+
+    return (rows ?? []).filter(row => {
+      if (propertyId && (row.propertyId || '').trim() !== propertyId) {
+        return false;
+      }
+
+      if (officeIds.size > 0 && !officeIds.has(row.officeId)) {
+        return false;
+      }
+
+      return Number(row.outstanding) > 0;
+    });
   }
 
   mapOwnerAccrualReportRow(raw: Record<string, unknown>): OwnerAccrualReportRowResponse {

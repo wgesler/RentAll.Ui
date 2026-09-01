@@ -5,6 +5,7 @@ import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenan
 import { EscrowReportResult } from '../models/escrow-report.model';
 import { JournalEntryRecapSearchRequest, RecapReportResponse } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerCashReportResponse, OwnerReportSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
+import { OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
 import { ReportService } from './report.service';
 
 interface OwnerReportsCacheCriteria {
@@ -24,6 +25,7 @@ export class OwnerReportsCacheService {
   private cashReport: OwnerCashReportResponse | null = null;
   private accrualReport: OwnerAccrualReportResponse | null = null;
   private recapReport: RecapReportResponse | null = null;
+  private outstandingInvoices: OwnerInvoiceOutstandingResponse[] = [];
   private cacheCriteria: OwnerReportsCacheCriteria | null = null;
 
   load(searchRequest?: MaintenanceListSearchRequest | null): Observable<OwnerReportsBundleResponse> {
@@ -34,7 +36,8 @@ export class OwnerReportsCacheService {
         observer.next({
           cash: { rows: [], propertyActivityLines: [] },
           accrual: { rows: [], propertyActivityLines: [] },
-          recap: { rows: [], rentalIncomeParentAccountNo: '' }
+          recap: { rows: [], rentalIncomeParentAccountNo: '' },
+          outstandingInvoices: []
         });
         observer.complete();
       });
@@ -50,6 +53,7 @@ export class OwnerReportsCacheService {
         this.cashReport = bundle.cash;
         this.accrualReport = bundle.accrual;
         this.recapReport = bundle.recap;
+        this.outstandingInvoices = bundle.outstandingInvoices ?? [];
         this.cacheCriteria = {
           officeIds: [...request.officeIds].sort((left, right) => left - right),
           propertyId: null,
@@ -70,6 +74,10 @@ export class OwnerReportsCacheService {
 
   getRecapReport(): RecapReportResponse | null {
     return this.recapReport;
+  }
+
+  getOutstandingInvoices(): OwnerInvoiceOutstandingResponse[] {
+    return this.outstandingInvoices;
   }
 
   isBundleLoaded(): boolean {
@@ -147,6 +155,7 @@ export class OwnerReportsCacheService {
     this.cashReport = null;
     this.accrualReport = null;
     this.recapReport = null;
+    this.outstandingInvoices = [];
     this.cacheCriteria = null;
   }
 }

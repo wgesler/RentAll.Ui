@@ -3,7 +3,7 @@ import { AccountingOfficeResponse } from '../../organizations/models/accounting-
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from './owner-statement.model';
+import { OwnerInvoiceOutstandingResponse, OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from './owner-statement.model';
 
 export interface OwnerStatementPrintContext {
   line: OwnerStatementMonthLineListDisplay;
@@ -14,4 +14,5 @@ export interface OwnerStatementPrintContext {
   property: PropertyResponse | null;
   statementActivityLines: OwnerStatementPropertyActivityLineResponse[];
   statementAccrualActivityLines: OwnerStatementPropertyActivityLineResponse[];
+  outstandingInvoices: OwnerInvoiceOutstandingResponse[];
 }
