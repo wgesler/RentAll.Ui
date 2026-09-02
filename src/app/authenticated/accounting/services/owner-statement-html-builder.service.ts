@@ -470,14 +470,14 @@ export class OwnerStatementHtmlBuilderService {
     activity: OwnerStatementPropertyActivityLineResponse,
     fallbackDate: string
   ): string {
-    const activityDate = this.formatFullDate(activity.activityDate);
-    if (activityDate) {
-      return activityDate;
-    }
-
     const accountingPeriodDate = this.formatAccountingPeriodAsFullDate(activity.accountingPeriod);
     if (accountingPeriodDate) {
       return accountingPeriodDate;
+    }
+
+    const activityDate = this.formatFullDate(activity.activityDate);
+    if (activityDate) {
+      return activityDate;
     }
 
     return fallbackDate;
@@ -485,7 +485,7 @@ export class OwnerStatementHtmlBuilderService {
 
   private formatAccountingPeriodAsFullDate(accountingPeriod: string | undefined): string {
     const trimmed = (accountingPeriod || '').trim();
-    if (!trimmed) {
+    if (!trimmed || trimmed === '—' || trimmed === '-') {
       return '';
     }
 
@@ -494,8 +494,8 @@ export class OwnerStatementHtmlBuilderService {
       const month = Number(monthYearMatch[1]);
       const year = 2000 + Number(monthYearMatch[2]);
       if (month >= 1 && month <= 12) {
-        const lastDay = new Date(year, month, 0);
-        return this.formatFullDateFromDate(lastDay);
+        const firstDay = new Date(year, month - 1, 1);
+        return this.formatFullDateFromDate(firstDay);
       }
     }
 
