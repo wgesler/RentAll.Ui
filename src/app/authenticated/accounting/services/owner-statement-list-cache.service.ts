@@ -50,7 +50,7 @@ export class OwnerStatementListCacheService {
     }).pipe(
       tap(response => {
         this.cashReport = response.cash;
-        this.outstandingInvoices = response.outstandingInvoices ?? [];
+        this.outstandingInvoices = [];
         this.cacheCriteria = {
           officeIds: [...request.officeIds].sort((left, right) => left - right),
           propertyId: request.propertyId ?? null,

@@ -5,7 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
-import { OwnerStatementListResponse } from '../models/owner-statement.model';
+import { OwnerStatementListResponse, OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
 import { EscrowReportResult, EscrowReportSearchRequest, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 @Injectable({
@@ -127,6 +127,24 @@ export class ReportService {
 
     return this.http.post<OwnerStatementListResponse>(`${this.controller}owner-statement-list/search`, body).pipe(
       map(response => this.mappingService.mapOwnerStatementListResponse(response as unknown as Record<string, unknown>))
+    );
+  }
+
+  searchOwnerInvoiceOutstanding(request: OwnerCashReportSearchRequest): Observable<OwnerInvoiceOutstandingResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search owner invoice outstanding rows.');
+    }
+
+    const body: Record<string, unknown> = {
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      startDate: request.startDate || null,
+      endDate: request.endDate || null
+    };
+
+    return this.http.post<OwnerInvoiceOutstandingResponse[]>(`${this.controller}owner-invoice-outstanding/search`, body).pipe(
+      map(rows => this.mappingService.mapOwnerInvoiceOutstandingRows(rows))
     );
   }
 

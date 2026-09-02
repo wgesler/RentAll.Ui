@@ -93,17 +93,17 @@ export class OwnerStatementService {
     }
 
     const cachedOutstanding = this.ownerStatementListCacheService.getOutstandingInvoices();
-    if (this.ownerStatementListCacheService.isLoaded()) {
+    if (cachedOutstanding.length > 0) {
       return of(this.mappingService.filterOwnerStatementOutstandingInvoices(cachedOutstanding, request));
     }
 
-    return this.reportService.searchOwnerStatementList({
+    return this.reportService.searchOwnerInvoiceOutstanding({
       officeIds,
       propertyId,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(response => this.mappingService.filterOwnerStatementOutstandingInvoices(response.outstandingInvoices ?? [], request))
+      map(rows => this.mappingService.filterOwnerStatementOutstandingInvoices(rows ?? [], request))
     );
   }
 
