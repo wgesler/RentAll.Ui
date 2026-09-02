@@ -24,7 +24,7 @@ import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
-import { OwnerStatementListCacheService } from '../../services/owner-statement-list-cache.service';
+import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 import { ReportService } from '../../services/report.service';
 
@@ -44,7 +44,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
   @Output() ownersPaid = new EventEmitter<void>();
   private commonService = inject(CommonService);
-  private ownerStatementListCacheService = inject(OwnerStatementListCacheService);
+  private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private ownerStatementService = inject(OwnerStatementService);
   private ownerStatementDocumentService = inject(OwnerStatementDocumentService);
   private reportService = inject(ReportService);
@@ -658,7 +658,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
-    if (!this.ownerStatementListCacheService.matchesSearchRequest(this.searchRequest)) {
+    if (!this.matchesCachedOwnerReportsBundle()) {
       this.allLines = [];
       this.lines = [];
       this.noDataMessage = 'Press Go to run the report.';
@@ -668,7 +668,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
-    const cashReport = this.ownerStatementListCacheService.getCashReport();
+    const cashReport = this.ownerReportsCacheService.getCashReport();
     if (!cashReport) {
       this.allLines = [];
       this.lines = [];
@@ -795,6 +795,20 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       }
       return sum + this.mappingService.parseCurrencyValue(line.toBePaid);
     }, 0);
+  }
+
+  private matchesCachedOwnerReportsBundle(): boolean {
+    if (!this.ownerReportsCacheService.isBundleLoaded()) {
+      return false;
+    }
+
+    const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
+    return this.ownerReportsCacheService.matchesOwnerReportBundleScope({
+      officeIds: request.officeIds,
+      propertyId: null,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    });
   }
   //#endregion
 

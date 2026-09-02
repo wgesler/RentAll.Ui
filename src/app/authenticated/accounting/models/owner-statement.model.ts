@@ -42,11 +42,6 @@ export interface OwnerStatementMonthLineSearchRequest {
   endDate?: string | null;
 }
 
-export interface OwnerStatementListResponse {
-  cash: OwnerCashReportResponse;
-  outstandingInvoices: OwnerInvoiceOutstandingResponse[];
-}
-
 export interface OwnerStatementMonthLineResponse {
   ownerStatementLineId: string;
   officeId: number;

@@ -95,7 +95,6 @@ import { SecurityDepositsListComponent } from '../bank/security-deposits-list/se
 import { SecurityDepositReportComponent } from '../bank/security-deposit-report/security-deposit-report.component';
 import { SecurityDepositReportSelection } from '../models/security-deposit-report.model';
 import { OwnerReportsCacheService, EscrowReportCacheService } from '../services/owner-reports-cache.service';
-import { OwnerStatementListCacheService } from '../services/owner-statement-list-cache.service';
 import { OwnerReportSearchRequest } from '../models/owner-report.model';
 import { EscrowReportAmountDrillDownSelection, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
@@ -210,7 +209,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private workOrderService = inject(WorkOrderService);
   private invoiceService = inject(InvoiceService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
-  private ownerStatementListCacheService = inject(OwnerStatementListCacheService);
   private escrowReportCacheService = inject(EscrowReportCacheService);
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
@@ -1736,25 +1734,11 @@ hydrateSelectedInvoiceForActiveId(): void {
       return;
     }
 
-    if (this.selectedOwnerKind === 'ownerStatements') {
-      if (!this.ownerStatementListCacheService.isLoaded()) {
-        return;
-      }
-
-      this.ownerStatementListCacheService.clear();
-      if (this.billsSearchRequest.officeIds.length === 0) {
-        return;
-      }
-
-      this.onOwnerReportGoClick();
-      return;
-    }
-
     if (!this.ownerReportsCacheService.isBundleLoaded()) {
       return;
     }
 
-    if (!this.isOwnerReportView(this.selectedOwnerKind)) {
+    if (this.selectedOwnerKind !== 'ownerStatements' && !this.isOwnerReportView(this.selectedOwnerKind)) {
       return;
     }
 
@@ -3294,11 +3278,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
     if (this.isOwnerReportView(this.selectedOwnerKind)
       || this.selectedOwnerKind === 'ownerStatements') {
-      if (this.selectedOwnerKind === 'ownerStatements') {
-        if (this.ownerStatementListCacheService.isLoaded()) {
-          this.ownersStatementsRefreshTrigger++;
-        }
-      } else if (this.ownerReportsCacheService.isBundleLoaded()) {
+      if (this.ownerReportsCacheService.isBundleLoaded()) {
         this.ownersStatementsRefreshTrigger++;
       }
       this.tryAutoRunOwnerReportIfEmpty();
@@ -3314,7 +3294,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {
-      return !this.ownerStatementListCacheService.isLoaded();
+      return !this.ownerReportsCacheService.isBundleLoaded();
     }
 
     return !this.ownerReportsCacheService.isBundleLoaded();
@@ -3418,38 +3398,6 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
 
     this.ownerBundleAwaitingManualGo = false;
-    if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {
-      this.ownerStatementListCacheService.clear();
-      this.isOwnerReportsApiLoading = true;
-      this.isOwnerReportsLoading = true;
-      this.cdr.markForCheck();
-      this.ownerStatementListCacheService.load(this.billsSearchRequest).pipe(
-        take(1),
-        finalize(() => {
-          this.isOwnerReportsApiLoading = false;
-          this.isOwnerReportsLoading = false;
-          this.ownersStatementsRefreshTrigger++;
-          this.cdr.markForCheck();
-        })
-      ).subscribe({
-        error: (error: HttpErrorResponse) => {
-          this.ownerStatementListCacheService.clear();
-          this.ownerBundleAwaitingManualGo = true;
-          const message = this.utilityService.extractApiErrorMessage(error);
-          if (/timeout/i.test(message)) {
-            this.toastr.error(
-              'The report took too long to generate. Try a shorter date range or narrow filters.',
-              CommonMessage.ServiceError
-            );
-            return;
-          }
-
-          this.toastr.error(message || 'Unable to load owner statements.', CommonMessage.ServiceError);
-        }
-      });
-      return;
-    }
-
     this.ownerReportsCacheService.clear();
     clearOwnerReportKindCache();
     this.isOwnerReportsApiLoading = true;
@@ -3957,14 +3905,7 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
 
   invalidateOwnerReportCachesIfNeeded(options?: { ownerBundleInvalidateRequiresManualGo?: boolean }): void {
     let invalidatedOwnerBundle = false;
-    let invalidatedOwnerStatementList = false;
     let invalidatedEscrow = false;
-
-    if (this.ownerStatementListCacheService.isLoaded()
-      && !this.ownerStatementListCacheService.matchesSearchRequest(this.billsSearchRequest)) {
-      this.ownerStatementListCacheService.clear();
-      invalidatedOwnerStatementList = true;
-    }
 
     if (this.ownerReportsCacheService.isBundleLoaded()) {
       if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(this.buildOwnerReportsBundleScopeRequest())) {
@@ -3981,13 +3922,13 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
       }
     }
 
-    if ((invalidatedOwnerStatementList || invalidatedOwnerBundle) && (options?.ownerBundleInvalidateRequiresManualGo ?? true)) {
+    if (invalidatedOwnerBundle && (options?.ownerBundleInvalidateRequiresManualGo ?? true)) {
       this.ownerBundleAwaitingManualGo = true;
     }
     if (invalidatedEscrow && (options?.ownerBundleInvalidateRequiresManualGo ?? true)) {
       this.escrowReportAwaitingManualGo = true;
     }
-    if (invalidatedOwnerBundle || invalidatedOwnerStatementList || invalidatedEscrow) {
+    if (invalidatedOwnerBundle || invalidatedEscrow) {
       this.ownersStatementsRefreshTrigger++;
       this.cdr.markForCheck();
     }
