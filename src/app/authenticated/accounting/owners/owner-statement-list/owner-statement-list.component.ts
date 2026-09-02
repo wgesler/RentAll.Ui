@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, concatMap, finalize, from, take, takeUntil } from 'rxjs';
@@ -19,9 +20,11 @@ import { AccountingOfficeService } from '../../../organizations/services/account
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { GenericModalComponent } from '../../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../../shared/modals/generic/models/generic-modal-data';
 import { AccountType, PaymentType, PaymentTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
+import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineSearchRequest } from '../../models/owner-statement.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
@@ -54,6 +57,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
 
   isPageReady = false;
@@ -217,10 +221,34 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     }
 
     const periodLabel = this.headerPeriodLine;
-    if (!window.confirm(`Close ${periodLabel} and save ending balances for ${this.lines.length} propert${this.lines.length === 1 ? 'y' : 'ies'}? Pressing again will overwrite the saved balances for this month.`)) {
-      return;
-    }
+    const propertyCount = this.lines.length;
+    const dialogData: GenericModalData = {
+      title: 'Close Month',
+      message: `Close ${periodLabel} and save ending balances for ${propertyCount} propert${propertyCount === 1 ? 'y' : 'ies'}? Pressing again will overwrite the saved balances for this month.`,
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'OK',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
 
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result !== true) {
+        return;
+      }
+
+      this.executeCloseOwnerStatementMonth(request);
+    });
+  }
+
+  private executeCloseOwnerStatementMonth(request: OwnerStatementMonthLineSearchRequest): void {
     this.isClosingMonth = true;
     this.markViewForCheck();
     this.reportService.closeOwnerStatementMonth(request).pipe(
