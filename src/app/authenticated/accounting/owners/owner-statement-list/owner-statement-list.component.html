@@ -55,6 +55,10 @@
               <mat-slide-toggle id="toggle-owner-statements-show-paid" [checked]="showPaid" color="primary" (change)="onShowPaidToggleChange($event)" class="whitespace-nowrap">
                 ShowPaid
               </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="close-owner-statement-month-button" class="whitespace-nowrap items-center flex gap-1" (click)="closeOwnerStatementMonth()" [disabled]="isClosingMonth || lines.length === 0">
+                <mat-icon class="text-base">event_available</mat-icon>
+                <span>{{ isClosingMonth ? 'Closing...' : 'Close Month' }}</span>
+              </button>
               <button mat-raised-button type="button" color="accent" id="pay-owners-button" class="whitespace-nowrap items-center flex gap-1" (click)="onPayOwners()" [disabled]="isPayingOwners">
                 <mat-icon class="text-base">attach_money</mat-icon>
                 <span>Pay Owners</span>

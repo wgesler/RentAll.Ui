@@ -75,6 +75,12 @@ export interface OwnerStatementMonthLineResponse {
   workingCapitalBalanceDue: number;
 }
 
+export interface CloseOwnerStatementMonthResult {
+  propertiesProcessed: number;
+  journalEntriesCreated: number;
+  journalEntriesUpdated: number;
+}
+
 export interface OwnerStatementMonthLineListDisplay {
   ownerStatementLineId: string;
   officeId: number;

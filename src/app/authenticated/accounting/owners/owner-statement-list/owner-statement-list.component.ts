@@ -26,6 +26,7 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
 import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
 import { OwnerStatementListCacheService } from '../../services/owner-statement-list-cache.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
+import { ReportService } from '../../services/report.service';
 
 @Component({
   selector: 'app-owner-statement-list',
@@ -46,6 +47,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private ownerStatementListCacheService = inject(OwnerStatementListCacheService);
   private ownerStatementService = inject(OwnerStatementService);
   private ownerStatementDocumentService = inject(OwnerStatementDocumentService);
+  private reportService = inject(ReportService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private accountingOfficeService = inject(AccountingOfficeService);
   private formatter = inject(FormatterService);
@@ -57,6 +59,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   isPageReady = false;
   isServiceError = false;
   isPayingOwners = false;
+  isClosingMonth = false;
   isDownloadingOwnerStatements = false;
   showPaid = true;
   showPaymentForm = false;
@@ -194,6 +197,54 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       const customAmount = this.customToBePaidByLineId.get(line.ownerStatementLineId);
       line.toBePaid = customAmount ?? line.ownerPayment;
     }
+  }
+
+  closeOwnerStatementMonth(): void {
+    const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
+    if (request.officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before closing the month.', CommonMessage.Warning);
+      return;
+    }
+
+    if (!request.endDate) {
+      this.toastr.warning('Run the report for a specific month before closing.', CommonMessage.Warning);
+      return;
+    }
+
+    if (this.lines.length === 0) {
+      this.toastr.warning('No owner statement rows to close.', CommonMessage.Warning);
+      return;
+    }
+
+    const periodLabel = this.headerPeriodLine;
+    if (!window.confirm(`Close ${periodLabel} and save ending balances for ${this.lines.length} propert${this.lines.length === 1 ? 'y' : 'ies'}? Pressing again will overwrite the saved balances for this month.`)) {
+      return;
+    }
+
+    this.isClosingMonth = true;
+    this.markViewForCheck();
+    this.reportService.closeOwnerStatementMonth(request).pipe(
+      take(1),
+      finalize(() => {
+        this.isClosingMonth = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        const updatedCount = (result.journalEntriesCreated ?? 0) + (result.journalEntriesUpdated ?? 0);
+        this.toastr.success(
+          `Saved month-end balances for ${result.propertiesProcessed ?? 0} propert${(result.propertiesProcessed ?? 0) === 1 ? 'y' : 'ies'} (${updatedCount} balance journal entr${updatedCount === 1 ? 'y' : 'ies'}).`,
+          CommonMessage.Success
+        );
+        this.loadOwnerStatementList();
+      },
+      error: (err: HttpErrorResponse) => {
+        const message = typeof err.error === 'string'
+          ? err.error
+          : (err.error?.message || err.message || 'Unable to close owner statement month.');
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
   }
 
   downloadSelectedOwnerStatements(): void {

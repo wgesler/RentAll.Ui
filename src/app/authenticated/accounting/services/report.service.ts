@@ -5,7 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
-import { OwnerStatementListResponse, OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
+import { CloseOwnerStatementMonthResult, OwnerStatementListResponse, OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
 import { EscrowReportResult, EscrowReportSearchRequest, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 @Injectable({
@@ -128,6 +128,27 @@ export class ReportService {
     return this.http.post<OwnerStatementListResponse>(`${this.controller}owner-statement-list/search`, body).pipe(
       map(response => this.mappingService.mapOwnerStatementListResponse(response as unknown as Record<string, unknown>))
     );
+  }
+
+  closeOwnerStatementMonth(request: OwnerCashReportSearchRequest): Observable<CloseOwnerStatementMonthResult> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to close an owner statement month.');
+    }
+
+    const endDate = (request.endDate || '').trim();
+    if (!endDate) {
+      throw new Error('End date is required to close an owner statement month.');
+    }
+
+    const body: Record<string, unknown> = {
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      startDate: request.startDate || null,
+      endDate
+    };
+
+    return this.http.post<CloseOwnerStatementMonthResult>(`${this.controller}owner-statement-list/close-month`, body);
   }
 
   searchOwnerInvoiceOutstanding(request: OwnerCashReportSearchRequest): Observable<OwnerInvoiceOutstandingResponse[]> {
