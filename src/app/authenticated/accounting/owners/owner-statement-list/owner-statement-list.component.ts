@@ -202,17 +202,17 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   closeOwnerStatementMonth(): void {
     const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before closing the month.', CommonMessage.Warning);
+      this.toastr.warning('Select at least one office before closing the month.', 'Close Month');
       return;
     }
 
     if (!request.endDate) {
-      this.toastr.warning('Run the report for a specific month before closing.', CommonMessage.Warning);
+      this.toastr.warning('Run the report for a specific month before closing.', 'Close Month');
       return;
     }
 
     if (this.lines.length === 0) {
-      this.toastr.warning('No owner statement rows to close.', CommonMessage.Warning);
+      this.toastr.warning('No owner statement rows to close.', 'Close Month');
       return;
     }
 
