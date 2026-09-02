@@ -1,3 +1,5 @@
+import { OwnerCashReportResponse } from './owner-report.model';
+
 export interface OwnerStatementSearchRequest {
   officeIds: number[];
   propertyId?: string | null;
@@ -38,6 +40,11 @@ export interface OwnerStatementMonthLineSearchRequest {
   propertyId?: string | null;
   startDate?: string | null;
   endDate?: string | null;
+}
+
+export interface OwnerStatementListResponse {
+  cash: OwnerCashReportResponse;
+  outstandingInvoices: OwnerInvoiceOutstandingResponse[];
 }
 
 export interface OwnerStatementMonthLineResponse {

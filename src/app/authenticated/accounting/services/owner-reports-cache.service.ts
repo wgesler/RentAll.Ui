@@ -3,7 +3,7 @@ import { Observable, tap } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
 import { EscrowReportResult } from '../models/escrow-report.model';
-import { JournalEntryRecapSearchRequest, RecapReportResponse } from '../models/journal-entry.model';
+import { RecapReportResponse } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerCashReportResponse, OwnerReportSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
 import { OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
 import { ReportService } from './report.service';
@@ -82,22 +82,9 @@ export class OwnerReportsCacheService {
 
   isBundleLoaded(): boolean {
     return this.cacheCriteria != null
-      && (this.cashReport != null
-        || this.accrualReport != null
-        || this.recapReport != null);
-  }
-
-  getBundleSearchRequest(): OwnerReportSearchRequest | null {
-    if (!this.cacheCriteria) {
-      return null;
-    }
-
-    return {
-      officeIds: [...this.cacheCriteria.officeIds],
-      propertyId: this.cacheCriteria.propertyId,
-      startDate: this.cacheCriteria.startDate,
-      endDate: this.cacheCriteria.endDate
-    };
+      && this.cashReport != null
+      && this.accrualReport != null
+      && this.recapReport != null;
   }
 
   matchesOwnerReportBundleScope(request: OwnerReportSearchRequest): boolean {
@@ -124,33 +111,6 @@ export class OwnerReportsCacheService {
     return this.matchesOwnerReportBundleScope(request);
   }
 
-  matchesRecapSearchRequest(request: JournalEntryRecapSearchRequest): boolean {
-    if (!this.cacheCriteria || !this.recapReport) {
-      return false;
-    }
-
-    if ((request.recapCategory || '').trim()) {
-      return false;
-    }
-
-    if (!request.includeUnposted) {
-      return false;
-    }
-
-    const officeIds = [...(request.officeIds || [])].filter(id => id > 0).sort((left, right) => left - right);
-    if (officeIds.length === 0) {
-      return false;
-    }
-
-    if (!officeIds.every(id => this.cacheCriteria!.officeIds.includes(id))) {
-      return false;
-    }
-
-    const startDate = request.startDate || null;
-    const endDate = request.endDate || null;
-    return startDate === this.cacheCriteria.startDate && endDate === this.cacheCriteria.endDate;
-  }
-
   clear(): void {
     this.cashReport = null;
     this.accrualReport = null;
@@ -173,12 +133,7 @@ export class EscrowReportCacheService {
     endDate: string | null;
   } | null = null;
 
-  load(request: {
-    officeIds: number[];
-    propertyId?: string | null;
-    endDate: string | null;
-    cushion?: number;
-  }): Observable<EscrowReportResult> {
+  load(request: { officeIds: number[]; propertyId?: string | null; endDate: string | null; cushion?: number; }): Observable<EscrowReportResult> {
     const officeIds = [...(request.officeIds || [])].filter(id => id > 0);
     const endDate = (request.endDate || '').trim() || null;
     if (officeIds.length === 0 || !endDate) {
@@ -214,11 +169,7 @@ export class EscrowReportCacheService {
     return this.report != null && this.cacheCriteria != null;
   }
 
-  matchesSearchRequest(request: {
-    officeIds: number[];
-    propertyId?: string | null;
-    endDate: string | null;
-  }): boolean {
+  matchesSearchRequest(request: { officeIds: number[]; propertyId?: string | null; endDate: string | null; }): boolean {
     if (!this.cacheCriteria || !this.report) {
       return false;
     }

@@ -10,7 +10,7 @@ import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntr
 import { PrintableReportDocument, PrintableReportRow, PrintableReportRowKind } from '../authenticated/accounting/models/printable-report.model';
 import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../authenticated/accounting/models/reconcile-account-report.model';
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
-import { OwnerInvoiceOutstandingResponse, OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerInvoiceOutstandingResponse, OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementListResponse, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
@@ -2671,6 +2671,18 @@ resolveWorkOrderTitle(
       cash: this.mapOwnerCashReportResponse(cashRaw),
       accrual: this.mapOwnerAccrualReportResponse(accrualRaw),
       recap: this.mapRecapReportResponse(recapRaw),
+      outstandingInvoices: this.mapOwnerInvoiceOutstandingRows(outstandingRaw)
+    };
+  }
+
+  mapOwnerStatementListResponse(raw: Record<string, unknown>): OwnerStatementListResponse {
+    const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
+    const outstandingRaw = raw['outstandingInvoices'] ?? raw['OutstandingInvoices'];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapOwnerCashReportRow(row as Record<string, unknown>))
+      : [];
+    return {
+      cash: { rows, propertyActivityLines: [] },
       outstandingInvoices: this.mapOwnerInvoiceOutstandingRows(outstandingRaw)
     };
   }

@@ -4,7 +4,7 @@ import { map, Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { OwnerPaymentResponse, OwnerPaymentsRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
-import { OwnerReportsCacheService } from './owner-reports-cache.service';
+import { OwnerStatementListCacheService } from './owner-statement-list-cache.service';
 import { ReportService } from './report.service';
 
 @Injectable({
@@ -15,7 +15,7 @@ export class OwnerStatementService {
   private configService = inject(ConfigService);
   private reportService = inject(ReportService);
   private mappingService = inject(MappingService);
-  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private ownerStatementListCacheService = inject(OwnerStatementListCacheService);
   private readonly ownerPaymentUrl = this.configService.config().apiUrl + 'accounting/owner/payment';
 
   searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
@@ -24,18 +24,18 @@ export class OwnerStatementService {
       throw new Error('At least one office ID is required to search owner statement month lines.');
     }
 
-    const cachedCashReport = this.ownerReportsCacheService.getCashReport();
+    const cachedCashReport = this.ownerStatementListCacheService.getCashReport();
     if (cachedCashReport) {
       return of(this.mappingService.mapOwnerCashReportToMonthLines(cachedCashReport, request));
     }
 
-    return this.reportService.searchOwnerReports({
+    return this.reportService.searchOwnerStatementList({
       officeIds,
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(bundle => this.mappingService.mapOwnerCashReportToMonthLines(bundle.cash, request))
+      map(response => this.mappingService.mapOwnerCashReportToMonthLines(response.cash, request))
     );
   }
 
@@ -50,18 +50,13 @@ export class OwnerStatementService {
       throw new Error('PropertyId is required to search owner statement property activity lines.');
     }
 
-    const cachedCashReport = this.ownerReportsCacheService.getCashReport();
-    if (cachedCashReport) {
-      return of(this.mappingService.filterOwnerStatementPropertyActivityLines(cachedCashReport.propertyActivityLines ?? [], request));
-    }
-
-    return this.reportService.searchOwnerReports({
+    return this.reportService.searchOwnerCashReport({
       officeIds,
       propertyId,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.cash.propertyActivityLines ?? [], request))
+      map(report => this.mappingService.filterOwnerStatementPropertyActivityLines(report.propertyActivityLines ?? [], request))
     );
   }
 
@@ -76,18 +71,13 @@ export class OwnerStatementService {
       throw new Error('PropertyId is required to search owner statement accrual property activity lines.');
     }
 
-    const cachedAccrualReport = this.ownerReportsCacheService.getAccrualReport();
-    if (cachedAccrualReport) {
-      return of(this.mappingService.filterOwnerStatementPropertyActivityLines(cachedAccrualReport.propertyActivityLines ?? [], request));
-    }
-
-    return this.reportService.searchOwnerReports({
+    return this.reportService.searchOwnerAccrualReport({
       officeIds,
       propertyId,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.accrual.propertyActivityLines ?? [], request))
+      map(report => this.mappingService.filterOwnerStatementPropertyActivityLines(report.propertyActivityLines ?? [], request))
     );
   }
 
@@ -102,18 +92,18 @@ export class OwnerStatementService {
       throw new Error('PropertyId is required to search owner statement outstanding invoices.');
     }
 
-    const cachedOutstanding = this.ownerReportsCacheService.getOutstandingInvoices();
-    if (this.ownerReportsCacheService.isBundleLoaded()) {
+    const cachedOutstanding = this.ownerStatementListCacheService.getOutstandingInvoices();
+    if (this.ownerStatementListCacheService.isLoaded()) {
       return of(this.mappingService.filterOwnerStatementOutstandingInvoices(cachedOutstanding, request));
     }
 
-    return this.reportService.searchOwnerReports({
+    return this.reportService.searchOwnerStatementList({
       officeIds,
       propertyId,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(bundle => this.mappingService.filterOwnerStatementOutstandingInvoices(bundle.outstandingInvoices ?? [], request))
+      map(response => this.mappingService.filterOwnerStatementOutstandingInvoices(response.outstandingInvoices ?? [], request))
     );
   }
 

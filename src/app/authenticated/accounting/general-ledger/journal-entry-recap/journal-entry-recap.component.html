@@ -3,11 +3,6 @@
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading journal entry recap...</p>
   </div>
-} @else if (!isPageReady) {
-  <div class="loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading journal entry recap...</p>
-  </div>
 } @else if (isServiceError) {
   <div class="general-ledger-empty-state">
     <p>{{ noActivityMessage }}</p>

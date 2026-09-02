@@ -1,8 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
-import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
+import { Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
-import { UtilityService } from '../../../../services/utility.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { PostingStatus, SourceType, isJournalEntrySourceNavigable } from '../../models/accounting-enum';
@@ -35,10 +34,8 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private journalEntrySourceService = inject(JournalEntrySourceService);
   private mappingService = inject(MappingService);
-  private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  isPageReady = false;
   isServiceError = false;
   rowsDisplay: JournalEntryRecapRowDisplay[] = [];
   noActivityMessage = 'Press Go to run the report.';
@@ -66,15 +63,10 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     ownerPayment: { displayAs: 'OwnPay', maxWidth: '12ch', alignment: 'right', sort: false }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region Journal Entry Recap
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-      this.markViewForCheck();
-    });
     this.loadRecapLines();
   }
 
@@ -143,7 +135,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     navigate(row.sourceId || null);
   }
 
-toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLineListDisplay {
+  toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLineListDisplay {
     return {
       journalEntryLineId: row.journalEntryLineId || '',
       journalEntryId: row.journalEntryId || '',
@@ -230,7 +222,7 @@ toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLin
     };
   }
 
-applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowDisplay[] {
+  applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowDisplay[] {
     let filtered = rows;
 
     if (this.officeId != null && this.officeId > 0) {
@@ -259,7 +251,6 @@ applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowD
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.itemsToLoad$.complete();
   }
   //#endregion
 }

@@ -24,7 +24,7 @@ import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay } from '../../models/owner-statement.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
-import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
+import { OwnerStatementListCacheService } from '../../services/owner-statement-list-cache.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
 
 @Component({
@@ -43,7 +43,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
   @Output() ownersPaid = new EventEmitter<void>();
   private commonService = inject(CommonService);
-  private ownerReportsCacheService = inject(OwnerReportsCacheService);
+  private ownerStatementListCacheService = inject(OwnerStatementListCacheService);
   private ownerStatementService = inject(OwnerStatementService);
   private ownerStatementDocumentService = inject(OwnerStatementDocumentService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -607,9 +607,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
-    if (!this.ownerReportsCacheService.matchesOwnerReportBundleScope(
-      this.mappingService.mapOwnerReportSearchRequest(this.searchRequest)
-    )) {
+    if (!this.ownerStatementListCacheService.matchesSearchRequest(this.searchRequest)) {
       this.allLines = [];
       this.lines = [];
       this.noDataMessage = 'Press Go to run the report.';
@@ -619,7 +617,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
-    const cashReport = this.ownerReportsCacheService.getCashReport();
+    const cashReport = this.ownerStatementListCacheService.getCashReport();
     if (!cashReport) {
       this.allLines = [];
       this.lines = [];
