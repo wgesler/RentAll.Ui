@@ -76,6 +76,21 @@ export interface CloseOwnerStatementMonthResult {
   journalEntriesUpdated: number;
 }
 
+export interface CloseOwnerStatementMonthLineRequest {
+  propertyId: string;
+  officeId: number;
+  propertyCode: string;
+  ownerId?: string | null;
+  ownerNameLine: string;
+  closingBalance: number;
+}
+
+export interface CloseOwnerStatementMonthRequest {
+  startDate?: string | null;
+  endDate: string;
+  lines: CloseOwnerStatementMonthLineRequest[];
+}
+
 export interface OwnerStatementMonthLineListDisplay {
   ownerStatementLineId: string;
   officeId: number;

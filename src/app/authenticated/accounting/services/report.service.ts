@@ -5,7 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
-import { CloseOwnerStatementMonthResult, OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
+import { CloseOwnerStatementMonthRequest, CloseOwnerStatementMonthResult, OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
 import { EscrowReportResult, EscrowReportSearchRequest, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 @Injectable({
@@ -112,22 +112,27 @@ export class ReportService {
     );
   }
 
-  closeOwnerStatementMonth(request: OwnerCashReportSearchRequest): Observable<CloseOwnerStatementMonthResult> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to close an owner statement month.');
-    }
-
+  closeOwnerStatementMonth(request: CloseOwnerStatementMonthRequest): Observable<CloseOwnerStatementMonthResult> {
     const endDate = (request.endDate || '').trim();
     if (!endDate) {
       throw new Error('End date is required to close an owner statement month.');
     }
 
+    if (!request.lines?.length) {
+      throw new Error('At least one owner statement line is required to close the month.');
+    }
+
     const body: Record<string, unknown> = {
-      officeIds,
-      propertyId: request.propertyId ?? null,
       startDate: request.startDate || null,
-      endDate
+      endDate,
+      lines: request.lines.map(line => ({
+        propertyId: line.propertyId,
+        officeId: line.officeId,
+        propertyCode: line.propertyCode,
+        ownerId: line.ownerId ?? null,
+        ownerNameLine: line.ownerNameLine,
+        closingBalance: line.closingBalance
+      }))
     };
 
     return this.http.post<CloseOwnerStatementMonthResult>(`${this.controller}owner-statement-list/close-month`, body);

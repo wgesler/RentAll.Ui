@@ -24,7 +24,7 @@ import { GenericModalComponent } from '../../../shared/modals/generic/generic-mo
 import { GenericModalData } from '../../../shared/modals/generic/models/generic-modal-data';
 import { AccountType, PaymentType, PaymentTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineSearchRequest } from '../../models/owner-statement.model';
+import { OwnerPaymentsRequest, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineSearchRequest, CloseOwnerStatementMonthRequest } from '../../models/owner-statement.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { OwnerStatementDocumentService } from '../../services/owner-statement-document.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
@@ -215,16 +215,16 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
-    if (this.lines.length === 0) {
+    if (this.allLines.length === 0) {
       this.toastr.warning('No owner statement rows to close.', 'Close Month');
       return;
     }
 
     const periodLabel = this.headerPeriodLine;
-    const propertyCount = this.lines.length;
+    const propertyCount = this.allLines.length;
     const dialogData: GenericModalData = {
       title: 'Close Month',
-      message: `Close ${periodLabel} and save ending balances for ${propertyCount} propert${propertyCount === 1 ? 'y' : 'ies'}? Pressing again will overwrite the saved balances for this month.`,
+      message: `Close ${periodLabel} and save the Balance shown for all ${propertyCount} propert${propertyCount === 1 ? 'y' : 'ies'}? Pressing again will overwrite the saved balances for this month.`,
       icon: 'warning' as any,
       iconColor: 'warn',
       no: 'Cancel',
@@ -249,9 +249,22 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   private executeCloseOwnerStatementMonth(request: OwnerStatementMonthLineSearchRequest): void {
+    const closeRequest: CloseOwnerStatementMonthRequest = {
+      startDate: request.startDate ?? null,
+      endDate: request.endDate!,
+      lines: this.allLines.map(line => ({
+        propertyId: line.propertyId,
+        officeId: line.officeId,
+        propertyCode: line.propertyCode,
+        ownerId: line.ownerId || null,
+        ownerNameLine: line.ownerName,
+        closingBalance: this.mappingService.parseCurrencyValue(line.endingBalance)
+      }))
+    };
+
     this.isClosingMonth = true;
     this.markViewForCheck();
-    this.reportService.closeOwnerStatementMonth(request).pipe(
+    this.reportService.closeOwnerStatementMonth(closeRequest).pipe(
       take(1),
       finalize(() => {
         this.isClosingMonth = false;
