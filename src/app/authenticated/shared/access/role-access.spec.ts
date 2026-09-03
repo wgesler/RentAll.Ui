@@ -32,12 +32,24 @@ describe('role-access owner and realtor behavior', () => {
   });
 
   it('limits partner nav to boards, properties, contacts, and settings', () => {
-    const navItems = filterNavItemsForPartner(getVisibleNavItems([UserGroups.Admin]));
+    const partnerAdminOnly = [UserGroups.PartnerAdmin];
+    const navItems = filterNavItemsForPartner(getVisibleNavItems(partnerAdminOnly), partnerAdminOnly);
     const urls = navItems.map(item => item.url);
 
     expect(urls).toEqual(['boards', 'properties', 'contacts', 'settings']);
-    expect(canPartnerAccessUrl('/auth/boards')).toBeTrue();
-    expect(canPartnerAccessUrl('/auth/properties/1')).toBeTrue();
-    expect(canPartnerAccessUrl('/auth/accounting')).toBeFalse();
+    expect(canPartnerAccessUrl('/auth/boards', partnerAdminOnly)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/properties/1', partnerAdminOnly)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/logs', partnerAdminOnly)).toBeFalse();
+    expect(canPartnerAccessUrl('/auth/accounting', partnerAdminOnly)).toBeFalse();
+  });
+
+  it('includes logs in partner nav for org admins only', () => {
+    const partnerOrgAdmin = [UserGroups.Admin, UserGroups.PartnerAdmin];
+    const navItems = filterNavItemsForPartner(getVisibleNavItems(partnerOrgAdmin), partnerOrgAdmin);
+    const urls = navItems.map(item => item.url);
+
+    expect(urls).toEqual(['boards', 'properties', 'contacts', 'settings', 'logs']);
+    expect(canPartnerAccessUrl('/auth/logs', partnerOrgAdmin)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/logs', [UserGroups.PartnerAdmin])).toBeFalse();
   });
 });

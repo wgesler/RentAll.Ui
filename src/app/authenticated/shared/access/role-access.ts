@@ -217,6 +217,14 @@ export const NAV_ITEMS_BY_ORGANIZATION_TYPE: Record<number, NavItemDefinition[]>
 };
 
 const PARTNER_ALLOWED_SEGMENTS = new Set(PARTNER_NAV_ITEMS.map(item => item.url));
+
+function getPartnerAllowedSegments(userGroups: UserGroupInput): Set<string> {
+  const allowed = new Set(PARTNER_ALLOWED_SEGMENTS);
+  if (isOrgAdmin(userGroups)) {
+    allowed.add(RouterToken.Logs);
+  }
+  return allowed;
+}
 //#endregion
 
 export const NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
@@ -472,16 +480,18 @@ function collapseUserGuideNavItems(items: NavItemDefinition[]): NavItemDefinitio
   return collapsed;
 }
 
-export function filterNavItemsForPartner(items: NavItemDefinition[]): NavItemDefinition[] {
-  return items.filter(item => PARTNER_ALLOWED_SEGMENTS.has(item.url));
+export function filterNavItemsForPartner(items: NavItemDefinition[], userGroups?: UserGroupInput): NavItemDefinition[] {
+  const allowed = getPartnerAllowedSegments(userGroups);
+  return items.filter(item => allowed.has(item.url));
 }
 
-export function canPartnerAccessUrl(url: string): boolean {
+export function canPartnerAccessUrl(url: string, userGroups?: UserGroupInput): boolean {
   const segment = getPrimaryAuthSegment(url);
   if (segment === RouterToken.UserGuide) {
     return true;
   }
-  return segment !== null && PARTNER_ALLOWED_SEGMENTS.has(segment);
+  const allowed = getPartnerAllowedSegments(userGroups);
+  return segment !== null && allowed.has(segment);
 }
 
 export function getPartnerFallbackUrl(): string {

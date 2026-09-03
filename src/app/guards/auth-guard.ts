@@ -22,7 +22,7 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
     const userGroups = authService.getUser()?.userGroups as Array<string | number> | undefined;
     const isPartnerOrg = !authService.hasRole(UserGroups.SuperAdmin)
       && Number(commonService.getOrganizationTypeId()) === OrganizationType.Partner;
-    if (isPartnerOrg && !canPartnerAccessUrl(state.url)) {
+    if (isPartnerOrg && !canPartnerAccessUrl(state.url, userGroups)) {
       const hasCurrentRoute = !!router.routerState.snapshot.url && router.routerState.snapshot.url !== '/';
       if (hasCurrentRoute) {
         return false;

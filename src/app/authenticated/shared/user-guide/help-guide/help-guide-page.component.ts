@@ -493,7 +493,10 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
     let navItems = getUserGuideNavItems(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     if (!this.authService.hasRole(UserGroups.SuperAdmin)
       && Number(this.commonService.getOrganizationTypeId()) === OrganizationType.Partner) {
-      navItems = filterNavItemsForPartner(navItems);
+      navItems = filterNavItemsForPartner(
+        navItems,
+        this.authService.getUser()?.userGroups as Array<string | number> | undefined
+      );
     }
     return buildUserGuideTocTree(
       navItems,

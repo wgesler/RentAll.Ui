@@ -150,7 +150,7 @@ markViewForCheck(): void {
     }
     if (!this.authService.hasRole(UserGroups.SuperAdmin)
       && Number(this.commonService.getOrganizationTypeId()) === OrganizationType.Partner) {
-      items = filterNavItemsForPartner(items);
+      items = filterNavItemsForPartner(items, user?.userGroups as Array<string | number> | undefined);
     }
     this.navItems = items;
   }
