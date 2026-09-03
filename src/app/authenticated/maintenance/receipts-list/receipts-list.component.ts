@@ -683,13 +683,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const propertyId =
-      resolveFirstRealReceiptPropertyId(rowItem.propertyIds)
-      || resolveFirstRealReceiptPropertyId(this.property?.propertyId ? [this.property.propertyId] : null)
-      || resolveFirstRealReceiptPropertyId(this.selectedPropertyId ? [this.selectedPropertyId] : null)
-      || null;
     const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
     const receiptListReturnSelection = this.buildReceiptListWorkOrderReturnSelection();
+    const targetWorkOrderId = this.resolveWorkOrderIdFromReceiptRow(rowItem, targetWorkOrderCode);
 
     if (this.mappingService.isReceiptWorkOrderMissingDisplay(targetWorkOrderCode)) {
       const missingSplit = this.mappingService.resolveFirstMissingWorkOrderSplit(rowItem);
@@ -700,6 +696,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
 
       if (this.embeddedInMaintenance) {
+        const propertyId =
+          resolveFirstRealReceiptPropertyId(rowItem.propertyIds)
+          || resolveFirstRealReceiptPropertyId(this.property?.propertyId ? [this.property.propertyId] : null)
+          || resolveFirstRealReceiptPropertyId(this.selectedPropertyId ? [this.selectedPropertyId] : null)
+          || null;
         this.workOrderSelect.emit({
           workOrderId: 'new',
           propertyId,
@@ -711,6 +712,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         return;
       }
 
+      const propertyId =
+        resolveFirstRealReceiptPropertyId(rowItem.propertyIds)
+        || resolveFirstRealReceiptPropertyId(this.property?.propertyId ? [this.property.propertyId] : null)
+        || resolveFirstRealReceiptPropertyId(this.selectedPropertyId ? [this.selectedPropertyId] : null)
+        || null;
       if (!propertyId) {
         this.toastr.error('Unable to open work order: missing property context.', 'Work Order');
         return;
@@ -729,11 +735,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
-      next: workOrders => {
-        const matchingWorkOrder = (workOrders || []).find(
-          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
-        );
+    this.workOrderService.resolveWorkOrderForLink({
+      workOrderId: targetWorkOrderId,
+      workOrderCode: targetWorkOrderCode,
+      officeId
+    }).pipe(take(1)).subscribe({
+      next: matchingWorkOrder => {
         if (!matchingWorkOrder) {
           this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
           this.markViewForCheck();
@@ -741,7 +748,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
-        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
+        const resolvedPropertyId = (matchingWorkOrder.propertyId || '').trim();
         if (!workOrderId || !resolvedPropertyId) {
           this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
           return;
@@ -751,6 +758,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.workOrderSelect.emit({
             workOrderId,
             propertyId: resolvedPropertyId,
+            officeId,
+            workOrder: matchingWorkOrder,
             ...receiptListReturnSelection
           });
           return;
@@ -770,6 +779,26 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
+  }
+
+  private resolveWorkOrderIdFromReceiptRow(rowItem: ReceiptDisplayList, workOrderCode: string): string | null {
+    const normalizedCode = (workOrderCode || '').trim().toLowerCase();
+    if (!normalizedCode || this.mappingService.isReceiptWorkOrderMissingDisplay(workOrderCode)) {
+      return null;
+    }
+
+    for (const split of rowItem.splits || []) {
+      const splitCode = (split.workOrderCode || '').trim().toLowerCase();
+      if (splitCode !== normalizedCode) {
+        continue;
+      }
+      const workOrderId = (split.workOrderId || '').toString().trim();
+      if (workOrderId) {
+        return workOrderId;
+      }
+    }
+
+    return null;
   }
 
   private buildReceiptListWorkOrderReturnSelection(): Pick<WorkOrderSelection, 'returnToReceiptList' | 'returnReceiptListKind'> {

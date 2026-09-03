@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
@@ -61,6 +61,52 @@ export class WorkOrderService {
   getWorkOrderById(workOrderId: string): Observable<WorkOrderResponse> {
     return this.http.get<WorkOrderResponse>(this.controller + workOrderId).pipe(
       map(workOrder => this.mappingService.mapWorkOrderResponse(workOrder))
+    );
+  }
+
+  resolveWorkOrderForLink(options: {
+    workOrderId?: string | null;
+    workOrderCode?: string | null;
+    officeId?: number | null;
+  }): Observable<WorkOrderResponse | null> {
+    const workOrderId = (options.workOrderId || '').trim();
+    if (workOrderId) {
+      return this.getWorkOrderById(workOrderId).pipe(
+        map(workOrder => workOrder ?? null),
+        catchError(() => of(null))
+      );
+    }
+
+    const workOrderCode = (options.workOrderCode || '').trim();
+    if (!workOrderCode) {
+      return of(null);
+    }
+
+    const normalizedCode = workOrderCode.toLowerCase();
+    const officeIds = options.officeId != null && Number(options.officeId) > 0
+      ? [Number(options.officeId)]
+      : [];
+
+    if (officeIds.length > 0) {
+      return this.searchWorkOrders({
+        officeIds,
+        propertyId: null,
+        isActive: null,
+        startDate: null,
+        endDate: null
+      }).pipe(
+        map(workOrders => (workOrders || []).find(
+          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === normalizedCode
+        ) ?? null),
+        catchError(() => of(null))
+      );
+    }
+
+    return this.getWorkOrders(null, null).pipe(
+      map(workOrders => (workOrders || []).find(
+        workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === normalizedCode
+      ) ?? null),
+      catchError(() => of(null))
     );
   }
 

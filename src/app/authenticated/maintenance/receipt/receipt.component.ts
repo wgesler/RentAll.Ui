@@ -1987,32 +1987,23 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const propertyId = this.getSplitPropertyId(splitIndex);
     const officeId = this.getReceiptOfficeId();
     const shellSelection = this.buildShellWorkOrderSelectionBase();
 
-    if (targetWorkOrderId) {
-      this.emitWorkOrderSelection({
-        workOrderId: targetWorkOrderId,
-        propertyId,
-        officeId,
-        ...shellSelection
-      });
-      return;
-    }
-
-    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
-      next: workOrders => {
-        const matchingWorkOrder = (workOrders || []).find(
-          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
-        );
+    this.workOrderService.resolveWorkOrderForLink({
+      workOrderId: targetWorkOrderId || null,
+      workOrderCode: targetWorkOrderCode || null,
+      officeId
+    }).pipe(take(1)).subscribe({
+      next: matchingWorkOrder => {
         if (!matchingWorkOrder) {
-          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
+          const label = targetWorkOrderCode || targetWorkOrderId;
+          this.toastr.warning(`Unable to locate ${label}.`, 'Work Order');
           return;
         }
 
         const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
-        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
+        const resolvedPropertyId = (matchingWorkOrder.propertyId || '').trim();
         if (!workOrderId || !resolvedPropertyId) {
           this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
           return;
@@ -2022,6 +2013,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           workOrderId,
           propertyId: resolvedPropertyId,
           officeId,
+          workOrder: matchingWorkOrder,
           ...shellSelection
         });
       },
