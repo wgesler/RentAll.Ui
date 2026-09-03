@@ -250,9 +250,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   resolveActivePropertyId(): string | null {
-    return this.normalizePropertyId(
-      this.property?.propertyId ?? this.propertyId ?? this.selectedPropertyId
-    );
+    return this.normalizePropertyId(this.propertyId)
+      ?? this.normalizePropertyId(this.property?.propertyId)
+      ?? this.normalizePropertyId(this.selectedPropertyId);
   }
 
   handlePropertyScopeChange(changes: SimpleChanges): void {
@@ -760,10 +760,10 @@ onWorkOrderIdChanged(): void {
     this.lastMarkupFactor = this.getMarkupFactor();
     this.onWorkOrderTypeChanged(null);
 
-    this.selectedPropertyId = this.property?.propertyId ?? null;
+    this.selectedPropertyId = this.resolveActivePropertyId();
     this.loadAccountingOfficeForWorkOrderCode();
     this.ensureEditableWorkOrderItems();
-    if (this.property || this.selectedPropertyId) {
+    if (this.resolveActivePropertyId()) {
       this.loadPropertyReservations();
       this.loadPropertyReceipts();
       this.loadPropertyAgreement();
@@ -886,7 +886,7 @@ onWorkOrderIdChanged(): void {
     if (!requiresPropertySelection) {
       return null;
     }
-    const resolvedPropertyId = (this.property?.propertyId || this.selectedPropertyId || '').trim();
+    const resolvedPropertyId = (this.resolveActivePropertyId() || '').trim();
     return resolvedPropertyId || null;
   }
 
@@ -1176,8 +1176,18 @@ onWorkOrderIdChanged(): void {
     return Number(receipt.bankCardId ?? 0) === 0;
   }
 
+  hasTenantReceiptSplit(receipt: Pick<ReceiptResponse, 'splits'>): boolean {
+    const splits = receipt.splits?.length
+      ? receipt.splits
+      : [{ receiptTypeId: ReceiptType.Tenant, amount: 0, description: '' }];
+    return splits.some(split => Number(split.receiptTypeId) === ReceiptType.Tenant);
+  }
+
   shouldExcludeReceiptFromWorkOrderDropdown(receipt: ReceiptResponse, allowReceiptId: string | null): boolean {
     if (!this.isBillReceipt(receipt) || receipt.isUtility !== true) {
+      return false;
+    }
+    if (this.hasTenantReceiptSplit(receipt)) {
       return false;
     }
     return (receipt.receiptId || '').trim() !== (allowReceiptId || '').trim();
@@ -1949,11 +1959,13 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
   }
 
   loadPropertyReservations(): void {
-    if (!this.selectedPropertyId) {
+    const activePropertyId = this.resolveActivePropertyId();
+    this.selectedPropertyId = activePropertyId;
+    if (!activePropertyId) {
       this.propertyReservations = [];
       return;
     }
-    this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(take(1)).subscribe({
+    this.reservationService.getReservationsByPropertyId(activePropertyId).pipe(take(1)).subscribe({
       next: reservations => {
         this.propertyReservations = (reservations ?? []).filter(r => r.isActive !== false);
       },
@@ -2158,6 +2170,9 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
     return normalizedSplits
       .map((split, index) => ({ split, index }))
       .filter(({ split }) => {
+        if (receipt.isUtility === true && Number(split.receiptTypeId) !== ReceiptType.Tenant) {
+          return false;
+        }
         const splitCode = this.getSplitWorkOrder(split);
         return !splitCode || (!!currentWorkOrderCode && splitCode === currentWorkOrderCode);
       })
