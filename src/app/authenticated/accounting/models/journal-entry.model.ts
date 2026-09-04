@@ -18,6 +18,8 @@ export interface JournalEntryLineSearchRequest {
    * When true: honor startDate if set; null startDate = beginning of time (GL Include All).
    */
   showAll?: boolean;
+  /** When true, include Bill / BillPayment / BillCredit JEs regardless of accounting office start (AP Aging). */
+  includePreStartBills?: boolean;
   startDate?: string | null;
   endDate?: string | null;
 }
@@ -460,6 +462,7 @@ export interface JournalEntrySyncJobTypeStatus {
   processed: number;
   skipped: number;
   errors: number;
+  errorMessages: string[];
   status: string;
 }
 

@@ -27,7 +27,7 @@
     }
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" preserveContent class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Health">
           <app-document-health />
         </mat-tab>

@@ -4,11 +4,15 @@ import { catchError, filter, finalize, map, Observable, of, Subject, switchMap, 
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { GeneralLedgerService } from '../../accounting/services/general-ledger.service';
 import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, healthKeyToPaymentKindId, healthKeyToSyncType, resolveHealthFixDocumentIds } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, HealthIssueDisplayRow, healthKeyToPaymentKindId, healthKeyToSyncType, resolveHealthFixDocumentIds } from '../models/health.model';
+import { DocumentHealthStateService } from '../services/document-health-state.service';
 import { HealthService } from '../services/health.service';
 
 @Component({
@@ -22,7 +26,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   @ViewChild('resultsPanel') resultsPanel?: ElementRef<HTMLElement>;
 
   private healthService = inject(HealthService);
+  private healthStateService = inject(DocumentHealthStateService);
   private generalLedgerService = inject(GeneralLedgerService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
@@ -30,6 +37,9 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   readonly officeIds: number[] = [];
   readonly fixPollIntervalMs = 500;
   readonly fixPollMaxAttempts = 3600;
+
+  organizationId = '';
+  offices: OfficeResponse[] = [];
 
   rows: HealthCheckRowState[] = [
     { key: 'receipt', label: 'Receipts', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
@@ -45,7 +55,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   ];
 
   activeRowKey: HealthCheckKey | null = null;
-  issueRows: Array<DocumentHealthIssue & { transactionDateDisplay: string; amountDisplay: string }> = [];
+  issueRows: HealthIssueDisplayRow[] = [];
   isCheckingAll = false;
   isFixingAll = false;
   showIssueHint = false;
@@ -55,14 +65,35 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     issue: { displayAs: 'Issue', maxWidth: '24ch' },
     documentCode: { displayAs: 'Document', maxWidth: '14ch' },
     relatedCode: { displayAs: 'Related', maxWidth: '14ch' },
-    officeId: { displayAs: 'Office', maxWidth: '8ch' },
+    officeNameDisplay: { displayAs: 'Office', maxWidth: '20ch' },
     amountDisplay: { displayAs: 'Amount', maxWidth: '12ch' },
     transactionDateDisplay: { displayAs: 'Date', maxWidth: '12ch' },
     detail: { displayAs: 'Detail', maxWidth: '40ch' }
   };
 
   //#region Document-Health
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.restoreSessionState();
+
+    if (!this.organizationId) {
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices;
+          this.refreshIssueRowOfficeNames();
+        });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   isRowBusy(row: HealthCheckRowState): boolean {
     return row.checking || row.fixing;
@@ -309,11 +340,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const typeStatus = status.types.find(row => row.type === syncType) ?? status.types[0];
     const processed = typeStatus?.processed ?? 0;
     const skipped = typeStatus?.skipped ?? 0;
-    const errors = typeStatus?.errors ?? 0;
-    const syncErrors: string[] = [];
+    const errorMessages = (typeStatus?.errorMessages ?? []).map(message => message.trim()).filter(message => message.length > 0);
+    const syncErrors: string[] = [...errorMessages];
 
-    if (errors > 0) {
-      syncErrors.push(`${errors} document(s) had sync errors.`);
+    if (syncErrors.length === 0 && (typeStatus?.errors ?? 0) > 0) {
+      syncErrors.push(`${typeStatus?.errors} document(s) had sync errors.`);
     }
 
     if ((status.message ?? '').toLowerCase().includes('failed')) {
@@ -389,13 +420,9 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
   patchRow(key: HealthCheckKey, patch: Partial<HealthCheckRowState>): void {
     this.rows = this.rows.map(row => row.key === key ? { ...row, ...patch } : row);
+    this.persistSessionState();
     this.cdr.markForCheck();
   }
 
@@ -404,6 +431,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.showIssueHint = false;
     this.unresolvedHint = '';
     this.activeRowKey = null;
+    this.persistSessionState();
     this.cdr.markForCheck();
   }
 
@@ -461,36 +489,17 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   showUnresolvedIssues(key: HealthCheckKey, result: DocumentHealthResult, syncErrors: string[]): void {
     const issues = result.issues ?? [];
     this.activeRowKey = key;
-    this.issueRows = issues.map(issue => ({
-      ...issue,
-      transactionDateDisplay: issue.transactionDate ?? '',
-      amountDisplay: issue.amount == null ? '' : Number(issue.amount).toFixed(2),
-      detail: issue.detail ?? ''
-    }));
-
-    if (syncErrors.length > 0) {
-      const syncIssueRows = syncErrors.map((message, index) => ({
-        issue: 'Sync error',
-        organizationId: '',
-        officeId: 0,
-        documentCode: '',
-        documentId: `sync-error-${index}`,
-        relatedCode: null,
-        relatedId: null,
-        amount: null,
-        transactionDate: null,
-        detail: message,
-        transactionDateDisplay: '',
-        amountDisplay: ''
-      }));
-      this.issueRows = [...this.issueRows, ...syncIssueRows];
-    }
+    this.issueRows = this.applySyncErrorsToIssueRows(
+      issues.map(issue => this.mapIssueToDisplayRow(issue)),
+      syncErrors
+    );
 
     this.showIssueHint = true;
     this.unresolvedHint = syncErrors.length > 0
       ? 'Fix ran but could not resolve everything. Review each row — document issues and sync errors are listed below.'
       : 'Fix ran but could not resolve all document issues. Review each row below for document, office, and detail.';
 
+    this.persistSessionState();
     this.cdr.markForCheck();
     setTimeout(() => this.resultsPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   }
@@ -508,36 +517,17 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const combinedIssues: Array<DocumentHealthIssue & { transactionDateDisplay: string; amountDisplay: string }> = [];
+    const combinedIssues: HealthIssueDisplayRow[] = [];
 
     unresolvedOutcomes.forEach(outcome => {
       const issues = outcome.checkResult.issues ?? [];
-      issues.forEach(issue => {
-        combinedIssues.push({
-          ...issue,
-          issue: `[${outcome.label}] ${issue.issue}`,
-          transactionDateDisplay: issue.transactionDate ?? '',
-          amountDisplay: issue.amount == null ? '' : Number(issue.amount).toFixed(2),
-          detail: issue.detail ?? ''
-        });
-      });
-
-      (outcome.syncResult.errors ?? []).forEach((message, index) => {
-        combinedIssues.push({
-          issue: `[${outcome.label}] Sync error`,
-          organizationId: '',
-          officeId: 0,
-          documentCode: '',
-          documentId: `${outcome.key}-sync-error-${index}`,
-          relatedCode: null,
-          relatedId: null,
-          amount: null,
-          transactionDate: null,
-          detail: message,
-          transactionDateDisplay: '',
-          amountDisplay: ''
-        });
-      });
+      const syncErrors = outcome.syncResult.errors ?? [];
+      const displayRows = issues.map(issue => this.mapIssueToDisplayRow({
+        ...issue,
+        issue: `[${outcome.label}] ${issue.issue}`,
+        detail: issue.detail ?? ''
+      }));
+      combinedIssues.push(...this.applySyncErrorsToIssueRows(displayRows, syncErrors));
     });
 
     this.activeRowKey = null;
@@ -545,8 +535,136 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.showIssueHint = true;
     this.unresolvedHint = `Fix All finished with unresolved issues in ${unresolvedOutcomes.length} document type(s). Details are listed below.`;
     this.toastr.error(`Fix All finished — ${unresolvedOutcomes.length} type(s) still have issues. Created ${totalCreated}, skipped ${totalSkipped}.`);
+    this.persistSessionState();
     this.cdr.markForCheck();
     setTimeout(() => this.resultsPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  }
+
+  mapIssueToDisplayRow(issue: DocumentHealthIssue): HealthIssueDisplayRow {
+    return {
+      ...issue,
+      transactionDateDisplay: issue.transactionDate ?? '',
+      amountDisplay: issue.amount == null ? '' : Number(issue.amount).toFixed(2),
+      officeNameDisplay: this.getOfficeNameForOfficeId(issue.officeId),
+      detail: issue.detail ?? ''
+    };
+  }
+
+  getOfficeNameForOfficeId(officeId: number): string {
+    if (!officeId) {
+      return '';
+    }
+
+    const office = this.offices.find(row => row.officeId === officeId);
+    const name = (office?.name || office?.officeCode || '').trim();
+    return name || String(officeId);
+  }
+
+  refreshIssueRowOfficeNames(): void {
+    if (this.issueRows.length === 0) {
+      return;
+    }
+
+    this.issueRows = this.issueRows.map(row => ({
+      ...row,
+      officeNameDisplay: row.officeId ? this.getOfficeNameForOfficeId(row.officeId) : row.officeNameDisplay
+    }));
+    this.cdr.markForCheck();
+  }
+
+  applySyncErrorsToIssueRows(rows: HealthIssueDisplayRow[], syncErrors: string[]): HealthIssueDisplayRow[] {
+    if (syncErrors.length === 0) {
+      return rows;
+    }
+
+    const errorsByDocumentCode = new Map<string, string>();
+    const unmatchedErrors: string[] = [];
+
+    for (const message of syncErrors) {
+      const trimmed = message.trim();
+      if (!trimmed) {
+        continue;
+      }
+
+      const match = /^([^:]+):\s*(.+)$/s.exec(trimmed);
+      if (match) {
+        errorsByDocumentCode.set(match[1].trim(), match[2].trim());
+      } else {
+        unmatchedErrors.push(trimmed);
+      }
+    }
+
+    const updatedRows = rows.map(row => {
+      const syncDetail = errorsByDocumentCode.get(row.documentCode);
+      if (!syncDetail) {
+        return row;
+      }
+
+      errorsByDocumentCode.delete(row.documentCode);
+      return {
+        ...row,
+        detail: row.detail ? `${row.detail} ${syncDetail}` : syncDetail
+      };
+    });
+
+    const leftoverRows = Array.from(errorsByDocumentCode.entries()).map(([documentCode, detail], index) =>
+      this.mapIssueToDisplayRow({
+        issue: 'Sync error',
+        organizationId: '',
+        officeId: 0,
+        documentCode,
+        documentId: `sync-error-${documentCode}-${index}`,
+        relatedCode: null,
+        relatedId: null,
+        amount: null,
+        transactionDate: null,
+        detail
+      })
+    );
+
+    const unmatchedRows = unmatchedErrors.map((detail, index) => this.mapIssueToDisplayRow({
+      issue: 'Sync error',
+      organizationId: '',
+      officeId: 0,
+      documentCode: '',
+      documentId: `sync-error-${index}`,
+      relatedCode: null,
+      relatedId: null,
+      amount: null,
+      transactionDate: null,
+      detail
+    }));
+
+    return [...updatedRows, ...leftoverRows, ...unmatchedRows];
+  }
+
+  restoreSessionState(): void {
+    const saved = this.healthStateService.load(this.organizationId);
+    if (!saved) {
+      return;
+    }
+
+    this.rows = saved.rows;
+    this.activeRowKey = saved.activeRowKey;
+    this.issueRows = saved.issueRows;
+    this.showIssueHint = saved.showIssueHint;
+    this.unresolvedHint = saved.unresolvedHint;
+    this.cdr.markForCheck();
+  }
+
+  persistSessionState(): void {
+    if (!this.organizationId) {
+      return;
+    }
+
+    this.healthStateService.save({
+      organizationId: this.organizationId,
+      rows: this.rows,
+      activeRowKey: this.activeRowKey,
+      issueRows: this.issueRows,
+      showIssueHint: this.showIssueHint,
+      unresolvedHint: this.unresolvedHint
+    });
   }
   //#endregion
 }

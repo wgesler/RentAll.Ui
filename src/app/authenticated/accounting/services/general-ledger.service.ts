@@ -84,6 +84,10 @@ export class GeneralLedgerService {
       body['showAll'] = true;
     }
 
+    if (request.includePreStartBills) {
+      body['includePreStartBills'] = true;
+    }
+
     return this.http.post<JournalEntryLineSearchResponse[]>(`${this.controller}journal-entry-line/search`, body).pipe(
       map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryLineSearchResponse(line as unknown as Record<string, unknown>)))
     );
@@ -343,6 +347,7 @@ export class GeneralLedgerService {
           processed: Number(row?.processed ?? 0),
           skipped: Number(row?.skipped ?? 0),
           errors: Number(row?.errors ?? 0),
+          errorMessages: (row?.errorMessages ?? row?.ErrorMessages ?? []).map((message: unknown) => String(message ?? '')),
           status: String(row?.status ?? 'Pending')
         }))
       }))

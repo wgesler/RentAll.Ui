@@ -327,6 +327,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
             officeIds: [officeId],
             chartOfAccountId,
             includeUnposted: true,
+            includePreStartBills: true,
             startDate: null,
             endDate: asOfDate
           }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[])))

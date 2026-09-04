@@ -122,6 +122,21 @@ export function resolveHealthFixDocumentIds(
   return [];
 }
 
+export interface HealthIssueDisplayRow extends DocumentHealthIssue {
+  transactionDateDisplay: string;
+  amountDisplay: string;
+  officeNameDisplay: string;
+}
+
+export interface DocumentHealthSessionState {
+  organizationId: string;
+  rows: HealthCheckRowState[];
+  activeRowKey: HealthCheckKey | null;
+  issueRows: HealthIssueDisplayRow[];
+  showIssueHint: boolean;
+  unresolvedHint: string;
+}
+
 export interface FixAllOutcome {
   key: HealthCheckKey;
   label: string;
