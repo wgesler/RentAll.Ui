@@ -265,6 +265,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
       reservationId: null,
       includeUnposted: true,
       showAll: this.reportKind !== 'balanceSheet',
+      includePreStartBills: this.reportKind === 'balanceSheet',
       startDate,
       endDate
     }).pipe(
