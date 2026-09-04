@@ -15,6 +15,7 @@ import { GeneralErrorLogComponent } from '../general-error-log/general-error-log
 import { GeneralErrorLogListComponent } from '../general-error-log-list/general-error-log-list.component';
 import { PropertyUploadLogComponent } from '../property-upload-log/property-upload-log.component';
 import { PropertyUploadLogListComponent } from '../property-upload-log-list/property-upload-log-list.component';
+import { DocumentHealthComponent } from '../document-health/document-health.component';
 import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse, PropertyUploadLogResponse } from '../models/log.model';
 import { LogService } from '../services/log.service';
 
@@ -37,7 +38,8 @@ import { LogService } from '../services/log.service';
     GeneralErrorLogListComponent,
     GeneralErrorLogComponent,
     PropertyUploadLogListComponent,
-    PropertyUploadLogComponent
+    PropertyUploadLogComponent,
+    DocumentHealthComponent
   ]
 })
 export class LogsShellComponent implements OnInit, OnDestroy {
@@ -94,17 +96,17 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   //#region Get Methods
   hasActiveTabDetail(): boolean {
     switch (this.selectedTabIndex) {
-      case 0:
-        return !!this.selectedApplicationLog;
       case 1:
-        return !!this.selectedAccountingLog;
+        return !!this.selectedApplicationLog;
       case 2:
-        return !!this.selectedAccountingError;
+        return !!this.selectedAccountingLog;
       case 3:
-        return !!this.selectedDatabaseError;
+        return !!this.selectedAccountingError;
       case 4:
-        return !!this.selectedGeneralError;
+        return !!this.selectedDatabaseError;
       case 5:
+        return !!this.selectedGeneralError;
+      case 6:
         return !!this.selectedPropertyUploadLog;
       default:
         return false;
@@ -175,22 +177,22 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   //#region Utility Methods
   backActiveTabDetail(): void {
     switch (this.selectedTabIndex) {
-      case 0:
+      case 1:
         this.closeApplicationLog();
         return;
-      case 1:
+      case 2:
         this.closeAccountingLog();
         return;
-      case 2:
+      case 3:
         this.closeAccountingErrorLog();
         return;
-      case 3:
+      case 4:
         this.closeDatabaseErrorLog();
         return;
-      case 4:
+      case 5:
         this.closeGeneralErrorLog();
         return;
-      case 5:
+      case 6:
         this.closePropertyUploadLog();
         return;
       default:

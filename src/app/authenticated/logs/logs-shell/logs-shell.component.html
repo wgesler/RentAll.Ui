@@ -8,10 +8,12 @@
         </span>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
-        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isDeletingAll" (click)="deleteAllLogs()">
-          <mat-icon>delete_sweep</mat-icon>
-          Delete All
-        </button>
+        @if (selectedTabIndex !== 0) {
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isDeletingAll" (click)="deleteAllLogs()">
+            <mat-icon>delete_sweep</mat-icon>
+            Delete All
+          </button>
+        }
         @if (hasActiveTabDetail()) {
           <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="backActiveTabDetail()">
             <mat-icon>arrow_back</mat-icon>
@@ -26,6 +28,10 @@
 
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab label="Health">
+          <app-document-health />
+        </mat-tab>
+
         <mat-tab label="Application Log">
           <app-application-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedApplicationLog" (openApplicationLog)="openApplicationLog($event)" (listActionCompleted)="onListActionCompleted()" />
           @if (selectedApplicationLog) {

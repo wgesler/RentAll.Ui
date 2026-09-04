@@ -263,6 +263,18 @@ export class GeneralLedgerService {
     );
   }
 
+  syncPaymentJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
+    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/sync/payments`, { officeIds }).pipe(
+      map(result => this.mapJournalEntrySyncResult(result))
+    );
+  }
+
+  syncDepositJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
+    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/sync/deposits`, { officeIds }).pipe(
+      map(result => this.mapJournalEntrySyncResult(result))
+    );
+  }
+
   repairDepositAndTransferSplitLinks(officeIds: number[]): Observable<JournalEntrySyncResult> {
     return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/sync/split-links`, { officeIds }).pipe(
       map(result => this.mapJournalEntrySyncResult(result))

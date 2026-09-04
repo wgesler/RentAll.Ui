@@ -1,0 +1,90 @@
+<div class="document-health">
+  <div class="document-health-header">
+    <p class="document-health-intro">
+      Use <strong>Check</strong> for counts in the grid. Use <strong>Fix</strong> to repair JEs — details below appear only when Fix could not resolve an issue.
+    </p>
+    <div class="document-health-header-actions form-titlebar-actions-wrap uniform-gap">
+      <button mat-raised-button type="button" color="primary" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy" (click)="checkAll()">
+        <mat-icon>playlist_add_check</mat-icon>
+        Check All
+      </button>
+      <button mat-raised-button type="button" color="accent" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy" (click)="fixAll()">
+        <mat-icon>build</mat-icon>
+        Fix All
+      </button>
+    </div>
+  </div>
+
+  <div class="document-health-grid">
+    <div class="document-health-grid-head">
+      <span>Type</span>
+      <span>Actions</span>
+      <span>Total</span>
+      <span>With JE</span>
+      <span>Missing</span>
+      <span>Duplicates</span>
+      <span>Status</span>
+    </div>
+
+    @for (row of rows; track row.key) {
+      <div class="document-health-row" [class.document-health-row-active]="activeRowKey === row.key">
+        <span class="document-health-label">{{ row.label }}</span>
+        <span class="document-health-actions">
+          <button mat-raised-button type="button" color="primary" class="document-health-action-btn" [disabled]="isRowBusy(row) || isBulkBusy" (click)="checkRow(row)">
+            <mat-icon>search</mat-icon>
+            Check
+          </button>
+          @if (row.canFix) {
+            <button mat-raised-button type="button" color="accent" class="document-health-action-btn" [disabled]="isRowBusy(row) || isBulkBusy" (click)="fixRow(row)">
+              <mat-icon>build</mat-icon>
+              Fix
+            </button>
+          }
+        </span>
+        <span>{{ row.summary?.totalDocuments ?? '—' }}</span>
+        <span>{{ row.summary?.documentsWithJe ?? '—' }}</span>
+        <span>{{ row.summary?.documentsMissingJe ?? '—' }}</span>
+        <span>{{ row.summary?.duplicateOpenJes ?? '—' }}</span>
+        <span class="document-health-status" [class.is-clean]="row.summary?.isClean === true" [class.is-dirty]="row.summary && !row.summary.isClean">
+          @if (row.checking) {
+            Checking…
+          } @else if (row.fixing) {
+            Fixing…
+          } @else if (row.errorMessage) {
+            Error
+          } @else if (row.summary) {
+            {{ row.summary.isClean ? 'Clean' : 'Issues' }}
+          } @else {
+            —
+          }
+        </span>
+      </div>
+    }
+  </div>
+
+  <div #resultsPanel class="document-health-results">
+    <div class="document-health-results-header">
+      <h3>Unresolved{{ activeRowLabel() ? ' — ' + activeRowLabel() : '' }}</h3>
+      <span class="document-health-results-count">{{ issueRows.length }} row(s)</span>
+    </div>
+
+    @if (showIssueHint) {
+      <p class="document-health-hint">{{ unresolvedHint }}</p>
+    }
+
+    <div class="mat list-layout-standard">
+      <div class="tableDiv">
+        <app-data-table
+          tableName="document-health-issues"
+          [data]="issueRows"
+          [columns]="issueColumns"
+          [hasColumnIndex]="true"
+          [hasFilter]="true"
+          [hasActionsRowClick]="false"
+          [hasButtonTop]="false"
+          [itemsPerPage]="25"
+          [noDataMessage]="'Unresolved issues appear here after Fix could not repair them (or after Check on Manual JEs).'"] />
+      </div>
+    </div>
+  </div>
+</div>
