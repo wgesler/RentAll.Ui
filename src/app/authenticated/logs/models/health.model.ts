@@ -77,6 +77,31 @@ export function healthKeyToSyncType(key: HealthCheckKey): HealthFixSyncType | nu
   }
 }
 
+export function healthKeyToPaymentKindId(key: HealthCheckKey): number | null {
+  switch (key) {
+    case 'paymentInvoice':
+      return 0;
+    case 'paymentBill':
+      return 1;
+    case 'paymentOwner':
+      return 2;
+    default:
+      return null;
+  }
+}
+
+export function extractHealthFixDocumentIds(issues: DocumentHealthIssue[] | null | undefined): string[] {
+  const ids = new Set<string>();
+  for (const issue of issues ?? []) {
+    const documentId = String(issue.documentId ?? '').trim();
+    if (documentId.length > 0) {
+      ids.add(documentId);
+    }
+  }
+
+  return Array.from(ids);
+}
+
 export interface FixAllOutcome {
   key: HealthCheckKey;
   label: string;

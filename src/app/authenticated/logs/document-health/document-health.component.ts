@@ -8,7 +8,7 @@ import { GeneralLedgerService } from '../../accounting/services/general-ledger.s
 import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, healthKeyToSyncType } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, extractHealthFixDocumentIds, healthKeyToPaymentKindId, healthKeyToSyncType } from '../models/health.model';
 import { HealthService } from '../services/health.service';
 
 @Component({
@@ -86,7 +86,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.patchRow(row.key, { fixing: true, fixProgress: 'Starting…', errorMessage: null });
+    this.patchRow(row.key, { fixing: true, fixProgress: 'Checking…', errorMessage: null });
     this.clearUnresolvedDisplay();
 
     this.runFixAndCheck(row.key).pipe(
@@ -164,18 +164,29 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
       const row = fixableRows[index++];
       const syncType = healthKeyToSyncType(row.key);
-      const skipSync = syncType != null && syncedTypes.has(syncType);
+      const rowIsClean = row.summary?.isClean === true;
+      const skipSyncBecauseDeduped = syncType != null && syncedTypes.has(syncType);
+      const skipSync = rowIsClean || skipSyncBecauseDeduped;
       if (syncType != null && !skipSync) {
         syncedTypes.add(syncType);
       }
 
-      this.patchRow(row.key, { fixing: !skipSync, fixProgress: skipSync ? null : 'Starting…', errorMessage: null });
+      this.patchRow(row.key, {
+        fixing: !skipSync,
+        fixProgress: skipSync ? null : 'Starting…',
+        errorMessage: null
+      });
 
       const pipeline = skipSync
-        ? this.runCheck(row.key).pipe(map(checkResult => ({
-            syncResult: this.emptySyncResult(),
-            checkResult
-          })))
+        ? (rowIsClean
+          ? of({
+              syncResult: this.emptySyncResult(),
+              checkResult: { summary: row.summary!, issues: row.issues ?? [] }
+            })
+          : this.runCheck(row.key).pipe(map(checkResult => ({
+              syncResult: this.emptySyncResult(),
+              checkResult
+            }))))
         : this.runFixAndCheck(row.key);
 
       pipeline.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
@@ -236,14 +247,24 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     }
   }
 
-  runFix(key: HealthCheckKey): Observable<JournalEntrySyncResult> {
+  runFix(key: HealthCheckKey, documentIds: string[]): Observable<JournalEntrySyncResult> {
     const syncType = healthKeyToSyncType(key);
     if (!syncType) {
       return throwError(() => new Error(`Fix is not available for: ${key}`));
     }
 
+    if (documentIds.length === 0) {
+      return of(this.emptySyncResult());
+    }
+
     const officeIds = this.officeIds;
-    return this.generalLedgerService.startDocumentTypeJournalEntrySyncJob(officeIds, syncType).pipe(
+    const paymentKindId = healthKeyToPaymentKindId(key);
+    return this.generalLedgerService.startDocumentTypeJournalEntrySyncJob(
+      officeIds,
+      syncType,
+      documentIds,
+      paymentKindId
+    ).pipe(
       switchMap(start => {
         if (!start.jobId) {
           return throwError(() => new Error('Sync job did not return an ID.'));
@@ -319,13 +340,28 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   }
 
   runFixAndCheck(key: HealthCheckKey): Observable<{ syncResult: JournalEntrySyncResult; checkResult: DocumentHealthResult }> {
-    return this.runFix(key).pipe(
-      takeUntil(this.destroy$),
+    return this.runCheck(key).pipe(
       take(1),
-      switchMap(syncResult => this.runCheck(key).pipe(
-        take(1),
-        map(checkResult => ({ syncResult, checkResult }))
-      ))
+      tap(checkResult => {
+        const fixCount = extractHealthFixDocumentIds(checkResult.issues).length;
+        if (fixCount > 0) {
+          this.patchRow(key, { fixProgress: `Fixing 0/${fixCount}…` });
+        }
+      }),
+      switchMap(checkResult => {
+        const documentIds = extractHealthFixDocumentIds(checkResult.issues);
+        if (documentIds.length === 0) {
+          return of({ syncResult: this.emptySyncResult(), checkResult });
+        }
+
+        return this.runFix(key, documentIds).pipe(
+          take(1),
+          switchMap(syncResult => this.runCheck(key).pipe(
+            take(1),
+            map(recheckResult => ({ syncResult, checkResult: recheckResult }))
+          ))
+        );
+      })
     );
   }
   //#endregion

@@ -297,10 +297,17 @@ export class GeneralLedgerService {
     );
   }
 
-  startDocumentTypeJournalEntrySyncJob(officeIds: number[], syncType: string): Observable<StartJournalEntrySyncJobResponse> {
+  startDocumentTypeJournalEntrySyncJob(
+    officeIds: number[],
+    syncType: string,
+    documentIds: string[] = [],
+    paymentKindId: number | null = null
+  ): Observable<StartJournalEntrySyncJobResponse> {
     return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/type/start`, {
       officeIds,
-      syncType
+      syncType,
+      documentIds,
+      paymentKindId
     }).pipe(
       map(response => ({
         jobId: String(response?.jobId ?? '')
