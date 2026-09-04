@@ -46,9 +46,35 @@ export interface HealthCheckRowState {
   canFix: boolean;
   checking: boolean;
   fixing: boolean;
+  fixProgress: string | null;
   summary: DocumentHealthSummary | null;
   issues: DocumentHealthIssue[];
   errorMessage: string | null;
+}
+
+export type HealthFixSyncType = 'receipt' | 'bill' | 'workOrder' | 'invoice' | 'payment' | 'deposit' | 'transfer';
+
+export function healthKeyToSyncType(key: HealthCheckKey): HealthFixSyncType | null {
+  switch (key) {
+    case 'receipt':
+      return 'receipt';
+    case 'bill':
+      return 'bill';
+    case 'workOrder':
+      return 'workOrder';
+    case 'invoice':
+      return 'invoice';
+    case 'paymentInvoice':
+    case 'paymentBill':
+    case 'paymentOwner':
+      return 'payment';
+    case 'deposit':
+      return 'deposit';
+    case 'transfer':
+      return 'transfer';
+    default:
+      return null;
+  }
 }
 
 export interface FixAllOutcome {

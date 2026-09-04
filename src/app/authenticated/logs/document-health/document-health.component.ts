@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
-import { finalize, map, Observable, switchMap, take } from 'rxjs';
+import { catchError, filter, finalize, map, Observable, of, Subject, switchMap, take, takeUntil, tap, throwError, timeout, timer } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { GeneralLedgerService } from '../../accounting/services/general-ledger.service';
-import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
+import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, healthKeyToSyncType } from '../models/health.model';
 import { HealthService } from '../services/health.service';
 
 @Component({
@@ -25,20 +25,23 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   private generalLedgerService = inject(GeneralLedgerService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+  private destroy$ = new Subject<void>();
 
   readonly officeIds: number[] = [];
+  readonly fixPollIntervalMs = 500;
+  readonly fixPollMaxAttempts = 3600;
 
   rows: HealthCheckRowState[] = [
-    { key: 'receipt', label: 'Receipts', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'bill', label: 'Bills', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'workOrder', label: 'Work Orders', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'invoice', label: 'Invoices', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'paymentInvoice', label: 'Payments (Invoice)', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'paymentBill', label: 'Payments (Bill)', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'paymentOwner', label: 'Payments (Owner)', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'deposit', label: 'Deposits', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'transfer', label: 'Transfers', canFix: true, checking: false, fixing: false, summary: null, issues: [], errorMessage: null },
-    { key: 'manualJournalEntry', label: 'Manual Journal Entries', canFix: false, checking: false, fixing: false, summary: null, issues: [], errorMessage: null }
+    { key: 'receipt', label: 'Receipts', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'bill', label: 'Bills', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'workOrder', label: 'Work Orders', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'invoice', label: 'Invoices', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'paymentInvoice', label: 'Payments (Invoice)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'paymentBill', label: 'Payments (Bill)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'paymentOwner', label: 'Payments (Owner)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'deposit', label: 'Deposits', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'transfer', label: 'Transfers', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'manualJournalEntry', label: 'Manual Journal Entries', canFix: false, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null }
   ];
 
   activeRowKey: HealthCheckKey | null = null;
@@ -83,19 +86,20 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.patchRow(row.key, { fixing: true, errorMessage: null });
+    this.patchRow(row.key, { fixing: true, fixProgress: 'Starting…', errorMessage: null });
     this.clearUnresolvedDisplay();
 
     this.runFixAndCheck(row.key).pipe(
       take(1),
-      finalize(() => this.patchRow(row.key, { fixing: false }))
+      takeUntil(this.destroy$),
+      finalize(() => this.patchRow(row.key, { fixing: false, fixProgress: null }))
     ).subscribe({
       next: ({ syncResult, checkResult }) => {
         this.applyCheckSummary(row.key, checkResult, false, row.canFix);
         this.handleFixOutcome(row.key, row.label, syncResult, checkResult);
       },
       error: () => {
-        this.patchRow(row.key, { fixing: false, errorMessage: CommonMessage.ServiceError });
+        this.patchRow(row.key, { fixing: false, fixProgress: null, errorMessage: CommonMessage.ServiceError });
         this.toastr.error(CommonMessage.ServiceError, row.label);
       }
     });
@@ -146,6 +150,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
     this.clearUnresolvedDisplay();
     this.isFixingAll = true;
+    const syncedTypes = new Set<HealthFixSyncType>();
     let index = 0;
     const outcomes: FixAllOutcome[] = [];
 
@@ -158,10 +163,23 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       }
 
       const row = fixableRows[index++];
-      this.patchRow(row.key, { fixing: true, errorMessage: null });
+      const syncType = healthKeyToSyncType(row.key);
+      const skipSync = syncType != null && syncedTypes.has(syncType);
+      if (syncType != null && !skipSync) {
+        syncedTypes.add(syncType);
+      }
 
-      this.runFixAndCheck(row.key).pipe(take(1), finalize(() => {
-        this.patchRow(row.key, { fixing: false });
+      this.patchRow(row.key, { fixing: !skipSync, fixProgress: skipSync ? null : 'Starting…', errorMessage: null });
+
+      const pipeline = skipSync
+        ? this.runCheck(row.key).pipe(map(checkResult => ({
+            syncResult: this.emptySyncResult(),
+            checkResult
+          })))
+        : this.runFixAndCheck(row.key);
+
+      pipeline.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+        this.patchRow(row.key, { fixing: false, fixProgress: null });
         runNext();
       })).subscribe({
         next: ({ syncResult, checkResult }) => {
@@ -219,31 +237,90 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   }
 
   runFix(key: HealthCheckKey): Observable<JournalEntrySyncResult> {
-    const officeIds = this.officeIds;
-    switch (key) {
-      case 'receipt':
-        return this.generalLedgerService.syncReceiptJournalEntries(officeIds);
-      case 'bill':
-        return this.generalLedgerService.syncBillJournalEntries(officeIds);
-      case 'workOrder':
-        return this.generalLedgerService.syncWorkOrderJournalEntries(officeIds);
-      case 'invoice':
-        return this.generalLedgerService.syncInvoiceJournalEntries(officeIds);
-      case 'paymentInvoice':
-      case 'paymentBill':
-      case 'paymentOwner':
-        return this.generalLedgerService.syncPaymentJournalEntries(officeIds);
-      case 'deposit':
-        return this.generalLedgerService.syncDepositJournalEntries(officeIds);
-      case 'transfer':
-        return this.generalLedgerService.syncTransferJournalEntries(officeIds);
-      default:
-        throw new Error(`Fix is not available for: ${key}`);
+    const syncType = healthKeyToSyncType(key);
+    if (!syncType) {
+      return throwError(() => new Error(`Fix is not available for: ${key}`));
     }
+
+    const officeIds = this.officeIds;
+    return this.generalLedgerService.startDocumentTypeJournalEntrySyncJob(officeIds, syncType).pipe(
+      switchMap(start => {
+        if (!start.jobId) {
+          return throwError(() => new Error('Sync job did not return an ID.'));
+        }
+
+        return this.pollDocumentTypeSyncJob(start.jobId, syncType, key);
+      })
+    );
+  }
+
+  pollDocumentTypeSyncJob(jobId: string, syncType: HealthFixSyncType, rowKey: HealthCheckKey): Observable<JournalEntrySyncResult> {
+    return timer(0, this.fixPollIntervalMs).pipe(
+      take(this.fixPollMaxAttempts),
+      switchMap(() => this.generalLedgerService.getAllJournalEntrySyncJobStatus(jobId)),
+      tap(status => this.updateFixProgress(rowKey, status, syncType)),
+      filter(status => status.isCompleted),
+      take(1),
+      map(status => this.mapJobStatusToSyncResult(status, syncType)),
+      timeout(this.fixPollIntervalMs * this.fixPollMaxAttempts + 5000),
+      catchError(() => throwError(() => new Error('Fix timed out while waiting for sync to finish.')))
+    );
+  }
+
+  updateFixProgress(rowKey: HealthCheckKey, status: JournalEntrySyncJobStatus, syncType: HealthFixSyncType): void {
+    const typeStatus = status.types.find(row => row.type === syncType) ?? status.types[0];
+    if (!typeStatus) {
+      this.patchRow(rowKey, { fixProgress: status.message ?? 'Fixing…' });
+      return;
+    }
+
+    const total = typeStatus.total ?? 0;
+    const processed = typeStatus.processed ?? 0;
+    const label = typeStatus.status || 'Running';
+    const progress = total > 0
+      ? `${label} ${processed}/${total}`
+      : (status.message ?? label);
+
+    this.patchRow(rowKey, { fixProgress: progress });
+  }
+
+  mapJobStatusToSyncResult(status: JournalEntrySyncJobStatus, syncType: HealthFixSyncType): JournalEntrySyncResult {
+    const typeStatus = status.types.find(row => row.type === syncType) ?? status.types[0];
+    const processed = typeStatus?.processed ?? 0;
+    const skipped = typeStatus?.skipped ?? 0;
+    const errors = typeStatus?.errors ?? 0;
+    const syncErrors: string[] = [];
+
+    if (errors > 0) {
+      syncErrors.push(`${errors} document(s) had sync errors.`);
+    }
+
+    if ((status.message ?? '').toLowerCase().includes('failed')) {
+      syncErrors.push(status.message ?? 'Sync failed.');
+    }
+
+    return {
+      documentsProcessed: processed,
+      journalEntriesCreated: Math.max(0, processed - skipped),
+      journalEntriesSkipped: skipped,
+      journalEntriesDeleted: 0,
+      errors: syncErrors
+    };
+  }
+
+  emptySyncResult(): JournalEntrySyncResult {
+    return {
+      documentsProcessed: 0,
+      journalEntriesCreated: 0,
+      journalEntriesSkipped: 0,
+      journalEntriesDeleted: 0,
+      errors: []
+    };
   }
 
   runFixAndCheck(key: HealthCheckKey): Observable<{ syncResult: JournalEntrySyncResult; checkResult: DocumentHealthResult }> {
     return this.runFix(key).pipe(
+      takeUntil(this.destroy$),
       take(1),
       switchMap(syncResult => this.runCheck(key).pipe(
         take(1),
@@ -265,7 +342,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   patchRow(key: HealthCheckKey, patch: Partial<HealthCheckRowState>): void {
     this.rows = this.rows.map(row => row.key === key ? { ...row, ...patch } : row);
