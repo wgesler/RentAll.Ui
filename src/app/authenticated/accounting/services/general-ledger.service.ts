@@ -347,7 +347,7 @@ export class GeneralLedgerService {
           processed: Number(row?.processed ?? 0),
           skipped: Number(row?.skipped ?? 0),
           errors: Number(row?.errors ?? 0),
-          errorMessages: (row?.errorMessages ?? row?.ErrorMessages ?? []).map((message: unknown) => String(message ?? '')),
+          errorMessages: (row?.errorMessages ?? []).map((message: unknown) => String(message ?? '')),
           status: String(row?.status ?? 'Pending')
         }))
       }))
