@@ -698,14 +698,6 @@
         </ng-template>
       </div>
       <div class="form-titlebar-actions-wrap">
-        @if (showJournalEntrySyncTools) {
-          <button mat-mini-fab type="button" color="primary" id="sync-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-            S
-          </button>
-          <button mat-mini-fab type="button" color="warn" id="clear-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-            C
-          </button>
-        }
         @if (isInvoiceCreateActive) {
           <button mat-raised-button type="button" color="accent" (click)="onInvoiceCreateBack()">
             <mat-icon>arrow_back</mat-icon>

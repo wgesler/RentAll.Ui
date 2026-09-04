@@ -4430,76 +4430,12 @@ persistPinnedTopBarIfActive(): void {
     }
   }
 
-  get showJournalEntrySyncTools(): boolean {
-    return this.hasAccountingFullAccess
-      && !this.activeInvoiceId
-      && !this.isGeneralLedgerDetailActive
-      && !this.isBillsReceiptDetailActive
-      && !this.isReceiptsReceiptDetailActive
-      && !this.isBillsReceiptsWorkOrderDetailActive
-      && !this.isDepositDetailActive
-      && !this.isPaymentDetailActive
-      && !this.isTransferDetailActive
-      && !this.isOwnersUtilityReceiptDetailActive
-      && !this.isOwnersWorkOrderDetailActive
-      && !this.isWorkOrderCreateActive
-      && !this.isFinancialReportDrillDownActive
-      && !this.isArAgingDrillDownActive
-      && !this.isApAgingDrillDownActive;
-  }
-
   resolveOfficeIdsForJournalEntrySync(): number[] {
     if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
       return [this.selectedOfficeId];
     }
 
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
-  }
-
-  resolveOfficeIdsForJournalEntryClear(): number[] {
-    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
-      return [this.selectedOfficeId];
-    }
-
-    // Empty list means "all offices for this organization" on clear-all endpoint.
-    return [];
-  }
-
-  async syncJournalEntries(): Promise<void> {
-    const officeIds = this.resolveOfficeIdsForJournalEntrySync();
-    if (officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
-      return;
-    }
-
-    this.syncProgressDialogMode = 'all';
-    this.initializeJournalEntrySyncProgress();
-    this.showSyncProgressDialog = true;
-    this.isSyncProgressComplete = false;
-    this.beginJournalEntrySyncTools();
-    await this.waitForUiPaint();
-    let syncCompleted = false;
-
-    try {
-      const startResponse = await firstValueFrom(this.generalLedgerService.startAllJournalEntrySyncJob({
-        officeIds,
-        startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
-        endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
-      }));
-      if (!startResponse.jobId) {
-        throw new Error('Sync job did not return an ID.');
-      }
-
-      syncCompleted = await this.pollJournalEntrySyncJob(startResponse.jobId);
-      if (syncCompleted) {
-        this.onJournalEntriesChanged();
-      }
-      this.toastr.success('Journal entry sync completed.', 'Sync');
-    } catch (error) {
-      this.showJournalEntrySyncError('Sync', error);
-    } finally {
-      this.finishJournalEntrySyncTools(true);
-    }
   }
 
   repairDepositAndTransferSplitLinks(): void {
@@ -4582,30 +4518,6 @@ persistPinnedTopBarIfActive(): void {
     this.toastr.success(message, 'Split links repaired');
   }
 
-  clearJournalEntries(): void {
-    const officeIds = this.resolveOfficeIdsForJournalEntryClear();
-    let clearSucceeded = false;
-
-    this.beginJournalEntrySyncTools();
-    this.generalLedgerService.clearAllJournalEntries(officeIds).pipe(
-      take(1),
-      finalize(() => {
-        this.finishJournalEntrySyncTools();
-        if (clearSucceeded) {
-          this.onJournalEntriesChanged();
-        }
-      })
-    ).subscribe({
-      next: (result) => {
-        clearSucceeded = true;
-        this.showJournalEntrySyncResult('Journal entries cleared', result, true);
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to clear journal entries.', CommonMessage.Error);
-      }
-    });
-  }
-
 beginJournalEntrySyncTools(): void {
     this.isJournalEntrySyncInProgress = true;
     this.cdr.detectChanges();
@@ -4619,51 +4531,12 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     this.cdr.detectChanges();
   }
 
-  showJournalEntrySyncResult(title: string, result: JournalEntrySyncResult, isClear: boolean = false): void {
-    const actionLabel = isClear ? 'deleted' : 'created';
-    const count = isClear ? result.journalEntriesDeleted : result.journalEntriesCreated;
-    const skipped = isClear ? 0 : result.journalEntriesSkipped;
-    let message = isClear
-      ? `${count} journal entries ${actionLabel}`
-      : `${result.documentsProcessed} documents processed, ${count} journal entries ${actionLabel}`;
-
-    if (!isClear && skipped > 0) {
-      message += `, ${skipped} skipped`;
-    }
-
-    if (result.errors.length > 0) {
-      message += `. ${result.errors.length} issue(s): ${result.errors.slice(0, 3).join('; ')}`;
-      if (result.errors.length > 3) {
-        message += '...';
-      }
-      this.toastr.warning(message, title);
-      return;
-    }
-
-    this.toastr.success(message, title);
-  }
-
   showJournalEntrySyncError(title: string, error: unknown): void {
     const httpError = error as HttpErrorResponse;
     const message = typeof httpError?.error === 'string'
       ? httpError.error
       : httpError?.message ?? 'Unable to sync journal entries.';
     this.toastr.error(message, title);
-  }
-
-  initializeJournalEntrySyncProgress(): void {
-    this.syncProgressRows = [
-      { key: 'invoice', label: 'Invoices', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'payment', label: 'Payments', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'bill', label: 'Bills', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'receipt', label: 'Receipts', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'deposit', label: 'Deposits', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'transfer', label: 'Transfers', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'departureFee', label: 'Departure Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'linenAndTowelFee', label: 'Linen & Towel Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'retainedEarnings', label: 'Retained Earnings', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
-    ];
   }
 
   closeSyncProgressDialog(): void {
