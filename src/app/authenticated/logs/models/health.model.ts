@@ -94,12 +94,32 @@ export function extractHealthFixDocumentIds(issues: DocumentHealthIssue[] | null
   const ids = new Set<string>();
   for (const issue of issues ?? []) {
     const documentId = String(issue.documentId ?? '').trim();
-    if (documentId.length > 0) {
+    if (documentId.length > 0 && documentId !== '00000000-0000-0000-0000-000000000000') {
       ids.add(documentId);
     }
   }
 
   return Array.from(ids);
+}
+
+export function resolveHealthFixDocumentIds(
+  checkResult: DocumentHealthResult,
+  fallbackIssues?: DocumentHealthIssue[] | null
+): string[] {
+  const fromCheck = extractHealthFixDocumentIds(checkResult.issues);
+  if (fromCheck.length > 0) {
+    return fromCheck;
+  }
+
+  const issueCount =
+    (checkResult.summary?.documentsMissingJe ?? 0) +
+    (checkResult.summary?.duplicateOpenJes ?? 0);
+
+  if (issueCount > 0) {
+    return extractHealthFixDocumentIds(fallbackIssues);
+  }
+
+  return [];
 }
 
 export interface FixAllOutcome {

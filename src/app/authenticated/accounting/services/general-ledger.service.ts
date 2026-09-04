@@ -301,13 +301,15 @@ export class GeneralLedgerService {
     officeIds: number[],
     syncType: string,
     documentIds: string[] = [],
-    paymentKindId: number | null = null
+    paymentKindId: number | null = null,
+    healthFix = false
   ): Observable<StartJournalEntrySyncJobResponse> {
     return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/type/start`, {
       officeIds,
       syncType,
       documentIds,
-      paymentKindId
+      paymentKindId,
+      healthFix
     }).pipe(
       map(response => ({
         jobId: String(response?.jobId ?? '')

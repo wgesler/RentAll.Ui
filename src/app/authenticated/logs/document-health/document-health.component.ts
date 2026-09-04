@@ -8,7 +8,7 @@ import { GeneralLedgerService } from '../../accounting/services/general-ledger.s
 import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, extractHealthFixDocumentIds, healthKeyToPaymentKindId, healthKeyToSyncType } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, healthKeyToPaymentKindId, healthKeyToSyncType, resolveHealthFixDocumentIds } from '../models/health.model';
 import { HealthService } from '../services/health.service';
 
 @Component({
@@ -89,7 +89,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.patchRow(row.key, { fixing: true, fixProgress: 'Checking…', errorMessage: null });
     this.clearUnresolvedDisplay();
 
-    this.runFixAndCheck(row.key).pipe(
+    this.runFixAndCheck(row.key, row.issues).pipe(
       take(1),
       takeUntil(this.destroy$),
       finalize(() => this.patchRow(row.key, { fixing: false, fixProgress: null }))
@@ -150,7 +150,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
     this.clearUnresolvedDisplay();
     this.isFixingAll = true;
-    const syncedTypes = new Set<HealthFixSyncType>();
+    const fixedKeys = new Set<HealthCheckKey>();
     let index = 0;
     const outcomes: FixAllOutcome[] = [];
 
@@ -163,12 +163,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       }
 
       const row = fixableRows[index++];
-      const syncType = healthKeyToSyncType(row.key);
       const rowIsClean = row.summary?.isClean === true;
-      const skipSyncBecauseDeduped = syncType != null && syncedTypes.has(syncType);
+      const skipSyncBecauseDeduped = fixedKeys.has(row.key);
       const skipSync = rowIsClean || skipSyncBecauseDeduped;
-      if (syncType != null && !skipSync) {
-        syncedTypes.add(syncType);
+      if (!skipSync) {
+        fixedKeys.add(row.key);
       }
 
       this.patchRow(row.key, {
@@ -187,7 +186,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
               syncResult: this.emptySyncResult(),
               checkResult
             }))))
-        : this.runFixAndCheck(row.key);
+        : this.runFixAndCheck(row.key, row.issues);
 
       pipeline.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
         this.patchRow(row.key, { fixing: false, fixProgress: null });
@@ -263,7 +262,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       officeIds,
       syncType,
       documentIds,
-      paymentKindId
+      paymentKindId,
+      true
     ).pipe(
       switchMap(start => {
         if (!start.jobId) {
@@ -339,18 +339,29 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     };
   }
 
-  runFixAndCheck(key: HealthCheckKey): Observable<{ syncResult: JournalEntrySyncResult; checkResult: DocumentHealthResult }> {
+  runFixAndCheck(
+    key: HealthCheckKey,
+    fallbackIssues?: DocumentHealthIssue[] | null
+  ): Observable<{ syncResult: JournalEntrySyncResult; checkResult: DocumentHealthResult }> {
     return this.runCheck(key).pipe(
       take(1),
       tap(checkResult => {
-        const fixCount = extractHealthFixDocumentIds(checkResult.issues).length;
+        const fixCount = resolveHealthFixDocumentIds(checkResult, fallbackIssues).length;
         if (fixCount > 0) {
           this.patchRow(key, { fixProgress: `Fixing 0/${fixCount}…` });
         }
       }),
       switchMap(checkResult => {
-        const documentIds = extractHealthFixDocumentIds(checkResult.issues);
+        const documentIds = resolveHealthFixDocumentIds(checkResult, fallbackIssues);
+        const expectedIssues =
+          (checkResult.summary?.documentsMissingJe ?? 0) +
+          (checkResult.summary?.duplicateOpenJes ?? 0);
+
         if (documentIds.length === 0) {
+          if (expectedIssues > 0) {
+            return throwError(() => new Error('Check found issues but no document IDs to fix. Run Check again, then Fix.'));
+          }
+
           return of({ syncResult: this.emptySyncResult(), checkResult });
         }
 
