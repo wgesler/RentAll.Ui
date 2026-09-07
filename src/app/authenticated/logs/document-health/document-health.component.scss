@@ -5,10 +5,36 @@
 
 .document-health-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
+}
+
+.document-health-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.document-health-office-field {
+  width: 10rem;
+  margin: 0;
+}
+
+:host ::ng-deep .document-health-office-field .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+:host ::ng-deep .document-health-office-field .mat-mdc-text-field-wrapper {
+  height: 2.125rem;
+}
+
+:host ::ng-deep .document-health-office-field .mat-mdc-form-field-infix {
+  min-height: 2.125rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
 }
 
 .document-health-intro {

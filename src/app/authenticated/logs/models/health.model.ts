@@ -130,6 +130,7 @@ export interface HealthIssueDisplayRow extends DocumentHealthIssue {
 
 export interface DocumentHealthSessionState {
   organizationId: string;
+  selectedOfficeId: number | null;
   rows: HealthCheckRowState[];
   activeRowKey: HealthCheckKey | null;
   issueRows: HealthIssueDisplayRow[];

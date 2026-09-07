@@ -34,12 +34,13 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
-  readonly officeIds: number[] = [];
   readonly fixPollIntervalMs = 500;
   readonly fixPollMaxAttempts = 3600;
 
   organizationId = '';
   offices: OfficeResponse[] = [];
+  selectedOfficeId: number | null = null;
+  showOfficeDropdown = false;
 
   rows: HealthCheckRowState[] = [
     { key: 'receipt', label: 'Receipts', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
@@ -83,8 +84,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices;
+          this.offices = (offices || []).filter(office => office.isActive !== false);
+          this.showOfficeDropdown = this.offices.length > 0;
+          this.validateSelectedOfficeId();
           this.refreshIssueRowOfficeNames();
+          this.cdr.markForCheck();
         });
       }
     });
@@ -97,6 +101,42 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   isRowBusy(row: HealthCheckRowState): boolean {
     return row.checking || row.fixing;
+  }
+
+  onOfficeSelectionChange(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    this.resetHealthResults();
+    this.persistSessionState();
+    this.cdr.markForCheck();
+  }
+
+  getOfficeIdsForRequest(): number[] {
+    return this.selectedOfficeId != null && this.selectedOfficeId > 0
+      ? [this.selectedOfficeId]
+      : [];
+  }
+
+  resetHealthResults(): void {
+    this.rows = this.rows.map(row => ({
+      ...row,
+      summary: null,
+      issues: [],
+      errorMessage: null,
+      checking: false,
+      fixing: false,
+      fixProgress: null
+    }));
+    this.clearUnresolvedDisplay();
+  }
+
+  validateSelectedOfficeId(): void {
+    if (this.selectedOfficeId == null) {
+      return;
+    }
+
+    if (!this.offices.some(office => office.officeId === this.selectedOfficeId)) {
+      this.selectedOfficeId = null;
+    }
   }
 
   checkRow(row: HealthCheckRowState): void {
@@ -250,7 +290,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   runCheck(key: HealthCheckKey): Observable<DocumentHealthResult> {
-    const officeIds = this.officeIds;
+    const officeIds = this.getOfficeIdsForRequest();
     switch (key) {
       case 'receipt':
         return this.healthService.checkReceipts(officeIds);
@@ -287,7 +327,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return of(this.emptySyncResult());
     }
 
-    const officeIds = this.officeIds;
+    const officeIds = this.getOfficeIdsForRequest();
     const paymentKindId = healthKeyToPaymentKindId(key);
     return this.generalLedgerService.startDocumentTypeJournalEntrySyncJob(
       officeIds,
@@ -645,6 +685,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     }
 
     this.rows = saved.rows;
+    this.selectedOfficeId = saved.selectedOfficeId ?? null;
     this.activeRowKey = saved.activeRowKey;
     this.issueRows = saved.issueRows;
     this.showIssueHint = saved.showIssueHint;
@@ -659,6 +700,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
     this.healthStateService.save({
       organizationId: this.organizationId,
+      selectedOfficeId: this.selectedOfficeId,
       rows: this.rows,
       activeRowKey: this.activeRowKey,
       issueRows: this.issueRows,

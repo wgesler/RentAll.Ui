@@ -1,8 +1,24 @@
 <div class="document-health">
   <div class="document-health-header">
-    <p class="document-health-intro">
-      Use <strong>Check</strong> for counts in the grid. Use <strong>Fix</strong> to repair JEs — details below appear only when Fix could not resolve an issue.
-    </p>
+    <div class="document-health-header-main">
+      <p class="document-health-intro">
+        Use <strong>Check</strong> for counts in the grid. Use <strong>Fix</strong> to repair JEs — details below appear only when Fix could not resolve an issue.
+      </p>
+      @if (showOfficeDropdown) {
+        <mat-form-field appearance="outline" class="document-health-office-field">
+          <mat-label>Office</mat-label>
+          <mat-select
+            [value]="selectedOfficeId"
+            (selectionChange)="onOfficeSelectionChange($event.value)"
+            [canSelectNullableOptions]="true">
+            <mat-option [value]="null">All Offices</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office.officeId">{{ office.officeCode }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+    </div>
     <div class="document-health-header-actions form-titlebar-actions-wrap uniform-gap">
       <button mat-raised-button type="button" color="primary" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy" (click)="checkAll()">
         <mat-icon>playlist_add_check</mat-icon>
