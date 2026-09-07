@@ -73,6 +73,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
 
   readonly boardAddressMaxChars = 23;
+  readonly petDepartureColor = '#8B5A2B';
   readonly reservationPollIntervalMs = 60_000;
   getPropertyStatusLetter = getPropertyStatusLetter;  
   readonly noticeStatusType = NoticeStatusType;
@@ -431,9 +432,10 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     reservations$.pipe(take(1), finalize(() => { if (!silent) { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); } })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
+        const normalizedReservations = this.mappingService.normalizeReservationListResponses(reservations || []);
         this.apiReservations = this.partnersBoardToggleChecked
-          ? (reservations || [])
-          : (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
+          ? normalizedReservations
+          : normalizedReservations.filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
         this.loadExternalCalendarReservations();
         this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
@@ -1071,7 +1073,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (compareDate.getTime() === arrival.getTime() || compareDate.getTime() === departure.getTime()) {
-      return this.colorMap.get(ReservationStatus.ArrivalDeparture) || null;
+      const arrivalDepartureColor = this.colorMap.get(ReservationStatus.ArrivalDeparture) || null;
+      if (!arrivalDepartureColor) {
+        return null;
+      }
+      if (compareDate.getTime() === departure.getTime() && this.reservationHasPets(reservation)) {
+        return this.petDepartureColor;
+      }
+      return arrivalDepartureColor;
     }
 
     if (reservation.reservationStatusId === ReservationStatus.CheckedIn) {
@@ -1100,6 +1109,13 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
 
     return brightness > 128 ? '#000000' : '#ffffff';
+  }
+
+  reservationHasPets(reservation: ReservationListResponse | null | undefined): boolean {
+    if (!reservation) {
+      return false;
+    }
+    return this.mappingService.toBooleanValue(reservation.hasPets);
   }
 
   /**

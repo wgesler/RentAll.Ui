@@ -4820,8 +4820,20 @@ roundCurrency(value: number): number {
   //#endregion
 
   //#region Reservation and Dashboard Mapping
+  normalizeReservationListResponses(reservations: ReservationListResponse[] | null | undefined): ReservationListResponse[] {
+    return (reservations || []).map(reservation => this.normalizeReservationListResponse(reservation));
+  }
+
+  normalizeReservationListResponse(reservation: ReservationListResponse): ReservationListResponse {
+    const raw = reservation as ReservationListResponse & Record<string, unknown>;
+    return {
+      ...reservation,
+      hasPets: this.toBooleanValue(raw.hasPets ?? raw['HasPets']),
+    };
+  }
+
   mapReservationList(reservations: ReservationListResponse[]): ReservationListDisplay[] {
-    return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
+    return this.normalizeReservationListResponses(reservations).map<ReservationListDisplay>((o: ReservationListResponse) => {
       const companyName = String(o.companyName || '').trim();
       const tenantName = String(o.tenantName || '').trim();
 
