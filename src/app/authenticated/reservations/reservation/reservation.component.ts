@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, catchError, filter, finalize, firstValueFrom, map, of, pairwise, skip, startWith, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, concatMap, filter, finalize, firstValueFrom, forkJoin, from, map, of, pairwise, skip, startWith, switchMap, take, takeUntil, tap, toArray } from 'rxjs';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 import { RouterUrl } from '../../../app.routes';
@@ -62,6 +62,7 @@ import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../.
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
+import { ReservationPaymentDisplay, ReservationPaymentResponse } from '../models/reservation-payment.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
@@ -117,6 +118,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   isAddMode: boolean = false;
   propertyPanelOpen: boolean = true;
   billingPanelOpen: boolean = true;
+  paymentsPanelOpen: boolean = true;
   ReservationType = ReservationType;
   EntityType = EntityType;
   departureDateStartAt: Date | null = null;
@@ -154,6 +156,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
   extraFeeLines: ExtraFeeLineDisplay[] = [];
+  reservationPayments: ReservationPaymentDisplay[] = [];
+  savedBillingRate: number | null = null;
+  isLoadingReservationPayments = false;
+  isSavingReservationPaymentAction = false;
   chargeCostCodes: CostCodesResponse[] = [];
   availableChargeCostCodes: { value: number, label: string }[] = [];
   noneAgentOptionValue = '__none_agent__';
@@ -294,6 +300,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         this.reservation = response;
         this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(response)) || null;
         this.populateForm();
+        this.loadReservationPayments();
         if (this.shellMode) {
           this.reservationLoaded.emit({
             officeId: response.officeId ?? null,
@@ -443,6 +450,38 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
     const reservationNotificationContext = this.getReservationNotificationContext(formValue);
 
+    const previousBillingRate = Number(this.reservation?.billingRate ?? this.savedBillingRate ?? 0);
+    const nextBillingRate = formValue['billingRate'] ? parseFloat(String(formValue['billingRate'])) : 0;
+
+    if (!this.isAddMode && !isOwnerReservationType && nextBillingRate !== previousBillingRate) {
+      const effectiveDate = this.getRentChangeEffectiveDateForSave();
+      if (!effectiveDate) {
+        this.toastr.error('Reservation billing dates are required to apply a rent change.', CommonMessage.Error);
+        this.isSubmitting = false;
+        this.paymentsPanelOpen = true;
+        return;
+      }
+      try {
+        const effectiveDateApi = this.utilityService.formatDateOnlyForApi(effectiveDate);
+        if (!effectiveDateApi) {
+          throw new Error('Invalid effective date');
+        }
+        await firstValueFrom(this.reservationService.applyReservationRentChange({
+          reservationId: this.reservationId,
+          newAmount: nextBillingRate,
+          effectiveDate: effectiveDateApi
+        }));
+        await firstValueFrom(this.loadReservationPayments$());
+      } catch (err: unknown) {
+        const message = err instanceof HttpErrorResponse
+          ? (typeof err.error === 'string' ? err.error : err.error?.message || err.error?.title || 'Unable to apply rent change.')
+          : 'Unable to apply rent change.';
+        this.toastr.error(String(message), CommonMessage.Error);
+        this.isSubmitting = false;
+        return;
+      }
+    }
+
     const save$ = this.isAddMode
       ? this.reservationService.createReservation(reservationRequest)
       : this.reservationService.updateReservation(reservationRequest);
@@ -475,6 +514,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           // Update the reservation data with the response
           this.reservation = response;
           this.populateForm();
+          this.loadReservationPayments();
           this.captureSavedStateSignature();
         }
         
@@ -1036,6 +1076,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.updatePetFields(false);
     this.updateMaidServiceFields(false);
     this.loadExtraFeeLines();
+    this.savedBillingRate = Number(this.reservation.billingRate ?? 0);
     this.updateMaidStartDate();
     this.updatePropertyIdEditState();
 
@@ -3836,6 +3877,714 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   clearCodePaletteTarget(): void {
     this.codePaletteTargetControl = null;
+  }
+
+  loadReservationPayments(): void {
+    if (this.isAddMode || !this.reservationId) {
+      this.reservationPayments = [];
+      return;
+    }
+    this.loadReservationPayments$().pipe(take(1)).subscribe();
+  }
+
+  loadReservationPayments$() {
+    if (this.isAddMode || !this.reservationId) {
+      this.reservationPayments = [];
+      return of([]);
+    }
+    this.isLoadingReservationPayments = true;
+    return this.reservationService.getReservationPayments(this.reservationId).pipe(
+      tap(payments => this.mapReservationPayments(payments)),
+      finalize(() => {
+        this.isLoadingReservationPayments = false;
+        this.markViewForCheck();
+      })
+    );
+  }
+
+  mapReservationPayments(payments: ReservationPaymentResponse[]): void {
+    this.reservationPayments = (payments || []).map(payment => this.toReservationPaymentDisplay(payment));
+  }
+
+  toReservationPaymentDisplay(payment: ReservationPaymentResponse): ReservationPaymentDisplay {
+    return {
+      reservationPaymentId: payment.reservationPaymentId,
+      reservationId: payment.reservationId,
+      amount: Number(payment.amount ?? 0),
+      startDate: this.parseDateOnly(payment.startDate),
+      endDate: this.parseDateOnly(payment.endDate),
+      modifiedOn: payment.modifiedOn ?? null,
+      modifiedByName: String(payment.modifiedByName ?? '').trim() || null
+    };
+  }
+
+  formatReservationPaymentModifiedLabel(payment: ReservationPaymentDisplay): string {
+    const when = payment.modifiedOn ? this.formatterService.formatDateString(payment.modifiedOn) : '';
+    const who = String(payment.modifiedByName ?? '').trim();
+    if (who && when) {
+      return `${who} · ${when}`;
+    }
+    return who || when || '';
+  }
+
+  getRentChangeEffectiveDateForSave(): Date | null {
+    const billingStart = this.getReservationBillingStartDate();
+    const billingEnd = this.getReservationBillingEndDate();
+    if (!billingStart || !billingEnd) {
+      return null;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let candidate = today;
+    if (candidate < billingStart) {
+      candidate = billingStart;
+    }
+    if (candidate > billingEnd) {
+      candidate = billingEnd;
+    }
+    return candidate;
+  }
+
+  getReservationBillingStartDate(): Date | null {
+    return resolveBillingArrivalDate(
+      this.parseDateOnly(this.form?.get('billingStartDate')?.value),
+      this.parseDateOnly(this.form?.get('arrivalDate')?.value)
+    );
+  }
+
+  getReservationBillingEndDate(): Date | null {
+    return resolveBillingDepartureDate(
+      this.parseDateOnly(this.form?.get('billingEndDate')?.value),
+      this.parseDateOnly(this.form?.get('departureDate')?.value)
+    );
+  }
+
+  getReservationDepartureDate(): Date | null {
+    return this.parseDateOnly(this.form?.get('departureDate')?.value);
+  }
+
+  updateReservationPaymentField(
+    index: number,
+    field: keyof ReservationPaymentDisplay,
+    value: ReservationPaymentDisplay[keyof ReservationPaymentDisplay]
+  ): void {
+    if (index < 0 || index >= this.reservationPayments.length) {
+      return;
+    }
+    this.reservationPayments[index] = { ...this.reservationPayments[index], [field]: value };
+  }
+
+  formatPaymentDateInputValue(date: Date | null | undefined): string {
+    return this.formatReservationPaymentDateDisplay(date);
+  }
+
+  formatReservationPaymentDateDisplay(date: Date | null | undefined): string {
+    return this.formatReservationPaymentDateForEdit(date);
+  }
+
+  private formatReservationPaymentDateForEdit(date: Date | null | undefined): string {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${month}/${day}/${year}`;
+  }
+
+  getReservationPaymentDateInputValue(
+    payment: ReservationPaymentDisplay,
+    field: 'startDate' | 'endDate'
+  ): string {
+    const draft = field === 'startDate' ? payment.startDateDraft : payment.endDateDraft;
+    if (draft != null) {
+      return draft;
+    }
+    const date = field === 'startDate' ? payment.startDate : payment.endDate;
+    return this.formatReservationPaymentDateDisplay(date);
+  }
+
+  onReservationPaymentDateInput(index: number, field: 'startDate' | 'endDate', event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = String(input.value || '')
+      .replace(/[^\d/]/g, '')
+      .replace(/\/{2,}/g, '/');
+    input.value = sanitized;
+    this.updateReservationPaymentField(index, field === 'startDate' ? 'startDateDraft' : 'endDateDraft', sanitized);
+
+    if (field === 'startDate') {
+      const parsedStartDate = this.parseDateOnly(sanitized.trim());
+      if (parsedStartDate) {
+        this.syncReservationPaymentStartDateSideEffects(index, parsedStartDate);
+      }
+    }
+  }
+
+  onReservationPaymentDateFocus(event: Event, index: number, field: 'startDate' | 'endDate'): void {
+    const input = event.target as HTMLInputElement;
+    const row = this.reservationPayments[index];
+    if (!row) {
+      return;
+    }
+
+    const currentDate = field === 'startDate' ? row.startDate : row.endDate;
+    const draft = this.formatReservationPaymentDateForEdit(currentDate);
+    input.value = draft;
+    this.updateReservationPaymentField(index, field === 'startDate' ? 'startDateDraft' : 'endDateDraft', draft);
+    input.select();
+  }
+
+  onReservationPaymentDateBlur(event: Event, index: number, field: 'startDate' | 'endDate'): void {
+    const input = event.target as HTMLInputElement;
+    this.commitReservationPaymentDateField(index, field, input.value, input);
+  }
+
+  onReservationPaymentDateEnter(event: Event, index: number, field: 'startDate' | 'endDate'): void {
+    event.preventDefault();
+    const input = event.target as HTMLInputElement;
+    this.commitReservationPaymentDateField(index, field, input.value, input);
+    input.blur();
+  }
+
+  private commitReservationPaymentDateField(
+    index: number,
+    field: 'startDate' | 'endDate',
+    rawValue: string,
+    input?: HTMLInputElement
+  ): boolean {
+    const row = this.reservationPayments[index];
+    if (!row) {
+      return false;
+    }
+
+    if (field === 'endDate' && row.reservationPaymentId == null) {
+      const departureDate = this.getReservationDepartureDate();
+      if (!departureDate) {
+        return false;
+      }
+
+      this.reservationPayments[index] = {
+        ...row,
+        endDate: departureDate,
+        endDateDraft: null
+      };
+      if (input) {
+        input.value = this.formatReservationPaymentDateDisplay(departureDate);
+      }
+      this.markViewForCheck();
+      return true;
+    }
+
+    const draftField = field === 'startDate' ? 'startDateDraft' : 'endDateDraft';
+    const currentDate = field === 'startDate' ? row.startDate : row.endDate;
+    const trimmed = String(rawValue || row[draftField] || '').trim();
+
+    if (!trimmed) {
+      if (input) {
+        input.value = this.formatReservationPaymentDateDisplay(currentDate);
+      }
+      this.reservationPayments[index] = { ...row, [draftField]: null };
+      this.markViewForCheck();
+      return false;
+    }
+
+    const parsed = this.parseDateOnly(trimmed);
+    if (!parsed) {
+      this.toastr.error('Enter a valid date (MM/DD/YY).', CommonMessage.Error);
+      if (input) {
+        input.value = this.formatReservationPaymentDateDisplay(currentDate);
+      }
+      this.reservationPayments[index] = { ...row, [draftField]: null };
+      this.markViewForCheck();
+      return false;
+    }
+
+    const billingStart = this.getReservationBillingStartDate();
+    const billingEnd = this.getReservationBillingEndDate();
+    if (billingStart && billingEnd && (parsed < billingStart || parsed > billingEnd)) {
+      this.toastr.error('Payment dates must fall within the reservation billing period.', CommonMessage.Error);
+      if (input) {
+        input.value = this.formatReservationPaymentDateDisplay(currentDate);
+      }
+      this.reservationPayments[index] = { ...row, [draftField]: null };
+      this.markViewForCheck();
+      return false;
+    }
+
+    const updatedRow: ReservationPaymentDisplay = {
+      ...row,
+      [field]: parsed,
+      [draftField]: null
+    };
+    this.reservationPayments[index] = updatedRow;
+
+    if (input) {
+      input.value = this.formatReservationPaymentDateDisplay(parsed);
+    }
+
+    if (field === 'startDate') {
+      this.syncReservationPaymentStartDateSideEffects(index, parsed);
+    }
+
+    this.markViewForCheck();
+    return true;
+  }
+
+  private addDaysToDateOnly(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setHours(0, 0, 0, 0);
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+
+  private syncReservationPaymentStartDateSideEffects(index: number, startDate: Date): void {
+    this.syncPreviousReservationPaymentEndDate(index, startDate);
+    this.syncNewReservationPaymentEndDate(index);
+  }
+
+  private syncNewReservationPaymentEndDate(index: number): void {
+    const row = this.reservationPayments[index];
+    const departureDate = this.getReservationDepartureDate();
+    if (!row || row.reservationPaymentId != null || !departureDate) {
+      return;
+    }
+
+    this.reservationPayments[index] = {
+      ...row,
+      endDate: departureDate,
+      endDateDraft: null
+    };
+  }
+
+  private syncPreviousReservationPaymentEndDate(index: number, currentStartDate?: Date | null): void {
+    if (index <= 0 || index >= this.reservationPayments.length) {
+      return;
+    }
+
+    const current = this.reservationPayments[index];
+    const startDate = currentStartDate ?? current?.startDate;
+    const previousIndex = index - 1;
+    const previous = this.reservationPayments[previousIndex];
+    if (!startDate || !previous) {
+      return;
+    }
+
+    let previousEndDate = this.addDaysToDateOnly(startDate, -1);
+    if (previous.startDate && previousEndDate < previous.startDate) {
+      previousEndDate = previous.startDate;
+    }
+
+    this.reservationPayments[previousIndex] = {
+      ...previous,
+      endDate: previousEndDate,
+      endDateDraft: null
+    };
+    this.markViewForCheck();
+  }
+
+  private resolveNewReservationPaymentStartDate(previous: ReservationPaymentDisplay | null): Date | null {
+    const billingStart = this.getReservationBillingStartDate();
+    const billingEnd = this.getReservationBillingEndDate();
+    if (!billingStart || !billingEnd) {
+      return null;
+    }
+
+    if (!previous) {
+      return billingStart;
+    }
+
+    if (previous.endDate) {
+      const dayAfterPrevious = this.addDaysToDateOnly(previous.endDate, 1);
+      if (dayAfterPrevious <= billingEnd) {
+        return dayAfterPrevious;
+      }
+    }
+
+    let candidate = this.getRentChangeEffectiveDateForSave() ?? billingStart;
+    if (previous.startDate && candidate <= previous.startDate) {
+      candidate = this.addDaysToDateOnly(previous.startDate, 1);
+    }
+
+    if (candidate > billingEnd) {
+      return null;
+    }
+
+    return candidate;
+  }
+
+  validateReservationPaymentAmount(amount: number): boolean {
+    if (amount <= 0) {
+      this.toastr.error('Payment amount must be greater than zero.', CommonMessage.Error);
+      return false;
+    }
+    return true;
+  }
+
+  getReservationPaymentAmountInputValue(payment: ReservationPaymentDisplay): string {
+    if (payment.amountDraft != null) {
+      return payment.amountDraft;
+    }
+    return this.formatReservationPaymentAmountDisplay(payment.amount);
+  }
+
+  formatReservationPaymentAmountDisplay(amount: number | null | undefined): string {
+    if (amount == null || amount === undefined || Number.isNaN(Number(amount))) {
+      return this.formatterService.currencyUsd(0);
+    }
+    return this.formatterService.currencyUsd(Number(amount));
+  }
+
+  onReservationPaymentAmountInput(index: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const trimmed = String(input.value || '').trim();
+    const isNegative = trimmed.startsWith('-');
+    let value = trimmed.replace(/[^0-9.]/g, '');
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      value = parts[0] + '.' + parts.slice(1).join('');
+    }
+    if (isNegative) {
+      value = value ? `-${value}` : '-';
+    }
+    input.value = value;
+    this.updateReservationPaymentField(index, 'amountDraft', value);
+  }
+
+  onReservationPaymentAmountFocus(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const row = this.reservationPayments[index];
+    const draft = row && row.amount != null && row.amount !== undefined
+      ? Number(row.amount).toFixed(2)
+      : '';
+    input.value = draft;
+    this.updateReservationPaymentField(index, 'amountDraft', draft);
+    input.select();
+  }
+
+  onReservationPaymentAmountBlur(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const row = this.reservationPayments[index];
+    if (!row) {
+      return;
+    }
+
+    const normalized = String(input.value || '').replace(/[$,\s]/g, '').trim();
+    let numValue = parseFloat(normalized);
+    if (!Number.isFinite(numValue)) {
+      numValue = 0;
+    }
+
+    if (!this.validateReservationPaymentAmount(numValue)) {
+      input.value = this.formatReservationPaymentAmountDisplay(row.amount);
+      this.reservationPayments[index] = { ...row, amountDraft: null };
+      this.markViewForCheck();
+      return;
+    }
+
+    const formattedValue = this.formatterService.currencyUsd(numValue);
+    input.value = formattedValue;
+    this.reservationPayments[index] = {
+      ...row,
+      amount: numValue,
+      amountDraft: null
+    };
+    this.markViewForCheck();
+  }
+
+  onReservationPaymentAmountEnter(event: Event): void {
+    event.preventDefault();
+    (event.target as HTMLInputElement)?.blur();
+  }
+
+  private getReservationPaymentSaveOrderIndices(): number[] {
+    return this.reservationPayments
+      .map((row, index) => ({ index, row }))
+      .sort((a, b) => {
+        const startDiff = (a.row.startDate?.getTime() ?? 0) - (b.row.startDate?.getTime() ?? 0);
+        if (startDiff !== 0) {
+          return startDiff;
+        }
+
+        const aHasId = a.row.reservationPaymentId != null;
+        const bHasId = b.row.reservationPaymentId != null;
+        if (aHasId && !bHasId) {
+          return -1;
+        }
+        if (!aHasId && bHasId) {
+          return 1;
+        }
+
+        return a.index - b.index;
+      })
+      .map(item => item.index);
+  }
+
+  private normalizeReservationPaymentDateRows(): void {
+    for (let index = 1; index < this.reservationPayments.length; index++) {
+      this.syncPreviousReservationPaymentEndDate(index);
+    }
+
+    for (let index = 0; index < this.reservationPayments.length; index++) {
+      this.syncNewReservationPaymentEndDate(index);
+    }
+  }
+
+  private validateReservationPaymentRowsForSave(): boolean {
+    const billingStart = this.getReservationBillingStartDate();
+    const billingEnd = this.getReservationBillingEndDate();
+
+    for (const row of this.reservationPayments) {
+      if (!row.startDate || !row.endDate) {
+        this.toastr.error('Each payment row requires a start date and end date.', CommonMessage.Error);
+        return false;
+      }
+
+      if (row.startDate > row.endDate) {
+        this.toastr.error('Payment start date must be on or before end date.', CommonMessage.Error);
+        return false;
+      }
+
+      if (billingStart && billingEnd && (row.startDate < billingStart || row.endDate > billingEnd)) {
+        this.toastr.error('Payment dates must fall within the reservation billing period.', CommonMessage.Error);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  saveAllReservationPayments(): void {
+    if (this.isAddMode || !this.reservationId || this.reservationPayments.length === 0) {
+      return;
+    }
+
+    this.commitAllReservationPaymentDrafts();
+    this.normalizeReservationPaymentDateRows();
+
+    for (const row of this.reservationPayments) {
+      if (!this.validateReservationPaymentAmount(Number(row.amount ?? 0))) {
+        return;
+      }
+    }
+
+    if (!this.validateReservationPaymentRowsForSave()) {
+      return;
+    }
+
+    const saveRequests = this.getReservationPaymentSaveOrderIndices()
+      .map(index => this.buildReservationPaymentSaveRequest(index))
+      .filter((request): request is NonNullable<typeof request> => request != null);
+
+    if (saveRequests.length !== this.reservationPayments.length) {
+      this.toastr.error('Each payment row requires a start date and end date.', CommonMessage.Error);
+      return;
+    }
+
+    this.isSavingReservationPaymentAction = true;
+    this.reservationPayments.forEach(row => {
+      row.isSaving = true;
+    });
+
+    from(saveRequests).pipe(
+      concatMap(request => {
+        if (request.reservationPaymentId) {
+          return this.reservationService.updateReservationPayment({
+            reservationPaymentId: request.reservationPaymentId,
+            reservationId: request.reservationId,
+            amount: request.amount,
+            startDate: request.startDate,
+            endDate: request.endDate
+          });
+        }
+
+        return this.reservationService.createReservationPayment({
+          reservationId: request.reservationId,
+          amount: request.amount,
+          startDate: request.startDate,
+          endDate: request.endDate
+        });
+      }),
+      toArray(),
+      take(1),
+      finalize(() => {
+        this.isSavingReservationPaymentAction = false;
+        this.reservationPayments.forEach(row => {
+          row.isSaving = false;
+        });
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Payment history saved.', CommonMessage.Success);
+        this.loadReservationPayments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error(this.getReservationPaymentErrorMessage(err), CommonMessage.Error);
+        this.loadReservationPayments();
+      }
+    });
+  }
+
+  addReservationPaymentRow(): void {
+    if (this.isAddMode || !this.reservationId) {
+      return;
+    }
+
+    const departureDate = this.getReservationDepartureDate();
+    const previous = this.reservationPayments.length > 0
+      ? this.reservationPayments[this.reservationPayments.length - 1]
+      : null;
+    const newStartDate = this.resolveNewReservationPaymentStartDate(previous);
+
+    if (!departureDate || !newStartDate) {
+      this.toastr.error('Unable to add another payment line within the billing period.', CommonMessage.Error);
+      return;
+    }
+
+    this.reservationPayments.push({
+      reservationPaymentId: null,
+      reservationId: this.reservationId,
+      amount: 0,
+      startDate: newStartDate,
+      endDate: departureDate
+    });
+    this.syncPreviousReservationPaymentEndDate(this.reservationPayments.length - 1);
+    this.syncNewReservationPaymentEndDate(this.reservationPayments.length - 1);
+    this.markViewForCheck();
+  }
+
+  deleteReservationPaymentRow(index: number): void {
+    if (this.isAddMode || !this.reservationId) {
+      return;
+    }
+
+    const row = this.reservationPayments[index];
+    if (!row) {
+      return;
+    }
+
+    if (!row.reservationPaymentId) {
+      this.reservationPayments.splice(index, 1);
+      this.markViewForCheck();
+      return;
+    }
+
+    row.isDeleting = true;
+    this.reservationService.deleteReservationPayment(row.reservationPaymentId).pipe(take(1), finalize(() => {
+      row.isDeleting = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: () => {
+        this.reservationPayments.splice(index, 1);
+        this.toastr.success('Payment record deleted.', CommonMessage.Success);
+        this.markViewForCheck();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error(this.getReservationPaymentErrorMessage(err), CommonMessage.Error);
+      }
+    });
+  }
+
+  private commitAllReservationPaymentDrafts(): void {
+    this.reservationPayments.forEach((row, index) => {
+      this.commitReservationPaymentAmountDraft(index);
+      if (row.startDateDraft != null) {
+        this.commitReservationPaymentDateField(index, 'startDate', row.startDateDraft);
+      }
+      if (row.endDateDraft != null) {
+        this.commitReservationPaymentDateField(index, 'endDate', row.endDateDraft);
+      }
+    });
+  }
+
+  private commitReservationPaymentAmountDraft(index: number): void {
+    const row = this.reservationPayments[index];
+    if (!row?.amountDraft) {
+      return;
+    }
+
+    const normalized = String(row.amountDraft).replace(/[$,\s]/g, '').trim();
+    let numValue = parseFloat(normalized);
+    if (!Number.isFinite(numValue)) {
+      numValue = 0;
+    }
+
+    this.reservationPayments[index] = {
+      ...row,
+      amount: numValue,
+      amountDraft: null
+    };
+  }
+
+  private buildReservationPaymentSaveRequest(index: number) {
+    if (this.isAddMode || !this.reservationId) {
+      return null;
+    }
+
+    const row = this.reservationPayments[index];
+    if (!row) {
+      return null;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(row.startDate);
+    const endDate = row.reservationPaymentId == null
+      ? this.utilityService.formatDateOnlyForApi(this.getReservationDepartureDate())
+      : this.utilityService.formatDateOnlyForApi(row.endDate);
+    if (!startDate || !endDate) {
+      this.toastr.error('Start and end dates are required.', CommonMessage.Error);
+      return null;
+    }
+
+    return {
+      reservationPaymentId: row.reservationPaymentId,
+      reservationId: this.reservationId,
+      amount: Number(row.amount ?? 0),
+      startDate,
+      endDate
+    };
+  }
+
+  private getReservationPaymentErrorMessage(err: HttpErrorResponse): string {
+    return typeof err.error === 'string'
+      ? err.error
+      : err.error?.message || err.error?.title || 'Unable to save payment history.';
+  }
+
+  initializeReservationPaymentHistory(): void {
+    if (this.isAddMode || !this.reservationId) {
+      return;
+    }
+    const billingStart = this.getReservationBillingStartDate();
+    const billingEnd = this.getReservationBillingEndDate();
+    const startDate = this.utilityService.formatDateOnlyForApi(billingStart);
+    const endDate = this.utilityService.formatDateOnlyForApi(billingEnd);
+    const amount = parseFloat(String(this.form.get('billingRate')?.value ?? 0)) || 0;
+    if (!startDate || !endDate) {
+      this.toastr.error('Reservation billing dates are required.', CommonMessage.Error);
+      return;
+    }
+    this.isSavingReservationPaymentAction = true;
+    this.reservationService.createReservationPayment({
+      reservationId: this.reservationId,
+      amount,
+      startDate,
+      endDate
+    }).pipe(take(1), finalize(() => {
+      this.isSavingReservationPaymentAction = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: () => {
+        this.toastr.success('Payment history initialized.', CommonMessage.Success);
+        this.loadReservationPayments();
+      },
+      error: (err: HttpErrorResponse) => {
+        const message = typeof err.error === 'string'
+          ? err.error
+          : err.error?.message || err.error?.title || 'Unable to initialize payment history.';
+        this.toastr.error(String(message), CommonMessage.Error);
+      }
+    });
   }
 
   @HostListener('document:click')

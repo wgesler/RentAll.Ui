@@ -142,6 +142,26 @@
       outline: none;
     }
   }
+
+  input[type="date"] {
+    height: 28px;
+    line-height: 28px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    width: 100%;
+    font-size: 14px !important;
+  }
+
+  input[type="date"].editable-input {
+    border: 1px solid #ccc !important;
+    border-radius: 4px;
+    background-color: white;
+
+    &:focus {
+      border-color: #1976d2 !important;
+      outline: none;
+    }
+  }
   
   .mat-mdc-icon-button {
     width: 32px;

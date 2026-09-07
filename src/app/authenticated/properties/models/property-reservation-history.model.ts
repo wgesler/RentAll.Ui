@@ -1,4 +1,5 @@
 import { InvoiceResponse } from '../../accounting/models/invoice.model';
+import { ReservationHistoryRateRow } from '../../reservations/models/reservation-history-rate-row.model';
 import { ReservationListDisplay } from '../../reservations/models/reservation-model';
 
 export interface InvoiceHistoryDisplayRow {
@@ -13,7 +14,7 @@ export interface InvoiceHistoryDisplayRow {
   source: InvoiceResponse;
 }
 
-export interface ReservationHistoryDisplayRow extends ReservationListDisplay {
+export interface ReservationHistoryDisplayRow extends ReservationHistoryRateRow {
   expand: string;
   expanded: boolean;
   invoices: InvoiceHistoryDisplayRow[];

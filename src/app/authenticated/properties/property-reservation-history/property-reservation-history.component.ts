@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, finalize, forkJoin, map, of, switchMap, take, takeUntil, tap } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -9,8 +9,11 @@ import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceResponse } from '../../accounting/models/invoice.model';
 import { InvoiceService } from '../../accounting/services/invoice.service';
+import { ReservationPaymentResponse } from '../../reservations/models/reservation-payment.model';
+import { ReservationHistoryRateRow } from '../../reservations/models/reservation-history-rate-row.model';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
+import { ReservationHistoryDisplayService } from '../../reservations/services/reservation-history-display.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { InvoiceHistoryDisplayRow, ReservationHistoryDisplayRow } from '../models/property-reservation-history.model';
@@ -30,6 +33,7 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   private formatterService = inject(FormatterService);
   private invoiceService = inject(InvoiceService);
   private reservationService = inject(ReservationService);
+  private reservationHistoryDisplayService = inject(ReservationHistoryDisplayService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
@@ -40,6 +44,7 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   expandedReservations = new Set<string>();
   isAllExpanded = false;
   invoicesByReservationId = new Map<string, InvoiceHistoryDisplayRow[]>();
+  paymentsByReservationId = new Map<string, ReservationPaymentResponse[]>();
   loadingInvoiceReservationIds = new Set<string>();
 
   isPageReady = false;
@@ -54,7 +59,10 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
     contactName: { displayAs: 'Contact', maxWidth: '28ch' },
     companyName: { displayAs: 'Company', maxWidth: '24ch' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '20ch', alignment: 'center' },
-    departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' }
+    departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
+    rateStart: { displayAs: 'Rate Start', maxWidth: '20ch', alignment: 'center' },
+    rateEnd: { displayAs: 'Rate End', maxWidth: '20ch', alignment: 'center' },
+    rate: { displayAs: 'Rate', maxWidth: '12ch', alignment: 'right' }
   };
 
   invoiceColumns: ColumnSet = {
@@ -96,6 +104,7 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
     this.expandedReservations.clear();
     this.invoicesByReservationId.clear();
+    this.paymentsByReservationId.clear();
     this.loadingInvoiceReservationIds.clear();
     this.isAllExpanded = false;
 
@@ -106,15 +115,41 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
       return;
     }
 
-    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1),
+    this.reservationService.getReservationsByPropertyId(propertyId).pipe(
+      take(1),
+      switchMap(reservations => {
+        this.reservations = reservations || [];
+        const reservationIds = this.reservations
+          .map(reservation => String(reservation.reservationId || '').trim())
+          .filter(id => !!id);
+
+        if (reservationIds.length === 0) {
+          this.paymentsByReservationId.clear();
+          return of(void 0);
+        }
+
+        return forkJoin(
+          reservationIds.map(reservationId =>
+            this.reservationService.getReservationPayments(reservationId).pipe(
+              catchError(() => of([] as ReservationPaymentResponse[]))
+            )
+          )
+        ).pipe(
+          tap(paymentArrays => {
+            this.paymentsByReservationId.clear();
+            reservationIds.forEach((reservationId, index) => {
+              this.paymentsByReservationId.set(reservationId, paymentArrays[index] || []);
+            });
+          }),
+          map(() => void 0)
+        );
+      }),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))
     ).subscribe({
-      next: reservations => {
-        this.reservations = reservations || [];
-        this.refreshTable();
-      },
+      next: () => this.refreshTable(),
       error: () => {
         this.reservations = [];
+        this.paymentsByReservationId.clear();
         this.refreshTable();
       }
     });
@@ -129,7 +164,7 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
       ? this.mixedMappingService.getReservationData(this.reservations || []).get(propertyId)?.reservationId ?? null
       : null;
 
-    this.tableData = mapped
+    const filtered = mapped
       .filter(reservation => {
         if (this.isHistoricalReservation(reservation.departureDate)) {
           return true;
@@ -139,16 +174,23 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
         }
         return String(reservation.reservationId || '').trim() === currentReservationId;
       })
-      .sort((a, b) => this.compareDepartureDateDesc(a.departureDate, b.departureDate))
-      .map(reservation => this.toDisplayRow(reservation));
+      .sort((a, b) => this.reservationHistoryDisplayService.compareDepartureDateDesc(a.departureDate, b.departureDate));
+
+    this.tableData = filtered.flatMap(reservation => this.toDisplayRows(reservation));
     this.updateIsAllExpanded();
     this.markViewForCheck();
   }
 
-  toDisplayRow(reservation: ReservationListDisplay): ReservationHistoryDisplayRow {
+  toDisplayRows(reservation: ReservationListDisplay): ReservationHistoryDisplayRow[] {
     const reservationId = String(reservation.reservationId || '').trim();
+    return this.reservationHistoryDisplayService
+      .buildRateHistoryRowsForReservation(reservation, this.paymentsByReservationId)
+      .map(row => this.toDisplayRow(reservationId, row));
+  }
+
+  toDisplayRow(reservationId: string, row: ReservationHistoryRateRow): ReservationHistoryDisplayRow {
     return {
-      ...reservation,
+      ...row,
       expand: reservationId,
       expanded: this.expandedReservations.has(reservationId),
       invoices: this.invoicesByReservationId.get(reservationId) ?? [],
@@ -197,9 +239,11 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   }
 
   updateIsAllExpanded(): void {
-    const ids = this.tableData
-      .map(row => String(row.reservationId || '').trim())
-      .filter(id => !!id);
+    const ids = [...new Set(
+      this.tableData
+        .map(row => String(row.reservationId || '').trim())
+        .filter(id => !!id)
+    )];
     this.isAllExpanded = ids.length > 0 && ids.every(id => this.expandedReservations.has(id));
   }
   //#endregion
@@ -303,14 +347,6 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   //#endregion
 
   //#region Utility Methods
-  compareDepartureDateDesc(left: unknown, right: unknown): number {
-    const leftDate = this.utilityService.parseCalendarDateInput(left as string);
-    const rightDate = this.utilityService.parseCalendarDateInput(right as string);
-    const leftTime = leftDate?.getTime() ?? 0;
-    const rightTime = rightDate?.getTime() ?? 0;
-    return rightTime - leftTime;
-  }
-
   isHistoricalReservation(departureDateValue: unknown): boolean {
     if (!departureDateValue) {
       return false;

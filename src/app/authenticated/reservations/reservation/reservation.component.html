@@ -837,7 +837,7 @@
               <div class="flex justify-between items-center mb-2">
                 <span class="text-lg font-medium">Extra Fee Lines</span>
                 <button mat-raised-button type="button" color="accent" (click)="addExtraFeeLine()" 
-                  class="scale-90 text-nowrap flex-shrink-0">
+                  class="text-nowrap flex-shrink-0">
                   Add Extra Fee
                 </button>
               </div>
@@ -929,6 +929,106 @@
                 <p class="text-gray-500 italic">No extra fee lines added. Click "Add Extra Fee Line" to add one.</p>
               }
             </div>
+              </mat-expansion-panel>
+
+              <mat-expansion-panel [expanded]="paymentsPanelOpen" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Payment History</mat-panel-title>
+                </mat-expansion-panel-header>
+                @if (!isAddMode) {
+                  @if (!isLoadingReservationPayments) {
+                    <div class="flex justify-end items-center mb-2 gap-3">
+                      @if (reservationPayments.length === 0) {
+                        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0"
+                          [disabled]="isSavingReservationPaymentAction"
+                          (click)="initializeReservationPaymentHistory()">
+                          Initialize Payment History
+                        </button>
+                      } @else {
+                        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0"
+                          [disabled]="isSavingReservationPaymentAction"
+                          (click)="saveAllReservationPayments()">
+                          <mat-icon>save</mat-icon>
+                          Save
+                        </button>
+                        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0"
+                          [disabled]="isSavingReservationPaymentAction"
+                          (click)="addReservationPaymentRow()">
+                          <mat-icon>add</mat-icon>
+                          Add
+                        </button>
+                      }
+                    </div>
+                  }
+                  @if (isLoadingReservationPayments) {
+                    <p class="text-gray-500 italic">Loading payment history...</p>
+                  } @else if (reservationPayments.length > 0) {
+                    <div class="overflow-x-auto">
+                      <table class="line-items-table">
+                        <thead>
+                          <tr class="border-b">
+                            <th class="text-left" style="width: 140px;">Start Date</th>
+                            <th class="text-left" style="width: 140px;">End Date</th>
+                            <th class="text-left" style="width: 120px;">Amount</th>
+                            <th class="text-left" style="min-width: 180px;">Modified</th>
+                            <th class="text-right" style="width: 50px;"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (payment of reservationPayments; track payment.reservationPaymentId ?? i; let i = $index) {
+                            <tr class="border-b">
+                              <td style="width: 140px;">
+                                <input type="text" class="w-full editable-input"
+                                  [value]="getReservationPaymentDateInputValue(payment, 'startDate')"
+                                  placeholder="MM/DD/YY"
+                                  (input)="onReservationPaymentDateInput(i, 'startDate', $event)"
+                                  (focus)="onReservationPaymentDateFocus($event, i, 'startDate')"
+                                  (blur)="onReservationPaymentDateBlur($event, i, 'startDate')"
+                                  (keydown.enter)="onReservationPaymentDateEnter($event, i, 'startDate')">
+                              </td>
+                              <td style="width: 140px;">
+                                <input type="text" class="w-full editable-input"
+                                  [value]="getReservationPaymentDateInputValue(payment, 'endDate')"
+                                  placeholder="MM/DD/YY"
+                                  (input)="onReservationPaymentDateInput(i, 'endDate', $event)"
+                                  (focus)="onReservationPaymentDateFocus($event, i, 'endDate')"
+                                  (blur)="onReservationPaymentDateBlur($event, i, 'endDate')"
+                                  (keydown.enter)="onReservationPaymentDateEnter($event, i, 'endDate')">
+                              </td>
+                              <td style="width: 120px;">
+                                <input type="text" class="w-full editable-input"
+                                  [value]="getReservationPaymentAmountInputValue(payment)"
+                                  (input)="onReservationPaymentAmountInput(i, $event)"
+                                  (focus)="onReservationPaymentAmountFocus($event, i)"
+                                  (blur)="onReservationPaymentAmountBlur($event, i)"
+                                  (keydown.enter)="onReservationPaymentAmountEnter($event)"
+                                  placeholder="$0.00">
+                              </td>
+                              <td style="min-width: 180px;">
+                                {{ formatReservationPaymentModifiedLabel(payment) }}
+                              </td>
+                              <td class="text-right" style="width: 50px;">
+                                <button mat-icon-button type="button"
+                                  class="delete-ledger-line-btn"
+                                  style="color: #ae1f66;"
+                                  tabindex="-1"
+                                  [disabled]="payment.isSaving || payment.isDeleting || isSavingReservationPaymentAction"
+                                  (click)="deleteReservationPaymentRow(i)"
+                                  matTooltip="Remove this payment record">
+                                  <mat-icon style="color: #ae1f66;">close</mat-icon>
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  } @else {
+                    <p class="text-gray-500 italic">No payment history yet. Initialize from the current billing rate or change billing rate and save the reservation.</p>
+                  }
+                } @else {
+                  <p class="text-gray-500 italic">Save the reservation first to manage payment history.</p>
+                }
               </mat-expansion-panel>
             </mat-accordion>
             </div>

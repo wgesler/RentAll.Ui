@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, finalize, forkJoin, map, of, switchMap, take, takeUntil, tap } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
@@ -9,8 +9,11 @@ import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { getBillingType, ReservationStatus } from '../../reservations/models/reservation-enum';
+import { ReservationHistoryRateRow } from '../../reservations/models/reservation-history-rate-row.model';
+import { ReservationPaymentResponse } from '../../reservations/models/reservation-payment.model';
 import { ReservationListDisplay } from '../../reservations/models/reservation-model';
 import { ReservationBoardComponent } from '../../reservations/reservation-board/reservation-board.component';
+import { ReservationHistoryDisplayService } from '../../reservations/services/reservation-history-display.service';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -34,6 +37,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private userService = inject(UserService);
   private reservationService = inject(ReservationService);
+  private reservationHistoryDisplayService = inject(ReservationHistoryDisplayService);
   private formatterService = inject(FormatterService);
   private mappingService = inject(MappingService);
   private propertyService = inject(PropertyService);
@@ -49,7 +53,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   ownerPropertyReservations: ReservationListDisplay[] = [];
   ownerPropertiesTableData: Array<Record<string, unknown>> = [];
   ownerCurrentReservationsTableData: Array<Record<string, unknown>> = [];
-  ownerHistoricalReservationsTableData: Array<Record<string, unknown>> = [];
+  ownerHistoricalReservationsTableData: ReservationHistoryRateRow[] = [];
+  paymentsByReservationId = new Map<string, ReservationPaymentResponse[]>();
   rentedCount: number = 0;
   vacantCount: number = 0;
   currentReservationCount: number = 0;
@@ -79,6 +84,17 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
     billingType: { displayAs: 'Billing Type', maxWidth: '15ch', alignment: 'center' },
     billingRate: { displayAs: 'Billing Rate', maxWidth: '15ch', alignment: 'center' }
+  };
+
+  ownerHistoricalReservationsDisplayedColumns: ColumnSet = {
+    office: { displayAs: 'Office', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },
+    departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
+    rateStart: { displayAs: 'Rate Start', maxWidth: '20ch', alignment: 'center' },
+    rateEnd: { displayAs: 'Rate End', maxWidth: '20ch', alignment: 'center' },
+    rate: { displayAs: 'Rate', maxWidth: '12ch', alignment: 'right' }
   };
 
 
@@ -161,14 +177,44 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.reservationService.getReservationsByOwner(ownerContactId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
-      next: (reservations) => {
+    this.reservationService.getReservationsByOwner(ownerContactId).pipe(
+      take(1),
+      switchMap(reservations => {
         this.allReservations = this.mappingService.mapReservationList(reservations || []);
+        const reservationIds = this.allReservations
+          .map(reservation => String(reservation.reservationId || '').trim())
+          .filter(id => !!id);
+
+        if (reservationIds.length === 0) {
+          this.paymentsByReservationId.clear();
+          return of(void 0);
+        }
+
+        return forkJoin(
+          reservationIds.map(reservationId =>
+            this.reservationService.getReservationPayments(reservationId).pipe(
+              catchError(() => of([] as ReservationPaymentResponse[]))
+            )
+          )
+        ).pipe(
+          tap(paymentArrays => {
+            this.paymentsByReservationId.clear();
+            reservationIds.forEach((reservationId, index) => {
+              this.paymentsByReservationId.set(reservationId, paymentArrays[index] || []);
+            });
+          }),
+          map(() => void 0)
+        );
+      }),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))
+    ).subscribe({
+      next: () => {
         this.refreshOwnerReservationData();
         this.markViewForCheck();
       },
       error: () => {
         this.allReservations = [];
+        this.paymentsByReservationId.clear();
         this.refreshOwnerReservationData();
         this.markViewForCheck();
       }
@@ -193,6 +239,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     this.ownerPropertyReservations = [];
     this.ownerCurrentReservationsTableData = [];
     this.ownerHistoricalReservationsTableData = [];
+    this.paymentsByReservationId.clear();
     this.rentedCount = 0;
     this.vacantCount = 0;
     this.currentReservationCount = 0;
@@ -210,7 +257,17 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       billingRate: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : this.formatCurrencyValue(reservation.billingRate)
     }));
     this.ownerCurrentReservationsTableData = reservationsForDisplay.filter(reservation => !this.isHistoricalReservation(reservation.departureDate));
-    this.ownerHistoricalReservationsTableData = reservationsForDisplay.filter(reservation => this.isHistoricalReservation(reservation.departureDate));
+
+    const historicalReservations = this.ownerPropertyReservations.filter(
+      reservation => this.isHistoricalReservation(reservation.departureDate)
+    );
+    this.ownerHistoricalReservationsTableData = this.reservationHistoryDisplayService
+      .buildRateHistoryRows(historicalReservations, this.paymentsByReservationId)
+      .map(row => ({
+        ...row,
+        office: row.officeName || row.office || '',
+        rate: this.shouldMaskBillingFields(row.reservationStatusId) ? '--' : row.rate
+      }));
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

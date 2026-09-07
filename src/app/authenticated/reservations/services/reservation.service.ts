@@ -16,6 +16,11 @@ import {
   ReservationTrackerResponseOptionRequest,
   ReservationTrackerResponseRequest
 } from '../models/reservation-model';
+import {
+  ApplyReservationRentChangeRequest,
+  ReservationPaymentRequest,
+  ReservationPaymentResponse
+} from '../models/reservation-payment.model';
 import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 
 @Injectable({
@@ -210,6 +215,26 @@ export class ReservationService {
 
   deleteReservationTrackerResponseOption(trackerResponseId: string, trackerDefinitionOptionId: string): Observable<void> {
     return this.http.delete<void>(this.controller + 'tracker-response-option/' + trackerResponseId + '/' + trackerDefinitionOptionId);
+  }
+
+  getReservationPayments(reservationId: string): Observable<ReservationPaymentResponse[]> {
+    return this.http.get<ReservationPaymentResponse[]>(this.controller + 'payment/reservation/' + reservationId);
+  }
+
+  createReservationPayment(request: ReservationPaymentRequest): Observable<ReservationPaymentResponse> {
+    return this.http.post<ReservationPaymentResponse>(this.controller + 'payment', request);
+  }
+
+  updateReservationPayment(request: ReservationPaymentRequest & { reservationPaymentId: number }): Observable<ReservationPaymentResponse> {
+    return this.http.put<ReservationPaymentResponse>(this.controller + 'payment', request);
+  }
+
+  deleteReservationPayment(reservationPaymentId: number): Observable<void> {
+    return this.http.delete<void>(this.controller + 'payment/' + reservationPaymentId);
+  }
+
+  applyReservationRentChange(request: ApplyReservationRentChangeRequest): Observable<ReservationPaymentResponse[]> {
+    return this.http.post<ReservationPaymentResponse[]>(this.controller + 'payment/apply-rent-change', request);
   }
 }
 

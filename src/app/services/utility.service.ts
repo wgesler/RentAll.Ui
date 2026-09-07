@@ -121,6 +121,18 @@ export class UtilityService {
       }
       return new Date(y, mo - 1, d);
     }
+    // US `M/d/yy` or `MM/DD/YY` (compact editable dates).
+    const usShort = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/.exec(datePart);
+    if (usShort) {
+      const mo = Number(usShort[1]);
+      const d = Number(usShort[2]);
+      const yy = Number(usShort[3]);
+      if (!Number.isFinite(yy) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+        return null;
+      }
+      const y = yy >= 70 ? 1900 + yy : 2000 + yy;
+      return new Date(y, mo - 1, d);
+    }
     const parsed = new Date(`${datePart}T00:00:00`);
     if (isNaN(parsed.getTime())) {
       return null;
