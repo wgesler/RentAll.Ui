@@ -150,6 +150,10 @@ export class LoginComponent implements OnInit, AfterViewInit {
   }
 
   onCredentialFieldFocus(event: FocusEvent): void {
+    if (!event.isTrusted) {
+      return;
+    }
+
     const input = event.target as HTMLInputElement | null;
     if (!input) {
       return;
