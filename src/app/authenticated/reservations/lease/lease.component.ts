@@ -1268,11 +1268,15 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getResponsiblePartiesBlock(): string {
     const contacts = this.getResponsibleContacts();
+    const tenantNamePrefix = this.isBilledToEmployer()
+      ? `<span style="font-weight: bold">Tenant Name:</span> ${this.escapeHtml((this.selectedReservation?.tenantName || '').trim())}<br>`
+      : '';
+
     if (contacts.length === 0) {
-      return '';
+      return tenantNamePrefix;
     }
 
-    return contacts.map(contact => {
+    const responsiblePartiesBlock = contacts.map(contact => {
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, contact));
       const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact);
       const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact);
@@ -1283,8 +1287,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       const responsiblePartyEmail = this.escapeHtml(this.utilityService.getResponsiblePartyEmail(contact));
       const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", responsiblePartyAddress1Raw, responsiblePartyAddress2Raw);
 
+      const responsiblePartyNameLabel = this.isBilledToEmployer() ? 'Company Name:' : 'Name(s):';
+
       return [
-        `<span style="font-weight: bold">Name(s):</span> ${responsibleParty}<br>`,
+        `<span style="font-weight: bold">${responsiblePartyNameLabel}</span> ${responsibleParty}<br>`,
         useSingleAddressLine
           ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
           : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
@@ -1293,6 +1299,27 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         `<span style="font-weight: bold">Email:</span> ${responsiblePartyEmail}<br>`
       ].join('');
     }).join('<br>');
+
+    return tenantNamePrefix + responsiblePartiesBlock;
+  }
+
+  isBilledToEmployer(): boolean {
+    return this.selectedReservation?.reservationTypeId === ReservationType.Corporate
+      && this.mappingService.toBooleanValue(this.selectedReservation?.billedToEmployer);
+  }
+
+  getLeaseBillingRateDisplay(): string {
+    if (this.isBilledToEmployer()) {
+      return 'Billed to Employer';
+    }
+    return '$' + (this.selectedReservation?.billingRate || 0).toFixed(2);
+  }
+
+  getLeaseDepartureFeeDisplay(): string {
+    if (this.isBilledToEmployer()) {
+      return 'Billed to Employer';
+    }
+    return '$' + (this.selectedReservation?.departureFee || 0).toFixed(2);
   }
 
   getPrimaryResponsibleContact(): ContactResponse | null {
@@ -1766,7 +1793,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{billingType\}\}/g, this.getUnderlinedFillValue(this.getBillingTypeText()));
       result = result.replace(/\{\{billingTypeDay\}\}/g, this.getUnderlinedFillValue(this.getBillingDayText()));
       result = result.replace(/\{\{billingTypeLower\}\}/g, this.getUnderlinedFillValue(this.getBillingTypeLowerText()));
-      result = result.replace(/\{\{billingRate\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.billingRate || 0).toFixed(2)));
+      result = result.replace(/\{\{billingRate\}\}/g, this.getUnderlinedFillValue(this.getLeaseBillingRateDisplay()));
+      result = result.replace(/\{\{billingRateAdvanceNote\}\}/g, this.isBilledToEmployer() ? '' : '<span style="font-style: italic">(1st month\'s rent payable in advance)</span>');
       result = result.replace(/\{\{deposit\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.deposit || 0).toFixed(2)));
       result = result.replace(/\{\{securityText\}\}/g, this.getUnderlinedFillValue(this.getSecurityDepositText()));      
       result = result.replace(/\{\{securityProrateText\}\}/g, this.getUnderlinedFillValue(this.getSecurityProrateText()));
@@ -1783,7 +1811,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{checkOutTime\}\}/g, this.getUnderlinedFillValue(getCheckOutTime(this.selectedReservation.checkOutTimeId) || ''));
       result = result.replace(/\{\{reservationNotice\}\}/g, this.escapeHtml(this.getReservationNoticeText()));
       result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getUnderlinedFillValue(this.getReservationDayNotice()));
-      result = result.replace(/\{\{departureFee\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.departureFee || 0).toFixed(2)));
+      result = result.replace(/\{\{departureFee\}\}/g, this.getUnderlinedFillValue(this.getLeaseDepartureFeeDisplay()));
+      result = result.replace(/\{\{departureFeeMoveInNote\}\}/g, this.isBilledToEmployer() ? '' : '<span style="font-style: italic">(Payable upon move-in)</span>');
       result = result.replace(/\{\{tenantPets\}\}/g, this.getUnderlinedFillValue(this.getPetText()));
       result = result.replace(/\{\{extensionsPossible\}\}/g, this.getUnderlinedFillValue(this.getExtensionsPossible()));
     }

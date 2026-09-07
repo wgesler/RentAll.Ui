@@ -49,6 +49,7 @@ export interface ReservationRequest {
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
+  billedToEmployer: boolean;
   collapseCharges: boolean;
   invoiceMethodId: number;
 
@@ -117,6 +118,7 @@ export interface ReservationResponse {
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;
+  billedToEmployer: boolean;
   collapseCharges: boolean;
   invoiceMethodId: number;
 

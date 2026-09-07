@@ -810,6 +810,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.form = this.fb.group({
       isActive: new FormControl(true),
       allowExtensions: new FormControl(true),
+      billedToEmployer: new FormControl(false),
       reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
       propertyCode: new FormControl({ value: '', disabled: true }), // Read-only
       officeId: new FormControl<number | null>(null),
@@ -937,6 +938,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       extraFeeLines: this.mapExtraFeeLinesToRequest(),
       notes: formValue['notes'] !== null && formValue['notes'] !== undefined ? String(formValue['notes']) : '',
       allowExtensions: (formValue['allowExtensions'] as boolean | null | undefined) ?? false,
+      billedToEmployer: reservationTypeId === ReservationType.Corporate
+        ? ((formValue['billedToEmployer'] as boolean | null | undefined) ?? false)
+        : false,
       collapseCharges: (formValue['collapseCharges'] as boolean | null | undefined) ?? false,
       invoiceMethodId: normalizeInvoiceMethodId(formValue['invoiceMethodId'] as number | null | undefined),
       isActive: (formValue['isActive'] as boolean | null | undefined) ?? true
@@ -970,6 +974,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.form.patchValue({
       isActive: typeof this.reservation.isActive === 'number' ? this.reservation.isActive === 1 : Boolean(this.reservation.isActive),
       allowExtensions: this.reservation.allowExtensions ?? true,
+      billedToEmployer: this.reservation.billedToEmployer ?? false,
       collapseCharges: this.reservation.collapseCharges ?? false,
       invoiceMethodId: normalizeInvoiceMethodId(this.reservation.invoiceMethodId),
       reservationCode: this.reservation.reservationCode || '',
@@ -1110,6 +1115,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.form.patchValue({
       isActive: true,
       allowExtensions: source.allowExtensions ?? true,
+      billedToEmployer: source.reservationTypeId === ReservationType.Corporate ? (source.billedToEmployer ?? false) : false,
       collapseCharges: source.collapseCharges ?? false,
       invoiceMethodId: normalizeInvoiceMethodId(source.invoiceMethodId),
       reservationCode: '',
@@ -1648,7 +1654,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         companyContact: '',
         tenantName: '',
         referenceNo: '',
-        contactId: shouldPreserveContactId ? this.form.get('contactId')?.value || '' : ''
+        contactId: shouldPreserveContactId ? this.form.get('contactId')?.value || '' : '',
+        billedToEmployer: reservationTypeId === ReservationType.Corporate ? (this.form.get('billedToEmployer')?.value ?? false) : false
       }, { emitEvent: false });
 
       // Clear selected contact reference except Individual <-> Platform switches.

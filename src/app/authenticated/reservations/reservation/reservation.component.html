@@ -627,7 +627,12 @@
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 form-standard-grid">
               <div class="col-start-3 col-span-2 reservation-billing-invoice-row">
-                <div class="reservation-billing-collapse-charges">
+                <div class="reservation-billing-collapse-charges form-standard-checkbox-row">
+                  @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
+                    <mat-checkbox formControlName="billedToEmployer" color="primary">
+                      Billed to Employer
+                    </mat-checkbox>
+                  }
                   <mat-checkbox formControlName="collapseCharges" color="primary">
                     Collapse Charges on Invoice
                   </mat-checkbox>

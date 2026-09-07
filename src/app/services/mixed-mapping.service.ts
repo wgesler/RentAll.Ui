@@ -891,6 +891,7 @@ export class MixedMappingService {
       extraFeeLines: this.mappingService.mapExtraFeeLinesResponseToRequest(reservation.extraFeeLines),
       notes: reservation.notes ?? null,
       allowExtensions: reservation.allowExtensions ?? true,
+      billedToEmployer: reservation.billedToEmployer ?? false,
       collapseCharges: reservation.collapseCharges ?? false,
       invoiceMethodId: normalizeInvoiceMethodId(reservation.invoiceMethodId),
       aCleanerUserId: reservation.aCleanerUserId ?? null,
