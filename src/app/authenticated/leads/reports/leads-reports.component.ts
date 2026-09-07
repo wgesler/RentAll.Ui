@@ -39,6 +39,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     rentalCount: { displayAs: 'Rental-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
     ownerCount: { displayAs: 'Owner-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
     generalCount: { displayAs: 'General-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
+    partnerCount: { displayAs: 'Partner-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
     totalCount: { displayAs: 'Total', wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
   openLeadsColumns: ColumnSet = {
@@ -47,6 +48,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     rentalCount: { displayAs: 'Rental-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
     ownerCount: { displayAs: 'Owner-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
     generalCount: { displayAs: 'General-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
+    partnerCount: { displayAs: 'Partner-Leads', wrap: false, maxWidth: '12ch', alignment: 'center' },
     totalCount: { displayAs: 'Total', wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
   agentBreakdownColumns: ColumnSet = {
@@ -55,6 +57,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     rentalCount: { displayAs: 'Rental', wrap: false, maxWidth: '10ch', alignment: 'center' },
     ownerCount: { displayAs: 'Owner', wrap: false, maxWidth: '10ch', alignment: 'center' },
     generalCount: { displayAs: 'General', wrap: false, maxWidth: '10ch', alignment: 'center' },
+    partnerCount: { displayAs: 'Partner', wrap: false, maxWidth: '10ch', alignment: 'center' },
     openCount: { displayAs: 'Open', wrap: false, maxWidth: '10ch', alignment: 'center' },
     closedCount: { displayAs: 'Closed', wrap: false, maxWidth: '10ch', alignment: 'center' },
     totalCount: { displayAs: 'Total', wrap: false, maxWidth: '10ch', alignment: 'center' }
@@ -67,9 +70,10 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   rentalRows: UnifiedLeadRow[] = [];
   ownerRows: UnifiedLeadRow[] = [];
   generalRows: UnifiedLeadRow[] = [];
+  partnerRows: UnifiedLeadRow[] = [];
   agentsById = new Map<string, AgentResponse>();
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-leads', 'owner-leads', 'general-leads', 'agents']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-leads', 'owner-leads', 'general-leads', 'partner-leads', 'agents']));
   destroy$ = new Subject<void>();
 
   //#region Leads-Reports
@@ -82,6 +86,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     this.loadRentalLeads();
     this.loadOwnerLeads();
     this.loadGeneralLeads();
+    this.loadPartnerLeads();
     this.loadAgents();
   }
 
@@ -97,30 +102,33 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     return this.closedLeadRows.length > 0 || this.openLeadRows.length > 0 || this.agentBreakdownRows.length > 0;
   }
 
-  get agentBreakdownTotals(): { rental: number; owner: number; general: number; open: number; closed: number; total: number } {
+  get agentBreakdownTotals(): { rental: number; owner: number; general: number; partner: number; open: number; closed: number; total: number } {
     return this.agentBreakdownRows.reduce((acc, row) => {
       acc.rental += row.rentalCount;
       acc.owner += row.ownerCount;
       acc.general += row.generalCount;
+      acc.partner += row.partnerCount;
       acc.open += row.openCount;
       acc.closed += row.closedCount;
       acc.total += row.totalCount;
       return acc;
-    }, { rental: 0, owner: 0, general: 0, open: 0, closed: 0, total: 0 });
+    }, { rental: 0, owner: 0, general: 0, partner: 0, open: 0, closed: 0, total: 0 });
   }
 
-  get leadTypeCounts(): { rental: number; owner: number; general: number; total: number } {
+  get leadTypeCounts(): { rental: number; owner: number; general: number; partner: number; total: number } {
     return this.filteredLeadRows.reduce((acc, row) => {
       if (row.leadType === 'Rental') {
         acc.rental += 1;
       } else if (row.leadType === 'Owner') {
         acc.owner += 1;
+      } else if (row.leadType === 'Partner') {
+        acc.partner += 1;
       } else {
         acc.general += 1;
       }
       acc.total += 1;
       return acc;
-    }, { rental: 0, owner: 0, general: 0, total: 0 });
+    }, { rental: 0, owner: 0, general: 0, partner: 0, total: 0 });
   }
   //#endregion
 
@@ -164,6 +172,19 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  loadPartnerLeads(): void {
+    this.leadsService.getPartnerLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'partner-leads'))).subscribe({
+      next: rows => {
+        this.partnerRows = this.mappingService.mapLeadPartnerReportRows(rows || []);
+        this.refreshAllLeadRows();
+      },
+      error: () => {
+        this.partnerRows = [];
+        this.refreshAllLeadRows();
+      }
+    });
+  }
+
   loadAgents(): void {
     this.agentService.getAgents().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'))).subscribe({
       next: agents => {
@@ -202,7 +223,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Report Build Methods
   buildLeadStateRows(rows: UnifiedLeadRow[], isClosedSection: boolean): OfficeLeadStatusRow[] {
-    const counts = new Map<string, { officeName: string; statuses: Set<string>; rentalCount: number; ownerCount: number; generalCount: number; totalCount: number }>();
+    const counts = new Map<string, { officeName: string; statuses: Set<string>; rentalCount: number; ownerCount: number; generalCount: number; partnerCount: number; totalCount: number }>();
     for (const row of rows) {
       const isClosedLeadState = LEAD_FINAL_STATE_IDS.has(row.leadStateId);
       if (isClosedSection !== isClosedLeadState) {
@@ -218,6 +239,8 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
           existing.rentalCount += 1;
         } else if (row.leadType === 'Owner') {
           existing.ownerCount += 1;
+        } else if (row.leadType === 'Partner') {
+          existing.partnerCount += 1;
         } else {
           existing.generalCount += 1;
         }
@@ -226,12 +249,14 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
         const rentalCount = row.leadType === 'Rental' ? 1 : 0;
         const ownerCount = row.leadType === 'Owner' ? 1 : 0;
         const generalCount = row.leadType === 'General' ? 1 : 0;
+        const partnerCount = row.leadType === 'Partner' ? 1 : 0;
         counts.set(key, {
           officeName,
           statuses: new Set<string>([leadState]),
           rentalCount,
           ownerCount,
           generalCount,
+          partnerCount,
           totalCount: 1
         });
       }
@@ -244,6 +269,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
         rentalCount: row.rentalCount,
         ownerCount: row.ownerCount,
         generalCount: row.generalCount,
+        partnerCount: row.partnerCount,
         totalCount: row.totalCount
       }))
       .sort((a, b) => a.officeName.localeCompare(b.officeName, undefined, { sensitivity: 'base' }));
@@ -261,6 +287,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
         rentalCount: 0,
         ownerCount: 0,
         generalCount: 0,
+        partnerCount: 0,
         openCount: 0,
         closedCount: 0,
         totalCount: 0
@@ -270,6 +297,8 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
         existing.rentalCount += 1;
       } else if (row.leadType === 'Owner') {
         existing.ownerCount += 1;
+      } else if (row.leadType === 'Partner') {
+        existing.partnerCount += 1;
       } else {
         existing.generalCount += 1;
       }
@@ -292,7 +321,8 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     this.allLeadRows = [
       ...this.rentalRows,
       ...this.ownerRows,
-      ...this.generalRows
+      ...this.generalRows,
+      ...this.partnerRows
     ];
     this.applyFiltersAndBuildReports();
   }

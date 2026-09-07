@@ -215,10 +215,11 @@ markViewForCheck(): void {
     forkJoin({
       rentals: this.leadsService.getRentalLeads(),
       owners: this.leadsService.getOwnerLeads(),
-      generals: this.leadsService.getGeneralLeads()
+      generals: this.leadsService.getGeneralLeads(),
+      partners: this.leadsService.getPartnerLeads()
     }).pipe(take(1)).subscribe({
-      next: ({ rentals, owners, generals }) => {
-        this.hasNewLeadBadge = this.hasNewLeadState(rentals) || this.hasNewLeadState(owners) || this.hasNewLeadState(generals);
+      next: ({ rentals, owners, generals, partners }) => {
+        this.hasNewLeadBadge = this.hasNewLeadState(rentals) || this.hasNewLeadState(owners) || this.hasNewLeadState(generals) || this.hasNewLeadState(partners);
         this.markViewForCheck();
       },
       error: () => {

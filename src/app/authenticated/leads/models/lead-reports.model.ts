@@ -1,4 +1,4 @@
-export type LeadType = 'Rental' | 'Owner' | 'General';
+export type LeadType = 'Rental' | 'Owner' | 'General' | 'Partner';
 
 export interface UnifiedLeadRow {
   leadType: LeadType;
@@ -22,6 +22,7 @@ export interface OfficeLeadStatusRow {
   rentalCount: number;
   ownerCount: number;
   generalCount: number;
+  partnerCount: number;
   totalCount: number;
 }
 
@@ -31,6 +32,7 @@ export interface AgentBreakdownRow {
   rentalCount: number;
   ownerCount: number;
   generalCount: number;
+  partnerCount: number;
   openCount: number;
   closedCount: number;
   totalCount: number;

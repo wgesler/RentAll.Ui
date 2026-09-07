@@ -19,6 +19,10 @@
         <span class="type-count-value">{{ leadTypeCounts.general }}</span>
       </section>
       <section class="type-count-card">
+        <span class="type-count-label">Partner</span>
+        <span class="type-count-value">{{ leadTypeCounts.partner }}</span>
+      </section>
+      <section class="type-count-card">
         <span class="type-count-label">All Leads</span>
         <span class="type-count-value">{{ leadTypeCounts.total }}</span>
       </section>
@@ -69,6 +73,7 @@
                 rentalCount: '' + agentBreakdownTotals.rental,
                 ownerCount: '' + agentBreakdownTotals.owner,
                 generalCount: '' + agentBreakdownTotals.general,
+                partnerCount: '' + agentBreakdownTotals.partner,
                 openCount: '' + agentBreakdownTotals.open,
                 closedCount: '' + agentBreakdownTotals.closed,
                 totalCount: '' + agentBreakdownTotals.total

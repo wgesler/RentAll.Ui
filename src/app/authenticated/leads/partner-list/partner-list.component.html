@@ -1,0 +1,53 @@
+<ng-template #partnerListBody>
+  @if (!isPageReady) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading partner leads…</p>
+    </div>
+  } @else if (isServiceError) {
+    <div class="flex items-center justify-center p-8">
+      <div class="text-center">
+        <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+        <h3 class="mb-2 text-xl font-semibold">Unable to load partner leads</h3>
+        <p class="text-gray-600">There was an error loading partner leads. Please try again.</p>
+      </div>
+    </div>
+  } @else {
+    <div class="mat list-layout-standard dbg-band-main">
+      <div class="tableDiv">
+        <app-data-table
+          [data]="partnersDisplay"
+          [columns]="partnersDisplayedColumns"
+          [hasColumnIndex]="true"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [deleteConfirmTitle]="'Delete partner lead'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this partner lead?'"
+          [itemsPerPage]="10"
+          (editEvent)="goToPartner($event)"
+          (rowClickEvent)="goToPartner($event)"
+          (deleteEvent)="deletePartner($event)"
+          (checkboxChangeEvent)="onPartnerCheckboxChange($event)"
+          (dropdownChangeEvent)="onPartnerLeadStateDropdownChange($event)">
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle id="toggle-partner-leads-inactive" color="primary" [checked]="showInactive" (change)="toggleInactive()" class="whitespace-nowrap">
+                InActive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-partner-lead-button" class="whitespace-nowrap items-center flex gap-1" (click)="addPartnerLead()">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+        </app-data-table>
+      </div>
+    </div>
+  }
+</ng-template>
+
+<ng-container *ngTemplateOutlet="partnerListBody" />

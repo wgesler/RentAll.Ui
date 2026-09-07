@@ -18,6 +18,11 @@ import {
   LeadGeneralUpdateRequest
 } from '../models/lead-general.model';
 import {
+  LeadPartnerRequest,
+  LeadPartnerResponse,
+  LeadPartnerUpdateRequest
+} from '../models/lead-partner.model';
+import {
   OwnerFormShareResponse,
   PublicOwnerContactUpsertRequest,
   PublicOwnerFormResponse,
@@ -108,6 +113,14 @@ export class LeadsService {
   getGeneralLeadById(generalId: number): Observable<LeadGeneralResponse> {
     return this.http.get<LeadGeneralResponse>(`${this.controller}general/${generalId}`);
   }
+
+  getPartnerLeads(): Observable<LeadPartnerResponse[]> {
+    return this.http.get<LeadPartnerResponse[]>(this.controller + 'partners');
+  }
+
+  getPartnerLeadById(partnerId: number): Observable<LeadPartnerResponse> {
+    return this.http.get<LeadPartnerResponse>(`${this.controller}partners/${partnerId}`);
+  }
   //#endregion
 
   //#region Internal: POST
@@ -129,6 +142,10 @@ export class LeadsService {
 
   createGeneralLead(body: LeadGeneralRequest): Observable<LeadGeneralResponse> {
     return this.http.post<LeadGeneralResponse>(this.controller + 'general', body);
+  }
+
+  createPartnerLead(body: LeadPartnerRequest): Observable<LeadPartnerResponse> {
+    return this.http.post<LeadPartnerResponse>(this.controller + 'partners', body);
   }
   //#endregion
 
@@ -164,6 +181,10 @@ export class LeadsService {
   updateGeneralLead(body: LeadGeneralUpdateRequest): Observable<LeadGeneralResponse> {
     return this.http.put<LeadGeneralResponse>(this.controller + 'general', body);
   }
+
+  updatePartnerLead(body: LeadPartnerUpdateRequest): Observable<LeadPartnerResponse> {
+    return this.http.put<LeadPartnerResponse>(this.controller + 'partners', body);
+  }
   //#endregion
 
   //#region Internal: DELETE
@@ -177,6 +198,10 @@ export class LeadsService {
 
   deleteGeneralLead(generalId: number): Observable<void> {
     return this.http.delete<void>(`${this.controller}general/${generalId}`);
+  }
+
+  deletePartnerLead(partnerId: number): Observable<void> {
+    return this.http.delete<void>(`${this.controller}partners/${partnerId}`);
   }
   //#endregion
 

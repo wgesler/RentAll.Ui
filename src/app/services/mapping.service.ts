@@ -55,6 +55,7 @@ import { getFrequency, getReservationStatus, ReservationStatus, ReservationType 
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, ReservationResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
+import { LeadPartnerListDisplay, LeadPartnerResponse, LeadPartnerUpdateRequest } from '../authenticated/leads/models/lead-partner.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
 import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
 import { LeadRentalListDisplay, LeadRentalRequest, LeadRentalResponse } from '../authenticated/leads/models/lead-rental.model';
@@ -1620,6 +1621,45 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     };
   }
 
+  mapLeadPartnerListRow(lead: LeadPartnerResponse): LeadPartnerListDisplay {
+    const stateLabel = formatLeadStateLabel(lead.leadStateId);
+    const trimmedBusiness = String(lead.aboutYourBusiness ?? '').trim();
+    const businessPreview =
+      trimmedBusiness.length === 0 ? '—' : trimmedBusiness.length <= 30 ? trimmedBusiness : `${trimmedBusiness.slice(0, 30)}...`;
+    const phone = this.formatter.phoneNumber(lead.phone || '') || null;
+    const createdOn = this.formatter.formatDateTimeString(lead.createdOn) || (lead.createdOn ?? '');
+    const modifiedOn = this.formatter.formatDateTimeString(lead.modifiedOn) || (lead.modifiedOn ?? '');
+    const modifiedByName = String(lead.modifiedByName ?? '').trim() || (lead.modifiedBy ?? '');
+    return {
+      ...lead,
+      name: String(lead.name ?? '').trim() || '—',
+      companyName: String(lead.companyName ?? '').trim() || '—',
+      phone,
+      createdOn,
+      modifiedOn,
+      modifiedByName,
+      businessPreview,
+      leadAttentionDot: '',
+      leadStateDropdown: {
+        value: stateLabel,
+        isOverridable: true,
+        toString: () => stateLabel
+      },
+      isActive: lead.isActive !== false
+    };
+  }
+
+  mapLeadPartnerListRowToUpdateRequest(row: LeadPartnerListDisplay, isActive: boolean): LeadPartnerUpdateRequest {
+    const rest = { ...row };
+    delete (rest as Partial<LeadPartnerListDisplay>).businessPreview;
+    delete (rest as Partial<LeadPartnerListDisplay>).leadAttentionDot;
+    delete (rest as Partial<LeadPartnerListDisplay>).leadStateDropdown;
+    return {
+      ...rest,
+      isActive
+    };
+  }
+
   mapLeadGeneralToRentalRequest(lead: LeadGeneralListDisplay): LeadRentalRequest {
     return {
       leadStateId: lead.leadStateId,
@@ -1909,6 +1949,20 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         leadStateId: Number(row.leadStateId || 0),
         agentId: null,
         agentLabel: 'N/A (General)',
+        createdOn: this.resolveLeadReportCreatedOn(source)
+      };
+    });
+  }
+
+  mapLeadPartnerReportRows(rows: LeadPartnerResponse[]): UnifiedLeadRow[] {
+    return (rows || []).map(row => {
+      const source = row as unknown as Record<string, unknown>;
+      return {
+        leadType: 'Partner',
+        officeId: Number(row.officeId || 0),
+        leadStateId: Number(row.leadStateId || 0),
+        agentId: null,
+        agentLabel: 'N/A (Partner)',
         createdOn: this.resolveLeadReportCreatedOn(source)
       };
     });

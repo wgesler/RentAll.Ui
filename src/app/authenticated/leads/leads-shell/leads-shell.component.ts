@@ -18,6 +18,9 @@ import { LeadStateType } from '../models/lead-enums';
 import { OwnerComponent } from '../owner/owner.component';
 import { OwnerEditSelection } from '../models/lead-owner.model';
 import { OwnerListComponent } from '../owner-list/owner-list.component';
+import { PartnerComponent, PartnerLeadFormClosed } from '../partner/partner.component';
+import { PartnerEditSelection } from '../models/lead-partner.model';
+import { PartnerListComponent } from '../partner-list/partner-list.component';
 import { LeadsReportsComponent } from '../reports/leads-reports.component';
 import { RentalComponent, RentalLeadFormClosed } from '../rental/rental.component';
 import { RentalEditSelection } from '../models/lead-rental.model';
@@ -40,6 +43,8 @@ import { LeadsService } from '../services/leads.service';
     OwnerComponent,
     GeneralListComponent,
     GeneralComponent,
+    PartnerListComponent,
+    PartnerComponent,
     LeadsReportsComponent
   ]
 })
@@ -47,6 +52,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   @ViewChildren(RentalListComponent) rentalLists?: QueryList<RentalListComponent>;
   @ViewChildren(OwnerListComponent) ownerLists?: QueryList<OwnerListComponent>;
   @ViewChildren(GeneralListComponent) generalLists?: QueryList<GeneralListComponent>;
+  @ViewChildren(PartnerListComponent) partnerLists?: QueryList<PartnerListComponent>;
   @ViewChildren(LeadsReportsComponent) reportsSections?: QueryList<LeadsReportsComponent>;
 
   private route = inject(ActivatedRoute);
@@ -69,14 +75,17 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   hasNewRentalLeads = false;
   hasNewOwnerLeads = false;
   hasNewGeneralLeads = false;
+  hasNewPartnerLeads = false;
   private leadBadgeLoadId = 0;
 
   showRentalLeadForm = false;
   showOwnerLeadForm = false;
   showGeneralLeadForm = false;
+  showPartnerLeadForm = false;
   rentalShellLeadId: string | null = null;
   ownerShellLeadId: string | null = null;
   generalShellLeadId: string | null = null;
+  partnerShellLeadId: string | null = null;
   reportsStartDate: Date | null = null;
   reportsEndDate: Date | null = null;
   /** Tab index to restore when leaving embedded add via title bar Back (0 rental, 1 owner, 2 general). */
@@ -137,15 +146,17 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     forkJoin({
       rentals: this.leadsService.getRentalLeads(),
       owners: this.isOwnerAdmin ? this.leadsService.getOwnerLeads() : of([]),
-      generals: this.leadsService.getGeneralLeads()
+      generals: this.leadsService.getGeneralLeads(),
+      partners: this.leadsService.getPartnerLeads()
     }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: ({ rentals, owners, generals }) => {
+      next: ({ rentals, owners, generals, partners }) => {
         if (loadId !== this.leadBadgeLoadId) {
           return;
         }
         this.hasNewRentalLeads = this.hasNewLeadState(rentals);
         this.hasNewOwnerLeads = this.isOwnerAdmin && this.hasNewLeadState(owners);
         this.hasNewGeneralLeads = this.hasNewLeadState(generals);
+        this.hasNewPartnerLeads = this.hasNewLeadState(partners);
         this.cdr.markForCheck();
       },
       error: () => {
@@ -155,6 +166,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
         this.hasNewRentalLeads = false;
         this.hasNewOwnerLeads = false;
         this.hasNewGeneralLeads = false;
+        this.hasNewPartnerLeads = false;
         this.cdr.markForCheck();
       }
     });
@@ -183,9 +195,11 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
     this.showGeneralLeadForm = false;
+    this.showPartnerLeadForm = false;
     this.rentalShellLeadId = null;
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
+    this.partnerShellLeadId = null;
     this.selectedTabIndex = nextTabIndex;
     if (this.selectedTabIndex === this.getReportsTabIndex() && !this.reportsStartDate && !this.reportsEndDate) {
       this.setDefaultReportDateRange();
@@ -223,8 +237,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.officeTitleBarShowError = false;
     this.showOwnerLeadForm = false;
     this.showGeneralLeadForm = false;
+    this.showPartnerLeadForm = false;
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
+    this.partnerShellLeadId = null;
     this.embeddedLeadFormReturnTabIndex = 0;
     this.rentalShellLeadId = 'new';
     this.showRentalLeadForm = true;
@@ -241,8 +257,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.officeTitleBarShowError = false;
     this.showOwnerLeadForm = false;
     this.showGeneralLeadForm = false;
+    this.showPartnerLeadForm = false;
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
+    this.partnerShellLeadId = null;
     this.embeddedLeadFormReturnTabIndex = 0;
     this.rentalShellLeadId = String(selection.rentalId);
     this.showRentalLeadForm = true;
@@ -313,8 +331,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   onAddGeneralLead(): void {
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
+    this.showPartnerLeadForm = false;
     this.rentalShellLeadId = null;
     this.ownerShellLeadId = null;
+    this.partnerShellLeadId = null;
     this.embeddedLeadFormReturnTabIndex = this.getGeneralTabIndex();
     this.generalShellLeadId = 'new';
     this.showGeneralLeadForm = true;
@@ -325,8 +345,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.officeTitleBarShowError = false;
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
+    this.showPartnerLeadForm = false;
     this.rentalShellLeadId = null;
     this.ownerShellLeadId = null;
+    this.partnerShellLeadId = null;
     this.embeddedLeadFormReturnTabIndex = this.getGeneralTabIndex();
     this.generalShellLeadId = String(generalId);
     this.showGeneralLeadForm = true;
@@ -342,7 +364,26 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  onEmbeddedLeadFormBack(): void {
+  onAddPartnerLead(): void {
+    this.showRentalLeadForm = false;
+    this.showOwnerLeadForm = false;
+    this.showGeneralLeadForm = false;
+    this.rentalShellLeadId = null;
+    this.ownerShellLeadId = null;
+    this.generalShellLeadId = null;
+    this.embeddedLeadFormReturnTabIndex = this.getPartnerTabIndex();
+    this.partnerShellLeadId = 'new';
+    this.showPartnerLeadForm = true;
+    this.selectedTabIndex = this.getPartnerTabIndex();
+  }
+
+  onEditPartnerLead(selection: PartnerEditSelection): void {
+    if (!selection?.partnerId) {
+      return;
+    }
+    if ((this.selectedOfficeId == null || this.selectedOfficeId <= 0) && selection.officeId != null && selection.officeId > 0) {
+      this.resolveOfficeScope(selection.officeId);
+    }
     this.officeTitleBarShowError = false;
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
@@ -350,6 +391,31 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.rentalShellLeadId = null;
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
+    this.embeddedLeadFormReturnTabIndex = this.getPartnerTabIndex();
+    this.partnerShellLeadId = String(selection.partnerId);
+    this.showPartnerLeadForm = true;
+    this.selectedTabIndex = this.getPartnerTabIndex();
+  }
+
+  onPartnerLeadFormClosed(result?: PartnerLeadFormClosed): void {
+    this.showPartnerLeadForm = false;
+    this.partnerShellLeadId = null;
+    this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
+    if (result?.saved) {
+      this.restoreTitleBarOfficeFromGlobalSelection();
+    }
+  }
+
+  onEmbeddedLeadFormBack(): void {
+    this.officeTitleBarShowError = false;
+    this.showRentalLeadForm = false;
+    this.showOwnerLeadForm = false;
+    this.showGeneralLeadForm = false;
+    this.showPartnerLeadForm = false;
+    this.rentalShellLeadId = null;
+    this.ownerShellLeadId = null;
+    this.generalShellLeadId = null;
+    this.partnerShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
     this.restoreTitleBarOfficeFromGlobalSelection();
   }
@@ -389,11 +455,13 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     const nextIndex =
       tab === 'reports'
         ? this.getReportsTabIndex()
-        : tab === 'general'
-          ? this.getGeneralTabIndex()
-          : tab === 'owner'
-            ? this.getOwnerTabIndex()
-            : 0;
+        : tab === 'partner'
+          ? this.getPartnerTabIndex()
+          : tab === 'general'
+            ? this.getGeneralTabIndex()
+            : tab === 'owner'
+              ? this.getOwnerTabIndex()
+              : 0;
     if (this.selectedTabIndex !== nextIndex) {
       this.selectedTabIndex = nextIndex;
     }
@@ -471,6 +539,12 @@ propagateOfficeToLeadLists(): void {
           section.markViewForCheck();
         }
       });
+      this.partnerLists?.forEach(section => {
+        if (section.offices.length > 0) {
+          section.resolveOfficeScope(scopeOfficeId);
+          section.markViewForCheck();
+        }
+      });
     });
   }
 
@@ -506,8 +580,12 @@ clearOfficeTitleBarErrorIfValid(): void {
     return this.isOwnerAdmin ? 2 : 1;
   }
 
-  getReportsTabIndex(): number {
+  getPartnerTabIndex(): number {
     return this.isOwnerAdmin ? 3 : 2;
+  }
+
+  getReportsTabIndex(): number {
+    return this.isOwnerAdmin ? 4 : 3;
   }
 
   normalizeTabIndex(index: number): number {
