@@ -126,6 +126,8 @@ export interface HealthIssueDisplayRow extends DocumentHealthIssue {
   transactionDateDisplay: string;
   amountDisplay: string;
   officeNameDisplay: string;
+  detailDisplay: string;
+  expanded: boolean;
 }
 
 export interface DocumentHealthSessionState {

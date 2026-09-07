@@ -169,3 +169,68 @@
 .document-health-results {
   min-height: 10rem;
 }
+
+.document-health-issue-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.document-health-results ::ng-deep .tableDiv table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-no {
+  width: 2.75rem !important;
+  min-width: 2.75rem !important;
+  max-width: 2.75rem !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-issue {
+  width: 18ch !important;
+  min-width: 18ch !important;
+  max-width: 18ch !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-documentCode {
+  width: 10ch !important;
+  min-width: 10ch !important;
+  max-width: 10ch !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-relatedCode {
+  width: 13ch !important;
+  min-width: 13ch !important;
+  max-width: 13ch !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-officeNameDisplay {
+  width: 6.5ch !important;
+  min-width: 6.5ch !important;
+  max-width: 6.5ch !important;
+  padding-right: 0.25rem !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-amountDisplay {
+  width: 7.5ch !important;
+  min-width: 7.5ch !important;
+  max-width: 7.5ch !important;
+  padding-left: 0.25rem !important;
+  padding-right: 0.35rem !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-transactionDateDisplay {
+  width: 10ch !important;
+  min-width: 10ch !important;
+  max-width: 10ch !important;
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
+}
+
+.document-health-results ::ng-deep .tableDiv .mat-column-detailDisplay {
+  width: auto !important;
+  min-width: 12rem !important;
+  max-width: none !important;
+}

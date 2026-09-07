@@ -63,13 +63,13 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   unresolvedHint = '';
 
   issueColumns: ColumnSet = {
-    issue: { displayAs: 'Issue', maxWidth: '24ch' },
-    documentCode: { displayAs: 'Document', maxWidth: '14ch' },
-    relatedCode: { displayAs: 'Related', maxWidth: '14ch' },
-    officeNameDisplay: { displayAs: 'Office', maxWidth: '20ch' },
-    amountDisplay: { displayAs: 'Amount', maxWidth: '12ch' },
-    transactionDateDisplay: { displayAs: 'Date', maxWidth: '12ch' },
-    detail: { displayAs: 'Detail', maxWidth: '40ch' }
+    issue: { displayAs: 'Issue', maxWidth: '20ch', wrap: true },
+    documentCode: { displayAs: 'Document', maxWidth: '11ch' },
+    relatedCode: { displayAs: 'Related', maxWidth: '13ch' },
+    officeNameDisplay: { displayAs: 'Office', maxWidth: '7ch' },
+    amountDisplay: { displayAs: 'Amount', maxWidth: '8ch', alignment: 'right' },
+    transactionDateDisplay: { displayAs: 'Date', maxWidth: '10ch', alignment: 'center' },
+    detailDisplay: { displayAs: 'Detail', wrap: true }
   };
 
   //#region Document-Health
@@ -581,13 +581,29 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   }
 
   mapIssueToDisplayRow(issue: DocumentHealthIssue): HealthIssueDisplayRow {
+    const detail = issue.detail ?? '';
     return {
       ...issue,
       transactionDateDisplay: issue.transactionDate ?? '',
       amountDisplay: issue.amount == null ? '' : Number(issue.amount).toFixed(2),
       officeNameDisplay: this.getOfficeNameForOfficeId(issue.officeId),
-      detail: issue.detail ?? ''
+      detail,
+      detailDisplay: detail,
+      expanded: false
     };
+  }
+
+  onIssueRowClick(row: HealthIssueDisplayRow): void {
+    if (!row) {
+      return;
+    }
+
+    const nextExpanded = !row.expanded;
+    this.issueRows = this.issueRows.map(item => ({
+      ...item,
+      expanded: item === row ? nextExpanded : false
+    }));
+    this.cdr.markForCheck();
   }
 
   getOfficeNameForOfficeId(officeId: number): string {
@@ -641,9 +657,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       }
 
       errorsByDocumentCode.delete(row.documentCode);
+      const detail = row.detail ? `${row.detail} ${syncDetail}` : syncDetail;
       return {
         ...row,
-        detail: row.detail ? `${row.detail} ${syncDetail}` : syncDetail
+        detail,
+        detailDisplay: detail
       };
     });
 
@@ -687,7 +705,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.rows = saved.rows;
     this.selectedOfficeId = saved.selectedOfficeId ?? null;
     this.activeRowKey = saved.activeRowKey;
-    this.issueRows = saved.issueRows;
+    this.issueRows = saved.issueRows.map(row => ({
+      ...row,
+      detailDisplay: row.detailDisplay ?? row.detail ?? '',
+      expanded: !!row.expanded
+    }));
     this.showIssueHint = saved.showIssueHint;
     this.unresolvedHint = saved.unresolvedHint;
     this.cdr.markForCheck();
