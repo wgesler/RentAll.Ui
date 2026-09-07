@@ -291,7 +291,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.propertyService.deleteProperty(property.propertyId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Property deleted successfully', CommonMessage.Success);
-        this.getProperties();
+        this.allProperties = this.allProperties.filter(p => p.propertyId !== property.propertyId);
+        this.selectedPropertyIds.delete(property.propertyId);
+        this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {}
     });
