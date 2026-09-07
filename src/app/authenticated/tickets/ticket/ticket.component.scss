@@ -81,6 +81,19 @@
   grid-column: span 1;
 }
 
+.ticket-first-row--for-rentall:not(.ticket-first-row--add) .ticket-slot-actions {
+  grid-column: 5 / -1;
+}
+
+.ticket-first-row--for-rentall.ticket-first-row--add .ticket-slot-actions {
+  grid-column: 4 / -1;
+}
+
+.ticket-first-row--for-rentall .ticket-top-actions {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
 .ticket-comments-section {
   margin-top: var(--global-form-row-gap);
 }

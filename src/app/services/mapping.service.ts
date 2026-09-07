@@ -1542,6 +1542,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       confirmedWithTenant: ticket.confirmedWithTenant,
       followedUpWithOwner: ticket.followedUpWithOwner,
       workOrderCompleted: ticket.workOrderCompleted,
+      isForRentAll: ticket.isForRentAll,
       notes: ticket.notes && ticket.notes.length > 0
         ? ticket.notes.map(note => ({
             ticketNoteId: note.ticketNoteId,

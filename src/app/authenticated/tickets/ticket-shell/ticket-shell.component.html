@@ -144,12 +144,68 @@
                 [currentUserAgentId]="currentUserAgentId"
                 assigneeFilterMode="closed"
                 (ticketUpdated)="onTicketListUpdated()"
-                (ticketSelected)="onTicketSelectedFromTab($event, 2)">
+                (ticketSelected)="onTicketSelectedFromTab($event, getClosedTabIndex())">
               </app-ticket-list>
             } @else {
               <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
             }
           </mat-tab>
+          @if (isAdmin) {
+            <mat-tab label="RentAll">
+              @if (!showTicketForm) {
+                <app-ticket-list
+                  #rentAllTicketListSection
+                  [forRentAllTickets]="true"
+                  [shellOfficeId]="selectedOfficeId"
+                  [shellPropertyId]="selectedPropertyId"
+                  [shellReservationId]="selectedReservationId"
+                  [currentUserId]="currentUserId"
+                  [currentUserAgentId]="currentUserAgentId"
+                  assigneeFilterMode="rentAll"
+                  (ticketUpdated)="onTicketListUpdated()"
+                  (ticketSelected)="onTicketSelectedFromTab($event, getRentAllTabIndex())">
+                </app-ticket-list>
+              } @else {
+                <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
+              }
+            </mat-tab>
+            <mat-tab label="Review">
+              @if (!showTicketForm) {
+                <app-ticket-list
+                  #reviewTicketListSection
+                  [forRentAllTickets]="true"
+                  [shellOfficeId]="selectedOfficeId"
+                  [shellPropertyId]="selectedPropertyId"
+                  [shellReservationId]="selectedReservationId"
+                  [currentUserId]="currentUserId"
+                  [currentUserAgentId]="currentUserAgentId"
+                  assigneeFilterMode="review"
+                  (ticketUpdated)="onTicketListUpdated()"
+                  (ticketSelected)="onTicketSelectedFromTab($event, getReviewTabIndex())">
+                </app-ticket-list>
+              } @else {
+                <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
+              }
+            </mat-tab>
+            <mat-tab label="Complete">
+              @if (!showTicketForm) {
+                <app-ticket-list
+                  #completeTicketListSection
+                  [forRentAllTickets]="true"
+                  [shellOfficeId]="selectedOfficeId"
+                  [shellPropertyId]="selectedPropertyId"
+                  [shellReservationId]="selectedReservationId"
+                  [currentUserId]="currentUserId"
+                  [currentUserAgentId]="currentUserAgentId"
+                  assigneeFilterMode="complete"
+                  (ticketUpdated)="onTicketListUpdated()"
+                  (ticketSelected)="onTicketSelectedFromTab($event, getCompleteTabIndex())">
+                </app-ticket-list>
+              } @else {
+                <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
+              }
+            </mat-tab>
+          }
         </mat-tab-group>
       </mat-card>
     </section>

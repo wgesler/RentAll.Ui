@@ -46,7 +46,7 @@
       <mat-card>
         <form id="ticketForm" [formGroup]="form" (ngSubmit)="saveTicket()" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
           <div class="grid grid-cols-12 form-standard-grid">
-            <div class="col-span-12 ticket-first-row">
+            <div class="col-span-12 ticket-first-row" [class.ticket-first-row--for-rentall]="isForRentAllMode" [class.ticket-first-row--add]="isAddMode">
               @if (!isAddMode) {
                 <mat-form-field appearance="outline" class="ticket-slot-1">
                   <mat-label>Ticket Code</mat-label>
@@ -68,32 +68,41 @@
                 </mat-select>
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="ticket-slot-2">
-                <mat-label>Assignee</mat-label>
-                <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true" (selectionChange)="onAssigneeChanged()">
-                  <mat-option [value]="null">Unassigned</mat-option>
-                  @for (assignee of assigneeOptions; track assignee.userId) {
-                    <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              @if (showAssigneeAndAgentFields) {
+                <mat-form-field appearance="outline" class="ticket-slot-2">
+                  <mat-label>Assignee</mat-label>
+                  <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true" (selectionChange)="onAssigneeChanged()">
+                    <mat-option [value]="null">Unassigned</mat-option>
+                    @for (assignee of assigneeOptions; track assignee.userId) {
+                      <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="ticket-slot-2">
-                <mat-label>Agent</mat-label>
-                <mat-select formControlName="reservationAgentId" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">Select Agent</mat-option>
-                  @for (agent of reservationAgentOptions; track agent.agentId) {
-                    <mat-option [value]="agent.agentId">{{ agent.displayName }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="ticket-slot-2">
+                  <mat-label>Agent</mat-label>
+                  <mat-select formControlName="reservationAgentId" [canSelectNullableOptions]="true">
+                    <mat-option [value]="null">Select Agent</mat-option>
+                    @for (agent of reservationAgentOptions; track agent.agentId) {
+                      <mat-option [value]="agent.agentId">{{ agent.displayName }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
 
+              @if (!isForRentAllMode) {
               <div [class.ticket-slot-empty]="!isAddMode" [class.ticket-slot-empty-2]="isAddMode" aria-hidden="true"></div>
+              }
 
               <div class="ticket-top-actions ticket-slot-actions">
                 <mat-checkbox formControlName="isActive" color="primary" class="ticket-is-active-toggle">
                   IsActive
                 </mat-checkbox>
+                @if (showForRentAllCheckbox) {
+                  <mat-checkbox formControlName="isForRentAll" color="primary" class="ticket-is-for-rentall-toggle">
+                    For RentAll
+                  </mat-checkbox>
+                }
                 @if (!isAddMode) {
                   <button mat-raised-button type="button" color="accent" id="print-ticket-button-embedded" (click)="onPrint()"
                     class="text-nowrap flex-shrink-0">
@@ -109,6 +118,7 @@
               </div>
             </div>
 
+            @if (showCommunicationStatusSection) {
             <div class="col-span-12 ticket-communication-status-box">
               <div class="ticket-communication-status-label">Communication Status:</div>
               <div class="ticket-checkbox-grid">
@@ -120,6 +130,7 @@
                 <mat-checkbox formControlName="workOrderCompleted" color="primary">Work Order Completed</mat-checkbox>
               </div>
             </div>
+            }
 
             <mat-form-field appearance="outline" class="col-span-12">
               <mat-label>Title</mat-label>

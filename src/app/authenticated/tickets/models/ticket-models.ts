@@ -16,6 +16,7 @@ export interface TicketRequest {
   confirmedWithTenant: boolean;
   followedUpWithOwner: boolean;
   workOrderCompleted: boolean;
+  isForRentAll: boolean;
   notes?: TicketNoteRequest[] | null;
   isActive: boolean;
 }
@@ -45,6 +46,7 @@ export interface TicketResponse {
   confirmedWithTenant: boolean;
   followedUpWithOwner: boolean;
   workOrderCompleted: boolean;
+  isForRentAll: boolean;
   notes?: TicketNoteResponse[] | null;
   isActive: boolean;
   createdOn?: string | null;

@@ -37,13 +37,14 @@ import { TicketPrintService } from '../services/ticket-print.service';
 })
 export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
-  @Input() assigneeFilterMode: 'assignedToMe' | 'allOthers' | 'closed' = 'assignedToMe';
+  @Input() assigneeFilterMode: 'assignedToMe' | 'allOthers' | 'closed' | 'rentAll' | 'review' | 'complete' = 'assignedToMe';
   @Input() currentUserId: string | null = null;
   @Input() currentUserAgentId: string | null = null;
   @Input() showListFiltersAndActions: boolean = true;
   @Input() shellOfficeId: number | null = null;
   @Input() shellPropertyId: string | null = null;
   @Input() shellReservationId: string | null = null;
+  @Input() forRentAllTickets = false;
   @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
   private router = inject(Router);
@@ -74,6 +75,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   users: UserResponse[] = [];
   offices: OfficeResponse[] = [];
   organizationId = '';
+  isAdmin = false;
 
   ticketsDisplayedColumns: ColumnSet = {
     'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
@@ -81,13 +83,28 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'created': { displayAs: 'Created', maxWidth: '18ch', alignment: 'center' },
-    'modified': { displayAs: 'Modified', maxWidth: '18ch', alignment: 'center'  },
+    'modified': { displayAs: 'Modified', maxWidth: '18ch', alignment: 'center' },
     'ticketStateTypeText': { displayAs: 'State', maxWidth: '18ch' },
     'assigneeDropdown': { displayAs: 'Assignee', maxWidth: '20ch' },
     'agentName': { displayAs: 'Agent', maxWidth: '20ch' },
     'title': { displayAs: 'Title', maxWidth: '25ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
- };
+  };
+
+  rentAllTicketsDisplayedColumns: ColumnSet = {
+    'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
+    'ticketCode': { displayAs: 'Ticket', maxWidth: '15ch', sortType: 'natural' },
+    'created': { displayAs: 'Created', maxWidth: '18ch', alignment: 'center' },
+    'modified': { displayAs: 'Modified', maxWidth: '18ch', alignment: 'center' },
+    'ticketStateTypeText': { displayAs: 'State', maxWidth: '18ch' },
+    'title': { displayAs: 'Title', maxWidth: '40ch' },
+    'isForRentAll': { displayAs: 'For RentAll', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
+  };
+
+  get activeTicketsDisplayedColumns(): ColumnSet {
+    return this.forRentAllTickets ? this.rentAllTicketsDisplayedColumns : this.ticketsDisplayedColumns;
+  }
 
   destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
@@ -106,6 +123,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
+    this.isAdmin = this.authService.isAdmin();
     this.loadOffices();
     this.loadUsers();
     this.getTickets();
@@ -348,7 +366,10 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
   onTicketCheckboxChange(event: TicketListDisplay): void {
     const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
-    if (changedCheckboxColumn !== 'isActive') {
+    if (changedCheckboxColumn !== 'isActive' && changedCheckboxColumn !== 'isForRentAll') {
+      return;
+    }
+    if (changedCheckboxColumn === 'isForRentAll' && !this.isAdmin) {
       return;
     }
 
@@ -362,8 +383,17 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.applyTicketIsActiveValue(event.ticketId, nextValue);
-    this.ticketService.updateTicket(this.mappingService.mapTicketUpdateRequest(sourceTicket, { isActive: nextValue })).pipe(take(1)).subscribe({
+    if (changedCheckboxColumn === 'isActive') {
+      this.applyTicketIsActiveValue(event.ticketId, nextValue);
+    } else {
+      this.applyTicketIsForRentAllValue(event.ticketId, nextValue);
+    }
+
+    const updates = changedCheckboxColumn === 'isActive'
+      ? { isActive: nextValue }
+      : { isForRentAll: nextValue };
+
+    this.ticketService.updateTicket(this.mappingService.mapTicketUpdateRequest(sourceTicket, updates)).pipe(take(1)).subscribe({
       next: () => {
         this.getTickets();
         this.ticketUpdated.emit();
@@ -371,11 +401,29 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       },
       error: () => {
-        this.applyTicketIsActiveValue(event.ticketId, previousValue);
+        if (changedCheckboxColumn === 'isActive') {
+          this.applyTicketIsActiveValue(event.ticketId, previousValue);
+        } else {
+          this.applyTicketIsForRentAllValue(event.ticketId, previousValue);
+        }
         this.toastr.error('Unable to update ticket.', CommonMessage.Error);
         this.markViewForCheck();
       }
     });
+  }
+
+  applyTicketIsForRentAllValue(ticketId: string, isForRentAll: boolean): void {
+    const nextValue = !!isForRentAll;
+    this.allTickets = this.allTickets.map(ticket =>
+      ticket.ticketId === ticketId
+        ? { ...ticket, isForRentAll: nextValue }
+        : ticket
+    );
+    this.ticketsDisplay = this.ticketsDisplay.map(ticket =>
+      ticket.ticketId === ticketId
+        ? { ...ticket, isForRentAll: nextValue }
+        : ticket
+    );
   }
 
   applyTicketIsActiveValue(ticketId: string, isActive: boolean): void {
@@ -453,9 +501,15 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     const byTicketBucket =
       this.assigneeFilterMode === 'closed'
         ? byInactive.filter(ticket => ticket.ticketStateTypeId === TicketStateType.closed)
-        : (this.assigneeFilterMode === 'assignedToMe' || this.assigneeFilterMode === 'allOthers')
-          ? byInactive.filter(ticket => ticket.ticketStateTypeId !== TicketStateType.closed)
-          : byInactive;
+        : this.assigneeFilterMode === 'rentAll'
+          ? byInactive.filter(ticket => !!ticket.isForRentAll && this.isRentAllQueueState(ticket.ticketStateTypeId))
+          : this.assigneeFilterMode === 'review'
+            ? byInactive.filter(ticket => !!ticket.isForRentAll && ticket.ticketStateTypeId === TicketStateType.inReview)
+            : this.assigneeFilterMode === 'complete'
+              ? byInactive.filter(ticket => !!ticket.isForRentAll && ticket.ticketStateTypeId === TicketStateType.workComplete)
+              : (this.assigneeFilterMode === 'assignedToMe' || this.assigneeFilterMode === 'allOthers')
+              ? byInactive.filter(ticket => ticket.ticketStateTypeId !== TicketStateType.closed && !ticket.isForRentAll)
+              : byInactive;
 
     const byAssigneeScope =
       this.assigneeFilterMode === 'assignedToMe'
@@ -715,6 +769,13 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     }
     const createdBy = this.utilityService.normalizeIdOrNull(ticket.createdBy ?? null);
     return createdBy === normalizedCurrentUserId;
+  }
+
+  isRentAllQueueState(ticketStateTypeId: number | null | undefined): boolean {
+    return ticketStateTypeId === TicketStateType.caseCreated
+      || ticketStateTypeId === TicketStateType.assigned
+      || ticketStateTypeId === TicketStateType.scheduled
+      || ticketStateTypeId === TicketStateType.inProgress;
   }
 
   isTicketMineForListScope(ticket: TicketListDisplay, normalizedCurrentUserId: string | null, normalizedCurrentUserAgentId: string | null): boolean {

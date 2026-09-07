@@ -68,12 +68,34 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       this.syncFiltersToList();
     }
   }
+  @ViewChild('rentAllTicketListSection') set rentAllTicketListSection(value: TicketListComponent | undefined) {
+    this.rentAllTicketListSectionRef = value;
+    if (value) {
+      this.syncFiltersToList();
+    }
+  }
+  @ViewChild('reviewTicketListSection') set reviewTicketListSection(value: TicketListComponent | undefined) {
+    this.reviewTicketListSectionRef = value;
+    if (value) {
+      this.syncFiltersToList();
+    }
+  }
+  @ViewChild('completeTicketListSection') set completeTicketListSection(value: TicketListComponent | undefined) {
+    this.completeTicketListSectionRef = value;
+    if (value) {
+      this.syncFiltersToList();
+    }
+  }
   @ViewChild('ticketSection') ticketSection?: TicketComponent;
   myTicketListSectionRef?: TicketListComponent;
   otherTicketListSectionRef?: TicketListComponent;
   closedTicketListSectionRef?: TicketListComponent;
+  rentAllTicketListSectionRef?: TicketListComponent;
+  reviewTicketListSectionRef?: TicketListComponent;
+  completeTicketListSectionRef?: TicketListComponent;
 
   showTicketForm = false;
+  isAdmin = false;
   selectedTabIndex = 0;
   lastListTabIndex = 0;
   currentTicketId: string | number | null = null;
@@ -104,6 +126,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   //#region Ticket-Shell
   ngOnInit(): void {
+    this.isAdmin = this.authService.isAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
@@ -142,6 +165,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       this.myTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
       this.otherTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
       this.closedTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
+      this.rentAllTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
+      this.reviewTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
+      this.completeTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
     });
   }
   //#endregion
@@ -202,7 +228,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   onTabIndexChange(index: number): void {
-    if (this.showTicketForm && index < 3) {
+    if (this.showTicketForm && this.isListTabIndex(index)) {
       this.showTicketForm = false;
       this.currentTicketId = null;
       this.currentTicketCode = null;
@@ -213,15 +239,42 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     }
 
     this.selectedTabIndex = index;
-    if (!this.showTicketForm && index < 3) {
+    if (!this.showTicketForm && this.isListTabIndex(index)) {
       this.lastListTabIndex = index;
     }
+  }
+
+  getClosedTabIndex(): number {
+    return 2;
+  }
+
+  getRentAllTabIndex(): number {
+    return this.isAdmin ? 3 : -1;
+  }
+
+  getReviewTabIndex(): number {
+    return this.isAdmin ? 4 : -1;
+  }
+
+  getCompleteTabIndex(): number {
+    return this.isAdmin ? 5 : -1;
+  }
+
+  getListTabCount(): number {
+    return this.isAdmin ? 6 : 3;
+  }
+
+  isListTabIndex(index: number): boolean {
+    return index >= 0 && index < this.getListTabCount();
   }
 
   onTicketSaved(): void {
     this.myTicketListSectionRef?.getTickets();
     this.otherTicketListSectionRef?.getTickets();
     this.closedTicketListSectionRef?.getTickets();
+    this.rentAllTicketListSectionRef?.getTickets();
+    this.reviewTicketListSectionRef?.getTickets();
+    this.completeTicketListSectionRef?.getTickets();
     this.refreshMyTicketsFolderBadge();
   }
 
@@ -229,6 +282,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.myTicketListSectionRef?.getTickets();
     this.otherTicketListSectionRef?.getTickets();
     this.closedTicketListSectionRef?.getTickets();
+    this.rentAllTicketListSectionRef?.getTickets();
+    this.reviewTicketListSectionRef?.getTickets();
+    this.completeTicketListSectionRef?.getTickets();
     this.refreshMyTicketsFolderBadge();
   }
 
@@ -646,7 +702,10 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     const sections = [
       this.myTicketListSectionRef,
       this.otherTicketListSectionRef,
-      this.closedTicketListSectionRef
+      this.closedTicketListSectionRef,
+      this.rentAllTicketListSectionRef,
+      this.reviewTicketListSectionRef,
+      this.completeTicketListSectionRef
     ].filter(Boolean) as TicketListComponent[];
     if (sections.length === 0) {
       return;

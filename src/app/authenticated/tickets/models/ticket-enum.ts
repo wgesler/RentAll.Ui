@@ -5,7 +5,8 @@ export enum TicketStateType {
   scheduled = 2,
   inProgress = 3,
   workComplete = 4,
-  closed = 5
+  closed = 5,
+  inReview = 6
 }
 
 export function getTicketStateType(ticketStateTypeId: number | undefined): string {
@@ -16,6 +17,7 @@ export function getTicketStateType(ticketStateTypeId: number | undefined): strin
     [TicketStateType.assigned]: 'Assigned',
     [TicketStateType.scheduled]: 'Scheduled',
     [TicketStateType.inProgress]: 'In Progress',
+    [TicketStateType.inReview]: 'In Review',
     [TicketStateType.workComplete]: 'Complete',
     [TicketStateType.closed]: 'Closed'
   };
@@ -29,6 +31,7 @@ export function getTicketStateTypes(): { value: number, label: string }[] {
     { value: TicketStateType.assigned, label: getTicketStateType(TicketStateType.assigned) },
     { value: TicketStateType.scheduled, label: getTicketStateType(TicketStateType.scheduled) },
     { value: TicketStateType.inProgress, label: getTicketStateType(TicketStateType.inProgress) },
+    { value: TicketStateType.inReview, label: getTicketStateType(TicketStateType.inReview) },
     { value: TicketStateType.workComplete, label: getTicketStateType(TicketStateType.workComplete) },
     { value: TicketStateType.closed, label: getTicketStateType(TicketStateType.closed) }
   ];

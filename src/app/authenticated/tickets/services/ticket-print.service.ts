@@ -11,6 +11,7 @@ export interface TicketPrintOverrides {
   assigneeName?: string;
   agentName?: string;
   isActive?: boolean;
+  isForRentAll?: boolean;
   needPermissionToEnter?: boolean;
   permissionGranted?: boolean;
   ownerContacted?: boolean;
@@ -48,6 +49,7 @@ export class TicketPrintService {
     const title = String(overrides.title ?? ticket.title ?? '').trim();
     const descriptionHtml = String(overrides.description ?? ticket.description ?? '').trim() || '<p>&nbsp;</p>';
     const isActive = overrides.isActive ?? ticket.isActive;
+    const isForRentAll = overrides.isForRentAll ?? ticket.isForRentAll;
     const lastModifiedDisplay = overrides.lastModifiedDisplay
       ?? (this.formatterService.formatDateString(String(ticket.modifiedOn || ticket.createdOn || '')) || '');
 
@@ -94,6 +96,7 @@ export class TicketPrintService {
       <div><span class="field-label">Agent:</span> ${this.escapeHtml(agentName)}</div>
       <div><span class="field-label">Last Modified:</span> ${this.escapeHtml(lastModifiedDisplay)}</div>
       <div><span class="field-label">Active:</span> ${isActive ? 'Yes' : 'No'}</div>
+      <div><span class="field-label">For RentAll:</span> ${isForRentAll ? 'Yes' : 'No'}</div>
     </div>
     <div class="section">
       <div class="section-title">Title</div>

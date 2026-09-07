@@ -425,6 +425,7 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
       confirmedWithTenant: false,
       followedUpWithOwner: false,
       workOrderCompleted: false,
+      isForRentAll: false,
       notes: null,
       isActive: true
     };

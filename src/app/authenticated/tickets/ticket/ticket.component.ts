@@ -75,6 +75,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   isPageReady: boolean = false;
+  isAdmin = false;
   form: FormGroup;
   @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
     this.descriptionEditor = value;
@@ -128,7 +129,9 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     ).subscribe();
 
     this.buildForm();
+    this.isAdmin = this.authService.isAdmin();
     this.setupCommunicationStatusCommentTracking();
+    this.setupIsForRentAllTracking();
     this.loadProperties();
     this.loadOffices();
     this.loadUsers();
@@ -228,19 +231,20 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const formValue = this.form.getRawValue();
     const existing = this.ticket;
     const user = this.authService.getUser();
+    const isForRentAll = this.isAdmin ? !!formValue.isForRentAll : !!existing?.isForRentAll;
     const selectedProperty = selectedPropertyId ? this.properties.find(property => property.propertyId === selectedPropertyId) || null : null;
     const selectedReservationId = this.normalizeId(this.selectedReservationIdFromShell) ?? this.normalizeId(existing?.reservationId);
     const selectedOfficeId = selectedProperty?.officeId ?? this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? existing?.officeId ?? 0;
-    const selectedAssigneeId = formValue.assigneeId ? String(formValue.assigneeId).trim() : null;
-    const selectedAgentId = formValue.reservationAgentId ? String(formValue.reservationAgentId).trim() : null;
+    const selectedAssigneeId = isForRentAll ? null : (formValue.assigneeId ? String(formValue.assigneeId).trim() : null);
+    const selectedAgentId = isForRentAll ? null : (formValue.reservationAgentId ? String(formValue.reservationAgentId).trim() : null);
     const previousAssigneeId = this.currentAssignee;
-    const assigneeChanged = selectedAssigneeId !== previousAssigneeId;
-    const areAllCommunicationCheckboxesChecked = !!formValue.needPermissionToEnter
+    const assigneeChanged = !isForRentAll && selectedAssigneeId !== previousAssigneeId;
+    const areAllCommunicationCheckboxesChecked = isForRentAll || (!!formValue.needPermissionToEnter
       && !!formValue.permissionGranted
       && !!formValue.ownerContacted
       && !!formValue.confirmedWithTenant
       && !!formValue.followedUpWithOwner
-      && !!formValue.workOrderCompleted;
+      && !!formValue.workOrderCompleted);
     const ticketStateDecision = this.confirmTicketState({
       currentStateTypeId: Number(formValue.ticketStateTypeId ?? 0),
       previousStateTypeId: this.currentTicketStateTypeId,
@@ -292,12 +296,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       title: String(formValue.title || '').trim(),
       description: String(formValue.description || '').trim(),
       ticketStateTypeId,
-      needPermissionToEnter: !!formValue.needPermissionToEnter,
-      permissionGranted: !!formValue.permissionGranted,
-      ownerContacted: !!formValue.ownerContacted,
-      confirmedWithTenant: !!formValue.confirmedWithTenant,
-      followedUpWithOwner: !!formValue.followedUpWithOwner,
-      workOrderCompleted: !!formValue.workOrderCompleted,
+      needPermissionToEnter: isForRentAll ? false : !!formValue.needPermissionToEnter,
+      permissionGranted: isForRentAll ? false : !!formValue.permissionGranted,
+      ownerContacted: isForRentAll ? false : !!formValue.ownerContacted,
+      confirmedWithTenant: isForRentAll ? false : !!formValue.confirmedWithTenant,
+      followedUpWithOwner: isForRentAll ? false : !!formValue.followedUpWithOwner,
+      workOrderCompleted: isForRentAll ? false : !!formValue.workOrderCompleted,
+      isForRentAll,
       notes: appendedNotes.length > 0 ? appendedNotes : null,
       isActive: !!formValue.isActive
     };
@@ -342,6 +347,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       confirmedWithTenant: new FormControl(false),
       followedUpWithOwner: new FormControl(false),
       workOrderCompleted: new FormControl(false),
+      isForRentAll: new FormControl(false),
       isActive: new FormControl(true)
     });
   }
@@ -365,6 +371,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       confirmedWithTenant: ticket.confirmedWithTenant,
       followedUpWithOwner: ticket.followedUpWithOwner,
       workOrderCompleted: ticket.workOrderCompleted,
+      isForRentAll: !!ticket.isForRentAll,
       isActive: ticket.isActive
     }, { emitEvent: false });
     this.selectedReservationCodeForAudit = this.normalizeText(ticket.reservationCode ?? null);
@@ -391,6 +398,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       confirmedWithTenant: false,
       followedUpWithOwner: false,
       workOrderCompleted: false,
+      isForRentAll: false,
       isActive: true
     }, { emitEvent: false });
     this.selectedReservationCodeForAudit = null;
@@ -399,6 +407,22 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   //#endregion
 
   //#region Form Response Methods
+  get isForRentAllMode(): boolean {
+    return !!this.form?.get('isForRentAll')?.value;
+  }
+
+  get showForRentAllCheckbox(): boolean {
+    return this.isAdmin;
+  }
+
+  get showAssigneeAndAgentFields(): boolean {
+    return !this.isForRentAllMode;
+  }
+
+  get showCommunicationStatusSection(): boolean {
+    return !this.isForRentAllMode;
+  }
+
   get lastModifiedDisplay(): string {
     const modifiedOn = (this.ticket as unknown as { ModifiedOn?: string | null; modifiedOn?: string | null } | null);
     const modifiedOnValue = modifiedOn?.ModifiedOn ?? modifiedOn?.modifiedOn ?? null;
@@ -527,6 +551,9 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   onAssigneeChanged(): void {
+    if (this.isForRentAllMode) {
+      return;
+    }
     const assigneeControlValue = this.form.get('assigneeId')?.value;
     const currentAssigneeId = this.normalizeId(assigneeControlValue == null ? null : String(assigneeControlValue));
     const formValue = this.form.getRawValue();
@@ -538,12 +565,12 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       currentAssigneeId,
       hasReservation: !!reservationId,
       useStrictOnTickets: this.resolveUseStrictOnTickets(this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId),
-      areAllCommunicationCheckboxesChecked: !!formValue.needPermissionToEnter
+      areAllCommunicationCheckboxesChecked: this.isForRentAllMode || (!!formValue.needPermissionToEnter
         && !!formValue.permissionGranted
         && !!formValue.ownerContacted
         && !!formValue.confirmedWithTenant
         && !!formValue.followedUpWithOwner
-        && !!formValue.workOrderCompleted
+        && !!formValue.workOrderCompleted)
     });
     if (!stateDecision.isAllowed) {
       this.form.get('ticketStateTypeId')?.setValue(stateDecision.ticketStateTypeId, { emitEvent: false });
@@ -559,6 +586,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   onTicketStatusChanged(): void {
     const formValue = this.form.getRawValue();
+    const isForRentAll = this.isForRentAllMode;
     const reservationId = this.normalizeId(this.selectedReservationIdFromShell) ?? this.normalizeId(this.ticket?.reservationId);
     const stateDecision = this.confirmTicketState({
       currentStateTypeId: Number(this.form.get('ticketStateTypeId')?.value ?? TicketStateType.caseCreated),
@@ -567,12 +595,12 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       currentAssigneeId: this.normalizeId(this.form.get('assigneeId')?.value == null ? null : String(this.form.get('assigneeId')?.value)),
       hasReservation: !!reservationId,
       useStrictOnTickets: this.resolveUseStrictOnTickets(this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId),
-      areAllCommunicationCheckboxesChecked: !!formValue.needPermissionToEnter
+      areAllCommunicationCheckboxesChecked: isForRentAll || (!!formValue.needPermissionToEnter
         && !!formValue.permissionGranted
         && !!formValue.ownerContacted
         && !!formValue.confirmedWithTenant
         && !!formValue.followedUpWithOwner
-        && !!formValue.workOrderCompleted
+        && !!formValue.workOrderCompleted)
     });
     if (!stateDecision.isAllowed) {
       this.form.get('ticketStateTypeId')?.setValue(stateDecision.ticketStateTypeId, { emitEvent: false });
@@ -605,6 +633,25 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           this.appendAutoCommentForCheckbox(controlName);
         }
       });
+    });
+  }
+
+  setupIsForRentAllTracking(): void {
+    this.form.get('isForRentAll')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isForRentAll => {
+      if (!!isForRentAll) {
+        this.form.patchValue({
+          assigneeId: null,
+          reservationAgentId: null,
+          needPermissionToEnter: false,
+          permissionGranted: false,
+          ownerContacted: false,
+          confirmedWithTenant: false,
+          followedUpWithOwner: false,
+          workOrderCompleted: false
+        }, { emitEvent: false });
+        this.currentAssignee = null;
+      }
+      this.cdr.markForCheck();
     });
   }
 
@@ -1210,6 +1257,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         confirmedWithTenant: !!existing.confirmedWithTenant,
         followedUpWithOwner: !!existing.followedUpWithOwner,
         workOrderCompleted: !!existing.workOrderCompleted,
+        isForRentAll: !!existing.isForRentAll,
         notes: [...existingNotes, {
           ticketId: existing.ticketId,
           note: noteText
@@ -1380,6 +1428,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         || this.normalizeText(this.ticket.agentName ?? null)
         || 'None',
       isActive: !!formValue.isActive,
+      isForRentAll: !!formValue.isForRentAll,
       needPermissionToEnter: !!formValue.needPermissionToEnter,
       permissionGranted: !!formValue.permissionGranted,
       ownerContacted: !!formValue.ownerContacted,
