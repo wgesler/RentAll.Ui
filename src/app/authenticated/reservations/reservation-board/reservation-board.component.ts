@@ -24,13 +24,13 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { PartnerService } from '../../partners/services/partner.service';
 import { PartnerContactResponse } from '../../partners/models/partner.model';
 import { hasRealtorRole } from '../../shared/access/role-access';
-import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
+import { BoardProperty, CalendarDay, PropertyHoverFieldGroups } from '../models/reservation-board-model';
 import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
@@ -125,8 +125,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   isPartnerBoardLoading = false;
   partnerContactByPropertyId = new Map<string, PartnerContactResponse>();
   loadingPartnerContactIds = new Set<string>();
+  partnerPropertyById = new Map<string, PropertyResponse>();
+  loadingPartnerPropertyIds = new Set<string>();
   hoveredPartnerPropertyId: string | null = null;
+  hoveredPartnerPropertyCodeId: string | null = null;
   partnerContactPanelPosition = { x: 0, y: 0 };
+  partnerPropertyPanelPosition = { x: 0, y: 0 };
   propertyStatusOptions = getPropertyStatuses().map(status => ({ value: status.value, label: status.label, letter: getPropertyStatusLetter(status.value)}));
   selectedPropertyIds = new Set<string>();
   contextMenuPosition = { x: 0, y: 0 };
@@ -954,7 +958,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get isPropertyCodeNavigable(): boolean {
-    return !this.readOnly && !this.partnersBoardToggleChecked;
+    return !this.readOnly;
   }
 
   getScopedOwnerId(): string {
@@ -1346,6 +1350,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
   }
 
+  getPartnerPropertyHoverGroups(propertyId: string): PropertyHoverFieldGroups {
+    const property = this.partnerPropertyById.get(String(propertyId || '').trim());
+    return this.mappingService.mapPropertyToHoverFieldGroups(property);
+  }
+
   getPartnerContact(propertyId: string): PartnerContactResponse | null {
     const id = String(propertyId || '').trim();
     if (!id) {
@@ -1478,8 +1487,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.reservations = [];
     this.partnerContactByPropertyId.clear();
     this.loadingPartnerContactIds.clear();
+    this.partnerPropertyById.clear();
+    this.loadingPartnerPropertyIds.clear();
     this.hoveredPartnerPropertyId = null;
+    this.hoveredPartnerPropertyCodeId = null;
     this.partnerContactPanelPosition = { x: 0, y: 0 };
+    this.partnerPropertyPanelPosition = { x: 0, y: 0 };
     this.displayTextCache.clear();
     this.isPartnerBoardLoading = true;
     this.markViewForCheck();
@@ -1750,7 +1763,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onPropertyCodeClick(propertyId: string, event: MouseEvent): void {
-    if (!this.isPropertyCodeNavigable) {
+    if (!this.isPropertyCodeNavigable || this.partnersBoardToggleChecked) {
       return;
     }
 
@@ -1764,6 +1777,60 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.router.navigate([this.getPropertyRoute(propertyId)], {
       queryParams: { returnTo: 'reservation-board' }
     });
+  }
+
+  loadPartnerProperty(propertyId: string): void {
+    const id = String(propertyId || '').trim();
+    if (!this.partnersBoardToggleChecked || !id || this.partnerPropertyById.has(id) || this.loadingPartnerPropertyIds.has(id)) {
+      return;
+    }
+
+    this.loadingPartnerPropertyIds.add(id);
+    this.propertyService.getPropertyByGuid(id).pipe(
+      take(1),
+      catchError(() => this.partnerService.getPropertyById(id))
+    ).subscribe({
+      next: (property: PropertyResponse | null) => {
+        if (property) {
+          this.partnerPropertyById.set(id, property);
+        }
+        this.loadingPartnerPropertyIds.delete(id);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.loadingPartnerPropertyIds.delete(id);
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  onPartnerPropertyCodeHover(propertyId: string, event: MouseEvent): void {
+    if (!this.partnersBoardToggleChecked) {
+      return;
+    }
+    event.stopPropagation();
+    this.hoveredPartnerPropertyCodeId = String(propertyId || '').trim() || null;
+    this.partnerPropertyPanelPosition = {
+      x: Math.min(event.clientX + 12, Math.max(12, window.innerWidth - 1204)),
+      y: Math.min(event.clientY + 12, Math.max(12, window.innerHeight - 240))
+    };
+    if (this.hoveredPartnerPropertyCodeId) {
+      this.loadPartnerProperty(this.hoveredPartnerPropertyCodeId);
+    }
+    this.markViewForCheck();
+  }
+
+  onPartnerPropertyCodeLeave(): void {
+    if (!this.partnersBoardToggleChecked) {
+      return;
+    }
+    this.hoveredPartnerPropertyCodeId = null;
+    this.markViewForCheck();
+  }
+
+  isPartnerPropertyLoading(propertyId: string): boolean {
+    const id = String(propertyId || '').trim();
+    return !!id && this.loadingPartnerPropertyIds.has(id);
   }
 
   loadPartnerContact(propertyId: string): void {
@@ -1807,6 +1874,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.hoveredPartnerPropertyId = null;
+    this.hoveredPartnerPropertyCodeId = null;
     this.markViewForCheck();
   }
 

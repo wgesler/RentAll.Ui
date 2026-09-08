@@ -2,7 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { MappingService } from '../../../services/mapping.service';
+import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PartnerCityStateResponse, PartnerContactResponse } from '../models/partner.model';
 
 @Injectable({
@@ -11,6 +12,7 @@ import { PartnerCityStateResponse, PartnerContactResponse } from '../models/part
 export class PartnerService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+  private mappingService = inject(MappingService);
 
   private readonly controller = this.configService.config().apiUrl + 'partner/';
 
@@ -35,6 +37,18 @@ export class PartnerService {
     );
   }
 
+  getPropertyById(propertyId: string): Observable<PropertyResponse | null> {
+    const id = String(propertyId || '').trim();
+    if (!id) {
+      return of(null);
+    }
+
+    return this.http.get<PropertyResponse>(this.controller + 'properties/' + id).pipe(
+      map(property => this.mappingService.mapPropertyResponse(property as unknown as Record<string, unknown>)),
+      catchError(() => of(null))
+    );
+  }
+
   getPartnerContact(propertyId: string): Observable<PartnerContactResponse | null> {
     const id = String(propertyId || '').trim();
     if (!id) {
@@ -47,7 +61,7 @@ export class PartnerService {
     );
   }
 
-  private normalizePartnerContact(contact: PartnerContactResponse | null | undefined): PartnerContactResponse | null {
+  normalizePartnerContact(contact: PartnerContactResponse | null | undefined): PartnerContactResponse | null {
     if (!contact) {
       return null;
     }

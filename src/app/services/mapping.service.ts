@@ -50,7 +50,7 @@ import { getTrackerContextCode, getTrackerContextType } from '../authenticated/o
 import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyAgreementLineResponse } from '../authenticated/properties/models/property-agreement.model';
 import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
-import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
+import { BoardProperty, PropertyHoverField, PropertyHoverFieldGroups } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, ReservationResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
@@ -2168,6 +2168,100 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       confirmationNo: confirmationNo == null ? null : String(confirmationNo),
       ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
+  }
+
+  mapPropertyToHoverFields(property: PropertyResponse | null | undefined): PropertyHoverField[] {
+    const groups = this.mapPropertyToHoverFieldGroups(property);
+    return groups.lead.concat(groups.beds, groups.restLeft, groups.restRight, groups.description ? [groups.description] : []);
+  }
+
+  mapPropertyToHoverFieldGroups(property: PropertyResponse | null | undefined): PropertyHoverFieldGroups {
+    if (!property) {
+      return { title: '', subtitle: '', lead: [], beds: [], restLeft: [], restRight: [], description: null };
+    }
+
+    const text = (value: string | number | null | undefined): string => {
+      const raw = value == null ? '' : String(value).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return raw || '—';
+    };
+    const yesNo = (value: boolean | null | undefined): string => value === true ? 'Yes' : value === false ? 'No' : '—';
+    const money = (value: number | null | undefined): string => {
+      const amount = Number(value);
+      return Number.isFinite(amount) ? `$${amount.toFixed(2)}` : '—';
+    };
+    const cityStateZip = [property.city, property.state, property.zip]
+      .map(part => String(part || '').trim())
+      .filter(part => part.length > 0)
+      .join(' ');
+
+    return {
+      title: text(property.propertyCode),
+      subtitle: text(getPropertyType(property.propertyTypeId)),
+      lead: [
+        { label: 'Property Code', value: text(property.propertyCode) },
+        { label: 'Property Type', value: text(getPropertyType(property.propertyTypeId)) },
+        { label: 'Address 1', value: text(property.address1) },
+        { label: 'Address 2', value: text(property.address2) },
+        { label: 'Suite', value: text(property.suite) },
+        { label: 'City State Zip', value: text(cityStateZip) },
+        { label: 'Phone', value: text(property.phone) },
+        { label: 'Min Stay', value: text(property.minStay) },
+        { label: 'Max Stay', value: text(property.maxStay) },
+        { label: 'Monthly Rate', value: money(property.monthlyRate) },
+        { label: 'Daily Rate', value: money(property.dailyRate) },
+        { label: 'Pet Fee', value: money(property.petFee) },
+        { label: 'Departure Fee', value: money(property.departureFee) },
+        { label: 'Maid Service Fee', value: money(property.maidServiceFee) }
+      ],
+      beds: [
+        { label: 'Beds', value: text(property.bedrooms) },
+        { label: 'Baths', value: text(property.bathrooms) },
+        { label: 'Sq Feet', value: text(property.squareFeet) },
+        { label: 'Accommodates', value: text(property.accommodates) },
+        { label: 'Bed1', value: text(getBedSizeType(property.bedroomId1)) },
+        { label: 'Bed2', value: text(getBedSizeType(property.bedroomId2)) },
+        { label: 'Bed3', value: text(getBedSizeType(property.bedroomId3)) },
+        { label: 'Bed4', value: text(getBedSizeType(property.bedroomId4)) },
+        { label: 'Sofabed', value: text(getBedSizeType(property.sofabed)) },
+        { label: 'Dogs Okay', value: yesNo(property.dogsOkay) },
+        { label: 'Cats Okay', value: yesNo(property.catsOkay) },
+        { label: 'Pound Limit / Notes', value: text(property.poundLimit) },
+        { label: 'Parking', value: yesNo(property.parking) },
+        { label: 'Parking Notes', value: text(property.parkingNotes) }
+      ],
+      restLeft: [
+        { label: 'Heating', value: yesNo(property.heating) },
+        { label: 'A/C', value: yesNo(property.ac) },
+        { label: 'Elevator', value: yesNo(property.elevator) },
+        { label: 'Security', value: yesNo(property.security) },
+        { label: 'Gated', value: yesNo(property.gated) },
+        { label: 'Smoking', value: yesNo(property.smoking) },
+        { label: 'Kitchen', value: yesNo(property.kitchen) },
+        { label: 'Oven', value: yesNo(property.oven) },
+        { label: 'Refrigerator', value: yesNo(property.refrigerator) },
+        { label: 'Microwave', value: yesNo(property.microwave) },
+        { label: 'Dishwasher', value: yesNo(property.dishwasher) },
+        { label: 'Bathtub', value: yesNo(property.bathtub) },
+        { label: 'Wash/Dry In Unit', value: yesNo(property.washerDryerInUnit) },
+        { label: 'Wash/Dry In Bldg', value: yesNo(property.washerDryerInBldg) }
+      ],
+      restRight: [
+        { label: 'Television', value: yesNo(property.tv) },
+        { label: 'Cable', value: yesNo(property.cable) },
+        { label: 'Streaming', value: yesNo(property.streaming) },
+        { label: 'Fast Internet', value: yesNo(property.fastInternet) },
+        { label: 'Deck', value: yesNo(property.deck) },
+        { label: 'Patio', value: yesNo(property.patio) },
+        { label: 'Yard', value: yesNo(property.yard) },
+        { label: 'Garden', value: yesNo(property.garden) },
+        { label: 'Common Pool', value: yesNo(property.commonPool) },
+        { label: 'Private Pool', value: yesNo(property.privatePool) },
+        { label: 'Jacuzzi', value: yesNo(property.jacuzzi) },
+        { label: 'Sauna', value: yesNo(property.sauna) },
+        { label: 'Gym', value: yesNo(property.gym) }
+      ],
+      description: { label: 'Description', value: text(property.description) }
+    };
   }
 
   mapPropertyListRows(properties: PropertyListResponse[]): Array<PropertyListDisplay & { propertyStatusText: string; propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string } }> {

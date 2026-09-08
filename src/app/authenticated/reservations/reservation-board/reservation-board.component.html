@@ -155,7 +155,61 @@
     </div>
     <mat-card>
       <div class="board-wrapper" [class.partner-board-mode]="partnersBoardToggleChecked">
-        @if (partnersBoardToggleChecked && hoveredPartnerPropertyId) {
+        @if (partnersBoardToggleChecked && hoveredPartnerPropertyCodeId) {
+          <div
+            class="partner-contact-hover-panel partner-property-hover-panel"
+            [style.left.px]="partnerPropertyPanelPosition.x"
+            [style.top.px]="partnerPropertyPanelPosition.y">
+            @if (isPartnerPropertyLoading(hoveredPartnerPropertyCodeId)) {
+              <span>Loading property...</span>
+            } @else if (getPartnerPropertyHoverGroups(hoveredPartnerPropertyCodeId); as groups) {
+              @if (groups.lead.length > 0 || groups.beds.length > 0 || groups.restLeft.length > 0 || groups.restRight.length > 0 || groups.description) {
+                <div class="partner-property-hover-stack">
+                  <div class="partner-property-hover-header">
+                    <div class="partner-property-hover-title">{{ groups.title }}</div>
+                    @if (groups.subtitle && groups.subtitle !== '—') {
+                      <div class="partner-property-hover-subtitle">{{ groups.subtitle }}</div>
+                    }
+                  </div>
+                  @if (groups.description) {
+                    <div class="partner-property-hover-description">
+                      <div class="partner-property-hover-section-title">{{ groups.description.label }}</div>
+                      <div class="partner-contact-tooltip-value">{{ groups.description.value }}</div>
+                    </div>
+                  }
+                  <div class="partner-property-hover-layout">
+                    <div class="partner-property-hover-col">
+                      @for (field of groups.lead; track field.label) {
+                        <span class="partner-contact-tooltip-label">{{ field.label }}:</span>
+                        <span class="partner-contact-tooltip-value">{{ field.value }}</span>
+                      }
+                    </div>
+                    <div class="partner-property-hover-col">
+                      @for (field of groups.beds; track field.label) {
+                        <span class="partner-contact-tooltip-label">{{ field.label }}:</span>
+                        <span class="partner-contact-tooltip-value">{{ field.value }}</span>
+                      }
+                    </div>
+                    <div class="partner-property-hover-col">
+                      @for (field of groups.restLeft; track field.label) {
+                        <span class="partner-contact-tooltip-label">{{ field.label }}:</span>
+                        <span class="partner-contact-tooltip-value">{{ field.value }}</span>
+                      }
+                    </div>
+                    <div class="partner-property-hover-col">
+                      @for (field of groups.restRight; track field.label) {
+                        <span class="partner-contact-tooltip-label">{{ field.label }}:</span>
+                        <span class="partner-contact-tooltip-value">{{ field.value }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <span>Property unavailable</span>
+              }
+            }
+          </div>
+        } @else if (partnersBoardToggleChecked && hoveredPartnerPropertyId) {
           <div
             class="partner-contact-hover-panel"
             [style.left.px]="partnerContactPanelPosition.x"
@@ -233,7 +287,10 @@
                   @if (readOnly) {
                     <span>{{ property.propertyCode }}</span>
                   } @else if (partnersBoardToggleChecked) {
-                    <span class="partner-property-code">{{ property.propertyCode }}</span>
+                    <span
+                      class="reservation-link reservation-property-code-link partner-property-code"
+                      (mouseenter)="onPartnerPropertyCodeHover(property.propertyId, $event)"
+                      (mouseleave)="onPartnerPropertyCodeLeave()">{{ property.propertyCode }}</span>
                   } @else {
                     <span
                       class="reservation-link reservation-property-code-link"

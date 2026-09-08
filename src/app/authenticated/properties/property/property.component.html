@@ -930,7 +930,7 @@
                   <div
                     #amenitiesEditor
                     class="description-editor-input description-editor-input--with-markers amenities-editor-input"
-                    contenteditable="true"
+                    [attr.contenteditable]="'true'"
                     (input)="onAmenitiesInput($event)"
                     (paste)="onAmenitiesPaste($event)">
                   </div>
@@ -967,7 +967,7 @@
                     <div
                       #descriptionEditor
                       class="description-editor-input description-editor-input--with-markers"
-                      contenteditable="true"
+                      [attr.contenteditable]="'true'"
                       (input)="onDescriptionInput($event)"
                       (paste)="onDescriptionPaste($event)">
                     </div>

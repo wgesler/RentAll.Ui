@@ -1,3 +1,18 @@
+export interface PropertyHoverField {
+  label: string;
+  value: string;
+}
+
+export interface PropertyHoverFieldGroups {
+  title: string;
+  subtitle: string;
+  lead: PropertyHoverField[];
+  beds: PropertyHoverField[];
+  restLeft: PropertyHoverField[];
+  restRight: PropertyHoverField[];
+  description: PropertyHoverField | null;
+}
+
 export interface BoardProperty {
   propertyId: string;
   officeId: number;
