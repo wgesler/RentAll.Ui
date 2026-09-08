@@ -260,6 +260,11 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     return this.isAdmin ? 5 : -1;
   }
 
+  get defaultTicketIsForRentAll(): boolean {
+    const index = this.lastListTabIndex;
+    return index === this.getRentAllTabIndex() || index === this.getReviewTabIndex() || index === this.getCompleteTabIndex();
+  }
+
   getListTabCount(): number {
     return this.isAdmin ? 6 : 3;
   }

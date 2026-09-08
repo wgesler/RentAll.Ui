@@ -1286,7 +1286,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       const responsiblePartyPhone = this.escapeHtml(this.utilityService.getResponsiblePartyPhone(contact));
       const responsiblePartyEmail = this.escapeHtml(this.utilityService.getResponsiblePartyEmail(contact));
       const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", responsiblePartyAddress1Raw, responsiblePartyAddress2Raw);
-
       const responsiblePartyNameLabel = this.isBilledToEmployer() ? 'Company Name:' : 'Name(s):';
 
       return [

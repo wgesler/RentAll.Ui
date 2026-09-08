@@ -49,6 +49,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   @Input() selectedPropertyIdFromShell: string | null = null;
   @Input() selectedOfficeIdFromShell: number | null = null;
   @Input() selectedReservationIdFromShell: string | null = null;
+  @Input() defaultIsForRentAll = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @Output() propertySelectionChange = new EventEmitter<{ propertyId: string | null; officeId: number | null; reservationId: string | null }>();
@@ -82,6 +83,11 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.syncDescriptionEditorFromForm();
   }
   descriptionEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('stepsToReproduceEditor') set stepsToReproduceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.stepsToReproduceEditor = value;
+    this.syncStepsToReproduceEditorFromForm();
+  }
+  stepsToReproduceEditor?: ElementRef<HTMLDivElement>;
 
   organizationId = '';
   ticket: TicketResponse | null = null;
@@ -164,6 +170,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   ngAfterViewInit(): void {
     this.syncDescriptionEditorFromForm();
+    this.syncStepsToReproduceEditorFromForm();
   }
 
   getTicket(id: string | number | null): void {
@@ -222,16 +229,22 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
+    this.syncStepsToReproduceRequired();
     this.form.updateValueAndValidity({ emitEvent: false });
-    if (!this.form.valid) {
+    if (!this.form.valid || (this.showStepsToReproduceField && !this.htmlToPlainText(String(this.form.get('stepsToReproduce')?.value || '')).trim())) {
+      this.form.get('stepsToReproduce')?.setErrors(this.showStepsToReproduceField ? { required: true } : null);
+      this.form.get('title')?.markAsTouched();
+      this.form.get('description')?.markAsTouched();
+      this.form.get('stepsToReproduce')?.markAsTouched();
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
+      this.markViewForCheck();
       return;
     }
 
     const formValue = this.form.getRawValue();
     const existing = this.ticket;
     const user = this.authService.getUser();
-    const isForRentAll = this.isAdmin ? !!formValue.isForRentAll : !!existing?.isForRentAll;
+    const isForRentAll = this.canUseForRentAll ? !!formValue.isForRentAll : false;
     const selectedProperty = selectedPropertyId ? this.properties.find(property => property.propertyId === selectedPropertyId) || null : null;
     const selectedReservationId = this.normalizeId(this.selectedReservationIdFromShell) ?? this.normalizeId(existing?.reservationId);
     const selectedOfficeId = selectedProperty?.officeId ?? this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? existing?.officeId ?? 0;
@@ -295,6 +308,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       ticketCode: existing?.ticketCode ?? null,
       title: String(formValue.title || '').trim(),
       description: String(formValue.description || '').trim(),
+      stepsToReproduce: isForRentAll ? (String(formValue.stepsToReproduce || '').trim() || null) : null,
       ticketStateTypeId,
       needPermissionToEnter: isForRentAll ? false : !!formValue.needPermissionToEnter,
       permissionGranted: isForRentAll ? false : !!formValue.permissionGranted,
@@ -338,7 +352,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       assigneeId: new FormControl<string | null>(null),
       reservationAgentId: new FormControl<string | null>(null),
       title: new FormControl('', [Validators.required]),
-      description: new FormControl('', [Validators.required]),
+      description: new FormControl('', [control => this.htmlToPlainText(String(control.value || '')).trim() ? null : { required: true }]),
+      stepsToReproduce: new FormControl(''),
       newNote: new FormControl(''),
       ticketStateTypeId: new FormControl(0, [Validators.required]),
       needPermissionToEnter: new FormControl(false),
@@ -363,6 +378,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       reservationAgentId: ticket.agentId ?? null,
       title: ticket.title || '',
       description: ticket.description || '',
+      stepsToReproduce: this.canUseForRentAll ? (ticket.stepsToReproduce || '') : '',
       newNote: '',
       ticketStateTypeId: ticket.ticketStateTypeId,
       needPermissionToEnter: !!ticket.needPermissionToEnter,
@@ -371,14 +387,19 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       confirmedWithTenant: ticket.confirmedWithTenant,
       followedUpWithOwner: ticket.followedUpWithOwner,
       workOrderCompleted: ticket.workOrderCompleted,
-      isForRentAll: !!ticket.isForRentAll,
+      isForRentAll: this.canUseForRentAll ? !!ticket.isForRentAll : false,
       isActive: ticket.isActive
     }, { emitEvent: false });
     this.selectedReservationCodeForAudit = this.normalizeText(ticket.reservationCode ?? null);
     this.applyPropertySelection(ticket.propertyId ?? null);
     this.emitPropertySelection();
+    this.syncStepsToReproduceRequired();
     this.syncDescriptionEditorFromForm();
-    setTimeout(() => this.syncDescriptionEditorFromForm());
+    this.syncStepsToReproduceEditorFromForm();
+    setTimeout(() => {
+      this.syncDescriptionEditorFromForm();
+      this.syncStepsToReproduceEditorFromForm();
+    });
   }
 
   resetForm(): void {
@@ -390,6 +411,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       reservationAgentId: null,
       title: '',
       description: '',
+      stepsToReproduce: '',
       newNote: '',
       ticketStateTypeId: this.ticketStateTypes[0]?.value ?? 0,
       needPermissionToEnter: false,
@@ -398,11 +420,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       confirmedWithTenant: false,
       followedUpWithOwner: false,
       workOrderCompleted: false,
-      isForRentAll: false,
+      isForRentAll: !!this.defaultIsForRentAll,
       isActive: true
     }, { emitEvent: false });
     this.selectedReservationCodeForAudit = null;
+    this.syncStepsToReproduceRequired();
     this.syncDescriptionEditorFromForm();
+    this.syncStepsToReproduceEditorFromForm();
   }
   //#endregion
 
@@ -411,8 +435,16 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     return !!this.form?.get('isForRentAll')?.value;
   }
 
+  get showStepsToReproduceField(): boolean {
+    return this.canUseForRentAll && this.isForRentAllMode;
+  }
+
+  get canUseForRentAll(): boolean {
+    return this.isAdmin && this.defaultIsForRentAll;
+  }
+
   get showForRentAllCheckbox(): boolean {
-    return this.isAdmin;
+    return this.canUseForRentAll;
   }
 
   get showAssigneeAndAgentFields(): boolean {
@@ -436,15 +468,31 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   onDescriptionInput(event: Event): void {
-    const element = event.target as HTMLDivElement;
-    const descriptionControl = this.form.get('description');
-    descriptionControl?.setValue(element.innerHTML, { emitEvent: false });
-    descriptionControl?.markAsDirty();
-    descriptionControl?.markAsTouched();
+    this.onRichEditorInput(event, 'description');
+  }
+
+  onStepsToReproduceInput(event: Event): void {
+    this.onRichEditorInput(event, 'stepsToReproduce');
   }
 
   applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
-    const editor = this.descriptionEditor?.nativeElement;
+    this.applyRichEditorFormat(format, this.descriptionEditor, 'description');
+  }
+
+  applyStepsToReproduceFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
+    this.applyRichEditorFormat(format, this.stepsToReproduceEditor, 'stepsToReproduce');
+  }
+
+  onRichEditorInput(event: Event, controlName: string): void {
+    const element = event.target as HTMLDivElement;
+    const control = this.form.get(controlName);
+    control?.setValue(element.innerHTML, { emitEvent: false });
+    control?.markAsDirty();
+    control?.markAsTouched();
+  }
+
+  applyRichEditorFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList', editorRef: ElementRef<HTMLDivElement> | undefined, controlName: string): void {
+    const editor = editorRef?.nativeElement;
     if (!editor) {
       return;
     }
@@ -455,18 +503,18 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       if (!inserted) {
         document.execCommand('insertHTML', false, '<p><br></p>');
       }
-      this.form.get('description')?.setValue(editor.innerHTML);
+      this.form.get(controlName)?.setValue(editor.innerHTML);
       return;
     }
 
     if (format === 'unorderedList') {
       this.applyUnorderedListCommand(editor);
-      this.form.get('description')?.setValue(editor.innerHTML);
+      this.form.get(controlName)?.setValue(editor.innerHTML);
       return;
     }
 
     document.execCommand(format, false);
-    this.form.get('description')?.setValue(editor.innerHTML);
+    this.form.get(controlName)?.setValue(editor.innerHTML);
   }
 
   preventEditorToolbarMouseDown(event: MouseEvent): void {
@@ -650,8 +698,12 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           workOrderCompleted: false
         }, { emitEvent: false });
         this.currentAssignee = null;
+      } else {
+        this.form.get('stepsToReproduce')?.setValue(null, { emitEvent: false });
       }
+      this.syncStepsToReproduceRequired();
       this.cdr.markForCheck();
+      setTimeout(() => this.syncStepsToReproduceEditorFromForm());
     });
   }
 
@@ -1250,6 +1302,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         ticketCode: existing.ticketCode,
         title: existing.title,
         description: existing.description,
+        stepsToReproduce: existing.stepsToReproduce ?? null,
         ticketStateTypeId: existing.ticketStateTypeId,
         needPermissionToEnter: !!existing.needPermissionToEnter,
         permissionGranted: !!existing.permissionGranted,
@@ -1429,6 +1482,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         || 'None',
       isActive: !!formValue.isActive,
       isForRentAll: !!formValue.isForRentAll,
+      stepsToReproduce: formValue.stepsToReproduce ? String(formValue.stepsToReproduce) : null,
       needPermissionToEnter: !!formValue.needPermissionToEnter,
       permissionGranted: !!formValue.permissionGranted,
       ownerContacted: !!formValue.ownerContacted,
@@ -1441,21 +1495,48 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   //#endregion
 
   //#region Utility Methods
+  isRequiredFieldInvalid(controlName: string): boolean {
+    const control = this.form?.get(controlName);
+    return !!control && control.invalid && (control.touched || control.dirty);
+  }
+
   back(): void {
     this.backEvent.emit();
   }
 
   syncDescriptionEditorFromForm(): void {
-    const editor = this.descriptionEditor?.nativeElement;
+    this.syncRichEditorFromForm(this.descriptionEditor, 'description');
+  }
+
+  syncStepsToReproduceEditorFromForm(): void {
+    this.syncRichEditorFromForm(this.stepsToReproduceEditor, 'stepsToReproduce');
+  }
+
+  syncRichEditorFromForm(editorRef: ElementRef<HTMLDivElement> | undefined, controlName: string): void {
+    const editor = editorRef?.nativeElement;
     if (!editor) {
       return;
     }
 
-    const description = this.form?.get('description')?.value ?? '';
-    const nextHtml = typeof description === 'string' ? description : String(description);
+    const value = this.form?.get(controlName)?.value ?? '';
+    const nextHtml = typeof value === 'string' ? value : String(value);
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }
+  }
+
+  syncStepsToReproduceRequired(): void {
+    const control = this.form?.get('stepsToReproduce');
+    if (!control) {
+      return;
+    }
+
+    if (this.showStepsToReproduceField) {
+      control.setValidators([controlValue => this.htmlToPlainText(String(controlValue.value || '')).trim() ? null : { required: true }]);
+    } else {
+      control.clearValidators();
+    }
+    control.updateValueAndValidity({ emitEvent: false });
   }
 
   clearTicketLoading(): void {

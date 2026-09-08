@@ -7,6 +7,7 @@ import { TicketNoteResponse, TicketResponse } from '../models/ticket-models';
 export interface TicketPrintOverrides {
   title?: string;
   description?: string;
+  stepsToReproduce?: string;
   ticketStateTypeId?: number;
   assigneeName?: string;
   agentName?: string;
@@ -48,6 +49,7 @@ export class TicketPrintService {
     const reservationCode = String(ticket.reservationCode || '').trim() || 'None';
     const title = String(overrides.title ?? ticket.title ?? '').trim();
     const descriptionHtml = String(overrides.description ?? ticket.description ?? '').trim() || '<p>&nbsp;</p>';
+    const stepsToReproduceHtml = String(overrides.stepsToReproduce ?? ticket.stepsToReproduce ?? '').trim();
     const isActive = overrides.isActive ?? ticket.isActive;
     const isForRentAll = overrides.isForRentAll ?? ticket.isForRentAll;
     const lastModifiedDisplay = overrides.lastModifiedDisplay
@@ -112,6 +114,10 @@ export class TicketPrintService {
       <div class="section-title">Description</div>
       <div class="description">${descriptionHtml}</div>
     </div>
+    ${isForRentAll ? `<div class="section">
+      <div class="section-title">Steps To Reproduce (Property, Reservation, etc.)</div>
+      <div class="description">${stepsToReproduceHtml || '<p>&nbsp;</p>'}</div>
+    </div>` : ''}
     <div class="section">
       <div class="section-title">Comments</div>
       ${commentsHtml}

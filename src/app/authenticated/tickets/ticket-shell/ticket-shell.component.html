@@ -84,6 +84,7 @@
             [selectedPropertyIdFromShell]="selectedPropertyId"
             [selectedOfficeIdFromShell]="selectedOfficeId"
             [selectedReservationIdFromShell]="selectedReservationId"
+            [defaultIsForRentAll]="defaultTicketIsForRentAll"
             (propertySelectionChange)="onTicketPropertySelectionChange($event)"
             (officeSelectionInvalidOnSave)="onOfficeSelectionInvalidOnSave()"
             (savedEvent)="onTicketSaved()"
@@ -151,7 +152,7 @@
             }
           </mat-tab>
           @if (isAdmin) {
-            <mat-tab label="RentAll">
+            <mat-tab label="RentAll" labelClass="ticket-shell-rentall-tab">
               @if (!showTicketForm) {
                 <app-ticket-list
                   #rentAllTicketListSection
@@ -169,7 +170,7 @@
                 <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
               }
             </mat-tab>
-            <mat-tab label="Review">
+            <mat-tab label="Review" labelClass="ticket-shell-rentall-tab">
               @if (!showTicketForm) {
                 <app-ticket-list
                   #reviewTicketListSection
@@ -187,7 +188,7 @@
                 <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
               }
             </mat-tab>
-            <mat-tab label="Complete">
+            <mat-tab label="Complete" labelClass="ticket-shell-rentall-tab">
               @if (!showTicketForm) {
                 <app-ticket-list
                   #completeTicketListSection

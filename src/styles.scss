@@ -63,6 +63,13 @@
   --shell-tab-active-bg: color-mix(in srgb, var(--shell-tab-blue-wash) 50%, var(--shell-tab-accordion-bg) 50%);
   --shell-tab-active-hover-bg: color-mix(in srgb, var(--shell-tab-blue-wash) 58%, var(--shell-tab-accordion-bg) 42%);
   --shell-tab-active-border-color: color-mix(in srgb, #2563eb 42%, #64748b 58%);
+  --shell-tab-red-wash: color-mix(in srgb, #b91c1c 12%, #ffffff 88%);
+  --shell-tab-inactive-red-source: color-mix(in srgb, #b91c1c 18%, rgb(226 232 240) 82%);
+  --shell-tab-inactive-red-bg-opaque: color-mix(in srgb, var(--shell-tab-inactive-red-source) 44%, #ffffff);
+  --shell-tab-inactive-red-hover-bg: color-mix(in srgb, #b91c1c 20%, rgb(226 232 240) 80%);
+  --shell-tab-active-red-bg: color-mix(in srgb, var(--shell-tab-red-wash) 46%, var(--shell-tab-accordion-bg) 54%);
+  --shell-tab-active-red-hover-bg: color-mix(in srgb, var(--shell-tab-red-wash) 54%, var(--shell-tab-accordion-bg) 46%);
+  --shell-tab-active-red-border-color: color-mix(in srgb, #b91c1c 38%, #64748b 62%);
   --shell-tab-folder-border-color: rgba(0, 0, 0, 0.10);
   --shell-tab-top-radius: 8px;
   --shell-tab-active-label-color: rgb(15 23 42);
@@ -1936,6 +1943,30 @@ mat-tab-header {
       &:hover {
         background-color: var(--shell-tab-active-hover-bg) !important;
         box-shadow: 0 1px 0 0 var(--shell-tab-active-hover-bg);
+      }
+    }
+
+    .mat-mdc-tab.ticket-shell-rentall-tab,
+    .mdc-tab.ticket-shell-rentall-tab {
+      background-color: var(--shell-tab-inactive-red-bg-opaque) !important;
+      box-shadow: 0 1px 0 0 var(--shell-tab-inactive-red-bg-opaque);
+
+      &:hover {
+        background-color: var(--shell-tab-inactive-red-hover-bg) !important;
+        box-shadow: 0 1px 0 0 var(--shell-tab-inactive-red-hover-bg);
+      }
+    }
+
+    .mat-mdc-tab.mdc-tab--active.ticket-shell-rentall-tab {
+      border-top-color: var(--shell-tab-active-red-border-color) !important;
+      border-left-color: var(--shell-tab-active-red-border-color) !important;
+      border-right-color: var(--shell-tab-active-red-border-color) !important;
+      background-color: var(--shell-tab-active-red-bg) !important;
+      box-shadow: 0 1px 0 0 var(--shell-tab-active-red-bg);
+
+      &:hover {
+        background-color: var(--shell-tab-active-red-hover-bg) !important;
+        box-shadow: 0 1px 0 0 var(--shell-tab-active-red-hover-bg);
       }
     }
   }

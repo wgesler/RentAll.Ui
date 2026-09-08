@@ -1507,6 +1507,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       propertyId: ticket.propertyId || '',
       reservationId: ticket.reservationId || '',
       description: ticket.description || '',
+      stepsToReproduce: ticket.stepsToReproduce ?? null,
       isActive: ticket.isActive,
       ticketStateTypeText: this.mapTicketStateDropdownCell(getTicketStateType(ticket.ticketStateTypeId), ticketStateTypeOptions)
     } as TicketListDisplay;
@@ -1535,6 +1536,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       ticketCode: ticket.ticketCode ?? null,
       title: ticket.title,
       description: ticket.description,
+      stepsToReproduce: ticket.stepsToReproduce ?? null,
       ticketStateTypeId: ticket.ticketStateTypeId,
       needPermissionToEnter: ticket.needPermissionToEnter,
       permissionGranted: ticket.permissionGranted,

@@ -418,6 +418,7 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
       ticketCode: null,
       title: `Inspection Issues: ${propertyCode}`,
       description: this.buildIssuesDescriptionText(),
+      stepsToReproduce: null,
       ticketStateTypeId: TicketStateType.caseCreated,
       needPermissionToEnter: false,
       permissionGranted: false,

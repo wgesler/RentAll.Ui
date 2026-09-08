@@ -9,6 +9,7 @@ export interface TicketRequest {
   ticketCode?: string | null;
   title: string;
   description: string;
+  stepsToReproduce: string | null;
   ticketStateTypeId: number
   needPermissionToEnter: boolean;
   permissionGranted: boolean;
@@ -39,6 +40,7 @@ export interface TicketResponse {
   ticketCode: string;
   title: string;
   description: string;
+  stepsToReproduce: string | null;
   ticketStateTypeId: number
   needPermissionToEnter: boolean;
   permissionGranted: boolean;
