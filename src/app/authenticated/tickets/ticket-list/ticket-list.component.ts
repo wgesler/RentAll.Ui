@@ -786,6 +786,12 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   shouldShowTicketAttentionDot(ticket: TicketListDisplay, normalizedCurrentUserId: string | null, normalizedCurrentUserAgentId: string | null): boolean {
+    if (this.assigneeFilterMode === 'review') {
+      return ticket.ticketStateTypeId === TicketStateType.inReview;
+    }
+    if (this.assigneeFilterMode === 'rentAll') {
+      return ticket.ticketStateTypeId === TicketStateType.caseCreated;
+    }
     const isCreatedOrAssigned = ticket.ticketStateTypeId === TicketStateType.caseCreated || ticket.ticketStateTypeId === TicketStateType.assigned;
     return this.isTicketMineForListScope(ticket, normalizedCurrentUserId, normalizedCurrentUserAgentId) && isCreatedOrAssigned;
   }

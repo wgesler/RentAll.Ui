@@ -121,6 +121,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   isApplyingTicketSelectionContext = false;
   hasMyTicketsAttention = false;
+  hasRentAllTicketsAttention = false;
+  hasReviewTicketsAttention = false;
   private myTicketsBadgeLoadId = 0;
   destroy$ = new Subject<void>();
 
@@ -298,8 +300,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     const currentUserId = String(this.currentUserId || '').trim();
     if (!currentUserId) {
       this.hasMyTicketsAttention = false;
-      this.markViewForCheck();
-      return;
     }
 
     this.ticketService.getTickets().pipe(take(1), takeUntil(this.destroy$)).subscribe({
@@ -307,7 +307,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
         if (loadId !== this.myTicketsBadgeLoadId) {
           return;
         }
-        this.hasMyTicketsAttention = (tickets || []).some(ticket => this.shouldShowMyTicketsAttention(ticket));
+        this.hasMyTicketsAttention = !!currentUserId && (tickets || []).some(ticket => this.shouldShowMyTicketsAttention(ticket));
+        this.hasRentAllTicketsAttention = this.isAdmin && (tickets || []).some(ticket => this.shouldShowRentAllTicketsAttention(ticket));
+        this.hasReviewTicketsAttention = this.isAdmin && (tickets || []).some(ticket => this.shouldShowReviewTicketsAttention(ticket));
         this.markViewForCheck();
       },
       error: () => {
@@ -315,14 +317,34 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
           return;
         }
         this.hasMyTicketsAttention = false;
+        this.hasRentAllTicketsAttention = false;
+        this.hasReviewTicketsAttention = false;
         this.markViewForCheck();
       }
     });
   }
 
-  shouldShowMyTicketsAttention(ticket: TicketResponse): boolean {
+  isTicketInSelectedOfficeScope(ticket: TicketResponse): boolean {
     const officeId = this.selectedOfficeId != null && this.selectedOfficeId > 0 ? this.selectedOfficeId : null;
-    if (officeId != null && Number(ticket.officeId) !== officeId) {
+    return officeId == null || Number(ticket.officeId) === officeId;
+  }
+
+  shouldShowRentAllTicketsAttention(ticket: TicketResponse): boolean {
+    return this.isTicketInSelectedOfficeScope(ticket)
+      && !!ticket.isForRentAll
+      && ticket.isActive !== false
+      && ticket.ticketStateTypeId === TicketStateType.caseCreated;
+  }
+
+  shouldShowReviewTicketsAttention(ticket: TicketResponse): boolean {
+    return this.isTicketInSelectedOfficeScope(ticket)
+      && !!ticket.isForRentAll
+      && ticket.isActive !== false
+      && ticket.ticketStateTypeId === TicketStateType.inReview;
+  }
+
+  shouldShowMyTicketsAttention(ticket: TicketResponse): boolean {
+    if (!this.isTicketInSelectedOfficeScope(ticket)) {
       return false;
     }
 
