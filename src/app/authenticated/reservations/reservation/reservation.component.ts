@@ -978,9 +978,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       extraFeeLines: this.mapExtraFeeLinesToRequest(),
       notes: formValue['notes'] !== null && formValue['notes'] !== undefined ? String(formValue['notes']) : '',
       allowExtensions: (formValue['allowExtensions'] as boolean | null | undefined) ?? false,
-      billedToEmployer: reservationTypeId === ReservationType.Corporate
-        ? ((formValue['billedToEmployer'] as boolean | null | undefined) ?? false)
-        : false,
+      billedToEmployer: reservationTypeId === ReservationType.Corporate ? ((formValue['billedToEmployer'] as boolean | null | undefined) ?? false) : false,
       collapseCharges: (formValue['collapseCharges'] as boolean | null | undefined) ?? false,
       invoiceMethodId: normalizeInvoiceMethodId(formValue['invoiceMethodId'] as number | null | undefined),
       isActive: (formValue['isActive'] as boolean | null | undefined) ?? true

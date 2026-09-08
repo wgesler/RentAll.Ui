@@ -1803,6 +1803,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{depositLabel\}\}/g, this.getUnderlinedFillValue(this.getDepositLabel()));      
       result = result.replace(/\{\{depositText\}\}/g, this.getUnderlinedFillValue(this.getDepositRequirementText()));
       result = result.replace(/\{\{depositText2\}\}/g, this.getUnderlinedFillValue(this.getDepositRequirementText2()));
+      result = result.replace(/\{\{depositNote\}\}/g, this.getDepositRequirementText2() ? `<span style="font-style: italic">${this.getDepositRequirementText2()}</span>` : '');
       result = result.replace(
         /\{\{reservationDate\}\}/g,
         this.getUnderlinedFillValue(this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '')
