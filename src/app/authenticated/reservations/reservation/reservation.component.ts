@@ -347,7 +347,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     void this.performSaveAsync();
   }
 
-  private async performSaveAsync(): Promise<void> {
+  async performSaveAsync(): Promise<void> {
     const formValue = this.form.getRawValue();
     const nextIsActive = (formValue['isActive'] as boolean | null | undefined) ?? true;
     if (!nextIsActive && !this.isAddMode && this.reservationId && this.reservationId !== 'new') {
@@ -3981,7 +3981,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     return this.formatReservationPaymentDateForEdit(date);
   }
 
-  private formatReservationPaymentDateForEdit(date: Date | null | undefined): string {
+  formatReservationPaymentDateForEdit(date: Date | null | undefined): string {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
       return '';
     }
@@ -4010,13 +4010,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       .replace(/\/{2,}/g, '/');
     input.value = sanitized;
     this.updateReservationPaymentField(index, field === 'startDate' ? 'startDateDraft' : 'endDateDraft', sanitized);
-
-    if (field === 'startDate') {
-      const parsedStartDate = this.parseDateOnly(sanitized.trim());
-      if (parsedStartDate) {
-        this.syncReservationPaymentStartDateSideEffects(index, parsedStartDate);
-      }
-    }
+    this.clearReservationPaymentOverlapHighlights();
   }
 
   onReservationPaymentDateFocus(event: Event, index: number, field: 'startDate' | 'endDate'): void {
@@ -4045,7 +4039,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     input.blur();
   }
 
-  private commitReservationPaymentDateField(
+  commitReservationPaymentDateField(
     index: number,
     field: 'startDate' | 'endDate',
     rawValue: string,
@@ -4054,24 +4048,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const row = this.reservationPayments[index];
     if (!row) {
       return false;
-    }
-
-    if (field === 'endDate' && row.reservationPaymentId == null) {
-      const departureDate = this.getReservationDepartureDate();
-      if (!departureDate) {
-        return false;
-      }
-
-      this.reservationPayments[index] = {
-        ...row,
-        endDate: departureDate,
-        endDateDraft: null
-      };
-      if (input) {
-        input.value = this.formatReservationPaymentDateDisplay(departureDate);
-      }
-      this.markViewForCheck();
-      return true;
     }
 
     const draftField = field === 'startDate' ? 'startDateDraft' : 'endDateDraft';
@@ -4121,94 +4097,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       input.value = this.formatReservationPaymentDateDisplay(parsed);
     }
 
-    if (field === 'startDate') {
-      this.syncReservationPaymentStartDateSideEffects(index, parsed);
-    }
-
     this.markViewForCheck();
     return true;
-  }
-
-  private addDaysToDateOnly(date: Date, days: number): Date {
-    const next = new Date(date);
-    next.setHours(0, 0, 0, 0);
-    next.setDate(next.getDate() + days);
-    return next;
-  }
-
-  private syncReservationPaymentStartDateSideEffects(index: number, startDate: Date): void {
-    this.syncPreviousReservationPaymentEndDate(index, startDate);
-    this.syncNewReservationPaymentEndDate(index);
-  }
-
-  private syncNewReservationPaymentEndDate(index: number): void {
-    const row = this.reservationPayments[index];
-    const departureDate = this.getReservationDepartureDate();
-    if (!row || row.reservationPaymentId != null || !departureDate) {
-      return;
-    }
-
-    this.reservationPayments[index] = {
-      ...row,
-      endDate: departureDate,
-      endDateDraft: null
-    };
-  }
-
-  private syncPreviousReservationPaymentEndDate(index: number, currentStartDate?: Date | null): void {
-    if (index <= 0 || index >= this.reservationPayments.length) {
-      return;
-    }
-
-    const current = this.reservationPayments[index];
-    const startDate = currentStartDate ?? current?.startDate;
-    const previousIndex = index - 1;
-    const previous = this.reservationPayments[previousIndex];
-    if (!startDate || !previous) {
-      return;
-    }
-
-    let previousEndDate = this.addDaysToDateOnly(startDate, -1);
-    if (previous.startDate && previousEndDate < previous.startDate) {
-      previousEndDate = previous.startDate;
-    }
-
-    this.reservationPayments[previousIndex] = {
-      ...previous,
-      endDate: previousEndDate,
-      endDateDraft: null
-    };
-    this.markViewForCheck();
-  }
-
-  private resolveNewReservationPaymentStartDate(previous: ReservationPaymentDisplay | null): Date | null {
-    const billingStart = this.getReservationBillingStartDate();
-    const billingEnd = this.getReservationBillingEndDate();
-    if (!billingStart || !billingEnd) {
-      return null;
-    }
-
-    if (!previous) {
-      return billingStart;
-    }
-
-    if (previous.endDate) {
-      const dayAfterPrevious = this.addDaysToDateOnly(previous.endDate, 1);
-      if (dayAfterPrevious <= billingEnd) {
-        return dayAfterPrevious;
-      }
-    }
-
-    let candidate = this.getRentChangeEffectiveDateForSave() ?? billingStart;
-    if (previous.startDate && candidate <= previous.startDate) {
-      candidate = this.addDaysToDateOnly(previous.startDate, 1);
-    }
-
-    if (candidate > billingEnd) {
-      return null;
-    }
-
-    return candidate;
   }
 
   validateReservationPaymentAmount(amount: number): boolean {
@@ -4295,7 +4185,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     (event.target as HTMLInputElement)?.blur();
   }
 
-  private getReservationPaymentSaveOrderIndices(): number[] {
+  getReservationPaymentSaveOrderIndices(): number[] {
     return this.reservationPayments
       .map((row, index) => ({ index, row }))
       .sort((a, b) => {
@@ -4318,17 +4208,65 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       .map(item => item.index);
   }
 
-  private normalizeReservationPaymentDateRows(): void {
-    for (let index = 1; index < this.reservationPayments.length; index++) {
-      this.syncPreviousReservationPaymentEndDate(index);
+  markOverlappingReservationPaymentRows(): boolean {
+    const startDateHasOverlap = this.reservationPayments.map(() => false);
+    const endDateHasOverlap = this.reservationPayments.map(() => false);
+
+    for (let i = 0; i < this.reservationPayments.length; i++) {
+      for (let j = i + 1; j < this.reservationPayments.length; j++) {
+        const left = this.reservationPayments[i];
+        const right = this.reservationPayments[j];
+        if (!this.reservationPaymentDatesOverlap(left, right) || !left.startDate || !left.endDate || !right.startDate || !right.endDate) {
+          continue;
+        }
+
+        const overlapStart = Math.max(left.startDate.getTime(), right.startDate.getTime());
+        const overlapEnd = Math.min(left.endDate.getTime(), right.endDate.getTime());
+        this.markReservationPaymentDateIfInOverlap(i, overlapStart, overlapEnd, startDateHasOverlap, endDateHasOverlap);
+        this.markReservationPaymentDateIfInOverlap(j, overlapStart, overlapEnd, startDateHasOverlap, endDateHasOverlap);
+      }
     }
 
-    for (let index = 0; index < this.reservationPayments.length; index++) {
-      this.syncNewReservationPaymentEndDate(index);
+    this.reservationPayments = this.reservationPayments.map((row, index) => ({
+      ...row,
+      startDateHasOverlap: startDateHasOverlap[index],
+      endDateHasOverlap: endDateHasOverlap[index]
+    }));
+    this.markViewForCheck();
+    return startDateHasOverlap.some(Boolean) || endDateHasOverlap.some(Boolean);
+  }
+
+  markReservationPaymentDateIfInOverlap(index: number, overlapStart: number, overlapEnd: number, startDateHasOverlap: boolean[], endDateHasOverlap: boolean[]): void {
+    const row = this.reservationPayments[index];
+    if (row.startDate && row.startDate.getTime() >= overlapStart && row.startDate.getTime() <= overlapEnd) {
+      startDateHasOverlap[index] = true;
+    }
+    if (row.endDate && row.endDate.getTime() >= overlapStart && row.endDate.getTime() <= overlapEnd) {
+      endDateHasOverlap[index] = true;
     }
   }
 
-  private validateReservationPaymentRowsForSave(): boolean {
+  clearReservationPaymentOverlapHighlights(): void {
+    this.reservationPayments = this.reservationPayments.map(row => ({
+      ...row,
+      startDateHasOverlap: false,
+      endDateHasOverlap: false
+    }));
+  }
+
+  reservationPaymentDatesOverlap(left: ReservationPaymentDisplay, right: ReservationPaymentDisplay): boolean {
+    if (!left.startDate || !left.endDate || !right.startDate || !right.endDate) {
+      return false;
+    }
+
+    return left.startDate.getTime() <= right.endDate.getTime() && right.startDate.getTime() <= left.endDate.getTime();
+  }
+
+  isReservationPaymentOverlapError(err: HttpErrorResponse): boolean {
+    return this.getReservationPaymentErrorMessage(err).toLowerCase().includes('overlap');
+  }
+
+  validateReservationPaymentRowsForSave(): boolean {
     const billingStart = this.getReservationBillingStartDate();
     const billingEnd = this.getReservationBillingEndDate();
 
@@ -4349,6 +4287,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       }
     }
 
+    if (this.markOverlappingReservationPaymentRows()) {
+      this.toastr.error('Payment dates cannot overlap another payment record for this reservation.', CommonMessage.Error);
+      return false;
+    }
+
     return true;
   }
 
@@ -4358,7 +4301,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
 
     this.commitAllReservationPaymentDrafts();
-    this.normalizeReservationPaymentDateRows();
 
     for (const row of this.reservationPayments) {
       if (!this.validateReservationPaymentAmount(Number(row.amount ?? 0))) {
@@ -4419,7 +4361,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       },
       error: (err: HttpErrorResponse) => {
         this.toastr.error(this.getReservationPaymentErrorMessage(err), CommonMessage.Error);
-        this.loadReservationPayments();
+        if (this.isReservationPaymentOverlapError(err)) {
+          this.markOverlappingReservationPaymentRows();
+        }
+        this.markViewForCheck();
       }
     });
   }
@@ -4429,26 +4374,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
 
-    const departureDate = this.getReservationDepartureDate();
-    const previous = this.reservationPayments.length > 0
-      ? this.reservationPayments[this.reservationPayments.length - 1]
-      : null;
-    const newStartDate = this.resolveNewReservationPaymentStartDate(previous);
-
-    if (!departureDate || !newStartDate) {
-      this.toastr.error('Unable to add another payment line within the billing period.', CommonMessage.Error);
-      return;
-    }
-
     this.reservationPayments.push({
       reservationPaymentId: null,
       reservationId: this.reservationId,
       amount: 0,
-      startDate: newStartDate,
-      endDate: departureDate
+      startDate: null,
+      endDate: null
     });
-    this.syncPreviousReservationPaymentEndDate(this.reservationPayments.length - 1);
-    this.syncNewReservationPaymentEndDate(this.reservationPayments.length - 1);
     this.markViewForCheck();
   }
 
@@ -4484,7 +4416,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     });
   }
 
-  private commitAllReservationPaymentDrafts(): void {
+  commitAllReservationPaymentDrafts(): void {
     this.reservationPayments.forEach((row, index) => {
       this.commitReservationPaymentAmountDraft(index);
       if (row.startDateDraft != null) {
@@ -4496,7 +4428,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     });
   }
 
-  private commitReservationPaymentAmountDraft(index: number): void {
+  commitReservationPaymentAmountDraft(index: number): void {
     const row = this.reservationPayments[index];
     if (!row?.amountDraft) {
       return;
@@ -4515,7 +4447,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     };
   }
 
-  private buildReservationPaymentSaveRequest(index: number) {
+  buildReservationPaymentSaveRequest(index: number) {
     if (this.isAddMode || !this.reservationId) {
       return null;
     }
@@ -4526,9 +4458,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
 
     const startDate = this.utilityService.formatDateOnlyForApi(row.startDate);
-    const endDate = row.reservationPaymentId == null
-      ? this.utilityService.formatDateOnlyForApi(this.getReservationDepartureDate())
-      : this.utilityService.formatDateOnlyForApi(row.endDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(row.endDate);
     if (!startDate || !endDate) {
       this.toastr.error('Start and end dates are required.', CommonMessage.Error);
       return null;
@@ -4543,7 +4473,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     };
   }
 
-  private getReservationPaymentErrorMessage(err: HttpErrorResponse): string {
+  getReservationPaymentErrorMessage(err: HttpErrorResponse): string {
     return typeof err.error === 'string'
       ? err.error
       : err.error?.message || err.error?.title || 'Unable to save payment history.';

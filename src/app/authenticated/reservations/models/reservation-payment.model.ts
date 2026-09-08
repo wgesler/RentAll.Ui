@@ -42,4 +42,6 @@ export interface ReservationPaymentDisplay {
   amountDraft?: string | null;
   isSaving?: boolean;
   isDeleting?: boolean;
+  startDateHasOverlap?: boolean;
+  endDateHasOverlap?: boolean;
 }

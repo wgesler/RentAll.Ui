@@ -102,7 +102,12 @@
   tr:hover {
     background-color: #fafafa;
   }
-  
+
+  input[type="text"].editable-input.is-invalid,
+  input[type="text"].editable-input.is-invalid:focus {
+    border-color: var(--mat-form-field-error-text-color, #f44336) !important;
+  }
+ 
   mat-select {
     min-height: 32px;
     height: 32px;

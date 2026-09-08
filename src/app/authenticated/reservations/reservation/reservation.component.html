@@ -979,6 +979,7 @@
                             <tr class="border-b">
                               <td style="width: 140px;">
                                 <input type="text" class="w-full editable-input"
+                                  [class.is-invalid]="payment.startDateHasOverlap"
                                   [value]="getReservationPaymentDateInputValue(payment, 'startDate')"
                                   placeholder="MM/DD/YY"
                                   (input)="onReservationPaymentDateInput(i, 'startDate', $event)"
@@ -988,6 +989,7 @@
                               </td>
                               <td style="width: 140px;">
                                 <input type="text" class="w-full editable-input"
+                                  [class.is-invalid]="payment.endDateHasOverlap"
                                   [value]="getReservationPaymentDateInputValue(payment, 'endDate')"
                                   placeholder="MM/DD/YY"
                                   (input)="onReservationPaymentDateInput(i, 'endDate', $event)"
