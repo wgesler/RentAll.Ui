@@ -800,7 +800,7 @@
   max-width: 360px;
 }
 
-.partner-property-hover-panel {
+.partner-contact-hover-panel.partner-property-hover-panel {
   width: min(1180px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   box-sizing: border-box;
@@ -808,6 +808,7 @@
   overflow: auto;
   padding: 12px 14px;
   border-radius: 8px;
+  pointer-events: auto;
 }
 
 .partner-contact-grid {
@@ -861,6 +862,32 @@
   box-sizing: border-box;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.partner-property-hover-description__content {
+  min-width: 0;
+}
+
+.partner-property-hover-description__content--collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  max-height: calc(1.4em * 5);
+}
+
+.partner-property-hover-show-more {
+  align-self: flex-start;
+  margin-left: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #0f4fa8;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .partner-property-hover-section-title {

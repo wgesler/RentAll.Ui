@@ -77,6 +77,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isPageReady = false;
   destroy$ = new Subject<void>();
+  reconcileLoadCancel$ = new Subject<void>();
   private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
   private readonly columnPreferencesStorageKeyPrefix = 'rentall-reconcile-columns';
 
@@ -92,14 +93,8 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['officeId'] || changes['chartOfAccountId'] || changes['searchDateRange'] || changes['refreshTrigger']) {
+    if (changes['officeId'] || changes['chartOfAccountId'] || changes['searchDateRange'] || changes['refreshTrigger'] || changes['setup']) {
       this.loadJournalEntries();
-      return;
-    }
-
-    if (changes['setup']) {
-      this.applySetupValues();
-      this.markViewForCheck();
     }
   }
 
@@ -393,12 +388,13 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const statementDate = (this.searchDateRange?.endDate || '').trim();
+    const statementDate = this.resolveReconcileStatementDate();
     if (!statementDate) {
       this.resetViewState('Select a Statement Date to Reconcile.');
       return;
     }
 
+    this.reconcileLoadCancel$.next();
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reconcileLines');
     this.beginningBalance = 0;
     this.endingBalanceInput = '';
@@ -406,6 +402,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     this.interestEarnedInput = '';
 
     this.generalLedgerService.getReconcileBeginningBalance(this.officeId, this.chartOfAccountId, statementDate).pipe(
+      takeUntil(this.reconcileLoadCancel$),
       takeUntil(this.destroy$),
       catchError(() => of(0))
     ).subscribe(beginningBalance => {
@@ -414,6 +411,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.generalLedgerService.searchReconcileJournalEntryLines(this.officeId, this.chartOfAccountId, statementDate).pipe(
+      takeUntil(this.reconcileLoadCancel$),
       takeUntil(this.destroy$),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reconcileLines'))
     ).subscribe({
@@ -652,7 +650,7 @@ applySetupValues(): void {
       return;
     }
 
-    const statementDate = (this.searchDateRange?.endDate || '').trim();
+    const statementDate = this.resolveReconcileStatementDate();
     if (this.setup.statementDate !== statementDate) {
       return;
     }
@@ -803,6 +801,8 @@ formatCurrencyInput(value: string): string {
   }
 
   ngOnDestroy(): void {
+    this.reconcileLoadCancel$.next();
+    this.reconcileLoadCancel$.complete();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

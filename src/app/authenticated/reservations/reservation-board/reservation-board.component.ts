@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewChecked, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { Router } from '@angular/router';
@@ -45,7 +45,7 @@ import { UserGroups } from '../../users/models/user-enums';
     styleUrl: './reservation-board.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
+export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewChecked, OnDestroy {
   @Input() ownerUserId: string | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() readOnly: boolean = false;
@@ -71,6 +71,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
+  @ViewChild('partnerPropertyDescriptionContent') partnerPropertyDescriptionContent?: ElementRef<HTMLElement>;
 
   readonly boardAddressMaxChars = 23;
   readonly petDepartureColor = '#8B5A2B';
@@ -131,6 +132,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   hoveredPartnerPropertyCodeId: string | null = null;
   partnerContactPanelPosition = { x: 0, y: 0 };
   partnerPropertyPanelPosition = { x: 0, y: 0 };
+  partnerPropertyDescriptionExpanded = false;
+  partnerPropertyDescriptionHasOverflow = false;
+  partnerPropertyDescriptionOverflowCheckScheduled = false;
+  pendingPartnerPropertyDescriptionOverflowCheck = false;
+  partnerPropertyHoverCloseTimer: ReturnType<typeof setTimeout> | null = null;
+  isPartnerPropertyPanelHovered = false;
   propertyStatusOptions = getPropertyStatuses().map(status => ({ value: status.value, label: status.label, letter: getPropertyStatusLetter(status.value)}));
   selectedPropertyIds = new Set<string>();
   contextMenuPosition = { x: 0, y: 0 };
@@ -254,6 +261,20 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadReservations(true);
     this.loadBoardProperties();
+  }
+
+  ngAfterViewChecked(): void {
+    if (!this.pendingPartnerPropertyDescriptionOverflowCheck
+      || this.partnerPropertyDescriptionExpanded
+      || this.partnerPropertyDescriptionOverflowCheckScheduled) {
+      return;
+    }
+
+    this.partnerPropertyDescriptionOverflowCheckScheduled = true;
+    setTimeout(() => {
+      this.partnerPropertyDescriptionOverflowCheckScheduled = false;
+      this.updatePartnerPropertyDescriptionOverflow();
+    });
   }
 
   startReservationPolling(): void {
@@ -1795,6 +1816,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
           this.partnerPropertyById.set(id, property);
         }
         this.loadingPartnerPropertyIds.delete(id);
+        this.queuePartnerPropertyDescriptionOverflowCheck();
         this.markViewForCheck();
       },
       error: () => {
@@ -1809,23 +1831,123 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     event.stopPropagation();
-    this.hoveredPartnerPropertyCodeId = String(propertyId || '').trim() || null;
+    this.clearPartnerPropertyHoverCloseTimer();
+    const nextId = String(propertyId || '').trim() || null;
+    if (this.hoveredPartnerPropertyCodeId !== nextId) {
+      this.resetPartnerPropertyDescriptionOverflow();
+    }
+    this.hoveredPartnerPropertyCodeId = nextId;
     this.partnerPropertyPanelPosition = {
       x: Math.min(event.clientX + 12, Math.max(12, window.innerWidth - 1204)),
       y: Math.min(event.clientY + 12, Math.max(12, window.innerHeight - 240))
     };
     if (this.hoveredPartnerPropertyCodeId) {
       this.loadPartnerProperty(this.hoveredPartnerPropertyCodeId);
+      this.queuePartnerPropertyDescriptionOverflowCheck();
     }
     this.markViewForCheck();
   }
 
   onPartnerPropertyCodeLeave(): void {
-    if (!this.partnersBoardToggleChecked) {
+    this.schedulePartnerPropertyHoverClose();
+  }
+
+  onPartnerPropertyPanelEnter(): void {
+    this.isPartnerPropertyPanelHovered = true;
+    this.clearPartnerPropertyHoverCloseTimer();
+  }
+
+  onPartnerPropertyPanelLeave(): void {
+    this.isPartnerPropertyPanelHovered = false;
+    this.schedulePartnerPropertyHoverClose();
+  }
+
+  get shouldShowPartnerPropertyDescriptionToggle(): boolean {
+    const id = String(this.hoveredPartnerPropertyCodeId || '').trim();
+    if (!id) {
+      return false;
+    }
+
+    const description = String(this.getPartnerPropertyHoverGroups(id).description?.value || '').trim();
+    return !!description && description !== '—';
+  }
+
+  togglePartnerPropertyDescriptionExpanded(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.partnerPropertyDescriptionExpanded = !this.partnerPropertyDescriptionExpanded;
+    this.queuePartnerPropertyDescriptionOverflowCheck();
+    this.markViewForCheck();
+  }
+
+  queuePartnerPropertyDescriptionOverflowCheck(): void {
+    this.pendingPartnerPropertyDescriptionOverflowCheck = true;
+  }
+
+  updatePartnerPropertyDescriptionOverflow(): void {
+    const content = this.partnerPropertyDescriptionContent?.nativeElement;
+    if (!content || !this.hoveredPartnerPropertyCodeId) {
+      this.pendingPartnerPropertyDescriptionOverflowCheck = true;
       return;
     }
-    this.hoveredPartnerPropertyCodeId = null;
-    this.markViewForCheck();
+
+    if (this.partnerPropertyDescriptionExpanded) {
+      this.pendingPartnerPropertyDescriptionOverflowCheck = false;
+      return;
+    }
+
+    if (content.offsetParent === null || content.clientHeight === 0) {
+      this.pendingPartnerPropertyDescriptionOverflowCheck = true;
+      return;
+    }
+
+    const clampedHeight = content.clientHeight;
+    const wasCollapsed = content.classList.contains('partner-property-hover-description__content--collapsed');
+    if (wasCollapsed) {
+      content.classList.remove('partner-property-hover-description__content--collapsed');
+    }
+    const fullHeight = content.scrollHeight;
+    if (wasCollapsed) {
+      content.classList.add('partner-property-hover-description__content--collapsed');
+    }
+
+    const nextHasOverflow = fullHeight - clampedHeight > 1;
+    if (this.partnerPropertyDescriptionHasOverflow !== nextHasOverflow) {
+      this.partnerPropertyDescriptionHasOverflow = nextHasOverflow;
+      this.markViewForCheck();
+    }
+    this.pendingPartnerPropertyDescriptionOverflowCheck = false;
+  }
+
+  resetPartnerPropertyDescriptionOverflow(): void {
+    this.partnerPropertyDescriptionExpanded = false;
+    this.partnerPropertyDescriptionHasOverflow = false;
+    this.pendingPartnerPropertyDescriptionOverflowCheck = false;
+  }
+
+  schedulePartnerPropertyHoverClose(): void {
+    if (!this.partnersBoardToggleChecked || this.isPartnerPropertyPanelHovered) {
+      return;
+    }
+    this.clearPartnerPropertyHoverCloseTimer();
+    this.partnerPropertyHoverCloseTimer = setTimeout(() => {
+      if (this.isPartnerPropertyPanelHovered) {
+        this.partnerPropertyHoverCloseTimer = null;
+        return;
+      }
+      this.hoveredPartnerPropertyCodeId = null;
+      this.resetPartnerPropertyDescriptionOverflow();
+      this.partnerPropertyHoverCloseTimer = null;
+      this.markViewForCheck();
+    }, 250);
+  }
+
+  clearPartnerPropertyHoverCloseTimer(): void {
+    if (!this.partnerPropertyHoverCloseTimer) {
+      return;
+    }
+    clearTimeout(this.partnerPropertyHoverCloseTimer);
+    this.partnerPropertyHoverCloseTimer = null;
   }
 
   isPartnerPropertyLoading(propertyId: string): boolean {
@@ -1874,7 +1996,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.hoveredPartnerPropertyId = null;
-    this.hoveredPartnerPropertyCodeId = null;
+    this.schedulePartnerPropertyHoverClose();
     this.markViewForCheck();
   }
 
@@ -2047,6 +2169,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearPartnerPropertyHoverCloseTimer();
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();

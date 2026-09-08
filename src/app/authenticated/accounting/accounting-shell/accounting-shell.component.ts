@@ -2978,7 +2978,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
 
     this.selectedBankActivityKind = kind;
 
-    if (kindChanged) {
+    if (kindChanged && !(kind === 'reconcile' && this.reconcileSetup)) {
       this.applyShellUnpinnedViewDateRangeDefaults();
     }
 
@@ -3611,11 +3611,10 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
         return;
       }
 
+      this.applyBeginReconciliationResult(result);
       if (activateOnContinue || this.selectedBankActivityKind !== 'reconcile') {
         this.activateBankActivity('reconcile');
       }
-
-      this.applyBeginReconciliationResult(result);
     });
   }
 

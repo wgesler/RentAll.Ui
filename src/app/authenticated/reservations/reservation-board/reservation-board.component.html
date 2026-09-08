@@ -159,7 +159,9 @@
           <div
             class="partner-contact-hover-panel partner-property-hover-panel"
             [style.left.px]="partnerPropertyPanelPosition.x"
-            [style.top.px]="partnerPropertyPanelPosition.y">
+            [style.top.px]="partnerPropertyPanelPosition.y"
+            (mouseenter)="onPartnerPropertyPanelEnter()"
+            (mouseleave)="onPartnerPropertyPanelLeave()">
             @if (isPartnerPropertyLoading(hoveredPartnerPropertyCodeId)) {
               <span>Loading property...</span>
             } @else if (getPartnerPropertyHoverGroups(hoveredPartnerPropertyCodeId); as groups) {
@@ -174,7 +176,20 @@
                   @if (groups.description) {
                     <div class="partner-property-hover-description">
                       <div class="partner-property-hover-section-title">{{ groups.description.label }}</div>
-                      <div class="partner-contact-tooltip-value">{{ groups.description.value }}</div>
+                      <div
+                        #partnerPropertyDescriptionContent
+                        class="partner-contact-tooltip-value partner-property-hover-description__content"
+                        [class.partner-property-hover-description__content--collapsed]="!partnerPropertyDescriptionExpanded">
+                        {{ groups.description.value }}
+                      </div>
+                      @if (shouldShowPartnerPropertyDescriptionToggle) {
+                        <button
+                          type="button"
+                          class="partner-property-hover-show-more"
+                          (click)="togglePartnerPropertyDescriptionExpanded($event)">
+                          {{ partnerPropertyDescriptionExpanded ? 'Show less >>' : 'Show more >>' }}
+                        </button>
+                      }
                     </div>
                   }
                   <div class="partner-property-hover-layout">
