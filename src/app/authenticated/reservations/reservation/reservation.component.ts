@@ -157,6 +157,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   handlersSetup: boolean = false;
   extraFeeLines: ExtraFeeLineDisplay[] = [];
   reservationPayments: ReservationPaymentDisplay[] = [];
+  private reservationPaymentBaselines = new Map<number, { amount: number; startDate: string; endDate: string }>();
   savedBillingRate: number | null = null;
   isLoadingReservationPayments = false;
   isSavingReservationPaymentAction = false;
@@ -3888,6 +3889,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   loadReservationPayments$() {
     if (this.isAddMode || !this.reservationId) {
       this.reservationPayments = [];
+      this.reservationPaymentBaselines.clear();
       return of([]);
     }
     this.isLoadingReservationPayments = true;
@@ -3902,6 +3904,54 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   mapReservationPayments(payments: ReservationPaymentResponse[]): void {
     this.reservationPayments = (payments || []).map(payment => this.toReservationPaymentDisplay(payment));
+    this.captureReservationPaymentBaselines(payments);
+  }
+
+  captureReservationPaymentBaselines(payments: ReservationPaymentResponse[]): void {
+    this.reservationPaymentBaselines.clear();
+    for (const payment of payments || []) {
+      const paymentId = Number(payment.reservationPaymentId);
+      if (!Number.isFinite(paymentId) || paymentId <= 0) {
+        continue;
+      }
+
+      this.reservationPaymentBaselines.set(paymentId, {
+        amount: Number(payment.amount ?? 0),
+        startDate: String(payment.startDate ?? '').trim(),
+        endDate: String(payment.endDate ?? '').trim()
+      });
+    }
+  }
+
+  isReservationPaymentRowChanged(index: number): boolean {
+    const row = this.reservationPayments[index];
+    if (!row) {
+      return false;
+    }
+
+    if (row.reservationPaymentId == null) {
+      return true;
+    }
+
+    const baseline = this.reservationPaymentBaselines.get(row.reservationPaymentId);
+    if (!baseline) {
+      return true;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(row.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(row.endDate);
+    if (!startDate || !endDate) {
+      return true;
+    }
+
+    return baseline.amount !== Number(row.amount ?? 0)
+      || baseline.startDate !== startDate
+      || baseline.endDate !== endDate;
+  }
+
+  getReservationPaymentChangedSaveOrderIndices(): number[] {
+    return this.getReservationPaymentSaveOrderIndices()
+      .filter(index => this.isReservationPaymentRowChanged(index));
   }
 
   toReservationPaymentDisplay(payment: ReservationPaymentResponse): ReservationPaymentDisplay {
@@ -4312,18 +4362,24 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
 
-    const saveRequests = this.getReservationPaymentSaveOrderIndices()
+    const changedIndices = this.getReservationPaymentChangedSaveOrderIndices();
+    if (changedIndices.length === 0) {
+      this.toastr.info('No payment history changes to save.');
+      return;
+    }
+
+    const saveRequests = changedIndices
       .map(index => this.buildReservationPaymentSaveRequest(index))
       .filter((request): request is NonNullable<typeof request> => request != null);
 
-    if (saveRequests.length !== this.reservationPayments.length) {
-      this.toastr.error('Each payment row requires a start date and end date.', CommonMessage.Error);
+    if (saveRequests.length !== changedIndices.length) {
+      this.toastr.error('Each changed payment row requires a start date and end date.', CommonMessage.Error);
       return;
     }
 
     this.isSavingReservationPaymentAction = true;
-    this.reservationPayments.forEach(row => {
-      row.isSaving = true;
+    changedIndices.forEach(index => {
+      this.reservationPayments[index].isSaving = true;
     });
 
     from(saveRequests).pipe(
