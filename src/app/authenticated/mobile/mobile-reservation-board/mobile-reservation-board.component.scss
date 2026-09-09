@@ -1,0 +1,126 @@
+.mobile-reservation-board-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.mobile-reservation-board-dates {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem 0.35rem;
+}
+
+.mobile-reservation-board-date-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.mobile-reservation-board-scroll {
+  overflow: auto;
+  max-height: calc(100vh - 64px - 52px - 4.5rem);
+  padding: 0 0 0.5rem;
+}
+
+.mobile-reservation-board-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.mobile-reservation-board-code-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: 4.75rem;
+  min-width: 4.75rem;
+  max-width: 4.75rem;
+  padding: 0 6px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+thead .mobile-reservation-board-code-col {
+  z-index: 4;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 9px;
+  text-align: center;
+}
+
+.mobile-reservation-board-month,
+.mobile-reservation-board-day {
+  height: 18px;
+  padding: 0;
+  font-size: 9px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+  background: #f8fafc;
+}
+
+.mobile-reservation-board-day,
+.mobile-reservation-board-cell {
+  width: 16px;
+  min-width: 16px;
+  max-width: 16px;
+}
+
+.mobile-reservation-board-cell {
+  height: 22px;
+  padding: 0;
+  border: 1px solid #fff;
+  box-sizing: border-box;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mobile-reservation-board-cell-clickable {
+  cursor: pointer;
+}
+
+.mobile-reservation-board-code-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-board-code--current {
+  color: #1d4ed8;
+}
+
+.mobile-board-code--gave-notice {
+  color: #ff0000;
+}
+
+.mobile-board-code--month-to-month {
+  color: #000000;
+}
+
+.mobile-reservation-board-table tbody tr:nth-child(even) .mobile-reservation-board-code-col {
+  background: #f5f5f5;
+}

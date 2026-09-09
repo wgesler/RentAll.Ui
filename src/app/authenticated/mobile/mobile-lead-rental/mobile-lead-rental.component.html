@@ -1,0 +1,191 @@
+<ng-template #rentalCreateForm>
+  <div class="lead-create-form mobile-lead-form-shell rental-create-form-shell">
+        <div class="mobile-lead-detail-header">
+      <div class="mobile-lead-detail-is-active-row">
+        <mat-checkbox [formControl]="$any(form.controls['isActive'])" color="primary" class="rental-titlebar-lead-checkbox text-nowrap">IsActive</mat-checkbox>
+      </div>
+      <div class="mobile-lead-detail-action-row">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="generateQuote()"><mat-icon>request_quote</mat-icon>Quote</button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveRentalLead()"><mat-icon>save</mat-icon>Save</button>
+      </div>
+      <div class="mobile-lead-detail-consent-box">
+        <mat-checkbox [formControl]="$any(form.controls['iNeedAsap'])" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">I Need a Place ASAP</mat-checkbox>
+        <mat-checkbox [formControl]="$any(form.controls['emailPhoneConsent'])" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">Email/Phone Consent</mat-checkbox>
+        <mat-checkbox [formControl]="$any(form.controls['smsConsent'])" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">SMS Consent</mat-checkbox>
+      </div>
+    </div>
+    <form
+      [formGroup]="form"
+      class="lead-rental-create-main lead-create-form-after-title info-form form-hide-error-text grid grid-cols-12 form-standard-grid">
+      <div class="lead-rental-create-row-first col-span-12 grid min-w-0 grid-cols-5 form-standard-grid">
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Lead Status</mat-label>
+          <mat-select formControlName="leadStateId">
+            @for (opt of leadStateOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Property Code</mat-label>
+          <mat-select formControlName="propertyRefId" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Select Property</mat-option>
+            @if (propertyRefExtraMatOptionValue(); as extraRef) {
+              <mat-option [value]="extraRef">{{ extraRef }}</mat-option>
+            }
+            @for (p of activeProperties; track p.propertyId) {
+              <mat-option [value]="p.propertyCode">{{ p.propertyCode }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Agent</mat-label>
+          <mat-select formControlName="agentCode" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Select Agent</mat-option>
+            @for (ag of agentOptions; track ag.agentId) {
+              <mat-option [value]="ag.agentCode">{{ agentSelectLabel(ag) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field basic-compact min-w-0 date-field-with-suffix-icon">
+          <mat-label>Estimated Arrival</mat-label>
+          <input matInput [matDatepicker]="estimatedArrivalPicker" formControlName="estimatedArrivalDate" />
+          <button mat-icon-button matSuffix type="button" (click)="estimatedArrivalPicker.open()" aria-label="Open Calendar">
+            <mat-icon>calendar_today</mat-icon>
+          </button>
+          <mat-datepicker #estimatedArrivalPicker></mat-datepicker>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field basic-compact min-w-0 date-field-with-suffix-icon">
+          <mat-label>Estimated Departure</mat-label>
+          <input matInput [matDatepicker]="estimatedDeparturePicker" formControlName="estimatedDepartureDate" />
+          <button mat-icon-button matSuffix type="button" (click)="estimatedDeparturePicker.open()" aria-label="Open Calendar">
+            <mat-icon>calendar_today</mat-icon>
+          </button>
+          <mat-datepicker #estimatedDeparturePicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+      <div class="lead-rental-create-row-second col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>First Name</mat-label>
+          <input matInput formControlName="firstName" autocomplete="given-name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Last Name</mat-label>
+          <input matInput formControlName="lastName" autocomplete="family-name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Phone</mat-label>
+          <input
+            matInput
+            formControlName="phone"
+            autocomplete="tel"
+            maxlength="30"
+            placeholder="(555) 555-5555 or +1 234 567 8900"
+            (blur)="formatPhone()"
+            (input)="onPhoneInput($event)" />
+        </mat-form-field>
+      </div>
+      <div class="lead-rental-create-row-third col-span-12 grid min-w-0 grid-cols-6 form-standard-grid">
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Desired Location</mat-label>
+          <input matInput formControlName="desiredLocation" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Max Monthly Budget</mat-label>
+          <input
+            matInput
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            formControlName="maxMonthlyBudget"
+            (focus)="onMaxMonthlyBudgetFocus($event)"
+            (blur)="onMaxMonthlyBudgetBlur()"
+            (input)="onMaxMonthlyBudgetDecimalInput($event)" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Min Bedrooms</mat-label>
+          <input
+            matInput
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            formControlName="minBedrooms"
+            (input)="onDigitsOnlyInput($event, 'minBedrooms')" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Number of Occupants</mat-label>
+          <input
+            matInput
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            formControlName="numberOfOccupants"
+            (input)="onDigitsOnlyInput($event, 'numberOfOccupants')" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field min-w-0">
+          <mat-label>Pet Friendly</mat-label>
+          <mat-select formControlName="petFriendly" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Not Specified</mat-option>
+            <mat-option [value]="true">Yes</mat-option>
+            <mat-option [value]="false">No</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="mobile-lead-field basic-compact min-w-0 date-field-with-suffix-icon">
+          <mat-label>Decision Date</mat-label>
+          <input matInput [matDatepicker]="decisionDatePicker" formControlName="decisionDate" />
+          <button mat-icon-button matSuffix type="button" (click)="decisionDatePicker.open()" aria-label="Open Calendar">
+            <mat-icon>calendar_today</mat-icon>
+          </button>
+          <mat-datepicker #decisionDatePicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" class="mobile-lead-field min-w-0 col-span-12">
+        <mat-label>What Brings You to Town?</mat-label>
+        <input matInput formControlName="whatBringsYouToTown" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="mobile-lead-field min-w-0 col-span-12">
+        <mat-label>How Did You Find Us?</mat-label>
+        <input matInput formControlName="howDidYouFindUs" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="mobile-lead-field min-w-0 col-span-12">
+        <mat-label>Tell Us More About How You Found Us</mat-label>
+        <textarea matInput formControlName="tellUsMoreAboutHowYouFoundUs" rows="3"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="mobile-lead-field min-w-0 col-span-12">
+        <mat-label>Organization Name</mat-label>
+        <input matInput formControlName="organizationName" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="mobile-lead-field min-w-0 col-span-12">
+        <mat-label>Additional Information</mat-label>
+        <textarea matInput formControlName="additionalInformation" rows="3"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="mobile-lead-field min-w-0 col-span-12">
+        <mat-label>Notes</mat-label>
+        <textarea matInput formControlName="notes" rows="3"></textarea>
+      </mat-form-field>
+    </form>
+  </div>
+</ng-template>
+
+@if (!isPageReady) {
+  <div class="mobile-lead-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading rental lead...</span>
+  </div>
+} @else if (isAddMode || lead) {
+  <div class="mobile-lead-page">
+    <ng-container *ngTemplateOutlet="rentalCreateForm" />
+  </div>
+} @else if (isServiceError) {
+  <div class="flex flex-col items-center justify-center p-8">
+        <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+        <h3 class="mb-2 text-xl font-semibold">Rental lead not found</h3>
+        <p class="text-gray-600">This rental lead could not be loaded.</p>
+      </div>
+}

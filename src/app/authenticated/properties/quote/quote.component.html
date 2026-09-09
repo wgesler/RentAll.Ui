@@ -1,188 +1,313 @@
-<div class="flex content-card-wrap justify-center" [formGroup]="form">
-  <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
-      <div class="flex items-center flex-wrap py-4">
-        <span class="flex flex-column items-center gap-3 flex-shrink-0">
-          <mat-icon class="flex-shrink-0">home</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Properties</span>
-        </span>
-        <div class="header-title form-titlebar-fields-wrap">
-          <app-title-bar-select
-            [label]="'Property Office'"
-            [formFieldClass]="'titlebar-field-office'"
-            [value]="selectedOfficeId"
-            [options]="officeTitleBarOptions"
-            [disabled]="officeTitleBarOptions.length === 0"
-            [nullOptionLabel]="'Offices'"
-            [noResultsText]="'No offices match your search'"
-            (valueChange)="onOfficeSelection($event)">
-          </app-title-bar-select>
-        </div>
-      </div>
-      <div class="form-titlebar-actions-wrap uniform-gap">
-        <button mat-raised-button type="button" color="accent" (click)="backClick.emit()">
-          <mat-icon>arrow_back</mat-icon>
-          Back
-        </button>
-      </div>
+@if (mobileLayout) {
+  <div class="mobile-quote-form" [formGroup]="form">
+    <div class="mobile-quote-fields">
+      <mat-form-field appearance="outline" class="mobile-quote-field">
+        <mat-label>Property Office</mat-label>
+        <mat-select [value]="selectedOfficeId" (selectionChange)="onOfficeSelection($event.value)" [disabled]="officeTitleBarOptions.length === 0">
+          <mat-option [value]="null">Offices</mat-option>
+          @for (office of officeTitleBarOptions; track office.value) {
+            <mat-option [value]="office.value">{{ office.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="mobile-quote-field">
+        <mat-label>Prepared For</mat-label>
+        <input matInput formControlName="preparedForName">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="mobile-quote-field">
+        <mat-label>Email</mat-label>
+        <input matInput formControlName="quoteEmail">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="mobile-quote-field">
+        <mat-label>Prepared By</mat-label>
+        <input matInput formControlName="agentName">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="mobile-quote-field">
+        <mat-label>Quote Valid Thru</mat-label>
+        <input matInput formControlName="quoteValidFor">
+      </mat-form-field>
     </div>
 
-    <mat-card>
-      <form class="info-form mb-8 form-standard-top-padding">
-        <div class="grid grid-cols-4 form-standard-grid quote-content-wrap">
-          <div class="col-span-4 quote-top-row">
-            <span class="text-lg font-medium flex-shrink-0">Corporate Housing Proposal</span>
-            <div class="form-titlebar-actions-wrap uniform-gap">
-                <button mat-raised-button type="button" color="primary" (click)="viewClick.emit()" [disabled]="isViewDisabled">
-                  <mat-icon>visibility</mat-icon>
-                  View
+    <div class="mobile-quote-listings">
+      <div class="mobile-quote-listings-heading">
+        <span class="mobile-quote-listings-title">Property Listings</span>
+        <p class="mobile-quote-listings-legend"><strong>M</strong> (Monthly), <strong>D</strong> (Daily), <strong>N</strong> (Nightly).</p>
+      </div>
+
+      @if (isLoadingLinks) {
+        <div class="mobile-quote-listings-loading">Generating links...</div>
+      } @else if (propertyListingLinks.length > 0) {
+        <div class="mobile-quote-listings-list">
+          @for (listingLink of propertyListingLinks; track listingLink.propertyId; let listingIndex = $index) {
+            <div class="mobile-quote-listing-card">
+              <div class="mobile-quote-listing-card-header">
+                <span class="mobile-quote-listing-no">No: {{ listingIndex + 1 }}</span>
+                <button
+                  type="button"
+                  mat-icon-button
+                  color="accent"
+                  (click)="removeListing(listingLink)"
+                  matTooltip="Remove this listing"
+                  aria-label="Remove listing">
+                  <mat-icon>close</mat-icon>
                 </button>
-            </div>
-          </div>
+              </div>
 
-          <div class="col-span-4">
-            <div class="quote-proposal-box">
-              <div class="quote-proposal-inner-box">
-                <table class="quote-proposal-detail-table">
-                  <tbody>
-                    <tr>
-                      <td class="quote-detail-label-cell">Prepared For:</td>
-                      <td class="quote-detail-value-cell">
-                        <mat-form-field appearance="outline" class="quote-table-field">
-                          <input matInput formControlName="preparedForName">
-                        </mat-form-field>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td class="quote-detail-label-cell">Email:</td>
-                      <td class="quote-detail-value-cell">
-                        <mat-form-field appearance="outline" class="quote-table-field">
-                          <input matInput formControlName="quoteEmail">
-                        </mat-form-field>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td class="quote-detail-label-cell">Prepared By:</td>
-                      <td class="quote-detail-value-cell">
-                        <mat-form-field appearance="outline" class="quote-table-field">
-                          <input matInput formControlName="agentName">
-                        </mat-form-field>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td class="quote-detail-label-cell">Quote Valid Thru:</td>
-                      <td class="quote-detail-value-cell">
-                        <mat-form-field appearance="outline" class="quote-table-field">
-                          <input matInput formControlName="quoteValidFor">
-                        </mat-form-field>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              @if (listingColumnFlags.propertyCode) {
+                <mat-form-field appearance="outline" class="mobile-quote-field">
+                  <mat-label>Property</mat-label>
+                  <input matInput [value]="listingLink.propertyCode" readonly>
+                </mat-form-field>
+              }
+
+              <mat-form-field appearance="outline" class="mobile-quote-field">
+                <mat-label>Address</mat-label>
+                <textarea matInput rows="2" readonly [value]="getListingAddressDisplay(listingLink)"></textarea>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-quote-field">
+                <mat-label>B/B</mat-label>
+                <input matInput [value]="listingLink.beds" readonly>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-quote-field">
+                <mat-label>Rate (Monthly/Daily)</mat-label>
+                <input matInput type="text" [value]="listingLink.price" (input)="onRateChange(listingLink, $event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-quote-field">
+                <mat-label>Parking</mat-label>
+                <input matInput [value]="listingLink.parking" readonly>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-quote-field">
+                <mat-label>Pets</mat-label>
+                <input matInput [value]="listingLink.petFriendly" readonly>
+              </mat-form-field>
+
+              @if (listingColumnFlags.petFee) {
+                <mat-form-field appearance="outline" class="mobile-quote-field">
+                  <mat-label>Pet Fee</mat-label>
+                  <input matInput type="text" [value]="listingLink.petFee" (input)="onPetFeeChange(listingLink, $event)">
+                </mat-form-field>
+              }
+
+              @if (listingColumnFlags.departureFee) {
+                <mat-form-field appearance="outline" class="mobile-quote-field">
+                  <mat-label>Departure</mat-label>
+                  <input matInput type="text" [value]="listingLink.departureFee" (input)="onDepartureFeeChange(listingLink, $event)">
+                </mat-form-field>
+              }
+
+              @if (listingColumnFlags.maidFee) {
+                <mat-form-field appearance="outline" class="mobile-quote-field">
+                  <mat-label>Maid</mat-label>
+                  <input matInput type="text" [value]="listingLink.maidServiceFee" (input)="onMaidServiceFeeChange(listingLink, $event)">
+                </mat-form-field>
+              }
+
+              <div class="mobile-quote-listing-link-row">
+                <a class="mobile-quote-listing-link" [href]="listingLink.url" target="_blank" rel="noopener noreferrer" (click)="openListing(listingLink.url, $event)">View Listing</a>
               </div>
             </div>
-          </div>
-
-          <div class="col-span-4 form-standard-section-gap">
-            <div class="quote-listings-section-heading form-standard-section-heading-gap min-w-0">
-              <span class="quote-listings-section-title text-lg font-medium">Property Listings</span>
-              <p class="quote-proposal-legend quote-proposal-legend--listings"><strong>M</strong> (Monthly), <strong>D</strong> (Daily), <strong>N</strong> (Nightly).</p>
-            </div>
-
-            @if (isLoadingLinks) {
-              <div class="quote-links-loading">Generating links...</div>
-            } @else if (propertyListingLinks.length > 0) {
-              <div class="quote-line-items-scroll min-w-0 w-full">
-                <table class="line-items-table">
-                  <thead>
-                    <tr>
-                      @if (listingColumnFlags.propertyCode) {
-                        <th class="text-left quote-property-col">Property</th>
-                      }
-                      <th class="text-left quote-address-col">Address</th>
-                      <th class="text-center quote-beds-col">B/B</th>
-                      <th class="text-center quote-rate-col">Rate (Monthly/Daily)</th>
-                      <th class="text-center quote-parking-col">Parking</th>
-                      <th class="text-center quote-pet-friendly-col">Pets</th>
-                      @if (listingColumnFlags.petFee) {
-                        <th class="text-center quote-pet-fee-col">Pet Fee</th>
-                      }
-                      @if (listingColumnFlags.departureFee) {
-                        <th class="text-center quote-departure-fee-col">Departure</th>
-                      }
-                      @if (listingColumnFlags.maidFee) {
-                        <th class="text-center quote-maid-fee-col">Maid</th>
-                      }
-                      <th class="text-center quote-link-col">Link</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (listingLink of propertyListingLinks; track listingLink.propertyId) {
-                      <tr>
-                        @if (listingColumnFlags.propertyCode) {
-                          <td class="quote-property-col">
-                            <div class="quote-field-box quote-field-box-disabled quote-field-box-property">{{ listingLink.propertyCode }}</div>
-                          </td>
-                        }
-                        <td class="quote-address-col">
-                          <div class="quote-field-box quote-field-box-disabled quote-address-stack">
-                            @if (listingLink.addressLine1) {
-                              <div class="quote-address-line1">{{ listingLink.addressLine1 }}</div>
-                            }
-                            @if (listingLink.addressLine2) {
-                              <div class="quote-address-line2">{{ listingLink.addressLine2 }}</div>
-                            }
-                          </div>
-                        </td>
-                        <td class="text-center quote-beds-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.beds }}</div></td>
-                        <td class="text-center quote-rate-col">
-                          <input
-                            class="quote-field-input quote-field-input-rate"
-                            type="text"
-                            [value]="listingLink.price"
-                            (input)="onRateChange(listingLink, $event)">
-                        </td>
-                        <td class="text-center quote-parking-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.parking }}</div></td>
-                        <td class="text-center quote-pet-friendly-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.petFriendly }}</div></td>
-                        @if (listingColumnFlags.petFee) {
-                          <td class="text-center quote-pet-fee-col">
-                            <input
-                              class="quote-field-input quote-field-input-rate"
-                              type="text"
-                              [value]="listingLink.petFee"
-                              (input)="onPetFeeChange(listingLink, $event)">
-                          </td>
-                        }
-                        @if (listingColumnFlags.departureFee) {
-                          <td class="text-center quote-departure-fee-col">
-                            <input
-                              class="quote-field-input quote-field-input-rate"
-                              type="text"
-                              [value]="listingLink.departureFee"
-                              (input)="onDepartureFeeChange(listingLink, $event)">
-                          </td>
-                        }
-                        @if (listingColumnFlags.maidFee) {
-                          <td class="text-center quote-maid-fee-col">
-                            <input
-                              class="quote-field-input quote-field-input-rate"
-                              type="text"
-                              [value]="listingLink.maidServiceFee"
-                              (input)="onMaidServiceFeeChange(listingLink, $event)">
-                          </td>
-                        }
-                        <td class="quote-link-col"><div class="quote-field-box quote-field-box-disabled"><a class="quote-link" [href]="listingLink.url" target="_blank" rel="noopener noreferrer" (click)="openListing(listingLink.url, $event)">View Listing</a></div></td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            } @else {
-              <div class="quote-links-empty">No properties selected.</div>
-            }
+          }
+        </div>
+      } @else {
+        <div class="mobile-quote-listings-empty">No properties selected.</div>
+      }
+    </div>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center" [formGroup]="form">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">home</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Properties</span>
+          </span>
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="'Property Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedOfficeId"
+              [options]="officeTitleBarOptions"
+              [disabled]="officeTitleBarOptions.length === 0"
+              [nullOptionLabel]="'Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeSelection($event)">
+            </app-title-bar-select>
           </div>
         </div>
-      </form>
-    </mat-card>
-  </section>
-</div>
+        <div class="form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" (click)="backClick.emit()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <form class="info-form mb-8 form-standard-top-padding">
+          <div class="grid grid-cols-4 form-standard-grid quote-content-wrap">
+            <div class="col-span-4 quote-top-row">
+              <span class="text-lg font-medium flex-shrink-0">Corporate Housing Proposal</span>
+              <div class="form-titlebar-actions-wrap uniform-gap">
+                  <button mat-raised-button type="button" color="primary" (click)="viewClick.emit()" [disabled]="isViewDisabled">
+                    <mat-icon>visibility</mat-icon>
+                    View
+                  </button>
+              </div>
+            </div>
+
+            <div class="col-span-4">
+              <div class="quote-proposal-box">
+                <div class="quote-proposal-inner-box">
+                  <table class="quote-proposal-detail-table">
+                    <tbody>
+                      <tr>
+                        <td class="quote-detail-label-cell">Prepared For:</td>
+                        <td class="quote-detail-value-cell">
+                          <mat-form-field appearance="outline" class="quote-table-field">
+                            <input matInput formControlName="preparedForName">
+                          </mat-form-field>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="quote-detail-label-cell">Email:</td>
+                        <td class="quote-detail-value-cell">
+                          <mat-form-field appearance="outline" class="quote-table-field">
+                            <input matInput formControlName="quoteEmail">
+                          </mat-form-field>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="quote-detail-label-cell">Prepared By:</td>
+                        <td class="quote-detail-value-cell">
+                          <mat-form-field appearance="outline" class="quote-table-field">
+                            <input matInput formControlName="agentName">
+                          </mat-form-field>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="quote-detail-label-cell">Quote Valid Thru:</td>
+                        <td class="quote-detail-value-cell">
+                          <mat-form-field appearance="outline" class="quote-table-field">
+                            <input matInput formControlName="quoteValidFor">
+                          </mat-form-field>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-span-4 form-standard-section-gap">
+              <div class="quote-listings-section-heading form-standard-section-heading-gap min-w-0">
+                <span class="quote-listings-section-title text-lg font-medium">Property Listings</span>
+                <p class="quote-proposal-legend quote-proposal-legend--listings"><strong>M</strong> (Monthly), <strong>D</strong> (Daily), <strong>N</strong> (Nightly).</p>
+              </div>
+
+              @if (isLoadingLinks) {
+                <div class="quote-links-loading">Generating links...</div>
+              } @else if (propertyListingLinks.length > 0) {
+                <div class="quote-line-items-scroll min-w-0 w-full">
+                  <table class="line-items-table">
+                    <thead>
+                      <tr>
+                        @if (listingColumnFlags.propertyCode) {
+                          <th class="text-left quote-property-col">Property</th>
+                        }
+                        <th class="text-left quote-address-col">Address</th>
+                        <th class="text-center quote-beds-col">B/B</th>
+                        <th class="text-center quote-rate-col">Rate (Monthly/Daily)</th>
+                        <th class="text-center quote-parking-col">Parking</th>
+                        <th class="text-center quote-pet-friendly-col">Pets</th>
+                        @if (listingColumnFlags.petFee) {
+                          <th class="text-center quote-pet-fee-col">Pet Fee</th>
+                        }
+                        @if (listingColumnFlags.departureFee) {
+                          <th class="text-center quote-departure-fee-col">Departure</th>
+                        }
+                        @if (listingColumnFlags.maidFee) {
+                          <th class="text-center quote-maid-fee-col">Maid</th>
+                        }
+                        <th class="text-center quote-link-col">Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (listingLink of propertyListingLinks; track listingLink.propertyId) {
+                        <tr>
+                          @if (listingColumnFlags.propertyCode) {
+                            <td class="quote-property-col">
+                              <div class="quote-field-box quote-field-box-disabled quote-field-box-property">{{ listingLink.propertyCode }}</div>
+                            </td>
+                          }
+                          <td class="quote-address-col">
+                            <div class="quote-field-box quote-field-box-disabled quote-address-stack">
+                              @if (listingLink.addressLine1) {
+                                <div class="quote-address-line1">{{ listingLink.addressLine1 }}</div>
+                              }
+                              @if (listingLink.addressLine2) {
+                                <div class="quote-address-line2">{{ listingLink.addressLine2 }}</div>
+                              }
+                            </div>
+                          </td>
+                          <td class="text-center quote-beds-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.beds }}</div></td>
+                          <td class="text-center quote-rate-col">
+                            <input
+                              class="quote-field-input quote-field-input-rate"
+                              type="text"
+                              [value]="listingLink.price"
+                              (input)="onRateChange(listingLink, $event)">
+                          </td>
+                          <td class="text-center quote-parking-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.parking }}</div></td>
+                          <td class="text-center quote-pet-friendly-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.petFriendly }}</div></td>
+                          @if (listingColumnFlags.petFee) {
+                            <td class="text-center quote-pet-fee-col">
+                              <input
+                                class="quote-field-input quote-field-input-rate"
+                                type="text"
+                                [value]="listingLink.petFee"
+                                (input)="onPetFeeChange(listingLink, $event)">
+                            </td>
+                          }
+                          @if (listingColumnFlags.departureFee) {
+                            <td class="text-center quote-departure-fee-col">
+                              <input
+                                class="quote-field-input quote-field-input-rate"
+                                type="text"
+                                [value]="listingLink.departureFee"
+                                (input)="onDepartureFeeChange(listingLink, $event)">
+                            </td>
+                          }
+                          @if (listingColumnFlags.maidFee) {
+                            <td class="text-center quote-maid-fee-col">
+                              <input
+                                class="quote-field-input quote-field-input-rate"
+                                type="text"
+                                [value]="listingLink.maidServiceFee"
+                                (input)="onMaidServiceFeeChange(listingLink, $event)">
+                            </td>
+                          }
+                          <td class="quote-link-col"><div class="quote-field-box quote-field-box-disabled"><a class="quote-link" [href]="listingLink.url" target="_blank" rel="noopener noreferrer" (click)="openListing(listingLink.url, $event)">View Listing</a></div></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="quote-links-empty">No properties selected.</div>
+              }
+            </div>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

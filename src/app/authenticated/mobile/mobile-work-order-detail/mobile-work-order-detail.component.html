@@ -1,0 +1,237 @@
+@if ((!isPageReady || (!isWorkOrderContentReady && !isAddMode)) && workOrderId) {
+  <div class="mobile-work-order-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading work order...</span>
+  </div>
+} @else if (form) {
+  <div class="mobile-work-order-page">
+    <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="mobile-work-order-form">
+      <div class="mobile-work-order-status">
+        <span class="mobile-work-order-section-title">Work Order Details</span>
+        <div class="mobile-work-order-checkbox-rows">
+          <div class="mobile-work-order-checkbox-row">
+            <mat-checkbox class="mobile-work-order-status-checkbox" formControlName="enteredInQb" color="primary">Entered in QB</mat-checkbox>
+            @if (isAccountingShell) {
+              <mat-checkbox class="mobile-work-order-status-checkbox" formControlName="businessPrivate" color="primary">Business Private</mat-checkbox>
+            }
+          </div>
+          <div class="mobile-work-order-checkbox-row">
+            <mat-checkbox class="mobile-work-order-status-checkbox" formControlName="isActive" color="primary">IsActive</mat-checkbox>
+            @if (isOwnerTypeSelected()) {
+              <mat-checkbox class="mobile-work-order-status-checkbox" formControlName="applyMarkup" color="primary" (change)="onApplyMarkupToggle()">Apply Markup</mat-checkbox>
+            }
+            @if (isTenantTypeSelected()) {
+              <mat-checkbox class="mobile-work-order-status-checkbox" formControlName="useDepartureFee" color="primary">Use Departure Fee</mat-checkbox>
+            }
+          </div>
+        </div>
+        @if (showInlineSaveButtons) {
+          <div class="mobile-work-order-save-actions">
+            <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()" [disabled]="isSubmitting">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="mobile-work-order-fields">
+        <mat-form-field appearance="outline" class="mobile-work-order-field mobile-work-order-readonly-field">
+          <mat-label>Code</mat-label>
+          <input matInput [value]="isAddMode ? 'New' : (form.get('workOrderCode')?.value || '')" readonly disabled tabindex="-1">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-work-order-field"
+          [class.mat-form-field-invalid]="shouldShowMobileOfficeError()"
+          [class.mat-mdc-form-field-invalid]="shouldShowMobileOfficeError()">
+          <mat-label>Office</mat-label>
+          <mat-select
+            [value]="mobileSelectedOfficeId"
+            [compareWith]="compareMobileOfficeIds"
+            (selectionChange)="onMobileOfficeSelected($event.value)">
+            @for (office of getMobileOfficeOptions(); track office.officeId) {
+              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-work-order-field"
+          [class.mat-form-field-invalid]="shouldShowMobilePropertyError()"
+          [class.mat-mdc-form-field-invalid]="shouldShowMobilePropertyError()">
+          <mat-label>Property</mat-label>
+          <mat-select
+            [value]="selectedPropertyId"
+            (selectionChange)="onMobilePropertySelected($event.value)"
+            [required]="isPropertySelectionRequired()">
+            <mat-option [value]="companyPropertyId">Company</mat-option>
+            @for (option of mobilePropertyOptions; track option.propertyId) {
+              <mat-option [value]="option.propertyId">{{ option.propertyCode }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-work-order-field">
+          <mat-label>Work Order Date</mat-label>
+          <input matInput [matDatepicker]="mobileWorkOrderDatePicker" formControlName="workOrderDate" required>
+          <mat-datepicker-toggle matIconSuffix [for]="mobileWorkOrderDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #mobileWorkOrderDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-work-order-field">
+          <mat-label>Work Order Type</mat-label>
+          <mat-select formControlName="workOrderTypeId" required>
+            @for (opt of workOrderTypeOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-work-order-field">
+          <mat-label>Title</mat-label>
+          <input matInput formControlName="title" maxlength="1000" required>
+        </mat-form-field>
+
+        <div class="mobile-work-order-description-field"
+          [class.mobile-work-order-description-field--invalid]="mobileSaveValidationAttempted && form.get('description')?.invalid">
+          <label class="mobile-work-order-description-label" for="mobileWorkOrderDescription">Description</label>
+          <textarea
+            id="mobileWorkOrderDescription"
+            class="mobile-work-order-description-input"
+            formControlName="description"
+            rows="3"
+            maxlength="2048"
+            required></textarea>
+        </div>
+
+        @if (isOwnerTypeSelected()) {
+          <mat-form-field appearance="outline" class="mobile-work-order-field">
+            <mat-label>Property Markup</mat-label>
+            <input matInput [value]="getMarkupAmountDisplay()" readonly>
+          </mat-form-field>
+        }
+
+        @if (isTenantTypeSelected()) {
+          <mat-form-field appearance="outline" class="mobile-work-order-field">
+            <mat-label>Tenant</mat-label>
+            <mat-select formControlName="reservationId">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @for (reservation of propertyReservations; track reservation.reservationId) {
+                <mat-option [value]="reservation.reservationId">
+                  {{ utilityService.getReservationDropdownLabel(reservation, null) }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+
+      </div>
+
+      <div class="mobile-work-order-items">
+        <div class="mobile-work-order-items-header">
+          <span class="mobile-work-order-section-title">Work Order Items</span>
+          <button type="button" mat-raised-button color="primary" (click)="addWorkOrderItem()" [disabled]="!canAddItem()">
+            <mat-icon>add</mat-icon>
+            Add Item
+          </button>
+        </div>
+
+        <div class="mobile-work-order-items-list">
+          @if (!workOrderItems || workOrderItems.length === 0) {
+            <div class="mobile-work-order-item-empty">No work order items yet.</div>
+          } @else {
+            @for (item of workOrderItems; track $index; let itemIndex = $index) {
+              <div class="mobile-work-order-item-card">
+                <div class="mobile-work-order-item-card-header">
+                  <span class="mobile-work-order-item-no">No: {{ itemIndex + 1 }}</span>
+                  <div class="mobile-work-order-item-header-actions">
+                    @if (hasSelectedReceipt(item)) {
+                      <button mat-icon-button type="button" (click)="openReceiptFromItem(item)" matTooltip="Open receipt" aria-label="Open receipt">
+                        <mat-icon>receipt</mat-icon>
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      mat-icon-button
+                      color="accent"
+                      (click)="removeWorkOrderItem(itemIndex)"
+                      matTooltip="Remove this item"
+                      aria-label="Remove work order item">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+
+                <mat-form-field appearance="outline" class="mobile-work-order-field">
+                  <mat-label>Description</mat-label>
+                  <input matInput type="text" [value]="item.description ?? ''"
+                    (input)="updateWorkOrderItemField(itemIndex, 'description', $any($event.target).value)"
+                    maxlength="250">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="mobile-work-order-field">
+                  <mat-label>Receipt</mat-label>
+                  <mat-select
+                    [value]="getReceiptSelectionValue(item)"
+                    (selectionChange)="onReceiptSelectionChange(itemIndex, $event.value)">
+                    <mat-option [value]="noReceiptOptionValue">No Receipt</mat-option>
+                    <mat-option [value]="inventoryItemOptionValue">Inventory Item</mat-option>
+                    @for (splitOption of getAvailableReceiptsForItem(itemIndex); track splitOption.key) {
+                      <mat-option [value]="splitOption.key">{{ splitOption.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="mobile-work-order-field">
+                  <mat-label>Amount</mat-label>
+                  <input matInput type="text" inputmode="decimal"
+                    [value]="getAmountInputValue(item)"
+                    [readonly]="!isInventoryItemSelected(item)"
+                    (focus)="onAmountFocus(itemIndex, $event)"
+                    (blur)="onAmountBlur(itemIndex, $event)"
+                    (input)="onAmountInput(itemIndex, $event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="mobile-work-order-field">
+                  <mat-label>Hours</mat-label>
+                  <input matInput type="number" [value]="item.laborHours ?? ''"
+                    (input)="updateWorkOrderItemField(itemIndex, 'laborHours', parseInt($any($event.target).value, 10) || 0)"
+                    min="0" step="1">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="mobile-work-order-field">
+                  <mat-label>Labor Cost</mat-label>
+                  <input matInput type="text" inputmode="decimal"
+                    [value]="getLaborCostDisplay(itemIndex, item)"
+                    (focus)="onLaborCostFocus(itemIndex, $event)"
+                    (blur)="onLaborCostBlur(itemIndex, $event)"
+                    (input)="onLaborCostInput(itemIndex, $event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="mobile-work-order-field"
+                  [class.mat-form-field-invalid]="getItemTotal(item) === 0"
+                  [class.mat-mdc-form-field-invalid]="getItemTotal(item) === 0">
+                  <mat-label>Total</mat-label>
+                  <input matInput readonly [value]="getTotalDisplay(item)">
+                </mat-form-field>
+              </div>
+            }
+          }
+        </div>
+
+        @if (workOrderItems && workOrderItems.length > 0) {
+          <div class="mobile-work-order-total-summary">
+            <span class="mobile-work-order-total-summary-label">Total:</span>
+            <span class="mobile-work-order-total-summary-value">{{ getTotalAmountDisplay() }}</span>
+          </div>
+        }
+      </div>
+
+      @if (isSubmitting) {
+        <div class="mobile-work-order-saving">
+          <mat-spinner [diameter]="20" color="accent"></mat-spinner>
+          <span>Saving...</span>
+        </div>
+      }
+    </form>
+  </div>
+}

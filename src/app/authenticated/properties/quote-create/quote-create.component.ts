@@ -395,6 +395,24 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     });
   }
 
+  removePropertyListing(propertyId: string): void {
+    const normalizedPropertyId = String(propertyId || '').trim();
+    if (!normalizedPropertyId) {
+      return;
+    }
+    this.propertyIds = (this.propertyIds || []).filter(id => String(id || '').trim() !== normalizedPropertyId);
+    this.propertyListingLinks = this.propertyListingLinks.filter(link => link.propertyId !== normalizedPropertyId);
+    if (this.propertyListingLinks.length === 0) {
+      this.firstPropertyOfficeId = null;
+    } else if (this.firstPropertyOfficeId != null && !this.propertyListingLinks.some(link => link.officeId === this.firstPropertyOfficeId)) {
+      this.firstPropertyOfficeId = this.propertyListingLinks[0]?.officeId ?? null;
+      this.headerOfficeId = this.firstPropertyOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+      this.applyHeaderOfficeSelection();
+    }
+    this.refreshQuoteDocumentPreview();
+    this.markViewForCheck();
+  }
+
   loadPropertyListingLinks(): void {
     const uniquePropertyIds = Array.from(new Set((this.propertyIds || [])
       .map(propertyId => String(propertyId || '').trim())
@@ -937,6 +955,10 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       documentConfig: this.getDocumentConfig(),
       returnUrl: this.router.url
     });
+    this.navigateToEmailCreatePage();
+  }
+
+  protected navigateToEmailCreatePage(): void {
     this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
 

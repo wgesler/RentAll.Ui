@@ -1,0 +1,139 @@
+@if (!isPageReady) {
+  <div class="mobile-property-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading property...</span>
+  </div>
+} @else {
+  <div class="mobile-property-page">
+    <div class="mobile-property-form">
+      <mat-accordion class="mobile-property-accordion" multi="true">
+        <mat-expansion-panel [expanded]="true">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Basic Rental Information</mat-panel-title>
+          </mat-expansion-panel-header>
+          <ng-container *ngTemplateOutlet="mobilePropertySave" />
+          <div class="mobile-property-fields">
+            @for (field of getBasicPanelFields(); track field.key) {
+              <ng-container *ngTemplateOutlet="mobilePropertyField; context: { $implicit: field }" />
+            }
+          </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel [expanded]="false">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Features &amp; Security</mat-panel-title>
+          </mat-expansion-panel-header>
+          <ng-container *ngTemplateOutlet="mobilePropertySave" />
+          <div class="mobile-property-fields">
+            @for (field of getFeaturesPanelFields(); track field.key) {
+              <ng-container *ngTemplateOutlet="mobilePropertyField; context: { $implicit: field }" />
+            }
+          </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel [expanded]="false">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Property Description</mat-panel-title>
+          </mat-expansion-panel-header>
+          <ng-container *ngTemplateOutlet="mobilePropertySave" />
+          <div class="mobile-property-fields">
+            @if (getDescriptionField(); as descriptionField) {
+              <div class="mobile-property-textarea-field">
+                <label class="mobile-property-textarea-label" for="mobilePropertyDescription">{{ descriptionField.label }}</label>
+                <textarea
+                  #descriptionTextarea
+                  id="mobilePropertyDescription"
+                  class="mobile-property-textarea-input"
+                  [(ngModel)]="descriptionField.value"
+                  (input)="onMultilineInput($event, descriptionTextarea)"
+                  (ngModelChange)="onFieldChange()"
+                  (mouseup)="onMultilineResize($event, descriptionTextarea)"
+                  rows="3"></textarea>
+              </div>
+            }
+            @if (getNotesField(); as notesField) {
+              <div class="mobile-property-textarea-field">
+                <label class="mobile-property-textarea-label" for="mobilePropertyNotes">{{ notesField.label }}</label>
+                <textarea
+                  #notesTextarea
+                  id="mobilePropertyNotes"
+                  class="mobile-property-textarea-input"
+                  [(ngModel)]="notesField.value"
+                  (input)="onMultilineInput($event, notesTextarea)"
+                  (ngModelChange)="onFieldChange()"
+                  (mouseup)="onMultilineResize($event, notesTextarea)"
+                  rows="3"></textarea>
+              </div>
+            }
+          </div>
+        </mat-expansion-panel>
+
+        @if (canShowPropertyContacts) {
+          <mat-expansion-panel [expanded]="false">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Property Contacts</mat-panel-title>
+            </mat-expansion-panel-header>
+            <app-mobile-property-contact-list
+              [officeId]="sharedPropertyOfficeId"
+              [propertyCode]="sharedPropertyCode" />
+          </mat-expansion-panel>
+        }
+
+        @if (canShowPropertyAgreement) {
+          <mat-expansion-panel [expanded]="false">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Property Agreements</mat-panel-title>
+            </mat-expansion-panel-header>
+            <app-mobile-property-agreement
+              [propertyId]="propertyId"
+              [isAddMode]="false"
+              [canManageAgreement]="canManagePropertyAgreement"
+              [canViewManagementAgreement]="canViewManagementAgreement"
+              [officeId]="sharedPropertyOfficeId"
+              [isFurnished]="getAgreementIsFurnished()"
+              [bedrooms]="getAgreementBedrooms()"
+              [propertyLeaseTypeId]="getAgreementPropertyLeaseTypeId()"
+              [vendorContactId]="getAgreementVendorContactId()"
+              (saveRequested)="saveProperty()" />
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    </div>
+  </div>
+}
+
+<ng-template #mobilePropertySave>
+  <div class="mobile-property-save-actions">
+    <button mat-raised-button type="button" color="primary" (click)="saveProperty()" [disabled]="isSaving">
+      <mat-icon>save</mat-icon>
+      Save
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #mobilePropertyField let-field>
+  @if (field.control === 'select') {
+    <mat-form-field appearance="outline" class="mobile-property-field">
+      <mat-label>{{ field.label }}</mat-label>
+      <mat-select
+        [value]="field.multiple ? getSelectedValues(field) : field.value"
+        (selectionChange)="onSelectChange(field, $event.value)"
+        [multiple]="!!field.multiple"
+        [disabled]="!!field.readonly">
+        @for (option of field.options; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  } @else {
+    <mat-form-field appearance="outline" class="mobile-property-field">
+      <mat-label>{{ field.label }}</mat-label>
+      <input
+        matInput
+        [(ngModel)]="field.value"
+        (ngModelChange)="onFieldChange()"
+        [readonly]="!!field.readonly"
+        [disabled]="!!field.readonly">
+    </mat-form-field>
+  }
+</ng-template>

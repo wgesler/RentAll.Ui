@@ -57,6 +57,13 @@ import { UserComponent } from './authenticated/users/user/user.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
+import { MobileInspectionIssuesPageComponent } from './authenticated/mobile/mobile-inspection-issues-page/mobile-inspection-issues-page.component';
+import { MobileBoardPageComponent } from './authenticated/mobile/mobile-board-page/mobile-board-page.component';
+import { MobileEmailCreatePageComponent } from './authenticated/mobile/mobile-email-create-page/mobile-email-create-page.component';
+import { MobileLayoutComponent } from './authenticated/mobile/mobile-layout/mobile-layout.component';
+import { MobileSectionPageComponent } from './authenticated/mobile/mobile-section-page/mobile-section-page.component';
+import { MobileLeadsPageComponent } from './authenticated/mobile/mobile-leads-page/mobile-leads-page.component';
+import { MobileQuoteCreatePageComponent } from './authenticated/mobile/mobile-quote-create-page/mobile-quote-create-page.component';
 import { LoginComponent } from './public/login/login.component';
 import { OwnerShellComponent } from './authenticated/owners/owner-shell/owner-shell.component';
 import { PropertyListingPublicComponent } from './public/property-listing-public/property-listing-public.component';
@@ -127,12 +134,38 @@ export const authRoutes: Routes = [
   { path: `${RouterToken.OwnerShell}/:token`, component: OwnerShellComponent, canActivate: [authRouteGuard] },
 ]
 
+const mobileRoutes: Routes = [
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
+  { path: 'home', component: MobileBoardPageComponent },
+  { path: 'leads', redirectTo: 'leads/rentals', pathMatch: 'full' },
+  { path: 'leads/:tab', component: MobileLeadsPageComponent },
+  { path: 'leads/:tab/:id', component: MobileLeadsPageComponent },
+  { path: 'tickets', redirectTo: 'tickets/my-tickets', pathMatch: 'full' },
+  { path: 'tickets/:tab', component: MobileSectionPageComponent },
+  { path: 'tickets/:tab/:id', component: MobileSectionPageComponent },
+  { path: 'maintenance', redirectTo: 'maintenance/inspection', pathMatch: 'full' },
+  { path: 'maintenance/inspection/:id/issues', component: MobileInspectionIssuesPageComponent },
+  { path: 'maintenance/:tab', component: MobileSectionPageComponent },
+  { path: 'maintenance/:tab/:id', component: MobileSectionPageComponent },
+  { path: 'reservations', component: MobileSectionPageComponent },
+  { path: 'reservations/:id', component: MobileSectionPageComponent },
+  { path: 'properties', component: MobileSectionPageComponent },
+  { path: 'properties/:id', component: MobileSectionPageComponent },
+  { path: 'properties/:id/:tab', component: MobileSectionPageComponent },
+  { path: 'contacts', redirectTo: 'contacts/tenants', pathMatch: 'full' },
+  { path: 'contacts/:tab', component: MobileSectionPageComponent },
+  { path: 'contacts/:tab/:id', component: MobileSectionPageComponent },
+  { path: 'email/create', component: MobileEmailCreatePageComponent },
+  { path: 'quote-create', component: MobileQuoteCreatePageComponent },
+];
+
 export const routes: Routes = [
 	{ path: '', redirectTo: RouterToken.Login, pathMatch: 'full' },
   { path: RouterToken.Login, component: LoginComponent, canActivate: [unAuthRouteGuard] },
   { path: 'listing/:token', component: PropertyListingPublicComponent },
   { path: 'owners/:token', component: OwnerShellComponent },
   { path: RouterToken.UserGuide, component: HelpGuidePageComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Mobile, component: MobileLayoutComponent, children: mobileRoutes, canActivate: [authRouteGuard] },
   { path: RouterToken.Auth, component: LayoutComponent, children: authRoutes, canActivate: [authRouteGuard] },
   { path: '**', component: PageNotFoundComponent },
 ];

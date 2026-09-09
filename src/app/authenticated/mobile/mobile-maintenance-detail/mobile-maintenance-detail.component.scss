@@ -1,0 +1,151 @@
+:host {
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-maintenance-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.mobile-maintenance-page {
+  padding: 0 0 1.5rem;
+  margin-top: 6px;
+}
+
+.mobile-maintenance-form {
+  padding: 0 1rem;
+}
+
+.mobile-maintenance-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.65rem;
+  background: color-mix(in srgb, var(--brand-primary-color) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-primary-color) 20%, white);
+  border-radius: 4px;
+}
+
+.mobile-maintenance-meta-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.mobile-maintenance-meta-label {
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.mobile-maintenance-meta-value {
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.mobile-maintenance-notes {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+:host ::ng-deep .mobile-maintenance-notes .mat-mdc-form-field-infix {
+  min-height: 0;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+:host ::ng-deep .mobile-maintenance-notes textarea {
+  min-height: 2.5rem;
+  max-height: 4.5rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  resize: vertical;
+}
+
+@import './mobile-maintenance-line-cards.scss';
+
+.mobile-maintenance-accordion {
+  padding: 0 1rem;
+}
+
+:host ::ng-deep .mobile-maintenance-accordion .mat-expansion-panel-body {
+  padding: 0 0 0.35rem;
+  overflow: visible;
+}
+
+:host ::ng-deep .mobile-maintenance-accordion .mat-expansion-panel-header {
+  min-height: 40px;
+  height: auto;
+}
+
+:host ::ng-deep .mobile-maintenance-accordion mat-form-field.mobile-maintenance-line-field.mat-mdc-form-field {
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 36px !important;
+    padding: 0 10px !important;
+  }
+
+  .mat-mdc-form-field-flex {
+    min-height: 36px !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 32px !important;
+    padding: 2px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control input,
+  .mat-mdc-form-field-input-control textarea {
+    padding: 2px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-datepicker-toggle .mat-mdc-icon-button {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-floating-label.mdc-floating-label:not(.mdc-floating-label--float-above) {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    line-height: 1.2 !important;
+  }
+}
+
+:host ::ng-deep .mobile-maintenance-accordion .mobile-maintenance-line-card > mat-form-field.mobile-maintenance-line-field:last-of-type {
+  margin-bottom: 0 !important;
+}
+
+:host ::ng-deep .mobile-maintenance-accordion mat-form-field.mobile-maintenance-line-notes-field textarea {
+  min-height: 2rem !important;
+  resize: vertical;
+}

@@ -1,0 +1,78 @@
+@if (isMissingDraft) {
+  <div class="mobile-issue-missing">
+    <p>Inspection issues are no longer available.</p>
+    <button mat-raised-button type="button" color="accent" (click)="back()">Back</button>
+  </div>
+} @else {
+  <div class="mobile-issue-page">
+    <div class="flex items-center gap-3 mobile-sub-titlebar">
+      <button mat-icon-button type="button" (click)="back()" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="mobile-sub-titlebar-static">
+        <mat-icon class="mobile-sub-titlebar-icon" color="accent">report_problem</mat-icon>
+        <span class="mobile-sub-titlebar-label">Maintenance : Inspection Issues</span>
+      </div>
+    </div>
+    <div class="mobile-issue-submeta">
+      <span>{{ data?.propertyCode || 'N/A' }}</span>
+      <span>{{ data?.dateText || 'N/A' }}</span>
+    </div>
+
+    <div class="mobile-issue-list-wrap">
+      @if (hasRemovedIssues) {
+        <div class="mobile-issue-restore-bar">
+          <button mat-stroked-button type="button" color="primary" (click)="restoreRemovedIssues()">
+            <mat-icon>undo</mat-icon>
+            Restore removed issues
+          </button>
+        </div>
+      }
+      @if (!displayIssues.length) {
+        <p>No issues found.</p>
+      } @else {
+        <div class="mobile-issue-list">
+          @for (group of getGroupedIssues(); track groupTrackId(group, $index)) {
+            <div class="mobile-issue-group">
+              <div class="mobile-issue-meta">
+                <span class="mobile-issue-section">{{ group.sectionTitle }}</span>
+                @if (group.setLabel) {
+                  <span class="mobile-issue-set">{{ group.setLabel }}</span>
+                }
+              </div>
+              @for (issue of group.issues; track issue._rid; let issueIndex = $index) {
+                <div class="mobile-issue-row">
+                  <button type="button" mat-icon-button class="mobile-issue-row-dismiss" aria-label="Remove this issue" (click)="removeIssue(issue)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                  <div class="mobile-issue-line-head">
+                    <span class="mobile-issue-line-index">{{ issueIndex + 1 }}.</span>
+                    <span class="mobile-issue-line-text">{{ issue.lineText }}</span>
+                  </div>
+                  <div class="mobile-issue-text">{{ issue.issueText }}</div>
+                  @if (issue.photoSrc) {
+                    <div class="mobile-issue-photo-wrap">
+                      <img class="mobile-issue-photo-thumb" [src]="issue.photoSrc" alt="Issue photo" />
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <mat-divider />
+    <div class="mobile-issue-dialog-actions">
+      <button mat-raised-button color="accent" type="button" class="text-nowrap" [disabled]="isPreparingEmail" (click)="emailIssues()">
+        <mat-icon>email</mat-icon>
+        {{ isPreparingEmail ? 'Preparing…' : 'Email' }}
+      </button>
+      <button mat-raised-button color="accent" type="button" class="text-nowrap" [disabled]="isCreatingTicket" (click)="onTicketCreate()">
+        <mat-icon>confirmation_number</mat-icon>
+        {{ isCreatingTicket ? 'Creating…' : 'Create a Ticket' }}
+      </button>
+    </div>
+  </div>
+}

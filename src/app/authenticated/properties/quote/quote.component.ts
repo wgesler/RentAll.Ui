@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostBinding, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -25,9 +25,14 @@ export class QuoteComponent {
   @Input() propertyListingLinks: QuoteListingRow[] = [];
   @Input({ required: true }) listingColumnFlags!: QuoteListingColumnFlags;
   @Input() isLoadingLinks = false;
+  @Input() mobileLayout = false;
+  @HostBinding('class.mobile-quote-layout') get mobileQuoteLayoutClass(): boolean {
+    return this.mobileLayout;
+  }
 
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() listingRowsChange = new EventEmitter<void>();
+  @Output() listingRemove = new EventEmitter<string>();
   @Output() viewClick = new EventEmitter<void>();
   @Output() backClick = new EventEmitter<void>();
 
@@ -83,5 +88,17 @@ export class QuoteComponent {
       return;
     }
     window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  getListingAddressDisplay(listing: QuoteListingRow): string {
+    return [listing.addressLine1, listing.addressLine2].filter(line => String(line || '').trim().length > 0).join('\n');
+  }
+
+  removeListing(listing: QuoteListingRow): void {
+    const propertyId = String(listing.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+    this.listingRemove.emit(propertyId);
   }
 }

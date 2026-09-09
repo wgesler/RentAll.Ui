@@ -15,7 +15,7 @@ import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashRep
 import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
-import { getEntityType, getPaymentTermDays, getTermType } from '../authenticated/contacts/models/contact-enum';
+import { EntityType, getEntityType, getPaymentTermDays, getTermType, getTermTypes } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
@@ -23,18 +23,19 @@ import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/a
 import { EmailListDisplay, EmailResponse, EmailAddress } from '../authenticated/email/models/email.model';
 import { getEmailType } from '../authenticated/email/models/email.enum';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
+import { isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../authenticated/maintenance/models/receipt.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
-import { PaymentKind, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { PaymentKind, getInvoiceMethod, getInvoiceMethods, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
-import { AgentListDisplay, AgentResponse, normalizeAgentOffices } from '../authenticated/organizations/models/agent.model';
+import { AgentListDisplay, AgentResponse, filterAgentsByOffice, normalizeAgentOffices } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
 import { BuildingListDisplay, BuildingResponse } from '../authenticated/organizations/models/building.model';
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
@@ -47,21 +48,24 @@ import { RegionListDisplay, RegionResponse } from '../authenticated/organization
 import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
 import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
-import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatus, getPropertyStatusLetter, getPropertyStatuses, getPropertyStyles, getPropertyType, getPropertyTypes, getTrashPickupDay } from '../authenticated/properties/models/property-enums';
 import { PropertyAgreementLineResponse } from '../authenticated/properties/models/property-agreement.model';
-import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
-import { BoardProperty, PropertyHoverField, PropertyHoverFieldGroups } from '../authenticated/reservations/models/reservation-board-model';
-import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
+import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
+import { BoardProperty, CalendarDay, PropertyHoverField, PropertyHoverFieldGroups } from '../authenticated/reservations/models/reservation-board-model';
+import { getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getFrequency, getNoticeStatusTypes, getProrateType, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, NoticeStatusType, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, ReservationResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
+import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
 import { LeadPartnerListDisplay, LeadPartnerResponse, LeadPartnerUpdateRequest } from '../authenticated/leads/models/lead-partner.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
 import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
 import { LeadRentalListDisplay, LeadRentalRequest, LeadRentalResponse } from '../authenticated/leads/models/lead-rental.model';
 import { formatLeadStateLabel } from '../authenticated/leads/models/lead-enums';
-import { getTicketStateType } from '../authenticated/tickets/models/ticket-enum';
-import { TicketListDisplay, TicketRequest, TicketResponse, TicketStateDropdownCell } from '../authenticated/tickets/models/ticket-models';
+import { getTicketStateType, getTicketStateTypes } from '../authenticated/tickets/models/ticket-enum';
+import { TicketListDisplay, TicketNoteRequest, TicketRequest, TicketResponse, TicketStateDropdownCell } from '../authenticated/tickets/models/ticket-models';
+import { hasCompanyRole } from '../authenticated/shared/access/role-access';
+import { MobileTicketListDisplay } from '../authenticated/mobile/mobile-ticket-list/mobile-ticket-list.model';
+import { MobileListField, MobileListFieldOption, MobileListRow, MobileTicketNoteDisplay } from '../authenticated/mobile/mobile-list-table/mobile-list.model';
 import { MaintenanceListDisplay, PropertyMaintenance } from '../authenticated/shared/models/mixed-models';
 import { WorkOrderAmountService } from '../authenticated/maintenance/services/work-order-amount.service';
 import { FormatterService } from './formatter-service';
@@ -1524,6 +1528,871 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     };
   }
 
+  mapMobileTicketListDisplay(ticket: TicketResponse): MobileTicketListDisplay {
+    return {
+      ticketId: ticket.ticketId,
+      title: ticket.title || '',
+      property: ticket.propertyCode || ''
+    };
+  }
+
+  mapMobileTicketAssigneeOptions(users: { userId?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null; isActive?: boolean; userGroups?: string[]; officeAccess?: number[] }[], officeId: number | null): MobileListFieldOption[] {
+    const scopedOfficeId = officeId && officeId > 0 ? officeId : null;
+    const options = (users || []).filter(user => {
+      if (!user.isActive || !hasCompanyRole(user.userGroups || [])) {
+        return false;
+      }
+      if (scopedOfficeId == null) {
+        return true;
+      }
+      return (user.officeAccess || []).map(accessId => Number(accessId)).filter(accessId => !isNaN(accessId)).includes(scopedOfficeId);
+    }).map(user => ({
+      value: String(user.userId || '').trim(),
+      label: `${user.firstName || ''} ${user.lastName || ''}`.trim() || String(user.email || '').trim()
+    })).filter(option => !!option.value && !!option.label).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    return [{ value: '', label: 'Unassigned' }, ...options];
+  }
+
+  mapMobileTicketAgentOptions(agents: AgentResponse[], officeId: number | null): MobileListFieldOption[] {
+    const options = this.mapMobileReservationAgentOptions(filterAgentsByOffice(agents, officeId, { activeOnly: true }));
+    return [{ value: '', label: 'Select Agent' }, ...options];
+  }
+
+  mapMobileTicketOfficeOptions(offices: { officeId: number; name?: string | null }[]): MobileListFieldOption[] {
+    return (offices || [])
+      .map(office => ({ value: String(office.officeId), label: String(office.name || '').trim() }))
+      .filter(option => !!option.value && !!option.label)
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }
+
+  mapMobileTicketPropertyOptions(properties: { propertyId: string; propertyCode?: string | null }[]): MobileListFieldOption[] {
+    return [{ value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' }, ...(properties || [])
+      .filter(property => !isReceiptCompanyPropertyId(property.propertyId))
+      .map(property => ({ value: property.propertyId, label: String(property.propertyCode || property.propertyId).trim() }))
+      .filter(option => !!option.value && !!option.label)
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }))];
+  }
+
+  mapMobileTicketReservationOptions(
+    reservations: ReservationCodeResponse[],
+    contacts: ContactResponse[] = []
+  ): MobileListFieldOption[] {
+    return [{ value: '', label: 'None' }, ...(reservations || [])
+      .map(reservation => ({
+        value: String(reservation.reservationId || '').trim(),
+        label: this.utility.getReservationDropdownLabel(
+          reservation,
+          contacts.find(contact => contact.contactId === reservation.contactId) ?? null
+        )
+      }))
+      .filter(option => !!option.value && !!option.label)
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }))];
+  }
+
+  mapMobileTicketNoteDisplays(notes: TicketResponse['notes']): MobileTicketNoteDisplay[] {
+    return (notes || []).filter(note => !!String(note.note || '').trim()).map(note => ({
+      author: String(note.createdByName || note.modifiedByName || note.createdBy || note.modifiedBy || '').trim() || 'Unknown',
+      createdOn: this.formatter.formatDateTimeString(note.createdOn) || '',
+      createdOnRaw: String(note.createdOn || ''),
+      note: String(note.note || '').trim()
+    })).sort((a, b) => (Date.parse(b.createdOnRaw) || 0) - (Date.parse(a.createdOnRaw) || 0)).map(({ createdOnRaw, ...display }) => display);
+  }
+
+  mapMobileTicketDetailFields(ticket: TicketResponse, lookups: {
+    assignees?: MobileListFieldOption[];
+    agents?: MobileListFieldOption[];
+    offices?: MobileListFieldOption[];
+    properties?: MobileListFieldOption[];
+    reservations?: MobileListFieldOption[];
+  } = {}): MobileListField[] {
+    const fields: MobileListField[] = [];
+    const yesNo = this.mapMobileYesNoOptions();
+    const assigneeOptions = this.mergeMobileIdOption(lookups.assignees || [{ value: '', label: 'Unassigned' }], ticket.assigneeId, ticket.assigneeName || ticket.assignee);
+    const agentOptions = this.mergeMobileIdOption(lookups.agents || [{ value: '', label: 'Select Agent' }], ticket.agentId, ticket.agentName || ticket.agent);
+    const officeOptions = this.mergeMobileIdOption(lookups.offices || [], String(ticket.officeId || ''), ticket.officeName);
+    const propertyOptions = this.mergeMobileIdOption(
+      lookups.properties || [{ value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' }],
+      ticket.propertyId,
+      isReceiptCompanyPropertyId(ticket.propertyId) ? 'Company' : ticket.propertyCode
+    );
+    const reservationOptions = this.mergeMobileIdOption(lookups.reservations || [{ value: '', label: 'None' }], ticket.reservationId, ticket.reservationCode);
+    this.addMobileDetailField(fields, 'ticketCode', 'Ticket Code', ticket.ticketCode, undefined, false, true);
+    this.addMobileDetailField(fields, 'officeId', 'Office', String(ticket.officeId || ''), officeOptions);
+    this.addMobileDetailField(fields, 'propertyId', 'Property', ticket.propertyId, propertyOptions);
+    this.addMobileDetailField(fields, 'reservationId', 'Reservation', ticket.reservationId, reservationOptions);
+    this.addMobileDetailField(fields, 'modifiedOn', 'Last Modified', this.formatter.formatDateString(ticket.modifiedOn || ''), undefined, false, true);
+    this.addMobileDetailField(fields, 'ticketStateTypeId', 'Ticket Status', String(ticket.ticketStateTypeId ?? ''), this.mapNumberLabelOptions(getTicketStateTypes()));
+    this.addMobileDetailField(fields, 'assigneeId', 'Assignee', ticket.assigneeId, assigneeOptions);
+    this.addMobileDetailField(fields, 'agentId', 'Agent', ticket.agentId, agentOptions);
+    this.addMobileDetailField(fields, 'isActive', 'Is Active', ticket.isActive ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'isForRentAll', 'For RentAll', ticket.isForRentAll ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'needPermissionToEnter', 'Need Permission to Enter', ticket.needPermissionToEnter ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'permissionGranted', 'Permission Granted', ticket.permissionGranted ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'ownerContacted', 'Owner Contacted', ticket.ownerContacted ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'confirmedWithTenant', 'Confirmed with Tenant', ticket.confirmedWithTenant ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'followedUpWithOwner', 'Followed Up with Owner', ticket.followedUpWithOwner ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'workOrderCompleted', 'Work Order Completed', ticket.workOrderCompleted ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'title', 'Title', ticket.title);
+    this.addMobileDetailField(fields, 'description', 'Description', ticket.description);
+    return fields;
+  }
+
+  mapMobileTicketDetailOverrides(ticket: TicketResponse, fields: MobileListField[], newNoteText = ''): Partial<TicketRequest> {
+    const values = new Map(fields.map(field => [field.key, field.value]));
+    const text = (key: string): string => String(values.get(key) ?? '').trim();
+    const bool = (key: string, fallback: boolean): boolean => this.parseMobileDetailBool(text(key), fallback);
+    const newNote = String(newNoteText || '').trim();
+    const existingNotes: TicketNoteRequest[] = (ticket.notes || []).map(note => ({
+      ticketNoteId: note.ticketNoteId,
+      ticketId: note.ticketId,
+      note: note.note
+    }));
+    const notes = newNote ? [...existingNotes, { ticketId: ticket.ticketId, note: newNote }] : existingNotes;
+    const officeIdValue = Number(text('officeId'));
+    return {
+      officeId: Number.isFinite(officeIdValue) && officeIdValue > 0 ? officeIdValue : ticket.officeId,
+      propertyId: text('propertyId') || null,
+      reservationId: text('reservationId') || null,
+      title: text('title') || ticket.title,
+      description: text('description') || ticket.description,
+      ticketStateTypeId: this.resolveLabeledId(text('ticketStateTypeId'), getTicketStateTypes(), ticket.ticketStateTypeId) ?? ticket.ticketStateTypeId,
+      assigneeId: text('assigneeId') || null,
+      agentId: text('agentId') || null,
+      isActive: bool('isActive', !!ticket.isActive),
+      isForRentAll: bool('isForRentAll', !!ticket.isForRentAll),
+      needPermissionToEnter: bool('needPermissionToEnter', !!ticket.needPermissionToEnter),
+      permissionGranted: bool('permissionGranted', !!ticket.permissionGranted),
+      ownerContacted: bool('ownerContacted', !!ticket.ownerContacted),
+      confirmedWithTenant: bool('confirmedWithTenant', !!ticket.confirmedWithTenant),
+      followedUpWithOwner: bool('followedUpWithOwner', !!ticket.followedUpWithOwner),
+      workOrderCompleted: bool('workOrderCompleted', !!ticket.workOrderCompleted),
+      notes: notes.length > 0 ? notes : null
+    };
+  }
+
+  mapMobilePropertyListDisplay(property: { propertyId?: string; propertyCode?: string | null }): MobileListRow {
+    return {
+      id: property.propertyId || '',
+      property: property.propertyCode || ''
+    };
+  }
+
+  mapMobileReservationListDisplay(reservation: { reservationId?: string; propertyCode?: string | null; tenantName?: string | null; contactName?: string | null; companyName?: string | null; arrivalDate?: string | null; departureDate?: string | null }): MobileListRow {
+    return {
+      id: reservation.reservationId || '',
+      property: reservation.propertyCode || '',
+      occupant: String(reservation.tenantName || reservation.contactName || '').trim(),
+      company: String(reservation.companyName || '').trim(),
+      arrival: reservation.arrivalDate || '',
+      departure: reservation.departureDate || ''
+    };
+  }
+
+  mapMobileContactListDisplay(contact: { contactId?: string; fullName?: string | null; companyName?: string | null; propertyCodesDisplay?: string; properties?: string[] }): MobileListRow {
+    const name = (contact.fullName || contact.companyName || '').trim();
+    const property = (contact.propertyCodesDisplay || (contact.properties || []).join(', ') || '').trim();
+    return {
+      id: contact.contactId || '',
+      property,
+      contact: name,
+      company: (contact.companyName || '').trim()
+    };
+  }
+
+  mapMobileContactDetailFields(contact: ContactResponse, lookups: { states?: string[]; propertyCodes?: MobileListFieldOption[] } = {}): MobileListField[] {
+    const fields: MobileListField[] = [];
+    const entityTypeId = contact.entityTypeId ?? 0;
+    const stateOptions = (lookups.states || []).map(state => ({ value: state, label: state }));
+    const propertyOptions = this.mergeMobileContactPropertyOptions(lookups.propertyCodes || [], contact.properties || []);
+    this.addMobileDetailField(fields, 'contactCode', 'Code', contact.contactCode);
+    if (entityTypeId === EntityType.Company || entityTypeId === EntityType.Vendor || entityTypeId === EntityType.Owner) {
+      this.addMobileDetailField(fields, 'companyName', 'Company Name', contact.companyName);
+    }
+    if (entityTypeId === EntityType.Company || entityTypeId === EntityType.Vendor) {
+      this.addMobileDetailField(fields, 'displayName', 'Display Name', contact.displayName);
+      this.addMobileDetailField(fields, 'companyEmail', 'Accounting Email', contact.companyEmail);
+      this.addMobileDetailField(fields, 'paymentTermsId', 'Payment Terms', contact.paymentTermsId == null ? '' : String(contact.paymentTermsId), this.mapNumberLabelOptions(getTermTypes()));
+    }
+    if (entityTypeId === EntityType.Company) {
+      this.addMobileDetailField(fields, 'prorateTypeId', 'Prorate Type', contact.prorateTypeId == null ? '' : String(contact.prorateTypeId), this.mapNumberLabelOptions(getProrateTypes()));
+      this.addMobileDetailField(fields, 'invoiceMethodTypeId', 'Invoice Method', contact.invoiceMethodTypeId == null ? '' : String(contact.invoiceMethodTypeId), this.mapNumberLabelOptions(getInvoiceMethods()));
+    }
+    this.addMobileDetailField(fields, 'firstName', 'First Name', contact.firstName);
+    this.addMobileDetailField(fields, 'lastName', 'Last Name', contact.lastName);
+    this.addMobileDetailField(fields, 'preferredName', 'Preferred Name', contact.preferredName);
+    this.addMobileDetailField(fields, 'phone', 'Phone', this.formatter.phoneNumber(contact.phone));
+    this.addMobileDetailField(fields, 'extension', 'Extension', contact.extension);
+    this.addMobileDetailField(fields, 'email', 'Email', this.utility.getDisplayContactEmail(contact.email));
+    this.addMobileDetailField(fields, 'address1', 'Address 1', contact.address1);
+    this.addMobileDetailField(fields, 'address2', 'Address 2', contact.address2);
+    if (!contact.isInternational) {
+      this.addMobileDetailField(fields, 'city', 'City', contact.city);
+      this.addMobileDetailField(fields, 'state', 'State', contact.state, stateOptions);
+      this.addMobileDetailField(fields, 'zip', 'Zip Code', contact.zip);
+    }
+    if (entityTypeId === EntityType.Owner) {
+      this.addMobileDetailField(fields, 'properties', 'Properties', (contact.properties || []).join(', '), propertyOptions, true);
+    }
+    this.addMobileDetailField(fields, 'notes', 'Notes', contact.notes);
+    return fields;
+  }
+
+  addMobileDetailField(fields: MobileListField[], key: string, label: string, value: string | null | undefined, options?: MobileListFieldOption[], multiple = false, readonly = false): void {
+    fields.push({
+      key,
+      label,
+      value: String(value ?? '').trim(),
+      control: options ? 'select' : 'text',
+      multiple: options ? multiple : false,
+      readonly: readonly || key === 'contactCode',
+      options
+    });
+  }
+
+  mapNumberLabelOptions(options: { value: number; label: string }[]): MobileListFieldOption[] {
+    return options.map(option => ({ value: String(option.value), label: option.label }));
+  }
+
+  mapMobileContactPropertyOptions(properties: { propertyCode?: string | null }[]): MobileListFieldOption[] {
+    return (properties || []).map(property => ({ value: property.propertyCode || '', label: property.propertyCode || '' })).filter(option => !!option.value);
+  }
+
+  mergeMobileContactPropertyOptions(propertyCodes: MobileListFieldOption[], selectedCodes: string[]): MobileListFieldOption[] {
+    const options = [...propertyCodes];
+    const seen = new Set(options.map(option => option.value.toUpperCase()));
+    for (const code of selectedCodes) {
+      const trimmed = String(code || '').trim();
+      if (!trimmed || seen.has(trimmed.toUpperCase())) {
+        continue;
+      }
+      options.push({ value: trimmed, label: trimmed });
+      seen.add(trimmed.toUpperCase());
+    }
+    return options;
+  }
+
+  mapMobileContactDetailOverrides(contact: ContactResponse, fields: MobileListField[]): Partial<ContactRequest> {
+    const values = new Map(fields.map(field => [field.key, field.value]));
+    const text = (key: string): string => String(values.get(key) ?? '').trim();
+    const overrides: Partial<ContactRequest> = {};
+    if (values.has('contactCode')) {
+      overrides.contactCode = text('contactCode') || contact.contactCode;
+    }
+    if (values.has('companyName')) {
+      overrides.companyName = text('companyName') || null;
+    }
+    if (values.has('displayName')) {
+      const displayName = text('displayName');
+      overrides.displayName = displayName ? displayName.slice(0, 10) : null;
+    }
+    if (values.has('companyEmail')) {
+      overrides.companyEmail = text('companyEmail') || null;
+    }
+    if (values.has('paymentTermsId')) {
+      overrides.paymentTermsId = this.resolveLabeledId(text('paymentTermsId'), getTermTypes(), contact.paymentTermsId ?? null);
+    }
+    if (values.has('prorateTypeId')) {
+      overrides.prorateTypeId = this.resolveLabeledId(text('prorateTypeId'), getProrateTypes(), contact.prorateTypeId ?? null);
+    }
+    if (values.has('invoiceMethodTypeId')) {
+      overrides.invoiceMethodTypeId = this.resolveLabeledId(text('invoiceMethodTypeId'), getInvoiceMethods(), contact.invoiceMethodTypeId ?? null);
+    }
+    if (values.has('firstName')) {
+      overrides.firstName = text('firstName') || null;
+    }
+    if (values.has('lastName')) {
+      overrides.lastName = text('lastName') || null;
+    }
+    if (values.has('preferredName')) {
+      overrides.preferredName = text('preferredName') || null;
+    }
+    if (values.has('phone')) {
+      const phone = this.formatter.stripPhoneFormatting(text('phone'));
+      overrides.phone = phone || null;
+    }
+    if (values.has('extension')) {
+      overrides.extension = text('extension') || null;
+    }
+    if (values.has('email')) {
+      overrides.email = text('email') || contact.email;
+    }
+    if (values.has('address1')) {
+      overrides.address1 = text('address1');
+    }
+    if (values.has('address2')) {
+      overrides.address2 = text('address2');
+    }
+    if (values.has('city')) {
+      overrides.city = text('city');
+    }
+    if (values.has('state')) {
+      overrides.state = text('state');
+    }
+    if (values.has('zip')) {
+      overrides.zip = text('zip');
+    }
+    if (values.has('properties')) {
+      overrides.properties = text('properties').split(',').map(code => code.trim()).filter(code => !!code);
+    }
+    if (values.has('notes')) {
+      overrides.notes = text('notes');
+    }
+    return overrides;
+  }
+
+  resolveLabeledId(value: string, options: { value: number; label: string }[], fallback: number | null): number | null {
+    if (!value) {
+      return fallback;
+    }
+    const match = options.find(option => option.label.toLowerCase() === value.toLowerCase() || String(option.value) === value);
+    return match ? match.value : fallback;
+  }
+
+  mapMobileYesNoOptions(): MobileListFieldOption[] {
+    return [
+      { value: 'false', label: 'No' },
+      { value: 'true', label: 'Yes' }
+    ];
+  }
+
+  mapMobileReservationAgentOptions(agents: { agentId?: string | null; agentCode?: string | null; name?: string | null }[]): MobileListFieldOption[] {
+    return (agents || []).map(agent => ({
+      value: String(agent.agentId || '').trim(),
+      label: String(agent.agentCode || agent.name || '').trim()
+    })).filter(option => !!option.value && !!option.label);
+  }
+
+  mapMobileReservationContactOptions(contacts: { contactId?: string | null; fullName?: string | null; firstName?: string | null; lastName?: string | null; companyName?: string | null }[]): MobileListFieldOption[] {
+    return (contacts || []).map(contact => {
+      const name = String(contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.companyName || '').trim();
+      return { value: String(contact.contactId || '').trim(), label: name };
+    }).filter(option => !!option.value && !!option.label);
+  }
+
+  mapMobileReservationDetailFields(reservation: ReservationResponse, lookups: {
+    agents?: MobileListFieldOption[];
+    contacts?: MobileListFieldOption[];
+    officeName?: string;
+    propertyCode?: string;
+    propertyAddress?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+  } = {}): MobileListField[] {
+    const fields: MobileListField[] = [];
+    const contactId = (reservation.contactIds || []).find(id => !!String(id || '').trim()) || '';
+    const yesNo = this.mapMobileYesNoOptions();
+    const petCountOptions = [1, 2, 3, 4].map(count => ({ value: String(count), label: String(count) }));
+    if ((reservation.numberOfPets ?? 0) === 0) {
+      petCountOptions.unshift({ value: '0', label: '0' });
+    }
+    this.addMobileDetailField(fields, 'reservationCode', 'Reservation', reservation.reservationCode, undefined, false, true);
+    this.addMobileDetailField(fields, 'officeName', 'Office', lookups.officeName || reservation.officeName, undefined, false, true);
+    this.addMobileDetailField(fields, 'propertyCode', 'Property Code', lookups.propertyCode, undefined, false, true);
+    this.addMobileDetailField(fields, 'propertyAddress', 'Property Address', lookups.propertyAddress, undefined, false, true);
+    this.addMobileDetailField(fields, 'reservationTypeId', 'Reservation Type', reservation.reservationTypeId == null ? '' : String(reservation.reservationTypeId), this.mapNumberLabelOptions(getReservationTypes()));
+    this.addMobileDetailField(fields, 'reservationStatusId', 'Reservation Status', reservation.reservationStatusId == null ? '' : String(reservation.reservationStatusId), this.mapNumberLabelOptions(getReservationStatuses()));
+    this.addMobileDetailField(fields, 'reservationNoticeId', 'Reservation Notice', reservation.reservationNoticeId == null ? '' : String(reservation.reservationNoticeId), this.mapNumberLabelOptions(getReservationNotices()));
+    this.addMobileDetailField(fields, 'agentId', 'Agent', reservation.agentId, lookups.agents || []);
+    this.addMobileDetailField(fields, 'contactId', 'Contact Name', contactId, lookups.contacts || []);
+    this.addMobileDetailField(fields, 'contactPhone', 'Contact Phone', this.formatter.phoneNumber(lookups.contactPhone), undefined, false, true);
+    this.addMobileDetailField(fields, 'contactEmail', 'Contact Email', this.utility.getDisplayContactEmail(lookups.contactEmail || ''), undefined, false, true);
+    if (reservation.reservationTypeId === ReservationType.Corporate) {
+      this.addMobileDetailField(fields, 'companyName', 'Company Name', reservation.companyName);
+    }
+    this.addMobileDetailField(fields, 'numberOfPeople', 'Number of People', reservation.numberOfPeople == null ? '' : String(reservation.numberOfPeople));
+    this.addMobileDetailField(fields, 'tenantName', 'Tenant Name(s)', reservation.tenantName);
+    this.addMobileDetailField(fields, 'referenceNo', 'Reference No', reservation.referenceNo);
+    this.addMobileDetailField(fields, 'arrivalDate', 'Arrival Date', this.formatter.formatDateString(reservation.arrivalDate));
+    this.addMobileDetailField(fields, 'departureDate', 'Departure Date', this.formatter.formatDateString(reservation.departureDate));
+    this.addMobileDetailField(fields, 'billingStartDate', 'Billing Start', this.formatter.formatDateString(reservation.billingStartDate || ''));
+    this.addMobileDetailField(fields, 'billingEndDate', 'Billing End', this.formatter.formatDateString(reservation.billingEndDate || ''));
+    this.addMobileDetailField(fields, 'checkInTimeId', 'Check-In Time', reservation.checkInTimeId == null ? '' : String(reservation.checkInTimeId), this.mapNumberLabelOptions(getCheckInTimes()));
+    this.addMobileDetailField(fields, 'checkOutTimeId', 'Check-Out Time', reservation.checkOutTimeId == null ? '' : String(reservation.checkOutTimeId), this.mapNumberLabelOptions(getCheckOutTimes()));
+    this.addMobileDetailField(fields, 'lockBoxCode', 'Lock Box Code', reservation.lockBoxCode);
+    this.addMobileDetailField(fields, 'unitTenantCode', 'Unit Tenant Code', reservation.unitTenantCode);
+    this.addMobileDetailField(fields, 'garageCode', 'Garage Code', reservation.garageCode);
+    this.addMobileDetailField(fields, 'billingTypeId', 'Billing Type', reservation.billingTypeId == null ? '' : String(reservation.billingTypeId), this.mapNumberLabelOptions(getBillingTypes()));
+    this.addMobileDetailField(fields, 'billingRate', 'Billing Rate', this.formatMobileDetailDecimal(reservation.billingRate));
+    this.addMobileDetailField(fields, 'depositTypeId', 'Deposit Type', reservation.depositTypeId == null ? '' : String(reservation.depositTypeId), this.mapNumberLabelOptions(getDepositTypes()));
+    this.addMobileDetailField(fields, 'deposit', 'Deposit', this.formatMobileDetailDecimal(reservation.deposit));
+    this.addMobileDetailField(fields, 'billingMethodId', 'Client Billing Method', reservation.billingMethodId == null ? '' : String(reservation.billingMethodId), this.mapNumberLabelOptions(getBillingMethods()));
+    this.addMobileDetailField(fields, 'prorateTypeId', 'Client Prorate Month', reservation.prorateTypeId == null ? '' : String(reservation.prorateTypeId), this.mapNumberLabelOptions(getProrateTypes()));
+    this.addMobileDetailField(fields, 'departureFee', 'Departure Fee', this.formatMobileDetailDecimal(reservation.departureFee));
+    this.addMobileDetailField(fields, 'taxes', 'Taxes', this.formatMobileDetailDecimal(reservation.taxes));
+    this.addMobileDetailField(fields, 'hasPets', 'Pets', reservation.hasPets ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'petFee', 'Pet Fee', this.formatMobileDetailDecimal(reservation.petFee));
+    this.addMobileDetailField(fields, 'numberOfPets', 'Number of Pets', reservation.numberOfPets == null ? '' : String(reservation.numberOfPets), petCountOptions);
+    this.addMobileDetailField(fields, 'petDescription', 'Pet(s) Description', reservation.petDescription);
+    this.addMobileDetailField(fields, 'maidService', 'Maid Service', reservation.maidService ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'maidServiceFee', 'Maid Fee', this.formatMobileDetailDecimal(reservation.maidServiceFee));
+    this.addMobileDetailField(fields, 'frequencyId', 'Frequency', reservation.frequencyId == null ? '' : String(reservation.frequencyId), this.mapNumberLabelOptions(getFrequencies()));
+    this.addMobileDetailField(fields, 'invoiceMethodId', 'Invoice Method', reservation.invoiceMethodId == null ? '' : String(reservation.invoiceMethodId), this.mapNumberLabelOptions(getInvoiceMethods()));
+    this.addMobileDetailField(fields, 'notes', 'Notes', reservation.notes);
+    return fields;
+  }
+
+  formatMobileDetailDecimal(value: number | null | undefined): string {
+    const amount = Number(value ?? 0);
+    return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
+  }
+
+  parseMobileDetailDecimal(value: string, fallback: number): number {
+    const amount = Number(String(value || '').replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(amount) ? amount : fallback;
+  }
+
+  parseMobileDetailInteger(value: string, fallback: number): number {
+    const amount = Number.parseInt(String(value || '').replace(/[^0-9-]/g, ''), 10);
+    return Number.isFinite(amount) ? amount : fallback;
+  }
+
+  parseMobileDetailDate(value: string, fallback: ReservationRequest['arrivalDate']): ReservationRequest['arrivalDate'] {
+    const parsed = this.utility.parseCalendarDateInput(value);
+    return this.utility.formatDateOnlyForApi(parsed) || fallback;
+  }
+
+  parseMobileDetailBool(value: string, fallback: boolean): boolean {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'true' || normalized === 'yes') {
+      return true;
+    }
+    if (normalized === 'false' || normalized === 'no') {
+      return false;
+    }
+    return fallback;
+  }
+
+  mapMobileReservationDetailOverrides(reservation: ReservationResponse, fields: MobileListField[]): Partial<ReservationRequest> {
+    const values = new Map(fields.map(field => [field.key, field.value]));
+    const text = (key: string): string => String(values.get(key) ?? '').trim();
+    const overrides: Partial<ReservationRequest> = {};
+    if (values.has('reservationTypeId')) {
+      overrides.reservationTypeId = this.resolveLabeledId(text('reservationTypeId'), getReservationTypes(), reservation.reservationTypeId) ?? reservation.reservationTypeId;
+    }
+    if (values.has('reservationStatusId')) {
+      overrides.reservationStatusId = this.resolveLabeledId(text('reservationStatusId'), getReservationStatuses(), reservation.reservationStatusId) ?? reservation.reservationStatusId;
+    }
+    if (values.has('reservationNoticeId')) {
+      overrides.reservationNoticeId = this.resolveLabeledId(text('reservationNoticeId'), getReservationNotices(), reservation.reservationNoticeId ?? 0) ?? reservation.reservationNoticeId ?? 0;
+    }
+    if (values.has('agentId')) {
+      overrides.agentId = text('agentId') || null;
+    }
+    if (values.has('contactId')) {
+      const selected = text('contactId');
+      const existing = (reservation.contactIds || []).filter(id => !!String(id || '').trim());
+      overrides.contactIds = selected ? [selected, ...existing.filter(id => id !== selected)] : existing;
+    }
+    if (values.has('companyName')) {
+      overrides.companyName = text('companyName') || null;
+    }
+    if (values.has('numberOfPeople')) {
+      overrides.numberOfPeople = this.parseMobileDetailInteger(text('numberOfPeople'), reservation.numberOfPeople ?? 1);
+    }
+    if (values.has('tenantName')) {
+      overrides.tenantName = text('tenantName') || reservation.tenantName;
+    }
+    if (values.has('referenceNo')) {
+      overrides.referenceNo = text('referenceNo');
+    }
+    if (values.has('arrivalDate')) {
+      overrides.arrivalDate = this.parseMobileDetailDate(text('arrivalDate'), reservation.arrivalDate);
+    }
+    if (values.has('departureDate')) {
+      overrides.departureDate = this.parseMobileDetailDate(text('departureDate'), reservation.departureDate);
+    }
+    if (values.has('billingStartDate')) {
+      overrides.billingStartDate = text('billingStartDate') ? this.parseMobileDetailDate(text('billingStartDate'), reservation.billingStartDate || reservation.arrivalDate) : null;
+    }
+    if (values.has('billingEndDate')) {
+      overrides.billingEndDate = text('billingEndDate') ? this.parseMobileDetailDate(text('billingEndDate'), reservation.billingEndDate || reservation.departureDate) : null;
+    }
+    if (values.has('checkInTimeId')) {
+      overrides.checkInTimeId = this.resolveLabeledId(text('checkInTimeId'), getCheckInTimes(), reservation.checkInTimeId) ?? reservation.checkInTimeId;
+    }
+    if (values.has('checkOutTimeId')) {
+      overrides.checkOutTimeId = this.resolveLabeledId(text('checkOutTimeId'), getCheckOutTimes(), reservation.checkOutTimeId) ?? reservation.checkOutTimeId;
+    }
+    if (values.has('lockBoxCode')) {
+      overrides.lockBoxCode = text('lockBoxCode') || null;
+    }
+    if (values.has('unitTenantCode')) {
+      overrides.unitTenantCode = text('unitTenantCode') || null;
+    }
+    if (values.has('garageCode')) {
+      overrides.garageCode = text('garageCode') || null;
+    }
+    if (values.has('billingTypeId')) {
+      overrides.billingTypeId = this.resolveLabeledId(text('billingTypeId'), getBillingTypes(), reservation.billingTypeId) ?? reservation.billingTypeId;
+    }
+    if (values.has('billingRate')) {
+      overrides.billingRate = this.parseMobileDetailDecimal(text('billingRate'), reservation.billingRate ?? 0);
+    }
+    if (values.has('depositTypeId')) {
+      overrides.depositTypeId = this.resolveLabeledId(text('depositTypeId'), getDepositTypes(), reservation.depositTypeId ?? 0) ?? reservation.depositTypeId ?? 0;
+    }
+    if (values.has('deposit')) {
+      overrides.deposit = this.parseMobileDetailDecimal(text('deposit'), reservation.deposit ?? 0);
+    }
+    if (values.has('billingMethodId')) {
+      overrides.billingMethodId = this.resolveLabeledId(text('billingMethodId'), getBillingMethods(), reservation.billingMethodId) ?? reservation.billingMethodId;
+    }
+    if (values.has('prorateTypeId')) {
+      overrides.prorateTypeId = this.resolveLabeledId(text('prorateTypeId'), getProrateTypes(), reservation.prorateTypeId ?? 0) ?? reservation.prorateTypeId ?? 0;
+    }
+    if (values.has('departureFee')) {
+      overrides.departureFee = this.parseMobileDetailDecimal(text('departureFee'), reservation.departureFee ?? 0);
+    }
+    if (values.has('taxes')) {
+      overrides.taxes = this.parseMobileDetailDecimal(text('taxes'), reservation.taxes ?? 0);
+    }
+    if (values.has('hasPets')) {
+      overrides.hasPets = this.parseMobileDetailBool(text('hasPets'), reservation.hasPets ?? false);
+    }
+    if (values.has('petFee')) {
+      overrides.petFee = this.parseMobileDetailDecimal(text('petFee'), reservation.petFee ?? 0);
+    }
+    if (values.has('numberOfPets')) {
+      overrides.numberOfPets = this.parseMobileDetailInteger(text('numberOfPets'), reservation.numberOfPets ?? 0);
+    }
+    if (values.has('petDescription')) {
+      overrides.petDescription = text('petDescription') || null;
+    }
+    if (values.has('maidService')) {
+      overrides.maidService = this.parseMobileDetailBool(text('maidService'), reservation.maidService ?? false);
+    }
+    if (values.has('maidServiceFee')) {
+      overrides.maidServiceFee = this.parseMobileDetailDecimal(text('maidServiceFee'), reservation.maidServiceFee ?? 0);
+    }
+    if (values.has('frequencyId')) {
+      overrides.frequencyId = this.resolveLabeledId(text('frequencyId'), getFrequencies(), reservation.frequencyId ?? 0) ?? reservation.frequencyId ?? 0;
+    }
+    if (values.has('invoiceMethodId')) {
+      overrides.invoiceMethodId = this.resolveLabeledId(text('invoiceMethodId'), getInvoiceMethods(), reservation.invoiceMethodId) ?? reservation.invoiceMethodId;
+    }
+    if (values.has('notes')) {
+      overrides.notes = text('notes') || null;
+    }
+    return overrides;
+  }
+
+  mapMobileTrashPickupOptions(): MobileListFieldOption[] {
+    return [0, 1, 2, 3, 4, 5, 6, 7].map(day => ({ value: String(day), label: getTrashPickupDay(day) || 'None' }));
+  }
+
+  mapMobilePropertyContactOptions(contacts: { contactId?: string | null; fullName?: string | null; firstName?: string | null; lastName?: string | null; companyName?: string | null }[]): MobileListFieldOption[] {
+    return this.mapMobileReservationContactOptions(contacts);
+  }
+
+  mergeMobileIdOption(options: MobileListFieldOption[], value: string | null | undefined, label?: string | null): MobileListFieldOption[] {
+    const id = String(value || '').trim();
+    if (!id || options.some(option => option.value === id)) {
+      return options;
+    }
+    return [...options, { value: id, label: String(label || id).trim() || id }];
+  }
+
+  mapMobilePropertyDetailFields(property: PropertyResponse, lookups: {
+    states?: string[];
+    owners?: MobileListFieldOption[];
+    vendors?: MobileListFieldOption[];
+  } = {}): MobileListField[] {
+    const fields: MobileListField[] = [];
+    const yesNo = this.mapMobileYesNoOptions();
+    const stateOptions = (lookups.states || []).map(state => ({ value: state, label: state }));
+    const ownerOptions = this.mergeMobileIdOption(this.mergeMobileIdOption(this.mergeMobileIdOption(lookups.owners || [], property.owner1Id), property.owner2Id), property.owner3Id);
+    const vendorOptions = this.mergeMobileIdOption(lookups.vendors || [], property.vendorId);
+    const bedOptions = this.mapNumberLabelOptions(getBedSizeTypes());
+    this.addMobileDetailField(fields, 'propertyCode', 'Property Code', property.propertyCode);
+    this.addMobileDetailField(fields, 'officeName', 'Office', property.officeName, undefined, false, true);
+    this.addMobileDetailField(fields, 'propertyLeaseTypeId', 'Property Lease Type', String(property.propertyLeaseTypeId ?? ''), this.mapNumberLabelOptions(getPropertyLeaseTypes()));
+    this.addMobileDetailField(fields, 'isActive', 'Is Active', property.isActive ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'owner1Id', 'Owner 1', property.owner1Id, ownerOptions);
+    this.addMobileDetailField(fields, 'owner2Id', 'Owner 2', property.owner2Id, ownerOptions);
+    this.addMobileDetailField(fields, 'owner3Id', 'Owner 3', property.owner3Id, ownerOptions);
+    this.addMobileDetailField(fields, 'vendorId', 'Vendor', property.vendorId, vendorOptions);
+    this.addMobileDetailField(fields, 'availableFrom', 'Avail-From', this.formatter.formatDateString(property.availableFrom || ''));
+    this.addMobileDetailField(fields, 'availableUntil', 'Avail-Until', this.formatter.formatDateString(property.availableUntil || ''));
+    this.addMobileDetailField(fields, 'confirmationNo', 'Confirmation No', property.confirmationNo);
+    this.addMobileDetailField(fields, 'checkInTimeId', 'Check-In Time', String(property.checkInTimeId ?? ''), this.mapNumberLabelOptions(getCheckInTimes()));
+    this.addMobileDetailField(fields, 'checkOutTimeId', 'Check-Out Time', String(property.checkOutTimeId ?? ''), this.mapNumberLabelOptions(getCheckOutTimes()));
+    this.addMobileDetailField(fields, 'minStay', 'Min-Stay', property.minStay == null ? '' : String(property.minStay));
+    this.addMobileDetailField(fields, 'maxStay', 'Max-Stay', property.maxStay == null ? '' : String(property.maxStay));
+    this.addMobileDetailField(fields, 'propertyStyleId', 'Property Style', String(property.propertyStyleId ?? ''), this.mapNumberLabelOptions(getPropertyStyles()));
+    this.addMobileDetailField(fields, 'propertyTypeId', 'Property Type', String(property.propertyTypeId ?? ''), this.mapNumberLabelOptions(getPropertyTypes()));
+    this.addMobileDetailField(fields, 'propertyStatusId', 'Property Status', String(property.propertyStatusId ?? ''), this.mapNumberLabelOptions(getPropertyStatuses()));
+    this.addMobileDetailField(fields, 'noticeStatusId', 'Notice Status', String(property.noticeStatusId ?? ''), this.mapNumberLabelOptions(getNoticeStatusTypes()));
+    this.addMobileDetailField(fields, 'monthlyRate', 'Monthly Rate', this.formatMobileDetailDecimal(property.monthlyRate));
+    this.addMobileDetailField(fields, 'dailyRate', 'Daily Rate', this.formatMobileDetailDecimal(property.dailyRate));
+    this.addMobileDetailField(fields, 'departureFee', 'Departure Fee', this.formatMobileDetailDecimal(property.departureFee));
+    this.addMobileDetailField(fields, 'maidServiceFee', 'Maid Fee', this.formatMobileDetailDecimal(property.maidServiceFee));
+    this.addMobileDetailField(fields, 'petFee', 'Pet Fee', this.formatMobileDetailDecimal(property.petFee));
+    this.addMobileDetailField(fields, 'unitLevel', 'Unit Level', property.unitLevel == null ? '' : String(property.unitLevel));
+    this.addMobileDetailField(fields, 'bldgNo', 'Bldg No', property.bldgNo);
+    this.addMobileDetailField(fields, 'mailbox', 'Mailbox', property.mailbox);
+    this.addMobileDetailField(fields, 'address1', 'Address 1', property.address1);
+    this.addMobileDetailField(fields, 'address2', 'Address 2', property.address2);
+    this.addMobileDetailField(fields, 'suite', 'Suite', property.suite);
+    this.addMobileDetailField(fields, 'city', 'City', property.city);
+    this.addMobileDetailField(fields, 'state', 'State', property.state, stateOptions);
+    this.addMobileDetailField(fields, 'zip', 'Zip', property.zip);
+    this.addMobileDetailField(fields, 'phone', 'Phone', this.formatter.phoneNumber(property.phone));
+    this.addMobileDetailField(fields, 'communityAddress', 'Community Address', property.communityAddress);
+    this.addMobileDetailField(fields, 'neighborhood', 'Neighborhood', property.neighborhood);
+    this.addMobileDetailField(fields, 'crossStreet', 'Cross Street', property.crossStreet);
+    this.addMobileDetailField(fields, 'view', 'View', property.view);
+    this.addMobileDetailField(fields, 'bedrooms', 'Beds', property.bedrooms == null ? '' : String(property.bedrooms));
+    this.addMobileDetailField(fields, 'bathrooms', 'Baths', property.bathrooms == null ? '' : String(property.bathrooms));
+    this.addMobileDetailField(fields, 'accommodates', 'Accom', property.accommodates == null ? '' : String(property.accommodates));
+    this.addMobileDetailField(fields, 'squareFeet', 'Sq Ft', property.squareFeet == null ? '' : String(property.squareFeet));
+    this.addMobileDetailField(fields, 'bedroomId1', 'Bedroom 1', String(property.bedroomId1 ?? ''), bedOptions);
+    this.addMobileDetailField(fields, 'bedroomId2', 'Bedroom 2', String(property.bedroomId2 ?? ''), bedOptions);
+    this.addMobileDetailField(fields, 'bedroomId3', 'Bedroom 3', String(property.bedroomId3 ?? ''), bedOptions);
+    this.addMobileDetailField(fields, 'bedroomId4', 'Bedroom 4', String(property.bedroomId4 ?? ''), bedOptions);
+    this.addMobileDetailField(fields, 'sofabed', 'Sofabed', property.sofabed == null ? '' : String(property.sofabed));
+    this.addMobileDetailField(fields, 'latitude', 'Latitude', property.latitude == null ? '' : String(property.latitude));
+    this.addMobileDetailField(fields, 'longitude', 'Longitude', property.longitude == null ? '' : String(property.longitude));
+    this.addMobileDetailField(fields, 'externalCalendar', 'External Calendar', property.externalCalendar);
+    this.addMobileDetailField(fields, 'unfurnished', 'Unfurnished', property.unfurnished ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'heating', 'Heating', property.heating ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'ac', 'A/C', property.ac ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'elevator', 'Elevator', property.elevator ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'security', 'Security', property.security ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'gated', 'Gated', property.gated ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'petsAllowed', 'Pets Allowed', property.petsAllowed ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'dogsOkay', 'Dogs Okay', property.dogsOkay ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'catsOkay', 'Cats Okay', property.catsOkay ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'poundLimit', 'Pound Limit / Notes', property.poundLimit);
+    this.addMobileDetailField(fields, 'smoking', 'Smoking', property.smoking ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'parking', 'Parking', property.parking ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'parkingNotes', 'Parking Notes', property.parkingNotes);
+    this.addMobileDetailField(fields, 'alarmCode', 'Alarm Code', property.alarmCode);
+    this.addMobileDetailField(fields, 'unitMstrCode', 'Unit Master Code', property.unitMstrCode);
+    this.addMobileDetailField(fields, 'bldgMstrCode', 'Bldg Master Code', property.bldgMstrCode);
+    this.addMobileDetailField(fields, 'bldgTenantCode', 'Bldg Tenant Code', property.bldgTenantCode);
+    this.addMobileDetailField(fields, 'mailRoomCode', 'Mail Room Code', property.mailRoomCode);
+    this.addMobileDetailField(fields, 'gateCode', 'Gate Code', property.gateCode);
+    this.addMobileDetailField(fields, 'trashCode', 'Trash Code', property.trashCode);
+    this.addMobileDetailField(fields, 'storageCode', 'Storage Code', property.storageCode);
+    this.addMobileDetailField(fields, 'kitchen', 'Kitchen', property.kitchen ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'oven', 'Oven', property.oven ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'refrigerator', 'Refrigerator', property.refrigerator ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'microwave', 'Microwave', property.microwave ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'dishwasher', 'Dishwasher', property.dishwasher ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'bathtub', 'Bathtub', property.bathtub ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'washerDryerInUnit', 'Washer/Dryer In Unit', property.washerDryerInUnit ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'washerDryerInBldg', 'Washer/Dryer In Bldg', property.washerDryerInBldg ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'tv', 'TV', property.tv ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'cable', 'Cable', property.cable ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'dvd', 'DVD', property.dvd ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'streaming', 'Streaming', property.streaming ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'fastInternet', 'Fast Internet', property.fastInternet ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'internetNetwork', 'Internet Network', property.internetNetwork);
+    this.addMobileDetailField(fields, 'internetPassword', 'Internet Password', property.internetPassword);
+    this.addMobileDetailField(fields, 'deck', 'Deck', property.deck ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'patio', 'Patio', property.patio ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'yard', 'Yard', property.yard ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'garden', 'Garden', property.garden ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'commonPool', 'Common Pool', property.commonPool ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'privatePool', 'Private Pool', property.privatePool ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'jacuzzi', 'Jacuzzi', property.jacuzzi ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'sauna', 'Sauna', property.sauna ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'gym', 'Gym', property.gym ? 'true' : 'false', yesNo);
+    this.addMobileDetailField(fields, 'trashPickupId', 'Trash Pickup', String(property.trashPickupId ?? ''), this.mapMobileTrashPickupOptions());
+    this.addMobileDetailField(fields, 'trashRemoval', 'Trash Removal', property.trashRemoval);
+    this.addMobileDetailField(fields, 'amenities', 'Amenities', property.amenities);
+    this.addMobileDetailField(fields, 'description', 'Description', property.description);
+    this.addMobileDetailField(fields, 'notes', 'Notes', property.notes);
+    return fields;
+  }
+
+  mapMobilePropertyDetailOverrides(property: PropertyResponse, fields: MobileListField[]): Partial<PropertyRequest> {
+    const values = new Map(fields.map(field => [field.key, field.value]));
+    const text = (key: string): string => String(values.get(key) ?? '').trim();
+    const overrides: Partial<PropertyRequest> = {};
+    const assignText = (key: keyof PropertyRequest, empty: string | null = null): void => {
+      if (values.has(String(key))) {
+        (overrides as Record<string, unknown>)[String(key)] = text(String(key)) || empty;
+      }
+    };
+    const assignBool = (key: keyof PropertyRequest, fallback: boolean): void => {
+      if (values.has(String(key))) {
+        (overrides as Record<string, unknown>)[String(key)] = this.parseMobileDetailBool(text(String(key)), fallback);
+      }
+    };
+    const assignInt = (key: keyof PropertyRequest, fallback: number): void => {
+      if (values.has(String(key))) {
+        (overrides as Record<string, unknown>)[String(key)] = this.parseMobileDetailInteger(text(String(key)), fallback);
+      }
+    };
+    const assignDecimal = (key: keyof PropertyRequest, fallback: number): void => {
+      if (values.has(String(key))) {
+        (overrides as Record<string, unknown>)[String(key)] = this.parseMobileDetailDecimal(text(String(key)), fallback);
+      }
+    };
+    const assignDate = (key: keyof PropertyRequest, fallback: PropertyRequest['availableFrom']): void => {
+      if (!values.has(String(key))) {
+        return;
+      }
+      (overrides as Record<string, unknown>)[String(key)] = text(String(key)) ? this.parseMobileDetailDate(text(String(key)), fallback || '') : null;
+    };
+    const assignLabeled = (key: keyof PropertyRequest, options: { value: number; label: string }[], fallback: number): void => {
+      if (values.has(String(key))) {
+        (overrides as Record<string, unknown>)[String(key)] = this.resolveLabeledId(text(String(key)), options, fallback) ?? fallback;
+      }
+    };
+    const assignId = (key: keyof PropertyRequest): void => {
+      if (values.has(String(key))) {
+        (overrides as Record<string, unknown>)[String(key)] = text(String(key)) || null;
+      }
+    };
+    assignText('propertyCode', property.propertyCode);
+    assignLabeled('propertyLeaseTypeId', getPropertyLeaseTypes(), property.propertyLeaseTypeId);
+    assignBool('isActive', !!property.isActive);
+    assignId('owner1Id');
+    assignId('owner2Id');
+    assignId('owner3Id');
+    assignId('vendorId');
+    assignDate('availableFrom', property.availableFrom ?? null);
+    assignDate('availableUntil', property.availableUntil ?? null);
+    assignText('confirmationNo');
+    assignLabeled('checkInTimeId', getCheckInTimes(), property.checkInTimeId);
+    assignLabeled('checkOutTimeId', getCheckOutTimes(), property.checkOutTimeId);
+    assignInt('minStay', property.minStay ?? 0);
+    assignInt('maxStay', property.maxStay ?? 0);
+    assignLabeled('propertyStyleId', getPropertyStyles(), property.propertyStyleId);
+    assignLabeled('propertyTypeId', getPropertyTypes(), property.propertyTypeId);
+    assignLabeled('propertyStatusId', getPropertyStatuses(), property.propertyStatusId);
+    assignLabeled('noticeStatusId', getNoticeStatusTypes(), property.noticeStatusId ?? 0);
+    assignDecimal('monthlyRate', property.monthlyRate ?? 0);
+    assignDecimal('dailyRate', property.dailyRate ?? 0);
+    assignDecimal('departureFee', property.departureFee ?? 0);
+    assignDecimal('maidServiceFee', property.maidServiceFee ?? 0);
+    assignDecimal('petFee', property.petFee ?? 0);
+    assignInt('unitLevel', property.unitLevel ?? 1);
+    assignText('bldgNo');
+    assignText('mailbox');
+    assignText('address1', property.address1);
+    assignText('address2');
+    assignText('suite');
+    assignText('city', property.city);
+    assignText('state', property.state);
+    assignText('zip', property.zip);
+    if (values.has('phone')) {
+      overrides.phone = this.formatter.stripPhoneFormatting(text('phone')) || null;
+    }
+    assignText('communityAddress');
+    assignText('neighborhood');
+    assignText('crossStreet');
+    assignText('view');
+    assignInt('bedrooms', property.bedrooms ?? 0);
+    assignDecimal('bathrooms', property.bathrooms ?? 0);
+    assignInt('accommodates', property.accommodates ?? 0);
+    assignInt('squareFeet', property.squareFeet ?? 0);
+    assignLabeled('bedroomId1', getBedSizeTypes(), property.bedroomId1 ?? 0);
+    assignLabeled('bedroomId2', getBedSizeTypes(), property.bedroomId2 ?? 0);
+    assignLabeled('bedroomId3', getBedSizeTypes(), property.bedroomId3 ?? 0);
+    assignLabeled('bedroomId4', getBedSizeTypes(), property.bedroomId4 ?? 0);
+    assignInt('sofabed', property.sofabed ?? 0);
+    assignDecimal('latitude', property.latitude ?? 0);
+    assignDecimal('longitude', property.longitude ?? 0);
+    assignText('externalCalendar');
+    assignBool('unfurnished', !!property.unfurnished);
+    assignBool('heating', !!property.heating);
+    assignBool('ac', !!property.ac);
+    assignBool('elevator', !!property.elevator);
+    assignBool('security', !!property.security);
+    assignBool('gated', !!property.gated);
+    assignBool('petsAllowed', !!property.petsAllowed);
+    assignBool('dogsOkay', !!property.dogsOkay);
+    assignBool('catsOkay', !!property.catsOkay);
+    assignText('poundLimit', property.poundLimit || '');
+    assignBool('smoking', !!property.smoking);
+    assignBool('parking', !!property.parking);
+    assignText('parkingNotes');
+    assignText('alarmCode');
+    assignText('unitMstrCode');
+    assignText('bldgMstrCode');
+    assignText('bldgTenantCode');
+    assignText('mailRoomCode');
+    assignText('gateCode');
+    assignText('trashCode');
+    assignText('storageCode');
+    assignBool('kitchen', !!property.kitchen);
+    assignBool('oven', !!property.oven);
+    assignBool('refrigerator', !!property.refrigerator);
+    assignBool('microwave', !!property.microwave);
+    assignBool('dishwasher', !!property.dishwasher);
+    assignBool('bathtub', !!property.bathtub);
+    assignBool('washerDryerInUnit', !!property.washerDryerInUnit);
+    assignBool('washerDryerInBldg', !!property.washerDryerInBldg);
+    assignBool('tv', !!property.tv);
+    assignBool('cable', !!property.cable);
+    assignBool('dvd', !!property.dvd);
+    assignBool('streaming', !!property.streaming);
+    assignBool('fastInternet', !!property.fastInternet);
+    assignText('internetNetwork');
+    assignText('internetPassword');
+    assignBool('deck', !!property.deck);
+    assignBool('patio', !!property.patio);
+    assignBool('yard', !!property.yard);
+    assignBool('garden', !!property.garden);
+    assignBool('commonPool', !!property.commonPool);
+    assignBool('privatePool', !!property.privatePool);
+    assignBool('jacuzzi', !!property.jacuzzi);
+    assignBool('sauna', !!property.sauna);
+    assignBool('gym', !!property.gym);
+    if (values.has('trashPickupId')) {
+      overrides.trashPickupId = this.parseMobileDetailInteger(text('trashPickupId'), property.trashPickupId ?? 0);
+    }
+    assignText('trashRemoval');
+    assignText('amenities');
+    assignText('description');
+    assignText('notes');
+    return overrides;
+  }
+
+  mapMobileReceiptListDisplay(receipt: { receiptId?: string; description?: string | null; descriptionDisplay?: string | null; amount?: number | null; amountDisplay?: string | null }): MobileListRow {
+    return {
+      id: receipt.receiptId || '',
+      amount: receipt.amountDisplay || this.formatter.currencyUsd(Number(receipt.amount) || 0),
+      description: (receipt.descriptionDisplay || receipt.description || '').trim()
+    };
+  }
+
+  matchesMobileOfficeScope(itemOfficeId: number | null | undefined, selectedOfficeId: number | null): boolean {
+    if (selectedOfficeId == null) {
+      return true;
+    }
+    return Number(itemOfficeId) === selectedOfficeId;
+  }
+
+  matchesMobileContactOfficeScope(contact: { officeId?: number | null; officeAccess?: number[] | null }, selectedOfficeId: number | null, skipOfficeFilter = false): boolean {
+    if (skipOfficeFilter || selectedOfficeId == null) {
+      return true;
+    }
+    const officeAccess = (contact.officeAccess || []).map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0);
+    if (officeAccess.length > 0) {
+      return officeAccess.includes(selectedOfficeId);
+    }
+    return Number(contact.officeId) === selectedOfficeId;
+  }
+
+  mapMobileWorkOrderListDisplay(workOrder: { workOrderId?: string; propertyCode?: string | null; title?: string | null }): MobileListRow {
+    return {
+      id: workOrder.workOrderId || '',
+      property: workOrder.propertyCode || '',
+      title: workOrder.title || ''
+    };
+  }
+
+  mapMobileMaintenanceListDisplay(row: { maintenanceId?: string; propertyId?: string; propertyCode?: string | null }): MobileListRow {
+    return {
+      id: row.propertyId || row.maintenanceId || '',
+      property: row.propertyCode || ''
+    };
+  }
+
   mapTicketUpdateRequest(ticket: TicketResponse, updates: Partial<TicketRequest>): TicketRequest {
     return {
       ticketId: ticket.ticketId,
@@ -2325,6 +3194,181 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       availableFrom: p.availableFrom,
       availableUntil: p.availableUntil
     }));
+  }
+
+  mapMobileBoardPropertyCodeClass(noticeStatusId: number | null | undefined): string {
+    if (noticeStatusId === NoticeStatusType.GaveNotice) {
+      return 'mobile-board-code--gave-notice';
+    }
+    if (noticeStatusId === NoticeStatusType.MonthToMonth) {
+      return 'mobile-board-code--month-to-month';
+    }
+    return 'mobile-board-code--current';
+  }
+
+  mapMobileBoardCalendarDays(startDate: Date | null, endDate: Date | null): CalendarDay[] {
+    const days: CalendarDay[] = [];
+    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const start = this.utility.parseCalendarDateInput(startDate) ?? new Date();
+    const end = this.utility.parseCalendarDateInput(endDate) ?? new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    const currentDate = new Date(start);
+    let lastMonth = -1;
+    while (currentDate.getTime() <= end.getTime()) {
+      const date = new Date(currentDate);
+      const monthIndex = date.getMonth();
+      days.push({
+        date,
+        dayOfWeek: dayNames[date.getDay()],
+        dayNumber: date.getDate(),
+        monthName: monthNames[monthIndex],
+        isFirstOfMonth: monthIndex !== lastMonth
+      });
+      lastMonth = monthIndex;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return days;
+  }
+
+  mapMobileBoardMonthGroups(calendarDays: CalendarDay[]): { monthName: string; days: number }[] {
+    const groups: { monthName: string; days: number }[] = [];
+    let currentMonth = '';
+    let dayCount = 0;
+    for (const day of calendarDays || []) {
+      if (day.monthName !== currentMonth) {
+        if (currentMonth) {
+          groups.push({ monthName: currentMonth, days: dayCount });
+        }
+        currentMonth = day.monthName;
+        dayCount = 1;
+      } else {
+        dayCount++;
+      }
+    }
+    if (currentMonth) {
+      groups.push({ monthName: currentMonth, days: dayCount });
+    }
+    return groups;
+  }
+
+  mapMobileBoardReservationsByProperty(reservations: ReservationListResponse[]): Map<string, ReservationListResponse[]> {
+    const byProperty = new Map<string, ReservationListResponse[]>();
+    for (const reservation of reservations || []) {
+      const propertyId = reservation.propertyId || '';
+      if (!propertyId) {
+        continue;
+      }
+      const existing = byProperty.get(propertyId) || [];
+      existing.push(reservation);
+      byProperty.set(propertyId, existing);
+    }
+    return byProperty;
+  }
+
+  getMobileBoardReservationForDate(reservations: ReservationListResponse[], date: Date): ReservationListResponse | null {
+    const compareDate = this.utility.parseCalendarDateInput(date);
+    if (!compareDate) {
+      return null;
+    }
+    compareDate.setHours(0, 0, 0, 0);
+    const matches = (reservations || []).filter(reservation => {
+      const arrival = this.utility.parseCalendarDateInput(reservation.arrivalDate);
+      const departure = this.utility.parseCalendarDateInput(reservation.departureDate);
+      if (!arrival || !departure) {
+        return false;
+      }
+      arrival.setHours(0, 0, 0, 0);
+      departure.setHours(0, 0, 0, 0);
+      return compareDate.getTime() >= arrival.getTime() && compareDate.getTime() <= departure.getTime();
+    });
+    return matches[0] ?? null;
+  }
+
+  getMobileBoardCellColor(reservation: ReservationListResponse | null, date: Date, colorMap: Map<number, string>): string {
+    if (!reservation) {
+      return '';
+    }
+    const compareDate = this.utility.parseCalendarDateInput(date);
+    const arrival = this.utility.parseCalendarDateInput(reservation.arrivalDate);
+    const departure = this.utility.parseCalendarDateInput(reservation.departureDate);
+    if (!compareDate || !arrival || !departure) {
+      return colorMap.get(reservation.reservationStatusId) || '';
+    }
+    compareDate.setHours(0, 0, 0, 0);
+    arrival.setHours(0, 0, 0, 0);
+    departure.setHours(0, 0, 0, 0);
+    if (compareDate.getTime() === arrival.getTime() || compareDate.getTime() === departure.getTime()) {
+      return colorMap.get(ReservationStatus.ArrivalDeparture) || colorMap.get(reservation.reservationStatusId) || '';
+    }
+    return colorMap.get(reservation.reservationStatusId) || '';
+  }
+
+  getMobileBoardCellText(reservation: ReservationListResponse | null, date: Date, rangeStart: Date | null = null): string {
+    if (!reservation) {
+      return '';
+    }
+    const compareDate = this.utility.parseCalendarDateInput(date);
+    const arrival = this.utility.parseCalendarDateInput(reservation.arrivalDate);
+    const departure = this.utility.parseCalendarDateInput(reservation.departureDate);
+    if (!compareDate || !arrival || !departure) {
+      return '';
+    }
+    compareDate.setHours(0, 0, 0, 0);
+    arrival.setHours(0, 0, 0, 0);
+    departure.setHours(0, 0, 0, 0);
+    if (compareDate.getTime() === arrival.getTime()) {
+      return 'A';
+    }
+    if (compareDate.getTime() === departure.getTime()) {
+      return 'D';
+    }
+    if (reservation.reservationStatusId === ReservationStatus.OwnerBlocked) {
+      return 'O';
+    }
+    if (reservation.reservationStatusId === ReservationStatus.Maintenance) {
+      return 'M';
+    }
+    const name = (this.utility.getReservationBoardLabel(reservation, null) || reservation.tenantName || reservation.contactName || reservation.reservationCode || 'R').toUpperCase().replace(/\s+/g, '');
+    if (!name) {
+      return 'R';
+    }
+    const interiorStart = new Date(arrival);
+    interiorStart.setDate(interiorStart.getDate() + 1);
+    const visibleStart = this.utility.parseCalendarDateInput(rangeStart);
+    if (visibleStart) {
+      visibleStart.setHours(0, 0, 0, 0);
+    }
+    const nameStart = visibleStart && visibleStart.getTime() > interiorStart.getTime() ? visibleStart : interiorStart;
+    const dayIndex = Math.floor((compareDate.getTime() - nameStart.getTime()) / 86400000);
+    if (dayIndex < 0) {
+      return name.charAt(0);
+    }
+    return name.charAt(dayIndex % name.length);
+  }
+
+  getMobileBoardCellTextColor(backgroundColor: string): string {
+    if (!backgroundColor) {
+      return '';
+    }
+    const hex = backgroundColor.replace('#', '');
+    if (hex.length < 6) {
+      return '#1e293b';
+    }
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return ((r * 299 + g * 587 + b * 114) / 1000) > 128 ? '#000000' : '#ffffff';
+  }
+
+  mapMobileBoardCellDisplay(reservation: ReservationListResponse | null, date: Date, colorMap: Map<number, string>, rangeStart: Date | null = null): { color: string; text: string; textColor: string } {
+    const color = this.getMobileBoardCellColor(reservation, date, colorMap);
+    return {
+      color,
+      text: this.getMobileBoardCellText(reservation, date, rangeStart),
+      textColor: this.getMobileBoardCellTextColor(color)
+    };
   }
 
   mapVacantPropertyLastDepartureDate(value: Date | null): string {

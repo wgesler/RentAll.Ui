@@ -1,0 +1,36 @@
+@use '../mobile-sub-titlebar.scss';
+
+.mobile-quote-page {
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding-bottom: 1.5rem;
+}
+
+.mobile-quote-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.mobile-quote-empty {
+  padding: 1.5rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.mobile-quote-content {
+  padding-top: 0.75rem;
+}
+
+.mobile-quote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+  padding: 0 1rem 0.75rem;
+}

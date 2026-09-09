@@ -1,0 +1,32 @@
+import { AsyncPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { DebugLayoutBandsService } from '../../../services/debug-layout-bands.service';
+import { HeaderComponent } from '../../shared/layout/header/header.component';
+import { MobileChromeOverlayService } from '../mobile-chrome-overlay.service';
+import { MobileSidebarComponent } from '../mobile-sidebar/mobile-sidebar.component';
+
+@Component({
+  standalone: true,
+  selector: 'app-mobile-layout',
+  imports: [AsyncPipe, HeaderComponent, MobileSidebarComponent],
+  templateUrl: './mobile-layout.component.html',
+  styleUrl: './mobile-layout.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class MobileLayoutComponent implements OnInit, OnDestroy {
+  private debugLayoutBandsService = inject(DebugLayoutBandsService);
+  private mobileChromeOverlayService = inject(MobileChromeOverlayService);
+  readonly hidePrimaryChrome$ = this.mobileChromeOverlayService.primaryChromeHidden$;
+  private layoutDebugStateBeforeMobile = false;
+
+  //#region Mobile-Layout
+  ngOnInit(): void {
+    this.layoutDebugStateBeforeMobile = this.debugLayoutBandsService.isEnabled();
+    this.debugLayoutBandsService.setEnabled(false);
+  }
+
+  ngOnDestroy(): void {
+    this.debugLayoutBandsService.setEnabled(this.layoutDebugStateBeforeMobile);
+  }
+  //#endregion
+}

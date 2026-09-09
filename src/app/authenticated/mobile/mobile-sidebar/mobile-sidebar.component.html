@@ -1,0 +1,56 @@
+<mat-sidenav-container [autosize]="true">
+  <mat-sidenav #sideNav
+    role="dialog"
+    mode="over"
+    [opened]="false"
+    [style.width.px]="collapsedSidebarWidth"
+    class="sidenav-collapsed">
+
+    @for (navItem of navItems; track navItem.path; let i = $index) {
+      @if (navItem.tabs.length) {
+        <a mat-list-item
+          class="mat-list-item-closed"
+          [disableRipple]="true"
+          [matTooltip]="navItem.label"
+          matTooltipPosition="after"
+          [matTooltipClass]="'sidenav-tooltip'"
+          [id]="'mobile-sidenav-list-item-' + i"
+          [matMenuTriggerFor]="tabMenu"
+          (click)="onMenuItemClick(navItem)">
+          <div class="mat-list-item-content-open mat-list-item-content-closed" [class.active-list-item]="selectedItem?.path === navItem.path">
+            <mat-icon>{{ navItem.icon }}</mat-icon>
+          </div>
+        </a>
+      } @else {
+        <a mat-list-item
+          [routerLink]="getPrimaryLink(navItem)"
+          class="mat-list-item-closed"
+          [disableRipple]="true"
+          [matTooltip]="navItem.label"
+          matTooltipPosition="after"
+          [matTooltipClass]="'sidenav-tooltip'"
+          [id]="'mobile-sidenav-list-item-' + i"
+          (click)="onNavItemClick()">
+          <div class="mat-list-item-content-open mat-list-item-content-closed" [class.active-list-item]="selectedItem?.path === navItem.path">
+            <mat-icon>{{ navItem.icon }}</mat-icon>
+          </div>
+        </a>
+      }
+    }
+
+    <mat-menu #tabMenu="matMenu" xPosition="after" panelClass="mobile-sidebar-tab-menu">
+      @for (tab of getMenuTabs(); track tab.path) {
+        <button mat-menu-item type="button" class="office-menu-item" (click)="onTabSelect(tab)">
+          <span class="office-menu-label">{{ tab.label }}</span>
+          @if (isTabSelected(tab)) {
+            <mat-icon class="office-selected-check">check</mat-icon>
+          }
+        </button>
+      }
+    </mat-menu>
+
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <router-outlet />
+  </mat-sidenav-content>
+</mat-sidenav-container>

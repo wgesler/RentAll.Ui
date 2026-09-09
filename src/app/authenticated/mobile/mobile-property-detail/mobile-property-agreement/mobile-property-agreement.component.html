@@ -1,0 +1,266 @@
+@if (!isPageReady) {
+  <div class="mobile-maintenance-line-loading">
+    <mat-spinner [diameter]="28"></mat-spinner>
+    <span>Loading agreement...</span>
+  </div>
+} @else if (agreementForm) {
+  <div [formGroup]="agreementForm" class="mobile-property-agreement-content">
+    <div class="mobile-maintenance-lines">
+      <div class="mobile-maintenance-lines-header">
+        <div class="mobile-maintenance-lines-actions">
+          <button mat-raised-button color="accent" type="button" (click)="addAgreementLine()">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
+          <button mat-raised-button color="primary" type="button" (click)="saveRequested.emit()" [disabled]="isAgreementSaving">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <div class="mobile-maintenance-lines-list">
+        @if (agreementLines.length === 0) {
+          <div class="mobile-maintenance-line-empty">No agreement lines added. Click Add to add one.</div>
+        } @else {
+          @for (line of agreementLines; track (line.agreementLineId || i); let i = $index) {
+            <div class="mobile-maintenance-line-card">
+              <div class="mobile-maintenance-line-card-header">
+                <span class="mobile-maintenance-line-no">No: {{ i + 1 }}</span>
+                <button
+                  type="button"
+                  mat-icon-button
+                  color="accent"
+                  (click)="removeAgreementLine(i)"
+                  [disabled]="isAgreementSaving"
+                  matTooltip="Remove this agreement line"
+                  aria-label="Remove agreement line">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+
+              <div class="mobile-maintenance-line-field mobile-property-agreement-select-field">
+                <app-searchable-select
+                  [renderInFormField]="true"
+                  formFieldLabel="Vendor"
+                  formFieldClass="mobile-maintenance-line-field"
+                  [value]="line.vendorId"
+                  [options]="vendorOptions"
+                  [showInstructionOption]="true"
+                  [instructionOptionValue]="null"
+                  nullOptionLabel="Select Vendor"
+                  [showSearchInput]="true"
+                  searchPlaceholder="Type to filter vendors..."
+                  noResultsText="No vendors match your search"
+                  (valueChange)="updateAgreementLineVendor(i, $event)" />
+              </div>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>Terms</mat-label>
+                <input matInput [value]="line.terms" readonly tabindex="-1" />
+              </mat-form-field>
+
+              <div class="mobile-maintenance-line-field mobile-property-agreement-select-field">
+                <app-searchable-select
+                  [renderInFormField]="true"
+                  formFieldLabel="Chart of Account"
+                  formFieldClass="mobile-maintenance-line-field"
+                  [value]="line.chartOfAccountId"
+                  [options]="chartOfAccountOptions"
+                  [showInstructionOption]="true"
+                  [instructionOptionValue]="null"
+                  nullOptionLabel="Select Account"
+                  [showSearchInput]="true"
+                  searchPlaceholder="Type to filter accounts..."
+                  noResultsText="No accounts match your search"
+                  (valueChange)="updateAgreementLineChartOfAccount(i, $event)" />
+              </div>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>Start Date</mat-label>
+                <input matInput [matDatepicker]="agreementStartDatePicker" [value]="line.startDate" (dateChange)="updateAgreementLineDate(i, 'startDate', $event.value)" />
+                <mat-datepicker-toggle matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #agreementStartDatePicker></mat-datepicker>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>End Date</mat-label>
+                <input matInput [matDatepicker]="agreementEndDatePicker" [value]="line.endDate" (dateChange)="updateAgreementLineDate(i, 'endDate', $event.value)" />
+                <mat-datepicker-toggle matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #agreementEndDatePicker></mat-datepicker>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>Deposit</mat-label>
+                <input matInput type="text" [value]="line.deposit" (input)="onAgreementLineAmountInput($event, i, 'deposit')" (focus)="onAgreementLineAmountFocus($event, i, 'deposit')" (blur)="onAgreementLineAmountBlur($event, i, 'deposit')" placeholder="$0.00" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>One Time</mat-label>
+                <input matInput type="text" [value]="line.oneTime" (input)="onAgreementLineAmountInput($event, i, 'oneTime')" (focus)="onAgreementLineAmountFocus($event, i, 'oneTime')" (blur)="onAgreementLineAmountBlur($event, i, 'oneTime')" placeholder="$0.00" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>Monthly</mat-label>
+                <input matInput type="text" [value]="line.monthly" (input)="onAgreementLineAmountInput($event, i, 'monthly')" (focus)="onAgreementLineAmountFocus($event, i, 'monthly')" (blur)="onAgreementLineAmountBlur($event, i, 'monthly')" placeholder="$0.00" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+                <mat-label>Daily</mat-label>
+                <input matInput type="text" [value]="line.daily" (input)="onAgreementLineAmountInput($event, i, 'daily')" (focus)="onAgreementLineAmountFocus($event, i, 'daily')" (blur)="onAgreementLineAmountBlur($event, i, 'daily')" placeholder="$0.00" />
+              </mat-form-field>
+
+              <div class="mobile-property-agreement-line-meta">
+                <mat-checkbox [checked]="line.isRent" (change)="updateAgreementLineIsRent(i, $event.checked)">Is Rent</mat-checkbox>
+              </div>
+
+              <mat-form-field appearance="outline" class="mobile-maintenance-line-field mobile-maintenance-line-notes-field">
+                <mat-label>Notes</mat-label>
+                <textarea matInput rows="2" [value]="line.notes" (input)="updateAgreementLineNotes(i, $event)" placeholder="Notes"></textarea>
+              </mat-form-field>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    @if (isPropertyManagementLease && canViewManagementAgreement) {
+      <div class="mobile-property-agreement-section">
+        <h4 class="mobile-property-agreement-section-title">Management Agreement</h4>
+
+        <mat-radio-group formControlName="managementFeeMode" class="mobile-property-agreement-radios">
+          <div class="mobile-property-agreement-radio-slot">
+            <mat-radio-button [value]="ManagementFeeType.FlatRate">Flat Rate</mat-radio-button>
+          </div>
+          <div class="mobile-property-agreement-radio-slot">
+            <mat-radio-button [value]="ManagementFeeType.Percentage">%</mat-radio-button>
+          </div>
+          <div class="mobile-property-agreement-radio-slot">
+            <mat-radio-button [value]="ManagementFeeType.Minimum">Minimum</mat-radio-button>
+          </div>
+        </mat-radio-group>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>{{ managementFlatRateFieldLabel }}</mat-label>
+          <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Revenue Split (Owner) %</mat-label>
+          <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Revenue Split (Office) %</mat-label>
+          <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Markup</mat-label>
+          <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Working Capital Balance</mat-label>
+          <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Hourly Labor Cost</mat-label>
+          <input matInput type="text" formControlName="hourlyLaborCost" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('hourlyLaborCost')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Linen and Towel Fee</mat-label>
+          <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
+        </mat-form-field>
+
+        <mat-checkbox formControlName="isMonthly" class="mobile-property-agreement-line-meta">Monthly</mat-checkbox>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Payment Type</mat-label>
+          <mat-select formControlName="ownerPaymentTypeId">
+            @for (option of ownerPaymentTypeOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Bank Name</mat-label>
+          <input matInput formControlName="bankName" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Routing Number</mat-label>
+          <input matInput formControlName="routingNumber" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+          <mat-label>Account Number</mat-label>
+          <input matInput formControlName="accountNumber" />
+        </mat-form-field>
+      </div>
+    }
+
+    <div class="mobile-property-agreement-section">
+      @if (isPropertyManagementLease) {
+        <div class="mobile-property-agreement-upload-block">
+          <h4 class="mobile-property-agreement-section-title">W9 Form</h4>
+          <div class="mobile-property-agreement-upload-actions">
+            @if (isPropertyManagementLease) {
+              <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
+              @if (agreementW9FileName || agreementW9FileDataUrl) {
+                <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+              }
+              <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
+            } @else {
+              <span class="mobile-property-agreement-vendor-note">From Vendor Contact</span>
+            }
+          </div>
+        </div>
+
+        <div class="mobile-property-agreement-upload-block">
+          <h4 class="mobile-property-agreement-section-title">Insurance</h4>
+          @if (isPropertyManagementLease) {
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Expiration</mat-label>
+              <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
+              <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
+              <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
+            </mat-form-field>
+          } @else {
+            <div class="mobile-property-agreement-vendor-note">Expiration: {{ vendorInsuranceExpirationDisplay }}</div>
+          }
+          <div class="mobile-property-agreement-upload-actions">
+            @if (isPropertyManagementLease) {
+              <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
+              @if (agreementInsuranceFileName || agreementInsuranceFileDataUrl) {
+                <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+              }
+              <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
+            } @else {
+              <span class="mobile-property-agreement-vendor-note">From Vendor Contact</span>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="mobile-property-agreement-upload-block">
+        <h4 class="mobile-property-agreement-section-title">Owner Agreement</h4>
+        <div class="mobile-property-agreement-upload-actions">
+          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+          @if (agreementDocFileName || agreementDocFileDataUrl) {
+            <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+          }
+          <input #agreementDocFileInput type="file" (change)="onAgreementDocFileSelected($event)" class="file-input-hidden" />
+        </div>
+      </div>
+
+      <mat-form-field appearance="outline" class="mobile-maintenance-line-field mobile-maintenance-line-notes-field">
+        <mat-label>Notes</mat-label>
+        <textarea matInput formControlName="notes" rows="3"></textarea>
+      </mat-form-field>
+    </div>
+  </div>
+}

@@ -1,0 +1,141 @@
+@if (!isPageReady) {
+  <div class="mobile-ticket-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading ticket...</span>
+  </div>
+} @else {
+  <div class="mobile-ticket-page">
+    <div class="mobile-ticket-form">
+      <div class="mobile-ticket-status">
+        <span class="mobile-ticket-section-title">Ticket Details</span>
+        <div class="mobile-ticket-top-actions">
+          @if (getIsActiveField(); as isActiveField) {
+            <mat-checkbox
+              [checked]="isBooleanFieldChecked(isActiveField)"
+              (change)="onBooleanFieldChange(isActiveField, $event.checked)"
+              color="primary">{{ isActiveField.label }}</mat-checkbox>
+          }
+          @if (showForRentAllCheckbox && getIsForRentAllField(); as isForRentAllField) {
+            <mat-checkbox
+              [checked]="isBooleanFieldChecked(isForRentAllField)"
+              (change)="onBooleanFieldChange(isForRentAllField, $event.checked)"
+              color="primary">{{ isForRentAllField.label }}</mat-checkbox>
+          }
+          <button mat-raised-button type="button" color="primary" (click)="saveTicket()" [disabled]="isSaving">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+        <div class="mobile-ticket-status-fields">
+          @for (field of getStatusFields(); track field.key) {
+            @if (field.control === 'select') {
+              <mat-form-field appearance="outline" class="mobile-ticket-field">
+                <mat-label>{{ field.label }}</mat-label>
+                <mat-select
+                  [value]="field.multiple ? getSelectedValues(field) : field.value"
+                  (selectionChange)="onSelectChange(field, $event.value)"
+                  [multiple]="!!field.multiple"
+                  [disabled]="!!field.readonly"
+                  [canSelectNullableOptions]="field.key === 'reservationId'">
+                  @for (option of field.options; track option.value) {
+                    <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else {
+              <mat-form-field appearance="outline" class="mobile-ticket-field">
+                <mat-label>{{ field.label }}</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="field.value"
+                  (ngModelChange)="onFieldChange()"
+                  [readonly]="!!field.readonly"
+                  [disabled]="!!field.readonly">
+              </mat-form-field>
+            }
+          }
+        </div>
+      </div>
+
+      @if (showCommunicationStatusSection && getCommunicationCheckboxFields().length) {
+        <div class="mobile-ticket-communication-status-box">
+          <div class="mobile-ticket-communication-status-label">Communication Status:</div>
+          <div class="mobile-ticket-checkbox-grid">
+            @for (field of getCommunicationCheckboxFields(); track field.key) {
+              <mat-checkbox
+                [checked]="isBooleanFieldChecked(field)"
+                (change)="onBooleanFieldChange(field, $event.checked)"
+                color="primary">{{ field.label }}</mat-checkbox>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="mobile-ticket-fields">
+        @if (getTitleField(); as titleField) {
+          <mat-form-field appearance="outline" class="mobile-ticket-field">
+            <mat-label>{{ titleField.label }}</mat-label>
+            <input matInput [(ngModel)]="titleField.value" (ngModelChange)="onFieldChange()" [readonly]="!!titleField.readonly" [disabled]="!!titleField.readonly">
+          </mat-form-field>
+        }
+
+        @if (getDescriptionField(); as descriptionField) {
+          <div class="mobile-ticket-description-field">
+            <label class="mobile-ticket-description-label" for="mobileTicketDescription">{{ descriptionField.label }}</label>
+            <textarea
+              #descriptionTextarea
+              id="mobileTicketDescription"
+              class="mobile-ticket-description-input"
+              [(ngModel)]="descriptionField.value"
+              (input)="onDescriptionInput($event)"
+              (ngModelChange)="onFieldChange()"
+              (mouseup)="onMultilineResize($event, descriptionTextarea)"
+              (touchend)="onMultilineResize($event, descriptionTextarea)"
+              [readonly]="!!descriptionField.readonly"
+              [disabled]="!!descriptionField.readonly"
+              rows="3"
+              aria-label="Description"></textarea>
+          </div>
+        }
+
+        @if (showStepsToReproduceField) {
+          <div class="mobile-ticket-description-field">
+            <label class="mobile-ticket-description-label" for="mobileTicketStepsToReproduce">Steps To Reproduce (Property, Reservation, etc.)</label>
+            <textarea
+              #stepsToReproduceTextarea
+              id="mobileTicketStepsToReproduce"
+              class="mobile-ticket-description-input"
+              [(ngModel)]="stepsToReproduce"
+              (input)="onStepsToReproduceInput($event)"
+              (ngModelChange)="onFieldChange()"
+              (mouseup)="onMultilineResize($event, stepsToReproduceTextarea)"
+              (touchend)="onMultilineResize($event, stepsToReproduceTextarea)"
+              rows="3"
+              aria-label="Steps To Reproduce"></textarea>
+          </div>
+        }
+      </div>
+
+      @if (showReceiptWorkOrderActions) {
+        <div class="mobile-ticket-linked-record-actions">
+          <button mat-raised-button type="button" color="primary" (click)="openAddReceipt()">Receipt</button>
+          <button mat-raised-button type="button" color="accent" (click)="openAddWorkOrder()">Work Order</button>
+        </div>
+      }
+
+      <div class="mobile-ticket-comments">
+        <div class="mobile-ticket-comments-header">Comments</div>
+        <mat-form-field appearance="outline" class="mobile-ticket-field">
+          <mat-label>Add a Note</mat-label>
+          <input matInput [(ngModel)]="newNote" (ngModelChange)="onFieldChange()" aria-label="Add a Note">
+        </mat-form-field>
+        @for (note of notes; track $index) {
+          <div class="mobile-ticket-comment">
+            <div class="mobile-ticket-comment-meta">{{ note.author }} | {{ note.createdOn }}</div>
+            <div class="mobile-ticket-comment-note">{{ note.note }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

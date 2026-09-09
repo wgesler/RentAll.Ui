@@ -1,0 +1,199 @@
+.mobile-maintenance-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-maintenance-lines-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-maintenance-lines-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+}
+
+.mobile-maintenance-lines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-maintenance-line-card {
+  border: 1px solid rgba(112, 112, 112, 0.27);
+  border-radius: 4px;
+  padding: 0 0 0.75rem;
+  background: #fff;
+}
+
+.mobile-maintenance-line-card-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.25rem 0 0.75rem;
+}
+
+.mobile-maintenance-line-no {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #424242;
+  line-height: 1;
+}
+
+.mobile-maintenance-line-card-header .mat-mdc-icon-button {
+  justify-self: end;
+  align-self: start;
+  margin: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.mobile-maintenance-line-field {
+  display: block;
+  width: 100%;
+  padding: 0 0.75rem;
+}
+
+.mobile-maintenance-line-field.mat-mdc-form-field,
+.mobile-maintenance-line-field .mat-mdc-form-field {
+  width: 100%;
+}
+
+.mobile-maintenance-line-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mobile-maintenance-line-decal-preview-wrap {
+  padding: 0 0.75rem 0.25rem;
+}
+
+.mobile-maintenance-line-empty {
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.25rem 0;
+}
+
+.mobile-maintenance-line-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+}
+
+.mobile-maintenance-line-decal-preview {
+  position: relative;
+  display: inline-flex;
+}
+
+.mobile-maintenance-line-decal-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(112, 112, 112, 0.35);
+  cursor: pointer;
+}
+
+.mobile-maintenance-line-decal-remove.mat-mdc-icon-button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: #fff;
+}
+
+.hidden {
+  display: none;
+}
+
+:host ::ng-deep mat-form-field.mobile-maintenance-line-field.mat-mdc-form-field {
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 36px !important;
+    padding: 0 10px !important;
+  }
+
+  .mat-mdc-form-field-flex {
+    min-height: 36px !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 32px !important;
+    padding: 2px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control input,
+  .mat-mdc-form-field-input-control textarea {
+    padding: 2px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-datepicker-toggle .mat-mdc-icon-button {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+  }
+
+  .mat-datepicker-toggle .mat-mdc-icon-button .mat-icon {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 18px !important;
+  }
+
+  .mat-mdc-floating-label.mdc-floating-label:not(.mdc-floating-label--float-above) {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    line-height: 1.2 !important;
+  }
+}
+
+:host ::ng-deep .mobile-maintenance-line-card > mat-form-field.mobile-maintenance-line-field:last-of-type {
+  margin-bottom: 0 !important;
+}
+
+:host ::ng-deep mat-form-field.mobile-maintenance-line-notes-field textarea {
+  min-height: 2rem !important;
+  resize: vertical;
+}
+
+:host ::ng-deep mat-form-field.mobile-maintenance-line-field.mat-mdc-form-field-invalid,
+:host ::ng-deep mat-form-field.mobile-maintenance-line-field.mat-form-field-invalid {
+  .mdc-notched-outline .mdc-notched-outline__leading,
+  .mdc-notched-outline .mdc-notched-outline__notch,
+  .mdc-notched-outline .mdc-notched-outline__trailing {
+    border-color: #dc2626 !important;
+  }
+}

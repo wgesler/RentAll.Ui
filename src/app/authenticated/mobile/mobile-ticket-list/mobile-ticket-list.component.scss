@@ -1,0 +1,66 @@
+.mobile-ticket-list-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0.25rem 1rem 0.35rem;
+  box-sizing: border-box;
+}
+
+.mobile-ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.mobile-ticket-table th,
+.mobile-ticket-table td {
+  height: 40px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #707070;
+  border-bottom: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.mobile-ticket-table thead tr,
+.mobile-ticket-table tbody tr {
+  border-bottom: 1px solid rgba(112, 112, 112, 27%);
+}
+
+.mobile-ticket-table th {
+  font-weight: 600;
+  color: #424242;
+}
+
+.mobile-ticket-table tbody tr:nth-child(even) {
+  background-color: #f5f5f5;
+}
+
+.mobile-ticket-row {
+  cursor: pointer;
+}
+
+.mobile-ticket-table .col-no {
+  width: 2.25rem;
+  text-align: center;
+}
+
+.mobile-ticket-attention-dot {
+  display: inline;
+  color: #ff0000;
+  font-weight: 700;
+  margin-right: 0.2rem;
+  vertical-align: middle;
+}
+
+.mobile-ticket-code-text {
+  display: inline;
+  vertical-align: middle;
+  color: #707070;
+  font-weight: 400;
+}

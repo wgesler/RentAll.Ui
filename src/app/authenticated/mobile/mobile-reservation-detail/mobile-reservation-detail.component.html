@@ -1,0 +1,86 @@
+@if (!isPageReady) {
+  <div class="mobile-reservation-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading reservation...</span>
+  </div>
+} @else {
+  <div class="mobile-reservation-page">
+    <div class="mobile-reservation-form">
+      <mat-accordion class="mobile-reservation-accordion" multi="true">
+        <mat-expansion-panel [expanded]="true">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Reservation</mat-panel-title>
+          </mat-expansion-panel-header>
+          <ng-container *ngTemplateOutlet="mobileReservationSave" />
+          <div class="mobile-reservation-fields">
+            @for (field of getReservationPanelFields(); track field.key) {
+              <ng-container *ngTemplateOutlet="mobileReservationField; context: { $implicit: field }" />
+            }
+            @if (getNotesField(); as notesField) {
+              <div class="mobile-reservation-notes-field">
+                <label class="mobile-reservation-notes-label" for="mobileReservationNotes">{{ notesField.label }}</label>
+                <textarea
+                  #notesTextarea
+                  id="mobileReservationNotes"
+                  class="mobile-reservation-notes-input"
+                  [(ngModel)]="notesField.value"
+                  (input)="onNotesInput($event)"
+                  (ngModelChange)="onFieldChange()"
+                  (mouseup)="onNotesResize($event)"
+                  rows="3"></textarea>
+              </div>
+            }
+          </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel [expanded]="true">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Billing and Fees</mat-panel-title>
+          </mat-expansion-panel-header>
+          <ng-container *ngTemplateOutlet="mobileReservationSave" />
+          <div class="mobile-reservation-fields">
+            @for (field of getBillingPanelFields(); track field.key) {
+              <ng-container *ngTemplateOutlet="mobileReservationField; context: { $implicit: field }" />
+            }
+          </div>
+        </mat-expansion-panel>
+      </mat-accordion>
+    </div>
+  </div>
+}
+
+<ng-template #mobileReservationSave>
+  <div class="mobile-reservation-save-actions">
+    <button mat-raised-button type="button" color="primary" (click)="saveReservation()" [disabled]="isSaving">
+      <mat-icon>save</mat-icon>
+      Save
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #mobileReservationField let-field>
+  @if (field.control === 'select') {
+    <mat-form-field appearance="outline" class="mobile-reservation-field">
+      <mat-label>{{ field.label }}</mat-label>
+      <mat-select
+        [value]="field.multiple ? getSelectedValues(field) : field.value"
+        (selectionChange)="onSelectChange(field, $event.value)"
+        [multiple]="!!field.multiple"
+        [disabled]="!!field.readonly">
+        @for (option of field.options; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  } @else {
+    <mat-form-field appearance="outline" class="mobile-reservation-field">
+      <mat-label>{{ field.label }}</mat-label>
+      <input
+        matInput
+        [(ngModel)]="field.value"
+        (ngModelChange)="onFieldChange()"
+        [readonly]="!!field.readonly"
+        [disabled]="!!field.readonly">
+    </mat-form-field>
+  }
+</ng-template>

@@ -1,0 +1,73 @@
+@if (!isMobilePageReady || isPageLoading) {
+  <div class="mobile-maintenance-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading maintenance...</span>
+  </div>
+} @else if (property) {
+  <div class="mobile-maintenance-page">
+    <form [formGroup]="form" class="mobile-maintenance-form">
+      <div class="mobile-maintenance-meta">
+        <div class="mobile-maintenance-meta-row">
+          <span class="mobile-maintenance-meta-label">Property Code:</span>
+          <span class="mobile-maintenance-meta-value">{{ property.propertyCode || 'N/A' }}</span>
+        </div>
+        <div class="mobile-maintenance-meta-row">
+          <span class="mobile-maintenance-meta-label">Address:</span>
+          <span class="mobile-maintenance-meta-value">{{ propertyAddress }}</span>
+        </div>
+      </div>
+
+      <mat-form-field appearance="outline" class="mobile-maintenance-notes">
+        <mat-label>Notes</mat-label>
+        <textarea matInput rows="2" formControlName="notes"></textarea>
+      </mat-form-field>
+    </form>
+
+    <mat-accordion class="mobile-maintenance-accordion" multi="true">
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Maintenance</mat-panel-title>
+        </mat-expansion-panel-header>
+        <app-mobile-maintenance-item-list
+          #itemList
+          [maintenanceItems]="maintenanceItems"
+          [isLoading]="isPageLoading"
+          [isSaving]="isSavingMaintenanceItems || isSaving"
+          [property]="property"
+          (deleteExisting)="onMaintenanceItemDelete($event)"
+          (saveChanges)="onMaintenanceItemSaveChanges($event)"
+          (saveRequested)="saveAllMaintenance()" />
+      </mat-expansion-panel>
+
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Appliances</mat-panel-title>
+        </mat-expansion-panel-header>
+        <app-mobile-maintenance-appliance-list
+          #applianceList
+          [appliances]="appliances"
+          [isLoading]="isPageLoading"
+          [isSaving]="isSavingAppliances || isSaving"
+          [property]="property"
+          (deleteExisting)="onApplianceDelete($event)"
+          (saveChanges)="onApplianceSaveChanges($event)"
+          (saveRequested)="saveAllMaintenance()" />
+      </mat-expansion-panel>
+
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Utilities</mat-panel-title>
+        </mat-expansion-panel-header>
+        <app-mobile-maintenance-utility-list
+          #utilityList
+          [utilities]="utilities"
+          [isLoading]="isPageLoading"
+          [isSaving]="isSavingUtilities || isSaving"
+          [property]="property"
+          (deleteExisting)="onUtilityDelete($event)"
+          (saveChanges)="onUtilitySaveChanges($event)"
+          (saveRequested)="saveAllMaintenance()" />
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+}

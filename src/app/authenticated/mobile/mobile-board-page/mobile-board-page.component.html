@@ -1,0 +1,13 @@
+<div class="flex items-center gap-3 mobile-sub-titlebar">
+  @if (boardReturnUrl) {
+    <button mat-icon-button type="button" (click)="backToReturnUrl()" aria-label="Back">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+  }
+  <div class="mobile-sub-titlebar-static">
+    <mat-icon class="mobile-sub-titlebar-icon">grid_view</mat-icon>
+    <span class="mobile-sub-titlebar-label">Home : Reservation Board</span>
+  </div>
+</div>
+
+<app-mobile-reservation-board />

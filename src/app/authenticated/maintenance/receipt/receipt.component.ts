@@ -2072,7 +2072,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private emitWorkOrderSelection(selection: WorkOrderSelection): void {
+  emitWorkOrderSelection(selection: WorkOrderSelection): void {
     if (this.isEmbeddedInShell) {
       this.workOrderSelect.emit(selection);
       return;

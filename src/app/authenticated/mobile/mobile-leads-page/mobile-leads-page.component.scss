@@ -1,0 +1,7 @@
+@use '../mobile-sub-titlebar.scss';
+
+.mobile-leads-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}

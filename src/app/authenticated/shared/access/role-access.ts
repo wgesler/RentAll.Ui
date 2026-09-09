@@ -524,6 +524,17 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
   return COMPANY_USERS_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
 }
 
+export function canShowLeadsNav(authService: {
+  hasRole: (group: UserGroups) => boolean;
+  hasAccessToLeads: () => boolean;
+}): boolean {
+  return (
+    authService.hasRole(UserGroups.Admin) ||
+    authService.hasRole(UserGroups.Agent) ||
+    authService.hasRole(UserGroups.AgentAdmin)
+  ) && authService.hasAccessToLeads();
+}
+
 export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
   if (isInspectorOnlyUser(userGroups)) {
     return `/${RouterToken.Auth}/${RouterToken.DashboardStaff}`;

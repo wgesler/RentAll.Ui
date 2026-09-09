@@ -1,0 +1,22 @@
+@if (!isPageReady) {
+  <div class="flex justify-center py-8">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+} @else {
+  <div class="mobile-contact-fields">
+    @for (field of fields; track field.key) {
+      <div class="mobile-contact-field">
+        <span class="mobile-contact-field-label">{{ field.label }}:</span>
+        @if (field.control === 'select') {
+          <mat-select class="mobile-contact-field-value mobile-contact-field-select" [class.mobile-contact-field-readonly]="field.readonly" [value]="field.multiple ? getSelectedValues(field) : field.value" (selectionChange)="onSelectChange(field, $event.value)" [multiple]="!!field.multiple" [disabled]="!!field.readonly" [aria-label]="field.label">
+            @for (option of field.options; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        } @else {
+          <input class="mobile-contact-field-value" [class.mobile-contact-field-readonly]="field.readonly" [(ngModel)]="field.value" (ngModelChange)="onFieldChange()" [readonly]="!!field.readonly" [disabled]="!!field.readonly" [attr.aria-label]="field.label" />
+        }
+      </div>
+    }
+  </div>
+}

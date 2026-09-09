@@ -1,0 +1,51 @@
+.mobile-email-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+@import '../mobile-sub-titlebar.scss';
+
+.mobile-email-card {
+  margin: 0.75rem 1rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.mobile-email-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+
+  p {
+    margin: 0;
+    color: #64748b;
+  }
+}
+
+@import '../../email/email-create/email-create.component.scss';
+
+.email-container {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.mobile-email-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.email-attachment-list {
+  padding-left: 0;
+}
+
+@media (min-width: 480px) {
+  .email-attachment-list {
+    padding-left: 6.5rem;
+  }
+}

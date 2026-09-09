@@ -1,0 +1,194 @@
+:host {
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-reservation-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.mobile-reservation-page {
+  padding: 0 1rem 1.5rem;
+  margin-top: 0.75rem;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-reservation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-reservation-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-reservation-accordion {
+  display: block;
+}
+
+:host ::ng-deep .mobile-reservation-accordion .mat-expansion-panel-body {
+  padding: 0.35rem 0 0.5rem;
+  overflow: visible;
+}
+
+:host ::ng-deep .mobile-reservation-accordion .mat-expansion-panel-header {
+  min-height: 40px;
+  height: auto;
+}
+
+.mobile-reservation-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mobile-reservation-field {
+  display: block;
+  width: 100%;
+}
+
+.mobile-reservation-field.mat-mdc-form-field,
+.mobile-reservation-field .mat-mdc-form-field {
+  width: 100%;
+}
+
+:host ::ng-deep mat-form-field.mobile-reservation-field.mat-mdc-form-field {
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 36px !important;
+    padding: 0 10px !important;
+  }
+
+  .mat-mdc-form-field-flex {
+    min-height: 36px !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 32px !important;
+    padding: 2px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control input,
+  .mat-mdc-form-field-input-control textarea {
+    padding: 2px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-mdc-select-value,
+  .mat-mdc-select-min-line {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-mdc-floating-label.mdc-floating-label:not(.mdc-floating-label--float-above) {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    line-height: 1.2 !important;
+  }
+}
+
+.mobile-reservation-notes-field {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  border-radius: 4px;
+  padding: 10px 10px 8px;
+  box-sizing: border-box;
+  background: #fff;
+  overflow: visible;
+}
+
+.mobile-reservation-notes-label {
+  position: absolute;
+  top: -0.55rem;
+  left: 8px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+  background: #fff;
+}
+
+.mobile-reservation-notes-input {
+  display: block;
+  width: 100%;
+  min-height: calc(1.25em * 3 + 0.25rem);
+  height: auto;
+  border: 0;
+  margin: 0;
+  padding: 0 14px 14px 0;
+  box-sizing: border-box;
+  resize: vertical;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  color: #1e293b;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  background-color: transparent;
+  background-image:
+    linear-gradient(135deg, transparent 0 42%, #94a3b8 42% 46%, transparent 46% 54%, #94a3b8 54% 58%, transparent 58% 66%, #94a3b8 66% 70%, transparent 70%);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 2px) calc(100% - 2px);
+  background-size: 12px 12px;
+}
+
+.mobile-reservation-notes-input:focus {
+  outline: none;
+}
+
+.mobile-reservation-notes-field:focus-within {
+  border-color: var(--brand-primary-color, #1976d2);
+  border-width: 2px;
+  padding: 9px 9px 7px;
+}
+
+.mobile-reservation-notes-field:focus-within .mobile-reservation-notes-label {
+  color: var(--brand-primary-color, #1976d2);
+}
+
+.mobile-reservation-notes-input::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent;
+}

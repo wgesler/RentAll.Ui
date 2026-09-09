@@ -1,0 +1,48 @@
+<div class="mobile-quote-page">
+  <div class="flex items-center gap-3 mobile-sub-titlebar">
+    <button mat-icon-button type="button" (click)="backToMobile()" aria-label="Back">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="mobile-sub-titlebar-static">
+      <mat-icon class="mobile-sub-titlebar-icon">request_quote</mat-icon>
+      <span class="mobile-sub-titlebar-label">Corporate Housing Proposal</span>
+    </div>
+  </div>
+
+  @if (!isPageReady) {
+    <div class="mobile-quote-loading">
+      <mat-spinner [diameter]="36"></mat-spinner>
+      <span>Loading quote...</span>
+    </div>
+  } @else {
+    <div class="mobile-quote-content">
+      <div class="mobile-quote-actions">
+        <button
+          mat-raised-button
+          type="button"
+          color="accent"
+          (click)="onEmail()"
+          [disabled]="!previewIframeHtml || !(form.get('quoteEmail')?.value || '').toString().trim() || !(form.get('preparedForName')?.value || '').toString().trim()">
+          <mat-icon>email</mat-icon>
+          Email
+        </button>
+        <button mat-raised-button type="button" color="primary" (click)="saveQuote()" [disabled]="isSubmitting || !previewIframeHtml">
+          <mat-icon>save</mat-icon>
+          {{ isSubmitting ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
+
+      <app-quote
+        [form]="form"
+        [mobileLayout]="true"
+        [officeTitleBarOptions]="officeTitleBarOptions"
+        [selectedOfficeId]="headerOfficeId"
+        [propertyListingLinks]="propertyListingLinks"
+        [listingColumnFlags]="quoteListingColumnFlags"
+        [isLoadingLinks]="isLoadingLinks"
+        (listingRowsChange)="refreshQuoteDocumentPreview()"
+        (listingRemove)="removePropertyListing($event)"
+        (officeIdChange)="onOfficeChanged($event)" />
+    </div>
+  }
+</div>

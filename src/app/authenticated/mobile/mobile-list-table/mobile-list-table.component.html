@@ -1,0 +1,52 @@
+@if (!isPageReady) {
+  <div class="flex justify-center py-8">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+} @else {
+  @if (showFilter) {
+    <div class="mobile-list-filter-wrap px-4">
+      <div class="datatable-search-wrap dbg-band-actions mobile-list-filter">
+        <mat-form-field subscriptSizing="dynamic" class="datatable-search-field mobile-list-filter-field">
+          <mat-icon matPrefix class="datatable-filter-prefix-icon">filter_list</mat-icon>
+          <input matInput [(ngModel)]="filterText" (ngModelChange)="onFilterChange()" placeholder="Filter by word or value..." autocomplete="off" />
+          @if (filterText) {
+            <button mat-icon-button matSuffix type="button" (click)="clearFilter()">
+              <mat-icon>clear</mat-icon>
+            </button>
+          }
+        </mat-form-field>
+      </div>
+    </div>
+  }
+  <div class="tableDiv px-4">
+    <table class="mobile-list-table">
+      <thead>
+        <tr>
+          <th class="col-no">{{ rowNumberLabel }}</th>
+          @for (entry of getColumnEntries(); track entry.name) {
+            <th [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">{{ entry.column.displayAs }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of filteredRows; track row.id; let i = $index) {
+          <tr [class.mobile-list-row-clickable]="rowsClickable" (click)="onRowClick(row)">
+            <td class="col-no">{{ i + 1 }}</td>
+            @for (entry of getColumnEntries(); track entry.name) {
+              @if (attentionDotColumn && entry.name === attentionDotColumn) {
+                <td [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">
+                  @if (hasAttentionDot(row)) {
+                    <span class="mobile-list-attention-dot" aria-hidden="true">●</span>
+                  }
+                  <span class="mobile-list-attention-text">{{ getCellValue(row, entry.name) }}</span>
+                </td>
+              } @else {
+                <td [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">{{ getCellValue(row, entry.name) }}</td>
+              }
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

@@ -1,0 +1,9 @@
+@if (tabPath === 'receipts' || tabPath === 'work-orders') {
+  <div class="mobile-list-actions">
+    <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="tabPath === 'receipts' ? addReceipt() : addWorkOrder()">
+      <mat-icon>add</mat-icon>
+      Add
+    </button>
+  </div>
+}
+<app-mobile-list-table [rows]="rows" [columns]="columns" [isPageReady]="isPageReady" [showFilter]="showFilter" [rowsClickable]="rowsClickable" (rowClick)="onRowClick($event)" />

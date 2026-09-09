@@ -1,0 +1,110 @@
+@import '../../mobile-maintenance-detail/mobile-maintenance-line-cards.scss';
+
+.mobile-property-agreement-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-property-agreement-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-top: 0.25rem;
+}
+
+.mobile-property-agreement-section-title {
+  margin: 0 0 0.35rem;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+:host ::ng-deep mat-radio-group.mobile-property-agreement-radios {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  width: 100% !important;
+  box-sizing: border-box;
+  padding: 0 0.75rem 0.35rem;
+  column-gap: 0.5rem;
+}
+
+:host ::ng-deep mat-radio-group.mobile-property-agreement-radios .mobile-property-agreement-radio-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+:host ::ng-deep mat-radio-group.mobile-property-agreement-radios .mat-mdc-radio-button {
+  margin: 0 !important;
+  max-width: 100%;
+}
+
+:host ::ng-deep mat-radio-group.mobile-property-agreement-radios .mat-mdc-radio-button .mdc-form-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+:host ::ng-deep mat-radio-group.mobile-property-agreement-radios .mat-mdc-radio-button .mdc-radio {
+  flex-shrink: 0;
+}
+
+:host ::ng-deep mat-radio-group.mobile-property-agreement-radios .mat-mdc-radio-button .mdc-label {
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+.mobile-property-agreement-line-meta {
+  padding: 0 0.75rem 0.35rem;
+}
+
+.mobile-property-agreement-upload-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.mobile-property-agreement-upload-block + .mobile-property-agreement-upload-block {
+  border-top: 1px solid rgba(112, 112, 112, 0.27);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.mobile-property-agreement-upload-block + .mobile-maintenance-line-field {
+  border-top: 1px solid rgba(112, 112, 112, 0.27);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.mobile-property-agreement-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+}
+
+.mobile-property-agreement-vendor-note {
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0 0.75rem;
+}
+
+.mobile-property-agreement-select-field {
+  padding: 0 0.75rem;
+  margin-bottom: 10px;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+:host ::ng-deep .mobile-property-agreement-select-field app-searchable-select {
+  display: block;
+  width: 100%;
+}

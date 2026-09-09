@@ -500,13 +500,13 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
     const byTicketBucket =
       this.assigneeFilterMode === 'closed'
-        ? byInactive.filter(ticket => ticket.ticketStateTypeId === TicketStateType.closed)
+        ? byInactive.filter(ticket => ticket.ticketStateTypeId === TicketStateType.closed && !ticket.isForRentAll)
         : this.assigneeFilterMode === 'rentAll'
           ? byInactive.filter(ticket => !!ticket.isForRentAll && this.isRentAllQueueState(ticket.ticketStateTypeId))
           : this.assigneeFilterMode === 'review'
             ? byInactive.filter(ticket => !!ticket.isForRentAll && ticket.ticketStateTypeId === TicketStateType.inReview)
             : this.assigneeFilterMode === 'complete'
-              ? byInactive.filter(ticket => !!ticket.isForRentAll && ticket.ticketStateTypeId === TicketStateType.workComplete)
+              ? byInactive.filter(ticket => !!ticket.isForRentAll && (ticket.ticketStateTypeId === TicketStateType.workComplete || ticket.ticketStateTypeId === TicketStateType.closed))
               : (this.assigneeFilterMode === 'assignedToMe' || this.assigneeFilterMode === 'allOthers')
               ? byInactive.filter(ticket => ticket.ticketStateTypeId !== TicketStateType.closed && !ticket.isForRentAll)
               : byInactive;

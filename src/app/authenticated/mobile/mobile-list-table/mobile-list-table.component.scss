@@ -1,0 +1,136 @@
+.mobile-list-filter-wrap {
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.mobile-list-filter {
+  padding-top: 0.85rem;
+  padding-bottom: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mobile-list-filter-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-text-field-wrapper {
+  min-height: 28px !important;
+  padding-left: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: visible !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-form-field-flex {
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-form-field-flex,
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-form-field-infix,
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-form-field-input-control {
+  min-height: 24px !important;
+  height: 24px !important;
+  align-items: flex-end !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-form-field-infix {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field .mat-mdc-form-field-icon-prefix {
+  padding: 0 6px 1px 0 !important;
+  align-self: flex-end !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field .datatable-filter-prefix-icon {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field input.mat-mdc-input-element {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  width: 100% !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+:host ::ng-deep .mobile-list-filter-field .mdc-line-ripple,
+:host ::ng-deep .mobile-list-filter-field .mdc-line-ripple::before,
+:host ::ng-deep .mobile-list-filter-field .mdc-line-ripple::after {
+  width: 100% !important;
+  max-width: 100% !important;
+  left: 0 !important;
+}
+
+.tableDiv {
+  overflow-x: auto;
+}
+
+.mobile-list-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.mobile-list-table th,
+.mobile-list-table td {
+  height: 40px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #707070;
+  border-bottom: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.mobile-list-table thead tr,
+.mobile-list-table tbody tr {
+  border-bottom: 1px solid rgba(112, 112, 112, 27%);
+}
+
+.mobile-list-table th {
+  font-weight: 600;
+  color: #424242;
+}
+
+.mobile-list-table tbody tr:nth-child(even) {
+  background-color: #f5f5f5;
+}
+
+.mobile-list-table tbody tr.mobile-list-row-clickable {
+  cursor: pointer;
+}
+
+.mobile-list-table .col-no {
+  width: 2.25rem;
+  text-align: center;
+}
+
+.mobile-list-attention-dot {
+  display: inline;
+  color: #ff0000;
+  font-weight: 700;
+  margin-right: 0.2rem;
+  vertical-align: middle;
+}
+
+.mobile-list-attention-text {
+  display: inline;
+  vertical-align: middle;
+}

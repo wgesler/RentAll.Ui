@@ -1,0 +1,78 @@
+@if (isLoading) {
+  <div class="mobile-maintenance-line-loading">
+    <mat-spinner [diameter]="28"></mat-spinner>
+    <span>Loading contacts...</span>
+  </div>
+} @else {
+  <div class="mobile-maintenance-lines">
+    <div class="mobile-maintenance-lines-header">
+      <div class="mobile-maintenance-lines-actions">
+        <button mat-raised-button color="accent" type="button" (click)="addRow()" [disabled]="isSaving">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+        <button mat-raised-button color="primary" type="button" (click)="saveContacts()" [disabled]="isSaving">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-maintenance-lines-list">
+      @if (!rows || rows.length === 0) {
+        <div class="mobile-maintenance-line-empty">No property contacts found for this property.</div>
+      } @else {
+        @for (row of rows; track trackByRowId($index, row); let rowIndex = $index) {
+          <div class="mobile-maintenance-line-card">
+            <div class="mobile-maintenance-line-card-header">
+              <span class="mobile-maintenance-line-no">No: {{ rowIndex + 1 }}</span>
+              <button
+                type="button"
+                mat-icon-button
+                color="accent"
+                (click)="removeRow($event, row)"
+                [disabled]="isSaving"
+                matTooltip="Remove this contact"
+                aria-label="Remove contact">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Code</mat-label>
+              <input matInput [(ngModel)]="row.contactCode" [ngModelOptions]="{ standalone: true }" [readonly]="!!row.contactId" [name]="'property-contact-code-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field
+              appearance="outline"
+              class="mobile-maintenance-line-field"
+              [class.mat-form-field-invalid]="showFieldError(isContactNameMissing(row))"
+              [class.mat-mdc-form-field-invalid]="showFieldError(isContactNameMissing(row))">
+              <mat-label>Company</mat-label>
+              <input matInput [(ngModel)]="row.companyName" [ngModelOptions]="{ standalone: true }" [name]="'property-contact-company-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field
+              appearance="outline"
+              class="mobile-maintenance-line-field"
+              [class.mat-form-field-invalid]="showFieldError(isContactNameMissing(row))"
+              [class.mat-mdc-form-field-invalid]="showFieldError(isContactNameMissing(row))">
+              <mat-label>Contact *</mat-label>
+              <input matInput [(ngModel)]="row.contactName" [ngModelOptions]="{ standalone: true }" [name]="'property-contact-name-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Phone</mat-label>
+              <input matInput [(ngModel)]="row.phone" [ngModelOptions]="{ standalone: true }" [name]="'property-contact-phone-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Email</mat-label>
+              <input matInput type="email" [(ngModel)]="row.email" [ngModelOptions]="{ standalone: true }" [name]="'property-contact-email-' + row.rowId" />
+            </mat-form-field>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}

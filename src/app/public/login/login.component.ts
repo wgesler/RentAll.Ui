@@ -14,6 +14,8 @@ import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
 import { resetViewportScroll, teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../shared/utils/cdk-overlay.util';
 import { StorageService } from '../../services/storage.service';
+import { RouterUrl } from '../../app.routes.tokens';
+import { isUsingMobileDevice, setUsingMobileDevice } from '../../authenticated/mobile/mobile-preference';
 import { LoginRequest } from './models/login-request';
 
 @Component({
@@ -44,6 +46,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   username: string = '';
   password: string = '';
   rememberMe: boolean = false;
+  usingMobileDevice: boolean = false;
 
   form: FormGroup = new FormGroup({
     title: new FormControl(''),
@@ -58,11 +61,13 @@ export class LoginComponent implements OnInit, AfterViewInit {
     if (username) { this.username = username }
     if (password) { this.password = password }
     this.rememberMe = !!(username || password);
+    this.usingMobileDevice = isUsingMobileDevice(this.storageService);
 
     this.form = this.fb.group({
       username: [this.username, [Validators.required, Validators.pattern(emailRegex)]],
       password: [this.password],
-      rememberMe: [this.rememberMe]
+      rememberMe: [this.rememberMe],
+      usingMobileDevice: [this.usingMobileDevice]
     });
   }
 
@@ -88,6 +93,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
     
     this.isSubmitting = true;
     this.rememberMe = this.form.value.rememberMe;
+    this.usingMobileDevice = !!this.form.value.usingMobileDevice;
+    setUsingMobileDevice(this.storageService, this.usingMobileDevice);
 
     if (this.rememberMe) {
       this.storageService.addItem(StorageKey.Username, this.form.value.username);
@@ -118,7 +125,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
           return;
         }
         if (this.authService.getIsLoggedIn()) {
-          this.router.navigateByUrl(this.authService.getStartupPageUrl());
+          this.router.navigateByUrl(this.usingMobileDevice ? RouterUrl.MobileHome : this.authService.getStartupPageUrl());
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');
         }

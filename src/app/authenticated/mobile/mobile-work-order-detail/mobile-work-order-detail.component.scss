@@ -1,0 +1,379 @@
+:host {
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-work-order-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.mobile-work-order-page {
+  padding: 0 1rem 1.5rem;
+  margin-top: 0.75rem;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-work-order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-work-order-section-title {
+  display: block;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.mobile-work-order-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mobile-work-order-checkbox-rows {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  width: 100%;
+}
+
+.mobile-work-order-checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  min-height: 0;
+  line-height: 1;
+}
+
+.mobile-work-order-checkbox-row + .mobile-work-order-checkbox-row {
+  margin-top: -4px;
+}
+
+:host ::ng-deep .mobile-work-order-status-checkbox.mat-mdc-checkbox {
+  --mdc-checkbox-state-layer-size: 20px;
+  --mat-checkbox-state-layer-size: 20px;
+  margin: 0 !important;
+}
+
+:host ::ng-deep .mobile-work-order-status-checkbox .mat-mdc-checkbox-touch-target {
+  height: 28px !important;
+  width: 28px !important;
+}
+
+:host ::ng-deep .mobile-work-order-status-checkbox .mdc-form-field {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 0 !important;
+  height: 28px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: middle !important;
+}
+
+:host ::ng-deep .mobile-work-order-status-checkbox .mdc-checkbox {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:host ::ng-deep .mobile-work-order-status-checkbox .mdc-label {
+  line-height: 1.2 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.mobile-work-order-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.35rem;
+}
+
+.mobile-work-order-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mobile-work-order-inline-checkbox {
+  padding: 0 0.15rem 0.35rem;
+}
+
+.mobile-work-order-field {
+  display: block;
+  width: 100%;
+}
+
+.mobile-work-order-field.mat-mdc-form-field,
+.mobile-work-order-field .mat-mdc-form-field {
+  width: 100%;
+}
+
+.mobile-work-order-item-card .mobile-work-order-field {
+  padding: 0 0.75rem;
+}
+
+:host ::ng-deep mat-form-field.mobile-work-order-readonly-field.mat-mdc-form-field {
+  .mat-mdc-input-element:disabled {
+    color: #707070;
+    -webkit-text-fill-color: #707070;
+  }
+}
+
+:host ::ng-deep mat-form-field.mobile-work-order-field.mat-mdc-form-field {
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 36px !important;
+    padding: 0 10px !important;
+  }
+
+  .mat-mdc-form-field-flex {
+    min-height: 36px !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 32px !important;
+    padding: 2px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control input,
+  .mat-mdc-form-field-input-control textarea {
+    padding: 2px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-mdc-select-value,
+  .mat-mdc-select-min-line {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-datepicker-toggle .mat-mdc-icon-button {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+  }
+
+  .mat-datepicker-toggle .mat-mdc-icon-button .mat-icon {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 18px !important;
+  }
+
+  .mat-mdc-floating-label.mdc-floating-label:not(.mdc-floating-label--float-above) {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    line-height: 1.2 !important;
+  }
+}
+
+:host ::ng-deep .mobile-work-order-item-card > mat-form-field.mobile-work-order-field:last-of-type {
+  margin-bottom: 0 !important;
+}
+
+:host ::ng-deep mat-form-field.mobile-work-order-field.mat-mdc-form-field-invalid,
+:host ::ng-deep mat-form-field.mobile-work-order-field.mat-form-field-invalid {
+  .mdc-notched-outline .mdc-notched-outline__leading,
+  .mdc-notched-outline .mdc-notched-outline__notch,
+  .mdc-notched-outline .mdc-notched-outline__trailing {
+    border-color: #dc2626 !important;
+  }
+}
+
+.mobile-work-order-description-field {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  border-radius: 4px;
+  padding: 10px 10px 8px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.mobile-work-order-description-field--invalid {
+  border-color: #dc2626;
+}
+
+.mobile-work-order-description-label {
+  position: absolute;
+  top: -0.55rem;
+  left: 8px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+  background: #fff;
+}
+
+.mobile-work-order-description-field--invalid .mobile-work-order-description-label {
+  color: #dc2626;
+}
+
+.mobile-work-order-description-input {
+  display: block;
+  width: 100%;
+  min-height: calc(1.25em * 3 + 0.25rem);
+  height: calc(1.25em * 3 + 0.25rem);
+  border: 0;
+  margin: 0;
+  padding: 0 14px 14px 0;
+  box-sizing: border-box;
+  resize: vertical;
+  overflow: hidden;
+  scrollbar-width: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  color: #1e293b;
+  background-color: transparent;
+  background-image:
+    linear-gradient(135deg, transparent 0 42%, #94a3b8 42% 46%, transparent 46% 54%, #94a3b8 54% 58%, transparent 58% 66%, #94a3b8 66% 70%, transparent 70%);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 2px) calc(100% - 2px);
+  background-size: 12px 12px;
+}
+
+.mobile-work-order-description-input:focus {
+  outline: none;
+}
+
+.mobile-work-order-description-field:focus-within {
+  border-color: var(--brand-primary-color, #1976d2);
+  border-width: 2px;
+  padding: 9px 9px 7px;
+}
+
+.mobile-work-order-description-field:focus-within .mobile-work-order-description-label {
+  color: var(--brand-primary-color, #1976d2);
+}
+
+.mobile-work-order-description-input::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.mobile-work-order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-work-order-items-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.mobile-work-order-items-header button {
+  align-self: flex-end;
+}
+
+.mobile-work-order-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-work-order-item-card {
+  border: 1px solid rgba(112, 112, 112, 0.27);
+  border-radius: 4px;
+  padding: 0 0 0.75rem;
+  background: #fff;
+}
+
+.mobile-work-order-item-card-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.25rem 0 0.75rem;
+}
+
+.mobile-work-order-item-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.mobile-work-order-item-no {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #424242;
+  line-height: 1;
+}
+
+.mobile-work-order-item-card-header .mat-mdc-icon-button {
+  justify-self: end;
+  align-self: start;
+  margin: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.mobile-work-order-item-empty {
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.25rem 0;
+}
+
+.mobile-work-order-total-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.mobile-work-order-total-summary-label {
+  font-weight: 600;
+  color: #424242;
+}
+
+.mobile-work-order-saving {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+}

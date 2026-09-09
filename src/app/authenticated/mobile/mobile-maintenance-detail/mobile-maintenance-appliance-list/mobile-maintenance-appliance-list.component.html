@@ -1,0 +1,139 @@
+@if (isLoading) {
+  <div class="mobile-maintenance-line-loading">
+    <mat-spinner [diameter]="28"></mat-spinner>
+    <span>Loading appliances...</span>
+  </div>
+} @else {
+  <div class="mobile-maintenance-lines">
+    <div class="mobile-maintenance-lines-header">
+      <div class="mobile-maintenance-lines-actions">
+        <button mat-raised-button color="accent" type="button" (click)="addRow()">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+        <button mat-raised-button color="primary" type="button" (click)="saveRequested.emit()" [disabled]="isSaving">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-maintenance-lines-list">
+      @if (!rows || rows.length === 0) {
+        <div class="mobile-maintenance-line-empty">No appliances found for this property.</div>
+      } @else {
+        @for (row of rows; track trackByRowId($index, row); let rowIndex = $index) {
+          <div class="mobile-maintenance-line-card">
+            <div class="mobile-maintenance-line-card-header">
+              <span class="mobile-maintenance-line-no">No: {{ rowIndex + 1 }}</span>
+              <button
+                type="button"
+                mat-icon-button
+                color="accent"
+                (click)="removeRow(row)"
+                [disabled]="isSaving"
+                matTooltip="Remove this appliance"
+                aria-label="Remove appliance">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <mat-form-field
+              appearance="outline"
+              class="mobile-maintenance-line-field"
+              [class.mat-form-field-invalid]="showFieldError(isApplianceNameMissing(row))"
+              [class.mat-mdc-form-field-invalid]="showFieldError(isApplianceNameMissing(row))">
+              <mat-label>Appliance Name *</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.applianceName"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'appliance-name-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field
+              appearance="outline"
+              class="mobile-maintenance-line-field"
+              [class.mat-form-field-invalid]="showFieldError(isManufacturerMissing(row))"
+              [class.mat-mdc-form-field-invalid]="showFieldError(isManufacturerMissing(row))">
+              <mat-label>Manufacturer *</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.manufacturer"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'appliance-make-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Model No.</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.modelNo"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'appliance-model-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Serial No.</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.serialNo"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'appliance-serial-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field mobile-maintenance-line-decal-field">
+              <mat-label>Decal</mat-label>
+              <input
+                matInput
+                readonly
+                tabindex="-1"
+                [value]="getDecalPreview(row) ? 'Photo attached' : ''" />
+              @if (!getDecalPreview(row)) {
+                <button
+                  mat-icon-button
+                  matSuffix
+                  type="button"
+                  (click)="openDecalUpload(row)"
+                  [disabled]="isSaving"
+                  aria-label="Upload decal photo">
+                  <mat-icon>photo_camera</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+            @if (getDecalPreview(row)) {
+              <div class="mobile-maintenance-line-decal-preview-wrap">
+                <div class="mobile-maintenance-line-decal-preview">
+                  <img
+                    [src]="getDecalPreview(row)"
+                    alt="Appliance decal"
+                    class="mobile-maintenance-line-decal-thumb"
+                    (click)="openDecalPreview(row, $event)" />
+                  <button
+                    mat-icon-button
+                    type="button"
+                    class="mobile-maintenance-line-decal-remove"
+                    (click)="removeDecal(row)"
+                    [disabled]="isSaving"
+                    aria-label="Remove decal image">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+            <input
+              [id]="decalInputId(row.rowId)"
+              class="hidden"
+              type="file"
+              accept="image/*"
+              (change)="onDecalSelected(row, $event)" />
+          </div>
+        }
+      }
+    </div>
+  </div>
+}

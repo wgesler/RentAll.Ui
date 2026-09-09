@@ -1,0 +1,620 @@
+:host {
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-inspection-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.mobile-inspection-page {
+  --mobile-inspection-block-gap: 0.65rem;
+  padding: 0 1rem 1.5rem;
+  margin-top: 6px;
+}
+
+.mobile-inspection-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.65rem;
+  background: color-mix(in srgb, var(--brand-primary-color) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-primary-color) 20%, white);
+  border-radius: 4px;
+}
+
+.mobile-inspection-meta-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.mobile-inspection-meta-label {
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.mobile-inspection-meta-value {
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.mobile-inspection-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-inspection-type-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+  gap: 0;
+  margin: 0 0 var(--mobile-inspection-block-gap);
+  padding: 0;
+}
+
+.mobile-inspection-type-group .mat-mdc-radio-button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+}
+
+:host ::ng-deep .mobile-inspection-type-group .mdc-form-field {
+  width: 100%;
+}
+
+:host ::ng-deep .mobile-inspection-type-group .mdc-label {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.mobile-inspection-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-inspection-action-status {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.mobile-inspection-errors {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.mobile-inspection-progress {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.mobile-inspection-form {
+  display: block;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-inspection-template-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin: var(--mobile-inspection-block-gap) 0 0;
+  padding: 0;
+  min-height: 36px;
+}
+
+:host ::ng-deep .mobile-inspection-template-lock-btn.mat-mdc-icon-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+}
+
+:host ::ng-deep .mobile-inspection-template-controls .mat-mdc-slide-toggle {
+  margin: 0 !important;
+  height: 36px;
+}
+
+:host ::ng-deep .mobile-inspection-template-controls .mdc-form-field {
+  margin: 0 !important;
+  height: 36px;
+  align-items: center;
+}
+
+.mobile-inspection-template-lock-btn {
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .mobile-inspection-template-controls .mdc-label {
+  font-size: 13px;
+}
+
+:host ::ng-deep .mobile-inspection-accordion .mat-expansion-panel-body {
+  padding: 0 0 0.35rem;
+  overflow: visible;
+}
+
+:host ::ng-deep .mobile-inspection-accordion .mat-expansion-panel-header {
+  min-height: 40px;
+  height: auto;
+}
+
+.mobile-inspection-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.mobile-inspection-set {
+  margin-bottom: 0.35rem;
+}
+
+.mobile-inspection-set-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #424242;
+}
+
+.mobile-inspection-checklist-table {
+  --mobile-inspection-row-font-size: 11px;
+  --mobile-inspection-row-line-height: 28px;
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.mobile-inspection-col-check {
+  width: 32px;
+}
+
+.mobile-inspection-col-text {
+  width: auto;
+}
+
+.mobile-inspection-row td {
+  border: none;
+  border-bottom: 1px solid rgba(112, 112, 112, 0.14);
+  padding: 0.35rem 0.25rem;
+  vertical-align: top;
+  font-size: var(--mobile-inspection-row-font-size);
+  background: #fff;
+  min-height: calc(var(--mobile-inspection-row-line-height) + 0.7rem);
+  box-sizing: border-box;
+}
+
+.mobile-inspection-checklist-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.mobile-inspection-row-check {
+  width: 32px;
+  padding-right: 0.35rem;
+}
+
+.mobile-inspection-check-slot {
+  height: var(--mobile-inspection-row-line-height);
+  min-height: var(--mobile-inspection-row-line-height);
+  max-height: var(--mobile-inspection-row-line-height);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.mobile-inspection-row-checkbox {
+  display: block;
+  margin: 0;
+}
+
+:host ::ng-deep .mobile-inspection-row-checkbox.mat-mdc-checkbox {
+  --mdc-checkbox-state-layer-size: 18px;
+  --mat-checkbox-state-layer-size: 18px;
+  display: block;
+  width: 18px;
+  height: 18px;
+  line-height: 0;
+}
+
+:host ::ng-deep .mobile-inspection-row-checkbox .mat-mdc-checkbox-touch-target {
+  display: none;
+}
+
+:host ::ng-deep .mobile-inspection-row-checkbox .mdc-form-field {
+  display: inline-flex;
+  align-items: center;
+  width: auto !important;
+  height: 18px;
+}
+
+:host ::ng-deep .mobile-inspection-row-checkbox .mdc-checkbox {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:host ::ng-deep .issue-checkbox-green .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+  border-color: #16a34a !important;
+  background-color: #16a34a !important;
+}
+
+:host ::ng-deep .issue-checkbox-red .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+  border-color: #dc2626 !important;
+  background-color: #dc2626 !important;
+}
+
+.mobile-inspection-row-body {
+  color: #707070;
+  word-break: break-word;
+}
+
+.mobile-inspection-row-lines {
+  line-height: 1.35;
+}
+
+.mobile-inspection-row-first-line {
+  min-height: var(--mobile-inspection-row-line-height);
+  line-height: 1.35;
+}
+
+.mobile-inspection-row-first-line:not(:has(.mobile-inspection-count-input)):not(:has(.mobile-inspection-photo-btn)):not(:has(.mobile-inspection-photo-thumb)) {
+  padding-top: calc((var(--mobile-inspection-row-line-height) - 1.35 * 1em) / 2);
+}
+
+.mobile-inspection-row-issue-line {
+  line-height: 1.35;
+}
+
+.mobile-inspection-issue-label {
+  display: inline;
+  margin-left: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b91c1c;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.mobile-inspection-issue-input {
+  display: inline-block;
+  vertical-align: baseline;
+  min-width: 120px;
+  max-width: 100%;
+  border: none;
+  border-bottom: 2px solid #dc2626;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  line-height: 1.25;
+  padding: 1px 0;
+  margin-left: 4px;
+}
+
+.mobile-inspection-row-text {
+  display: inline;
+  vertical-align: baseline;
+}
+
+.mobile-inspection-count-input {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+  display: inline-block;
+  vertical-align: baseline;
+  border: none;
+  border-bottom: 2px solid #1d4ed8;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  font-family: inherit;
+  font-size: var(--mobile-inspection-row-font-size);
+  font-weight: 400;
+  color: #0f172a;
+  line-height: 1.35;
+  padding: 0;
+  margin-left: 4px;
+  height: auto;
+  box-sizing: border-box;
+}
+
+.mobile-inspection-issue-input--invalid {
+  border-bottom-color: #991b1b;
+}
+
+.mobile-inspection-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+  width: var(--mobile-inspection-row-line-height);
+  height: var(--mobile-inspection-row-line-height);
+  padding: 0;
+  margin-left: 4px;
+}
+
+:host ::ng-deep .mobile-inspection-photo-btn.mat-mdc-icon-button {
+  width: var(--mobile-inspection-row-line-height);
+  height: var(--mobile-inspection-row-line-height);
+  padding: 0;
+}
+
+:host ::ng-deep .mobile-inspection-photo-btn .mat-mdc-button-touch-target {
+  display: none;
+}
+
+:host ::ng-deep .mobile-inspection-photo-btn .mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  line-height: 18px;
+}
+
+.mobile-inspection-photo-thumb {
+  display: inline-block;
+  vertical-align: middle;
+  width: var(--mobile-inspection-row-line-height);
+  height: var(--mobile-inspection-row-line-height);
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.mobile-inspection-notes {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.mobile-inspection-divider {
+  margin: 0.35rem 0;
+  border-top-width: 1px;
+}
+
+.hidden {
+  display: none;
+}
+
+.mobile-inspection-inline-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.mobile-inspection-section-action-btn {
+  min-width: 24px !important;
+  padding: 0 4px !important;
+}
+
+.mobile-inspection-action-divider {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.mobile-inspection-template-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: 0.5rem;
+  flex: 1 1 auto;
+}
+
+.mobile-inspection-selection-label {
+  font-size: 11px;
+  color: #0f172a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mobile-inspection-selection-mode-trigger {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+:host ::ng-deep .mobile-inspection-selection-mode-trigger .mat-mdc-select {
+  width: 100%;
+  max-width: 9rem;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+:host ::ng-deep .mobile-inspection-selection-mode-trigger .mat-mdc-select-trigger {
+  min-height: 20px;
+  height: 20px;
+}
+
+:host ::ng-deep .mobile-inspection-selection-mode-trigger .mat-mdc-select-value-text {
+  text-decoration: underline;
+}
+
+.mobile-inspection-template-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-inspection-template-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-inspection-template-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.35rem 0.15rem 0.35rem 0;
+  border-bottom: 1px solid rgba(112, 112, 112, 0.14);
+}
+
+.mobile-inspection-row-drag-handle,
+.mobile-inspection-template-row-checkbox {
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.mobile-inspection-template-row--active {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.mobile-inspection-template-row.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  background: #fff;
+}
+
+.mobile-inspection-template-row.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+.mobile-inspection-row-drag-handle {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  color: #94a3b8;
+}
+
+:host ::ng-deep .mobile-inspection-row-drag-handle .mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.mobile-inspection-template-row-checkbox {
+  flex: 0 0 auto;
+}
+
+:host ::ng-deep .mobile-inspection-template-row-checkbox.mat-mdc-checkbox {
+  --mdc-checkbox-state-layer-size: 18px;
+  --mat-checkbox-state-layer-size: 18px;
+  display: block;
+  width: 18px;
+  height: 18px;
+  line-height: 0;
+}
+
+:host ::ng-deep .mobile-inspection-template-row-checkbox .mat-mdc-checkbox-touch-target {
+  display: none;
+}
+
+:host ::ng-deep .mobile-inspection-template-row-checkbox .mdc-form-field {
+  width: auto !important;
+  height: 18px;
+}
+
+:host ::ng-deep .mobile-inspection-template-row-checkbox .mdc-checkbox {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.mobile-inspection-template-row-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #707070;
+  padding: 0;
+}
+
+.mobile-inspection-template-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #707070;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.mobile-inspection-template-row-actions {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: 0 0 auto;
+  gap: 0;
+  margin-left: 0.15rem;
+  align-self: flex-start;
+}
+
+.mobile-inspection-template-action-btn {
+  flex: 0 0 auto;
+}
+
+:host ::ng-deep .mobile-inspection-template-row-actions .mobile-inspection-template-action-btn.mat-mdc-icon-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+:host ::ng-deep .mobile-inspection-template-row-actions .mobile-inspection-template-action-btn .mat-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  line-height: 16px;
+}
+
+:host ::ng-deep .mobile-inspection-template-remove-btn.mat-mdc-button {
+  min-width: 22px;
+  width: 22px;
+  height: 24px;
+  padding: 0;
+  line-height: 20px;
+}
+
+.mobile-inspection-template-add-row-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.25rem 0.25rem 0;
+}
+
+:host ::ng-deep .mobile-inspection-template-add-row-btn.mat-mdc-button {
+  min-height: 28px;
+  font-size: 12px;
+  font-weight: 500;
+}

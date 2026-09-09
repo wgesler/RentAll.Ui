@@ -9,7 +9,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
-import { filterNavItemsForPartner, getVisibleNavItems } from '../../access/role-access';
+import { canShowLeadsNav, filterNavItemsForPartner, getVisibleNavItems } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
@@ -131,12 +131,7 @@ markViewForCheck(): void {
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
     let items = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
-    const showLeadsMenu =
-      (this.authService.hasRole(UserGroups.Admin) ||
-      this.authService.hasRole(UserGroups.Agent) ||
-      this.authService.hasRole(UserGroups.AgentAdmin)) &&
-      this.authService.hasAccessToLeads();
-    if (!showLeadsMenu) {
+    if (!canShowLeadsNav(this.authService)) {
       items = items.filter(item => {
         const url = String(item.url || '');
         return url !== 'leads' && !url.startsWith('leads/');

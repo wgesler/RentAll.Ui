@@ -329,7 +329,8 @@ onWorkOrderIdChanged(): void {
       || ''
     ).trim();
     const resolvedOfficeId = Number(
-      this.property?.officeId
+      (this.embeddedInMaintenance ? this.getShellOfficeId() : null)
+      ?? this.property?.officeId
       ?? this.workOrder?.officeId
       ?? this.getShellOfficeId()
       ?? 0
@@ -340,9 +341,15 @@ onWorkOrderIdChanged(): void {
     if (!resolvedOrganizationId || !hasValidOfficeId || (requiresPropertySelection && !resolvedPropertyId)) {
       this.pendingSaveAndNew = false;
       if (!hasValidOfficeId) {
-        this.toastr.error('Office is required. Select an office in the title bar.', 'Error');
+        this.toastr.error(
+          this.embeddedInMaintenance ? 'Office is required.' : 'Office is required. Select an office in the title bar.',
+          'Error'
+        );
       } else if (requiresPropertySelection && !resolvedPropertyId) {
-        this.toastr.error('Property is required. Select a property in the title bar.', 'Error');
+        this.toastr.error(
+          this.embeddedInMaintenance ? 'Property is required.' : 'Property is required. Select a property in the title bar.',
+          'Error'
+        );
       } else {
         this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
       }

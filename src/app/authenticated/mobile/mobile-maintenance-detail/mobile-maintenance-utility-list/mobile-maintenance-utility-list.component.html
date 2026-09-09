@@ -1,0 +1,101 @@
+@if (isLoading) {
+  <div class="mobile-maintenance-line-loading">
+    <mat-spinner [diameter]="28"></mat-spinner>
+    <span>Loading utilities...</span>
+  </div>
+} @else {
+  <div class="mobile-maintenance-lines">
+    <div class="mobile-maintenance-lines-header">
+      <div class="mobile-maintenance-lines-actions">
+        <button mat-raised-button color="accent" type="button" (click)="addRow()">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+        <button mat-raised-button color="primary" type="button" (click)="saveRequested.emit()" [disabled]="isSaving">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-maintenance-lines-list">
+      @if (!rows || rows.length === 0) {
+        <div class="mobile-maintenance-line-empty">No utilities found for this property.</div>
+      } @else {
+        @for (row of rows; track trackByRowId($index, row); let rowIndex = $index) {
+          <div class="mobile-maintenance-line-card">
+            <div class="mobile-maintenance-line-card-header">
+              <span class="mobile-maintenance-line-no">No: {{ rowIndex + 1 }}</span>
+              <button
+                type="button"
+                mat-icon-button
+                color="accent"
+                (click)="removeRow(row)"
+                [disabled]="isSaving"
+                matTooltip="Remove this utility"
+                aria-label="Remove utility">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <mat-form-field
+              appearance="outline"
+              class="mobile-maintenance-line-field"
+              [class.mat-form-field-invalid]="showFieldError(isUtilityNameMissing(row))"
+              [class.mat-mdc-form-field-invalid]="showFieldError(isUtilityNameMissing(row))">
+              <mat-label>Utility Name *</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.utilityName"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'utility-name-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Phone</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.phone"
+                (input)="onPhoneInput(row, $event)"
+                (blur)="formatPhone(row)"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'utility-phone-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Account Name</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.accountName"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'utility-account-name-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
+              <mat-label>Account Number</mat-label>
+              <input
+                matInput
+                type="text"
+                [(ngModel)]="row.accountNumber"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'utility-account-number-' + row.rowId" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mobile-maintenance-line-field mobile-maintenance-line-notes-field">
+              <mat-label>Notes</mat-label>
+              <textarea
+                matInput
+                rows="2"
+                [(ngModel)]="row.notes"
+                [ngModelOptions]="{ standalone: true }"
+                [name]="'utility-notes-' + row.rowId"></textarea>
+            </mat-form-field>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}

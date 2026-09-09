@@ -1,0 +1,142 @@
+@import '../mobile-sub-titlebar.scss';
+
+.mobile-issue-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.mobile-issue-submeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #334155;
+  background: color-mix(in srgb, var(--brand-primary-color) 8%, white);
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary-color) 12%, white);
+}
+
+.mobile-issue-list-wrap {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.mobile-issue-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+
+  p {
+    margin: 0;
+    color: #64748b;
+  }
+}
+
+.mobile-issue-restore-bar {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mobile-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.mobile-issue-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  background: #f8fafc;
+}
+
+.mobile-issue-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+
+.mobile-issue-section {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.mobile-issue-set {
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.mobile-issue-row {
+  position: relative;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.55rem 2.25rem 0.55rem 0.7rem;
+  background: #fff;
+  margin-top: 0.4rem;
+}
+
+.mobile-issue-row-dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.mobile-issue-line-head {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mobile-issue-line-index {
+  min-width: 1.2rem;
+  text-align: right;
+}
+
+.mobile-issue-text {
+  color: var(--mat-sys-secondary, #e91e63);
+  font-weight: 600;
+  font-size: 0.86rem;
+  margin-top: 0.25rem;
+  margin-left: 1.55rem;
+}
+
+.mobile-issue-photo-wrap {
+  margin-top: 0.2rem;
+}
+
+.mobile-issue-photo-thumb {
+  max-width: 110px;
+  max-height: 80px;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.mobile-issue-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}

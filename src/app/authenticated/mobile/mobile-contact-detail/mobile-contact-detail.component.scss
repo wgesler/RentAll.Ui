@@ -1,0 +1,62 @@
+.mobile-contact-fields {
+  padding: 0.75rem 1rem 1.5rem;
+}
+
+.mobile-contact-field {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0;
+  border-bottom: 1px solid rgba(112, 112, 112, 27%);
+}
+
+.mobile-contact-field-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 0.35rem;
+  white-space: nowrap;
+}
+
+.mobile-contact-field-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 400;
+  color: #1e293b;
+}
+
+.mobile-contact-field-select {
+  cursor: pointer;
+}
+
+:host ::ng-deep .mobile-contact-field-select.mat-mdc-select {
+  display: flex;
+  align-items: center;
+}
+
+:host ::ng-deep .mobile-contact-field-select .mat-mdc-select-trigger {
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+:host ::ng-deep .mobile-contact-field-select .mat-mdc-select-value,
+:host ::ng-deep .mobile-contact-field-select .mat-mdc-select-value-text,
+:host ::ng-deep .mobile-contact-field-select .mat-mdc-select-arrow-wrapper {
+  display: flex;
+  align-items: center;
+  line-height: 36px;
+}
+
+.mobile-contact-field-readonly,
+.mobile-contact-field-value:disabled {
+  color: #94a3b8;
+  cursor: default;
+  pointer-events: none;
+}

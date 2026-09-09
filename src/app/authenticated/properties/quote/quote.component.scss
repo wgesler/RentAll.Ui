@@ -334,3 +334,154 @@
 .line-items-table input.quote-field-input {
   border: 1px solid var(--mat-sys-outline-variant, #bdbdbd) !important;
 }
+
+.mobile-quote-form {
+  padding: 0.75rem 1rem 0;
+}
+
+.mobile-quote-fields,
+.mobile-quote-listings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mobile-quote-listings {
+  margin-top: 1.25rem;
+}
+
+.mobile-quote-listings-heading {
+  margin-bottom: 0.5rem;
+}
+
+.mobile-quote-listings-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mobile-quote-listings-legend {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.mobile-quote-listings-loading,
+.mobile-quote-listings-empty {
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.25rem 0;
+}
+
+.mobile-quote-listing-card {
+  border: 1px solid rgba(112, 112, 112, 0.27);
+  border-radius: 4px;
+  padding: 0 0 0.75rem;
+  background: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.mobile-quote-listing-card-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.25rem 0.65rem 0.75rem;
+}
+
+.mobile-quote-listing-no {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #424242;
+  line-height: 1;
+}
+
+.mobile-quote-listing-card-header .mat-mdc-icon-button {
+  justify-self: end;
+  align-self: start;
+  margin: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.mobile-quote-listing-link-row {
+  padding: 0 0.75rem;
+}
+
+.mobile-quote-listing-link {
+  color: var(--brand-primary-color, #1976d2);
+  font-weight: 600;
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
+
+:host.mobile-quote-layout ::ng-deep mat-form-field.mobile-quote-field.mat-mdc-form-field {
+  display: block;
+  width: 100%;
+  padding: 0 0.75rem;
+  box-sizing: border-box;
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 36px !important;
+    padding: 0 10px !important;
+  }
+
+  .mat-mdc-form-field-flex {
+    min-height: 36px !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 32px !important;
+    padding: 2px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-form-field-input-control input,
+  .mat-mdc-form-field-input-control textarea {
+    padding: 2px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-mdc-select-value,
+  .mat-mdc-select-min-line {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mat-mdc-floating-label.mdc-floating-label:not(.mdc-floating-label--float-above) {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    line-height: 1.2 !important;
+  }
+}
+
+:host.mobile-quote-layout ::ng-deep .mobile-quote-fields > mat-form-field.mobile-quote-field:last-of-type {
+  margin-bottom: 0 !important;
+}
+
+:host.mobile-quote-layout ::ng-deep .mobile-quote-listing-card > mat-form-field.mobile-quote-field textarea {
+  min-height: 2.5rem !important;
+  align-items: flex-start !important;
+}

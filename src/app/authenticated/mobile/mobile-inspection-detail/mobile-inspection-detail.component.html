@@ -1,0 +1,322 @@
+@if (!isMobilePageReady || !property) {
+  <div class="mobile-inspection-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading inspection...</span>
+  </div>
+} @else {
+  <div class="mobile-inspection-page">
+    <div class="mobile-inspection-meta">
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Property Code:</span>
+        <span class="mobile-inspection-meta-value">{{ property.propertyCode || 'N/A' }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Address:</span>
+        <span class="mobile-inspection-meta-value">{{ propertyAddress }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Inspector:</span>
+        <span class="mobile-inspection-meta-value">{{ inspectorName }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Date:</span>
+        <span class="mobile-inspection-meta-value">{{ todayDate }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Alarm Code:</span>
+        <span class="mobile-inspection-meta-value">{{ alarmCodeDisplay }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Keypad Access Codes:</span>
+        <span class="mobile-inspection-meta-value">{{ keypadAccessCodesDisplay }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Wireless Network ID:</span>
+        <span class="mobile-inspection-meta-value">{{ wirelessNetworkIdDisplay }}</span>
+      </div>
+      <div class="mobile-inspection-meta-row">
+        <span class="mobile-inspection-meta-label">Wireless Password:</span>
+        <span class="mobile-inspection-meta-value">{{ wirelessPasswordDisplay }}</span>
+      </div>
+    </div>
+
+    <div class="mobile-inspection-controls">
+      @if (!isTemplateMode) {
+        <mat-radio-group class="mobile-inspection-type-group" [formControl]="inspectionTypeIdControl" aria-label="Inspection type">
+          @for (opt of inspectionTypeOptions; track opt.value) {
+            <mat-radio-button [value]="opt.value">{{ opt.label }}</mat-radio-button>
+          }
+        </mat-radio-group>
+      }
+
+      <div class="mobile-inspection-action-buttons">
+        @if (errorsCount > 0) {
+          <button mat-raised-button color="accent" type="button" (click)="openIssuesDialog()">Issues</button>
+        }
+        @if (isTemplateMode) {
+          <button mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
+        } @else {
+          <button mat-raised-button color="primary" type="button" (click)="clearAll()">Clear</button>
+          <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">Save</button>
+          @if (canSubmitInspection) {
+            <button mat-raised-button color="accent" type="button" [disabled]="isSavingInProgress" (click)="saveChecklistData(true)">Submit</button>
+          }
+        }
+      </div>
+
+      <div class="mobile-inspection-action-status">
+        @if (errorsCount > 0) {
+          <span class="mobile-inspection-errors">{{ errorsCount }} issues</span>
+        }
+        <span class="mobile-inspection-progress">{{ completedCount }}/{{ totalItems }} complete</span>
+      </div>
+
+      @if (isAdmin) {
+        <div class="mobile-inspection-template-controls">
+          <button
+            mat-icon-button
+            type="button"
+            class="mobile-inspection-template-lock-btn"
+            [matTooltip]="isTemplateModeLocked ? 'Unlock to switch into Template mode' : 'Lock Template switch'"
+            [attr.aria-label]="isTemplateModeLocked ? 'Unlock Template switch' : 'Lock Template switch'"
+            (click)="toggleTemplateModeLock()">
+            <mat-icon>{{ isTemplateModeLocked ? 'lock' : 'lock_open' }}</mat-icon>
+          </button>
+          <mat-slide-toggle
+            [checked]="isTemplateMode"
+            [disabled]="isTemplateModeLocked && !isTemplateMode"
+            (change)="toggleTemplateMode()">
+            Template
+          </mat-slide-toggle>
+        </div>
+      }
+    </div>
+
+    <form [formGroup]="form" class="mobile-inspection-form">
+      <mat-accordion class="mobile-inspection-accordion" multi="true">
+        @for (section of sections; track section.key; let i = $index) {
+          <mat-expansion-panel [expanded]="i === 0">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span>{{ section.title }}</span>
+                @if (isTemplateMode) {
+                  <span class="mobile-inspection-inline-title-actions" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                    <button class="mobile-inspection-section-action-btn" mat-button type="button" (click)="addSection(i, $event)">+</button>
+                    <span class="mobile-inspection-action-divider">/</span>
+                    <button class="mobile-inspection-section-action-btn" mat-button type="button" (click)="removeSection(i, $event)">-</button>
+                  </span>
+                }
+              </mat-panel-title>
+              @if (isTemplateMode) {
+                <mat-panel-description class="mobile-inspection-template-header-actions" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                  <span class="mobile-inspection-selection-label">Selection Mode</span>
+                  <div class="mobile-inspection-selection-mode-trigger" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                    <mat-select
+                      [value]="section.selectionMode || 'allRequired'"
+                      [panelClass]="'mobile-inspection-selection-panel'"
+                      (selectionChange)="setSectionSelectionMode(section.key, $event.value)"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()">
+                      <mat-select-trigger>
+                        {{ section.selectionMode === 'exactlyOne' ? 'Exactly One' : (section.selectionMode === 'atLeastOne' ? 'At Least One' : 'All Required') }}
+                      </mat-select-trigger>
+                      @for (option of selectionModeOptions; track option.value) {
+                        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </div>
+                </mat-panel-description>
+              }
+            </mat-expansion-panel-header>
+
+            @if (section.hint) {
+              <p class="mobile-inspection-hint">{{ section.hint }}</p>
+            }
+
+            @if (isTemplateMode) {
+              <div class="mobile-inspection-template-grid">
+                @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
+                  <div class="mobile-inspection-set">
+                    @if (getSetInstruction(section.key, repeatIndex)) {
+                      <p class="mobile-inspection-set-title">{{ getSetInstruction(section.key, repeatIndex) }}</p>
+                    }
+                    <div
+                      class="mobile-inspection-template-items"
+                      cdkDropList
+                      [cdkDropListDisabled]="!isTemplateMode"
+                      [cdkDropListData]="getSetItems(section.key, repeatIndex)"
+                      (cdkDropListDropped)="onTemplateItemDrop(section.key, repeatIndex, $event)">
+                      @for (item of getSetItems(section.key, repeatIndex); track item.id) {
+                        <div
+                          class="mobile-inspection-template-row"
+                          [class.mobile-inspection-template-row--active]="isTemplateMode"
+                          cdkDrag
+                          [cdkDragDisabled]="!isTemplateMode"
+                          [cdkDragData]="item">
+                          <button
+                            mat-icon-button
+                            type="button"
+                            class="mobile-inspection-row-drag-handle"
+                            aria-label="Reorder item"
+                            (click)="$event.stopPropagation()">
+                            <mat-icon>drag_indicator</mat-icon>
+                          </button>
+                          <mat-checkbox
+                            class="mobile-inspection-template-row-checkbox"
+                            [ngClass]="getCheckboxStateClass(section.key, repeatIndex, item)"
+                            [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
+                            (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
+                          </mat-checkbox>
+                          @if (item.isEditable) {
+                            <input
+                              class="mobile-inspection-template-row-input"
+                              type="text"
+                              placeholder="Enter checklist item"
+                              [value]="item.text"
+                              (mousedown)="stopTemplateRowDrag($event)"
+                              (input)="updateEditableRowText(item, $any($event.target).value)" />
+                          } @else {
+                            <span class="mobile-inspection-template-row-text">{{ item.text }}</span>
+                          }
+                          <div class="mobile-inspection-template-row-actions">
+                            <button
+                              mat-icon-button
+                              type="button"
+                              class="mobile-inspection-template-action-btn"
+                              [color]="item.requiresPhoto ? 'primary' : undefined"
+                              [style.opacity]="item.requiresPhoto ? '1' : '0.35'"
+                              [attr.aria-label]="item.requiresPhoto ? 'Photo required' : 'Photo not required'"
+                              (mousedown)="stopTemplateRowDrag($event)"
+                              (click)="toggleRequiresPhoto(item, $event)">
+                              <mat-icon>photo_camera</mat-icon>
+                            </button>
+                            <button
+                              mat-icon-button
+                              type="button"
+                              class="mobile-inspection-template-action-btn"
+                              [color]="item.requiresCount ? 'primary' : undefined"
+                              [style.opacity]="item.requiresCount ? '1' : '0.35'"
+                              [attr.aria-label]="item.requiresCount ? 'Count required' : 'Count not required'"
+                              (mousedown)="stopTemplateRowDrag($event)"
+                              (click)="toggleRequiresCount(item, $event)">
+                              <mat-icon>pin</mat-icon>
+                            </button>
+                            <button
+                              mat-button
+                              type="button"
+                              class="mobile-inspection-template-action-btn mobile-inspection-template-remove-btn"
+                              (mousedown)="stopTemplateRowDrag($event)"
+                              (click)="removeRow(section.key, repeatIndex, item.id, $event)">
+                              -
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                    <div class="mobile-inspection-template-add-row-wrap">
+                      <button
+                        mat-button
+                        type="button"
+                        class="mobile-inspection-template-add-row-btn"
+                        (click)="addRow(section.key, repeatIndex, $event)">
+                        + Add row
+                      </button>
+                    </div>
+                  </div>
+                  @if (repeatIndex < getSetCount(section.key) - 1) {
+                    <mat-divider class="mobile-inspection-divider"></mat-divider>
+                  }
+                }
+              </div>
+            } @else {
+            @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
+              <div class="mobile-inspection-set">
+                @if (getSetInstruction(section.key, repeatIndex)) {
+                  <p class="mobile-inspection-set-title">{{ getSetInstruction(section.key, repeatIndex) }}</p>
+                }
+
+                <table class="mobile-inspection-checklist-table">
+                  <colgroup>
+                    <col class="mobile-inspection-col-check" />
+                    <col class="mobile-inspection-col-text" />
+                  </colgroup>
+                  <tbody>
+                    @for (item of getSetItems(section.key, repeatIndex); track item.id) {
+                      <tr class="mobile-inspection-row">
+                        <td class="mobile-inspection-row-check">
+                          <div class="mobile-inspection-check-slot">
+                            <mat-checkbox
+                              class="mobile-inspection-row-checkbox"
+                              [ngClass]="getCheckboxStateClass(section.key, repeatIndex, item)"
+                              [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
+                              (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
+                            </mat-checkbox>
+                          </div>
+                        </td>
+                        <td class="mobile-inspection-row-body">
+                          <div class="mobile-inspection-row-lines">
+                            <div class="mobile-inspection-row-first-line">
+                              <span class="mobile-inspection-row-text">{{ item.text }}</span>
+                              @if (item.requiresCount) {
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" class="mobile-inspection-count-input"
+                                  [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
+                              }
+                              @if (item.requiresPhoto && !item.hasIssue) {
+                                @if (!getItemPhotoSrc(item)) {
+                                  <button mat-icon-button type="button" class="mobile-inspection-photo-btn"
+                                    (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                    <mat-icon>photo_camera</mat-icon>
+                                  </button>
+                                } @else {
+                                  <img [src]="getItemPhotoSrc(item)" alt="Line item photo" class="mobile-inspection-photo-thumb"
+                                    (click)="openPhotoPreview(item, $event)" />
+                                }
+                              }
+                            </div>
+                            @if (item.hasIssue && form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value) {
+                              <div class="mobile-inspection-row-issue-line">
+                                @if (!getItemPhotoSrc(item)) {
+                                  <button mat-icon-button type="button" class="mobile-inspection-photo-btn"
+                                    (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                    <mat-icon>photo_camera</mat-icon>
+                                  </button>
+                                } @else {
+                                  <img [src]="getItemPhotoSrc(item)" alt="Line item photo" class="mobile-inspection-photo-thumb"
+                                    (click)="openPhotoPreview(item, $event)" />
+                                }
+                                <span class="mobile-inspection-issue-label">Issue:</span>
+                                <input class="mobile-inspection-issue-input"
+                                  [ngClass]="{ 'mobile-inspection-issue-input--invalid': isIssueTextMissing(section.key, repeatIndex, item) }"
+                                  type="text" placeholder="Describe issue" [value]="item.issue || ''"
+                                  (input)="updateItemIssue(section.key, repeatIndex, item, $any($event.target).value)" />
+                              </div>
+                            }
+                            @if (isPhotoRequiredForItem(item)) {
+                              <input class="hidden" type="file" accept="image/*"
+                                [id]="photoInputId(section.key, repeatIndex, item.id)"
+                                (change)="onPhotoSelected(section.key, repeatIndex, item.id, $event)" />
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              @if (repeatIndex < getSetCount(section.key) - 1) {
+                <mat-divider class="mobile-inspection-divider"></mat-divider>
+              }
+            }
+            }
+
+            <mat-form-field appearance="outline" class="mobile-inspection-notes">
+              <mat-label>Comments</mat-label>
+              <textarea matInput rows="3" [formControlName]="notesControlName(section.key)"></textarea>
+            </mat-form-field>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    </form>
+  </div>
+}

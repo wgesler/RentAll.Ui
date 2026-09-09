@@ -1,0 +1,84 @@
+@if (!isPageReady) {
+  <div class="mobile-reservation-board-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading reservation board...</span>
+  </div>
+} @else {
+  <div class="mobile-reservation-board-dates">
+    <mat-form-field appearance="outline" class="mobile-reservation-board-date-field">
+      <mat-label>Start Date</mat-label>
+      <input
+        matInput
+        [matDatepicker]="mobileBoardStartPicker"
+        [(ngModel)]="startDate"
+        [ngModelOptions]="{ standalone: true }"
+        (dateChange)="onDateRangeChange()"
+        [max]="endDate">
+      <mat-datepicker-toggle matIconSuffix [for]="mobileBoardStartPicker"></mat-datepicker-toggle>
+      <mat-datepicker #mobileBoardStartPicker></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="mobile-reservation-board-date-field">
+      <mat-label>End Date</mat-label>
+      <input
+        matInput
+        [matDatepicker]="mobileBoardEndPicker"
+        [(ngModel)]="endDate"
+        [ngModelOptions]="{ standalone: true }"
+        (dateChange)="onDateRangeChange()"
+        [min]="startDate">
+      <mat-datepicker-toggle matIconSuffix [for]="mobileBoardEndPicker"></mat-datepicker-toggle>
+      <mat-datepicker #mobileBoardEndPicker></mat-datepicker>
+    </mat-form-field>
+  </div>
+
+  <div class="mobile-reservation-board-scroll">
+    <table class="mobile-reservation-board-table">
+      <thead>
+        <tr>
+          <th class="mobile-reservation-board-code-col">&nbsp;</th>
+          @for (monthGroup of monthGroups; track monthGroup.monthName + '-' + monthGroup.days + '-' + $index) {
+            <th class="mobile-reservation-board-month" [attr.colspan]="monthGroup.days">{{ monthGroup.monthName }}</th>
+          }
+        </tr>
+        <tr>
+          <th class="mobile-reservation-board-code-col">Code</th>
+          @for (day of calendarDays; track day.date.getTime()) {
+            <th class="mobile-reservation-board-day">{{ day.dayOfWeek }}</th>
+          }
+        </tr>
+        <tr>
+          <th class="mobile-reservation-board-code-col">&nbsp;</th>
+          @for (day of calendarDays; track day.date.getTime()) {
+            <th class="mobile-reservation-board-day">{{ day.dayNumber }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (property of properties; track property.propertyId) {
+          <tr>
+            <td [class]="'mobile-reservation-board-code-col ' + getPropertyCodeClass(property)">
+              <button
+                type="button"
+                class="mobile-reservation-board-code-link"
+                (click)="onPropertyCodeClick(property, $event)">
+                {{ property.propertyCode }}
+              </button>
+            </td>
+            @for (day of calendarDays; track day.date.getTime()) {
+              @let cell = getCellDisplay(property, day);
+              <td
+                class="mobile-reservation-board-cell"
+                [class.mobile-reservation-board-cell-clickable]="isCellClickable(property, day)"
+                [style.background-color]="cell.color || null"
+                [style.color]="cell.textColor || null"
+                (click)="onReservationCellClick(property, day)">
+                {{ cell.text }}
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

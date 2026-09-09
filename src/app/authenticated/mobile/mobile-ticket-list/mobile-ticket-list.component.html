@@ -1,0 +1,43 @@
+@if (!isPageReady) {
+  <div class="flex justify-center py-8">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+} @else {
+  <div class="mobile-ticket-list-actions">
+    <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="addTicket()">
+      <mat-icon>add</mat-icon>
+      Add
+    </button>
+  </div>
+  <div class="tableDiv px-4">
+    <table class="mobile-ticket-table">
+      <thead>
+        <tr>
+          <th class="col-no">#</th>
+          @for (entry of getColumnEntries(); track entry.name) {
+            <th [style.width]="entry.column.maxWidth">{{ entry.column.displayAs }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (ticket of ticketsDisplay; track ticket.ticketId; let i = $index) {
+          <tr class="mobile-ticket-row" (click)="onTicketClick(ticket)">
+            <td class="col-no">{{ i + 1 }}</td>
+            @for (entry of getColumnEntries(); track entry.name) {
+              @if (entry.name === 'ticketCode') {
+                <td [style.width]="entry.column.maxWidth">
+                  @if (ticket.ticketAttentionDot) {
+                    <span class="mobile-ticket-attention-dot" aria-hidden="true">●</span>
+                  }
+                  <span class="mobile-ticket-code-text">{{ ticket.ticketCode }}</span>
+                </td>
+              } @else {
+                <td [style.width]="entry.column.maxWidth">{{ getCellValue(ticket, entry.name) }}</td>
+              }
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

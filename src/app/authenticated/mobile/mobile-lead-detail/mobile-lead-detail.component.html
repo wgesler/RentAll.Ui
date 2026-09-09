@@ -1,0 +1,28 @@
+<div class="mobile-lead-detail">
+  @if (tabPath === 'rentals') {
+    <app-mobile-lead-rental
+      [shellLeadId]="shellLeadId"
+      [officeId]="officeId"
+      (closed)="onRentalClosed($event)"
+      (officeSelectionRequired)="onOfficeSelectionRequired()" />
+  } @else if (tabPath === 'owners') {
+    <app-mobile-lead-owner
+      [shellLeadId]="shellLeadId"
+      [officeId]="officeId"
+      (closed)="onOwnerClosed($event)"
+      (officeSelectionRequired)="onOfficeSelectionRequired()"
+      (officeChange)="markViewForCheck()" />
+  } @else if (tabPath === 'general') {
+    <app-mobile-lead-general
+      [shellLeadId]="shellLeadId"
+      [officeId]="officeId"
+      (closed)="onGeneralClosed($event)"
+      (officeSelectionRequired)="onOfficeSelectionRequired()" />
+  } @else if (tabPath === 'partners') {
+    <app-mobile-lead-partner
+      [shellLeadId]="shellLeadId"
+      [officeId]="officeId"
+      (closed)="onPartnerClosed($event)"
+      (officeSelectionRequired)="onOfficeSelectionRequired()" />
+  }
+</div>

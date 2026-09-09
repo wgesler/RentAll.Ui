@@ -1,0 +1,56 @@
+@if (section) {
+  <div class="flex items-center gap-3 mobile-sub-titlebar">
+    @if (detailId) {
+      <button mat-icon-button type="button" (click)="backToList()" aria-label="Back to list">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+    }
+    <button type="button" class="mobile-sub-titlebar-trigger" [matMenuTriggerFor]="titleMenu" [disabled]="!titleTabs.length">
+      <mat-icon class="mobile-sub-titlebar-icon flex-shrink-0">{{ section.icon }}</mat-icon>
+      <span class="mobile-sub-titlebar-label">{{ section.label }}@if (getTitleSuffix()) { : {{ getTitleSuffix() }} }</span>
+      @if (titleTabs.length) {
+        <mat-icon class="mobile-sub-titlebar-caret">expand_more</mat-icon>
+      }
+    </button>
+    @if (detailId && section?.path !== 'tickets' && section?.path !== 'reservations' && section?.path !== 'properties' && (contactDirty || inspectionDirty)) {
+      <button mat-raised-button color="primary" type="button" class="mobile-sub-titlebar-action" (click)="saveDetail()">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    }
+  </div>
+  <mat-menu #titleMenu="matMenu" panelClass="mobile-sidebar-tab-menu">
+    @for (menuTab of titleTabs; track menuTab.path) {
+      <button mat-menu-item type="button" class="office-menu-item" (click)="onTitleTabSelect(menuTab)">
+        <span class="office-menu-label">{{ menuTab.label }}</span>
+        @if (isTitleTabSelected(menuTab)) {
+          <mat-icon class="office-selected-check">check</mat-icon>
+        }
+      </button>
+    }
+  </mat-menu>
+}
+
+@if (section?.path === 'tickets' && detailId) {
+  <app-mobile-ticket-detail #ticketDetail [ticketId]="detailId" [tabPath]="tab?.path ?? 'my-tickets'" (dirtyChange)="onTicketDirtyChange($event)" (ticketCodeChange)="onTicketCodeChange($event)" />
+} @else if (section?.path === 'tickets') {
+  <app-mobile-ticket-list [filterMode]="ticketFilterMode" [tabPath]="tab?.path ?? 'my-tickets'" />
+} @else if (section?.path === 'contacts' && detailId) {
+  <app-mobile-contact-detail #contactDetail [contactId]="detailId" (dirtyChange)="onContactDirtyChange($event)" />
+} @else if (section?.path === 'reservations' && detailId) {
+  <app-mobile-reservation-detail #reservationDetail [reservationId]="detailId" (dirtyChange)="onReservationDirtyChange($event)" />
+} @else if (section?.path === 'maintenance' && tab?.path === 'inspection' && detailId) {
+  <app-mobile-inspection-detail #inspectionDetail [propertyId]="detailId" (propertyCodeChange)="onPropertyCodeChange($event)" (dirtyChange)="onInspectionDirtyChange($event)" />
+} @else if (section?.path === 'maintenance' && tab?.path === 'maintenance' && detailId) {
+  <app-mobile-maintenance-detail [propertyId]="detailId" (propertyCodeChange)="onPropertyCodeChange($event)" />
+} @else if (section?.path === 'maintenance' && tab?.path === 'receipts' && detailId) {
+  <app-mobile-receipt-detail [receiptId]="detailId" (receiptDescriptionChange)="onReceiptDescriptionChange($event)" />
+} @else if (section?.path === 'maintenance' && tab?.path === 'work-orders' && detailId) {
+  <app-mobile-work-order-detail [workOrderId]="detailId" (workOrderTitleChange)="onWorkOrderTitleChange($event)" />
+} @else if (section?.path === 'properties' && detailId && (tab?.path === 'welcome-letter' || tab?.path === 'departure-letter')) {
+  <app-mobile-property-letter [propertyId]="detailId" [letterPath]="tab?.path ?? 'welcome-letter'" />
+} @else if (section?.path === 'properties' && detailId) {
+  <app-mobile-property-detail #propertyDetail [propertyId]="detailId" (dirtyChange)="onPropertyDirtyChange($event)" (propertyCodeChange)="onPropertyCodeChange($event)" />
+} @else if (section) {
+  <app-mobile-section-list [sectionPath]="section.path" [tabPath]="tab?.path ?? ''" />
+}

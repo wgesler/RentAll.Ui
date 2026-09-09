@@ -1,0 +1,52 @@
+@if (!isPageReady) {
+  <div class="mobile-property-letter-loading">
+    <mat-spinner [diameter]="36"></mat-spinner>
+    <span>Loading welcome letter...</span>
+  </div>
+} @else {
+  <div class="mobile-property-letter-page">
+    <form [formGroup]="form" class="mobile-property-letter-form">
+      <mat-form-field appearance="outline" class="mobile-property-letter-reservation">
+        <mat-label>Select a Reservation</mat-label>
+        <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [compareWith]="compareReservationId">
+          <mat-option [value]="null">Select a Reservation</mat-option>
+          @for (reservation of availableReservations; track reservation.value.reservationId) {
+            <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="mobile-property-letter-actions">
+        <mat-checkbox color="primary" [checked]="isBranded" (change)="onBrandedChange($event.checked)">Branded</mat-checkbox>
+        <mat-checkbox color="primary" [checked]="includeDepartureDate" (change)="onIncludeDepartureDateChange($event.checked)">Include Departure Date</mat-checkbox>
+        <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+          [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
+          <mat-icon>email</mat-icon>
+          Email
+        </button>
+        <button mat-raised-button type="button" color="accent" (click)="onDownload()"
+          [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || isDownloading">
+          <mat-icon>download</mat-icon>
+          {{ isDownloading ? 'Downloading...' : 'Download' }}
+        </button>
+      </div>
+
+      <div class="mobile-property-letter-preview">
+        @if (selectedOffice && selectedReservation) {
+          @if (previewIframeHtml) {
+            <iframe [srcdoc]="safeHtml" class="mobile-property-letter-iframe" [attr.key]="iframeKey" (load)="injectStylesIntoIframe()" frameborder="0"></iframe>
+          } @else if (isPreviewHtmlPending()) {
+            <div class="mobile-property-letter-loading">
+              <mat-spinner [diameter]="36"></mat-spinner>
+              <span>Loading preview...</span>
+            </div>
+          } @else {
+            <p class="mobile-property-letter-empty">Preview is not available yet. Save property HTML or try again.</p>
+          }
+        } @else {
+          <p class="mobile-property-letter-empty">Select a reservation to preview the welcome letter.</p>
+        }
+      </div>
+    </form>
+  </div>
+}

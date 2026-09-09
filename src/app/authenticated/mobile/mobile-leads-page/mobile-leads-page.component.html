@@ -1,0 +1,36 @@
+<div class="mobile-leads-page">
+  <div class="flex items-center gap-3 mobile-sub-titlebar">
+    @if (detailId) {
+      <button mat-icon-button type="button" (click)="backToList()" aria-label="Back to list">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+    }
+    <button type="button" class="mobile-sub-titlebar-trigger" [matMenuTriggerFor]="titleMenu" [disabled]="!titleTabs.length || !!detailId">
+      <mat-icon class="mobile-sub-titlebar-icon flex-shrink-0">hub</mat-icon>
+      <span class="mobile-sub-titlebar-label">Leads@if (tab?.label) { : {{ tab?.label }} }</span>
+      @if (titleTabs.length && !detailId) {
+        <mat-icon class="mobile-sub-titlebar-caret">expand_more</mat-icon>
+      }
+    </button>
+  </div>
+  <mat-menu #titleMenu="matMenu" panelClass="mobile-sidebar-tab-menu">
+    @for (menuTab of titleTabs; track menuTab.path) {
+      <button mat-menu-item type="button" class="office-menu-item" (click)="onTitleTabSelect(menuTab)">
+        <span class="office-menu-label">{{ menuTab.label }}</span>
+        @if (isTitleTabSelected(menuTab)) {
+          <mat-icon class="office-selected-check">check</mat-icon>
+        }
+      </button>
+    }
+  </mat-menu>
+
+  @if (detailId && tab?.path) {
+    <app-mobile-lead-detail
+      [tabPath]="tab.path"
+      [leadId]="detailId"
+      [officeId]="selectedOfficeId"
+      (closed)="onLeadSaved()" />
+  } @else if (tab?.path) {
+    <app-mobile-leads-list [tabPath]="tab.path" />
+  }
+</div>

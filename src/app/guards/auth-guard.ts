@@ -19,6 +19,12 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
         return router.createUrlTree([RouterToken.Login]);
     }
 
+    const path = state.url.split('?')[0].split('#')[0];
+    const firstSegment = path.split('/').filter(Boolean)[0];
+    if (firstSegment === RouterToken.Mobile) {
+        return true;
+    }
+
     const userGroups = authService.getUser()?.userGroups as Array<string | number> | undefined;
     const isPartnerOrg = !authService.hasRole(UserGroups.SuperAdmin)
       && Number(commonService.getOrganizationTypeId()) === OrganizationType.Partner;
