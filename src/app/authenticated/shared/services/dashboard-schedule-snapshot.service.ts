@@ -38,6 +38,7 @@ export type DashboardScheduleSnapshotContext = {
   nextMonthEndAtMidnight: Date;
   getMaintenanceForPropertyId: (propertyId: string, propertyIdAlt?: string) => MaintenanceListResponse | null;
   getServiceProviders: () => { userId: string; displayName: string }[];
+  includeStatusInventory?: boolean;
 };
 
 export type DashboardScheduleSnapshot = {
@@ -126,10 +127,10 @@ export class DashboardScheduleSnapshotService {
           propertyCode: maint.propertyCode,
           propertyId: maint.propertyId,
           reservationId: maint.reservationId,
-          serviceDate: { text: serviceDate, emphasis: 'none' },
+          serviceDate: { text: serviceDate, emphasis: 'none' as const },
           scheduleSortDate: serviceDate,
           scheduleServiceKind: slot.kind
-        } as MaintenanceListDisplay & { scheduleSortDate: string; scheduleServiceKind: typeof slot.kind });
+        } as unknown as MaintenanceListDisplay & { scheduleSortDate: string; scheduleServiceKind: typeof slot.kind });
       }
     }
 
@@ -158,9 +159,8 @@ export class DashboardScheduleSnapshotService {
         context.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm)
       )
     );
-    const propertyById = new Map(
-      propertyRows.map(property => [context.utilityService.normalizeId(property.propertyId), property] as const)
-    );
+    const propertyById = new Map(propertyRows.map(property => [property.propertyId, property] as const));
+    const includeStatusInventory = context.includeStatusInventory !== false;
     const currentReservationByPropertyId = context.mixedMappingService.getReservationData(
       context.filteredReservationPropertyMaintenanceList as never[]
     );
@@ -187,11 +187,10 @@ export class DashboardScheduleSnapshotService {
       eventDateSortTime: number,
       hasPets: boolean
     ): MaintenanceListDisplay | null => {
-      const propertyId = context.utilityService.normalizeId(mixed.propertyId ?? '');
-      if (!propertyId) {
+      if (!mixed.propertyId) {
         return null;
       }
-      const propertyRow = propertyById.get(propertyId);
+      const propertyRow = propertyById.get(mixed.propertyId);
       if (!propertyRow) {
         return null;
       }
@@ -299,9 +298,15 @@ export class DashboardScheduleSnapshotService {
         row => row.availableUntilDisplay,
         row => Number(row.eventDateSortTime ?? row.availableUntilOrdinal ?? noSort)
       ),
-      occupied: mapStatusInventoryRows(statusId => statusId === PropertyStatus.Occupied),
-      vacant: mapStatusInventoryRows(statusId => vacantStatusIds.has(statusId)),
-      offlineStatus: mapStatusInventoryRows(statusId => statusId === PropertyStatus.Offline)
+      occupied: includeStatusInventory
+        ? mapStatusInventoryRows(statusId => statusId === PropertyStatus.Occupied)
+        : [],
+      vacant: includeStatusInventory
+        ? mapStatusInventoryRows(statusId => vacantStatusIds.has(statusId))
+        : [],
+      offlineStatus: includeStatusInventory
+        ? mapStatusInventoryRows(statusId => statusId === PropertyStatus.Offline)
+        : []
     };
   }
 

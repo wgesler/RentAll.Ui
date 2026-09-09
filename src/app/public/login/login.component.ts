@@ -14,8 +14,9 @@ import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
 import { resetViewportScroll, teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../shared/utils/cdk-overlay.util';
 import { StorageService } from '../../services/storage.service';
-import { RouterUrl } from '../../app.routes.tokens';
+import { getMobileStartupUrl } from '../../authenticated/mobile/mobile-nav';
 import { isUsingMobileDevice, setUsingMobileDevice } from '../../authenticated/mobile/mobile-preference';
+import { CommonService } from '../../services/common.service';
 import { LoginRequest } from './models/login-request';
 
 @Component({
@@ -35,6 +36,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   private authService = inject(AuthService);
   private globalSelectionService = inject(GlobalSelectionService);
   private organizationFeatureService = inject(OrganizationFeatureService);
+  private commonService = inject(CommonService);
 
   readonly headerLogoUrl = '/assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png';
   readonly backdropLogoUrl = '/assets/images/login-backdrop-rentall-exchange.png';
@@ -125,7 +127,11 @@ export class LoginComponent implements OnInit, AfterViewInit {
           return;
         }
         if (this.authService.getIsLoggedIn()) {
-          this.router.navigateByUrl(this.usingMobileDevice ? RouterUrl.MobileHome : this.authService.getStartupPageUrl());
+          this.router.navigateByUrl(
+            this.usingMobileDevice
+              ? getMobileStartupUrl(this.authService, this.commonService.getOrganizationTypeId())
+              : this.authService.getStartupPageUrl()
+          );
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');
         }

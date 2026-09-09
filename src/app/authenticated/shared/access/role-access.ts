@@ -518,11 +518,77 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
     return SUPER_USER_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
   }
   if (isServiceProvider(userGroups)) {
-    return SERVICE_PROVIDERS_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
+    let items = SERVICE_PROVIDERS_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
+    if (isInspectorOnlyUser(userGroups)) {
+      const maintenanceItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === RouterToken.MaintenanceList);
+      if (maintenanceItem) {
+        items = [...items, maintenanceItem];
+      }
+    }
+    return items;
   }
 
   return COMPANY_USERS_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
 }
+
+export function filterSidebarNavItems(
+  items: NavItemDefinition[],
+  options: {
+    canShowLeads?: boolean;
+    canShowOwners?: boolean;
+    isPartnerOrg?: boolean;
+    userGroups?: UserGroupInput;
+  }
+): NavItemDefinition[] {
+  let filtered = items;
+
+  if (options.canShowLeads === false) {
+    filtered = filtered.filter(item => {
+      const url = String(item.url || '');
+      return url !== RouterToken.Leads && !url.startsWith(`${RouterToken.Leads}/`);
+    });
+  }
+
+  if (options.canShowOwners === false) {
+    filtered = filtered.filter(item => {
+      const url = String(item.url || '');
+      return url !== RouterToken.OwnerShell && !url.startsWith(`${RouterToken.OwnerShell}/`);
+    });
+  }
+
+  if (options.isPartnerOrg) {
+    filtered = filterNavItemsForPartner(filtered, options.userGroups);
+  }
+
+  return filtered;
+}
+
+export function getFilteredSidebarNavItems(
+  userGroups: UserGroupInput,
+  options: {
+    canShowLeads?: boolean;
+    canShowOwners?: boolean;
+    isPartnerOrg?: boolean;
+  }
+): NavItemDefinition[] {
+  return filterSidebarNavItems(getVisibleNavItems(userGroups), {
+    ...options,
+    userGroups
+  });
+}
+
+export function isPartnerOrganizationContext(
+  organizationTypeId: number | null | undefined,
+  isSuperAdmin: boolean
+): boolean {
+  return !isSuperAdmin && Number(organizationTypeId) === OrganizationType.Partner;
+}
+
+export type SidebarNavFilterOptions = {
+  canShowLeads?: boolean;
+  canShowOwners?: boolean;
+  isPartnerOrg?: boolean;
+};
 
 export function canShowLeadsNav(authService: {
   hasRole: (group: UserGroups) => boolean;

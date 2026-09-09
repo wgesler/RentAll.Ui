@@ -20,5 +20,7 @@
   flex-direction: column;
   min-height: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }

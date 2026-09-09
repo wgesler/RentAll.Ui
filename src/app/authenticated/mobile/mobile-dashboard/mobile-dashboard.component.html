@@ -84,43 +84,19 @@
         <p>Loading schedules…</p>
       </div>
     } @else {
-      <div class="mobile-dashboard-schedules-toolbar">
-        <button
-          mat-raised-button
-          type="button"
-          color="accent"
-          class="mobile-dashboard-schedules-email-btn"
-          aria-label="Email schedule"
-          [disabled]="scheduleDisplayRows.length === 0 || isPreparingEmail"
-          (click)="emailSchedule()">
-          <mat-icon>email</mat-icon>
-          {{ isPreparingEmail ? 'Preparing…' : 'Email' }}
-        </button>
-        @if (showServiceProviderFilter) {
-          <mat-select
-            class="mobile-dashboard-schedules-provider-select"
-            [value]="selectedServiceProviderId"
-            (valueChange)="onServiceProviderChange($event)"
-            panelClass="datatable-dropdown-panel"
-            aria-label="Service Provider">
-            @for (option of serviceProviderSelectOptions; track option.value) {
-              <mat-option [value]="option.value">{{ option.label }}</mat-option>
-            }
-          </mat-select>
-        }
-      </div>
-
-      <app-mobile-list-table
-        [rows]="scheduleListRows"
-        [columns]="scheduleListColumns"
-        [isPageReady]="true"
-        [showFilter]="true"
-        [rowsClickable]="true"
-        [rowNumberLabel]="'No'"
-        (rowClick)="onMobileScheduleRowClick($event)" />
-
       @if (selectedScheduleRowKey && scheduleDetailFields.length > 0) {
         <div class="mobile-dashboard-schedule-detail" aria-label="Schedule row details">
+          <div class="mobile-dashboard-schedule-detail-header">
+            <button
+              mat-icon-button
+              type="button"
+              class="mobile-dashboard-schedule-detail-back"
+              aria-label="Back to schedule list"
+              (click)="backFromScheduleDetail()">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <span class="mobile-dashboard-schedule-detail-title">{{ selectedScheduleDetailTitle }}</span>
+          </div>
           <div class="mobile-dashboard-schedule-detail-fields">
             @for (field of scheduleDetailFields; track field.label) {
               <div class="mobile-dashboard-schedule-detail-field">
@@ -133,32 +109,42 @@
             }
           </div>
         </div>
+      } @else {
+        <div class="mobile-dashboard-schedules-toolbar">
+          <button
+            mat-raised-button
+            type="button"
+            color="accent"
+            class="mobile-dashboard-schedules-email-btn"
+            aria-label="Email schedule"
+            [disabled]="scheduleDisplayRows.length === 0 || isPreparingEmail"
+            (click)="emailSchedule()">
+            <mat-icon>email</mat-icon>
+            {{ isPreparingEmail ? 'Preparing…' : 'Email' }}
+          </button>
+          @if (showServiceProviderFilter) {
+            <mat-select
+              class="mobile-dashboard-schedules-provider-select"
+              [value]="selectedServiceProviderId"
+              (valueChange)="onServiceProviderChange($event)"
+              panelClass="datatable-dropdown-panel"
+              aria-label="Service Provider">
+              @for (option of serviceProviderSelectOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          }
+        </div>
+
+        <app-mobile-list-table
+          [rows]="scheduleListRows"
+          [columns]="scheduleListColumns"
+          [isPageReady]="true"
+          [showFilter]="true"
+          [rowsClickable]="true"
+          [rowNumberLabel]="'No'"
+          (rowClick)="onMobileScheduleRowClick($event)" />
       }
     }
   </section>
-
-  @if (selectedScheduleCalendarDayKey) {
-    <aside class="mobile-dashboard-day-detail" aria-label="Selected day details">
-      <h3 class="mobile-dashboard-day-detail-title">{{ selectedDayLabel }}</h3>
-      @if (!snapshot.isReady) {
-        <div class="mobile-dashboard-day-detail-loading">
-          <mat-spinner [diameter]="28"></mat-spinner>
-          <p>Loading events…</p>
-        </div>
-      } @else if (selectedDayEvents.length > 0) {
-        <ul class="mobile-dashboard-day-detail-list">
-          @for (item of selectedDayEvents; track item.eventKind + '-' + (item.maintenanceId || item.reservationId || item.propertyId || item.propertyCode) + '-' + item.eventLabel) {
-            <li class="mobile-dashboard-day-detail-item" [attr.data-event-kind]="item.eventKind">
-              <div class="mobile-dashboard-day-detail-event">{{ item.eventLabel }}</div>
-              <div class="mobile-dashboard-day-detail-row"><span>Property</span><strong>{{ item.propertyCode }}</strong></div>
-              <div class="mobile-dashboard-day-detail-row"><span>Reservation</span><strong>{{ item.reservationCode }}</strong></div>
-              <div class="mobile-dashboard-day-detail-row"><span>Contact</span><strong>{{ item.contactName }}</strong></div>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="mobile-dashboard-day-detail-empty">No events scheduled for this day.</p>
-      }
-    </aside>
-  }
 </div>

@@ -7,6 +7,7 @@ import { SidebarStateService } from '../../shared/layout/services/sidebar-state.
 import { MobileChromeOverlayService } from '../mobile-chrome-overlay.service';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
+import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MobileNavItem, MobileNavTab, getMobileLeadsTabs, getMobileNavItem, getMobileNavItems, getMobilePrimaryLink, getMobileRouteParts, getMobileTicketTabs } from '../mobile-nav';
 import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
 
@@ -67,6 +68,10 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
       this.filterNavItems();
       this.markViewForCheck();
     });
+    this.commonService.getOrganization().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.filterNavItems();
+      this.markViewForCheck();
+    });
   }
 
   ngOnDestroy(): void {
@@ -106,7 +111,14 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
     if (this.menuNavItem?.path === 'leads') {
       return getMobileLeadsTabs(this.isOwnerAdmin);
     }
+    if (this.menuNavItem?.path === 'maintenance' && this.isInspectorView()) {
+      return (this.menuNavItem.tabs ?? []).filter(tab => tab.path !== 'work-orders');
+    }
     return this.menuNavItem?.tabs ?? [];
+  }
+
+  isInspectorView(): boolean {
+    return isInspectorOnlyUser(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
   }
 
   filterNavItems(): void {

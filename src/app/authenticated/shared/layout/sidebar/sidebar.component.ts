@@ -9,13 +9,12 @@ import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
-import { canShowLeadsNav, filterNavItemsForPartner, getVisibleNavItems } from '../../access/role-access';
+import { canShowLeadsNav, getFilteredSidebarNavItems, isPartnerOrganizationContext } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
-import { OrganizationType } from '../../../organizations/models/organization-enum';
 import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
@@ -130,24 +129,15 @@ markViewForCheck(): void {
 
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
-    let items = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
-    if (!canShowLeadsNav(this.authService)) {
-      items = items.filter(item => {
-        const url = String(item.url || '');
-        return url !== 'leads' && !url.startsWith('leads/');
-      });
-    }
-    if (!this.authService.isOwnerAdmin() || !this.authService.hasAccessToOwners()) {
-      items = items.filter(item => {
-        const url = String(item.url || '');
-        return url !== 'owner' && !url.startsWith('owner/');
-      });
-    }
-    if (!this.authService.hasRole(UserGroups.SuperAdmin)
-      && Number(this.commonService.getOrganizationTypeId()) === OrganizationType.Partner) {
-      items = filterNavItemsForPartner(items, user?.userGroups as Array<string | number> | undefined);
-    }
-    this.navItems = items;
+    const userGroups = user?.userGroups as Array<string | number> | undefined;
+    this.navItems = getFilteredSidebarNavItems(userGroups, {
+      canShowLeads: canShowLeadsNav(this.authService),
+      canShowOwners: this.authService.isOwnerAdmin() && this.authService.hasAccessToOwners(),
+      isPartnerOrg: isPartnerOrganizationContext(
+        this.commonService.getOrganizationTypeId(),
+        this.authService.hasRole(UserGroups.SuperAdmin)
+      )
+    });
   }
 
   refreshAssignedTicketBadge(): void {

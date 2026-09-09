@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { ColumnData, ColumnSet } from '../../shared/data-table/models/column-data';
@@ -12,7 +12,7 @@ import { MobileListRow } from './mobile-list.model';
   styleUrl: './mobile-list-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MobileListTableComponent {
+export class MobileListTableComponent implements OnChanges {
   @Input() rows: MobileListRow[] = [];
   @Input() columns: ColumnSet = {};
   @Input() isPageReady = false;
@@ -23,6 +23,12 @@ export class MobileListTableComponent {
   @Output() rowClick = new EventEmitter<MobileListRow>();
   private cdr = inject(ChangeDetectorRef);
   filterText = '';
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['rows'] || changes['columns'] || changes['isPageReady']) {
+      this.cdr.markForCheck();
+    }
+  }
 
   get filteredRows(): MobileListRow[] {
     const query = this.filterText.trim().toLowerCase();

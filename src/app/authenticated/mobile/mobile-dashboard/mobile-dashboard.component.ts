@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
@@ -19,19 +19,22 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MobileListTableComponent } from '../mobile-list-table/mobile-list-table.component';
 import { MobileListRow } from '../mobile-list-table/mobile-list.model';
 import { ServiceType } from '../../shared/models/mixed-enums';
-import { MaintenanceListDisplay, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
+import { MaintenanceListDisplay } from '../../shared/models/mixed-models';
 import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { buildMobileCalendarMaintenanceRows } from './mobile-dashboard-calendar-data';
 import {
-  MobileCalendarDayEvent,
   MobileCalendarMaintenanceRow,
   MobileDashboardCalendarSnapshot,
   MobileScheduleCalendarMonth,
   MobileScheduleDotType
 } from './mobile-dashboard-calendar.model';
-import { buildMobileMaintenanceSlices } from './mobile-dashboard-maintenance-data';
+import {
+  DashboardScheduleMaintenanceFallbackRow,
+  DashboardScheduleSnapshotContext,
+  DashboardScheduleSnapshotService
+} from '../../shared/services/dashboard-schedule-snapshot.service';
 import {
   buildScheduleDetailFields,
   getScheduleDateCellDisplay,
@@ -49,9 +52,7 @@ import {
 } from './mobile-dashboard-schedule-email';
 import {
   buildMobileScheduleDisplayColumns,
-  buildMobileScheduleExportColumns,
-  buildMobileScheduleCleaningRows,
-  buildMobileServiceProviderOptions
+  buildMobileScheduleExportColumns
 } from './mobile-dashboard-schedules-data';
 
 @Component({
@@ -70,6 +71,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
   private toastr = inject(ToastrService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private scheduleSnapshotService = inject(DashboardScheduleSnapshotService);
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(
     new Set(['activeReservations', 'propertyMaintenanceList', 'cleaners', 'carpetUsers', 'inspectors'])
@@ -105,8 +107,6 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
   departureDayKeys = new Set<string>();
   scheduleDotTypeByDayKey = new Map<string, Set<MobileScheduleDotType>>();
   selectedScheduleCalendarDayKey: string | null = null;
-  selectedDayEvents: MobileCalendarDayEvent[] = [];
-  selectedDayLabel = '';
   assigneeUserIdForScope: string | null = null;
 
   get showServiceProviderFilter(): boolean {
@@ -123,19 +123,16 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
       this.selectedServiceProviderId = this.assigneeUserIdForScope;
     }
 
-    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
-      this.recomputeScopedBackendData();
-    });
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      if (items.size === 0 && !this.snapshot.isReady) {
-        return;
-      }
-      this.markViewForCheck();
-    });
     this.loadHousekeepingUsers();
     this.loadCarpetUsers();
     this.loadInspectorUsers();
     this.loadEmailHtml();
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      if (items.size === 0) {
+        this.recomputeScopedBackendData();
+      }
+      this.markViewForCheck();
+    });
     super.ngOnInit();
     this.globalOfficeSubscription?.unsubscribe();
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
@@ -144,11 +141,21 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
         this.recomputeScopedBackendData();
       }
     });
+    if (this.itemsToLoad$.value.size === 0) {
+      this.recomputeScopedBackendData();
+    }
     this.refreshScheduleCalendars();
   }
 
   recomputeScopedBackendData(): void {
-    this.recomputeBackendData(this.assigneeUserIdForScope);
+    this.recomputeBackendData(this.getEffectiveServiceProviderScopeId());
+  }
+
+  getEffectiveServiceProviderScopeId(): string | null {
+    if (this.assigneeUserIdForScope) {
+      return this.assigneeUserIdForScope;
+    }
+    return this.utilityService.normalizeIdOrNull(this.selectedServiceProviderId);
   }
 
   loadEmailHtml(): void {
@@ -244,7 +251,49 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
     ];
   }
 
+  buildScheduleSnapshotContext(): DashboardScheduleSnapshotContext {
+    return {
+      utilityService: this.utilityService,
+      mixedMappingService: this.mixedMappingService,
+      mappingService: this.mappingService,
+      formatterService: this.formatterService,
+      filteredPropertyMaintenanceList: this.filteredPropertyMaintenanceList,
+      filteredReservationPropertyMaintenanceList: this.filteredReservationPropertyMaintenanceList,
+      arrivalReservations: this.arrivalReservations,
+      departureReservations: this.departureReservations,
+      cleaningReservations: this.cleaningReservations,
+      onlineProperties: this.onlineProperties,
+      offlineProperties: this.offlineProperties,
+      housekeepingUsers: this.housekeepingUsers,
+      carpetUsers: this.carpetUsers,
+      inspectorUsers: this.inspectorUsers,
+      housekeepingById: this.housekeepingById,
+      carpetById: this.carpetById,
+      inspectorById: this.inspectorById,
+      currentMonthStartAtMidnight: this.currentMonthStartAtMidnight,
+      nextMonthEndAtMidnight: this.nextMonthEndAtMidnight,
+      getMaintenanceForPropertyId: (propertyId, propertyIdAlt) =>
+        this.getMaintenanceListResponseForPropertyId(propertyId, propertyIdAlt),
+      getServiceProviders: () => this.getServiceProviders(),
+      includeStatusInventory: !this.getEffectiveServiceProviderScopeId()
+    };
+  }
+
   syncCalendarSnapshot(): void {
+    try {
+      this.applyCalendarSnapshot();
+    } catch (error) {
+      console.error('[MobileDashboardTrace] syncCalendarSnapshot failed', error);
+      this.snapshot = {
+        ...this.snapshot,
+        isReady: true,
+        scheduleCleaningRows: [],
+        serviceProviderOptions: []
+      };
+    }
+  }
+
+  private applyCalendarSnapshot(): void {
     const maintenanceRows = buildMobileCalendarMaintenanceRows({
       arrivalReservations: this.arrivalReservations,
       departureReservations: this.departureReservations,
@@ -253,7 +302,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
       offlineProperties: this.offlineProperties,
       filteredPropertyMaintenanceList: this.filteredPropertyMaintenanceList,
       filteredReservationPropertyMaintenanceList: this.filteredReservationPropertyMaintenanceList,
-      includeStatusInventory: !this.assigneeUserIdForScope,
+      includeStatusInventory: !this.getEffectiveServiceProviderScopeId(),
       context: {
         mixedMappingService: this.mixedMappingService,
         utilityService: this.utilityService,
@@ -263,42 +312,30 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
       }
     });
 
-    const maintenanceSlices = buildMobileMaintenanceSlices({
-      mixedMappingService: this.mixedMappingService,
-      mappingService: this.mappingService,
-      utilityService: this.utilityService,
-      formatterService: this.formatterService,
-      arrivalReservations: this.arrivalReservations,
-      departureReservations: this.departureReservations,
-      cleaningReservations: this.cleaningReservations,
-      onlineProperties: this.onlineProperties,
-      offlineProperties: this.offlineProperties,
-      filteredPropertyMaintenanceList: this.filteredPropertyMaintenanceList,
-      filteredReservationPropertyMaintenanceList: this.filteredReservationPropertyMaintenanceList,
-      housekeepingUsers: this.housekeepingUsers,
-      carpetUsers: this.carpetUsers,
-      inspectorUsers: this.inspectorUsers,
-      housekeepingById: this.housekeepingById,
-      carpetById: this.carpetById,
-      inspectorById: this.inspectorById,
-      getMaintenanceForPropertyId: (propertyId, propertyIdAlt) =>
-        this.getMaintenanceListResponseForPropertyId(propertyId, propertyIdAlt)
-    }, {
-      includeStatusInventory: !this.assigneeUserIdForScope
-    });
+    const maintenanceFallbackRows: DashboardScheduleMaintenanceFallbackRow[] = maintenanceRows.map(row => ({
+      propertyCode: row.propertyCode,
+      propertyId: row.propertyId,
+      reservationId: row.reservationId,
+      cleaningDate: row.cleaningDate,
+      carpetDate: row.carpetDate,
+      inspectingDate: row.inspectingDate,
+      eventType: row.eventType
+    }));
 
-    let scheduleCleaningRows = buildMobileScheduleCleaningRows(maintenanceSlices, {
-      utilityService: this.utilityService,
-      currentMonthStartAtMidnight: this.currentMonthStartAtMidnight,
-      filteredReservationPropertyMaintenanceList: this.filteredReservationPropertyMaintenanceList,
-      getInclusiveCurrentAndNextMonthOrdinalBounds: () => this.getInclusiveCurrentAndNextMonthOrdinalBounds()
-    });
+    const scheduleSnapshot = this.scheduleSnapshotService.buildSnapshot(
+      this.buildScheduleSnapshotContext(),
+      maintenanceFallbackRows
+    );
+    let scheduleCleaningRows = scheduleSnapshot.scheduleCleaningRows;
 
-    if (this.assigneeUserIdForScope) {
+    const scopeId = this.getEffectiveServiceProviderScopeId();
+    if (scopeId) {
       scheduleCleaningRows = scheduleCleaningRows.filter(
-        row => this.utilityService.normalizeId(row.cleanerUserId) === this.assigneeUserIdForScope
+        row => this.utilityService.normalizeId(row.cleanerUserId) === scopeId
       );
-      this.selectedServiceProviderId = this.assigneeUserIdForScope;
+      if (this.assigneeUserIdForScope) {
+        this.selectedServiceProviderId = this.assigneeUserIdForScope;
+      }
     }
 
     this.snapshot = {
@@ -311,8 +348,8 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
         .map(row => this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(row)),
       maintenanceRows,
       scheduleCleaningRows,
-      scheduleCleaningColumns: buildMobileScheduleDisplayColumns(),
-      serviceProviderOptions: buildMobileServiceProviderOptions(this.getServiceProviders(), this.utilityService)
+      scheduleCleaningColumns: scheduleSnapshot.scheduleCleaningColumns,
+      serviceProviderOptions: scheduleSnapshot.serviceProviderOptions
     };
   }
 
@@ -377,8 +414,8 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
       return;
     }
     this.selectedServiceProviderId = userId;
-    this.rebuildScheduleDisplayRows();
-    this.markViewForCheck();
+    this.clearSelectedScheduleRow();
+    this.recomputeBackendData(this.utilityService.normalizeIdOrNull(userId));
   }
 
   mapScheduleServiceKindToDotType(
@@ -406,12 +443,21 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
 
   onScheduleRowClick(row: MaintenanceListDisplay): void {
     const rowKey = getScheduleRowKey(row);
-    if (this.selectedScheduleRowKey === rowKey) {
-      this.clearSelectedScheduleRow();
-    } else {
-      this.selectedScheduleRowKey = rowKey;
-      this.scheduleDetailFields = buildScheduleDetailFields(row, buildMobileScheduleExportColumns());
+    this.selectedScheduleRowKey = rowKey;
+    this.scheduleDetailFields = buildScheduleDetailFields(row, buildMobileScheduleExportColumns());
+    this.markViewForCheck();
+  }
+
+  get selectedScheduleDetailTitle(): string {
+    if (!this.selectedScheduleRowKey) {
+      return 'Schedule';
     }
+    const row = this.scheduleRowByKey.get(this.selectedScheduleRowKey);
+    return String(row?.propertyCode ?? '').trim() || 'Schedule';
+  }
+
+  backFromScheduleDetail(): void {
+    this.clearSelectedScheduleRow();
     this.rebuildScheduleDisplayRows();
     this.markViewForCheck();
   }
@@ -551,25 +597,10 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
     const keys = new Set<string>();
     const dotTypeByDayKey = new Map<string, Set<MobileScheduleDotType>>();
 
-    if (this.assigneeUserIdForScope) {
-      for (const row of this.snapshot.scheduleCleaningRows) {
-        const extended = row as MaintenanceListDisplay & {
-          scheduleSortDate?: string;
-          scheduleServiceKind?: 'cleaning' | 'carpet' | 'inspecting' | 'maid';
-        };
-        const dayKey = this.toDayKey(extended.scheduleSortDate);
-        if (!dayKey) {
-          continue;
-        }
-        keys.add(dayKey);
-        this.assignScheduleDotType(dotTypeByDayKey, dayKey, this.mapScheduleServiceKindToDotType(extended.scheduleServiceKind));
-      }
-    } else {
-      for (const row of this.snapshot.maintenanceRows) {
-        for (const dayEntry of this.getScheduleDayEntriesForRow(row)) {
-          keys.add(dayEntry.dayKey);
-          this.assignScheduleDotType(dotTypeByDayKey, dayEntry.dayKey, dayEntry.type);
-        }
+    for (const row of this.snapshot.maintenanceRows) {
+      for (const dayEntry of this.getScheduleDayEntriesForRow(row)) {
+        keys.add(dayEntry.dayKey);
+        this.assignScheduleDotType(dotTypeByDayKey, dayEntry.dayKey, dayEntry.type);
       }
     }
 
@@ -761,119 +792,6 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
 
   applySelectedDay(dateKey: string): void {
     this.selectedScheduleCalendarDayKey = dateKey;
-    this.selectedDayEvents = this.buildSelectedDayEvents(dateKey);
-    this.selectedDayLabel = this.formatSelectedDayLabel(dateKey);
-  }
-
-  formatSelectedDayLabel(dateKey: string): string {
-    const parsed = this.utilityService.parseDateOnlyStringToDate(dateKey);
-    if (!parsed) {
-      return dateKey;
-    }
-    return parsed.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  }
-
-  buildSelectedDayEvents(dateKey: string): MobileCalendarDayEvent[] {
-    const events: MobileCalendarDayEvent[] = [];
-
-    for (const row of this.snapshot.arrivalRows) {
-      if (this.toDayKey(row.arrivalDateDisplay) !== dateKey) {
-        continue;
-      }
-      events.push(this.mapTurnoverDayEvent(row, 'Arrival', 'arrival', dateKey));
-    }
-
-    for (const row of this.snapshot.departureRows) {
-      if (this.toDayKey(row.departureDateDisplay) !== dateKey) {
-        continue;
-      }
-      events.push(this.mapTurnoverDayEvent(row, 'Departure', 'departure', dateKey));
-    }
-
-    for (const row of this.snapshot.maintenanceRows) {
-      const propertyCode = String(row.propertyCode || '').trim() || '—';
-      const reservationCode = this.resolveReservationCode(row);
-      if (this.toDayKey(row.cleaningDate) === dateKey) {
-        const isMaid = row.eventType === ServiceType.MaidService;
-        events.push({
-          propertyCode,
-          reservationCode,
-          contactName: String(row.contactName || '').trim() || '—',
-          eventLabel: isMaid ? 'Maid Service' : 'Cleaning',
-          eventKind: isMaid ? 'maid' : 'cleaning',
-          propertyId: row.propertyId,
-          reservationId: row.reservationId,
-          maintenanceId: row.maintenanceId,
-          dateKey
-        });
-      }
-      if (this.toDayKey(row.carpetDate) === dateKey) {
-        events.push({
-          propertyCode,
-          reservationCode,
-          contactName: String(row.contactName || '').trim() || '—',
-          eventLabel: 'Carpet',
-          eventKind: 'carpet',
-          propertyId: row.propertyId,
-          reservationId: row.reservationId,
-          maintenanceId: row.maintenanceId,
-          dateKey
-        });
-      }
-      if (this.toDayKey(row.inspectingDate) === dateKey) {
-        events.push({
-          propertyCode,
-          reservationCode,
-          contactName: String(row.contactName || '').trim() || '—',
-          eventLabel: 'Inspection',
-          eventKind: 'inspection',
-          propertyId: row.propertyId,
-          reservationId: row.reservationId,
-          maintenanceId: row.maintenanceId,
-          dateKey
-        });
-      }
-    }
-
-    return events;
-  }
-
-  mapTurnoverDayEvent(
-    row: ReservationTurnoverEventDisplay,
-    eventLabel: string,
-    eventKind: MobileCalendarDayEvent['eventKind'],
-    dateKey: string
-  ): MobileCalendarDayEvent {
-    return {
-      propertyCode: row.propertyCode || '—',
-      reservationCode: row.reservationCode || '—',
-      contactName: row.contactName || row.tenantName || '—',
-      eventLabel,
-      eventKind,
-      propertyId: row.propertyId || null,
-      reservationId: row.reservationId || null,
-      maintenanceId: null,
-      dateKey
-    };
-  }
-
-  resolveReservationCode(row: MobileCalendarMaintenanceRow): string {
-    const direct = String(row.reservationCode || '').trim();
-    if (direct) {
-      return direct;
-    }
-    const reservationId = String(row.reservationId || '').trim();
-    if (!reservationId) {
-      return '—';
-    }
-    const turnoverRows = [...this.snapshot.arrivalRows, ...this.snapshot.departureRows];
-    const match = turnoverRows.find(r => String(r.reservationId || '').trim() === reservationId);
-    return String(match?.reservationCode || '').trim() || '—';
   }
 
   toDayKey(value: string | null | undefined): string | null {

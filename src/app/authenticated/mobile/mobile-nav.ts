@@ -1,7 +1,16 @@
+import { RouterToken } from '../../app.routes.tokens';
 import { AuthService } from '../../services/auth.service';
-import { OrganizationType } from '../organizations/models/organization-enum';
 import { UserGroups } from '../users/models/user-enums';
-import { canShowLeadsNav, type UserGroupInput } from '../shared/access/role-access';
+import {
+  canPartnerAccessUrl,
+  canShowLeadsNav,
+  canUserAccessUrl,
+  getFilteredSidebarNavItems,
+  isPartnerOrganizationContext,
+  type NavItemDefinition,
+  type SidebarNavFilterOptions,
+  type UserGroupInput
+} from '../shared/access/role-access';
 
 export interface MobileNavTab {
   label: string;
@@ -100,8 +109,90 @@ export function getMobileTicketFilterMode(tabPath: string | null | undefined): M
   return 'assignedToMe';
 }
 
-/** Partner org hamburger items — matches desktop PARTNER_NAV_ITEMS (board, properties, contacts). */
-export const MOBILE_PARTNER_NAV_PATHS = new Set(['home', 'properties', 'contacts']);
+/** Desktop sidebar nav url → mobile hamburger path. */
+const DESKTOP_NAV_URL_TO_MOBILE_PATH: Record<string, string> = {
+  [RouterToken.Dashboard]: 'dashboard',
+  [RouterToken.DashboardStaff]: 'dashboard',
+  [RouterToken.DashboardOwner]: 'dashboard',
+  [RouterToken.Leads]: 'leads',
+  [RouterToken.ReservationBoard]: 'home',
+  [RouterToken.ReservationList]: 'reservations',
+  [RouterToken.PropertyList]: 'properties',
+  [RouterToken.TicketList]: 'tickets',
+  [RouterToken.MaintenanceList]: 'maintenance',
+  [RouterToken.Contacts]: 'contacts'
+};
+
+const MOBILE_PATH_TO_AUTH_SEGMENT: Record<string, string> = {
+  dashboard: RouterToken.Dashboard,
+  home: RouterToken.ReservationBoard,
+  leads: RouterToken.Leads,
+  tickets: RouterToken.TicketList,
+  maintenance: RouterToken.MaintenanceList,
+  reservations: RouterToken.ReservationList,
+  properties: RouterToken.PropertyList,
+  contacts: RouterToken.Contacts
+};
+
+function desktopNavUrlsToMobilePaths(urls: readonly string[]): Set<string> {
+  const paths = new Set<string>();
+  for (const url of urls) {
+    const mobilePath = DESKTOP_NAV_URL_TO_MOBILE_PATH[url];
+    if (mobilePath) {
+      paths.add(mobilePath);
+    }
+  }
+  return paths;
+}
+
+export function getMobileSidebarFilterOptions(
+  authService: AuthService,
+  organizationTypeId?: number | null
+): SidebarNavFilterOptions {
+  return {
+    canShowLeads: canShowLeadsNav(authService),
+    canShowOwners: authService.isOwnerAdmin() && authService.hasAccessToOwners(),
+    isPartnerOrg: isPartnerOrganizationContext(
+      organizationTypeId,
+      authService.hasRole(UserGroups.SuperAdmin)
+    )
+  };
+}
+
+function getAllowedMobilePaths(
+  userGroups: UserGroupInput,
+  filterOptions: SidebarNavFilterOptions
+): Set<string> {
+  return desktopNavUrlsToMobilePaths(
+    getFilteredSidebarNavItems(userGroups, filterOptions).map(item => item.url)
+  );
+}
+
+function buildMobileNavItemsFromDesktop(desktopItems: readonly NavItemDefinition[]): MobileNavItem[] {
+  const result: MobileNavItem[] = [];
+  const seenPaths = new Set<string>();
+
+  for (const desktopItem of desktopItems) {
+    const mobilePath = DESKTOP_NAV_URL_TO_MOBILE_PATH[desktopItem.url];
+    if (!mobilePath || seenPaths.has(mobilePath)) {
+      continue;
+    }
+
+    const template = MOBILE_NAV_ITEMS.find(item => item.path === mobilePath);
+    if (!template) {
+      continue;
+    }
+
+    result.push({
+      ...template,
+      icon: desktopItem.icon,
+      label: desktopItem.displayName
+    });
+    seenPaths.add(mobilePath);
+  }
+
+  return result;
+}
 
 export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
   { icon: 'dashboard', label: 'Dashboard', path: 'dashboard', tabs: [] },
@@ -134,45 +225,107 @@ export function getMobileNavItems(
   authService: AuthService,
   organizationTypeId?: number | null
 ): MobileNavItem[] {
-  let items = MOBILE_NAV_ITEMS;
-
-  if (!canShowLeadsNav(authService)) {
-    items = items.filter(item => item.path !== 'leads');
+  const userGroups = authService.getUser()?.userGroups as UserGroupInput;
+  if (!userGroups?.length) {
+    return [];
   }
 
-  if (!authService.hasRole(UserGroups.SuperAdmin)
-    && Number(organizationTypeId) === OrganizationType.Partner) {
-    items = items.filter(item => MOBILE_PARTNER_NAV_PATHS.has(item.path));
-  }
-
-  return items;
+  const filterOptions = getMobileSidebarFilterOptions(authService, organizationTypeId);
+  const visibleDesktopItems = getFilteredSidebarNavItems(userGroups, filterOptions);
+  return buildMobileNavItemsFromDesktop(visibleDesktopItems);
 }
 
-export function canPartnerAccessMobileUrl(url: string, _userGroups?: UserGroupInput): boolean {
+export function mobileUrlToAuthUrl(url: string): string {
   const parts = (url || '').split('?')[0].split('#')[0].split('/').filter(Boolean);
-  if (parts[0] !== 'mobile') {
+  if (parts[0] !== RouterToken.Mobile) {
+    return url;
+  }
+
+  const section = parts[1] ?? '';
+  const segment = MOBILE_PATH_TO_AUTH_SEGMENT[section];
+  if (!segment) {
+    return `/${RouterToken.Auth}/unknown`;
+  }
+
+  const rest = parts.slice(2).join('/');
+  return rest ? `/${RouterToken.Auth}/${segment}/${rest}` : `/${RouterToken.Auth}/${segment}`;
+}
+
+export function canUserAccessMobileUrl(
+  userGroups: UserGroupInput,
+  url: string,
+  filterOptions: SidebarNavFilterOptions
+): boolean {
+  const parts = (url || '').split('?')[0].split('#')[0].split('/').filter(Boolean);
+  if (parts[0] !== RouterToken.Mobile) {
     return true;
   }
 
-  const section = parts[1] ?? 'home';
-  if (MOBILE_PARTNER_NAV_PATHS.has(section)) {
-    return true;
-  }
+  const section = parts[1] ?? '';
+  const isPartnerOrg = filterOptions.isPartnerOrg === true;
+  const allowedPaths = getAllowedMobilePaths(userGroups, filterOptions);
 
-  // Board opens reservation detail/new; block the reservations list page.
-  if (section === 'reservations') {
+  if (isPartnerOrg && section === 'reservations') {
     return parts.length >= 3 && !!parts[2]?.trim();
   }
 
   if (section === 'dashboard') {
+    if (!allowedPaths.has('dashboard')) {
+      return false;
+    }
+    return canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.Dashboard}`)
+      || canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.DashboardStaff}`)
+      || canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.DashboardOwner}`);
+  }
+
+  if (section && !allowedPaths.has(section)) {
     return false;
   }
 
-  return false;
+  if (!section) {
+    return allowedPaths.size > 0;
+  }
+
+  if (isPartnerOrg) {
+    return canPartnerAccessUrl(mobileUrlToAuthUrl(url), userGroups);
+  }
+
+  return canUserAccessUrl(userGroups, mobileUrlToAuthUrl(url));
 }
 
-export function getMobilePartnerFallbackUrl(): string {
-  return '/mobile/home';
+export function getMobileFallbackUrl(
+  userGroups: UserGroupInput,
+  filterOptions: SidebarNavFilterOptions
+): string {
+  const firstMobileItem = buildMobileNavItemsFromDesktop(getFilteredSidebarNavItems(userGroups, filterOptions))[0];
+  return firstMobileItem ? getMobilePrimaryLink(firstMobileItem) : '/mobile/home';
+}
+
+function mapAuthStartupUrlToMobile(authStartupUrl: string): string | null {
+  const parts = (authStartupUrl || '').split('?')[0].split('/').filter(Boolean);
+  const segment = parts[0] === RouterToken.Auth ? parts[1] : parts[0];
+  if (!segment) {
+    return null;
+  }
+
+  const mobilePath = DESKTOP_NAV_URL_TO_MOBILE_PATH[segment];
+  return mobilePath ? `/${RouterToken.Mobile}/${mobilePath}` : null;
+}
+
+/** Mobile post-login URL from the user's startup page (same rules as desktop), with role/nav fallback. */
+export function getMobileStartupUrl(
+  authService: AuthService,
+  organizationTypeId?: number | null
+): string {
+  const userGroups = authService.getUser()?.userGroups as UserGroupInput;
+  const filterOptions = getMobileSidebarFilterOptions(authService, organizationTypeId);
+  const mobileFromStartup = mapAuthStartupUrlToMobile(authService.getStartupPageUrl());
+
+  if (mobileFromStartup && canUserAccessMobileUrl(userGroups, mobileFromStartup, filterOptions)) {
+    return mobileFromStartup;
+  }
+
+  return getMobileFallbackUrl(userGroups, filterOptions);
 }
 
 export function getMobileNavItem(sectionPath: string | null | undefined): MobileNavItem | null {

@@ -1,8 +1,13 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { RouterToken } from '../app.routes';
-import { canPartnerAccessMobileUrl, getMobilePartnerFallbackUrl } from '../authenticated/mobile/mobile-nav';
-import { canPartnerAccessUrl, canUserAccessUrl, getAuthorizedFallbackUrl, getPartnerFallbackUrl } from '../authenticated/shared/access/role-access';
+import { canUserAccessMobileUrl, getMobileFallbackUrl, getMobileSidebarFilterOptions } from '../authenticated/mobile/mobile-nav';
+import {
+  canPartnerAccessUrl,
+  canUserAccessUrl,
+  getAuthorizedFallbackUrl,
+  getPartnerFallbackUrl
+} from '../authenticated/shared/access/role-access';
 import { OrganizationType } from '../authenticated/organizations/models/organization-enum';
 import { UserGroups } from '../authenticated/users/models/user-enums';
 import { AuthService } from '../services/auth.service';
@@ -23,19 +28,21 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
     const path = state.url.split('?')[0].split('#')[0];
     const firstSegment = path.split('/').filter(Boolean)[0];
     const userGroups = authService.getUser()?.userGroups as Array<string | number> | undefined;
-    const isPartnerOrg = !authService.hasRole(UserGroups.SuperAdmin)
-      && Number(commonService.getOrganizationTypeId()) === OrganizationType.Partner;
+    const mobileFilterOptions = getMobileSidebarFilterOptions(authService, commonService.getOrganizationTypeId());
 
     if (firstSegment === RouterToken.Mobile) {
-        if (isPartnerOrg && !canPartnerAccessMobileUrl(state.url, userGroups)) {
-          const hasCurrentRoute = !!router.routerState.snapshot.url && router.routerState.snapshot.url !== '/';
-          if (hasCurrentRoute) {
-            return false;
+        if (!canUserAccessMobileUrl(userGroups, state.url, mobileFilterOptions)) {
+          const fallbackUrl = getMobileFallbackUrl(userGroups, mobileFilterOptions);
+          const currentPath = path.split('?')[0];
+          const fallbackPath = fallbackUrl.split('?')[0];
+          if (currentPath !== fallbackPath) {
+            return router.parseUrl(fallbackUrl);
           }
-          return router.parseUrl(getMobilePartnerFallbackUrl());
+          return false;
         }
         return true;
     }
+    const isPartnerOrg = mobileFilterOptions.isPartnerOrg === true;
     if (isPartnerOrg && !canPartnerAccessUrl(state.url, userGroups)) {
       const hasCurrentRoute = !!router.routerState.snapshot.url && router.routerState.snapshot.url !== '/';
       if (hasCurrentRoute) {

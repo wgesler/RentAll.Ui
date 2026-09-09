@@ -6,7 +6,7 @@
   flex-direction: column;
   min-height: 0;
   max-width: 100%;
-  overflow: auto;
+  overflow: visible;
 }
 
 .mobile-dashboard {
@@ -39,85 +39,6 @@
 
 .mobile-dashboard-calendars-body .dashboard-staff-schedule-calendars-layout {
   justify-content: center;
-}
-
-.mobile-dashboard-day-detail {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px;
-  background: #fff;
-}
-
-.mobile-dashboard-day-detail-title {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.mobile-dashboard-day-detail-loading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-.mobile-dashboard-day-detail-loading p {
-  margin: 0;
-}
-
-.mobile-dashboard-day-detail-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mobile-dashboard-day-detail-item {
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-
-.mobile-dashboard-day-detail-event {
-  margin: 0 0 6px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: #334155;
-}
-
-.mobile-dashboard-day-detail-item[data-event-kind='arrival'] .mobile-dashboard-day-detail-event { color: #15803d; }
-.mobile-dashboard-day-detail-item[data-event-kind='departure'] .mobile-dashboard-day-detail-event { color: #dc2626; }
-.mobile-dashboard-day-detail-item[data-event-kind='cleaning'] .mobile-dashboard-day-detail-event { color: #2563eb; }
-.mobile-dashboard-day-detail-item[data-event-kind='carpet'] .mobile-dashboard-day-detail-event { color: #15803d; }
-.mobile-dashboard-day-detail-item[data-event-kind='inspection'] .mobile-dashboard-day-detail-event { color: #7c3aed; }
-.mobile-dashboard-day-detail-item[data-event-kind='maid'] .mobile-dashboard-day-detail-event { color: #db2777; }
-
-.mobile-dashboard-day-detail-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: #64748b;
-}
-
-.mobile-dashboard-day-detail-row strong {
-  color: #0f172a;
-  font-weight: 600;
-  text-align: right;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.mobile-dashboard-day-detail-empty {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #64748b;
 }
 
 .mobile-dashboard-schedules {
@@ -192,11 +113,36 @@
 }
 
 .mobile-dashboard-schedule-detail {
-  margin-top: 12px;
+  margin-top: 4px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #fff;
   overflow: hidden;
+}
+
+.mobile-dashboard-schedule-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 0.5rem 0 0.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.mobile-dashboard-schedule-detail-back {
+  flex-shrink: 0;
+}
+
+.mobile-dashboard-schedule-detail-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .mobile-dashboard-schedule-detail-fields {

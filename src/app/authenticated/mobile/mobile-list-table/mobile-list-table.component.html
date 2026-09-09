@@ -8,7 +8,7 @@
       <div class="datatable-search-wrap dbg-band-actions mobile-list-filter">
         <mat-form-field subscriptSizing="dynamic" class="datatable-search-field mobile-list-filter-field">
           <mat-icon matPrefix class="datatable-filter-prefix-icon">filter_list</mat-icon>
-          <input matInput [(ngModel)]="filterText" (ngModelChange)="onFilterChange()" placeholder="Filter by word or value..." autocomplete="off" />
+          <input matInput [(ngModel)]="filterText" (ngModelChange)="onFilterChange()" placeholder="Filter list..." autocomplete="off" />
           @if (filterText) {
             <button mat-icon-button matSuffix type="button" (click)="clearFilter()">
               <mat-icon>clear</mat-icon>
