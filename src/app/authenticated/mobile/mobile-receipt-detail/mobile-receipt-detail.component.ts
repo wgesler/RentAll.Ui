@@ -96,7 +96,7 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
     void this.mobileRouter.navigate(['/mobile', 'maintenance', 'receipts']);
   }
 
-  protected override emitWorkOrderSelection(selection: WorkOrderSelection): void {
+  override emitWorkOrderSelection(selection: WorkOrderSelection): void {
     const workOrderId = (selection.workOrderId || '').trim();
     if (!workOrderId) {
       this.mobileToastr.error('Unable to open work order: missing navigation context.', 'Work Order');
