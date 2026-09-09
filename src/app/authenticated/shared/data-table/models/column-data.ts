@@ -13,6 +13,7 @@ export interface ColumnData {
 
     obfuscate?: boolean;
     isCheckbox?: boolean;
+    isCheckmark?: boolean;
     isMultiSelect?: boolean;
     checkboxEditable?: boolean;
     options?: string[];
@@ -32,6 +33,7 @@ export const defaultColumnData: ColumnData = {
 
     obfuscate: false,
     isCheckbox: false,
+    isCheckmark: false,
     isMultiSelect: false,
     checkboxEditable: false,
     options: undefined,

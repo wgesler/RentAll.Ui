@@ -1059,6 +1059,7 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
         account: '',
         description: '',
         journalEntryMemo: '',
+        isCleared: false,
         debit: '',
         credit: '',
         balance: '',

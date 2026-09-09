@@ -1079,7 +1079,8 @@ markViewForCheck(): void {
   }
 
   emitCheckboxChangeEvent(event: MatCheckboxChange, rowItem: PurposefulAny, columnName: string): void {
-    if (!this.getColumnByName(columnName)?.checkboxEditable) {
+    const column = this.getColumnByName(columnName);
+    if (!column?.checkboxEditable || column.isCheckmark) {
       return;
     }
     const previousValue = !!rowItem[columnName];
@@ -1105,7 +1106,7 @@ markViewForCheck(): void {
     if (columnName === 'select') {
       return true;
     }
-    if (column.suppressRowClick === true) {
+    if (column.suppressRowClick === true || column.isCheckmark === true) {
       return true;
     }
     return !!(this.suppressRowClickOnDropdownCells && (item[columnName]?.options?.length || column.options?.length));
@@ -1116,7 +1117,7 @@ markViewForCheck(): void {
     if (!target) {
       return false;
     }
-    return !!target.closest('.mat-column-select, mat-checkbox, .mdc-checkbox, .mdc-form-field');
+    return !!target.closest('.mat-column-select, mat-checkbox, .mdc-checkbox, .mdc-form-field, .datatable-checkmark-cell');
   }
 
   isRowClickSuppressedInteraction(event: MouseEvent): boolean {

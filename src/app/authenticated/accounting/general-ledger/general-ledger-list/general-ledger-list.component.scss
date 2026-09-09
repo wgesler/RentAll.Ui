@@ -589,6 +589,24 @@
       gap: 4px;
       width: 100%;
     }
+
+    .general-ledger-cleared-check-cell {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .general-ledger-cleared-check {
+      color: #16a34a;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      line-height: 18px;
+      pointer-events: none;
+    }
   }
 }
 

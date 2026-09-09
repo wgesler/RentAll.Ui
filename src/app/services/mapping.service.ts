@@ -1091,6 +1091,8 @@ resolveJournalEntryLineSourceDisplay(
       paymentCode: line.paymentCode ?? null,
       depositCode: line.depositCode ?? null,
       transferCode: line.transferCode ?? null,
+      isCleared: this.resolveIsClearedFlag(line.isCleared),
+      clearedOn: line.clearedOn ?? null,
       isManual: isManualJournalEntry(line.sourceTypeId, line.journalEntryKindId),
       sortDateValue: Date.parse(line.journalEntryCreatedOn),
       transactionDateSortKey: rawTransactionDate,

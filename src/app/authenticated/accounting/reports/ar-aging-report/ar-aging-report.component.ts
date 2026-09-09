@@ -654,6 +654,7 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
         account: '',
         description: '',
         journalEntryMemo: '',
+        isCleared: false,
         debit: '',
         credit: '',
         balance: '',

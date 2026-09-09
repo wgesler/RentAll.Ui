@@ -149,6 +149,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
+    isCleared: { displayAs: 'Clr', maxWidth: '7ch', sort: true, isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
@@ -160,6 +161,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '34ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '32ch', wrap: true },
+    isCleared: { displayAs: 'Clr', maxWidth: '7ch', sort: true, isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
@@ -1167,6 +1169,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         contactName: this.summarizeGroupedField(entryLines.map(line => line.contactName)),
         account: this.summarizeGroupedField(entryLines.map(line => (line.account || '').trim()).filter(account => account.length > 0)),
         description: (firstLine.journalEntryMemo || '').trim() || '—',
+        isCleared: entryLines.length > 0 && entryLines.every(line => line.isCleared === true),
         debit: this.formatGroupedAmount(totalDebit),
         credit: this.formatGroupedAmount(totalCredit),
         balance: lastLine.balance,
@@ -1355,6 +1358,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         return line.account || '';
       case 'description':
         return line.description || '';
+      case 'isCleared':
+        return line.isCleared ? 1 : 0;
       case 'debit':
         return line.debitValue ?? 0;
       case 'credit':
@@ -2623,6 +2628,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       account: accountLabel,
       description: (split.description || '').trim() || 'Transfer to Escrow Accounts',
       journalEntryMemo: contextLine.journalEntryMemo,
+      isCleared: contextLine.isCleared,
+      clearedOn: contextLine.clearedOn ?? null,
       debit: this.formatter.currencyUsd(amount),
       credit: '',
       balance: '',

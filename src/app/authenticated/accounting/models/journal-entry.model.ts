@@ -247,6 +247,7 @@ export interface GeneralLedgerEntryDisplay {
   creditValue: number;
   disabled?: boolean;
   isManual?: boolean;
+  isCleared?: boolean;
   postingStatusId: number;
   deleteDisabled?: boolean;
   editDisabled?: boolean;
@@ -282,6 +283,8 @@ export interface JournalEntryLineListDisplay {
   account: string;
   description: string;
   journalEntryMemo: string;
+  isCleared?: boolean;
+  clearedOn?: string | null;
   debit: string;
   credit: string;
   balance: string;

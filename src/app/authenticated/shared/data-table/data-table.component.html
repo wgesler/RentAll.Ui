@@ -504,6 +504,14 @@
                       style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                   } @else if (column.name === 'applyAmount' && isManualApplyMode) {
                     <span>{{ item.applyAmount || '' }}</span>
+                  } @else if (column.isCheckmark) {
+                    <div class="datatable-checkmark-cell"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()">
+                      @if (item[column.name]) {
+                        <mat-icon class="datatable-checkmark-icon" aria-hidden="true">check</mat-icon>
+                      }
+                    </div>
                   } @else if (column.isCheckbox) {
                     @if (item[column.name] !== 'NONE') {
                       <div class="datatable-checkbox-cell">

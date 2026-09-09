@@ -35,8 +35,12 @@
                         [style.min-width]="getDetailLineColumnMinWidth(columnName)"
                         [style.text-align]="activeDetailLineDisplayedColumns[columnName].alignment || 'left'"
                         [class.no-wrap]="!activeDetailLineDisplayedColumns[columnName].wrap">
-                      @if (columnName === 'lineNo') {
-                        {{ getDetailLineColumnValue(line, columnName, lineIndex) }}
+                      @if (columnName === 'isCleared') {
+                        <span class="general-ledger-cleared-check-cell">
+                          @if (line.isCleared) {
+                            <mat-icon class="general-ledger-cleared-check" aria-hidden="true">check</mat-icon>
+                          }
+                        </span>
                       } @else {
                         {{ getDetailLineColumnValue(line, columnName, lineIndex) }}
                       }
