@@ -40,6 +40,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   @Input() propertyCode: string | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() isReadOnly = false;
+  @Input() showCopyListingLink = false;
   @Input() disablePhotoApiLoad = false;
   @Input() initialPhotos: PropertyPhotoResponse[] | null = null;
   @Input() hideRateCard = false;
@@ -760,7 +761,10 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
     }
 
     try {
-      const response = await firstValueFrom(this.propertyListingShareService.createPropertyShareLink(activePropertyId));
+      const shareRequest$ = this.showCopyListingLink
+        ? this.partnerService.createPropertyShareLink(activePropertyId)
+        : this.propertyListingShareService.createPropertyShareLink(activePropertyId);
+      const response = await firstValueFrom(shareRequest$);
       const shareUrl = this.propertyListingShareService.getPublicListingUrl(response.token);
       const copied = this.clipboard.copy(shareUrl);
       if (copied) {

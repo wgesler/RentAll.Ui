@@ -18,25 +18,29 @@
               </div>
             }
           </div>
-          @if (!isReadOnly) {
+          @if (!isReadOnly || showCopyListingLink) {
             <div class="listing-hero__actions">
               <div class="listing-upload-action">
-                <button
-                  type="button"
-                  mat-raised-button
-                  color="primary"
-                  (click)="openPhotoPicker()">
-                  <mat-icon>add_a_photo</mat-icon>
-                  Add Photo(s)
-                </button>
-                <button
-                  type="button"
-                  mat-raised-button
-                  color="accent"
-                  (click)="copyListingLink()">
-                  <mat-icon>link</mat-icon>
-                  Copy Link
-                </button>
+                @if (!isReadOnly) {
+                  <button
+                    type="button"
+                    mat-raised-button
+                    color="primary"
+                    (click)="openPhotoPicker()">
+                    <mat-icon>add_a_photo</mat-icon>
+                    Add Photo(s)
+                  </button>
+                }
+                @if (!isReadOnly || showCopyListingLink) {
+                  <button
+                    type="button"
+                    mat-raised-button
+                    color="accent"
+                    (click)="copyListingLink()">
+                    <mat-icon>link</mat-icon>
+                    Copy Link
+                  </button>
+                }
               </div>
             </div>
           }

@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
+import { PropertyListingShareResponse } from '../../properties/models/property-listing-share.model';
 import { PropertyPhotoResponse } from '../../properties/models/property-photo.model';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PartnerCityStateResponse, PartnerContactResponse } from '../models/partner.model';
@@ -60,6 +61,11 @@ export class PartnerService {
       map(photos => photos || []),
       catchError(() => of([]))
     );
+  }
+
+  createPropertyShareLink(propertyId: string): Observable<PropertyListingShareResponse> {
+    const id = String(propertyId || '').trim();
+    return this.http.post<PropertyListingShareResponse>(this.controller + 'properties/' + id + '/share-link', {});
   }
 
   getPartnerContact(propertyId: string): Observable<PartnerContactResponse | null> {
