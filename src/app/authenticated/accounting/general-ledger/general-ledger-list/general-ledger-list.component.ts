@@ -1169,7 +1169,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         contactName: this.summarizeGroupedField(entryLines.map(line => line.contactName)),
         account: this.summarizeGroupedField(entryLines.map(line => (line.account || '').trim()).filter(account => account.length > 0)),
         description: (firstLine.journalEntryMemo || '').trim() || '—',
-        isCleared: entryLines.length > 0 && entryLines.every(line => line.isCleared === true),
+        isCleared: entryLines.some(line => line.isCleared === true),
         debit: this.formatGroupedAmount(totalDebit),
         credit: this.formatGroupedAmount(totalCredit),
         balance: lastLine.balance,
