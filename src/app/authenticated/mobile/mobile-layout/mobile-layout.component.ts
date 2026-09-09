@@ -14,6 +14,7 @@ import { MobileSidebarComponent } from '../mobile-sidebar/mobile-sidebar.compone
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MobileLayoutComponent implements OnInit, OnDestroy {
+  private static readonly mobileLayoutHtmlClass = 'rentall-mobile-layout';
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
   readonly hidePrimaryChrome$ = this.mobileChromeOverlayService.primaryChromeHidden$;
@@ -21,11 +22,13 @@ export class MobileLayoutComponent implements OnInit, OnDestroy {
 
   //#region Mobile-Layout
   ngOnInit(): void {
+    document.documentElement.classList.add(MobileLayoutComponent.mobileLayoutHtmlClass);
     this.layoutDebugStateBeforeMobile = this.debugLayoutBandsService.isEnabled();
     this.debugLayoutBandsService.setEnabled(false);
   }
 
   ngOnDestroy(): void {
+    document.documentElement.classList.remove(MobileLayoutComponent.mobileLayoutHtmlClass);
     this.debugLayoutBandsService.setEnabled(this.layoutDebugStateBeforeMobile);
   }
   //#endregion
