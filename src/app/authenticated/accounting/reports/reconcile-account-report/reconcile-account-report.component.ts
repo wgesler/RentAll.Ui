@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
-import { BehaviorSubject, finalize, firstValueFrom, forkJoin, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, firstValueFrom, forkJoin, of, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
@@ -90,12 +90,12 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
 
   ngOnChanges(changes: SimpleChanges): void {
     const shouldReload =
-      (changes['officeId'] && !changes['officeId'].firstChange)
-      || (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
-      || (changes['statementDate'] && !changes['statementDate'].firstChange)
-      || (changes['reportContext'] && !changes['reportContext'].firstChange)
-      || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
-      || (changes['reportView'] && !changes['reportView'].firstChange);
+      !!changes['officeId']
+      || !!changes['chartOfAccountId']
+      || !!changes['statementDate']
+      || !!changes['reportContext']
+      || !!changes['refreshTrigger']
+      || (!!changes['reportView'] && !changes['reportView'].firstChange);
 
     if (shouldReload) {
       this.loadReportData();
@@ -350,12 +350,18 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
     this.isServiceError = false;
     this.syncOfficeName();
 
+    const periodStartDate = String(this.reportContext?.periodStartDate || '').trim() || null;
+    const periodBeginningBalance = this.reportContext?.periodBeginningBalance;
+
     forkJoin({
-      beginningBalance: this.generalLedgerService.getReconcileBeginningBalance(officeId, account.accountId, statementDate),
+      beginningBalance: periodBeginningBalance != null
+        ? of(Number(periodBeginningBalance))
+        : this.generalLedgerService.getReconcileBeginningBalance(officeId, account.accountId, statementDate),
       lines: this.generalLedgerService.searchJournalEntryLines({
         officeIds: [officeId],
         chartOfAccountId: account.accountId,
         includeUnposted: true,
+        startDate: periodStartDate,
         endDate: statementDate
       })
     }).pipe(
@@ -403,6 +409,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
       companyName: this.companyName,
       officeName: this.officeName,
       statementDate,
+      periodStartDate: String(this.reportContext?.periodStartDate || '').trim() || null,
       beginningBalance: this.beginningBalance,
       endingBalance: Number(endingBalance || 0),
       lines: this.allLines

@@ -14,6 +14,7 @@ import { BeginReconciliationDialogData, BeginReconciliationDialogResult, Reconci
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ReconcileAdjustmentService } from '../../services/reconcile-adjustment.service';
 import { ReconcileDraftService } from '../../services/reconcile-draft.service';
+import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { ReconcileService } from '../../services/reconcile.service';
 
 @Component({
@@ -34,6 +35,7 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   private reconcileAdjustmentService = inject(ReconcileAdjustmentService);
   private reconcileDraftService = inject(ReconcileDraftService);
   private reconcileService = inject(ReconcileService);
+  private generalLedgerService = inject(GeneralLedgerService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
 
   beginningBalance = 0;
@@ -216,26 +218,32 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const setup: BeginReconciliationDialogResult = {
-      chartOfAccountId,
-      statementDate,
-      beginningBalance: this.beginningBalance,
-      endingBalance,
-      serviceCharge,
-      serviceChargeDate,
-      serviceChargeAccountId,
-      serviceChargeClassId: null,
-      interestEarned,
-      interestEarnedDate,
-      interestEarnedAccountId,
-      interestEarnedClassId: null,
-      serviceChargeJournalEntryId: this.data.existingSetup?.serviceChargeJournalEntryId ?? null,
-      interestEarnedJournalEntryId: this.data.existingSetup?.interestEarnedJournalEntryId ?? null
-    };
-
     this.isSaving = true;
-    this.reconcileDraftService.saveReconcileDraft(this.buildSaveReconcileDraftRequestFromForm()).pipe(
-      switchMap(() => this.reconcileAdjustmentService.syncReconcileAdjustments(organizationId, officeId, setup, this.data.existingSetup)),
+    this.generalLedgerService.getReconcileBeginningBalance(officeId, chartOfAccountId, statementDate).pipe(
+      catchError(() => of(this.beginningBalance)),
+      switchMap(beginningBalance => {
+        this.beginningBalance = this.utilityService.roundCurrency(beginningBalance);
+        const setup: BeginReconciliationDialogResult = {
+          chartOfAccountId,
+          statementDate,
+          beginningBalance: this.beginningBalance,
+          endingBalance,
+          serviceCharge,
+          serviceChargeDate,
+          serviceChargeAccountId,
+          serviceChargeClassId: null,
+          interestEarned,
+          interestEarnedDate,
+          interestEarnedAccountId,
+          interestEarnedClassId: null,
+          serviceChargeJournalEntryId: this.data.existingSetup?.serviceChargeJournalEntryId ?? null,
+          interestEarnedJournalEntryId: this.data.existingSetup?.interestEarnedJournalEntryId ?? null
+        };
+
+        return this.reconcileDraftService.saveReconcileDraft(this.buildSaveReconcileDraftRequestFromForm()).pipe(
+          switchMap(() => this.reconcileAdjustmentService.syncReconcileAdjustments(organizationId, officeId, setup, this.data.existingSetup))
+        );
+      }),
       finalize(() => {
         this.isSaving = false;
       }),

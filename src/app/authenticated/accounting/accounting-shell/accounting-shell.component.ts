@@ -78,6 +78,7 @@ import { ReconcileComponent } from '../bank/reconcile/reconcile.component';
 import { BeginReconciliationDialogComponent } from '../bank/reconcile/begin-reconciliation-dialog.component';
 import { BeginReconciliationDialogResult, ReconcileResponse } from '../models/reconcile.model';
 import { ReconcileAccountReportComponent } from '../reports/reconcile-account-report/reconcile-account-report.component';
+import { buildReconcileAccountReportContext, buildReconcileAccountReportContextFromAccount } from '../models/reconcile-account-report.model';
 import { ReconcileAccountReportContext } from '../models/reconcile-account-report.model';
 import { ReconcileService } from '../services/reconcile.service';
 import { FinancialReportKind } from '../models/financial-report.model';
@@ -438,6 +439,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   reconcileHistoryRows: ReconcileResponse[] = [];
   shellReconcileStatementDateOptions: SearchableSelectOption[] = [];
   selectedReconcileId: number | null = null;
+  selectedReconcileStatementDate: string | null = null;
   printChecksRefreshTrigger = 0;
   securityDepositsRefreshTrigger = 0;
   showSecurityDepositReport = false;
@@ -873,6 +875,10 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.financialReportsRefreshTrigger++;
     if (this.isReconcileAccountReportActive()) {
       this.reconcileAccountReportContext = null;
+      this.selectedReconcileStatementDate = null;
+      this.selectedReconcileId = null;
+      this.shellReconcileStatementDateOptions = [];
+      this.bootstrapReconcileReportFromAccountDefaults();
       this.loadReconcileHistoryForSelectedAccount();
     }
     this.refreshGeneralLedgerListView();
@@ -888,20 +894,32 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   onShellReconcileStatementDateChange(value: string | number | null): void {
-    const reconcileId = value == null || value === '' ? null : Number(value);
-    if (reconcileId == null || !Number.isFinite(reconcileId) || reconcileId <= 0) {
+    const statementDate = this.utilityService.toDateOnlyJsonString(value);
+    if (!statementDate) {
       this.selectedReconcileId = null;
+      this.selectedReconcileStatementDate = null;
       this.reconcileAccountReportContext = null;
       this.financialReportsRefreshTrigger++;
       return;
     }
 
-    if (this.selectedReconcileId === reconcileId) {
+    if (this.selectedReconcileStatementDate === statementDate) {
       return;
     }
 
-    const selected = this.reconcileHistoryRows.find(row => row.reconcileId === reconcileId) ?? null;
-    this.applyReconcileHistorySelection(selected, true);
+    const selected = this.reconcileHistoryRows.find(row => row.statementDate === statementDate) ?? null;
+    if (selected) {
+      this.applyReconcileHistorySelection(selected, true);
+      return;
+    }
+
+    this.selectedReconcileStatementDate = statementDate;
+    const account = this.resolveSelectedReconcileChartOfAccount();
+    this.reconcileAccountReportContext = account
+      ? buildReconcileAccountReportContextFromAccount(account)
+      : { statementDate, endingBalance: null };
+    this.financialReportsRefreshTrigger++;
+    this.cdr.markForCheck();
   }
 
   onShellGlPropertyDropdownChange(value: string | number | null): void {
@@ -3138,7 +3156,8 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       });
       this.persistPinnedTopBarIfActive();
       if (kind === 'reconcileAccountSummary' || kind === 'reconcileAccountDetail') {
-        this.loadReconcileHistoryForSelectedAccount();
+        this.bootstrapReconcileReportFromAccountDefaults();
+        queueMicrotask(() => this.loadReconcileHistoryForSelectedAccount());
       }
       return;
     }
@@ -3157,7 +3176,8 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.isArAgingDrillDownActive = false;
       this.isApAgingDrillDownActive = false;
       if (kindChanged) {
-        this.loadReconcileHistoryForSelectedAccount();
+        this.bootstrapReconcileReportFromAccountDefaults();
+        queueMicrotask(() => this.loadReconcileHistoryForSelectedAccount());
       }
     } else if (kindChanged) {
       this.financialReportsRefreshTrigger++;
@@ -3673,15 +3693,189 @@ applyBeginReconciliationResult(result: BeginReconciliationDialogResult): void {
     this.selectReport(view === 'detail' ? 'reconcileAccountDetail' : 'reconcileAccountSummary');
   }
 
+bootstrapReconcileReportFromAccountDefaults(): boolean {
+    if (!this.isReconcileAccountReportActive() || !this.chartOfAccounts.length) {
+      return false;
+    }
+
+    this.clearInvalidChartOfAccountSelection();
+
+    let account = this.selectedChartOfAccountId != null
+      ? this.chartOfAccounts.find(row => row.accountId === this.selectedChartOfAccountId) ?? null
+      : null;
+
+    if (!account?.statementDate) {
+      const defaultAccountId = this.resolveDefaultReconcileReportChartOfAccountId();
+      if (defaultAccountId == null) {
+        return false;
+      }
+
+      this.selectedChartOfAccountId = defaultAccountId;
+      this.syncReconcileReportOfficeFromAccount(defaultAccountId);
+      account = this.chartOfAccounts.find(row => row.accountId === defaultAccountId) ?? null;
+    } else {
+      this.syncReconcileReportOfficeFromAccount(account.accountId);
+    }
+
+    const context = buildReconcileAccountReportContextFromAccount(account);
+    if (!context?.statementDate) {
+      return false;
+    }
+
+    this.selectedReconcileStatementDate = this.utilityService.toDateOnlyJsonString(context.statementDate);
+    if (!this.preserveReconcileAccountReportContext || !this.reconcileAccountReportContext?.statementDate) {
+      this.reconcileAccountReportContext = context;
+    }
+
+    this.syncReconcileStatementDateDropdown();
+
+    this.financialReportsRefreshTrigger++;
+    this.cdr.markForCheck();
+    return true;
+  }
+
+  syncReconcileStatementDateDropdown(): void {
+    const normalizedHistoryOptions = this.reconcileHistoryRows
+      .map(row => {
+        const value = this.utilityService.toDateOnlyJsonString(row.statementDate);
+        if (!value) {
+          return null;
+        }
+
+        return {
+          value,
+          label: this.formatterService.formatDateString(value) || value
+        };
+      })
+      .filter((option): option is { value: string; label: string } => option != null);
+
+    if (normalizedHistoryOptions.length > 0) {
+      this.shellReconcileStatementDateOptions = normalizedHistoryOptions;
+    } else {
+      const account = this.resolveSelectedReconcileChartOfAccount();
+      const fallbackDate = this.utilityService.toDateOnlyJsonString(
+        this.selectedReconcileStatementDate
+          ?? account?.statementDate
+          ?? this.reconcileAccountReportContext?.statementDate
+      );
+      this.shellReconcileStatementDateOptions = fallbackDate
+        ? [{
+          value: fallbackDate,
+          label: this.formatterService.formatDateString(fallbackDate) || fallbackDate
+        }]
+        : [];
+    }
+
+    const selectedDate = this.utilityService.toDateOnlyJsonString(
+      this.selectedReconcileStatementDate
+        ?? this.reconcileAccountReportContext?.statementDate
+        ?? this.resolveSelectedReconcileChartOfAccount()?.statementDate
+        ?? this.reconcileHistoryRows[0]?.statementDate
+    );
+    if (selectedDate) {
+      this.selectedReconcileStatementDate = selectedDate;
+      if (!this.shellReconcileStatementDateOptions.some(option => option.value === selectedDate)) {
+        this.shellReconcileStatementDateOptions = [{
+          value: selectedDate,
+          label: this.formatterService.formatDateString(selectedDate) || selectedDate
+        }, ...this.shellReconcileStatementDateOptions];
+      }
+    }
+  }
+
+ensureReconcileReportAccountSelected(): boolean {
+    if (!this.isReconcileAccountReportActive()) {
+      return false;
+    }
+
+    this.clearInvalidChartOfAccountSelection();
+    if (this.selectedChartOfAccountId != null) {
+      this.syncReconcileReportOfficeFromAccount(this.selectedChartOfAccountId);
+      this.syncReconcileStatementDateDropdown();
+      return true;
+    }
+
+    const defaultAccountId = this.resolveDefaultReconcileReportChartOfAccountId();
+    if (defaultAccountId == null) {
+      return false;
+    }
+
+    this.selectedChartOfAccountId = defaultAccountId;
+    this.syncReconcileReportOfficeFromAccount(defaultAccountId);
+    this.cdr.markForCheck();
+    return true;
+  }
+
+  resolveDefaultReconcileReportChartOfAccountId(): number | null {
+    const officeScopedAccounts = (this.chartOfAccounts || [])
+      .filter(account => this.selectedOfficeId == null || account.officeId === this.selectedOfficeId);
+    const officeScopedAccountId = this.resolveDefaultReconcileReportChartOfAccountIdFromAccounts(officeScopedAccounts);
+    if (officeScopedAccountId != null) {
+      return officeScopedAccountId;
+    }
+
+    return this.resolveDefaultReconcileReportChartOfAccountIdFromAccounts(this.chartOfAccounts || []);
+  }
+
+  resolveDefaultReconcileReportChartOfAccountIdFromAccounts(accounts: ChartOfAccountResponse[]): number | null {
+    const bankAccounts = accounts.filter(account => {
+      const accountNumber = this.parseChartOfAccountNumber(account.accountNo);
+      return accountNumber !== null && accountNumber < 4000;
+    });
+
+    const reconciledAccounts = bankAccounts
+      .filter(account => String(account.statementDate || '').trim())
+      .sort((left, right) => this.utilityService.compareCalendarDateStrings(right.statementDate, left.statementDate));
+    if (reconciledAccounts.length > 0) {
+      return reconciledAccounts[0].accountId;
+    }
+
+    if (bankAccounts.length === 0) {
+      return null;
+    }
+
+    const sortedBankAccounts = [...bankAccounts].sort((left, right) =>
+      left.accountNo.localeCompare(right.accountNo, undefined, { numeric: true, sensitivity: 'base' }));
+    return sortedBankAccounts[0].accountId;
+  }
+
+  resolveReconcileReportOfficeId(accountId: number | null | undefined): number | null {
+    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
+      return this.selectedOfficeId;
+    }
+
+    if (accountId == null || accountId <= 0) {
+      return null;
+    }
+
+    return this.chartOfAccounts.find(account => account.accountId === accountId)?.officeId ?? null;
+  }
+
+  syncReconcileReportOfficeFromAccount(accountId: number | null | undefined): void {
+    if (accountId == null || accountId <= 0 || this.selectedOfficeId != null) {
+      return;
+    }
+
+    const accountOfficeId = this.chartOfAccounts.find(account => account.accountId === accountId)?.officeId ?? null;
+    if (accountOfficeId != null && accountOfficeId > 0) {
+      this.selectedOfficeId = accountOfficeId;
+    }
+  }
+
 loadReconcileHistoryForSelectedAccount(): void {
     if (!this.isReconcileAccountReportActive()) {
       return;
     }
 
-    const officeId = this.selectedOfficeId;
+    this.bootstrapReconcileReportFromAccountDefaults();
+
+    if (!this.ensureReconcileReportAccountSelected()) {
+      return;
+    }
+
     const accountId = this.selectedChartOfAccountId;
+    const officeId = this.resolveReconcileReportOfficeId(accountId);
     if (officeId == null || officeId <= 0 || accountId == null || accountId <= 0) {
-      this.clearReconcileHistorySelection(true);
       return;
     }
 
@@ -3695,30 +3889,47 @@ loadReconcileHistoryForSelectedAccount(): void {
           seenStatementDates.add(row.statementDate);
           return true;
         });
-        this.shellReconcileStatementDateOptions = this.reconcileHistoryRows.map(row => ({
-          value: row.reconcileId,
-          label: this.formatterService.formatDateString(row.statementDate ?? undefined) || row.statementDate || ''
-        }));
-
         if (!this.reconcileHistoryRows.length) {
+          const fallbackAccountId = this.resolveDefaultReconcileReportChartOfAccountId();
+          const fallbackHasReconcile = (this.chartOfAccounts || []).some(
+            account => account.accountId === fallbackAccountId && String(account.statementDate || '').trim()
+          );
+          if (fallbackAccountId != null && fallbackAccountId !== accountId && fallbackHasReconcile) {
+            this.selectedChartOfAccountId = fallbackAccountId;
+            this.loadReconcileHistoryForSelectedAccount();
+            return;
+          }
+
+          this.syncReconcileStatementDateDropdown();
+          if (this.selectedReconcileStatementDate && this.reconcileAccountReportContext) {
+            this.cdr.markForCheck();
+            return;
+          }
+
           this.clearReconcileHistorySelection(true);
           return;
         }
 
-        const preferredApiDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-        const preferred = preferredApiDate
-          ? this.reconcileHistoryRows.find(row => row.statementDate === preferredApiDate) ?? null
-          : null;
-        const selected = preferred
+        const selected = (this.selectedReconcileStatementDate
+          ? this.reconcileHistoryRows.find(row =>
+            this.utilityService.toDateOnlyJsonString(row.statementDate) === this.selectedReconcileStatementDate) ?? null
+          : null)
           ?? (this.selectedReconcileId != null
             ? this.reconcileHistoryRows.find(row => row.reconcileId === this.selectedReconcileId) ?? null
             : null)
           ?? this.reconcileHistoryRows[0];
         this.applyReconcileHistorySelection(selected, true);
+        this.syncReconcileStatementDateDropdown();
+        this.cdr.markForCheck();
       },
       error: () => {
-        this.clearReconcileHistorySelection(true);
+        if (!this.selectedReconcileStatementDate || !this.reconcileAccountReportContext) {
+          this.clearReconcileHistorySelection(true);
+        } else {
+          this.syncReconcileStatementDateDropdown();
+        }
         this.toastr.error('Unable to load reconciliation history for the selected account.');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -3730,24 +3941,27 @@ applyReconcileHistorySelection(reconcile: ReconcileResponse | null, refreshRepor
     }
 
     this.selectedReconcileId = reconcile.reconcileId;
+    this.selectedReconcileStatementDate = this.utilityService.toDateOnlyJsonString(reconcile.statementDate);
     const statementDate = this.utilityService.parseCalendarDateInput(reconcile.statementDate);
     if (statementDate) {
       this.endDate = statementDate;
       this.syncInvoiceSearchDateRange();
     }
-    this.reconcileAccountReportContext = {
-      endingBalance: reconcile.endingBalance
-    };
+    this.reconcileAccountReportContext = buildReconcileAccountReportContext(reconcile, this.reconcileHistoryRows);
+    this.syncReconcileStatementDateDropdown();
 
     if (refreshReport) {
       this.financialReportsRefreshTrigger++;
     }
+
+    this.cdr.markForCheck();
   }
 
 clearReconcileHistorySelection(refreshReport: boolean): void {
     this.reconcileHistoryRows = [];
     this.shellReconcileStatementDateOptions = [];
     this.selectedReconcileId = null;
+    this.selectedReconcileStatementDate = null;
     this.reconcileAccountReportContext = null;
 
     if (refreshReport) {
@@ -3791,12 +4005,19 @@ openReconcileAccountReport(view: 'summary' | 'detail'): void {
         this.endDate = statementDate;
         this.syncInvoiceSearchDateRange();
       }
-      this.reconcileAccountReportContext = {
-        endingBalance: setup.endingBalance
-      };
+      this.reconcileAccountReportContext = buildReconcileAccountReportContext(
+        {
+          reconcileId: 0,
+          statementDate: setup.statementDate,
+          endingBalance: setup.endingBalance
+        },
+        this.reconcileHistoryRows,
+        { periodBeginningBalance: setup.beginningBalance }
+      );
     }
 
     this.openReconcileAccountReport('detail');
+    this.loadReconcileHistoryForSelectedAccount();
   }
 
 resolveSelectedReconcileChartOfAccount(): ChartOfAccountResponse | null {
@@ -5061,8 +5282,28 @@ captureOwnerStatementReturnContext(): void {
     return this.selectedReportKind === 'reconcileAccountDetail' ? 'detail' : 'summary';
   }
 
+  get reconcileAccountReportOfficeId(): number | null {
+    return this.resolveReconcileReportOfficeId(this.selectedChartOfAccountId);
+  }
+
+  get isReconcileStatementDateDropdownDisabled(): boolean {
+    return this.selectedChartOfAccountId == null;
+  }
+
   get reconcileAccountReportStatementDate(): string | null {
-    return this.utilityService.formatDateOnlyForApi(this.endDate);
+    const fromSelection = this.utilityService.toDateOnlyJsonString(this.selectedReconcileStatementDate);
+    if (fromSelection) {
+      return fromSelection;
+    }
+
+    const fromContext = this.utilityService.toDateOnlyJsonString(this.reconcileAccountReportContext?.statementDate);
+    if (fromContext) {
+      return fromContext;
+    }
+
+    const account = this.resolveSelectedReconcileChartOfAccount();
+    return this.utilityService.toDateOnlyJsonString(account?.statementDate)
+      ?? this.utilityService.toDateOnlyJsonString(this.reconcileHistoryRows[0]?.statementDate);
   }
 
   usesFinancialReportTitleBarFilters(): boolean {
@@ -6104,6 +6345,10 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
         this.clearInvalidChartOfAccountSelection();
+        if (this.isReconcileAccountReportActive()) {
+          this.bootstrapReconcileReportFromAccountDefaults();
+          this.loadReconcileHistoryForSelectedAccount();
+        }
       });
     });
   }

@@ -10865,9 +10865,13 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
       : accountLabel;
     const reportTitle = request.view === 'detail' ? 'Reconciliation Detail' : 'Reconciliation Summary';
 
+    const periodStartDate = String(request.periodStartDate || '').trim();
     const eligibleLines = (request.lines ?? [])
       .filter(line => {
         const transactionDate = String(line.transactionDate || '').trim();
+        if (periodStartDate && transactionDate && transactionDate < periodStartDate) {
+          return false;
+        }
         return !statementDate || !transactionDate || transactionDate <= statementDate;
       })
       .map(line => ({

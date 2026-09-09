@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, catchError, finalize, map, of, Subject, switchMap, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, finalize, forkJoin, map, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { AuthService } from '../../../../services/auth.service';
@@ -388,38 +388,45 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    if (!this.setup) {
+      this.resetViewState('Set up reconciliation to continue.');
+      return;
+    }
+
     const statementDate = this.resolveReconcileStatementDate();
     if (!statementDate) {
       this.resetViewState('Select a Statement Date to Reconcile.');
       return;
     }
 
+    if (this.setup.chartOfAccountId !== this.chartOfAccountId || this.setup.statementDate !== statementDate) {
+      return;
+    }
+
     this.reconcileLoadCancel$.next();
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reconcileLines');
+    this.placeholderMessage = '';
     this.beginningBalance = 0;
-    this.endingBalanceInput = '';
-    this.serviceChargeInput = '';
-    this.interestEarnedInput = '';
+    this.paymentsLines = [];
+    this.depositsLines = [];
+    this.markViewForCheck();
 
-    this.generalLedgerService.getReconcileBeginningBalance(this.officeId, this.chartOfAccountId, statementDate).pipe(
-      takeUntil(this.reconcileLoadCancel$),
-      takeUntil(this.destroy$),
-      catchError(() => of(0))
-    ).subscribe(beginningBalance => {
-      this.beginningBalance = this.utilityService.roundCurrency(beginningBalance);
-      this.markViewForCheck();
-    });
-
-    this.generalLedgerService.searchReconcileJournalEntryLines(this.officeId, this.chartOfAccountId, statementDate).pipe(
+    forkJoin({
+      beginningBalance: this.generalLedgerService.getReconcileBeginningBalance(this.officeId, this.chartOfAccountId, statementDate).pipe(
+        catchError(() => of(0))
+      ),
+      lines: this.generalLedgerService.searchReconcileJournalEntryLines(this.officeId, this.chartOfAccountId, statementDate)
+    }).pipe(
       takeUntil(this.reconcileLoadCancel$),
       takeUntil(this.destroy$),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reconcileLines'))
     ).subscribe({
-      next: lines => {
+      next: ({ beginningBalance, lines }) => {
         this.placeholderMessage = '';
         if (!this.filterSticky) {
           this.filterVal = '';
         }
+        this.beginningBalance = this.utilityService.roundCurrency(beginningBalance);
         this.paymentsLines = this.mappingService.mapReconcileLineDisplays(lines, 'credit');
         this.depositsLines = this.mappingService.mapReconcileLineDisplays(lines, 'debit');
         this.applySetupValues();
@@ -655,7 +662,6 @@ applySetupValues(): void {
       return;
     }
 
-    this.beginningBalance = this.utilityService.roundCurrency(this.setup.beginningBalance);
     this.endingBalanceInput = this.setup.endingBalance === 0 ? '' : this.formatCurrencyInput(String(this.setup.endingBalance));
     this.serviceChargeInput = Math.abs(this.setup.serviceCharge) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.serviceCharge));
     this.interestEarnedInput = Math.abs(this.setup.interestEarned) < 0.005 ? '' : this.formatCurrencyInput(String(this.setup.interestEarned));

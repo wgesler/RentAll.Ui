@@ -530,13 +530,13 @@
             <app-title-bar-select
               [label]="'Statement Date'"
               [formFieldClass]="'titlebar-field-office'"
-              [value]="selectedReconcileId"
+              [value]="selectedReconcileStatementDate"
               [options]="shellReconcileStatementDateOptions"
               [nullOptionLabel]="'Select Statement Date'"
               [noResultsText]="'No reconciliations found'"
               [showSearchInput]="false"
               [showInstructionOption]="false"
-              [disabled]="!selectedChartOfAccountId || shellReconcileStatementDateOptions.length === 0"
+              [disabled]="isReconcileStatementDateDropdownDisabled"
               (valueChange)="onShellReconcileStatementDateChange($event)">
             </app-title-bar-select>
             </div>
@@ -1349,7 +1349,7 @@
                     (securityDepositReportEvent)="onSecurityDepositReportOpen($event)">
                   </app-security-deposits-list>
                 }
-              } @else if (selectedBankActivityKind === 'reconcile') {
+              } @else if (selectedBankActivityKind === 'reconcile' && reconcileSetup) {
                 <app-reconcile
                   [officeId]="selectedOfficeId"
                   [organizationId]="organizationId"
@@ -1632,7 +1632,7 @@
                 <app-reconcile-account-report
                   #reconcileAccountReport
                   [reportView]="reconcileAccountReportView"
-                  [officeId]="selectedOfficeId"
+                  [officeId]="reconcileAccountReportOfficeId"
                   [chartOfAccountId]="selectedChartOfAccountId"
                   [statementDate]="reconcileAccountReportStatementDate"
                   [reportContext]="reconcileAccountReportContext"
