@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Subject, finalize, skip, take, takeUntil } from 'rxjs';
@@ -24,6 +24,10 @@ import { ReservationService } from '../../reservations/services/reservation.serv
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MobileReservationBoardComponent implements OnInit, OnDestroy {
+  @ViewChild('headInner') headInner?: ElementRef<HTMLElement>;
+  @ViewChild('codeInner') codeInner?: ElementRef<HTMLElement>;
+  @ViewChild('dataScroll') dataScroll?: ElementRef<HTMLElement>;
+
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -163,7 +167,7 @@ export class MobileReservationBoardComponent implements OnInit, OnDestroy {
 
   getCellDisplay(property: BoardProperty, day: CalendarDay): { color: string; text: string; textColor: string } {
     const reservation = this.mappingService.getMobileBoardReservationForDate(this.reservationsByProperty.get(property.propertyId) || [], day.date);
-    return this.mappingService.mapMobileBoardCellDisplay(reservation, day.date, this.colorMap, this.startDate);
+    return this.mappingService.mapMobileBoardCellDisplay(property, reservation, day.date, this.colorMap, this.startDate);
   }
 
   getPropertyCodeClass(property: BoardProperty): string {
@@ -171,12 +175,18 @@ export class MobileReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   isCellClickable(property: BoardProperty, day: CalendarDay): boolean {
+    if (this.mappingService.isMobileBoardDateBlockedByAvailability(property, day.date)) {
+      return false;
+    }
     const reservation = this.mappingService.getMobileBoardReservationForDate(this.reservationsByProperty.get(property.propertyId) || [], day.date);
     const reservationId = String(reservation?.reservationId || '').trim();
     return !reservationId || !reservationId.startsWith('extcal:');
   }
 
   onReservationCellClick(property: BoardProperty, day: CalendarDay): void {
+    if (this.mappingService.isMobileBoardDateBlockedByAvailability(property, day.date)) {
+      return;
+    }
     const reservation = this.mappingService.getMobileBoardReservationForDate(this.reservationsByProperty.get(property.propertyId) || [], day.date);
     const reservationId = String(reservation?.reservationId || '').trim();
     if (reservationId && !reservationId.startsWith('extcal:')) {
@@ -269,6 +279,18 @@ export class MobileReservationBoardComponent implements OnInit, OnDestroy {
     });
   }
   //#endregion
+
+  onDataScroll(event: Event): void {
+    const data = event.target as HTMLElement;
+    const head = this.headInner?.nativeElement;
+    const codes = this.codeInner?.nativeElement;
+    if (head) {
+      head.style.transform = `translateX(-${data.scrollLeft}px)`;
+    }
+    if (codes) {
+      codes.style.transform = `translateY(-${data.scrollTop}px)`;
+    }
+  }
 
   //#region Utility Methods
   ngOnDestroy(): void {

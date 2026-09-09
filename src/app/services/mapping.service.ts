@@ -3362,7 +3362,56 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     return ((r * 299 + g * 587 + b * 114) / 1000) > 128 ? '#000000' : '#ffffff';
   }
 
-  mapMobileBoardCellDisplay(reservation: ReservationListResponse | null, date: Date, colorMap: Map<number, string>, rangeStart: Date | null = null): { color: string; text: string; textColor: string } {
+  isMobileBoardDateBlockedByAvailability(property: BoardProperty, date: Date): boolean {
+    if (!property) {
+      return false;
+    }
+
+    const compareDate = this.utility.parseCalendarDateInput(date);
+    if (!compareDate) {
+      return false;
+    }
+    compareDate.setHours(0, 0, 0, 0);
+
+    const availableFromDate = this.utility.parseCalendarDateInput(property.availableFrom);
+    if (availableFromDate) {
+      availableFromDate.setHours(0, 0, 0, 0);
+      if (compareDate.getTime() < availableFromDate.getTime()) {
+        return true;
+      }
+    }
+
+    const availableUntilDate = this.utility.parseCalendarDateInput(property.availableUntil);
+    if (availableUntilDate) {
+      availableUntilDate.setHours(0, 0, 0, 0);
+      if (compareDate.getTime() > availableUntilDate.getTime()) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  mapMobileBoardBlockedCellDisplay(colorMap: Map<number, string>): { color: string; text: string; textColor: string } {
+    const color = colorMap.get(ReservationStatus.Offline) || '';
+    return {
+      color,
+      text: 'B',
+      textColor: this.getMobileBoardCellTextColor(color)
+    };
+  }
+
+  mapMobileBoardCellDisplay(
+    property: BoardProperty,
+    reservation: ReservationListResponse | null,
+    date: Date,
+    colorMap: Map<number, string>,
+    rangeStart: Date | null = null
+  ): { color: string; text: string; textColor: string } {
+    if (this.isMobileBoardDateBlockedByAvailability(property, date)) {
+      return this.mapMobileBoardBlockedCellDisplay(colorMap);
+    }
+
     const color = this.getMobileBoardCellColor(reservation, date, colorMap);
     return {
       color,

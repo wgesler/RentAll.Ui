@@ -2681,6 +2681,16 @@ html.rentall-mobile-layout body {
   overscroll-behavior: none;
 }
 
+html.rentall-mobile-layout app-mobile-layout,
+html.rentall-mobile-layout app-mobile-sidebar,
+html.rentall-mobile-layout mat-sidenav-content,
+html.rentall-mobile-layout mat-sidenav-content > :not(router-outlet) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@import 'app/authenticated/mobile/mobile-list-actions.scss';
+
 html.rentall-mobile-layout .mat-mdc-menu-panel.mobile-sidebar-tab-menu {
   max-height: min(70dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 64px - 52px - 16px));
   overflow-y: auto;

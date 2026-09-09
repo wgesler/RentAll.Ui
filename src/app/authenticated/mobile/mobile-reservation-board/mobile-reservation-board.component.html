@@ -32,53 +32,90 @@
     </mat-form-field>
   </div>
 
-  <div class="mobile-reservation-board-scroll">
-    <table class="mobile-reservation-board-table">
-      <thead>
-        <tr>
-          <th class="mobile-reservation-board-code-col">&nbsp;</th>
-          @for (monthGroup of monthGroups; track monthGroup.monthName + '-' + monthGroup.days + '-' + $index) {
-            <th class="mobile-reservation-board-month" [attr.colspan]="monthGroup.days">{{ monthGroup.monthName }}</th>
-          }
-        </tr>
-        <tr>
-          <th class="mobile-reservation-board-code-col">Code</th>
-          @for (day of calendarDays; track day.date.getTime()) {
-            <th class="mobile-reservation-board-day">{{ day.dayOfWeek }}</th>
-          }
-        </tr>
-        <tr>
-          <th class="mobile-reservation-board-code-col">&nbsp;</th>
-          @for (day of calendarDays; track day.date.getTime()) {
-            <th class="mobile-reservation-board-day">{{ day.dayNumber }}</th>
-          }
-        </tr>
-      </thead>
-      <tbody>
-        @for (property of properties; track property.propertyId) {
+  <div class="mobile-reservation-board-header">
+    <div class="mobile-reservation-board-corner">
+      <table class="mobile-reservation-board-table mobile-reservation-board-table--corner">
+        <thead>
           <tr>
-            <td [class]="'mobile-reservation-board-code-col ' + getPropertyCodeClass(property)">
-              <button
-                type="button"
-                class="mobile-reservation-board-code-link"
-                (click)="onPropertyCodeClick(property, $event)">
-                {{ property.propertyCode }}
-              </button>
-            </td>
-            @for (day of calendarDays; track day.date.getTime()) {
-              @let cell = getCellDisplay(property, day);
-              <td
-                class="mobile-reservation-board-cell"
-                [class.mobile-reservation-board-cell-clickable]="isCellClickable(property, day)"
-                [style.background-color]="cell.color || null"
-                [style.color]="cell.textColor || null"
-                (click)="onReservationCellClick(property, day)">
-                {{ cell.text }}
-              </td>
-            }
+            <th class="mobile-reservation-board-code-col">&nbsp;</th>
           </tr>
-        }
-      </tbody>
-    </table>
+          <tr>
+            <th class="mobile-reservation-board-code-col">Code</th>
+          </tr>
+          <tr>
+            <th class="mobile-reservation-board-code-col">&nbsp;</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+
+    <div class="mobile-reservation-board-head-viewport">
+      <div class="mobile-reservation-board-head-inner" #headInner>
+        <table class="mobile-reservation-board-table mobile-reservation-board-table--head">
+          <thead>
+            <tr>
+              @for (monthGroup of monthGroups; track monthGroup.monthName + '-' + monthGroup.days + '-' + $index) {
+                <th class="mobile-reservation-board-month" [attr.colspan]="monthGroup.days">{{ monthGroup.monthName }}</th>
+              }
+            </tr>
+            <tr>
+              @for (day of calendarDays; track day.date.getTime()) {
+                <th class="mobile-reservation-board-day">{{ day.dayOfWeek }}</th>
+              }
+            </tr>
+            <tr>
+              @for (day of calendarDays; track day.date.getTime()) {
+                <th class="mobile-reservation-board-day">{{ day.dayNumber }}</th>
+              }
+            </tr>
+          </thead>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="mobile-reservation-board-body">
+    <div class="mobile-reservation-board-code-track">
+      <div class="mobile-reservation-board-code-inner" #codeInner>
+        <table class="mobile-reservation-board-table mobile-reservation-board-table--codes">
+          <tbody>
+            @for (property of properties; track property.propertyId) {
+              <tr>
+                <td [class]="'mobile-reservation-board-code-col ' + getPropertyCodeClass(property)">
+                  <button
+                    type="button"
+                    class="mobile-reservation-board-code-link"
+                    (click)="onPropertyCodeClick(property, $event)">
+                    {{ property.propertyCode }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mobile-reservation-board-data-scroll" #dataScroll (scroll)="onDataScroll($event)">
+      <table class="mobile-reservation-board-table mobile-reservation-board-table--body">
+        <tbody>
+          @for (property of properties; track property.propertyId) {
+            <tr>
+              @for (day of calendarDays; track day.date.getTime()) {
+                @let cell = getCellDisplay(property, day);
+                <td
+                  class="mobile-reservation-board-cell"
+                  [class.mobile-reservation-board-cell-clickable]="isCellClickable(property, day)"
+                  [style.background-color]="cell.color || null"
+                  [style.color]="cell.textColor || null"
+                  (click)="onReservationCellClick(property, day)">
+                  {{ cell.text }}
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   </div>
 }

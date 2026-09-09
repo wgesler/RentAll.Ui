@@ -1,9 +1,18 @@
-.mobile-ticket-list-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 0.25rem 1rem 0.35rem;
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-page-inline-padding {
+  padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
   box-sizing: border-box;
+}
+
+.tableDiv {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .mobile-ticket-table {

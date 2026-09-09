@@ -1,1 +1,19 @@
 @import '../mobile-sub-titlebar.scss';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+:host ::ng-deep app-mobile-reservation-board {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  max-width: 100%;
+}

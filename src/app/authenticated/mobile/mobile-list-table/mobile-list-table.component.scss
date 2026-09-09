@@ -1,5 +1,13 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .mobile-list-filter-wrap {
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
   overflow: visible;
 }
@@ -73,8 +81,14 @@
   left: 0 !important;
 }
 
+.mobile-page-inline-padding {
+  padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+
 .tableDiv {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .mobile-list-table {

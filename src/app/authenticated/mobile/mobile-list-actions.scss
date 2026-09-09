@@ -1,0 +1,32 @@
+.mobile-list-actions,
+.mobile-leads-list-actions,
+.mobile-ticket-list-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding:
+    0.25rem
+    max(1rem, env(safe-area-inset-right, 0px))
+    0.35rem
+    max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.mobile-leads-list-actions {
+  justify-content: space-between;
+}
+
+.mobile-leads-list-actions .mat-mdc-slide-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mobile-list-actions button,
+.mobile-leads-list-actions button,
+.mobile-ticket-list-actions button {
+  flex-shrink: 0;
+}

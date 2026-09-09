@@ -1,3 +1,14 @@
+:host {
+  --mobile-board-code-width: 4.75rem;
+  --mobile-board-head-height: 54px;
+  --mobile-board-row-height: 22px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: 100%;
+}
+
 .mobile-reservation-board-loading {
   display: flex;
   flex-direction: column;
@@ -10,8 +21,9 @@
 
 .mobile-reservation-board-dates {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.65rem 1rem 0.35rem;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  padding: 0.35rem 1rem 4px;
 }
 
 .mobile-reservation-board-date-field {
@@ -19,10 +31,74 @@
   min-width: 0;
 }
 
-.mobile-reservation-board-scroll {
+:host ::ng-deep .mobile-reservation-board-date-field.mat-mdc-form-field {
+  margin-bottom: 0;
+}
+
+:host ::ng-deep .mobile-reservation-board-date-field .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+:host ::ng-deep .mobile-reservation-board-date-field .mat-mdc-text-field-wrapper {
+  margin-bottom: 0;
+}
+
+/* Pinned header band: month / DOW / date rows stay on-page under date fields. */
+.mobile-reservation-board-header {
+  display: flex;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.mobile-reservation-board-corner {
+  flex: 0 0 var(--mobile-board-code-width);
+  width: var(--mobile-board-code-width);
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.mobile-reservation-board-head-viewport {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mobile-reservation-board-head-inner {
+  will-change: transform;
+}
+
+/* Body: fixed code column + scrollable colored cells only. */
+.mobile-reservation-board-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mobile-reservation-board-code-track {
+  flex: 0 0 var(--mobile-board-code-width);
+  width: var(--mobile-board-code-width);
+  overflow: hidden;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+}
+
+.mobile-reservation-board-code-inner {
+  will-change: transform;
+}
+
+.mobile-reservation-board-data-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: auto;
-  max-height: calc(100vh - 64px - 52px - 4.5rem);
-  padding: 0 0 0.5rem;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-reservation-board-table {
@@ -31,13 +107,16 @@
   table-layout: fixed;
 }
 
+.mobile-reservation-board-table--head,
+.mobile-reservation-board-table--body {
+  width: max-content;
+  min-width: 100%;
+}
+
 .mobile-reservation-board-code-col {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  width: 4.75rem;
-  min-width: 4.75rem;
-  max-width: 4.75rem;
+  width: var(--mobile-board-code-width);
+  min-width: var(--mobile-board-code-width);
+  max-width: var(--mobile-board-code-width);
   padding: 0 6px;
   background: #fff;
   font-size: 11px;
@@ -47,14 +126,21 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-sizing: border-box;
 }
 
-thead .mobile-reservation-board-code-col {
-  z-index: 4;
+.mobile-reservation-board-table--corner .mobile-reservation-board-code-col,
+.mobile-reservation-board-table--head th {
   background: #f8fafc;
   color: #64748b;
   font-size: 9px;
   text-align: center;
+  height: 18px;
+}
+
+.mobile-reservation-board-table--codes .mobile-reservation-board-code-col {
+  height: var(--mobile-board-row-height);
+  vertical-align: middle;
 }
 
 .mobile-reservation-board-month,
@@ -76,13 +162,13 @@ thead .mobile-reservation-board-code-col {
 }
 
 .mobile-reservation-board-cell {
-  height: 22px;
+  height: var(--mobile-board-row-height);
   padding: 0;
   border: 1px solid #fff;
   box-sizing: border-box;
   font-size: 9px;
   font-weight: 600;
-  line-height: 22px;
+  line-height: var(--mobile-board-row-height);
   text-align: center;
   white-space: nowrap;
 }
@@ -121,6 +207,6 @@ thead .mobile-reservation-board-code-col {
   color: #000000;
 }
 
-.mobile-reservation-board-table tbody tr:nth-child(even) .mobile-reservation-board-code-col {
+.mobile-reservation-board-table--codes tbody tr:nth-child(even) .mobile-reservation-board-code-col {
   background: #f5f5f5;
 }
