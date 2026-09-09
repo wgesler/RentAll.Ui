@@ -104,8 +104,9 @@ export function getMobileTicketFilterMode(tabPath: string | null | undefined): M
 export const MOBILE_PARTNER_NAV_PATHS = new Set(['home', 'properties', 'contacts']);
 
 export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
-  { icon: 'grid_view', label: 'Home', path: 'home', tabs: [] },
+  { icon: 'dashboard', label: 'Dashboard', path: 'dashboard', tabs: [] },
   { icon: 'hub', label: 'Leads', path: 'leads', tabs: MOBILE_LEADS_TABS },
+  { icon: 'grid_view', label: 'Reservation Board', path: 'home', tabs: [] },
   { icon: 'confirmation_number', label: 'Tickets', path: 'tickets', tabs: MOBILE_TICKET_BASE_TABS },
   { icon: 'build', label: 'Maintenance', path: 'maintenance', tabs: [
     { label: 'Inspection', path: 'inspection' },
@@ -161,6 +162,10 @@ export function canPartnerAccessMobileUrl(url: string, _userGroups?: UserGroupIn
   // Board opens reservation detail/new; block the reservations list page.
   if (section === 'reservations') {
     return parts.length >= 3 && !!parts[2]?.trim();
+  }
+
+  if (section === 'dashboard') {
+    return false;
   }
 
   return false;

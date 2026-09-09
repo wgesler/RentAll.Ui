@@ -59,6 +59,7 @@ import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
 import { MobileInspectionIssuesPageComponent } from './authenticated/mobile/mobile-inspection-issues-page/mobile-inspection-issues-page.component';
 import { MobileBoardPageComponent } from './authenticated/mobile/mobile-board-page/mobile-board-page.component';
+import { MobileDashboardPageComponent } from './authenticated/mobile/mobile-dashboard-page/mobile-dashboard-page.component';
 import { MobileEmailCreatePageComponent } from './authenticated/mobile/mobile-email-create-page/mobile-email-create-page.component';
 import { MobileLayoutComponent } from './authenticated/mobile/mobile-layout/mobile-layout.component';
 import { MobileSectionPageComponent } from './authenticated/mobile/mobile-section-page/mobile-section-page.component';
@@ -136,6 +137,7 @@ export const authRoutes: Routes = [
 
 const mobileRoutes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
+  { path: 'dashboard', component: MobileDashboardPageComponent },
   { path: 'home', component: MobileBoardPageComponent },
   { path: 'leads', redirectTo: 'leads/rentals', pathMatch: 'full' },
   { path: 'leads/:tab', component: MobileLeadsPageComponent },

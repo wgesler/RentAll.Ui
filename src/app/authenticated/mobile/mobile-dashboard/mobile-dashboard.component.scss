@@ -1,0 +1,242 @@
+@use '../../shared/styles/dashboard-schedule-calendar';
+
+:host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.mobile-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 10px 16px;
+  box-sizing: border-box;
+}
+
+.mobile-dashboard-calendars-band {
+  margin: 0;
+}
+
+.mobile-dashboard-calendars-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  border: 1px solid #d0d7e2;
+  border-radius: 10px;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.mobile-dashboard-calendars-body .dashboard-staff-schedule-calendars {
+  width: 100%;
+}
+
+.mobile-dashboard-calendars-body .dashboard-staff-schedule-calendars-layout {
+  justify-content: center;
+}
+
+.mobile-dashboard-day-detail {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+}
+
+.mobile-dashboard-day-detail-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mobile-dashboard-day-detail-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.mobile-dashboard-day-detail-loading p {
+  margin: 0;
+}
+
+.mobile-dashboard-day-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-dashboard-day-detail-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.mobile-dashboard-day-detail-event {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.mobile-dashboard-day-detail-item[data-event-kind='arrival'] .mobile-dashboard-day-detail-event { color: #15803d; }
+.mobile-dashboard-day-detail-item[data-event-kind='departure'] .mobile-dashboard-day-detail-event { color: #dc2626; }
+.mobile-dashboard-day-detail-item[data-event-kind='cleaning'] .mobile-dashboard-day-detail-event { color: #2563eb; }
+.mobile-dashboard-day-detail-item[data-event-kind='carpet'] .mobile-dashboard-day-detail-event { color: #15803d; }
+.mobile-dashboard-day-detail-item[data-event-kind='inspection'] .mobile-dashboard-day-detail-event { color: #7c3aed; }
+.mobile-dashboard-day-detail-item[data-event-kind='maid'] .mobile-dashboard-day-detail-event { color: #db2777; }
+
+.mobile-dashboard-day-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.mobile-dashboard-day-detail-row strong {
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mobile-dashboard-day-detail-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.mobile-dashboard-schedules {
+  margin-top: 4px;
+}
+
+.mobile-dashboard-schedules-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.mobile-dashboard-schedules-loading p {
+  margin: 0;
+}
+
+.mobile-dashboard-schedules-toolbar {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.mobile-dashboard-schedules-provider-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+:host ::ng-deep .mobile-dashboard-schedules-provider-select.mat-mdc-select {
+  width: 100%;
+  background: transparent;
+}
+
+:host ::ng-deep .mobile-dashboard-schedules-provider-select .mat-mdc-select-trigger {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-height: unset;
+  padding: 0;
+}
+
+:host ::ng-deep .mobile-dashboard-schedules-provider-select .mat-mdc-select-value,
+:host ::ng-deep .mobile-dashboard-schedules-provider-select .mat-mdc-select-arrow {
+  color: #334155;
+}
+
+:host ::ng-deep .mobile-dashboard-schedules-provider-select .mat-mdc-select-value-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mobile-dashboard-schedules-email-btn {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.mobile-dashboard-schedule-detail {
+  margin-top: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.mobile-dashboard-schedule-detail-fields {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.mobile-dashboard-schedule-detail-field {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  border-bottom: 1px solid rgba(112, 112, 112, 27%);
+}
+
+.mobile-dashboard-schedule-detail-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 0.35rem;
+  white-space: nowrap;
+}
+
+.mobile-dashboard-schedule-detail-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: #1e293b;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.mobile-dashboard-schedule-detail-value--primary {
+  font-weight: 700;
+}
+
+.mobile-dashboard-schedule-detail-value--muted {
+  color: #9e9e9e;
+}
+
+:host ::ng-deep .mobile-dashboard-schedules app-mobile-list-table .tableDiv {
+  padding-top: 0;
+}

@@ -117,6 +117,7 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '28ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
+    isCleared: { displayAs: 'Clr', maxWidth: '7ch', sort: true, isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
     credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
     balance: { displayAs: 'Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
@@ -819,6 +820,7 @@ buildDrillDownReceiptPropertyStub(officeId: number | null): PropertyResponse {
       'Contact',
       'Account',
       'Description',
+      'Clr',
       'Debit',
       'Credit',
       'Balance'
@@ -833,6 +835,7 @@ buildDrillDownReceiptPropertyStub(officeId: number | null): PropertyResponse {
       line.contactName || '',
       line.account || '',
       line.description || '',
+      line.isCleared ? 'X' : '',
       line.debit || '',
       line.credit || '',
       line.balance || ''
