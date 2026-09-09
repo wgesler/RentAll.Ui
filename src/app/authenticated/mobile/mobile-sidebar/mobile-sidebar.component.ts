@@ -6,6 +6,7 @@ import { MaterialModule } from '../../../material.module';
 import { SidebarStateService } from '../../shared/layout/services/sidebar-state.service';
 import { MobileChromeOverlayService } from '../mobile-chrome-overlay.service';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { MobileNavItem, MobileNavTab, getMobileLeadsTabs, getMobileNavItem, getMobileNavItems, getMobilePrimaryLink, getMobileRouteParts, getMobileTicketTabs } from '../mobile-nav';
 import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
 
@@ -20,6 +21,7 @@ import { OrganizationFeatureService } from '../../organizations/services/organiz
 export class MobileSidebarComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private organizationFeatureService = inject(OrganizationFeatureService);
   private sidebarStateService = inject(SidebarStateService);
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
@@ -108,7 +110,7 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
   }
 
   filterNavItems(): void {
-    this.navItems = getMobileNavItems(this.authService);
+    this.navItems = getMobileNavItems(this.authService, this.commonService.getOrganizationTypeId());
   }
 
   markViewForCheck(): void {

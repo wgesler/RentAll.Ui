@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { RouterToken } from '../app.routes';
+import { canPartnerAccessMobileUrl, getMobilePartnerFallbackUrl } from '../authenticated/mobile/mobile-nav';
 import { canPartnerAccessUrl, canUserAccessUrl, getAuthorizedFallbackUrl, getPartnerFallbackUrl } from '../authenticated/shared/access/role-access';
 import { OrganizationType } from '../authenticated/organizations/models/organization-enum';
 import { UserGroups } from '../authenticated/users/models/user-enums';
@@ -21,13 +22,20 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
 
     const path = state.url.split('?')[0].split('#')[0];
     const firstSegment = path.split('/').filter(Boolean)[0];
-    if (firstSegment === RouterToken.Mobile) {
-        return true;
-    }
-
     const userGroups = authService.getUser()?.userGroups as Array<string | number> | undefined;
     const isPartnerOrg = !authService.hasRole(UserGroups.SuperAdmin)
       && Number(commonService.getOrganizationTypeId()) === OrganizationType.Partner;
+
+    if (firstSegment === RouterToken.Mobile) {
+        if (isPartnerOrg && !canPartnerAccessMobileUrl(state.url, userGroups)) {
+          const hasCurrentRoute = !!router.routerState.snapshot.url && router.routerState.snapshot.url !== '/';
+          if (hasCurrentRoute) {
+            return false;
+          }
+          return router.parseUrl(getMobilePartnerFallbackUrl());
+        }
+        return true;
+    }
     if (isPartnerOrg && !canPartnerAccessUrl(state.url, userGroups)) {
       const hasCurrentRoute = !!router.routerState.snapshot.url && router.routerState.snapshot.url !== '/';
       if (hasCurrentRoute) {

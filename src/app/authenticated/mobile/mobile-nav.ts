@@ -1,5 +1,7 @@
 import { AuthService } from '../../services/auth.service';
-import { canShowLeadsNav } from '../shared/access/role-access';
+import { OrganizationType } from '../organizations/models/organization-enum';
+import { UserGroups } from '../users/models/user-enums';
+import { canShowLeadsNav, type UserGroupInput } from '../shared/access/role-access';
 
 export interface MobileNavTab {
   label: string;
@@ -98,6 +100,9 @@ export function getMobileTicketFilterMode(tabPath: string | null | undefined): M
   return 'assignedToMe';
 }
 
+/** Partner org hamburger items — matches desktop PARTNER_NAV_ITEMS (board, properties, contacts). */
+export const MOBILE_PARTNER_NAV_PATHS = new Set(['home', 'properties', 'contacts']);
+
 export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
   { icon: 'grid_view', label: 'Home', path: 'home', tabs: [] },
   { icon: 'hub', label: 'Leads', path: 'leads', tabs: MOBILE_LEADS_TABS },
@@ -124,11 +129,45 @@ export const MOBILE_PROPERTY_DETAIL_TABS: MobileNavTab[] = [
   { label: 'Departure Letter', path: 'departure-letter' }
 ];
 
-export function getMobileNavItems(authService: AuthService): MobileNavItem[] {
-  if (canShowLeadsNav(authService)) {
-    return MOBILE_NAV_ITEMS;
+export function getMobileNavItems(
+  authService: AuthService,
+  organizationTypeId?: number | null
+): MobileNavItem[] {
+  let items = MOBILE_NAV_ITEMS;
+
+  if (!canShowLeadsNav(authService)) {
+    items = items.filter(item => item.path !== 'leads');
   }
-  return MOBILE_NAV_ITEMS.filter(item => item.path !== 'leads');
+
+  if (!authService.hasRole(UserGroups.SuperAdmin)
+    && Number(organizationTypeId) === OrganizationType.Partner) {
+    items = items.filter(item => MOBILE_PARTNER_NAV_PATHS.has(item.path));
+  }
+
+  return items;
+}
+
+export function canPartnerAccessMobileUrl(url: string, _userGroups?: UserGroupInput): boolean {
+  const parts = (url || '').split('?')[0].split('#')[0].split('/').filter(Boolean);
+  if (parts[0] !== 'mobile') {
+    return true;
+  }
+
+  const section = parts[1] ?? 'home';
+  if (MOBILE_PARTNER_NAV_PATHS.has(section)) {
+    return true;
+  }
+
+  // Board opens reservation detail/new; block the reservations list page.
+  if (section === 'reservations') {
+    return parts.length >= 3 && !!parts[2]?.trim();
+  }
+
+  return false;
+}
+
+export function getMobilePartnerFallbackUrl(): string {
+  return '/mobile/home';
 }
 
 export function getMobileNavItem(sectionPath: string | null | undefined): MobileNavItem | null {

@@ -15,9 +15,10 @@ interface PasteBlock {
   text: string;
 }
 
-/** Characters Word uses for list markers (including Wingdings PUA glyphs). */
-const BULLET_CHAR_PATTERN = /[\u2022\u00b7\u25aa\u2043\u00a7\u2023\u2219\u25e6\uf0b7\uf0a7\uf076\uf0d8oO.\-*–—]/;
-const BULLET_CHAR_CLASS = '[\\u2022\\u00b7\\u25aa\\u2043\\u00a7\\u2023\\u2219\\u25e6\\uf0b7\\uf0a7\\uf076\\uf0d8oO.\\-*–—]';
+/** Characters Word uses for list markers (including Wingdings PUA glyphs). Plain o/O are handled separately — only as Word hollow circles (followed by whitespace). */
+const BULLET_CHAR_PATTERN = /[\u2022\u00b7\u25aa\u2043\u00a7\u2023\u2219\u25e6\uf0b7\uf0a7\uf076\uf0d8.\-*–—]/;
+const BULLET_CHAR_CLASS = '[\\u2022\\u00b7\\u25aa\\u2043\\u00a7\\u2023\\u2219\\u25e6\\uf0b7\\uf0a7\\uf076\\uf0d8.\\-*–—]';
+const WORD_HOLLOW_CIRCLE_BULLET_PATTERN = /^o[\s\u00a0\t]+/i;
 
 @Injectable({
   providedIn: 'root'
@@ -648,14 +649,41 @@ export class DocumentHtmlService {
     return BULLET_CHAR_PATTERN.test(char);
   }
 
+  /** Word hollow-circle list markers paste as "o" or "O" followed by whitespace — not words like Outdoor. */
+  isWordHollowCircleMarker(char: string, text: string, index: number): boolean {
+    if (char !== 'o' && char !== 'O') {
+      return false;
+    }
+
+    const nextIndex = index + 1;
+    if (nextIndex >= text.length) {
+      return true;
+    }
+
+    const next = text[nextIndex];
+    return next === ' ' || next === '\u00a0' || next === '\t';
+  }
+
+  isBulletOnlyText(text: string): boolean {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return true;
+    }
+
+    return [...trimmed].every(char => this.isBulletChar(char) || char === ' ' || char === '\u00a0' || char === 'o' || char === 'O');
+  }
+
   startsWithBullet(text: string): boolean {
-    return new RegExp(`^${BULLET_CHAR_CLASS}[\\s${BULLET_CHAR_CLASS}]*`).test(text.trim());
+    const trimmed = text.trim();
+    return new RegExp(`^${BULLET_CHAR_CLASS}[\\s${BULLET_CHAR_CLASS}]*`).test(trimmed)
+      || WORD_HOLLOW_CIRCLE_BULLET_PATTERN.test(trimmed);
   }
 
   stripLeadingBullet(text: string): string {
     let result = text.trim();
     for (let pass = 0; pass < 8; pass++) {
-      const next = result.replace(new RegExp(`^${BULLET_CHAR_CLASS}[\\s${BULLET_CHAR_CLASS}]*`, 'i'), '').trim();
+      let next = result.replace(new RegExp(`^${BULLET_CHAR_CLASS}[\\s${BULLET_CHAR_CLASS}]*`, 'i'), '').trim();
+      next = next.replace(WORD_HOLLOW_CIRCLE_BULLET_PATTERN, '').trim();
       if (next === result) {
         break;
       }
@@ -678,11 +706,14 @@ export class DocumentHtmlService {
     const walker = doc.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
-      for (const char of node.textContent || '') {
+      const content = node.textContent || '';
+      let index = 0;
+      for (const char of content) {
         if (char === ' ' || char === '\u00a0' || char === '\t' || char === '\n' || char === '\r') {
+          index++;
           continue;
         }
-        return this.isBulletChar(char);
+        return this.isBulletChar(char) || this.isWordHollowCircleMarker(char, content, index);
       }
       node = walker.nextNode();
     }
@@ -707,8 +738,11 @@ export class DocumentHtmlService {
             index++;
             continue;
           }
-          if (this.isBulletChar(char)) {
+          if (this.isBulletChar(char) || this.isWordHollowCircleMarker(char, raw, index)) {
             index++;
+            if ((char === 'o' || char === 'O') && index < raw.length && (raw[index] === ' ' || raw[index] === '\u00a0' || raw[index] === '\t')) {
+              index++;
+            }
             continue;
           }
           break;
@@ -745,7 +779,7 @@ export class DocumentHtmlService {
 
       if (['span', 'strong', 'em', 'b', 'i', 'u', 'a'].includes(tag)) {
         const trimmed = (el.textContent || '').trim();
-        if (!trimmed || [...trimmed].every(char => this.isBulletChar(char) || char === ' ' || char === '\u00a0')) {
+        if (!trimmed || this.isBulletOnlyText(trimmed)) {
           element.removeChild(el);
           continue;
         }
@@ -796,8 +830,10 @@ export class DocumentHtmlService {
         .replace(/^(\s|&nbsp;|<br\s*\/?>)*/i, '')
         .replace(/^<(?:strong|em|b|i|u|span)(?:\s[^>]*)?>\s*<\/(?:strong|em|b|i|u|span)>/i, '')
         .replace(/^&#(?:8226|183|9679|8211|8212|9675);(\s|&nbsp;|<br\s*\/?>)*/i, '')
-        .replace(/^<(?:strong|em|b|i|u|span)(?:\s[^>]*)?>[\u2022\u00b7\u25aa\u2043oO\u00a7\u2013\u2014\-–—*.\uf0b7\uf0a7\uf076]<\/(?:strong|em|b|i|u|span)>(\s|&nbsp;|<br\s*\/?>)*/i, '')
-        .replace(/^[\u2022\u00b7\u25aa\u2043oO\u00a7\u2013\u2014\-–—*.\uf0b7\uf0a7\uf076](\s|&nbsp;|<br\s*\/?>)*/i, '');
+        .replace(/^<(?:strong|em|b|i|u|span)(?:\s[^>]*)?>[\u2022\u00b7\u25aa\u2043\u00a7\u2013\u2014\-–—*.\uf0b7\uf0a7\uf076]<\/(?:strong|em|b|i|u|span)>(\s|&nbsp;|<br\s*\/?>)*/i, '')
+        .replace(/^<(?:strong|em|b|i|u|span)(?:\s[^>]*)?>o<\/(?:strong|em|b|i|u|span)>(\s|&nbsp;|<br\s*\/?>)*/i, '')
+        .replace(/^[\u2022\u00b7\u25aa\u2043\u00a7\u2013\u2014\-–—*.\uf0b7\uf0a7\uf076](\s|&nbsp;|<br\s*\/?>)*/i, '')
+        .replace(/^o(\s|&nbsp;|<br\s*\/?>)+/i, '');
       if (next === result) {
         break;
       }
