@@ -15,7 +15,8 @@
 
       <ng-template #propertyFormView let-isOwnerView="isOwnerView">
       <div class="info-form" [class.mb-8]="!isOwnerView">
-      <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text" [class.property-page-form--owner-mode]="isOwnerView">
+      <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text" [class.property-page-form--owner-mode]="isOwnerView" [class.property-form-external-readonly]="isExternalPartnerPropertyView">
+            @if (!isExternalPartnerPropertyView) {
             <div class="property-tab-actions-band" [class.owner-mode-actions-band]="isOwnerView">
               <div class="property-tab-actions-band__row">
                 <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
@@ -50,6 +51,11 @@
                 <div class="owner-mode-save-spacer"></div>
               }
             </div>
+            } @else {
+            <div class="property-tab-actions-band property-tab-actions-band--partner-spacer" aria-hidden="true">
+              <div class="property-tab-actions-band__row"></div>
+            </div>
+            }
             <div class="property-tab-main-area">
             <mat-accordion multi="true">
             <!-- Basic Rental Information (combined: basic + address + location + rates) -->
@@ -64,7 +70,7 @@
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                     <mat-label>Avail-From</mat-label>
                     <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
-                    <button mat-icon-button matSuffix type="button" (click)="availableFromPicker.open()" aria-label="Open calendar">
+                    <button mat-icon-button matSuffix type="button" [disabled]="isExternalPartnerPropertyView" (click)="availableFromPicker.open()" aria-label="Open calendar">
                       <mat-icon>calendar_today</mat-icon>
                     </button>
                     <mat-datepicker #availableFromPicker></mat-datepicker>
@@ -78,6 +84,7 @@
                         matSuffix
                         type="button"
                         [class.date-picker-icon-button-error]="form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched"
+                        [disabled]="isExternalPartnerPropertyView"
                         (click)="availableUntilPicker.open()"
                         aria-label="Open calendar">
                         <mat-icon [class.date-picker-icon-error]="form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched">calendar_today</mat-icon>
@@ -87,7 +94,7 @@
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 col-span-3"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -105,7 +112,7 @@
                       [errorText]="'Required'"
                       (valueChange)="onNumericDropdownChange('checkInTimeId', $event)">
                     </app-searchable-select>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 col-span-3"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -133,7 +140,7 @@
                       <mat-label>Max-Stay</mat-label>
                       <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
                     </mat-form-field>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 col-span-4"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -152,7 +159,7 @@
                       (valueChange)="onNumericDropdownChange('propertyStyle', $event)">
                     </app-searchable-select>
                   }
-                  <app-searchable-select
+                  <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                     class="basic-compact min-w-0 col-span-4"
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact min-w-0'"
@@ -171,7 +178,7 @@
                     (valueChange)="onPropertyTypeDropdownChange($event)">
                   </app-searchable-select>
                   @if (!isOwnerView) {
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 col-span-4"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -197,7 +204,7 @@
                     <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                       <mat-label>Avail-From</mat-label>
                       <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
-                      <button mat-icon-button matSuffix type="button" (click)="availableFromPicker.open()" aria-label="Open calendar">
+                      <button mat-icon-button matSuffix type="button" [disabled]="isExternalPartnerPropertyView" (click)="availableFromPicker.open()" aria-label="Open calendar">
                         <mat-icon>calendar_today</mat-icon>
                       </button>
                       <mat-datepicker #availableFromPicker></mat-datepicker>
@@ -206,7 +213,7 @@
                       <mat-label>Min-Stay</mat-label>
                       <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
                     </mat-form-field>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 col-span-4"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -374,7 +381,7 @@
                     <input matInput formControlName="view">
                   </mat-form-field>
                   @if (showNoticeToVacateField) {
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 address-secondary-span-half"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -389,7 +396,7 @@
                       [noResultsText]="'No notice options match your search'"
                       (valueChange)="onNumericDropdownChange('noticeToVacateId', $event)">
                     </app-searchable-select>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0 address-secondary-span-half"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -411,7 +418,7 @@
                 @if (!isOwnerView) {
                   <!-- Under phone: Region/Area/Build -->
                   <div class="basic-row office-line-grid gap-x-1.5 gap-y-1">
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -424,7 +431,7 @@
                       [noResultsText]="'No regions match your search'"
                       (valueChange)="onNumericDropdownChange('regionId', $event)">
                     </app-searchable-select>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -437,7 +444,7 @@
                       [noResultsText]="'No areas match your search'"
                       (valueChange)="onNumericDropdownChange('areaId', $event)">
                     </app-searchable-select>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="basic-compact min-w-0"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
@@ -506,7 +513,7 @@
                     <mat-label>Sq Ft</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="squareFeet" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
-                  <app-searchable-select
+                  <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                     class="basic-compact"
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
@@ -522,7 +529,7 @@
                     [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId1', $event)">
                   </app-searchable-select>
-                  <app-searchable-select
+                  <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                     class="basic-compact"
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
@@ -538,7 +545,7 @@
                     [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId2', $event)">
                   </app-searchable-select>
-                  <app-searchable-select
+                  <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                     class="basic-compact"
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
@@ -554,7 +561,7 @@
                     [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId3', $event)">
                   </app-searchable-select>
-                  <app-searchable-select
+                  <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                     class="basic-compact"
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
@@ -570,7 +577,7 @@
                     [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId4', $event)">
                   </app-searchable-select>
-                  <app-searchable-select
+                  <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                     class="basic-compact"
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
@@ -670,11 +677,11 @@
                     </mat-form-field>
                   </div>
                 }
-                @if (!isOwnerView) {
+                @if (!isOwnerView && !isExternalPartnerPropertyView) {
                   <!-- Owners (property management lease) or Vendor (other lease types) -->
                   @if (isPropertyManagementLease) {
                   <div class="mb-4 flex items-center gap-3 mt-4">
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="owner-select-field owner-select-field-primary"
                       [renderInFormField]="true"
                       [formFieldLabel]="'Owner'"
@@ -691,7 +698,7 @@
                       (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
                       (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
                     </app-searchable-select>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="owner-select-field owner-select-field-secondary"
                       [renderInFormField]="true"
                       [formFieldLabel]="'Owner 2 (Optional)'"
@@ -705,7 +712,7 @@
                       (valueChange)="onOwnerDropdownChange('owner2Id', $event)"
                       (triggerValueClick)="onOwnerNameClick($event, 'owner2Id')">
                     </app-searchable-select>
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="owner-select-field owner-select-field-secondary"
                       [renderInFormField]="true"
                       [formFieldLabel]="'Owner 3 (Optional)'"
@@ -722,7 +729,7 @@
                   </div>
                   } @else {
                   <div class="mb-4 flex items-center gap-3 mt-4">
-                    <app-searchable-select
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
                       class="vendor-select-field"
                       [renderInFormField]="true"
                       [formFieldLabel]="'Vendor'"
@@ -910,6 +917,7 @@
                 </div>
                 <div class="w-full min-w-0 amenities-editor-wrap">
                   <div class="description-editor-label">Additional Amenities</div>
+                  @if (!isExternalPartnerPropertyView) {
                   <div class="description-editor-toolbar">
                     <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyAmenitiesFormat('bold')">
                       <mat-icon>format_bold</mat-icon>
@@ -927,10 +935,12 @@
                       <mat-icon>format_list_bulleted</mat-icon>
                     </button>
                   </div>
+                  }
                   <div
                     #amenitiesEditor
                     class="description-editor-input description-editor-input--with-markers amenities-editor-input"
-                    [attr.contenteditable]="'true'"
+                    [class.description-editor-input--readonly]="isExternalPartnerPropertyView"
+                    [attr.contenteditable]="isExternalPartnerPropertyView ? 'false' : 'true'"
                     (input)="onAmenitiesInput($event)"
                     (paste)="onAmenitiesPaste($event)">
                   </div>
@@ -947,6 +957,7 @@
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
                   <div class="col-span-4 description-editor-wrap">
                     <div class="description-editor-label">Property Description</div>
+                    @if (!isExternalPartnerPropertyView) {
                     <div class="description-editor-toolbar">
                       <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('bold')">
                         <mat-icon>format_bold</mat-icon>
@@ -964,10 +975,12 @@
                         <mat-icon>format_list_bulleted</mat-icon>
                       </button>
                     </div>
+                    }
                     <div
                       #descriptionEditor
                       class="description-editor-input description-editor-input--with-markers"
-                      [attr.contenteditable]="'true'"
+                      [class.description-editor-input--readonly]="isExternalPartnerPropertyView"
+                      [attr.contenteditable]="isExternalPartnerPropertyView ? 'false' : 'true'"
                       (input)="onDescriptionInput($event)"
                       (paste)="onDescriptionPaste($event)">
                     </div>
@@ -980,7 +993,7 @@
               </mat-expansion-panel>
             }
 
-            @if (!isInOwnerMode && !isPartnerLimitedPropertyForm) {
+            @if (!isInOwnerMode && !shouldLimitPropertyFormSections) {
               <mat-expansion-panel [expanded]="expandedSections.propertyContacts" (opened)="onPanelOpened('propertyContacts')" (closed)="onPanelClosed('propertyContacts')" class="mb-4">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Property Contacts</mat-panel-title>

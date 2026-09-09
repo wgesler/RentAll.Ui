@@ -76,6 +76,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   isAddMode = false;
   isPartnerAdmin = false;
   isPartnerOrganization = false;
+  externalPartnerPropertyFromRoute = false;
   routePropertyId: string | null = null;
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -125,14 +126,17 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     });
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
+      this.externalPartnerPropertyFromRoute = queryParams['externalPartnerProperty'] === '1';
       if (queryParams['tab'] === 'reservation-history') {
-        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs ? 0 : this.historyTabIndex;
+        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.historyTabIndex;
       } else if (queryParams['tab'] === 'listing') {
         this.selectedTabIndex = this.listingTabIndex;
       } else if (queryParams['tab'] === 'departure-letter') {
-        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs ? 0 : this.departureLetterTabIndex;
+        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.departureLetterTabIndex;
       } else if (queryParams['tab'] === 'welcome-letter') {
-        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs ? 0 : this.welcomeLetterTabIndex;
+        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.welcomeLetterTabIndex;
+      } else if (this.isExternalPartnerPropertyView && (queryParams['tab'] === 'information' || queryParams['tab'] === 'property-information')) {
+        this.selectedTabIndex = 0;
       }
     });
   }
@@ -154,8 +158,16 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
     return this.isPartnerAdmin || this.isPartnerOrganization;
   }
 
+  get isExternalPartnerPropertyView(): boolean {
+    if (this.externalPartnerPropertyFromRoute) {
+      return true;
+    }
+    const propertyOrgId = String(this.shellProperty?.organizationId ?? '').trim();
+    return !!propertyOrgId && propertyOrgId !== this.organizationId;
+  }
+
   get showTitleBarReservation(): boolean {
-    if (this.isAddMode || this.isPartnerLimitedPropertyTabs) {
+    if (this.isAddMode || this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView) {
       return false;
     }
     return this.selectedTabIndex === this.welcomeLetterTabIndex || this.selectedTabIndex === this.departureLetterTabIndex;
@@ -171,6 +183,10 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   }
 
   get isHeaderPropertyCodeEditable(): boolean {
+    if (this.isExternalPartnerPropertyView) {
+      return false;
+    }
+
     if (this.selectedTabIndex !== 0) {
       return false;
     }

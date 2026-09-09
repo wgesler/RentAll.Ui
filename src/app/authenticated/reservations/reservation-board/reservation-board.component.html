@@ -305,7 +305,8 @@
                     <span
                       class="reservation-link reservation-property-code-link partner-property-code"
                       (mouseenter)="onPartnerPropertyCodeHover(property.propertyId, $event)"
-                      (mouseleave)="onPartnerPropertyCodeLeave()">{{ property.propertyCode }}</span>
+                      (mouseleave)="onPartnerPropertyCodeLeave()"
+                      (click)="onPartnerPropertyCodeClick(property.propertyId, $event)">{{ property.propertyCode }}</span>
                   } @else {
                     <span
                       class="reservation-link reservation-property-code-link"

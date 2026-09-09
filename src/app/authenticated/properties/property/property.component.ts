@@ -45,6 +45,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { NewContactDialogOptions, NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
+import { PartnerService } from '../../partners/services/partner.service';
 import { OwnersService } from '../../owners/services/owners.service';
 import { UserGroups } from '../../users/models/user-enums';
 import {
@@ -112,6 +113,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   private newContactDialogService = inject(NewContactDialogService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private ownersService = inject(OwnersService);
+  private partnerService = inject(PartnerService);
   private documentHtmlService = inject(DocumentHtmlService);
 
   readonly EntityType = EntityType;
@@ -123,6 +125,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isAgentAdmin = false;
   isPartnerOrganization = false;
   isPartnerAdmin = false;
+  externalPartnerPropertyFromRoute = false;
   isServiceError: boolean = false;
   organizationId = '';
   form: FormGroup;
@@ -196,8 +199,20 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     return this.isPartnerAdmin || this.isPartnerOrganization;
   }
 
+  get isExternalPartnerPropertyView(): boolean {
+    if (this.externalPartnerPropertyFromRoute) {
+      return true;
+    }
+    const propertyOrgId = String(this.property?.organizationId ?? '').trim();
+    return !!propertyOrgId && propertyOrgId !== this.organizationId;
+  }
+
+  get shouldLimitPropertyFormSections(): boolean {
+    return this.isPartnerLimitedPropertyForm || this.isExternalPartnerPropertyView;
+  }
+
   get canShowPropertyAgreement(): boolean {
-    if (this.isPartnerLimitedPropertyForm) {
+    if (this.shouldLimitPropertyFormSections) {
       return false;
     }
     if (!this.propertyId || this.isAddMode) {
@@ -304,6 +319,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       });
     }
 
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
+      this.externalPartnerPropertyFromRoute = queryParams.get('externalPartnerProperty') === '1';
+    });
+
     this.route.queryParamMap.pipe(
       takeUntil(this.destroy$),
       map(queryParams => String(queryParams.get('copyFrom') || '').trim()),
@@ -356,7 +375,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   getProperty(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.ownersService.getPropertyByContext(this.publicOwnerToken, this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+    this.loadPropertyForView().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response) => {
         if (!response) {
           if (!this.isEmbeddedInOwnerShell()) {
@@ -367,6 +386,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.isServiceError = false;
         this.property = response;
         this.populateForm();
+        this.applyExternalPartnerPropertyReadOnlyState();
         this.filterLocationLookupsByOffice();
       },
       error: () => {
@@ -375,6 +395,26 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         }
       }
     });
+  }
+
+  loadPropertyForView(): Observable<PropertyResponse | null> {
+    const publicOwnerToken = String(this.publicOwnerToken || '').trim();
+    if (publicOwnerToken.length > 0) {
+      return this.ownersService.getPropertyByContext(publicOwnerToken, this.propertyId);
+    }
+
+    return this.propertyService.getPropertyByGuid(this.propertyId).pipe(
+      take(1),
+      catchError(() => this.partnerService.getPropertyById(this.propertyId))
+    );
+  }
+
+  applyExternalPartnerPropertyReadOnlyState(): void {
+    if (!this.isExternalPartnerPropertyView || !this.form) {
+      return;
+    }
+    this.form.disable({ emitEvent: false });
+    this.markViewForCheck();
   }
 
   copyFromProperty(sourcePropertyId: string): void {
@@ -449,6 +489,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   saveProperty(onComplete?: (saved: boolean) => void): void {
+    if (this.isExternalPartnerPropertyView) {
+      onComplete?.(false);
+      return;
+    }
     this.touchAllFormControls(this.form);
     this.form.markAsTouched();
     this.form.updateValueAndValidity({ emitEvent: false });
@@ -1210,6 +1254,11 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
+    if (this.isExternalPartnerPropertyView) {
+      officeControl.disable({ emitEvent: false });
+      return;
+    }
+
     // Only Admins can change a property's office
     if (this.isAdmin) {
       officeControl.enable({ emitEvent: false });
@@ -1847,6 +1896,10 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   setupConditionalFields(): void {
     // Subscribe to parking checkbox changes to enable/disable parkingNotes field
     this.form.get('parking')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.isExternalPartnerPropertyView) {
+        this.applyExternalPartnerPropertyReadOnlyState();
+        return;
+      }
       const parkingNotesControl = this.form.get('parkingNotes');
       if (parkingNotesControl) {
         if (value) {
@@ -1860,6 +1913,10 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
 
     // Subscribe to petsAllowed checkbox changes to enable/disable pet-related fields
     this.form.get('petsAllowed')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.isExternalPartnerPropertyView) {
+        this.applyExternalPartnerPropertyReadOnlyState();
+        return;
+      }
       const dogsOkayControl = this.form.get('dogsOkay');
       const catsOkayControl = this.form.get('catsOkay');
       const poundLimitControl = this.form.get('poundLimit');
@@ -1905,6 +1962,11 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   }
 
   syncConditionalFieldState(): void {
+    if (this.isExternalPartnerPropertyView) {
+      this.applyExternalPartnerPropertyReadOnlyState();
+      return;
+    }
+
     const parkingValue = this.form.get('parking')?.value;
     const petsAllowedValue = this.form.get('petsAllowed')?.value;
 
@@ -2593,7 +2655,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     if (!vendorControl) {
       return;
     }
-    if (this.isPartnerOrganization) {
+    if (this.isExternalPartnerPropertyView || this.isPartnerOrganization) {
       vendorControl.disable({ emitEvent: false });
       return;
     }

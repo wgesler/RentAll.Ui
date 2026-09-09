@@ -11,13 +11,14 @@ import { PropertyPhotoRequest, PropertyPhotoResponse } from '../models/property-
 import { PropertyResponse } from '../models/property.model';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyPhotoService } from '../services/property-photo.service';
+import { PartnerService } from '../../partners/services/partner.service';
 import { PropertyService } from '../services/property.service';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { BehaviorSubject, Observable, Subject, firstValueFrom } from 'rxjs';
-import { finalize, map, take, takeUntil } from 'rxjs/operators';
+import { catchError, finalize, map, take, takeUntil } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
@@ -48,6 +49,7 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   formatter = inject(FormatterService);
   propertyPhotoService = inject(PropertyPhotoService);
   propertyService = inject(PropertyService);
+  partnerService = inject(PartnerService);
   propertyListingShareService = inject(PropertyListingShareService);
   clipboard = inject(Clipboard);
   toastr = inject(ToastrService);
@@ -162,8 +164,13 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
 
   loadPropertyById(propertyId: string): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1), finalize(() => this.cdr.markForCheck())).subscribe({
-      next: (response: PropertyResponse) => {
+    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1), catchError(() => this.partnerService.getPropertyById(propertyId)), finalize(() => this.cdr.markForCheck())).subscribe({
+      next: (response: PropertyResponse | null) => {
+        if (!response) {
+          this.loadedProperty = null;
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+          return;
+        }
         this.loadedProperty = response;
         this.applyPropertyListingState(response);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');

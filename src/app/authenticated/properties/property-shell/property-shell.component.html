@@ -18,7 +18,7 @@
                 [required]="propertySection?.isAddMode ?? false"
                 [value]="propertySection?.isAddMode ? addModeOfficeId : displayOfficeId"
                 [options]="officeOptions"
-                [disabled]="!(propertySection?.isAddMode || isHeaderPropertyCodeEditable)"
+                [disabled]="isExternalPartnerPropertyView || !(propertySection?.isAddMode || isHeaderPropertyCodeEditable)"
                 [showInstructionOption]="true"
                 [nullOptionLabel]="'All Offices'"
                 [noResultsText]="'No offices match your search'"
@@ -116,7 +116,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          @if (!isPartnerAdmin) {
+          @if (!isPartnerAdmin && !isExternalPartnerPropertyView) {
             <button mat-icon-button type="button" color="warn" id="property-alert-button" (click)="openAddAlertDialog()" class="flex-shrink-0 !w-11 !h-11" aria-label="Add Alert">
               <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
             </button>
@@ -126,7 +126,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" [class.partner-limited-tabs]="isPartnerLimitedPropertyTabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" [class.partner-limited-tabs]="isPartnerLimitedPropertyTabs" [class.external-partner-property-tabs]="isExternalPartnerPropertyView" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
           @if (selectedTabIndex === 0) {
             <app-property
@@ -186,7 +186,9 @@
               [propertyId]="shellPropertyId"
               [officeId]="titleBarPropertyOfficeId"
               [propertyCode]="sharedPropertyCode"
-              [property]="shellProperty">
+              [property]="shellProperty"
+              [isReadOnly]="isExternalPartnerPropertyView"
+              [disablePhotoApiLoad]="isExternalPartnerPropertyView">
             </app-property-listing>
           }
         </mat-tab>

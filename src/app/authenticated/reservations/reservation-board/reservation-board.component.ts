@@ -1800,6 +1800,48 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     });
   }
 
+  onPartnerPropertyCodeClick(propertyId: string, event: MouseEvent): void {
+    if (!this.isPropertyCodeNavigable || !this.partnersBoardToggleChecked) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.clearPartnerPropertyHoverState();
+
+    const navigate = (externalPartnerProperty: boolean) => {
+      this.router.navigate([this.getPropertyRoute(propertyId)], {
+        queryParams: {
+          returnTo: 'reservation-board',
+          ...(externalPartnerProperty ? { externalPartnerProperty: '1' } : {})
+        }
+      });
+    };
+
+    if (this.standardPropertyRowsCache !== null) {
+      navigate(this.isPartnerBoardExternalProperty(propertyId));
+      return;
+    }
+
+    this.ensureStandardPropertyCacheThen(() => navigate(this.isPartnerBoardExternalProperty(propertyId)));
+  }
+
+  isPartnerBoardExternalProperty(propertyId: string): boolean {
+    const id = String(propertyId || '').trim();
+    if (!id) {
+      return false;
+    }
+    return !(this.standardPropertyRowsCache ?? []).some(property => property.propertyId === id);
+  }
+
+  clearPartnerPropertyHoverState(): void {
+    this.clearPartnerPropertyHoverCloseTimer();
+    this.hoveredPartnerPropertyCodeId = null;
+    this.hoveredPartnerPropertyId = null;
+    this.isPartnerPropertyPanelHovered = false;
+    this.resetPartnerPropertyDescriptionOverflow();
+  }
+
   loadPartnerProperty(propertyId: string): void {
     const id = String(propertyId || '').trim();
     if (!this.partnersBoardToggleChecked || !id || this.partnerPropertyById.has(id) || this.loadingPartnerPropertyIds.has(id)) {

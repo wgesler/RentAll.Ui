@@ -829,3 +829,15 @@ input.no-spinner[type='number'] {
 .property-page-form--owner-mode .mailbox-field {
   min-width: 9ch !important;
 }
+
+.property-form-external-readonly {
+  .code-palette-trigger,
+  .code-palette-popout {
+    display: none;
+  }
+
+  .description-editor-input--readonly {
+    cursor: default;
+    user-select: text;
+  }
+}
