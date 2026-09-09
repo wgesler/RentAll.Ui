@@ -200,8 +200,13 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
     }
 
     if (this.disablePhotoApiLoad) {
-      this.applyInitialPhotos();
-      this.photosLoadedForPropertyId = activePropertyId;
+      if ((this.initialPhotos?.length ?? 0) > 0) {
+        this.applyInitialPhotos();
+        this.photosLoadedForPropertyId = activePropertyId;
+        return;
+      }
+
+      this.loadPartnerListingPhotos(activePropertyId);
       return;
     }
 
@@ -807,6 +812,30 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
         imageSources,
         initialIndex,
         title: this.listingHeaderTitle
+      }
+    });
+  }
+
+  loadPartnerListingPhotos(propertyId: string): void {
+    this.partnerService.getPropertyPhotosByPropertyId(propertyId).pipe(take(1), finalize(() => this.cdr.markForCheck())).subscribe({
+      next: (photos) => {
+        this.photosLoadedForPropertyId = propertyId;
+        this.listingPhotos = (photos || [])
+          .slice()
+          .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+          .map(photo => ({
+            id: String(photo.photoId),
+            order: Number(photo.order ?? 0),
+            fileDetails: photo.fileDetails ?? null,
+            photoPath: photo.photoPath
+          }));
+        this.normalizeInMemoryPhotoOrder();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.listingPhotos = [];
+        this.photosLoadedForPropertyId = propertyId;
+        this.cdr.markForCheck();
       }
     });
   }

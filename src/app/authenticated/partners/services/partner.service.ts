@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
+import { PropertyPhotoResponse } from '../../properties/models/property-photo.model';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PartnerCityStateResponse, PartnerContactResponse } from '../models/partner.model';
 
@@ -46,6 +47,18 @@ export class PartnerService {
     return this.http.get<PropertyResponse>(this.controller + 'properties/' + id).pipe(
       map(property => this.mappingService.mapPropertyResponse(property as unknown as Record<string, unknown>)),
       catchError(() => of(null))
+    );
+  }
+
+  getPropertyPhotosByPropertyId(propertyId: string): Observable<PropertyPhotoResponse[]> {
+    const id = String(propertyId || '').trim();
+    if (!id) {
+      return of([]);
+    }
+
+    return this.http.get<PropertyPhotoResponse[]>(this.controller + 'properties/' + id + '/photos').pipe(
+      map(photos => photos || []),
+      catchError(() => of([]))
     );
   }
 
