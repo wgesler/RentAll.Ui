@@ -56,7 +56,7 @@ import { getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, ge
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
-import { LeadPartnerListDisplay, LeadPartnerResponse, LeadPartnerUpdateRequest } from '../authenticated/leads/models/lead-partner.model';
+import { LeadPartnerListDisplay, LeadPartnerRequest, LeadPartnerResponse, LeadPartnerUpdateRequest } from '../authenticated/leads/models/lead-partner.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
 import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
 import { LeadRentalListDisplay, LeadRentalRequest, LeadRentalResponse } from '../authenticated/leads/models/lead-rental.model';
@@ -2597,6 +2597,26 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       preferredContactMethod: null,
       timeDateForContact: null,
       notes: null,
+      emailPhoneConsent: false,
+      smsConsent: false,
+      isActive: lead.isActive
+    };
+  }
+
+  mapLeadGeneralToPartnerRequest(lead: LeadGeneralListDisplay): LeadPartnerRequest {
+    const name = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || null;
+    return {
+      leadStateId: lead.leadStateId,
+      officeId: lead.officeId,
+      name: this.utility.trimOrNull(name),
+      companyName: null,
+      title: null,
+      email: this.utility.trimOrNull(lead.email),
+      phone: this.utility.trimOrNull(lead.phone),
+      marketsCitiesServed: null,
+      furnishedPropertiesInPortfolio: null,
+      aboutYourBusiness: this.utility.trimOrNull(lead.message),
+      notes: this.utility.trimOrNull(lead.notes),
       emailPhoneConsent: false,
       smsConsent: false,
       isActive: lead.isActive

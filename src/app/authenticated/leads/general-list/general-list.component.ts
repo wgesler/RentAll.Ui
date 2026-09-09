@@ -149,6 +149,25 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
+
+  convertGeneralToPartner(event: LeadGeneralListDisplay): void {
+    if (!event?.generalId) {
+      return;
+    }
+
+    const createBody = this.mappingService.mapLeadGeneralToPartnerRequest(event);
+    this.leadsService.createPartnerLead(createBody).pipe(take(1), concatMap(() => this.leadsService.deleteGeneralLead(event.generalId))).subscribe({
+      next: () => {
+        this.toastr.success('General lead moved to Partner leads.', CommonMessage.Success);
+        this.loadGeneralLeads();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Unable to move general lead to Partner leads.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
   //#endregion
 
   //#region Form Build methods
