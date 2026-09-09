@@ -20,12 +20,13 @@ import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
 import { HelpGuideService } from '../../user-guide/help-guide/help-guide.service';
+import { MobilePullToRefreshDirective } from '../../../mobile/mobile-pull-to-refresh.directive';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
     standalone: true,
     selector: 'app-header',
-    imports: [CommonModule, MaterialModule],
+    imports: [CommonModule, MaterialModule, MobilePullToRefreshDirective],
     templateUrl: './header.component.html',
     styleUrl: './header.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

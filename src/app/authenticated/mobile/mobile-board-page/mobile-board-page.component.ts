@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { NavigationEnd, Router } from '@angular/router';
 import { Subject, filter, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { MobilePullToRefreshDirective } from '../mobile-pull-to-refresh.directive';
 import { MobileReservationBoardComponent } from '../mobile-reservation-board/mobile-reservation-board.component';
 import { resolveMobileBoardReturnUrl } from '../mobile-nav';
 
 @Component({
   standalone: true,
   selector: 'app-mobile-board-page',
-  imports: [MaterialModule, MobileReservationBoardComponent],
+  imports: [MaterialModule, MobileReservationBoardComponent, MobilePullToRefreshDirective],
   templateUrl: './mobile-board-page.component.html',
   styleUrl: './mobile-board-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

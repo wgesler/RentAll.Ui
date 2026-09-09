@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, AfterViewInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Subject, finalize, skip, take, takeUntil } from 'rxjs';
@@ -23,10 +23,10 @@ import { ReservationService } from '../../reservations/services/reservation.serv
   styleUrl: './mobile-reservation-board.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MobileReservationBoardComponent implements OnInit, OnDestroy {
+export class MobileReservationBoardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('headInner') headInner?: ElementRef<HTMLElement>;
-  @ViewChild('codeInner') codeInner?: ElementRef<HTMLElement>;
-  @ViewChild('dataScroll') dataScroll?: ElementRef<HTMLElement>;
+  @ViewChild('boardScroll') boardScroll?: ElementRef<HTMLElement>;
+  private readonly onBoardScrollEnd = () => this.syncBoardHeaderScroll();
 
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
@@ -280,22 +280,29 @@ export class MobileReservationBoardComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  onDataScroll(event: Event): void {
-    const data = event.target as HTMLElement;
-    const head = this.headInner?.nativeElement;
-    const codes = this.codeInner?.nativeElement;
-    if (head) {
-      head.style.transform = `translateX(-${data.scrollLeft}px)`;
-    }
-    if (codes) {
-      codes.style.transform = `translateY(-${data.scrollTop}px)`;
-    }
+  ngAfterViewInit(): void {
+    this.boardScroll?.nativeElement.addEventListener('scrollend', this.onBoardScrollEnd, { passive: true });
+  }
+
+  onBoardScroll(event: Event): void {
+    this.syncBoardHeaderScroll(event.target as HTMLElement);
   }
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.boardScroll?.nativeElement.removeEventListener('scrollend', this.onBoardScrollEnd);
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private syncBoardHeaderScroll(boardEl?: HTMLElement): void {
+    const board = boardEl ?? this.boardScroll?.nativeElement;
+    const head = this.headInner?.nativeElement;
+    if (!board || !head) {
+      return;
+    }
+
+    head.style.transform = `translate3d(-${board.scrollLeft}px, 0, 0)`;
   }
   //#endregion
 }

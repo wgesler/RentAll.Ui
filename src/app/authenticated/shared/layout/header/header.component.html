@@ -1,4 +1,8 @@
-<mat-toolbar id="header" color="primary" class="flex justify-between gap-8 shrink w-full">
+<mat-toolbar
+  id="header"
+  color="primary"
+  class="flex justify-between gap-8 shrink w-full"
+  [appMobilePullToRefresh]="(isHandset$ | async) === true">
   <button mat-icon-button type="button" id="sidenav-toggle-btn" class="sidebar-toggle-btn"
     aria-label="Toggle navigation" (click)="toggleSidebar()"
     [style.left.px]="(isHandset$ | async) ? 18 : (isSidebarExpanded ? 170 : 60)">
