@@ -10951,22 +10951,26 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
       depth: 0
     });
 
+    let clearedRunningBalance = beginningBalance;
+
+    clearedRunningBalance = this.appendReconcileAccountSubsectionRows(rows, {
+      view: request.view,
+      sectionKey: 'cleared-deposits',
+      subsectionLabel: `Deposits and Credits - ${clearedDeposits.length} items`,
+      lines: clearedDeposits,
+      totalLabel: 'Total Deposits and Credits',
+      includeRunningBalance: true,
+      startingBalance: clearedRunningBalance
+    });
+
     this.appendReconcileAccountSubsectionRows(rows, {
       view: request.view,
       sectionKey: 'cleared-payments',
       subsectionLabel: `Checks and Payments - ${clearedPayments.length} items`,
       lines: clearedPayments,
       totalLabel: 'Total Checks and Payments',
-      includeRunningBalance: true
-    });
-
-    this.appendReconcileAccountSubsectionRows(rows, {
-      view: request.view,
-      sectionKey: 'cleared-deposits',
-      subsectionLabel: `Deposits and Credits - ${clearedDeposits.length} items`,
-      lines: clearedDeposits,
-      totalLabel: 'Total Deposits and Credits',
-      includeRunningBalance: true
+      includeRunningBalance: true,
+      startingBalance: clearedRunningBalance
     });
 
     rows.push({
@@ -10994,6 +10998,20 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
       depth: 0
     });
 
+    let unclearedRunningBalance = clearedBalance;
+
+    if (unclearedDeposits.length > 0) {
+      unclearedRunningBalance = this.appendReconcileAccountSubsectionRows(rows, {
+        view: request.view,
+        sectionKey: 'uncleared-deposits',
+        subsectionLabel: `Deposits and Credits - ${unclearedDeposits.length} items`,
+        lines: unclearedDeposits,
+        totalLabel: 'Total Deposits and Credits',
+        includeRunningBalance: true,
+        startingBalance: unclearedRunningBalance
+      });
+    }
+
     if (unclearedPayments.length > 0) {
       this.appendReconcileAccountSubsectionRows(rows, {
         view: request.view,
@@ -11001,18 +11019,8 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
         subsectionLabel: `Checks and Payments - ${unclearedPayments.length} items`,
         lines: unclearedPayments,
         totalLabel: 'Total Checks and Payments',
-        includeRunningBalance: true
-      });
-    }
-
-    if (unclearedDeposits.length > 0) {
-      this.appendReconcileAccountSubsectionRows(rows, {
-        view: request.view,
-        sectionKey: 'uncleared-deposits',
-        subsectionLabel: `Deposits and Credits - ${unclearedDeposits.length} items`,
-        lines: unclearedDeposits,
-        totalLabel: 'Total Deposits and Credits',
-        includeRunningBalance: true
+        includeRunningBalance: true,
+        startingBalance: unclearedRunningBalance
       });
     }
 
@@ -11065,10 +11073,13 @@ appendReconcileAccountSubsectionRows(
       lines: { line: JournalEntryLineSearchResponse; amount: number; isCleared: boolean }[];
       totalLabel: string;
       includeRunningBalance: boolean;
+      startingBalance?: number;
     }
-  ): void {
+  ): number {
+    const startingBalance = this.roundFinancialReportAmount(Number(params.startingBalance ?? 0));
+
     if (params.lines.length === 0) {
-      return;
+      return startingBalance;
     }
 
     const subsectionTotal = this.roundFinancialReportAmount(
@@ -11083,7 +11094,7 @@ appendReconcileAccountSubsectionRows(
         amount: subsectionTotal,
         depth: 1
       });
-      return;
+      return startingBalance;
     }
 
     rows.push({
@@ -11093,7 +11104,7 @@ appendReconcileAccountSubsectionRows(
       depth: 1
     });
 
-    let runningBalance = 0;
+    let runningBalance = startingBalance;
     params.lines.forEach((item, index) => {
       runningBalance = this.roundFinancialReportAmount(runningBalance + item.amount);
       const line = item.line;
@@ -11116,9 +11127,11 @@ appendReconcileAccountSubsectionRows(
       rowKind: 'total',
       label: params.totalLabel,
       amount: subsectionTotal,
-      balance: params.includeRunningBalance ? subsectionTotal : null,
+      balance: params.includeRunningBalance ? runningBalance : null,
       depth: 1
     });
+
+    return runningBalance;
   }
 
 getReconcileAccountLineAmount(line: JournalEntryLineSearchResponse): number {
