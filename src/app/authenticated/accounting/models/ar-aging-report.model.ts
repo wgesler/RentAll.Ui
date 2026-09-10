@@ -1,5 +1,7 @@
+import { JournalEntryKind } from './accounting-enum';
 import { InvoiceResponse } from './invoice.model';
 import { CostCodesResponse } from './cost-codes.model';
+import { JournalEntryLineSearchResponse } from './journal-entry.model';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
 import { ReservationType } from '../../reservations/models/reservation-enum';
@@ -635,5 +637,134 @@ export function sortArAgingCustomerRows(customerRows: ArAgingCustomerRow[], sort
       break;
   }
   return rows;
+}
+//#endregion
+
+//#region Prepayment Passthrough
+const AR_AGING_AMOUNT_TOLERANCE = 0.005;
+
+function roundArAgingAmount(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function getArAgingLineNetAmount(line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit'>): number {
+  return roundArAgingAmount(Number(line.debit || 0) - Number(line.credit || 0));
+}
+
+export function buildArAgingPrepaymentAllocationKey(
+  line: Pick<JournalEntryLineSearchResponse, 'paymentId' | 'sourceId' | 'journalEntryLineId'>
+): string {
+  const paymentId = (line.paymentId || '').trim();
+  if (paymentId) {
+    return `payment:${paymentId}`;
+  }
+
+  const sourceId = (line.sourceId || '').trim();
+  if (sourceId) {
+    return `source:${sourceId}`;
+  }
+
+  return `line:${line.journalEntryLineId}`;
+}
+
+function isArAgingPrepaymentPassthroughReceiveLine(line: JournalEntryLineSearchResponse): boolean {
+  return Number(line.journalEntryKindId ?? 0) === JournalEntryKind.PrePaymentReceive;
+}
+
+function isArAgingTransactionBeforeAccountingPeriod(line: JournalEntryLineSearchResponse): boolean {
+  const transactionDate = (line.transactionDate || '').trim();
+  const accountingPeriod = (line.accountingPeriod || '').trim();
+  if (!transactionDate || !accountingPeriod) {
+    return false;
+  }
+
+  return transactionDate < accountingPeriod;
+}
+
+function getArAgingLineCreditAmount(line: JournalEntryLineSearchResponse): number {
+  const net = getArAgingLineNetAmount(line);
+  return net < -AR_AGING_AMOUNT_TOLERANCE ? roundArAgingAmount(-net) : 0;
+}
+
+function getArAgingLineDebitAmount(line: JournalEntryLineSearchResponse): number {
+  const net = getArAgingLineNetAmount(line);
+  return net > AR_AGING_AMOUNT_TOLERANCE ? net : 0;
+}
+
+export function buildArAgingPrepaymentPassthroughCreditByKey(
+  lines: readonly JournalEntryLineSearchResponse[]
+): Map<string, number> {
+  const passthroughCreditByKey = new Map<string, number>();
+
+  for (const line of lines ?? []) {
+    if (!isArAgingPrepaymentPassthroughReceiveLine(line)) {
+      continue;
+    }
+
+    const debitAmount = getArAgingLineDebitAmount(line);
+    if (debitAmount <= AR_AGING_AMOUNT_TOLERANCE) {
+      continue;
+    }
+
+    const key = buildArAgingPrepaymentAllocationKey(line);
+    passthroughCreditByKey.set(key, roundArAgingAmount((passthroughCreditByKey.get(key) ?? 0) + debitAmount));
+  }
+
+  return passthroughCreditByKey;
+}
+
+export function adjustArAgingJournalLineForPrepaymentPassthrough(
+  line: JournalEntryLineSearchResponse,
+  passthroughCreditByKey: ReadonlyMap<string, number>
+): JournalEntryLineSearchResponse | null {
+  const kind = Number(line.journalEntryKindId ?? 0);
+
+  if (kind === JournalEntryKind.PrePaymentReceive) {
+    return null;
+  }
+
+  const creditAmount = getArAgingLineCreditAmount(line);
+  const debitAmount = getArAgingLineDebitAmount(line);
+
+  if (kind === JournalEntryKind.Payment && creditAmount > AR_AGING_AMOUNT_TOLERANCE) {
+    const key = buildArAgingPrepaymentAllocationKey(line);
+    let passthroughCredit = passthroughCreditByKey.get(key) ?? 0;
+    if (passthroughCredit <= AR_AGING_AMOUNT_TOLERANCE && isArAgingTransactionBeforeAccountingPeriod(line)) {
+      passthroughCredit = creditAmount;
+    }
+
+    const adjustedCredit = roundArAgingAmount(Math.max(0, creditAmount - passthroughCredit));
+    if (adjustedCredit <= AR_AGING_AMOUNT_TOLERANCE && debitAmount <= AR_AGING_AMOUNT_TOLERANCE) {
+      return null;
+    }
+
+    if (Math.abs(adjustedCredit - creditAmount) <= AR_AGING_AMOUNT_TOLERANCE) {
+      return line;
+    }
+
+    return {
+      ...line,
+      debit: debitAmount,
+      credit: adjustedCredit
+    };
+  }
+
+  return line;
+}
+
+export function adjustArAgingJournalLinesForPrepaymentPassthrough(
+  lines: readonly JournalEntryLineSearchResponse[]
+): JournalEntryLineSearchResponse[] {
+  const passthroughCreditByKey = buildArAgingPrepaymentPassthroughCreditByKey(lines);
+  const adjustedLines: JournalEntryLineSearchResponse[] = [];
+
+  for (const line of lines ?? []) {
+    const adjustedLine = adjustArAgingJournalLineForPrepaymentPassthrough(line, passthroughCreditByKey);
+    if (adjustedLine) {
+      adjustedLines.push(adjustedLine);
+    }
+  }
+
+  return adjustedLines;
 }
 //#endregion

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, adjustArAgingJournalLinesForPrepaymentPassthrough, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingOfficeRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingSortBy, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
@@ -9114,8 +9114,9 @@ buildEscrowLastRecapAmountsByProperty(
       officeId: number;
     };
 
+    const agingLines = adjustArAgingJournalLinesForPrepaymentPassthrough(lines || []);
     const linesByGroup = new Map<string, JournalEntryLineSearchResponse[]>();
-    (lines || []).forEach(line => {
+    agingLines.forEach(line => {
       const transactionDate = this.toDateOnlyJsonString(line.transactionDate);
       if (!transactionDate || transactionDate > asOfDate) {
         return;
