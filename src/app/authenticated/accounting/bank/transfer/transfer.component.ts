@@ -388,17 +388,17 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     }
 
     const accounts = this.chartOfAccounts.filter(account => account.officeId === officeId);
-    const escrowDepositAccount = this.resolveEscrowDepositAccount(accounts, officeId);
-    this.bankAccountOptions = escrowDepositAccount
-      ? [{
-          value: escrowDepositAccount.accountId,
-          label: this.utilityService.getChartOfAccountDropdownLabel(escrowDepositAccount)
-        }]
-      : [];
-    if (escrowDepositAccount) {
-      this.form.patchValue({ bankAccountId: escrowDepositAccount.accountId }, { emitEvent: false });
-    }
     this.splitAccountOptions = this.buildSplitAccountOptions(accounts, officeId);
+    this.bankAccountOptions = this.buildBankAccountOptions(accounts, officeId);
+
+    const currentBankAccountId = Number(this.form.get('bankAccountId')?.value ?? 0);
+    const defaultEscrowDepositAccountId = this.getDefaultEscrowDepositAccountId(officeId);
+    if ((this.isAddMode || !(currentBankAccountId > 0))
+      && defaultEscrowDepositAccountId != null
+      && this.bankAccountOptions.some(option => option.value === defaultEscrowDepositAccountId)) {
+      this.form.patchValue({ bankAccountId: defaultEscrowDepositAccountId }, { emitEvent: false });
+    }
+
     this.applyDefaultSplitAccountIfNeeded();
     this.cdr.markForCheck();
   }
@@ -655,31 +655,69 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   buildSplitAccountOptions(accounts: ChartOfAccountResponse[], officeId: number): SearchableSelectOption<number>[] {
+    return this.buildDestinationAccountOptions(accounts, officeId, {
+      includeSplitFormAccounts: true,
+      includeTransferSplitAccounts: true
+    });
+  }
+
+  buildBankAccountOptions(accounts: ChartOfAccountResponse[], officeId: number): SearchableSelectOption<number>[] {
+    return this.buildDestinationAccountOptions(accounts, officeId, {
+      includeCurrentBankAccount: true
+    });
+  }
+
+  private buildDestinationAccountOptions(
+    accounts: ChartOfAccountResponse[],
+    officeId: number,
+    options: {
+      includeSplitFormAccounts?: boolean;
+      includeTransferSplitAccounts?: boolean;
+      includeCurrentBankAccount?: boolean;
+    }
+  ): SearchableSelectOption<number>[] {
     const destinationAccounts = this.resolveTransferDestinationAccounts(accounts, officeId);
-    const options = destinationAccounts.map(account => ({
+    const dropdownOptions = destinationAccounts.map(account => ({
       value: account.accountId,
       label: this.utilityService.getChartOfAccountDropdownLabel(account)
     }));
 
     const fallbackLabels = new Map<number, string>();
-    (this.transfer?.splits || []).forEach(split => {
-      const accountId = Number(split.chartOfAccountId ?? 0);
-      if (accountId > 0 && split.chartOfAccountDisplayName) {
-        fallbackLabels.set(accountId, split.chartOfAccountDisplayName.trim());
-      }
-    });
+    if (options.includeTransferSplitAccounts) {
+      (this.transfer?.splits || []).forEach(split => {
+        const accountId = Number(split.chartOfAccountId ?? 0);
+        if (accountId > 0 && split.chartOfAccountDisplayName) {
+          fallbackLabels.set(accountId, split.chartOfAccountDisplayName.trim());
+        }
+      });
+    }
 
-    this.splitsFormArray.controls.forEach(control => {
-      const accountId = Number(control.get('chartOfAccountId')?.value ?? 0);
-      if (accountId > 0 && !options.some(option => option.value === accountId)) {
-        const fallbackLabel = fallbackLabels.get(accountId)
-          || accounts.find(account => account.accountId === accountId)?.name
-          || `Account ${accountId}`;
-        options.push({ value: accountId, label: fallbackLabel });
+    const appendFallbackOption = (accountId: number, fallbackLabel?: string | null) => {
+      if (!(accountId > 0) || dropdownOptions.some(option => option.value === accountId)) {
+        return;
       }
-    });
 
-    return options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+      const label = fallbackLabel?.trim()
+        || fallbackLabels.get(accountId)
+        || accounts.find(account => account.accountId === accountId)?.name
+        || `Account ${accountId}`;
+      dropdownOptions.push({ value: accountId, label });
+    };
+
+    if (options.includeSplitFormAccounts) {
+      this.splitsFormArray.controls.forEach(control => {
+        appendFallbackOption(Number(control.get('chartOfAccountId')?.value ?? 0));
+      });
+    }
+
+    if (options.includeCurrentBankAccount) {
+      appendFallbackOption(
+        Number(this.form.get('bankAccountId')?.value ?? 0),
+        this.transfer?.bankAccountDisplayName ?? null
+      );
+    }
+
+    return dropdownOptions.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
   }
 
   getDefaultSplitAccountId(): number | null {
@@ -829,15 +867,6 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     return (accounts || []).filter(account => destinationAccountIds.has(account.accountId));
   }
 
-  resolveEscrowDepositAccount(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse | null {
-    const escrowDepositAccountId = this.getDefaultEscrowDepositAccountId(officeId);
-    if (escrowDepositAccountId == null) {
-      return null;
-    }
-
-    return accounts.find(account => account.accountId === escrowDepositAccountId) ?? null;
-  }
-
   getDefaultBankAccountId(officeId: number): number | null {
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultBankAccountId ?? 0);
@@ -847,6 +876,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   getTransferDestinationAccountIds(officeId: number): number[] {
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     return [
+      Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0),
       Number(accountingOffice?.defaultEscrowSecDepAccountId ?? 0),
       Number(accountingOffice?.defaultEscrowSdwAccountId ?? 0),
       Number(accountingOffice?.defaultEscrowOwnersAccountId ?? 0),

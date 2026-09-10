@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
@@ -86,6 +86,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   focusedSplitAmountIndex: number | null = null;
   splitAmountEditValue = '';
   isSyncingInitialSplit = false;
+  private nextSplitLineKey = 1;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
@@ -215,6 +216,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   savePayment(): void {
+    this.flushPendingAmountEditsBeforeSave();
     this.saveValidationHighlightActive = true;
     this.form.markAllAsTouched();
     this.splitsFormArray.controls.forEach(control => control.markAllAsTouched());
@@ -283,7 +285,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       }
       if (this.isAllocationTotalOutOfBalance()) {
         this.splitTotalValidationError = true;
-        this.showValidationErrorToast();
+        this.showAllocationMismatchToast();
         return;
       }
       this.splitTotalValidationError = false;
@@ -307,8 +309,8 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
             this.backEvent.emit();
           }
         },
-        error: (_err: HttpErrorResponse) => {
-          this.toastr.error('Unable to save payment.', 'Error');
+        error: (err: HttpErrorResponse) => {
+          this.showPaymentSaveError(err);
         }
       });
       return;
@@ -321,7 +323,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (this.isAllocationTotalOutOfBalance()) {
       this.splitTotalValidationError = true;
-      this.showValidationErrorToast();
+      this.showAllocationMismatchToast();
       return;
     }
     this.splitTotalValidationError = false;
@@ -346,13 +348,17 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
             this.backEvent.emit();
           }
         },
-        error: (_err: HttpErrorResponse) => {
-          this.toastr.error('Unable to save payment.', 'Error');
+        error: (err: HttpErrorResponse) => {
+          this.showPaymentSaveError(err);
         }
       });
     };
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.payment?.postingStatusId, 'Payment').pipe(take(1)).subscribe(canProceed => {
+    const relatedPostingStatusIds = allocations.map(allocation => {
+      const invoice = this.invoices.find(item => item.invoiceId === allocation.invoiceId);
+      return invoice?.postingStatusId;
+    });
+    this.confirmPaymentUpdateIfAllowed(this.payment?.postingStatusId, relatedPostingStatusIds).pipe(take(1)).subscribe(canProceed => {
       if (!canProceed) {
         return;
       }
@@ -383,7 +389,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (this.isAllocationTotalOutOfBalance()) {
       this.splitTotalValidationError = true;
-      this.showValidationErrorToast();
+      this.showAllocationMismatchToast();
       return;
     }
     this.splitTotalValidationError = false;
@@ -426,8 +432,8 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
             this.backEvent.emit();
           }
         },
-        error: (_err: HttpErrorResponse) => {
-          this.toastr.error('Unable to save payment.', 'Error');
+        error: (err: HttpErrorResponse) => {
+          this.showPaymentSaveError(err);
         }
       });
     };
@@ -442,7 +448,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.payment?.postingStatusId, 'Payment').pipe(take(1)).subscribe(canProceed => {
+    const relatedBillPostingStatusIds = allocations.map(allocation => {
+      const bill = this.bills.find(item => item.receiptId === allocation.invoiceId);
+      return bill?.postingStatusId;
+    });
+    this.confirmPaymentUpdateIfAllowed(this.payment?.postingStatusId, relatedBillPostingStatusIds).pipe(take(1)).subscribe(canProceed => {
       if (!canProceed) {
         return;
       }
@@ -465,7 +475,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (this.isAllocationTotalOutOfBalance()) {
       this.splitTotalValidationError = true;
-      this.showValidationErrorToast();
+      this.showAllocationMismatchToast();
       return;
     }
     this.splitTotalValidationError = false;
@@ -507,8 +517,8 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
             this.backEvent.emit();
           }
         },
-        error: (_err: HttpErrorResponse) => {
-          this.toastr.error('Unable to save payment.', 'Error');
+        error: (err: HttpErrorResponse) => {
+          this.showPaymentSaveError(err);
         }
       });
     };
@@ -804,10 +814,19 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   createSplitGroup(split?: { invoiceId?: string; amount?: number; description?: string }): FormGroup {
     const amount = Number(split?.amount);
     return this.fb.group({
+      splitLineKey: new FormControl(this.createSplitLineKey()),
       invoiceId: new FormControl((split?.invoiceId || '').trim(), [Validators.required, this.requireAllocationId]),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required])
     });
+  }
+
+  getSplitLineTrackKey(splitGroup: AbstractControl): string {
+    return (splitGroup.get('splitLineKey')?.value ?? '').toString();
+  }
+
+  private createSplitLineKey(): string {
+    return `split-${this.nextSplitLineKey++}`;
   }
 
   getPayloadAllocationsFromForm(): CreatePaymentWithInvoiceAllocationsRequest['allocations'] {
@@ -942,6 +961,19 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.splitTotalValidationError = false;
   }
 
+  syncSplitAmountsFromPaymentHeader(): void {
+    if (this.splitsFormArray.length !== 1) {
+      return;
+    }
+
+    const paymentAmount = this.getPaymentAmountValue();
+    const splitGroup = this.splitsFormArray.at(0) as FormGroup | undefined;
+    splitGroup?.get('amount')?.setValue(paymentAmount.toFixed(2), { emitEvent: false });
+    splitGroup?.get('amount')?.markAsTouched();
+    splitGroup?.get('amount')?.updateValueAndValidity({ emitEvent: false });
+    this.splitTotalValidationError = false;
+  }
+
   getSplitInvoiceSelectClass(splitGroup: AbstractControl): string {
     const baseClass = 'split-editable-input split-invoice-select-control';
     return this.shouldShowSplitControlError(splitGroup, 'invoiceId')
@@ -988,6 +1020,8 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       this.focusedSplitAmountIndex = null;
       this.splitAmountEditValue = '';
     }
+    this.syncPaymentAmountFromSplits();
+    this.cdr.markForCheck();
   }
 
   onSplitAmountKeydown(event: Event, index: number): void {
@@ -1491,6 +1525,39 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
   }
 
+  private showAllocationMismatchToast(): void {
+    this.cdr.markForCheck();
+    const lineCount = this.splitsFormArray.length;
+    const splitTotal = this.getDisplayedSplitTotal();
+    const paymentTotal = this.getPaymentAmountValue();
+    this.toastr.error(
+      `${lineCount} ledger line${lineCount === 1 ? '' : 's'} totaling $${this.formatter.currency(splitTotal)}; payment amount is $${this.formatter.currency(paymentTotal)}.`,
+      'Error'
+    );
+  }
+
+  private flushPendingAmountEditsBeforeSave(): void {
+    if (this.amountFocused) {
+      const num = parseFloat(this.sanitizeSignedDecimalInput(this.amountEditValue)) || 0;
+      this.form.get('amount')?.setValue(num.toFixed(2), { emitEvent: false });
+      this.amountFocused = false;
+      this.amountEditValue = '';
+    }
+
+    if (this.focusedSplitAmountIndex != null) {
+      const splitGroup = this.splitsFormArray.at(this.focusedSplitAmountIndex);
+      const num = parseFloat(this.sanitizeSignedDecimalInput(this.splitAmountEditValue)) || 0;
+      splitGroup?.get('amount')?.setValue(num.toFixed(2), { emitEvent: false });
+      this.focusedSplitAmountIndex = null;
+      this.splitAmountEditValue = '';
+    }
+
+    if (this.splitsFormArray.length === 1) {
+      this.syncSplitAmountsFromPaymentHeader();
+    }
+    this.syncPaymentAmountFromSplits();
+  }
+
   getPaymentAmountValue(): number {
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     return this.utilityService.roundCurrency(parseFloat(raw) || 0);
@@ -1536,6 +1603,8 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     control?.updateValueAndValidity({ emitEvent: false });
     this.amountFocused = false;
     this.amountEditValue = '';
+    this.syncSplitAmountsFromPaymentHeader();
+    this.cdr.markForCheck();
   }
 
   onAmountKeydown(event: Event): void {
@@ -1552,6 +1621,26 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     const parts = unsigned.split('.');
     const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
     return `${isNegative ? '-' : ''}${numericPortion}`;
+  }
+
+  private confirmPaymentUpdateIfAllowed(
+    paymentPostingStatusId: number | null | undefined,
+    relatedPostingStatusIds: Array<number | null | undefined>
+  ): Observable<boolean> {
+    return this.journalEntryService.confirmPaymentIfAllowed(
+      [paymentPostingStatusId, ...relatedPostingStatusIds],
+      'Payment'
+    );
+  }
+
+  private showPaymentSaveError(err: HttpErrorResponse): void {
+    this.toastr.error(
+      this.utilityService.extractApiErrorMessage(err) || 'Unable to save payment.',
+      'Error'
+    );
+    if (!this.isAddMode && this.paymentId) {
+      this.loadPayment(true);
+    }
   }
 
   getPaymentOfficeId(): number | null {

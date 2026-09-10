@@ -194,7 +194,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                      @for (splitGroup of splitsFormArray.controls; track getSplitLineTrackKey(splitGroup); let splitIndex = $index) {
                         <tr [formGroupName]="splitIndex">
                           <td class="split-col-no">{{ splitIndex + 1 }}</td>
                           <td class="split-col-invoice">
