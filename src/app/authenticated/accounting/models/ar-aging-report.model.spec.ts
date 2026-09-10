@@ -3,7 +3,8 @@ import {
   adjustArAgingJournalLineForPrepaymentPassthrough,
   adjustArAgingJournalLinesForPrepaymentPassthrough,
   buildArAgingBucketDefinitions,
-  buildArAgingPrepaymentPassthroughCreditByKey
+  buildArAgingPrepaymentPassthroughCreditByKey,
+  isArAgingCollectibleBalance
 } from './ar-aging-report.model';
 import { JournalEntryLineSearchResponse } from './journal-entry.model';
 
@@ -51,7 +52,33 @@ describe('AR aging prepayment passthrough helpers', () => {
         debit: 1000,
         credit: 0,
         transactionDate: '2025-06-30',
-        accountingPeriod: '2025-06-01'
+        accountingPeriod: '2025-06-01',
+        paymentId: 'payment-1'
+      })
+    ];
+
+    expect(adjustArAgingJournalLinesForPrepaymentPassthrough(lines)).toEqual([]);
+  });
+
+  it('matches prepay receive to payment by sourceId when paymentId is missing on receive', () => {
+    const lines = [
+      buildArLine({
+        journalEntryLineId: 'payment-ar',
+        journalEntryKindId: JournalEntryKind.Payment,
+        debit: 0,
+        credit: 3548,
+        paymentId: 'payment-396',
+        sourceId: 'invoice-396',
+        sourceCode: 'R-000396-001'
+      }),
+      buildArLine({
+        journalEntryLineId: 'prepay-receive-ar',
+        journalEntryKindId: JournalEntryKind.PrePaymentReceive,
+        debit: 3548,
+        credit: 0,
+        paymentId: '',
+        sourceId: 'invoice-396',
+        sourceCode: 'R-000396-001'
       })
     ];
 
@@ -85,18 +112,18 @@ describe('AR aging prepayment passthrough helpers', () => {
     expect(adjusted[0].debit).toBe(0);
   });
 
-  it('excludes early Payment credits when no receive line is present yet', () => {
+  it('keeps early Payment credits when no paired PrePaymentReceive exists', () => {
     const line = buildArLine({
       journalEntryLineId: 'payment-ar',
       journalEntryKindId: JournalEntryKind.Payment,
       debit: 0,
-      credit: 1000,
-      transactionDate: '2025-06-30',
-      accountingPeriod: '2025-08-01'
+      credit: 891.68,
+      transactionDate: '2025-05-31',
+      accountingPeriod: '2025-06-01'
     });
 
     const passthroughCreditByKey = buildArAgingPrepaymentPassthroughCreditByKey([]);
-    expect(adjustArAgingJournalLineForPrepaymentPassthrough(line, passthroughCreditByKey)).toBeNull();
+    expect(adjustArAgingJournalLineForPrepaymentPassthrough(line, passthroughCreditByKey)).toEqual(line);
   });
 
   it('keeps invoice charge and PrePaymentApply lines for aging', () => {
@@ -133,6 +160,12 @@ describe('AR aging prepayment passthrough helpers', () => {
     });
 
     expect(adjustArAgingJournalLinesForPrepaymentPassthrough([line])).toEqual([line]);
+  });
+
+  it('treats negative AR balances as not collectible for aging display', () => {
+    expect(isArAgingCollectibleBalance(-3548)).toBeFalse();
+    expect(isArAgingCollectibleBalance(0)).toBeFalse();
+    expect(isArAgingCollectibleBalance(100)).toBeTrue();
   });
 });
 

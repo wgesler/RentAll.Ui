@@ -57,6 +57,7 @@ describe('MappingService AR aging prepayment passthrough', () => {
   });
 
   it('shows zero AR due for held prepayment before invoice period', () => {
+    // Receive line often lacks paymentId; matching must still consume the paired payment credit.
     const lines = [
       buildArLine({
         journalEntryLineId: 'payment-ar',
@@ -72,7 +73,8 @@ describe('MappingService AR aging prepayment passthrough', () => {
         debit: 1000,
         credit: 0,
         transactionDate: '2025-06-30',
-        accountingPeriod: '2025-06-01'
+        accountingPeriod: '2025-06-01',
+        paymentId: ''
       })
     ];
 
@@ -87,6 +89,43 @@ describe('MappingService AR aging prepayment passthrough', () => {
 
     const totalDue = invoiceDetails.reduce((sum, detail) => sum + detail.balanceDue, 0);
     expect(totalDue).toBe(0);
+    expect(invoiceDetails.length).toBe(0);
+  });
+
+  it('does not resurrect open invoice balances when only payment and charge exist', () => {
+    const lines = [
+      buildArLine({
+        journalEntryLineId: 'invoice-ar',
+        journalEntryKindId: JournalEntryKind.Charge,
+        debit: 891.68,
+        credit: 0,
+        transactionDate: '2025-06-15',
+        accountingPeriod: '2025-06-01',
+        sourceCode: 'R-000081-001',
+        reservationId: 'reservation-81'
+      }),
+      buildArLine({
+        journalEntryLineId: 'payment-ar',
+        journalEntryKindId: JournalEntryKind.Payment,
+        debit: 0,
+        credit: 891.68,
+        transactionDate: '2025-05-31',
+        accountingPeriod: '2025-06-01',
+        sourceCode: 'R-000081-001',
+        reservationId: 'reservation-81'
+      })
+    ];
+
+    const invoiceDetails = mappingService.buildArAgingInvoiceDetailsFromJournalLines(
+      lines,
+      '2025-06-30',
+      new Map<string, string>(),
+      new Map<string, number | null>(),
+      new Map<string, string>(),
+      buildArAgingBucketDefinitions(30, 90)
+    );
+
+    expect(invoiceDetails.reduce((sum, detail) => sum + detail.balanceDue, 0)).toBe(0);
   });
 
   it('shows zero AR due after invoice and prepayment apply', () => {

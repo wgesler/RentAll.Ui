@@ -651,34 +651,41 @@ function getArAgingLineNetAmount(line: Pick<JournalEntryLineSearchResponse, 'deb
   return roundArAgingAmount(Number(line.debit || 0) - Number(line.credit || 0));
 }
 
-export function buildArAgingPrepaymentAllocationKey(
-  line: Pick<JournalEntryLineSearchResponse, 'paymentId' | 'sourceId' | 'journalEntryLineId'>
-): string {
+export function buildArAgingPrepaymentAllocationKeys(
+  line: Pick<JournalEntryLineSearchResponse, 'paymentId' | 'sourceId' | 'sourceCode' | 'journalEntryLineId'>
+): string[] {
+  const keys: string[] = [];
   const paymentId = (line.paymentId || '').trim();
   if (paymentId) {
-    return `payment:${paymentId}`;
+    keys.push(`payment:${paymentId}`);
   }
 
   const sourceId = (line.sourceId || '').trim();
   if (sourceId) {
-    return `source:${sourceId}`;
+    keys.push(`source:${sourceId}`);
   }
 
-  return `line:${line.journalEntryLineId}`;
+  const sourceCode = (line.sourceCode || '').trim();
+  if (sourceCode) {
+    keys.push(`sourceCode:${sourceCode.toLowerCase()}`);
+  }
+
+  if (keys.length === 0) {
+    keys.push(`line:${line.journalEntryLineId}`);
+  }
+
+  return keys;
+}
+
+/** @deprecated Use buildArAgingPrepaymentAllocationKeys */
+export function buildArAgingPrepaymentAllocationKey(
+  line: Pick<JournalEntryLineSearchResponse, 'paymentId' | 'sourceId' | 'journalEntryLineId'>
+): string {
+  return buildArAgingPrepaymentAllocationKeys(line)[0];
 }
 
 function isArAgingPrepaymentPassthroughReceiveLine(line: JournalEntryLineSearchResponse): boolean {
   return Number(line.journalEntryKindId ?? 0) === JournalEntryKind.PrePaymentReceive;
-}
-
-function isArAgingTransactionBeforeAccountingPeriod(line: JournalEntryLineSearchResponse): boolean {
-  const transactionDate = (line.transactionDate || '').trim();
-  const accountingPeriod = (line.accountingPeriod || '').trim();
-  if (!transactionDate || !accountingPeriod) {
-    return false;
-  }
-
-  return transactionDate < accountingPeriod;
 }
 
 function getArAgingLineCreditAmount(line: JournalEntryLineSearchResponse): number {
@@ -706,16 +713,60 @@ export function buildArAgingPrepaymentPassthroughCreditByKey(
       continue;
     }
 
-    const key = buildArAgingPrepaymentAllocationKey(line);
-    passthroughCreditByKey.set(key, roundArAgingAmount((passthroughCreditByKey.get(key) ?? 0) + debitAmount));
+    for (const key of buildArAgingPrepaymentAllocationKeys(line)) {
+      passthroughCreditByKey.set(key, roundArAgingAmount((passthroughCreditByKey.get(key) ?? 0) + debitAmount));
+    }
   }
 
   return passthroughCreditByKey;
 }
 
-export function adjustArAgingJournalLineForPrepaymentPassthrough(
+function resolveArAgingPrepaymentPassthroughCredit(
   line: JournalEntryLineSearchResponse,
   passthroughCreditByKey: ReadonlyMap<string, number>
+): number {
+  let passthroughCredit = 0;
+  for (const key of buildArAgingPrepaymentAllocationKeys(line)) {
+    passthroughCredit = Math.max(passthroughCredit, passthroughCreditByKey.get(key) ?? 0);
+  }
+
+  return roundArAgingAmount(passthroughCredit);
+}
+
+function consumeArAgingPrepaymentPassthroughCredit(
+  line: JournalEntryLineSearchResponse,
+  passthroughCreditByKey: Map<string, number>,
+  amount: number
+): void {
+  if (amount <= AR_AGING_AMOUNT_TOLERANCE) {
+    return;
+  }
+
+  let remaining = roundArAgingAmount(amount);
+  for (const key of buildArAgingPrepaymentAllocationKeys(line)) {
+    const available = passthroughCreditByKey.get(key) ?? 0;
+    if (available <= AR_AGING_AMOUNT_TOLERANCE) {
+      continue;
+    }
+
+    const consumed = Math.min(available, remaining);
+    const nextAvailable = roundArAgingAmount(available - consumed);
+    if (nextAvailable <= AR_AGING_AMOUNT_TOLERANCE) {
+      passthroughCreditByKey.delete(key);
+    } else {
+      passthroughCreditByKey.set(key, nextAvailable);
+    }
+
+    remaining = roundArAgingAmount(remaining - consumed);
+    if (remaining <= AR_AGING_AMOUNT_TOLERANCE) {
+      break;
+    }
+  }
+}
+
+export function adjustArAgingJournalLineForPrepaymentPassthrough(
+  line: JournalEntryLineSearchResponse,
+  passthroughCreditByKey: Map<string, number>
 ): JournalEntryLineSearchResponse | null {
   const kind = Number(line.journalEntryKindId ?? 0);
 
@@ -727,13 +778,14 @@ export function adjustArAgingJournalLineForPrepaymentPassthrough(
   const debitAmount = getArAgingLineDebitAmount(line);
 
   if (kind === JournalEntryKind.Payment && creditAmount > AR_AGING_AMOUNT_TOLERANCE) {
-    const key = buildArAgingPrepaymentAllocationKey(line);
-    let passthroughCredit = passthroughCreditByKey.get(key) ?? 0;
-    if (passthroughCredit <= AR_AGING_AMOUNT_TOLERANCE && isArAgingTransactionBeforeAccountingPeriod(line)) {
-      passthroughCredit = creditAmount;
+    const passthroughCredit = resolveArAgingPrepaymentPassthroughCredit(line, passthroughCreditByKey);
+    if (passthroughCredit <= AR_AGING_AMOUNT_TOLERANCE) {
+      return line;
     }
 
     const adjustedCredit = roundArAgingAmount(Math.max(0, creditAmount - passthroughCredit));
+    consumeArAgingPrepaymentPassthroughCredit(line, passthroughCreditByKey, Math.min(creditAmount, passthroughCredit));
+
     if (adjustedCredit <= AR_AGING_AMOUNT_TOLERANCE && debitAmount <= AR_AGING_AMOUNT_TOLERANCE) {
       return null;
     }
@@ -766,5 +818,9 @@ export function adjustArAgingJournalLinesForPrepaymentPassthrough(
   }
 
   return adjustedLines;
+}
+
+export function isArAgingCollectibleBalance(balanceDue: number): boolean {
+  return balanceDue > AR_AGING_AMOUNT_TOLERANCE;
 }
 //#endregion
