@@ -81,6 +81,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   accountingOffices: AccountingOfficeResponse[] = [];
   companyName = '';
   noDataMessage = 'Press Go to run the report.';
+  awaitingGoRun = false;
   allLines: OwnerStatementMonthLineListDisplay[] = [];
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
@@ -224,7 +225,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     const propertyCount = this.allLines.length;
     const dialogData: GenericModalData = {
       title: 'Close Month',
-      message: `Close ${periodLabel} and save the Balance shown for all ${propertyCount} propert${propertyCount === 1 ? 'y' : 'ies'}? Pressing again will overwrite the saved balances for this month.`,
+      message: `Soft close ${periodLabel} for all ${propertyCount} propert${propertyCount === 1 ? 'y' : 'ies'}? Owner AP journal entries through this month will be locked. Statement starting balances always come from the live owner payable ledger.`,
       icon: 'warning' as any,
       iconColor: 'warn',
       no: 'Cancel',
@@ -272,9 +273,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       })
     ).subscribe({
       next: (result) => {
-        const updatedCount = (result.journalEntriesCreated ?? 0) + (result.journalEntriesUpdated ?? 0);
         this.toastr.success(
-          `Saved month-end balances for ${result.propertiesProcessed ?? 0} propert${(result.propertiesProcessed ?? 0) === 1 ? 'y' : 'ies'} (${updatedCount} balance journal entr${updatedCount === 1 ? 'y' : 'ies'}).`,
+          `Soft close queued for ${result.propertiesProcessed ?? 0} propert${(result.propertiesProcessed ?? 0) === 1 ? 'y' : 'ies'}. Owner AP entries through the closed month will be locked.`,
           CommonMessage.Success
         );
         this.loadOwnerStatementList();
@@ -700,6 +700,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     }
 
     if (!this.matchesCachedOwnerReportsBundle()) {
+      this.awaitingGoRun = true;
       this.allLines = [];
       this.lines = [];
       this.noDataMessage = 'Press Go to run the report.';
@@ -711,6 +712,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
     const cashReport = this.ownerReportsCacheService.getCashReport();
     if (!cashReport) {
+      this.awaitingGoRun = true;
       this.allLines = [];
       this.lines = [];
       this.noDataMessage = 'Press Go to run the report.';
@@ -720,6 +722,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
+    this.awaitingGoRun = false;
     this.noDataMessage = 'No owner statement lines matched the current filters.';
     this.isServiceError = false;
     let monthLines = this.mappingService.mapOwnerCashReportToMonthLines(cashReport, request);

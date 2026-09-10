@@ -231,7 +231,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
   @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
   @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
-  @ViewChild('generalLedgerMenuTrigger') generalLedgerMenuTrigger?: MatMenuTrigger;
 
   private skipNextDropdownTabMenuOpen = false;
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
@@ -283,10 +282,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'arAging', label: 'AR Aging' },
     { kind: 'apAging', label: 'AP Aging' },
     { kind: 'reconcileAccountSummary', label: 'Reconcile' }
-  ];
-  readonly shellGeneralLedgerMenuOptions: { kind: AccountingShellGeneralLedgerKind; label: string }[] = [
-    { kind: 'ledger', label: 'General Ledger' },
-    { kind: 'recap', label: 'Journal Entry Recap' }
   ];
   selectedInvoiceKind: AccountingShellInvoiceKind = 'invoices';
   paymentsListEngaged = false;
@@ -2689,8 +2684,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       || tabIndex === this.tabBillsReceipts
       || tabIndex === this.tabBankActivities
       || tabIndex === this.tabOwners
-      || tabIndex === this.tabReports
-      || tabIndex === this.tabGeneralLedger;
+      || tabIndex === this.tabReports;
   }
 
   openDropdownTabMenu(tabIndex: number): void {
@@ -2710,9 +2704,6 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       case this.tabReports:
         this.reportsMenuTrigger?.openMenu();
         break;
-      case this.tabGeneralLedger:
-        this.generalLedgerMenuTrigger?.openMenu();
-        break;
     }
   }
 
@@ -2724,7 +2715,6 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     this.bankActivitiesMenuTrigger?.closeMenu();
     this.ownersMenuTrigger?.closeMenu();
     this.reportsMenuTrigger?.closeMenu();
-    this.generalLedgerMenuTrigger?.closeMenu();
   }
 
   onMatTabSelected(event: { index: number }): void {
@@ -2812,6 +2802,9 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     }
     this.clearInactiveDropdownSelections(event.index);
     this.selectedTabIndex = event.index;
+    if (event.index === this.tabGeneralLedger && this.selectedGeneralLedgerKind !== 'ledger') {
+      this.selectedGeneralLedgerKind = 'ledger';
+    }
     const datesResetForView = this.applyShellUnpinnedViewDateRangeDefaults();
     if (datesResetForView) {
       this.syncInvoiceSearchDateRange();
@@ -3087,43 +3080,6 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     this.persistPinnedTopBarIfActive();
   }
 
-  selectGeneralLedgerKind(kind: AccountingShellGeneralLedgerKind): void {
-    this.generalLedgerMenuTrigger?.closeMenu();
-    const previousTab = this.selectedTabIndex;
-    const kindChanged = this.selectedGeneralLedgerKind !== kind;
-
-    if (kindChanged) {
-      this.onGeneralLedgerBack();
-      if (kind === 'recap') {
-        this.selectedChartOfAccountId = null;
-      }
-    }
-
-    this.selectedGeneralLedgerKind = kind;
-
-    if (kindChanged && kind === 'recap') {
-      this.generalLedgerRefreshTrigger++;
-    }
-
-    if (previousTab !== this.tabGeneralLedger) {
-      this.onTabChange({ index: this.tabGeneralLedger });
-      return;
-    }
-
-    if (kind !== 'recap') {
-      this.refreshGeneralLedgerListView();
-    } else {
-      this.generalLedgerRefreshTrigger++;
-      this.tryAutoRunOwnerReportIfEmpty();
-    }
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: this.buildShellQueryParams({ glView: kind }),
-      queryParamsHandling: 'merge'
-    });
-    this.persistPinnedTopBarIfActive();
-  }
-
   selectReport(kind: AccountingShellReportKind): void {
     this.reportsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
@@ -3320,6 +3276,18 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     return !this.ownerReportsCacheService.isBundleLoaded();
   }
 
+  isOwnerReportAwaitingManualGo(): boolean {
+    if (!this.showOwnerReportGoButton) {
+      return false;
+    }
+
+    if (this.isOwnerEscrowViewActive) {
+      return this.escrowReportAwaitingManualGo;
+    }
+
+    return this.ownerBundleAwaitingManualGo;
+  }
+
   hasOwnerReportGoRunCriteria(): boolean {
     this.syncOwnerReportsBundleSearchRequest();
 
@@ -3339,6 +3307,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
   tryAutoRunOwnerReportIfEmpty(): void {
     if (!this.showOwnerReportGoButton
       || this.isOwnerReportsApiLoading
+      || this.isOwnerReportAwaitingManualGo()
       || !this.isOwnerReportGoViewEmpty()) {
       return;
     }
@@ -3365,6 +3334,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     this.tryAutoRunOwnerReportIfEmpty();
     if (this.selectedTabIndex === this.tabOwners
       && this.shouldFlashOwnerViewLoading(this.selectedOwnerKind)
+      && !this.isOwnerReportAwaitingManualGo()
       && this.isOwnerReportGoViewEmpty()
       && !this.isOwnerReportsApiLoading) {
       this.flashOwnerViewLoading();
@@ -4161,7 +4131,7 @@ buildReconcileAccountDefaults(): { chartOfAccountId: number; endingBalance: numb
   }
 
   flashOwnerViewLoading(): void {
-    if (this.isOwnerReportsApiLoading) {
+    if (this.isOwnerReportsApiLoading || this.isOwnerReportAwaitingManualGo()) {
       return;
     }
 

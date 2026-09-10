@@ -12,6 +12,25 @@
   text-align: center;
 }
 
+.owner-statement-panel:has(.owner-statement-awaiting-go) {
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
+.owner-statement-awaiting-go {
+  width: 100%;
+  padding: 1.25rem var(--global-page-inner-padding, 1rem) 2rem;
+  color: rgba(15, 23, 42, 0.72);
+  text-align: center;
+  box-sizing: border-box;
+
+  p {
+    margin: 0;
+    text-align: center;
+  }
+}
+
 :host ::ng-deep .mat-column-toBePaid .editable-apply-amount,
 :host ::ng-deep .mat-column-toBePaid .owner-statement-to-be-paid-input {
   display: block;

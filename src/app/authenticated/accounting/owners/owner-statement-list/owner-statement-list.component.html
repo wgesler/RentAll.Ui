@@ -25,6 +25,13 @@
         </div>
       </div>
     </div>
+    @if (awaitingGoRun) {
+      <div class="owner-statement-panel dbg-band-main">
+        <div class="owner-statement-awaiting-go">
+          <p>{{ noDataMessage }}</p>
+        </div>
+      </div>
+    } @else {
     <div class="tableDiv">
       <app-data-table
         tableName="owner-statement-list"
@@ -136,5 +143,6 @@
           </div>
       </app-data-table>
     </div>
+    }
   </div>
 }

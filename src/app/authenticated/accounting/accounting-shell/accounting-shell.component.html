@@ -1656,37 +1656,7 @@
               }
             }
           </mat-tab>
-          <mat-tab>
-            <ng-template mat-tab-label>
-              <button
-                type="button"
-                class="accounting-shell-dropdown-tab-label"
-                (click)="onDropdownTabButtonClick($event, generalLedgerMenuTrigger)"
-                aria-label="Choose general ledger view">
-                <span class="accounting-shell-dropdown-tab-label__text">General Ledger</span>
-                <span
-                  class="accounting-shell-dropdown-tab-icon-wrap"
-                  [matMenuTriggerFor]="generalLedgerMenu"
-                  #generalLedgerMenuTrigger="matMenuTrigger"
-                  tabindex="0"
-                  role="button"
-                  (click)="onDropdownTabLabelClick($event)"
-                  (keydown.enter)="onDropdownTabLabelClick($event)"
-                  (keydown.space)="onDropdownTabLabelClick($event); $event.preventDefault()">
-                  <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
-                </span>
-              </button>
-              <mat-menu #generalLedgerMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
-                @for (option of shellGeneralLedgerMenuOptions; track option.kind) {
-                  <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectGeneralLedgerKind(option.kind)">
-                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
-                    @if (selectedTabIndex === tabGeneralLedger && selectedGeneralLedgerKind === option.kind) {
-                      <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
-                    }
-                  </button>
-                }
-              </mat-menu>
-            </ng-template>
+          <mat-tab label="General Ledger">
             @if (selectedTabIndex === tabGeneralLedger) {
               <div class="accounting-shell-subview-title">
                 @if (selectedGeneralLedgerKind === 'recap') {

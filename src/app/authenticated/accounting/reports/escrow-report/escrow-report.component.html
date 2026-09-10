@@ -61,8 +61,15 @@
       </div>
     </div>
 
+    @if (!reportResult || !hasEscrowReportContent(reportResult)) {
+      <div class="financial-report-panel dbg-band-main escrow-report-awaiting-panel">
+        <div class="escrow-report-awaiting-go">
+          <p>{{ noDataMessage }}</p>
+        </div>
+      </div>
+    } @else {
     <div class="financial-report-frame escrow-report-frame">
-      @if (reportResult && hasEscrowReportContent(reportResult) && reportResult.rows.length > 0) {
+      @if (reportResult.rows.length > 0) {
         <div class="escrow-report-actions-band property-tab-actions-band dbg-band-actions">
           <div class="property-tab-actions-band__row">
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
@@ -82,11 +89,6 @@
 
       <div class="financial-report-panel dbg-band-main">
       <div class="financial-report-panel-inner financial-report-panel-inner--content-sized escrow-report-panel">
-        @if (!reportResult || !hasEscrowReportContent(reportResult)) {
-          <div class="financial-report-empty-state">
-            <p>{{ noDataMessage }}</p>
-          </div>
-        } @else {
           <div class="escrow-report-body">
           @if (reportResult.rows.length > 0) {
           <div class="financial-report-table-wrap">
@@ -178,9 +180,9 @@
             </div>
           </div>
           </div>
-        }
       </div>
     </div>
     </div>
+    }
   </div>
 }

@@ -4,6 +4,7 @@
 @use "./styles/debug-layout-bands";
 @use "./styles/financial-report-header";
 @use "./styles/three-way-toggle";
+@use "app/authenticated/mobile/mobile-list-actions.scss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -518,11 +519,44 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   margin-inline: auto;
 }
 
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner.financial-report-panel-inner--content-sized:has(.financial-report-empty-state) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
 .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner.financial-report-panel-inner--fill-width {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   margin-inline: 0;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel:has(.financial-report-empty-state) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-empty-state,
+.shell-tabs .mat-mdc-tab-body-content app-escrow-report .escrow-report-awaiting-go,
+.shell-tabs .mat-mdc-tab-body-content app-owner-statement-list .owner-statement-awaiting-go,
+.financial-report-empty-state {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 1.25rem var(--global-page-inner-padding, 1rem) 2rem;
+  color: rgba(15, 23, 42, 0.72);
+  text-align: center !important;
+
+  p {
+    margin: 0;
+    width: 100%;
+    text-align: center !important;
+  }
 }
 
 .shell-tabs .mat-mdc-tab-body-content .accounting-shell-subview-title,
@@ -2688,8 +2722,6 @@ html.rentall-mobile-layout mat-sidenav-content > :not(router-outlet) {
   max-width: 100%;
   box-sizing: border-box;
 }
-
-@import 'app/authenticated/mobile/mobile-list-actions.scss';
 
 html.rentall-mobile-layout .mat-mdc-menu-panel.mobile-sidebar-tab-menu {
   max-height: min(70dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 64px - 52px - 16px));
