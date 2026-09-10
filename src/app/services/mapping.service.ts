@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCollectibleBalance, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingOfficeRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingSortBy, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
@@ -9125,25 +9125,25 @@ buildEscrowLastRecapAmountsByProperty(
       const reservation = reservationId !== 'no-reservation'
         ? reservationsByReservationId.get(reservationId) ?? null
         : null;
-      const groupKey = reservationId !== 'no-reservation'
-        ? `reservation:${reservationId}`
-        : `${this.buildArAgingCustomerGrouping(
-          this.buildArAgingJeInvoiceStub({
-            journalEntryLineId: line.journalEntryLineId,
-            transactionDate,
-            contactId: (line.contactId || '').trim() || null,
-            contactName: (line.contactName || '').trim(),
-            reservationId: null,
-            reservationCode: (line.reservationCode || '').trim() || null,
-            propertyCode: (line.propertyCode || '').trim() || null,
-            sourceCode: (line.sourceCode || '').trim() || null,
-            journalEntryCode: (line.journalEntryCode || '').trim() || line.journalEntryLineId,
-            officeId: Number(line.officeId) || 0
-          }, null),
-          contactsByContactId,
-          reservationsByReservationId,
-          contactNameByContactId
-        ).customerKey}|no-reservation`;
+      const invoiceStub = this.buildArAgingJeInvoiceStub({
+        journalEntryLineId: line.journalEntryLineId,
+        transactionDate,
+        contactId: (line.contactId || '').trim() || null,
+        contactName: (line.contactName || '').trim(),
+        reservationId: reservationId !== 'no-reservation' ? reservationId : null,
+        reservationCode: (line.reservationCode || '').trim() || null,
+        propertyCode: (line.propertyCode || '').trim() || null,
+        sourceCode: (line.sourceCode || '').trim() || null,
+        journalEntryCode: (line.journalEntryCode || '').trim() || line.journalEntryLineId,
+        officeId: Number(line.officeId) || 0
+      }, reservation);
+      const customerGroupKey = this.buildArAgingCustomerGrouping(
+        invoiceStub,
+        contactsByContactId,
+        reservationsByReservationId,
+        contactNameByContactId
+      ).customerKey;
+      const groupKey = `${customerGroupKey}|${reservationId}`;
       const bucket = linesByGroup.get(groupKey) ?? [];
       bucket.push(line);
       linesByGroup.set(groupKey, bucket);
@@ -9258,7 +9258,7 @@ buildEscrowLastRecapAmountsByProperty(
       });
 
       lots.forEach(lot => {
-        if (!isArAgingCollectibleBalance(lot.remaining)) {
+        if (Math.abs(lot.remaining) <= 0.005) {
           return;
         }
 
