@@ -75,7 +75,7 @@ export class InvoiceIifExportService {
     switch (qbNameTypeId ?? QbNameType.Unselected) {
       case QbNameType.CorporationCodeName: {
         const job = [context.reservationCode, context.occupantName].filter(value => !!value).join(' ');
-        return job && context.recipient ? `${context.recipient} ${job}` : (context.recipient || job);
+        return job && context.recipient ? `${context.recipient}:${job}` : (context.recipient || job);
       }
       case QbNameType.CodeBoardName:
         return [context.reservationCode, context.reservationBoardLabel].filter(value => !!value).join(' ');
