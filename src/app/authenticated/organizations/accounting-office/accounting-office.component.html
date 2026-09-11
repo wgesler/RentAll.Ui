@@ -100,7 +100,7 @@
                     }
                   </mat-form-field>
 
-                  <div class="col-span-4 grid grid-cols-3 form-standard-grid">
+                  <div class="col-span-4 grid grid-cols-6 form-standard-grid">
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Phone</mat-label>
                       <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
@@ -120,7 +120,7 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="col-span-2 w-full">
                       <mat-label>Email</mat-label>
                       <input matInput formControlName="email" type="email" required>
                       @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
@@ -130,14 +130,14 @@
                         <mat-error>Invalid email format</mat-error>
                       }
                     </mat-form-field>
-                  </div>
 
-                  <div class="col-span-4 grid grid-cols-8 form-standard-grid">
-                    <mat-form-field appearance="outline" class="col-span-4 w-full">
+                    <mat-form-field appearance="outline" class="col-span-2 w-full">
                       <mat-label>Website</mat-label>
                       <input matInput formControlName="website" type="url" placeholder="https://example.com">
                     </mat-form-field>
+                  </div>
 
+                  <div class="col-span-4 grid grid-cols-8 form-standard-grid">
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Start Month</mat-label>
                       <mat-select formControlName="startMonth" required>
@@ -185,6 +185,58 @@
                       </mat-select>
                       @if (form.get('yearEndDay')?.hasError('required') && form.get('yearEndDay')?.touched) {
                         <mat-error>Required.</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Soft Closed Month</mat-label>
+                      <mat-select formControlName="softClosedMonth" required>
+                        @for (month of yearEndMonthOptions; track month.value) {
+                          <mat-option [value]="month.value">{{ month.label }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('softClosedMonth')?.hasError('required') && form.get('softClosedMonth')?.touched) {
+                        <mat-error>Required.</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Soft Closed Year</mat-label>
+                      <input matInput formControlName="softClosedYear" type="number" min="1900" max="2100" required>
+                      @if (form.get('softClosedYear')?.hasError('required') && form.get('softClosedYear')?.touched) {
+                        <mat-error>Required.</mat-error>
+                      }
+                      @if (form.get('softClosedYear')?.hasError('min') && form.get('softClosedYear')?.touched) {
+                        <mat-error>Must be 1900 or later.</mat-error>
+                      }
+                      @if (form.get('softClosedYear')?.hasError('max') && form.get('softClosedYear')?.touched) {
+                        <mat-error>Must be 2100 or earlier.</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Hard Closed Month</mat-label>
+                      <mat-select formControlName="hardClosedMonth" required>
+                        @for (month of yearEndMonthOptions; track month.value) {
+                          <mat-option [value]="month.value">{{ month.label }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('hardClosedMonth')?.hasError('required') && form.get('hardClosedMonth')?.touched) {
+                        <mat-error>Required.</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Hard Closed Year</mat-label>
+                      <input matInput formControlName="hardClosedYear" type="number" min="1900" max="2100" required>
+                      @if (form.get('hardClosedYear')?.hasError('required') && form.get('hardClosedYear')?.touched) {
+                        <mat-error>Required.</mat-error>
+                      }
+                      @if (form.get('hardClosedYear')?.hasError('min') && form.get('hardClosedYear')?.touched) {
+                        <mat-error>Must be 1900 or later.</mat-error>
+                      }
+                      @if (form.get('hardClosedYear')?.hasError('max') && form.get('hardClosedYear')?.touched) {
+                        <mat-error>Must be 2100 or earlier.</mat-error>
                       }
                     </mat-form-field>
                   </div>

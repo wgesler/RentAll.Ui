@@ -25,6 +25,10 @@ export interface AccountingOfficeRequest {
   startYear: number;
   yearEndMonth: number;
   yearEndDay: number;
+  softClosedMonth: number;
+  softClosedYear: number;
+  hardClosedMonth: number;
+  hardClosedYear: number;
   workOrderNo: number;
   defaultTenantIncAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
@@ -78,6 +82,10 @@ export interface AccountingOfficeResponse {
   startYear: number;
   yearEndMonth: number;
   yearEndDay: number;
+  softClosedMonth: number;
+  softClosedYear: number;
+  hardClosedMonth: number;
+  hardClosedYear: number;
   bankCards?: BankCardResponse[];
   workOrderNo: number;
   defaultTenantIncAccountId?: number | null;
