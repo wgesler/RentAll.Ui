@@ -212,12 +212,6 @@ export class GeneralLedgerService {
     );
   }
 
-  voidJournalEntry(journalEntryId: string): Observable<JournalEntryResponse> {
-    return this.http.put<JournalEntryResponse>(`${this.controller}journal-entry/${journalEntryId}/void`, {}).pipe(
-      map(dto => this.mappingService.mapJournalEntryResponse(dto as unknown as Record<string, unknown>))
-    );
-  }
-
   deleteJournalEntry(journalEntryId: string): Observable<void> {
     return this.http.delete<void>(`${this.controller}journal-entry/${journalEntryId}`);
   }

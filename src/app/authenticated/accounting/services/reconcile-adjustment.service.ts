@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, of, switchMap, throwError } from 'rxjs';
-import { PostingStatus, SourceType, isJournalEntryPosted } from '../models/accounting-enum';
+import { JournalEntryKind, PostingStatus, SourceType, isJournalEntryPosted } from '../models/accounting-enum';
 import { JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../models/journal-entry.model';
 import { BeginReconciliationDialogResult } from '../models/reconcile.model';
 import { GeneralLedgerService } from './general-ledger.service';
@@ -84,37 +84,79 @@ syncAdjustment(params: SyncAdjustmentParams): Observable<BeginReconciliationDial
       return of(result);
     }
 
-    const voidExisting$ = previousJournalEntryId && (isZeroAmount || hasChanged)
-      ? this.generalLedgerService.voidJournalEntry(previousJournalEntryId)
-      : of(null);
+    if (isZeroAmount) {
+      if (!previousJournalEntryId) {
+        result[params.journalEntryIdKey] = null;
+        return of(result);
+      }
 
-    return voidExisting$.pipe(
-      switchMap(() => {
-        if (isZeroAmount) {
+      return this.generalLedgerService.deleteJournalEntry(previousJournalEntryId).pipe(
+        switchMap(() => {
           result[params.journalEntryIdKey] = null;
           return of(result);
-        }
+        })
+      );
+    }
 
-        if (!params.offsetAccountId || !params.transactionDate) {
-          return throwError(() => new Error(`${params.memo} requires an account and date.`));
-        }
+    if (!params.offsetAccountId || !params.transactionDate) {
+      return throwError(() => new Error(`${params.memo} requires an account and date.`));
+    }
 
-        return this.createPostedAdjustmentJournalEntry({
-          organizationId: params.organizationId,
-          officeId: params.officeId,
-          bankAccountId: params.result.chartOfAccountId,
-          offsetAccountId: params.offsetAccountId,
-          signedAmount: params.amount,
-          transactionDate: params.transactionDate,
-          bankPositiveSide: params.bankPositiveSide,
-          memo: params.memo
-        }).pipe(
-          switchMap(created => {
-            result[params.journalEntryIdKey] = created.journalEntryId;
-            return of(result);
-          })
-        );
+    const adjustmentParams = {
+      organizationId: params.organizationId,
+      officeId: params.officeId,
+      bankAccountId: params.result.chartOfAccountId,
+      offsetAccountId: params.offsetAccountId,
+      signedAmount: params.amount,
+      transactionDate: params.transactionDate,
+      bankPositiveSide: params.bankPositiveSide,
+      memo: params.memo
+    };
+    const saveAdjustment$ = previousJournalEntryId && hasChanged
+      ? this.updatePostedAdjustmentJournalEntry(previousJournalEntryId, adjustmentParams)
+      : this.createPostedAdjustmentJournalEntry(adjustmentParams);
+
+    return saveAdjustment$.pipe(
+      switchMap(saved => {
+        result[params.journalEntryIdKey] = saved.journalEntryId;
+        return of(result);
       })
+    );
+  }
+
+updatePostedAdjustmentJournalEntry(journalEntryId: string, params: {
+    organizationId: string;
+    officeId: number;
+    bankAccountId: number;
+    offsetAccountId: number;
+    signedAmount: number;
+    transactionDate: string;
+    bankPositiveSide: BankPositiveSide;
+    memo: string;
+  }): Observable<JournalEntryResponse> {
+    const journalEntryLines = this.buildAdjustmentJournalEntryLines(params.bankAccountId, params.offsetAccountId, params.signedAmount, params.bankPositiveSide, params.memo).map(line => ({
+      ...line,
+      journalEntryId
+    }));
+    const request: JournalEntryRequest = {
+      journalEntryId,
+      organizationId: params.organizationId,
+      officeId: params.officeId,
+      transactionDate: params.transactionDate,
+      accountingPeriod: params.transactionDate,
+      sourceTypeId: SourceType.Journal,
+      sourceId: null,
+      memo: params.memo,
+      postingStatusId: PostingStatus.Posted,
+      isCashOnly: false,
+      journalEntryKindId: JournalEntryKind.Manual,
+      journalEntryLines
+    };
+
+    return this.generalLedgerService.updateJournalEntry(request).pipe(
+      switchMap(updated => isJournalEntryPosted(updated.postingStatusId)
+        ? of(updated)
+        : this.generalLedgerService.postJournalEntry(updated.journalEntryId, params.transactionDate))
     );
   }
 
