@@ -1,55 +1,33 @@
 import { HttpClient } from '@angular/common/http';
-
 import { Injectable, inject } from '@angular/core';
-
 import { Observable, of } from 'rxjs';
-
 import { map } from 'rxjs/operators';
-
 import { ConfigService } from '../../../services/config.service';
-
 import { MappingService } from '../../../services/mapping.service';
-
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-
-import { ReceiptRequest, ReceiptResponse, isReceiptCompanyPropertyId } from '../models/receipt.model';
-
-
+import { FileDetails } from '../../documents/models/document.model';
+import { ReceiptExtractResponse, ReceiptRequest, ReceiptResponse, isReceiptCompanyPropertyId } from '../models/receipt.model';
 
 @Injectable({
-
   providedIn: 'root'
-
 })
-
 export class ReceiptService {
   private mappingService = inject(MappingService);
 
-
   readonly controller: string;
-
   http: HttpClient;
-
   configService: ConfigService;
-
-
 
   constructor() {
     const http = inject(HttpClient);
     const configService = inject(ConfigService);
 
-
     this.http = http;
-
     this.configService = configService;
-
     this.controller = this.configService.config().apiUrl + 'maintenance/receipt/';
-
   }
 
-
-
-  private resolveReceiptListPropertyId(propertyId?: string | null): string | null {
+  resolveReceiptListPropertyId(propertyId?: string | null): string | null {
     const normalizedPropertyId = (propertyId || '').trim();
     if (!normalizedPropertyId || isReceiptCompanyPropertyId(normalizedPropertyId)) {
       return null;
@@ -58,57 +36,33 @@ export class ReceiptService {
   }
 
   searchReceipts(request: MaintenanceListSearchRequest): Observable<ReceiptResponse[]> {
-
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-
     if (officeIds.length === 0) {
-
       return of([]);
-
     }
 
-
-
     return this.http.post<ReceiptResponse[]>(`${this.controller}search`, {
-
       officeIds,
-
       propertyId: this.resolveReceiptListPropertyId(request.propertyId),
-
       isActive: request.isActive ?? null,
-
       includeInactive: !!request.includeInactive,
-
       startDate: request.startDate ?? null,
-
       endDate: request.endDate ?? null,
-
       receiptKind: request.receiptKind ?? null,
-
       vendorId: request.vendorId ?? null
-
     }).pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
-
   }
-
-
 
   getReceipts(propertyId?: string | null, officeId?: number | null): Observable<ReceiptResponse[]> {
     const effectivePropertyId = this.resolveReceiptListPropertyId(propertyId);
     const request$ = effectivePropertyId
       ? this.http.get<ReceiptResponse[]>(this.controller + 'property/' + effectivePropertyId)
-
       : officeId != null && Number.isFinite(officeId) && officeId > 0
-
         ? this.http.get<ReceiptResponse[]>(this.controller + 'office/' + officeId)
-
         : this.http.get<ReceiptResponse[]>(this.controller);
 
     return request$.pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
-
   }
-
-
 
   getReceiptsByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {
     const effectivePropertyId = this.resolveReceiptListPropertyId(propertyId);
@@ -117,77 +71,47 @@ export class ReceiptService {
     }
 
     return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + effectivePropertyId)
-
       .pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
-
   }
-
-
 
   getReceiptById(receiptId: string): Observable<ReceiptResponse> {
-
     return this.http.get<ReceiptResponse>(this.controller + receiptId)
-
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
-
   }
-
-
 
   getReceipt(organizationId: string, receiptId: string): Observable<ReceiptResponse> {
-
     return this.http.get<ReceiptResponse>(this.controller + receiptId + '?organizationId=' + organizationId)
-
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
-
   }
 
-
+  extractReceipt(organizationId: string, fileDetails: FileDetails, officeId?: number | null): Observable<ReceiptExtractResponse> {
+    return this.http.post<ReceiptExtractResponse>(`${this.controller}extract`, {
+      organizationId,
+      officeId: officeId && officeId > 0 ? officeId : null,
+      fileDetails
+    });
+  }
 
   createReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
-
     return this.http.post<ReceiptResponse>(this.controller, this.normalizeReceiptRequest(request))
-
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
-
   }
-
-
 
   updateReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
-
     const payload = this.normalizeReceiptRequest(request);
-
     return this.http.put<ReceiptResponse>(this.controller, payload)
-
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
-
   }
-
-
 
   deleteReceipt(receiptId: string): Observable<void> {
-
     return this.http.delete<void>(this.controller + receiptId);
-
   }
-
-
 
   normalizeReceiptRequest(request: ReceiptRequest): ReceiptRequest {
-
     return {
-
       ...request,
-
       billNumber: (request?.billNumber ?? '').toString(),
-
       paidAmount: Number(request?.paidAmount ?? 0) || 0
-
     };
-
   }
-
 }
-
-

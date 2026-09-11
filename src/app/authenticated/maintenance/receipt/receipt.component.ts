@@ -22,7 +22,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, RECEIPT_COMPANY_PROPERTY_ID, Split, isReceiptCompanyPropertyId, normalizeReceiptPropertyIdForApi } from '../models/receipt.model';
+import { ReceiptExtractResponse, ReceiptPrefill, ReceiptRequest, ReceiptResponse, RECEIPT_COMPANY_PROPERTY_ID, Split, isReceiptCompanyPropertyId, normalizeReceiptPropertyIdForApi } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { JournalEntryService } from '../../accounting/services/journal-entry.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
@@ -96,6 +96,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   receiptFileDetails: FileDetails | null = null;
   receiptPdfThumbnailUrl: string | null = null;
   hasNewReceiptUpload: boolean = false;
+  isExtractingReceipt = false;
   originalReceiptPath: string | null = null;
   amountFocused = false;
   amountEditValue = '';
@@ -1098,6 +1099,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.receiptFileValidationError = false;
       this.form.patchValue({ receiptPath: '' });
       this.cdr.detectChanges();
+      await this.extractReceiptFromUpload();
     } catch (error) {
       this.receiptFileDetails = null;
       this.receiptPreviewDataUrl = null;
@@ -2796,6 +2798,60 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     queueMicrotask(() => {
       this.saveReceipt();
     });
+  }
+
+  async extractReceiptFromUpload(): Promise<void> {
+    if (!this.isAddMode || !this.receiptFileDetails || !this.organizationId || this.isExtractingReceipt) {
+      return;
+    }
+
+    this.isExtractingReceipt = true;
+    try {
+      const extraction = await this.receiptService.extractReceipt(
+        this.organizationId,
+        this.receiptFileDetails,
+        this.getReceiptOfficeId()
+      ).pipe(take(1)).toPromise();
+      if (!extraction) {
+        return;
+      }
+
+      this.applyDocumentExtractPrefill(extraction);
+      const warningCount = (extraction.warnings || []).length;
+      if (warningCount > 0) {
+        this.toastr.warning('Receipt read with items to review.');
+      } else {
+        this.toastr.success('Receipt details were filled from the uploaded document.', CommonMessage.Success);
+      }
+    } catch {
+      this.toastr.warning('Receipt uploaded, but automatic reading is unavailable. Enter details manually.');
+    } finally {
+      this.isExtractingReceipt = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  applyDocumentExtractPrefill(extraction: ReceiptExtractResponse): void {
+    if (!this.form) {
+      return;
+    }
+
+    this.prefill = {
+      key: extraction.key || `document-intelligence-${Date.now()}`,
+      officeId: this.getReceiptOfficeId(),
+      propertyIds: (extraction.propertyIds || []).filter(propertyId => (propertyId || '').trim().length > 0),
+      receiptDate: extraction.receiptDate ?? null,
+      dueDate: extraction.dueDate ?? extraction.receiptDate ?? null,
+      accountingPeriod: extraction.accountingPeriod ?? extraction.receiptDate ?? null,
+      description: extraction.description ?? null,
+      amount: extraction.amount ?? null,
+      bankCardId: extraction.bankCardId ?? null,
+      vendorName: extraction.vendorName ?? null,
+      billNumber: extraction.billNumber ?? null,
+      split: extraction.split ?? null
+    };
+    this.appliedPrefillKey = null;
+    this.applyPrefillIfNeeded();
   }
 
   applyPrefillIfNeeded(): void {

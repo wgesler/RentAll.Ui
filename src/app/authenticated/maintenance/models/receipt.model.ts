@@ -226,6 +226,28 @@ export interface ReceiptSelection {
   receipt?: ReceiptResponse | null;
 }
 
+export interface ReceiptExtractResponse {
+  key: string;
+  receiptDate?: CalendarDateString | null;
+  dueDate?: CalendarDateString | null;
+  accountingPeriod?: CalendarDateString | null;
+  description?: string | null;
+  amount?: number | null;
+  vendorName?: string | null;
+  billNumber?: string | null;
+  bankCardId?: number | null;
+  propertyIds?: string[] | null;
+  detectedPropertyCodes?: string[] | null;
+  split?: {
+    amount?: number | null;
+    description?: string | null;
+    receiptTypeId?: number | null;
+    chartOfAccountId?: number | null;
+  } | null;
+  warnings?: string[];
+  fieldConfidences?: Record<string, number | null>;
+}
+
 export interface ReceiptPrefill {
   key: string;
   officeId?: number | null;
