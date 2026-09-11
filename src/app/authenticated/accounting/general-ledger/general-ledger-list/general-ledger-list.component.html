@@ -41,6 +41,23 @@
                             <mat-icon class="general-ledger-cleared-check" aria-hidden="true">check</mat-icon>
                           }
                         </span>
+                      } @else if (columnName === 'postingStatusId') {
+                        @let postingVisual = getPostingStatusVisual(line.postingStatusId);
+                        <span class="general-ledger-posting-status-cell"
+                          [class.general-ledger-posting-status--open]="postingVisual === 'open'"
+                          [class.general-ledger-posting-status--posted]="postingVisual === 'posted'"
+                          [class.general-ledger-posting-status--soft-closed]="postingVisual === 'softClosed'"
+                          [class.general-ledger-posting-status--hard-closed]="postingVisual === 'hardClosed'"
+                          [attr.aria-label]="getPostingStatusAriaLabel(line.postingStatusId)"
+                          [attr.title]="getPostingStatusAriaLabel(line.postingStatusId)">
+                          @if (postingVisual === 'posted') {
+                            <mat-icon class="general-ledger-posting-status-icon general-ledger-posting-status-icon--posted" aria-hidden="true">check</mat-icon>
+                          } @else if (postingVisual === 'softClosed' || postingVisual === 'hardClosed') {
+                            <span class="general-ledger-posting-status-box" aria-hidden="true">
+                              <mat-icon class="general-ledger-posting-status-icon general-ledger-posting-status-icon--boxed" aria-hidden="true">check</mat-icon>
+                            </span>
+                          }
+                        </span>
                       } @else {
                         {{ getDetailLineColumnValue(line, columnName, lineIndex) }}
                       }

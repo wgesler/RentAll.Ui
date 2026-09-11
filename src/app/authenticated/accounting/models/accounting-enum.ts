@@ -570,6 +570,26 @@ export function isJournalEntrySoftClosed(postingStatusId: number | undefined | n
 export function isJournalEntryHardClosed(postingStatusId: number | undefined | null): boolean {
   return postingStatusId === PostingStatus.HardClosed;
 }
+
+export type JournalEntryPostingStatusVisual = 'open' | 'posted' | 'softClosed' | 'hardClosed';
+
+export function getJournalEntryPostingStatusVisual(
+  postingStatusId: number | undefined | null
+): JournalEntryPostingStatusVisual {
+  if (isJournalEntryHardClosed(postingStatusId)) {
+    return 'hardClosed';
+  }
+
+  if (isJournalEntrySoftClosed(postingStatusId)) {
+    return 'softClosed';
+  }
+
+  if (isJournalEntryPosted(postingStatusId)) {
+    return 'posted';
+  }
+
+  return 'open';
+}
 //#endregion
 
 //#region PaymentType

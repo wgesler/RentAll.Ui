@@ -607,6 +607,49 @@
       line-height: 18px;
       pointer-events: none;
     }
+
+    .general-ledger-posting-status-cell {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .general-ledger-posting-status-icon--posted {
+      color: #16a34a;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      line-height: 18px;
+    }
+
+    .general-ledger-posting-status-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+
+    .general-ledger-posting-status--soft-closed .general-ledger-posting-status-box {
+      background-color: #16a34a;
+    }
+
+    .general-ledger-posting-status--hard-closed .general-ledger-posting-status-box {
+      background-color: #dc2626;
+    }
+
+    .general-ledger-posting-status-icon--boxed {
+      color: #ffffff;
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      line-height: 14px;
+    }
   }
 }
 

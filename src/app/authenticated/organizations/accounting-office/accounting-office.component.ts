@@ -5,7 +5,7 @@ import { MatSelect } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, throwError } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -34,6 +34,8 @@ import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { CheckHtmlService } from '../../accounting/services/check-html.service';
 import { CheckHtmlResponse } from '../../accounting/models/check-html.model';
 import { CheckLayoutEditorDialogComponent, CheckLayoutEditorDialogData } from './check-layout-editor-dialog/check-layout-editor-dialog.component';
+import { PasswordCheckDialogService } from '../../shared/modals/password-check-dialog/password-check-dialog.service';
+import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
     standalone: true,
@@ -66,6 +68,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private pdfThumbnailService = inject(PdfThumbnailService);
   private checkHtmlService = inject(CheckHtmlService);
   private dialog = inject(MatDialog);
+  private passwordCheckDialogService = inject(PasswordCheckDialogService);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: MatSelect;
   @ViewChildren('bankCardPanInput') bankCardPanInputs!: QueryList<ElementRef<HTMLInputElement>>;
@@ -152,6 +155,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   ];
 
   isPartnerOrganization = false;
+  isSuperAdmin = false;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
@@ -161,6 +165,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Office
   ngOnInit(): void {
+    this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
@@ -394,11 +399,21 @@ parseOfficeId(id: string | number | null): number | null {
       officeRequest.organizationId = this.accountingOffice?.organizationId || organizationId;
     }
 
-    const saveOffice$ = this.isAddMode
-      ? this.accountingOfficeService.createAccountingOffice(officeRequest)
-      : this.accountingOfficeService.updateAccountingOffice(officeRequest);
+    this.validateClosedPeriodChanges(formValue).pipe(
+      take(1),
+      switchMap(canProceed => {
+        if (!canProceed) {
+          return EMPTY;
+        }
 
-    saveOffice$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+        const saveOffice$ = this.isAddMode
+          ? this.accountingOfficeService.createAccountingOffice(officeRequest)
+          : this.accountingOfficeService.updateAccountingOffice(officeRequest);
+        return saveOffice$;
+      }),
+      take(1),
+      finalize(() => { this.isSubmitting = false; })
+    ).subscribe({
       next: () => {
         this.toastr.success(this.isAddMode ? 'Office created successfully' : 'Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.accountingOfficeService.notifyAccountingOfficesChanged();
@@ -1754,6 +1769,50 @@ clearCheckStockLocal(): void {
     if (this.form?.valid && !this.isSubmitting) {
       this.saveOffice();
     }
+  }
+
+  validateClosedPeriodChanges(formValue: Record<string, unknown>): Observable<boolean> {
+    if (this.isAddMode || !this.accountingOffice) {
+      return of(true);
+    }
+
+    const softClosedMonth = Number(formValue['softClosedMonth']);
+    const softClosedYear = Number(formValue['softClosedYear']);
+    const hardClosedMonth = Number(formValue['hardClosedMonth']);
+    const hardClosedYear = Number(formValue['hardClosedYear']);
+    const softClosedDecreased = this.isClosedPeriodDecreased(this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear, softClosedMonth, softClosedYear);
+    const hardClosedDecreased = this.isClosedPeriodDecreased(this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear, hardClosedMonth, hardClosedYear);
+
+    if (!softClosedDecreased && !hardClosedDecreased) {
+      return of(true);
+    }
+
+    if (hardClosedDecreased && !this.isSuperAdmin) {
+      this.toastr.error('Hard closed month and year cannot be moved backward.', CommonMessage.Error);
+      return of(false);
+    }
+
+    const reversedLabels: string[] = [];
+    if (softClosedDecreased) {
+      reversedLabels.push('soft closed period');
+    }
+    if (hardClosedDecreased) {
+      reversedLabels.push('hard closed period');
+    }
+
+    return this.passwordCheckDialogService.confirm({
+      title: 'Reverse Closed Period',
+      message: `You are reversing an already closed accounting ${reversedLabels.length === 1 ? 'period' : 'periods'} (${reversedLabels.join(' and ')}).`,
+      hint: 'Enter your password to reverse closed transactions for this office.'
+    }).pipe(map(password => !!password));
+  }
+
+  getClosedPeriodOrdinal(month: number, year: number): number {
+    return year * 12 + month;
+  }
+
+  isClosedPeriodDecreased(existingMonth: number, existingYear: number, nextMonth: number, nextYear: number): boolean {
+    return this.getClosedPeriodOrdinal(nextMonth, nextYear) < this.getClosedPeriodOrdinal(existingMonth, existingYear);
   }
 
   yearEndDayWithinMonthValidator(): ValidatorFn {

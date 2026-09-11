@@ -14,6 +14,7 @@ export interface ColumnData {
     obfuscate?: boolean;
     isCheckbox?: boolean;
     isCheckmark?: boolean;
+    isPostingStatus?: boolean;
     isMultiSelect?: boolean;
     checkboxEditable?: boolean;
     options?: string[];
@@ -34,6 +35,7 @@ export const defaultColumnData: ColumnData = {
     obfuscate: false,
     isCheckbox: false,
     isCheckmark: false,
+    isPostingStatus: false,
     isMultiSelect: false,
     checkboxEditable: false,
     options: undefined,

@@ -974,6 +974,50 @@ td.mat-mdc-cell.datatable-date-column {
   pointer-events: none;
 }
 
+.datatable-posting-status-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.datatable-posting-status-icon--posted {
+  color: #16a34a;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+}
+
+.datatable-posting-status-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+
+.datatable-posting-status--soft-closed .datatable-posting-status-box {
+  background-color: #16a34a;
+}
+
+.datatable-posting-status--hard-closed .datatable-posting-status-box {
+  background-color: #dc2626;
+}
+
+.datatable-posting-status-icon--boxed {
+  color: #ffffff;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+}
+
 .datatable-checkbox-cell {
   display: flex !important;
   align-items: center !important;

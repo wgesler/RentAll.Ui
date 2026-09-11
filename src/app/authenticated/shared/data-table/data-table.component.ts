@@ -13,6 +13,7 @@ import { effectiveBedTypeIdForPropertySlot, getBedSizeType } from '../../propert
 import { FormatterService } from '../../../../app/services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
 import { getStatus } from '../../../enums/status.enum';
+import { getJournalEntryPostingStatusVisual, getPostingStatusLabel, JournalEntryPostingStatusVisual } from '../../accounting/models/accounting-enum';
 import { MaterialModule } from '../../../material.module';
 import { GenericModalComponent } from '../modals/generic/generic-modal.component';
 import { GenericModalData } from '../modals/generic/models/generic-modal-data';
@@ -1106,7 +1107,7 @@ markViewForCheck(): void {
     if (columnName === 'select') {
       return true;
     }
-    if (column.suppressRowClick === true || column.isCheckmark === true) {
+    if (column.suppressRowClick === true || column.isCheckmark === true || column.isPostingStatus === true) {
       return true;
     }
     return !!(this.suppressRowClickOnDropdownCells && (item[columnName]?.options?.length || column.options?.length));
@@ -1117,7 +1118,17 @@ markViewForCheck(): void {
     if (!target) {
       return false;
     }
-    return !!target.closest('.mat-column-select, mat-checkbox, .mdc-checkbox, .mdc-form-field, .datatable-checkmark-cell');
+    return !!target.closest('.mat-column-select, mat-checkbox, .mdc-checkbox, .mdc-form-field, .datatable-checkmark-cell, .datatable-posting-status-cell');
+  }
+
+  getPostingStatusVisual(item: PurposefulAny, columnName: string): JournalEntryPostingStatusVisual {
+    const postingStatusId = Number(item?.[columnName] ?? item?.postingStatusId ?? 0);
+    return getJournalEntryPostingStatusVisual(postingStatusId);
+  }
+
+  getPostingStatusAriaLabel(item: PurposefulAny, columnName: string): string {
+    const postingStatusId = Number(item?.[columnName] ?? item?.postingStatusId ?? 0);
+    return getPostingStatusLabel(postingStatusId) || 'Open';
   }
 
   isRowClickSuppressedInteraction(event: MouseEvent): boolean {

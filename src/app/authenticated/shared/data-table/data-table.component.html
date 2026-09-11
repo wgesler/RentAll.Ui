@@ -512,6 +512,25 @@
                         <mat-icon class="datatable-checkmark-icon" aria-hidden="true">check</mat-icon>
                       }
                     </div>
+                  } @else if (column.isPostingStatus) {
+                    @let postingVisual = getPostingStatusVisual(item, column.name || '');
+                    <div class="datatable-posting-status-cell"
+                      [class.datatable-posting-status--open]="postingVisual === 'open'"
+                      [class.datatable-posting-status--posted]="postingVisual === 'posted'"
+                      [class.datatable-posting-status--soft-closed]="postingVisual === 'softClosed'"
+                      [class.datatable-posting-status--hard-closed]="postingVisual === 'hardClosed'"
+                      [attr.aria-label]="getPostingStatusAriaLabel(item, column.name || '')"
+                      [attr.title]="getPostingStatusAriaLabel(item, column.name || '')"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()">
+                      @if (postingVisual === 'posted') {
+                        <mat-icon class="datatable-posting-status-icon datatable-posting-status-icon--posted" aria-hidden="true">check</mat-icon>
+                      } @else if (postingVisual === 'softClosed' || postingVisual === 'hardClosed') {
+                        <span class="datatable-posting-status-box" aria-hidden="true">
+                          <mat-icon class="datatable-posting-status-icon datatable-posting-status-icon--boxed" aria-hidden="true">check</mat-icon>
+                        </span>
+                      }
+                    </div>
                   } @else if (column.isCheckbox) {
                     @if (item[column.name] !== 'NONE') {
                       <div class="datatable-checkbox-cell">

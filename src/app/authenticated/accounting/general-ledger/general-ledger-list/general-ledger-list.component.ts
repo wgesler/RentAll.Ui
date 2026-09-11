@@ -23,7 +23,7 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, JournalEntryKind, PostingStatus, SourceType, SourceTypeLabels, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
+import { AccountType, JournalEntryKind, JournalEntryPostingStatusVisual, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryPostingStatusVisual, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -150,6 +150,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
     isCleared: { displayAs: 'Clr', maxWidth: '7ch', sort: true, isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
+    postingStatusId: { displayAs: 'Post', maxWidth: '7ch', sort: true, isPostingStatus: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
@@ -162,6 +163,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     account: { displayAs: 'Account', maxWidth: '34ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '32ch', wrap: true },
     isCleared: { displayAs: 'Clr', maxWidth: '7ch', sort: true, isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
+    postingStatusId: { displayAs: 'Post', maxWidth: '7ch', sort: true, isPostingStatus: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     debit: { displayAs: 'Debit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
@@ -1360,6 +1362,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         return line.description || '';
       case 'isCleared':
         return line.isCleared ? 1 : 0;
+      case 'postingStatusId':
+        return line.postingStatusId ?? 0;
       case 'debit':
         return line.debitValue ?? 0;
       case 'credit':
@@ -3276,6 +3280,14 @@ triggerCheckPrint(): void {
   //#endregion
 
   //#region Utility methods
+  getPostingStatusVisual(postingStatusId: number | undefined | null): JournalEntryPostingStatusVisual {
+    return getJournalEntryPostingStatusVisual(postingStatusId);
+  }
+
+  getPostingStatusAriaLabel(postingStatusId: number | undefined | null): string {
+    return getPostingStatusLabel(postingStatusId) || 'Open';
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
