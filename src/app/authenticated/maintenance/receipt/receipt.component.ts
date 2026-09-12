@@ -2969,7 +2969,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.onOverallBankCardChange();
-    if (vendorName && (!this.isOverallBillBankCard() || cardPaymentDetected)) {
+    if (vendorName) {
       this.form.patchValue({ vendorName: vendorId ? null : vendorName }, { emitEvent: false });
     }
     this.updateVendorFieldValidators();
