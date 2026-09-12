@@ -69,7 +69,7 @@
                     [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
                     [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
                     <mat-label>Properties</mat-label>
-                    <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
+                    <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()" [compareWith]="comparePropertyIdOption">
                       <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
                       @for (option of propertyOptions; track option.propertyId) {
                         <mat-option [value]="option.propertyId">
@@ -232,7 +232,7 @@
                           </tr>
                         </thead>
                         <tbody>
-                          @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                          @for (splitGroup of splitsFormArray.controls; track splitGroup; let splitIndex = $index) {
                             <tr [formGroupName]="splitIndex">
                               <td class="split-col-no">{{ splitIndex + 1 }}</td>
                               <td class="split-col-amount">
@@ -392,7 +392,7 @@
                     [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
                     [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
                     <mat-label>Properties</mat-label>
-                    <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
+                    <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()" [compareWith]="comparePropertyIdOption">
                       <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
                       @for (option of propertyOptions; track option.propertyId) {
                         <mat-option [value]="option.propertyId">
@@ -511,7 +511,7 @@
                           </tr>
                         </thead>
                         <tbody>
-                          @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                          @for (splitGroup of splitsFormArray.controls; track splitGroup; let splitIndex = $index) {
                             <tr [formGroupName]="splitIndex">
                               <td class="split-col-no">{{ splitIndex + 1 }}</td>
                               <td class="split-col-amount">

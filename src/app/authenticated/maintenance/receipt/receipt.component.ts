@@ -122,6 +122,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   chartOfAccounts: ChartOfAccountResponse[] = [];
 
   readonly accountingCompanyPropertyId = RECEIPT_COMPANY_PROPERTY_ID;
+  readonly comparePropertyIdOption = (left: string | null | undefined, right: string | null | undefined): boolean =>
+    (left || '').trim().toLowerCase() === (right || '').trim().toLowerCase();
   lastPropertyIdsValue: string[] = [];
   manualSplitAccountIndexes = new Set<number>();
   appliedPrefillKey: string | null = null;
@@ -1901,7 +1903,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
     const hasUserEditedSplitDescription = splitDescriptionControl?.dirty === true;
     const shouldSyncSplitDescription = !splitDescription || !hasUserEditedSplitDescription;
-    if (shouldSyncSplitDescription) {
+    if (shouldSyncSplitDescription && overallDescription) {
       patch.description = overallDescription;
     }
     if (Object.keys(patch).length === 0) {
@@ -1914,6 +1916,29 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     splitDescriptionControl?.updateValueAndValidity({ emitEvent: false });
     this.isSyncingInitialSplit = false;
     this.cdr.markForCheck();
+  }
+
+  applyDescriptionToHeaderAndFirstSplitLine(description?: string | null): void {
+    if (!this.form) {
+      return;
+    }
+
+    const normalizedDescription = (description ?? this.form.get('description')?.value ?? '').toString().trim();
+    if (!normalizedDescription) {
+      return;
+    }
+
+    this.form.patchValue({ description: normalizedDescription }, { emitEvent: false });
+    this.ensureAtLeastOneSplit();
+    const firstSplitGroup = this.splitsFormArray.at(0) as FormGroup | undefined;
+    if (!firstSplitGroup) {
+      return;
+    }
+
+    this.isSyncingInitialSplit = true;
+    firstSplitGroup.get('description')?.setValue(normalizedDescription, { emitEvent: false });
+    firstSplitGroup.get('description')?.updateValueAndValidity({ emitEvent: false });
+    this.isSyncingInitialSplit = false;
   }
 
   applyBillDescriptionToAllSplitLines(): void {
@@ -2849,10 +2874,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const matchedPropertyIds = (extraction.propertyIds || [])
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0);
+    const propertyIds = matchedPropertyIds.length > 0
+      ? matchedPropertyIds
+      : [RECEIPT_COMPANY_PROPERTY_ID];
+
     this.prefill = {
       key: extraction.key || `document-intelligence-${Date.now()}`,
       officeId: extraction.officeId && extraction.officeId > 0 ? extraction.officeId : this.getReceiptOfficeId(),
-      propertyIds: (extraction.propertyIds || []).filter(propertyId => (propertyId || '').trim().length > 0),
+      propertyIds,
       receiptDate: extraction.receiptDate ?? null,
       dueDate: extraction.dueDate ?? extraction.receiptDate ?? null,
       accountingPeriod: extraction.accountingPeriod ?? extraction.receiptDate ?? null,
@@ -2889,16 +2921,21 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const propertyIds = (this.prefill.propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0);
-    if (propertyIds.length > 0) {
+    const realPropertyIds = propertyIds.filter(propertyId => !isReceiptCompanyPropertyId(propertyId));
+    if (realPropertyIds.length > 0) {
       this.form.patchValue({
-        propertyIds,
-        propertyCode: this.getPropertyCodesDisplay(propertyIds)
+        propertyIds: realPropertyIds,
+        propertyCode: this.getPropertyCodesDisplay(realPropertyIds)
       }, { emitEvent: false });
+      this.lastPropertyIdsValue = realPropertyIds;
+    } else {
+      this.applyAccountingCompanySelection();
     }
 
     const parsedAmount = Number(this.prefill.amount ?? 0);
     const amount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0;
-    const description = (this.prefill.description || '').trim();
+    const splitPrefill = this.prefill.split || null;
+    const description = (this.prefill.description || splitPrefill?.description || '').trim();
     const vendorId = (this.prefill.vendorId || '').trim() || null;
     const vendorName = (this.prefill.vendorName || '').trim() || null;
     const bankCardId = Number(this.prefill.bankCardId ?? 0);
@@ -2919,14 +2956,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         || propertyIds.some(propertyId => isReceiptCompanyPropertyId(propertyId))
     }, { emitEvent: false });
 
-    const split = this.prefill.split || null;
-    if (split) {
-      const splitAmount = Number(split.amount ?? amount);
-      const splitChartOfAccountId = Number(split.chartOfAccountId ?? 0);
-      const splitReceiptTypeId = Number(split.receiptTypeId ?? 1);
+    if (splitPrefill || amount > 0 || description) {
+      const splitAmount = Number(splitPrefill?.amount ?? amount);
+      const splitChartOfAccountId = Number(splitPrefill?.chartOfAccountId ?? 0);
+      const splitReceiptTypeId = Number(splitPrefill?.receiptTypeId ?? 1);
       this.replaceSplitLines([{
         amount: Number.isFinite(splitAmount) ? splitAmount : amount,
-        description: (split.description || description || '').trim(),
+        description,
         receiptTypeId: Number.isFinite(splitReceiptTypeId) ? splitReceiptTypeId : 1,
         chartOfAccountId: Number.isFinite(splitChartOfAccountId) && splitChartOfAccountId > 0 ? splitChartOfAccountId : null
       } as Split]);
@@ -2942,13 +2978,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       dueDate: prefillDueDate,
       accountingPeriod: prefillAccountingPeriod
     }, { emitEvent: false });
-    if (!split) {
-      this.syncInitialSplitWithOverallIfNeeded();
-    }
+    this.syncInitialSplitWithOverallIfNeeded();
     this.updatePropertyRequirementByReceiptType();
     this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.syncSelectedPropertyIdFromForm();
     this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
+    this.applyDescriptionToHeaderAndFirstSplitLine(description);
+    queueMicrotask(() => {
+      this.applyDescriptionToHeaderAndFirstSplitLine();
+      this.cdr.detectChanges();
+    });
     this.appliedPrefillKey = prefillKey;
     this.cdr.markForCheck();
   }
