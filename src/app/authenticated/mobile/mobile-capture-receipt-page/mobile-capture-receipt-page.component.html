@@ -47,17 +47,32 @@
 
       <div class="mobile-capture-receipt-section">
         <span class="mobile-capture-receipt-section-title">Receipt</span>
-        <p class="mobile-capture-receipt-section-copy">Take a photo or choose an existing receipt image or PDF.</p>
-        <button
-          mat-raised-button
-          color="primary"
-          type="button"
-          class="mobile-capture-receipt-capture-btn"
-          [disabled]="isCapturing"
-          (click)="openCapturePicker(receiptCaptureInput)">
-          <mat-icon>photo_camera</mat-icon>
-          {{ isCapturing ? 'Working...' : 'Capture' }}
-        </button>
+        <p class="mobile-capture-receipt-section-copy">Take a new photo or choose an existing image or PDF from your device.</p>
+        <div class="mobile-capture-receipt-action-row">
+          <button
+            mat-raised-button
+            color="primary"
+            type="button"
+            class="mobile-capture-receipt-action-btn"
+            [disabled]="isCapturing"
+            (click)="openCapturePicker(receiptCameraInput)">
+            <mat-icon>photo_camera</mat-icon>
+            Capture
+          </button>
+          <button
+            mat-stroked-button
+            color="primary"
+            type="button"
+            class="mobile-capture-receipt-action-btn"
+            [disabled]="isCapturing"
+            (click)="openCapturePicker(receiptLibraryInput)">
+            <mat-icon>upload_file</mat-icon>
+            Upload
+          </button>
+        </div>
+        @if (isCapturing) {
+          <div class="mobile-capture-receipt-working">Working...</div>
+        }
         @if (captureStatus) {
           <div class="mobile-capture-receipt-status">
             <mat-spinner [diameter]="20"></mat-spinner>
@@ -67,10 +82,16 @@
       </div>
 
       <input
-        #receiptCaptureInput
+        #receiptCameraInput
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        (change)="onReceiptSelected($event)" />
+      <input
+        #receiptLibraryInput
         type="file"
         accept="image/*,application/pdf"
-        capture="environment"
         hidden
         (change)="onReceiptSelected($event)" />
     </form>
