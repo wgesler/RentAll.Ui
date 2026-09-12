@@ -239,6 +239,18 @@
                         <mat-error>Must be {{ accountingYearMax }} or earlier.</mat-error>
                       }
                     </mat-form-field>
+
+                    <button mat-raised-button type="button" color="accent" class="accounting-period-resync-button"
+                      [disabled]="!canResyncPostingStatus || isResyncingPostingStatus"
+                      matTooltip="Re-apply soft and hard close posting status to all journal entries and documents through the selected closed month/year values."
+                      (click)="resyncPostingStatus()">
+                      <span class="accounting-period-resync-button-content">
+                        @if (isResyncingPostingStatus) {
+                          <mat-spinner diameter="18" class="accounting-period-resync-spinner"></mat-spinner>
+                        }
+                        <span>Resync Posting Status</span>
+                      </span>
+                    </button>
                   </div>
                   @if (form.hasError('invalidYearEndDayForMonth') && (form.get('yearEndMonth')?.touched || form.get('yearEndDay')?.touched)) {
                     <div class="col-span-4">

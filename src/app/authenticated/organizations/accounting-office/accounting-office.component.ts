@@ -99,6 +99,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   isSavingCheckPrinting: boolean = false;
   officeCheckHtml: CheckHtmlResponse | null = null;
   isSubmitting: boolean = false;
+  isResyncingPostingStatus = false;
   private suppressClosedPeriodRevert = false;
   private closedPeriodAdvanceAcknowledged = { soft: false, hard: false };
   private closedPeriodReversalAcknowledged = { soft: false, hard: false };
@@ -1744,6 +1745,18 @@ clearCheckStockLocal(): void {
     }
   }
 
+  get canResyncPostingStatus(): boolean {
+    return !this.isAddMode && !!this.accountingOffice && this.areClosedPeriodResyncFieldsValid();
+  }
+
+  resyncPostingStatus(): void {
+    if (!this.canResyncPostingStatus || this.isResyncingPostingStatus) {
+      return;
+    }
+
+    this.runResyncPostingStatus().pipe(take(1)).subscribe();
+  }
+
   private buildAccountingOfficeUpdateRequest(): AccountingOfficeRequest | null {
     if (this.isAddMode || !this.form || !this.accountingOffice) {
       return null;
@@ -1900,6 +1913,7 @@ clearCheckStockLocal(): void {
       return of(null);
     }
 
+    this.isResyncingPostingStatus = true;
     return this.accountingOfficeService.resyncPostingStatus(officeId, request).pipe(
       tap(result => {
         if (result) {
@@ -1909,6 +1923,10 @@ clearCheckStockLocal(): void {
       catchError(() => {
         this.toastr.error(`Unable to resync posting status. ${CommonMessage.TryAgain}`, CommonMessage.ServiceError);
         return of(null);
+      }),
+      finalize(() => {
+        this.isResyncingPostingStatus = false;
+        this.cdr.markForCheck();
       })
     );
   }
@@ -1947,6 +1965,11 @@ clearCheckStockLocal(): void {
     }
 
     this.toastr.success(`Posting status resync completed (${result.successCount ?? 0} updates).`, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+  }
+
+  private areClosedPeriodResyncFieldsValid(): boolean {
+    const fieldNames = ['startMonth', 'startYear', 'softClosedMonth', 'softClosedYear', 'hardClosedMonth', 'hardClosedYear'];
+    return fieldNames.every(fieldName => this.form.get(fieldName)?.valid === true);
   }
 
   private resolveOfficeIdForResync(): number | null {
