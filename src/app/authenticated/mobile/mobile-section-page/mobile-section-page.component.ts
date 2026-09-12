@@ -160,9 +160,6 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
     if (this.section?.path === 'tickets' && this.detailId) {
       return this.tab?.label ?? '';
     }
-    if (this.section?.path === 'maintenance' && this.tab?.path === 'capture-receipt') {
-      return this.tab?.label ?? 'Capture Receipt';
-    }
     if (this.section?.path === 'maintenance' && this.tab?.path === 'receipts' && this.detailId) {
       return this.tab?.label ?? 'Receipts';
     }

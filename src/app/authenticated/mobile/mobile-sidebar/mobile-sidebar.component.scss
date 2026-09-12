@@ -35,6 +35,43 @@ mat-sidenav {
     font-weight: 600;
   }
 
+  & .mobile-sidebar-item-disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  & .mobile-sidebar-capture-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin: 10px 10px 6px;
+    min-height: 12px;
+    opacity: 0.9;
+  }
+
+  & .mobile-sidebar-capture-divider-line {
+    flex: 1 1 auto;
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.45) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.12);
+  }
+
+  & .mobile-sidebar-capture-divider-gem {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0.15) 100%);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  }
+
   & .mat-list-item-content-open {
     display: flex !important;
     justify-content: center;

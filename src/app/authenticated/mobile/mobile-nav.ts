@@ -202,7 +202,6 @@ export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
   { icon: 'build', label: 'Maintenance', path: 'maintenance', tabs: [
     { label: 'Inspection', path: 'inspection' },
     { label: 'Maintenance', path: 'maintenance' },
-    { label: 'Capture Receipt', path: 'capture-receipt' },
     { label: 'Receipts', path: 'receipts' },
     { label: 'Work Orders', path: 'work-orders' }
   ] },
@@ -233,7 +232,22 @@ export function getMobileNavItems(
 
   const filterOptions = getMobileSidebarFilterOptions(authService, organizationTypeId);
   const visibleDesktopItems = getFilteredSidebarNavItems(userGroups, filterOptions);
-  return buildMobileNavItemsFromDesktop(visibleDesktopItems);
+  return orderMobileNavItemsForSidebar(buildMobileNavItemsFromDesktop(visibleDesktopItems));
+}
+
+/** Maintenance + Contacts adjacent, ahead of receipt capture shortcuts in the mobile sidebar. */
+export function orderMobileNavItemsForSidebar(items: MobileNavItem[]): MobileNavItem[] {
+  const maintenanceIndex = items.findIndex(item => item.path === 'maintenance');
+  const contactsIndex = items.findIndex(item => item.path === 'contacts');
+  if (maintenanceIndex === -1 || contactsIndex === -1 || contactsIndex === maintenanceIndex + 1) {
+    return items;
+  }
+
+  const reordered = [...items];
+  const [contactsItem] = reordered.splice(contactsIndex, 1);
+  const insertIndex = reordered.findIndex(item => item.path === 'maintenance') + 1;
+  reordered.splice(insertIndex, 0, contactsItem);
+  return reordered;
 }
 
 export function mobileUrlToAuthUrl(url: string): string {

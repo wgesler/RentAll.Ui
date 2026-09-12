@@ -21,6 +21,37 @@
             <mat-icon>{{ navItem.icon }}</mat-icon>
           </div>
         </a>
+        @if (showReceiptCaptureBlockAfter(navItem)) {
+          <div class="mobile-sidebar-capture-divider" aria-hidden="true">
+            <span class="mobile-sidebar-capture-divider-line"></span>
+            <span class="mobile-sidebar-capture-divider-gem"></span>
+            <span class="mobile-sidebar-capture-divider-line"></span>
+          </div>
+          <a mat-list-item
+            class="mat-list-item-closed"
+            [disableRipple]="true"
+            matTooltip="Camera"
+            matTooltipPosition="after"
+            [matTooltipClass]="'sidenav-tooltip'"
+            [class.mobile-sidebar-item-disabled]="isReceiptCaptureInProgress()"
+            (click)="openCameraCapture(receiptCameraInput)">
+            <div class="mat-list-item-content-open mat-list-item-content-closed">
+              <mat-icon>photo_camera</mat-icon>
+            </div>
+          </a>
+          <a mat-list-item
+            class="mat-list-item-closed"
+            [disableRipple]="true"
+            matTooltip="Upload"
+            matTooltipPosition="after"
+            [matTooltipClass]="'sidenav-tooltip'"
+            [class.mobile-sidebar-item-disabled]="isReceiptCaptureInProgress()"
+            (click)="openUploadCapture(receiptUploadInput)">
+            <div class="mat-list-item-content-open mat-list-item-content-closed">
+              <mat-icon>upload_file</mat-icon>
+            </div>
+          </a>
+        }
       } @else {
         <a mat-list-item
           [routerLink]="getPrimaryLink(navItem)"
@@ -48,6 +79,20 @@
         </button>
       }
     </mat-menu>
+
+    <input
+      #receiptCameraInput
+      type="file"
+      accept="image/*"
+      capture="environment"
+      hidden
+      (change)="onReceiptCaptureSelected($event)" />
+    <input
+      #receiptUploadInput
+      type="file"
+      accept="image/*,application/pdf"
+      hidden
+      (change)="onReceiptCaptureSelected($event)" />
 
   </mat-sidenav>
   <mat-sidenav-content>

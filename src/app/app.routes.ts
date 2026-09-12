@@ -57,7 +57,6 @@ import { UserComponent } from './authenticated/users/user/user.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
-import { MobileCaptureReceiptPageComponent } from './authenticated/mobile/mobile-capture-receipt-page/mobile-capture-receipt-page.component';
 import { MobileInspectionIssuesPageComponent } from './authenticated/mobile/mobile-inspection-issues-page/mobile-inspection-issues-page.component';
 import { MobileBoardPageComponent } from './authenticated/mobile/mobile-board-page/mobile-board-page.component';
 import { MobileDashboardPageComponent } from './authenticated/mobile/mobile-dashboard-page/mobile-dashboard-page.component';
@@ -148,7 +147,6 @@ const mobileRoutes: Routes = [
   { path: 'tickets/:tab/:id', component: MobileSectionPageComponent },
   { path: 'maintenance', redirectTo: 'maintenance/inspection', pathMatch: 'full' },
   { path: 'maintenance/inspection/:id/issues', component: MobileInspectionIssuesPageComponent },
-  { path: 'maintenance/capture-receipt', component: MobileCaptureReceiptPageComponent },
   { path: 'maintenance/:tab', component: MobileSectionPageComponent },
   { path: 'maintenance/:tab/:id', component: MobileSectionPageComponent },
   { path: 'reservations', component: MobileSectionPageComponent },

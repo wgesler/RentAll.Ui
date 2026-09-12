@@ -10,6 +10,7 @@ import { CommonService } from '../../../services/common.service';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MobileNavItem, MobileNavTab, getMobileLeadsTabs, getMobileNavItem, getMobileNavItems, getMobilePrimaryLink, getMobileRouteParts, getMobileTicketTabs } from '../mobile-nav';
 import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
+import { MobileReceiptCaptureService } from '../mobile-receipt-capture.service';
 
 @Component({
   standalone: true,
@@ -27,6 +28,7 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
   private sidebarStateService = inject(SidebarStateService);
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
   private cdr = inject(ChangeDetectorRef);
+  private mobileReceiptCaptureService = inject(MobileReceiptCaptureService);
   readonly collapsedSidebarWidth = 64;
   @ViewChild('sideNav') sideNav: MatSidenav;
   navItems: MobileNavItem[] = [];
@@ -98,6 +100,37 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
     }
     this.router.navigate(['/mobile', this.menuNavItem.path, tab.path]);
     this.sideNav?.close();
+  }
+
+  showReceiptCaptureBlockAfter(navItem: MobileNavItem): boolean {
+    if (!this.navItems.some(item => item.path === 'maintenance')) {
+      return false;
+    }
+    if (this.navItems.some(item => item.path === 'contacts')) {
+      return navItem.path === 'contacts';
+    }
+    return navItem.path === 'maintenance';
+  }
+
+  openCameraCapture(fileInput: HTMLInputElement): void {
+    this.mobileReceiptCaptureService.openCameraPicker(fileInput);
+    this.sideNav?.close();
+  }
+
+  openUploadCapture(fileInput: HTMLInputElement): void {
+    this.mobileReceiptCaptureService.openUploadPicker(fileInput);
+    this.sideNav?.close();
+  }
+
+  onReceiptCaptureSelected(event: Event): void {
+    void this.mobileReceiptCaptureService.handleReceiptFileSelected(event).finally(() => {
+      this.markViewForCheck();
+    });
+    this.markViewForCheck();
+  }
+
+  isReceiptCaptureInProgress(): boolean {
+    return this.mobileReceiptCaptureService.isCaptureInProgress;
   }
 
   isTabSelected(tab: MobileNavTab): boolean {
