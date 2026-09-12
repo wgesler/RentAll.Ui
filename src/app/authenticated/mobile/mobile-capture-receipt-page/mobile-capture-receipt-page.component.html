@@ -1,0 +1,78 @@
+<div class="mobile-capture-receipt-page">
+  <div class="flex items-center gap-3 mobile-sub-titlebar">
+    <button type="button" class="mobile-sub-titlebar-trigger" [matMenuTriggerFor]="titleMenu" [disabled]="!titleTabs.length">
+      <mat-icon class="mobile-sub-titlebar-icon flex-shrink-0">build</mat-icon>
+      <span class="mobile-sub-titlebar-label">Maintenance@if (tab?.label) { : {{ tab?.label }} }</span>
+      @if (titleTabs.length) {
+        <mat-icon class="mobile-sub-titlebar-caret">expand_more</mat-icon>
+      }
+    </button>
+  </div>
+
+  <mat-menu #titleMenu="matMenu" panelClass="mobile-sidebar-tab-menu">
+    @for (menuTab of titleTabs; track menuTab.path) {
+      <button mat-menu-item type="button" class="office-menu-item" (click)="onTitleTabSelect(menuTab)">
+        <span class="office-menu-label">{{ menuTab.label }}</span>
+        @if (isTitleTabSelected(menuTab)) {
+          <mat-icon class="office-selected-check">check</mat-icon>
+        }
+      </button>
+    }
+  </mat-menu>
+
+  @if (!isPageReady) {
+    <div class="mobile-capture-receipt-loading">
+      <mat-spinner [diameter]="36"></mat-spinner>
+      <span>Loading...</span>
+    </div>
+  } @else {
+    <form [formGroup]="form" class="mobile-capture-receipt-form">
+      <mat-form-field appearance="outline" class="mobile-capture-receipt-field">
+        <mat-label>Office</mat-label>
+        <mat-select formControlName="officeId" required>
+          @for (option of officeOptions; track option.officeId) {
+            <mat-option [value]="option.officeId">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="mobile-capture-receipt-field">
+        <mat-label>Property</mat-label>
+        <mat-select formControlName="propertyId" required [compareWith]="comparePropertyIdOption">
+          @for (option of propertyOptions; track option.propertyId) {
+            <mat-option [value]="option.propertyId">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="mobile-capture-receipt-section">
+        <span class="mobile-capture-receipt-section-title">Receipt</span>
+        <p class="mobile-capture-receipt-section-copy">Take a photo or choose an existing receipt image or PDF.</p>
+        <button
+          mat-raised-button
+          color="primary"
+          type="button"
+          class="mobile-capture-receipt-capture-btn"
+          [disabled]="isCapturing"
+          (click)="openCapturePicker(receiptCaptureInput)">
+          <mat-icon>photo_camera</mat-icon>
+          {{ isCapturing ? 'Working...' : 'Capture' }}
+        </button>
+        @if (captureStatus) {
+          <div class="mobile-capture-receipt-status">
+            <mat-spinner [diameter]="20"></mat-spinner>
+            <span>{{ captureStatus }}</span>
+          </div>
+        }
+      </div>
+
+      <input
+        #receiptCaptureInput
+        type="file"
+        accept="image/*,application/pdf"
+        capture="environment"
+        hidden
+        (change)="onReceiptSelected($event)" />
+    </form>
+  }
+</div>

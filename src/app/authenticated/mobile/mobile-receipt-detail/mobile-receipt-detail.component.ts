@@ -17,10 +17,12 @@ import { ToastrService } from 'ngx-toastr';
 import { takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
-import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { ReceiptExtractResponse, ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { MobileCaptureReceiptDraft, MobileCaptureReceiptDraftService } from '../mobile-capture-receipt-draft.service';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { FileDetails } from '../../../shared/models/fileDetails';
 import { MobileChromeOverlayService } from '../mobile-chrome-overlay.service';
 import { getMobileTicketReturnRoute } from '../mobile-ticket-return.util';
 
@@ -42,15 +44,24 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
   private sanitizer = inject(DomSanitizer);
   private mobileToastr = inject(ToastrService);
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
+  private captureReceiptDraftService = inject(MobileCaptureReceiptDraftService);
   receiptPreviewOpen = false;
   receiptPreviewViewerSrc: SafeResourceUrl | null = null;
   private receiptPreviewObjectUrl: string | null = null;
+  private pendingCaptureDraft: MobileCaptureReceiptDraft | null = null;
 
   //#region Mobile-Receipt-Detail
   override ngOnInit(): void {
     const queryParams = this.mobileRoute.snapshot.queryParamMap;
     this.mobileReturnTicketId = queryParams.get('returnTicketId')?.trim() || null;
     this.mobileReturnTicketTab = queryParams.get('returnTicketTab')?.trim() || null;
+
+    if (this.receiptId === 'new') {
+      this.pendingCaptureDraft = this.captureReceiptDraftService.consumeDraft();
+      if (this.pendingCaptureDraft) {
+        this.officeId = this.pendingCaptureDraft.officeId;
+      }
+    }
 
     this.shellContext = this.authService.isAdmin() ? 'accounting' : 'maintenance';
     this.showInlineSaveButtons = true;
@@ -68,6 +79,11 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
     });
     if (this.isAddMode) {
       this.receiptDescriptionChange.emit('New');
+    }
+    if (this.pendingCaptureDraft) {
+      const captureDraft = this.pendingCaptureDraft;
+      this.pendingCaptureDraft = null;
+      void this.applyCaptureReceiptDraft(captureDraft);
     }
   }
 
@@ -174,6 +190,50 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
     }
     URL.revokeObjectURL(this.receiptPreviewObjectUrl);
     this.receiptPreviewObjectUrl = null;
+  }
+
+  private async applyCaptureReceiptDraft(draft: MobileCaptureReceiptDraft): Promise<void> {
+    if (!this.form) {
+      return;
+    }
+
+    this.applyCapturedReceiptFile(draft.fileDetails);
+    if (draft.extraction) {
+      this.applyDocumentExtractPrefill(this.buildCaptureExtraction(draft));
+      return;
+    }
+
+    this.markViewForCheck();
+  }
+
+  private applyCapturedReceiptFile(fileDetails: FileDetails): void {
+    if (!this.form) {
+      return;
+    }
+
+    this.receiptFileDetails = fileDetails;
+    this.receiptPreviewDataUrl = fileDetails.dataUrl;
+    this.setReceiptPdfThumbnail(fileDetails.dataUrl, fileDetails.contentType || '');
+    this.receiptFileName = fileDetails.fileName;
+    this.hasNewReceiptUpload = true;
+    this.receiptFileValidationError = false;
+    this.form.patchValue({ receiptPath: '' }, { emitEvent: false });
+    this.markViewForCheck();
+  }
+
+  private buildCaptureExtraction(draft: MobileCaptureReceiptDraft): ReceiptExtractResponse {
+    const extraction = draft.extraction;
+    if (!extraction) {
+      return {
+        key: `capture-receipt-${Date.now()}`
+      };
+    }
+
+    return {
+      ...extraction,
+      officeId: draft.officeId,
+      propertyIds: draft.propertyId ? [draft.propertyId] : (extraction.propertyIds || [])
+    };
   }
   //#endregion
 }

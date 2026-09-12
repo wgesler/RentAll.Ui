@@ -202,6 +202,7 @@ export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
   { icon: 'build', label: 'Maintenance', path: 'maintenance', tabs: [
     { label: 'Inspection', path: 'inspection' },
     { label: 'Maintenance', path: 'maintenance' },
+    { label: 'Capture Receipt', path: 'capture-receipt' },
     { label: 'Receipts', path: 'receipts' },
     { label: 'Work Orders', path: 'work-orders' }
   ] },
