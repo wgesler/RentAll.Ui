@@ -15,7 +15,7 @@ import { PropertyResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
-import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { ColumnSet, postingStatusColumn } from '../../../shared/data-table/models/column-data';
 import { TransferDisplayList, TransferResponse, TransferSearchRequest, TransferSelection, TransferSplit } from '../../models/transfer.model';
 import { TransferService } from '../../services/transfer.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -78,6 +78,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
+    postingStatusId: postingStatusColumn,
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 

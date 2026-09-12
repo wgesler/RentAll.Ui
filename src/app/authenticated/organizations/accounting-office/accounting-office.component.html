@@ -137,8 +137,8 @@
                     </mat-form-field>
                   </div>
 
-                  <div class="col-span-4 grid grid-cols-8 form-standard-grid">
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                  <div class="col-span-4 accounting-period-row form-standard-grid">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Start Month</mat-label>
                       <mat-select formControlName="startMonth" required>
                         @for (month of yearEndMonthOptions; track month.value) {
@@ -150,21 +150,21 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Start Year</mat-label>
-                      <input matInput formControlName="startYear" type="number" min="1900" max="2100" required>
+                      <input matInput formControlName="startYear" type="text" class="no-spinner" inputmode="numeric" maxlength="4" required>
                       @if (form.get('startYear')?.hasError('required') && form.get('startYear')?.touched) {
                         <mat-error>Required.</mat-error>
                       }
-                      @if (form.get('startYear')?.hasError('min') && form.get('startYear')?.touched) {
-                        <mat-error>Must be 1900 or later.</mat-error>
+                      @if ((form.get('startYear')?.hasError('accountingYearMin') || form.get('startYear')?.hasError('accountingYearFormat')) && form.get('startYear')?.touched) {
+                        <mat-error>Must be after 2020.</mat-error>
                       }
-                      @if (form.get('startYear')?.hasError('max') && form.get('startYear')?.touched) {
-                        <mat-error>Must be 2100 or earlier.</mat-error>
+                      @if (form.get('startYear')?.hasError('accountingYearMax') && form.get('startYear')?.touched) {
+                        <mat-error>Must be {{ accountingYearMax }} or earlier.</mat-error>
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Year End Month</mat-label>
                       <mat-select formControlName="yearEndMonth" required>
                         @for (month of yearEndMonthOptions; track month.value) {
@@ -176,7 +176,7 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Year End Day</mat-label>
                       <mat-select formControlName="yearEndDay" required>
                         @for (day of yearEndDayOptions; track day.value) {
@@ -188,9 +188,9 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Soft Closed Month</mat-label>
-                      <mat-select formControlName="softClosedMonth" required>
+                      <mat-select formControlName="softClosedMonth" required (selectionChange)="onClosedPeriodMonthChange('soft')">
                         @for (month of yearEndMonthOptions; track month.value) {
                           <mat-option [value]="month.value">{{ month.label }}</mat-option>
                         }
@@ -200,23 +200,23 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Soft Closed Year</mat-label>
-                      <input matInput formControlName="softClosedYear" type="number" min="1900" max="2100" required>
+                      <input matInput formControlName="softClosedYear" type="text" class="no-spinner" inputmode="numeric" maxlength="4" required (blur)="onClosedPeriodYearBlur('soft')">
                       @if (form.get('softClosedYear')?.hasError('required') && form.get('softClosedYear')?.touched) {
                         <mat-error>Required.</mat-error>
                       }
-                      @if (form.get('softClosedYear')?.hasError('min') && form.get('softClosedYear')?.touched) {
-                        <mat-error>Must be 1900 or later.</mat-error>
+                      @if ((form.get('softClosedYear')?.hasError('accountingYearMin') || form.get('softClosedYear')?.hasError('accountingYearFormat')) && form.get('softClosedYear')?.touched) {
+                        <mat-error>Must be after 2020.</mat-error>
                       }
-                      @if (form.get('softClosedYear')?.hasError('max') && form.get('softClosedYear')?.touched) {
-                        <mat-error>Must be 2100 or earlier.</mat-error>
+                      @if (form.get('softClosedYear')?.hasError('accountingYearMax') && form.get('softClosedYear')?.touched) {
+                        <mat-error>Must be {{ accountingYearMax }} or earlier.</mat-error>
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Hard Closed Month</mat-label>
-                      <mat-select formControlName="hardClosedMonth" required>
+                      <mat-select formControlName="hardClosedMonth" required (selectionChange)="onClosedPeriodMonthChange('hard')">
                         @for (month of yearEndMonthOptions; track month.value) {
                           <mat-option [value]="month.value">{{ month.label }}</mat-option>
                         }
@@ -226,17 +226,17 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Hard Closed Year</mat-label>
-                      <input matInput formControlName="hardClosedYear" type="number" min="1900" max="2100" required>
+                      <input matInput formControlName="hardClosedYear" type="text" class="no-spinner" inputmode="numeric" maxlength="4" required (blur)="onClosedPeriodYearBlur('hard')">
                       @if (form.get('hardClosedYear')?.hasError('required') && form.get('hardClosedYear')?.touched) {
                         <mat-error>Required.</mat-error>
                       }
-                      @if (form.get('hardClosedYear')?.hasError('min') && form.get('hardClosedYear')?.touched) {
-                        <mat-error>Must be 1900 or later.</mat-error>
+                      @if ((form.get('hardClosedYear')?.hasError('accountingYearMin') || form.get('hardClosedYear')?.hasError('accountingYearFormat')) && form.get('hardClosedYear')?.touched) {
+                        <mat-error>Must be after 2020.</mat-error>
                       }
-                      @if (form.get('hardClosedYear')?.hasError('max') && form.get('hardClosedYear')?.touched) {
-                        <mat-error>Must be 2100 or earlier.</mat-error>
+                      @if (form.get('hardClosedYear')?.hasError('accountingYearMax') && form.get('hardClosedYear')?.touched) {
+                        <mat-error>Must be {{ accountingYearMax }} or earlier.</mat-error>
                       }
                     </mat-form-field>
                   </div>

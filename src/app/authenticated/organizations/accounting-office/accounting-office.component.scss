@@ -1,3 +1,26 @@
+input.no-spinner[type='number']::-webkit-outer-spin-button,
+input.no-spinner[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.accounting-period-row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr)) auto;
+  gap: 0.5rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.accounting-period-field {
+  width: 100%;
+  min-width: 0;
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;

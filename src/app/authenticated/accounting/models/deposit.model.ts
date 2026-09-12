@@ -92,6 +92,7 @@ export interface DepositDisplayList {
   notes?: string;
   isSplitAmountValid?: boolean;
   descriptionDisplay?: string;
+  postingStatusId?: number | null;
   isActive: boolean;
   period?: string;
   createdBy?: string;

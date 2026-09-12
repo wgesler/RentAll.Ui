@@ -16,7 +16,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ColumnSet, postingStatusColumn } from '../../shared/data-table/models/column-data';
 import { UserGroups } from '../../users/models/user-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
@@ -114,6 +114,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
     workOrderDate: { displayAs: 'Work Order Date', wrap: false, maxWidth: '25ch', alignment: 'center' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
+    postingStatusId: postingStatusColumn,
     enteredInQb: { displayAs: 'QB', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };

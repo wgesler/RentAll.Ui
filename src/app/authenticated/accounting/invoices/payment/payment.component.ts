@@ -359,6 +359,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return invoice?.postingStatusId;
     });
     this.confirmPaymentUpdateIfAllowed(this.payment?.postingStatusId, relatedPostingStatusIds).pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedPaymentUpdateBlocked(
+        [this.payment?.postingStatusId, ...relatedPostingStatusIds],
+        canProceed,
+        () => this.restoreDocumentAfterClosedSaveFailure()
+      );
       if (!canProceed) {
         return;
       }
@@ -453,6 +458,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return bill?.postingStatusId;
     });
     this.confirmPaymentUpdateIfAllowed(this.payment?.postingStatusId, relatedBillPostingStatusIds).pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedPaymentUpdateBlocked(
+        [this.payment?.postingStatusId, ...relatedBillPostingStatusIds],
+        canProceed,
+        () => this.restoreDocumentAfterClosedSaveFailure()
+      );
       if (!canProceed) {
         return;
       }
@@ -529,6 +539,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.journalEntryService.confirmUpdateIfAllowed(this.payment?.postingStatusId, 'Payment').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.payment?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         return;
       }
@@ -1633,14 +1644,30 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     );
   }
 
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.isAddMode && this.paymentId) {
+      this.loadPayment(true);
+      return;
+    }
+
+    if (this.payment) {
+      this.populateForm(this.payment);
+      this.cdr.markForCheck();
+    }
+  }
+
   private showPaymentSaveError(err: HttpErrorResponse): void {
+    const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
+    if (closedDocumentMessage) {
+      this.toastr.error(closedDocumentMessage, 'Error');
+      return;
+    }
+
     this.toastr.error(
       this.utilityService.extractApiErrorMessage(err) || 'Unable to save payment.',
       'Error'
     );
-    if (!this.isAddMode && this.paymentId) {
-      this.loadPayment(true);
-    }
+    this.restoreDocumentAfterClosedSaveFailure();
   }
 
   getPaymentOfficeId(): number | null {

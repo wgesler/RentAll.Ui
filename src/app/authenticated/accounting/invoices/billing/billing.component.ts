@@ -169,6 +169,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
 
     this.journalEntryService.confirmUpdateIfAllowed(this.invoice?.postingStatusId, 'Invoice').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.invoice?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.isSubmitting = false;
         return;
@@ -330,9 +331,9 @@ export class BillingComponent implements OnInit, OnDestroy {
         this.navigateBack(formValue);
       },
       error: (err: HttpErrorResponse) => {
-        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-        if (closedPeriodMessage) {
-          this.toastr.error(closedPeriodMessage, CommonMessage.Error);
+        const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
+        if (closedDocumentMessage) {
+          this.toastr.error(closedDocumentMessage, CommonMessage.Error);
           return;
         }
         const apiMessage = this.utilityService.extractApiErrorMessage(err);
@@ -525,6 +526,17 @@ export class BillingComponent implements OnInit, OnDestroy {
       
       this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
     }
+  }
+
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.invoice) {
+      return;
+    }
+
+    this.populateForm();
+    this.loadLedgerLines(false);
+    this.updateTotalAmount();
+    this.cdr.markForCheck();
   }
   //#endregion
 

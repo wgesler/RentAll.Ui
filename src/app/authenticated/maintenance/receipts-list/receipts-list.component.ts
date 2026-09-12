@@ -28,7 +28,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ColumnSet, postingStatusColumn } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, buildBillSplitLineDescription, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
@@ -141,6 +141,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
+    postingStatusId: postingStatusColumn,
     isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
@@ -159,6 +160,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
+    postingStatusId: postingStatusColumn,
     isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
@@ -187,6 +189,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
+    postingStatusId: postingStatusColumn,
     isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };

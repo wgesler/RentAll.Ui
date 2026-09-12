@@ -238,9 +238,9 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
           }
         },
         error: (err: HttpErrorResponse) => {
-          const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-          if (closedPeriodMessage) {
-            this.toastr.error(closedPeriodMessage, 'Error');
+          const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
+          if (closedDocumentMessage) {
+            this.toastr.error(closedDocumentMessage, 'Error');
             return;
           }
           this.toastr.error('Unable to save transfer.', 'Error');
@@ -254,6 +254,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     }
 
     this.journalEntryService.confirmUpdateIfAllowed(this.transfer?.postingStatusId, 'Transfer').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.transfer?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         return;
       }
@@ -292,6 +293,15 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     });
     this.replaceSplitLines(transfer.splits || []);
     this.splitTotalValidationError = false;
+  }
+
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.transfer) {
+      return;
+    }
+
+    this.populateForm(this.transfer);
+    this.cdr.markForCheck();
   }
 
   resetForm(): void {
@@ -534,7 +544,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.utilityService.isSplitTotalGreaterThanDocumentAmount(
+    return this.utilityService.isSplitTotalOutOfBalanceWithDocumentAmount(
       this.getDisplayedSplitTotal(),
       this.getTransferAmountValue()
     );

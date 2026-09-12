@@ -13,7 +13,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
-import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { ColumnSet, postingStatusColumn } from '../../../shared/data-table/models/column-data';
 import { PaymentBillAllocation, PaymentDisplayList, PaymentOwnerAllocation, PaymentResponse, PaymentSearchRequest, PaymentSelection, PaymentLedgerLine } from '../../models/payment.model';
 import { PaymentKind } from '../../models/accounting-enum';
 import { buildBillSplitLineDescription, ReceiptResponse } from '../../../maintenance/models/receipt.model';
@@ -93,6 +93,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     hasDeposit: { displayAs: 'Deposit', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    postingStatusId: postingStatusColumn,
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
@@ -105,6 +106,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    postingStatusId: postingStatusColumn,
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '18ch' }
   };
 
@@ -125,6 +127,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '24ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
     allocatedAmountDisplay: { displayAs: 'Allocated', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    postingStatusId: postingStatusColumn,
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '18ch' }
   };
 

@@ -543,9 +543,9 @@ onWorkOrderIdChanged(): void {
       },
       error: (err: HttpErrorResponse) => {
         this.pendingSaveAndNew = false;
-        const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-        if (closedPeriodMessage) {
-          this.toastr.error(closedPeriodMessage, 'Error');
+        const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
+        if (closedDocumentMessage) {
+          this.toastr.error(closedDocumentMessage, 'Error');
           return;
         }
         const detail = this.utilityService.extractApiErrorMessage(err);
@@ -563,6 +563,7 @@ onWorkOrderIdChanged(): void {
     }
 
     this.journalEntryService.confirmUpdateIfAllowed(this.workOrder?.postingStatusId, 'Work Order').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.workOrder?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.pendingSaveAndNew = false;
         return;
@@ -727,6 +728,15 @@ onWorkOrderIdChanged(): void {
     this.captureInitialWorkOrderItemsSnapshot();
     this.syncUseDepartureFeeFromItems();
     this.ensureEditableWorkOrderItems();
+  }
+
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.workOrder) {
+      return;
+    }
+
+    this.populateForm(this.workOrder);
+    this.cdr.markForCheck();
   }
 
   resetForm(): void {

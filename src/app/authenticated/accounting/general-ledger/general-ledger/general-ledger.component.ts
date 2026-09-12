@@ -683,6 +683,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.journalEntryService.confirmUpdateIfAllowed(this.journalEntry.postingStatusId, 'Journal Entry').pipe(
       take(1),
       switchMap(canProceed => {
+        this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.journalEntry?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
         if (!canProceed) {
           return EMPTY;
         }
@@ -1495,6 +1496,19 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.updateFormEditability();
   }
 
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.journalEntry) {
+      return;
+    }
+
+    this.syncFormFromJournalEntry();
+    this.populateEditableLinesFromJournalEntry(this.journalEntry);
+    this.applyLineDisplay();
+    this.linesBalanceValidationError = false;
+    this.saveValidationHighlightActive = false;
+    this.markViewForCheck();
+  }
+
   applyLineDisplay(): void {
     if (!this.journalEntry) {
       this.lineRows = [];
@@ -1509,9 +1523,9 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   showSaveError(error: HttpErrorResponse | Error): void {
-    const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
-    if (closedPeriodMessage) {
-      this.toastr.error(closedPeriodMessage, 'Error');
+    const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(error, () => this.restoreDocumentAfterClosedSaveFailure());
+    if (closedDocumentMessage) {
+      this.toastr.error(closedDocumentMessage, 'Error');
       return;
     }
 

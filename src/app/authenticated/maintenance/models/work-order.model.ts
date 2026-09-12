@@ -65,6 +65,7 @@ export interface WorkOrderDisplayList {
   workOrderDate: string;
   enteredInQb: boolean;
   businessPrivate?: boolean;
+  postingStatusId?: number | null;
   isActive: boolean;
   createdBy: string;
 }

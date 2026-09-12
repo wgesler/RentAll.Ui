@@ -23,7 +23,7 @@ import { ReservationService } from '../../../reservations/services/reservation.s
 import { PropertyService } from '../../../properties/services/property.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
-import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { ColumnSet, postingStatusColumn } from '../../../shared/data-table/models/column-data';
 import { UserGroups } from '../../../users/models/user-enums';
 import { PaymentType, TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
@@ -204,6 +204,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
     created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
+    postingStatusId: postingStatusColumn,
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },

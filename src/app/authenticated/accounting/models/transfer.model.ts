@@ -91,6 +91,7 @@ export interface TransferDisplayList {
   isSplitAmountValid?: boolean;
   descriptionDisplay?: string;
   hasBeenTransfered?: boolean;
+  postingStatusId?: number | null;
   isActive: boolean;
   period?: string;
   createdBy?: string;

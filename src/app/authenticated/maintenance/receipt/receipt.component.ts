@@ -415,9 +415,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         },
         error: (err: HttpErrorResponse) => {
           this.pendingSaveAndNew = false;
-          const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-          if (closedPeriodMessage) {
-            this.toastr.error(closedPeriodMessage, 'Error');
+          const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
+          if (closedDocumentMessage) {
+            this.toastr.error(closedDocumentMessage, 'Error');
             return;
           }
           const apiMessage = typeof err.error === 'string'
@@ -434,6 +434,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.journalEntryService.confirmUpdateIfAllowed(this.receipt.postingStatusId, 'Receipt').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.receipt?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.pendingSaveAndNew = false;
         return;
@@ -691,6 +692,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.receiptPdfThumbnailUrl = null;
       this.receiptFileName = this.extractFileName(receipt.receiptPath || '');
     }
+  }
+
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.receipt) {
+      return;
+    }
+
+    this.populateForm(this.receipt);
+    this.cdr.markForCheck();
   }
 
   resetForm(): void {
@@ -1743,7 +1753,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.isSplitTotalGreaterThanReceipt(this.getDisplayedSplitTotal(), this.getReceiptAmountValue());
+    return this.utilityService.isSplitTotalOutOfBalanceWithDocumentAmount(
+      this.getDisplayedSplitTotal(),
+      this.getReceiptAmountValue()
+    );
   }
 
   createSplitFormGroup(split?: Partial<Split>): FormGroup {

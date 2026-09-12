@@ -174,3 +174,26 @@ export interface AssignCheckNumbersResponse {
   assignments: CheckPrintAssignment[];
   nextCheckNumber: number;
 }
+
+export interface ResyncAccountingOfficePostingStatusRequest {
+  organizationId: string;
+  softClosedMonth: number;
+  softClosedYear: number;
+  hardClosedMonth: number;
+  hardClosedYear: number;
+  startMonth: number;
+  startYear: number;
+}
+
+export interface ReopenHardClosedPostingStatusRequest {
+  organizationId: string;
+  hardClosedMonth: number;
+  hardClosedYear: number;
+}
+
+export interface ResyncAccountingOfficeClosedPeriodResult {
+  successCount: number;
+  failedCount: number;
+  closedDateId?: number | null;
+  errors: string[];
+}

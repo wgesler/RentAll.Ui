@@ -2,9 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { ToastrService } from 'ngx-toastr';
 import { finalize, take } from 'rxjs';
-import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 
@@ -31,7 +29,6 @@ export class PasswordCheckDialogComponent {
   private dialogRef = inject<MatDialogRef<PasswordCheckDialogComponent, PasswordCheckDialogResult | undefined>>(MatDialogRef);
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
-  private toastr = inject(ToastrService);
 
   isSubmitting = false;
 
@@ -70,14 +67,14 @@ export class PasswordCheckDialogComponent {
     ).subscribe({
       next: isConfirmed => {
         if (!isConfirmed) {
-          this.toastr.error('Password confirmation failed.', CommonMessage.Error);
+          this.dialogRef.close();
           return;
         }
 
         this.dialogRef.close({ password });
       },
       error: () => {
-        this.toastr.error('Password confirmation failed.', CommonMessage.Error);
+        this.dialogRef.close();
       }
     });
   }

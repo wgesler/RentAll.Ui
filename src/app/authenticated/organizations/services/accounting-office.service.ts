@@ -1,8 +1,8 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { AccountingOfficeRequest, AccountingOfficeResponse, AccountingOfficeCheckNumberUpdateRequest, AccountingOfficeCheckNumberUpdateResponse, AccountingOfficeCheckStockUpdateRequest, AccountingOfficeCheckStockUpdateResponse, AccountingOfficeWorkOrderNoUpdateRequest, AccountingOfficeWorkOrderNoUpdateResponse } from '../models/accounting-office.model';
+import { AccountingOfficeRequest, AccountingOfficeResponse, AccountingOfficeCheckNumberUpdateRequest, AccountingOfficeCheckNumberUpdateResponse, AccountingOfficeCheckStockUpdateRequest, AccountingOfficeCheckStockUpdateResponse, AccountingOfficeWorkOrderNoUpdateRequest, AccountingOfficeWorkOrderNoUpdateResponse, ResyncAccountingOfficePostingStatusRequest, ReopenHardClosedPostingStatusRequest, ResyncAccountingOfficeClosedPeriodResult } from '../models/accounting-office.model';
 
 @Injectable({
   providedIn: 'root'
@@ -103,6 +103,27 @@ export class AccountingOfficeService {
 
   deleteAccountingOffice(officeId: number): Observable<void> {
     return this.http.delete<void>(this.controller + officeId);
+  }
+
+  resyncPostingStatus(officeId: number, request: ResyncAccountingOfficePostingStatusRequest): Observable<ResyncAccountingOfficeClosedPeriodResult> {
+    return this.http.post<ResyncAccountingOfficeClosedPeriodResult>(`${this.controller}${officeId}/resync-posting-status`, request).pipe(
+      map(result => this.mapResyncClosedPeriodResult(result))
+    );
+  }
+
+  reopenHardClosedPostingStatus(officeId: number, request: ReopenHardClosedPostingStatusRequest): Observable<ResyncAccountingOfficeClosedPeriodResult> {
+    return this.http.post<ResyncAccountingOfficeClosedPeriodResult>(`${this.controller}${officeId}/reopen-hard-closed-posting-status`, request).pipe(
+      map(result => this.mapResyncClosedPeriodResult(result))
+    );
+  }
+
+  private mapResyncClosedPeriodResult(result: ResyncAccountingOfficeClosedPeriodResult | Record<string, unknown>): ResyncAccountingOfficeClosedPeriodResult {
+    return {
+      successCount: Number(result['successCount'] ?? result['SuccessCount'] ?? 0),
+      failedCount: Number(result['failedCount'] ?? result['FailedCount'] ?? 0),
+      closedDateId: (result['closedDateId'] ?? result['ClosedDateId'] ?? null) as number | null | undefined,
+      errors: (result['errors'] ?? result['Errors'] ?? []) as string[]
+    };
   }
 
   getAccountingStartDate(office: AccountingOfficeResponse): Date {

@@ -251,9 +251,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
           }
         },
         error: (err: HttpErrorResponse) => {
-          const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(err);
-          if (closedPeriodMessage) {
-            this.toastr.error(closedPeriodMessage, 'Error');
+          const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
+          if (closedDocumentMessage) {
+            this.toastr.error(closedDocumentMessage, 'Error');
             return;
           }
           this.toastr.error('Unable to save deposit.', 'Error');
@@ -267,6 +267,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
 
     this.journalEntryService.confirmUpdateIfAllowed(this.deposit?.postingStatusId, 'Deposit').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.deposit?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         return;
       }
@@ -305,6 +306,15 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
     this.replaceSplitLines(deposit.splits || []);
     this.splitTotalValidationError = false;
+  }
+
+  restoreDocumentAfterClosedSaveFailure(): void {
+    if (!this.deposit) {
+      return;
+    }
+
+    this.populateForm(this.deposit);
+    this.cdr.markForCheck();
   }
 
   resetForm(): void {
@@ -583,7 +593,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.utilityService.isSplitTotalGreaterThanDocumentAmount(
+    return this.utilityService.isSplitTotalOutOfBalanceWithDocumentAmount(
       this.getDisplayedSplitTotal(),
       this.getDepositAmountValue()
     );

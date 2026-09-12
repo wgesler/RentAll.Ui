@@ -26,6 +26,17 @@ export interface ColumnData {
     dropdownSearchPlaceholder?: string;
 }
 
+export const postingStatusColumn: ColumnData = {
+    displayAs: 'Post',
+    maxWidth: '7ch',
+    sort: true,
+    isPostingStatus: true,
+    suppressRowClick: true,
+    wrap: false,
+    alignment: 'center',
+    headerAlignment: 'center'
+};
+
 export const defaultColumnData: ColumnData = {
     wrap: true,
     sort: true,

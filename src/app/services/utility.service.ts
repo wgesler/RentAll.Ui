@@ -480,6 +480,10 @@ export class UtilityService {
   isSplitTotalGreaterThanDocumentAmount(splitTotal: unknown, documentAmount: unknown): boolean {
     return this.roundCurrency(splitTotal) - this.roundCurrency(documentAmount) > this.currencyTolerance;
   }
+
+  isSplitTotalOutOfBalanceWithDocumentAmount(splitTotal: unknown, documentAmount: unknown): boolean {
+    return !this.areCurrencyAmountsEqual(splitTotal, documentAmount);
+  }
   //#endregion
 
   isAccountingPeriodClosedConflict(error: unknown): boolean {
@@ -508,6 +512,43 @@ export class UtilityService {
     }
 
     return 'The accounting period has been closed.';
+  }
+
+  isHardClosedDocumentConflict(error: unknown): boolean {
+    const message = this.extractApiErrorMessage(error).toLowerCase();
+    return message.includes('hard closed') || message.includes('hard-closed');
+  }
+
+  isSoftClosedDocumentConflict(error: unknown): boolean {
+    const message = this.extractApiErrorMessage(error).toLowerCase();
+    return message.includes('soft closed') || message.includes('soft-closed');
+  }
+
+  getClosedDocumentSaveFailureMessage(error: unknown): string | null {
+    const closedPeriodMessage = this.getAccountingPeriodClosedErrorMessage(error);
+    if (closedPeriodMessage) {
+      return closedPeriodMessage;
+    }
+
+    if (this.isHardClosedDocumentConflict(error)) {
+      return this.extractApiErrorMessage(error) || 'This document is hard closed and cannot be changed.';
+    }
+
+    if (this.isSoftClosedDocumentConflict(error)) {
+      return this.extractApiErrorMessage(error) || 'This document is soft closed and cannot be changed.';
+    }
+
+    return null;
+  }
+
+  handleClosedDocumentSaveFailure(error: unknown, revert: () => void): string | null {
+    const closedDocumentMessage = this.getClosedDocumentSaveFailureMessage(error);
+    if (closedDocumentMessage) {
+      revert();
+      return closedDocumentMessage;
+    }
+
+    return null;
   }
 
   extractApiErrorMessage(error: unknown): string {

@@ -5,7 +5,7 @@ import { MatSelect } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -15,7 +15,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
-import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
+import { AccountingOfficeRequest, AccountingOfficeResponse, ReopenHardClosedPostingStatusRequest, ResyncAccountingOfficePostingStatusRequest } from '../models/accounting-office.model';
 import { OrganizationType } from '../models/organization-enum';
 import { OrganizationService } from '../services/organization.service';
 import { BankCardRequest, BankCardResponse } from '../models/bank.model';
@@ -35,7 +35,16 @@ import { CheckHtmlService } from '../../accounting/services/check-html.service';
 import { CheckHtmlResponse } from '../../accounting/models/check-html.model';
 import { CheckLayoutEditorDialogComponent, CheckLayoutEditorDialogData } from './check-layout-editor-dialog/check-layout-editor-dialog.component';
 import { PasswordCheckDialogService } from '../../shared/modals/password-check-dialog/password-check-dialog.service';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { UserGroups } from '../../users/models/user-enums';
+
+type ClosedPeriodSnapshot = {
+  existingMonth: number;
+  existingYear: number;
+  nextMonth: number;
+  nextYear: number;
+};
 
 @Component({
     standalone: true,
@@ -90,6 +99,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   isSavingCheckPrinting: boolean = false;
   officeCheckHtml: CheckHtmlResponse | null = null;
   isSubmitting: boolean = false;
+  private suppressClosedPeriodRevert = false;
+  private closedPeriodAdvanceAcknowledged = { soft: false, hard: false };
+  private closedPeriodReversalAcknowledged = { soft: false, hard: false };
+  private closedPeriodValidationPending = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
@@ -102,6 +115,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     const day = index + 1;
     return { value: day, label: String(day).padStart(2, '0') };
   });
+  readonly accountingYearMax = new Date().getFullYear();
 
   // Bank card state
   bankCards: BankCardResponse[] = [];
@@ -318,85 +332,28 @@ parseOfficeId(id: string | number | null): number | null {
     }
 
     this.isSubmitting = true;
-    const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
-    const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
-    const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
 
-    const officeIdNum = formValue.officeId ? Number(formValue.officeId) : undefined;
-    
-    if (this.isAddMode && (!officeIdNum || officeIdNum === 0)) {
-      this.toastr.error('Please select a valid office', CommonMessage.Error);
-      this.isSubmitting = false;
-      return;
-    }
-    
-    const officeRequest: AccountingOfficeRequest = {
-      organizationId: organizationId,
-      officeId: this.isAddMode ? officeIdNum! : 0, // Will be set correctly in update mode below
-      name: formValue.name,
-      address1: (formValue.address1 || '').trim(),
-      address2: formValue.address2?.trim() || undefined,
-      suite: formValue.suite?.trim() || undefined,
-      city: (formValue.city || '').trim(),
-      state: (formValue.state || '').trim(),
-      zip: (formValue.zip || '').trim(),
-      phone: phoneDigits,
-      fax: faxDigits,
-      email: formValue.email || '',
-      website: formValue.website || '',
-      bankName: formValue.bankName || '',
-      bankRouting: formValue.bankRouting || '',
-      bankAccount: formValue.bankAccount || '',
-      bankSwiftCode: formValue.bankSwiftCode || '',
-      bankAddress: formValue.bankAddress || '',
-      bankPhone: bankPhoneDigits,
-      startMonth: Number(formValue.startMonth),
-      startYear: Number(formValue.startYear),
-      yearEndMonth: Number(formValue.yearEndMonth),
-      yearEndDay: Number(formValue.yearEndDay),
-      softClosedMonth: Number(formValue.softClosedMonth),
-      softClosedYear: Number(formValue.softClosedYear),
-      hardClosedMonth: Number(formValue.hardClosedMonth),
-      hardClosedYear: Number(formValue.hardClosedYear),
-      workOrderNo: Number(formValue.workOrderNo) || 0,
-      currentCheckNumber: Number(formValue.currentCheckNumber) || 1,
-      defaultTenantIncAccountId: this.parseOptionalAccountId(formValue.defaultTenantIncAccountId),
-      defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
-      defaultOwnerIncAccountId: this.parseOptionalAccountId(formValue.defaultOwnerIncAccountId),
-      defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
-      defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue.defaultCompanyExpAccountId),
-      defaultPmUtilityIncAccountId: this.parseOptionalAccountId(formValue.defaultPmUtilityIncAccountId),
-      defaultLaborIncAccountId: this.parseOptionalAccountId(formValue.defaultLaborIncAccountId),
-      defaultLinenTowelIncAccountId: this.parseOptionalAccountId(formValue.defaultLinenTowelIncAccountId),
-      defaultDepartureIncAccountId: this.parseOptionalAccountId(formValue.defaultDepartureIncAccountId),
-      defaultDepartureExpAccountId: this.parseOptionalAccountId(formValue.defaultDepartureExpAccountId),
-      defaultBankAccountId: this.parseOptionalAccountId(formValue.defaultBankAccountId),
-      defaultActRcvableAccountId: this.parseOptionalAccountId(formValue.defaultActRcvableAccountId),
-      defaultActPayableAccountId: this.parseOptionalAccountId(formValue.defaultActPayableAccountId),
-      defaultUndepFundsAccountId: this.parseOptionalAccountId(formValue.defaultUndepFundsAccountId),
-      defaultEscrowDepositAccountId: this.parseOptionalAccountId(formValue.defaultEscrowDepositAccountId),
-      defaultEscrowOwnersAccountId: this.parseOptionalAccountId(formValue.defaultEscrowOwnersAccountId),
-      defaultEscrowSecDepAccountId: this.parseOptionalAccountId(formValue.defaultEscrowSecDepAccountId),
-      defaultEscrowSdwAccountId: this.parseOptionalAccountId(formValue.defaultEscrowSdwAccountId),
-      defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
-      defaultPrePayAccountId: this.parseOptionalAccountId(formValue.defaultPrePayAccountId),
-      defaultRetainedEarningsAccountId: this.parseOptionalAccountId(formValue.defaultRetainedEarningsAccountId),
-      defaultInterOfficeAccountId: this.parseOptionalAccountId(formValue.defaultInterOfficeAccountId),
-      fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
-      logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
-      isActive: formValue.isActive
-    };
+    let officeRequest: AccountingOfficeRequest | null = null;
+    if (this.isAddMode) {
+      const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
+      const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
+      const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
+      const officeIdNum = formValue.officeId ? Number(formValue.officeId) : undefined;
 
-    if (!this.isAddMode) {
-      const idToUse = this.id;
-      const resolvedOfficeId = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
-      if (isNaN(resolvedOfficeId)) {
+      if (!officeIdNum || officeIdNum === 0) {
+        this.toastr.error('Please select a valid office', CommonMessage.Error);
+        this.isSubmitting = false;
+        return;
+      }
+
+      officeRequest = this.buildAccountingOfficeRequestFromForm(formValue, organizationId, officeIdNum);
+    } else {
+      officeRequest = this.buildAccountingOfficeUpdateRequest();
+      if (!officeRequest) {
         this.toastr.error('Invalid office ID', CommonMessage.Error);
         this.isSubmitting = false;
         return;
       }
-      officeRequest.officeId = resolvedOfficeId;
-      officeRequest.organizationId = this.accountingOffice?.organizationId || organizationId;
     }
 
     this.validateClosedPeriodChanges(formValue).pipe(
@@ -406,17 +363,33 @@ parseOfficeId(id: string | number | null): number | null {
           return EMPTY;
         }
 
-        const saveOffice$ = this.isAddMode
-          ? this.accountingOfficeService.createAccountingOffice(officeRequest)
-          : this.accountingOfficeService.updateAccountingOffice(officeRequest);
-        return saveOffice$;
+        if (this.isAddMode) {
+          return this.accountingOfficeService.createAccountingOffice(officeRequest);
+        }
+
+        return this.accountingOfficeService.getAccountingOfficeById(officeRequest.officeId).pipe(
+          tap(fresh => {
+            this.accountingOffice = fresh;
+            if (fresh.logoPath && !this.hasNewFileUpload) {
+              this.logoPath = fresh.logoPath;
+            }
+            this.applyAccountingOfficeCheckStock(fresh);
+          }),
+          switchMap(() => this.updateAccountingOfficeFromForm())
+        );
       }),
       take(1),
       finalize(() => { this.isSubmitting = false; })
     ).subscribe({
-      next: () => {
+      next: (response) => {
+        if (!this.isAddMode && response) {
+          this.applySavedAccountingOfficeResponse(response);
+        }
+        this.resetClosedPeriodChangeAcknowledgments();
         this.toastr.success(this.isAddMode ? 'Office created successfully' : 'Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        this.accountingOfficeService.notifyAccountingOfficesChanged();
+        if (this.isAddMode) {
+          this.accountingOfficeService.notifyAccountingOfficesChanged();
+        }
         this.savedEvent.emit();
         this.backEvent.emit();
       },
@@ -520,13 +493,13 @@ parseOfficeId(id: string | number | null): number | null {
       bankAddress: new FormControl('', [Validators.required]),
       bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       startMonth: new FormControl<number>(1, [Validators.required, Validators.min(1), Validators.max(12)]),
-      startYear: new FormControl<number>(2026, [Validators.required, Validators.min(1900), Validators.max(2100)]),
+      startYear: new FormControl<number>(this.accountingYearMax, this.accountingYearValidators()),
       yearEndMonth: new FormControl<number>(12, [Validators.required]),
       yearEndDay: new FormControl<number>(31, [Validators.required]),
       softClosedMonth: new FormControl<number>(12, [Validators.required, Validators.min(1), Validators.max(12)]),
-      softClosedYear: new FormControl<number>(2020, [Validators.required, Validators.min(1900), Validators.max(2100)]),
+      softClosedYear: new FormControl<number>(this.accountingYearMax, this.accountingYearValidators()),
       hardClosedMonth: new FormControl<number>(12, [Validators.required, Validators.min(1), Validators.max(12)]),
-      hardClosedYear: new FormControl<number>(2020, [Validators.required, Validators.min(1900), Validators.max(2100)]),
+      hardClosedYear: new FormControl<number>(this.accountingYearMax, this.accountingYearValidators()),
       workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
       currentCheckNumber: new FormControl(1, [Validators.required, Validators.min(1)]),
       defaultTenantIncAccountId: new FormControl<number | null>(null),
@@ -1771,6 +1744,282 @@ clearCheckStockLocal(): void {
     }
   }
 
+  private buildAccountingOfficeUpdateRequest(): AccountingOfficeRequest | null {
+    if (this.isAddMode || !this.form || !this.accountingOffice) {
+      return null;
+    }
+
+    const organizationId = this.resolveOrganizationId();
+    const officeId = this.resolveOfficeIdForResync();
+    if (!organizationId || !officeId) {
+      return null;
+    }
+
+    return this.buildAccountingOfficeRequestFromForm(
+      this.form.value,
+      this.accountingOffice.organizationId || organizationId,
+      officeId
+    );
+  }
+
+  private buildAccountingOfficeRequestFromForm(
+    formValue: Record<string, unknown>,
+    organizationId: string,
+    officeId: number
+  ): AccountingOfficeRequest {
+    const phoneDigits = this.formatterService.stripPhoneFormatting(String(formValue['phone'] ?? ''));
+    const faxDigits = formValue['fax'] ? this.formatterService.stripPhoneFormatting(String(formValue['fax'])) : '';
+    const bankPhoneDigits = formValue['bankPhone'] ? this.formatterService.stripPhoneFormatting(String(formValue['bankPhone'])) : '';
+
+    return {
+      organizationId,
+      officeId,
+      name: String(formValue['name'] ?? ''),
+      address1: String(formValue['address1'] ?? '').trim(),
+      address2: String(formValue['address2'] ?? '').trim() || undefined,
+      suite: String(formValue['suite'] ?? '').trim() || undefined,
+      city: String(formValue['city'] ?? '').trim(),
+      state: String(formValue['state'] ?? '').trim(),
+      zip: String(formValue['zip'] ?? '').trim(),
+      phone: phoneDigits,
+      fax: faxDigits,
+      email: String(formValue['email'] ?? ''),
+      website: String(formValue['website'] ?? ''),
+      bankName: String(formValue['bankName'] ?? ''),
+      bankRouting: String(formValue['bankRouting'] ?? ''),
+      bankAccount: String(formValue['bankAccount'] ?? ''),
+      bankSwiftCode: String(formValue['bankSwiftCode'] ?? ''),
+      bankAddress: String(formValue['bankAddress'] ?? ''),
+      bankPhone: bankPhoneDigits,
+      startMonth: Number(formValue['startMonth']),
+      startYear: Number(formValue['startYear']),
+      yearEndMonth: Number(formValue['yearEndMonth']),
+      yearEndDay: Number(formValue['yearEndDay']),
+      softClosedMonth: Number(formValue['softClosedMonth']),
+      softClosedYear: Number(formValue['softClosedYear']),
+      hardClosedMonth: Number(formValue['hardClosedMonth']),
+      hardClosedYear: Number(formValue['hardClosedYear']),
+      workOrderNo: Number(formValue['workOrderNo']) || 0,
+      currentCheckNumber: Number(formValue['currentCheckNumber']) || 1,
+      defaultTenantIncAccountId: this.parseOptionalAccountId(formValue['defaultTenantIncAccountId']),
+      defaultTenantExpAccountId: this.parseOptionalAccountId(formValue['defaultTenantExpAccountId']),
+      defaultOwnerIncAccountId: this.parseOptionalAccountId(formValue['defaultOwnerIncAccountId']),
+      defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue['defaultOwnerExpAccountId']),
+      defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue['defaultCompanyExpAccountId']),
+      defaultPmUtilityIncAccountId: this.parseOptionalAccountId(formValue['defaultPmUtilityIncAccountId']),
+      defaultLaborIncAccountId: this.parseOptionalAccountId(formValue['defaultLaborIncAccountId']),
+      defaultLinenTowelIncAccountId: this.parseOptionalAccountId(formValue['defaultLinenTowelIncAccountId']),
+      defaultDepartureIncAccountId: this.parseOptionalAccountId(formValue['defaultDepartureIncAccountId']),
+      defaultDepartureExpAccountId: this.parseOptionalAccountId(formValue['defaultDepartureExpAccountId']),
+      defaultBankAccountId: this.parseOptionalAccountId(formValue['defaultBankAccountId']),
+      defaultActRcvableAccountId: this.parseOptionalAccountId(formValue['defaultActRcvableAccountId']),
+      defaultActPayableAccountId: this.parseOptionalAccountId(formValue['defaultActPayableAccountId']),
+      defaultUndepFundsAccountId: this.parseOptionalAccountId(formValue['defaultUndepFundsAccountId']),
+      defaultEscrowDepositAccountId: this.parseOptionalAccountId(formValue['defaultEscrowDepositAccountId']),
+      defaultEscrowOwnersAccountId: this.parseOptionalAccountId(formValue['defaultEscrowOwnersAccountId']),
+      defaultEscrowSecDepAccountId: this.parseOptionalAccountId(formValue['defaultEscrowSecDepAccountId']),
+      defaultEscrowSdwAccountId: this.parseOptionalAccountId(formValue['defaultEscrowSdwAccountId']),
+      defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue['defaultOwnActPayableAccountId']),
+      defaultPrePayAccountId: this.parseOptionalAccountId(formValue['defaultPrePayAccountId']),
+      defaultRetainedEarningsAccountId: this.parseOptionalAccountId(formValue['defaultRetainedEarningsAccountId']),
+      defaultInterOfficeAccountId: this.parseOptionalAccountId(formValue['defaultInterOfficeAccountId']),
+      fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
+      logoPath: this.hasNewFileUpload ? undefined : (this.logoPath ?? this.accountingOffice?.logoPath),
+      isActive: !!formValue['isActive']
+    };
+  }
+
+  private updateAccountingOfficeFromForm(): Observable<AccountingOfficeResponse> {
+    const officeRequest = this.buildAccountingOfficeUpdateRequest();
+    if (!officeRequest) {
+      return throwError(() => new Error('Unable to build accounting office update request.'));
+    }
+
+    return this.accountingOfficeService.updateAccountingOffice(officeRequest);
+  }
+
+  private applySavedAccountingOfficeResponse(response: AccountingOfficeResponse): void {
+    this.accountingOffice = response;
+    if (response.logoPath && !this.hasNewFileUpload) {
+      this.logoPath = response.logoPath;
+    }
+    this.applyAccountingOfficeCheckStock(response);
+    this.accountingOfficeService.notifyAccountingOfficesChanged();
+    this.cdr.markForCheck();
+  }
+
+  private saveAccountingOfficeAfterClosedPeriodChange(): Observable<boolean> {
+    if (!this.form?.valid) {
+      this.toastr.error('Unable to save accounting office until all required fields are valid.', CommonMessage.Error);
+      return of(false);
+    }
+
+    const officeId = this.resolveOfficeIdForResync();
+    if (!officeId) {
+      this.toastr.error('Unable to save accounting office.', CommonMessage.Error);
+      return of(false);
+    }
+
+    return this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(
+      tap(fresh => {
+        this.accountingOffice = fresh;
+        if (fresh.logoPath && !this.hasNewFileUpload) {
+          this.logoPath = fresh.logoPath;
+        }
+        this.applyAccountingOfficeCheckStock(fresh);
+      }),
+      switchMap(() => this.updateAccountingOfficeFromForm()),
+      tap(response => this.applySavedAccountingOfficeResponse(response)),
+      map(() => true),
+      catchError(() => {
+        this.toastr.error(`Unable to save accounting office. ${CommonMessage.TryAgain}`, CommonMessage.ServiceError);
+        return of(false);
+      })
+    );
+  }
+
+  private persistAfterClosedPeriodSync(
+    sync$: Observable<{ successCount: number; failedCount: number; errors: string[] } | null>
+  ): Observable<boolean> {
+    return sync$.pipe(
+      switchMap(result => {
+        if (result == null) {
+          return of(false);
+        }
+
+        return this.saveAccountingOfficeAfterClosedPeriodChange();
+      })
+    );
+  }
+
+  private runResyncPostingStatus(): Observable<{ successCount: number; failedCount: number; errors: string[] } | null> {
+    const officeId = this.resolveOfficeIdForResync();
+    const request = this.buildResyncPostingStatusRequest();
+    if (!officeId || !request) {
+      this.toastr.error('Unable to resync posting status for this office.', CommonMessage.Error);
+      return of(null);
+    }
+
+    return this.accountingOfficeService.resyncPostingStatus(officeId, request).pipe(
+      tap(result => {
+        if (result) {
+          this.handlePostingStatusResyncResult(result);
+        }
+      }),
+      catchError(() => {
+        this.toastr.error(`Unable to resync posting status. ${CommonMessage.TryAgain}`, CommonMessage.ServiceError);
+        return of(null);
+      })
+    );
+  }
+
+  private runReopenHardClosedPostingStatus(): Observable<{ successCount: number; failedCount: number; errors: string[] } | null> {
+    if (!this.isSuperAdmin) {
+      this.toastr.error('Only SuperAdmin can reopen hard closed posting status.', CommonMessage.Error);
+      return of(null);
+    }
+
+    const officeId = this.resolveOfficeIdForResync();
+    const request = this.buildReopenHardClosedPostingStatusRequest();
+    if (!officeId || !request) {
+      this.toastr.error('Unable to reopen hard closed posting status for this office.', CommonMessage.Error);
+      return of(null);
+    }
+
+    return this.accountingOfficeService.reopenHardClosedPostingStatus(officeId, request).pipe(
+      tap(result => {
+        if (result) {
+          this.handleHardClosedReopenResult(result);
+        }
+      })
+    );
+  }
+
+  private handlePostingStatusResyncResult(result: { successCount: number; failedCount: number; errors: string[] }): void {
+    if ((result.failedCount ?? 0) > 0) {
+      const firstError = (result.errors ?? []).find(message => (message || '').trim().length > 0);
+      this.toastr.warning(
+        `Posting status resync finished with ${result.failedCount} failure(s) and ${result.successCount ?? 0} success(es).${firstError ? ` ${firstError}` : ''}`,
+        CommonMessage.Error,
+        { timeOut: CommonTimeouts.Error }
+      );
+      return;
+    }
+
+    this.toastr.success(`Posting status resync completed (${result.successCount ?? 0} updates).`, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+  }
+
+  private resolveOfficeIdForResync(): number | null {
+    const idToUse = this.id ?? this.accountingOffice?.officeId;
+    const resolvedOfficeId = typeof idToUse === 'number' ? idToUse : parseInt(String(idToUse ?? ''), 10);
+    return Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0 ? resolvedOfficeId : null;
+  }
+
+  private buildResyncPostingStatusRequest(): ResyncAccountingOfficePostingStatusRequest | null {
+    const formValue = this.form.getRawValue();
+    const organizationId = (this.accountingOffice?.organizationId || this.organizationId || '').trim();
+    if (!organizationId) {
+      return null;
+    }
+
+    const softClosedMonth = Number(formValue.softClosedMonth);
+    const softClosedYear = Number(formValue.softClosedYear);
+    const hardClosedMonth = Number(formValue.hardClosedMonth);
+    const hardClosedYear = Number(formValue.hardClosedYear);
+    const startMonth = Number(formValue.startMonth);
+    const startYear = Number(formValue.startYear);
+
+    if (!Number.isFinite(softClosedMonth) || !Number.isFinite(softClosedYear)
+      || !Number.isFinite(hardClosedMonth) || !Number.isFinite(hardClosedYear)
+      || !Number.isFinite(startMonth) || !Number.isFinite(startYear)) {
+      return null;
+    }
+
+    return {
+      organizationId,
+      softClosedMonth,
+      softClosedYear,
+      hardClosedMonth,
+      hardClosedYear,
+      startMonth,
+      startYear
+    };
+  }
+
+  private buildReopenHardClosedPostingStatusRequest(): ReopenHardClosedPostingStatusRequest | null {
+    const formValue = this.form.getRawValue();
+    const organizationId = (this.accountingOffice?.organizationId || this.organizationId || '').trim();
+    if (!organizationId) {
+      return null;
+    }
+
+    const hardClosedMonth = Number(formValue.hardClosedMonth);
+    const hardClosedYear = Number(formValue.hardClosedYear);
+    if (!Number.isFinite(hardClosedMonth) || !Number.isFinite(hardClosedYear)) {
+      return null;
+    }
+
+    return {
+      organizationId,
+      hardClosedMonth,
+      hardClosedYear
+    };
+  }
+
+  private handleHardClosedReopenResult(result: { successCount: number; failedCount: number; errors: string[] }): void {
+    if ((result.failedCount ?? 0) > 0) {
+      const firstError = (result.errors ?? []).find(message => (message || '').trim().length > 0);
+      this.toastr.warning(
+        `Hard closed reopen finished with ${result.failedCount} failure(s) and ${result.successCount ?? 0} success(es).${firstError ? ` ${firstError}` : ''}`,
+        CommonMessage.Error,
+        { timeOut: CommonTimeouts.Error }
+      );
+      return;
+    }
+
+    this.toastr.success(`Hard closed items reopened to soft closed (${result.successCount ?? 0} updates).`, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+  }
+
   validateClosedPeriodChanges(formValue: Record<string, unknown>): Observable<boolean> {
     if (this.isAddMode || !this.accountingOffice) {
       return of(true);
@@ -1780,18 +2029,348 @@ clearCheckStockLocal(): void {
     const softClosedYear = Number(formValue['softClosedYear']);
     const hardClosedMonth = Number(formValue['hardClosedMonth']);
     const hardClosedYear = Number(formValue['hardClosedYear']);
+    const softClosedChanged = this.isClosedPeriodChanged(this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear, softClosedMonth, softClosedYear);
+    const hardClosedChanged = this.isClosedPeriodChanged(this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear, hardClosedMonth, hardClosedYear);
     const softClosedDecreased = this.isClosedPeriodDecreased(this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear, softClosedMonth, softClosedYear);
     const hardClosedDecreased = this.isClosedPeriodDecreased(this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear, hardClosedMonth, hardClosedYear);
 
-    if (!softClosedDecreased && !hardClosedDecreased) {
+    if (!softClosedChanged && !hardClosedChanged) {
       return of(true);
     }
 
     if (hardClosedDecreased && !this.isSuperAdmin) {
-      this.toastr.error('Hard closed month and year cannot be moved backward.', CommonMessage.Error);
+      this.showClosedPeriodPermissionDenied('Hard closed month and year cannot be moved backward.');
+      this.revertClosedPeriodFields('hard', this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear);
       return of(false);
     }
 
+    return this.validateSoftClosedPeriodSaveChange(softClosedChanged).pipe(
+      switchMap(softAllowed => {
+        if (!softAllowed) {
+          this.revertAllChangedClosedPeriodFields(formValue);
+          return of(false);
+        }
+
+        if (!hardClosedChanged) {
+          return of(true);
+        }
+
+        return this.confirmClosedPeriodAdvanceWarnings(false, true, false, hardClosedDecreased).pipe(
+          switchMap(confirmed => {
+            if (!confirmed) {
+              this.revertAllChangedClosedPeriodFields(formValue);
+              return of(false);
+            }
+
+            if (!hardClosedDecreased) {
+              return of(true);
+            }
+
+            if (this.closedPeriodReversalAcknowledged.hard) {
+              return of(true);
+            }
+
+            return this.confirmClosedPeriodReversal(false, true).pipe(
+              switchMap(confirmedReversal => {
+                if (!confirmedReversal) {
+                  this.revertAllChangedClosedPeriodFields(formValue);
+                  return of(false);
+                }
+
+                this.closedPeriodReversalAcknowledged.hard = true;
+                return this.persistAfterClosedPeriodSync(this.runReopenHardClosedPostingStatus());
+              })
+            );
+          })
+        );
+      })
+    );
+  }
+
+  onClosedPeriodMonthChange(kind: 'soft' | 'hard'): void {
+    this.handleClosedPeriodFieldChange(kind);
+  }
+
+  onClosedPeriodYearBlur(kind: 'soft' | 'hard'): void {
+    this.form?.get(kind === 'soft' ? 'softClosedYear' : 'hardClosedYear')?.markAsTouched();
+    this.handleClosedPeriodFieldChange(kind);
+  }
+
+  private handleClosedPeriodFieldChange(kind: 'soft' | 'hard'): void {
+    if (this.isAddMode || !this.accountingOffice || !this.form || this.suppressClosedPeriodRevert || this.closedPeriodValidationPending) {
+      return;
+    }
+
+    const snapshot = this.getClosedPeriodSnapshot(kind);
+    const yearField = kind === 'soft' ? 'softClosedYear' : 'hardClosedYear';
+    const yearControl = this.form.get(yearField);
+
+    if (yearControl?.invalid) {
+      this.toastr.error(this.getAccountingYearValidationMessage(yearControl), CommonMessage.Error);
+      this.revertClosedPeriodFields(kind, snapshot.existingMonth, snapshot.existingYear);
+      return;
+    }
+
+    if (!this.isClosedPeriodChanged(snapshot.existingMonth, snapshot.existingYear, snapshot.nextMonth, snapshot.nextYear)) {
+      return;
+    }
+
+    this.closedPeriodValidationPending = true;
+    this.validateClosedPeriodFieldChange(kind, snapshot).pipe(
+      take(1),
+      finalize(() => {
+        this.closedPeriodValidationPending = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe(allowed => {
+      if (!allowed) {
+        this.revertClosedPeriodFields(kind, snapshot.existingMonth, snapshot.existingYear);
+        return;
+      }
+
+      if (this.accountingOffice) {
+        if (kind === 'soft') {
+          this.accountingOffice.softClosedMonth = snapshot.nextMonth;
+          this.accountingOffice.softClosedYear = snapshot.nextYear;
+        } else {
+          this.accountingOffice.hardClosedMonth = snapshot.nextMonth;
+          this.accountingOffice.hardClosedYear = snapshot.nextYear;
+        }
+      }
+    });
+  }
+
+  private validateClosedPeriodFieldChange(kind: 'soft' | 'hard', snapshot: ClosedPeriodSnapshot): Observable<boolean> {
+    if (kind === 'soft') {
+      return this.validateSoftClosedPeriodChange(snapshot);
+    }
+
+    const decreased = this.isClosedPeriodDecreased(snapshot.existingMonth, snapshot.existingYear, snapshot.nextMonth, snapshot.nextYear);
+
+    if (decreased) {
+      if (!this.isSuperAdmin) {
+        this.showClosedPeriodPermissionDenied('Hard closed month and year cannot be moved backward.');
+        return of(false);
+      }
+
+      if (this.closedPeriodReversalAcknowledged.hard) {
+        return of(true);
+      }
+
+      return this.confirmClosedPeriodReversal(false, true).pipe(
+        switchMap(confirmed => {
+          if (!confirmed) {
+            return of(false);
+          }
+
+          this.closedPeriodReversalAcknowledged.hard = true;
+          return this.persistAfterClosedPeriodSync(this.runReopenHardClosedPostingStatus());
+        })
+      );
+    }
+
+    if (this.closedPeriodAdvanceAcknowledged.hard) {
+      return of(true);
+    }
+
+    return this.promptClosedPeriodAdvanceWarning('hard').pipe(
+      map(confirmed => {
+        if (confirmed) {
+          this.closedPeriodAdvanceAcknowledged.hard = true;
+        }
+
+        return confirmed;
+      })
+    );
+  }
+
+  private validateSoftClosedPeriodSaveChange(softClosedChanged: boolean): Observable<boolean> {
+    if (!softClosedChanged || this.closedPeriodReversalAcknowledged.soft) {
+      return of(true);
+    }
+
+    return this.confirmSoftClosedPeriodChange().pipe(
+      switchMap(confirmed => {
+        if (!confirmed) {
+          return of(false);
+        }
+
+        this.markSoftClosedPeriodChangeAcknowledged();
+        return this.persistAfterClosedPeriodSync(this.runResyncPostingStatus());
+      })
+    );
+  }
+
+  private validateSoftClosedPeriodChange(snapshot: ClosedPeriodSnapshot): Observable<boolean> {
+    return this.confirmSoftClosedPeriodChange(snapshot).pipe(
+      switchMap(confirmed => {
+        if (!confirmed) {
+          return of(false);
+        }
+
+        this.markSoftClosedPeriodChangeAcknowledged();
+        return this.persistAfterClosedPeriodSync(this.runResyncPostingStatus());
+      })
+    );
+  }
+
+  private markSoftClosedPeriodChangeAcknowledged(): void {
+    this.closedPeriodReversalAcknowledged.soft = true;
+    this.closedPeriodAdvanceAcknowledged.soft = true;
+  }
+
+  private confirmSoftClosedPeriodChange(snapshot?: ClosedPeriodSnapshot): Observable<boolean> {
+    const decreased = snapshot
+      ? this.isClosedPeriodDecreased(snapshot.existingMonth, snapshot.existingYear, snapshot.nextMonth, snapshot.nextYear)
+      : false;
+
+    return this.passwordCheckDialogService.confirm({
+      title: 'Change Soft Closed Period',
+      message: decreased
+        ? 'You are attempting to reverse a previously soft closed accounting period for this office. Are you sure you wish to proceed?'
+        : 'You are attempting to change the soft closed accounting period for this office. Do you wish to proceed?',
+      hint: 'Enter your password to continue. Posting status will be resynced immediately.'
+    }).pipe(map(password => !!password));
+  }
+
+  private getClosedPeriodSnapshot(kind: 'soft' | 'hard'): ClosedPeriodSnapshot {
+    const formValue = this.form.getRawValue();
+    return {
+      existingMonth: Number(kind === 'soft' ? this.accountingOffice!.softClosedMonth : this.accountingOffice!.hardClosedMonth),
+      existingYear: Number(kind === 'soft' ? this.accountingOffice!.softClosedYear : this.accountingOffice!.hardClosedYear),
+      nextMonth: Number(kind === 'soft' ? formValue.softClosedMonth : formValue.hardClosedMonth),
+      nextYear: Number(kind === 'soft' ? formValue.softClosedYear : formValue.hardClosedYear)
+    };
+  }
+
+  private revertAllChangedClosedPeriodFields(formValue: Record<string, unknown>): void {
+    if (!this.accountingOffice) {
+      return;
+    }
+
+    const softClosedMonth = Number(formValue['softClosedMonth']);
+    const softClosedYear = Number(formValue['softClosedYear']);
+    const hardClosedMonth = Number(formValue['hardClosedMonth']);
+    const hardClosedYear = Number(formValue['hardClosedYear']);
+
+    if (this.isClosedPeriodChanged(this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear, softClosedMonth, softClosedYear)) {
+      this.revertClosedPeriodFields('soft', this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear);
+    }
+
+    if (this.isClosedPeriodChanged(this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear, hardClosedMonth, hardClosedYear)) {
+      this.revertClosedPeriodFields('hard', this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear);
+    }
+  }
+
+  private resetClosedPeriodChangeAcknowledgments(): void {
+    this.closedPeriodAdvanceAcknowledged = { soft: false, hard: false };
+    this.closedPeriodReversalAcknowledged = { soft: false, hard: false };
+  }
+
+  private getAccountingYearValidationMessage(control: AbstractControl): string {
+    if (control.hasError('required')) {
+      return 'Year is required.';
+    }
+
+    if (control.hasError('accountingYearMin') || control.hasError('accountingYearFormat')) {
+      return 'Year must be after 2020.';
+    }
+
+    if (control.hasError('accountingYearMax')) {
+      return `Year must be ${this.accountingYearMax} or earlier.`;
+    }
+
+    return 'Enter a valid year.';
+  }
+
+  private showClosedPeriodPermissionDenied(message: string): void {
+    const dialogData: GenericModalData = {
+      title: 'Closed Period Change Not Allowed',
+      message,
+      icon: 'warning',
+      iconColor: 'warn',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' });
+  }
+
+  private revertClosedPeriodFields(kind: 'soft' | 'hard', month: number, year: number): void {
+    if (!this.form) {
+      return;
+    }
+
+    this.suppressClosedPeriodRevert = true;
+    if (kind === 'soft') {
+      this.form.patchValue({ softClosedMonth: month, softClosedYear: year }, { emitEvent: false });
+    } else {
+      this.form.patchValue({ hardClosedMonth: month, hardClosedYear: year }, { emitEvent: false });
+    }
+    this.suppressClosedPeriodRevert = false;
+    this.closedPeriodAdvanceAcknowledged[kind] = false;
+    this.closedPeriodReversalAcknowledged[kind] = false;
+    this.cdr.markForCheck();
+  }
+
+  private promptClosedPeriodAdvanceWarning(kind: 'soft' | 'hard'): Observable<boolean> {
+    const message = kind === 'soft'
+      ? 'This will prevent editing documents prior to this month by anyone other than Admin or an Accountant.'
+      : 'This will prevent documents from any future edits.';
+
+    const dialogData: GenericModalData = {
+      title: 'Closed Period Warning',
+      message,
+      icon: 'warning',
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Continue',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    return this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' }).afterClosed().pipe(
+      map(result => result === true)
+    );
+  }
+
+  private confirmClosedPeriodAdvanceWarnings(softClosedChanged: boolean, hardClosedChanged: boolean, softClosedDecreased: boolean, hardClosedDecreased: boolean): Observable<boolean> {
+    const warnings: string[] = [];
+
+    if (softClosedChanged && !softClosedDecreased && !this.closedPeriodAdvanceAcknowledged.soft) {
+      warnings.push('This will prevent editing documents prior to this month by anyone other than Admin or an Accountant.');
+    }
+
+    if (hardClosedChanged && !hardClosedDecreased && !this.closedPeriodAdvanceAcknowledged.hard) {
+      warnings.push('This will prevent documents from any future edits.');
+    }
+
+    if (warnings.length === 0) {
+      return of(true);
+    }
+
+    const dialogData: GenericModalData = {
+      title: 'Closed Period Warning',
+      message: warnings.join('\n\n'),
+      icon: 'warning',
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Continue',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    return this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' }).afterClosed().pipe(
+      map(result => result === true)
+    );
+  }
+
+  private confirmClosedPeriodReversal(softClosedDecreased: boolean, hardClosedDecreased: boolean): Observable<boolean> {
     const reversedLabels: string[] = [];
     if (softClosedDecreased) {
       reversedLabels.push('soft closed period');
@@ -1803,7 +2382,9 @@ clearCheckStockLocal(): void {
     return this.passwordCheckDialogService.confirm({
       title: 'Reverse Closed Period',
       message: `You are reversing an already closed accounting ${reversedLabels.length === 1 ? 'period' : 'periods'} (${reversedLabels.join(' and ')}).`,
-      hint: 'Enter your password to reverse closed transactions for this office.'
+      hint: hardClosedDecreased
+        ? 'Enter your password to continue. Hard closed items will be reopened to soft closed immediately.'
+        : 'Enter your password to reverse closed transactions for this office.'
     }).pipe(map(password => !!password));
   }
 
@@ -1811,8 +2392,40 @@ clearCheckStockLocal(): void {
     return year * 12 + month;
   }
 
+  isClosedPeriodChanged(existingMonth: number, existingYear: number, nextMonth: number, nextYear: number): boolean {
+    return this.getClosedPeriodOrdinal(nextMonth, nextYear) !== this.getClosedPeriodOrdinal(existingMonth, existingYear);
+  }
+
   isClosedPeriodDecreased(existingMonth: number, existingYear: number, nextMonth: number, nextYear: number): boolean {
     return this.getClosedPeriodOrdinal(nextMonth, nextYear) < this.getClosedPeriodOrdinal(existingMonth, existingYear);
+  }
+
+  private accountingYearValidators(): ValidatorFn[] {
+    return [Validators.required, this.accountingYearRangeValidator()];
+  }
+
+  private accountingYearRangeValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const raw = String(control.value ?? '').trim();
+      if (!raw) {
+        return null;
+      }
+
+      if (!/^\d{4}$/.test(raw)) {
+        return { accountingYearFormat: true };
+      }
+
+      const year = Number(raw);
+      if (year <= 2020) {
+        return { accountingYearMin: true };
+      }
+
+      if (year > this.accountingYearMax) {
+        return { accountingYearMax: true };
+      }
+
+      return null;
+    };
   }
 
   yearEndDayWithinMonthValidator(): ValidatorFn {

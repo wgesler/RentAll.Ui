@@ -1,14 +1,16 @@
 import { Injectable, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { Observable, map, of } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
 import { UserGroupInput, getUserGroupNumbers } from '../../shared/access/role-access';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { PasswordCheckDialogService } from '../../shared/modals/password-check-dialog/password-check-dialog.service';
 import { UserGroups } from '../../users/models/user-enums';
 import {
   PostingStatus,
-  getPostingStatusLabel,
   isJournalEntryHardClosed,
   isJournalEntryPosted,
   isJournalEntrySoftClosed,
@@ -38,12 +40,22 @@ const SOFT_CLOSED_JOURNAL_ENTRY_EDIT_ROLES: UserGroups[] = [
   UserGroups.OfficeAdmin
 ];
 
+const CLOSED_DOCUMENT_NOT_PERMITTED_MESSAGE =
+  'This document has been closed by accounting. Please see your administrative or accounting staff to change.';
+
+const SOFT_CLOSED_OVERRIDE_MESSAGE =
+  'This document has been closed by accounting. Please enter your password to override.';
+
+const HARD_CLOSED_DOCUMENT_MESSAGE =
+  'This document has been hard closed by accounting. No changes are possible at this time.';
+
 @Injectable({
   providedIn: 'root'
 })
 export class JournalEntryService {
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private passwordCheckDialogService = inject(PasswordCheckDialogService);
 
   canUpdateJournalEntry(
@@ -138,45 +150,49 @@ export class JournalEntryService {
     documentLabel: JournalEntrySourceDocumentLabel,
     postingStatusId: number | null | undefined
   ): string {
-    return this.getMutationBlockedMessage(documentLabel, postingStatusId, 'edit');
+    return this.getMutationBlockedMessage(postingStatusId);
   }
 
   getDeleteBlockedMessage(
     documentLabel: JournalEntrySourceDocumentLabel,
     postingStatusId: number | null | undefined
   ): string {
-    return this.getMutationBlockedMessage(documentLabel, postingStatusId, 'delete');
+    return this.getMutationBlockedMessage(postingStatusId);
   }
 
-  private getMutationBlockedMessage(
-    documentLabel: JournalEntrySourceDocumentLabel,
-    postingStatusId: number | null | undefined,
-    action: 'edit' | 'delete'
-  ): string {
-    const documentName = documentLabel.toLowerCase();
-
-    if (isJournalEntryPosted(postingStatusId)) {
-      if (action === 'delete') {
-        return `This ${documentName} has been posted and can only be deleted by an Administrator.`;
-      }
-
-      return `This ${documentName} has already been posted and can only be edited by an Accountant or an Administrator.`;
-    }
-
-    if (isJournalEntrySoftClosed(postingStatusId)) {
-      if (action === 'delete') {
-        return `This ${documentName} has been soft-closed and can only be deleted by an Administrator.`;
-      }
-
-      return `This ${documentName} has been soft-closed and can only be edited by an Administrator.`;
-    }
-
+  private getMutationBlockedMessage(postingStatusId: number | null | undefined): string {
     if (isJournalEntryHardClosed(postingStatusId)) {
-      return `This ${documentName} has been hard-closed and may not be ${action === 'delete' ? 'deleted' : 'edited'}.`;
+      return HARD_CLOSED_DOCUMENT_MESSAGE;
     }
 
-    const statusLabel = getPostingStatusLabel(postingStatusId) || 'Posted';
-    return `This ${documentName} has been ${statusLabel.toLowerCase()} and we are unable to ${action} this ${documentName}.`;
+    return CLOSED_DOCUMENT_NOT_PERMITTED_MESSAGE;
+  }
+
+  revertFormIfClosedDocumentUpdateBlocked(
+    postingStatusId: number | null | undefined,
+    canProceed: boolean,
+    revert: () => void
+  ): void {
+    const status = Number(postingStatusId ?? PostingStatus.Open);
+    if (!canProceed && status !== PostingStatus.Open) {
+      revert();
+    }
+  }
+
+  revertFormIfHardClosedUpdateBlocked(
+    postingStatusId: number | null | undefined,
+    canProceed: boolean,
+    revert: () => void
+  ): void {
+    this.revertFormIfClosedDocumentUpdateBlocked(postingStatusId, canProceed, revert);
+  }
+
+  revertFormIfHardClosedPaymentUpdateBlocked(
+    postingStatusIds: Array<number | null | undefined>,
+    canProceed: boolean,
+    revert: () => void
+  ): void {
+    this.revertFormIfClosedDocumentUpdateBlocked(this.strictestPostingStatus(postingStatusIds), canProceed, revert);
   }
 
   guardCanUpdateJournalEntry(
@@ -197,10 +213,7 @@ export class JournalEntryService {
   ): Observable<boolean> {
     return this.confirmMutationIfAllowed(
       postingStatusId,
-      documentLabel,
-      'save changes to',
-      postingStatus => this.canUpdateJournalEntry(postingStatus),
-      (label, status) => this.getUpdateBlockedMessage(label, status)
+      postingStatus => this.canUpdateJournalEntry(postingStatus)
     );
   }
 
@@ -210,10 +223,7 @@ export class JournalEntryService {
   ): Observable<boolean> {
     return this.confirmMutationIfAllowed(
       postingStatusId,
-      documentLabel,
-      'delete',
-      postingStatus => this.canDeleteApplicationObject(postingStatus),
-      (label, status) => this.getDeleteBlockedMessage(label, status)
+      postingStatus => this.canDeleteApplicationObject(postingStatus)
     );
   }
 
@@ -224,34 +234,54 @@ export class JournalEntryService {
     const postingStatusId = this.strictestPostingStatus(postingStatusIds);
     return this.confirmMutationIfAllowed(
       postingStatusId,
-      documentLabel,
-      'apply payment to',
-      status => this.canUpdateJournalEntry(status),
-      (label, status) => this.getUpdateBlockedMessage(label, status)
+      status => this.canUpdateJournalEntry(status)
     );
   }
 
   private confirmMutationIfAllowed(
     postingStatusId: number | null | undefined,
-    documentLabel: JournalEntrySourceDocumentLabel,
-    actionHint: string,
-    canProceed: (postingStatusId: number | null | undefined) => boolean,
-    blockedMessage: (documentLabel: JournalEntrySourceDocumentLabel, postingStatusId: number | null | undefined) => string
+    canProceed: (postingStatusId: number | null | undefined) => boolean
   ): Observable<boolean> {
-    if (!canProceed(postingStatusId)) {
-      this.toastr.error(blockedMessage(documentLabel, postingStatusId), CommonMessage.Error);
-      return of(false);
-    }
+    const status = Number(postingStatusId ?? PostingStatus.Open);
 
-    if (postingStatusId == null || postingStatusId === PostingStatus.Open) {
+    if (status === PostingStatus.Open) {
       return of(true);
     }
 
-    const statusLabel = getPostingStatusLabel(postingStatusId) || 'Posted';
-    return this.passwordCheckDialogService.confirm({
-      message: `This ${documentLabel} has been ${statusLabel}.`,
-      hint: `Enter your password to ${actionHint} this ${documentLabel.toLowerCase()}.`
-    }).pipe(map(password => !!password));
+    if (isJournalEntryHardClosed(status)) {
+      return this.showClosedDocumentAlert(HARD_CLOSED_DOCUMENT_MESSAGE);
+    }
+
+    if (!canProceed(postingStatusId)) {
+      return this.showClosedDocumentAlert(CLOSED_DOCUMENT_NOT_PERMITTED_MESSAGE);
+    }
+
+    if (isJournalEntrySoftClosed(status)) {
+      return this.passwordCheckDialogService.confirm({
+        title: 'Closed Document',
+        message: SOFT_CLOSED_OVERRIDE_MESSAGE
+      }).pipe(map(password => !!password));
+    }
+
+    return of(true);
+  }
+
+  private showClosedDocumentAlert(message: string): Observable<boolean> {
+    const dialogData: GenericModalData = {
+      title: 'Document Closed',
+      message,
+      icon: 'warning',
+      iconColor: 'warn',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    return this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' }).afterClosed().pipe(
+      map(() => false)
+    );
   }
 
   hasAnyRole(userGroups: UserGroupInput, roles: UserGroups[]): boolean {

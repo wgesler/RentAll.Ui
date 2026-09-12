@@ -187,6 +187,7 @@ export interface ReceiptDisplayList {
   descriptionDisplay?: string;
   isUtility?: boolean;
   businessPrivate?: boolean;
+  postingStatusId?: number | null;
   isActive: boolean;
   payableDisabled?: boolean;
   receiptPath?: string | null;
