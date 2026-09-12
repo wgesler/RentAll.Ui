@@ -550,16 +550,51 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const params: string[] = ['returnTo=invoice-list'];
-    const officeIdToUse = event?.officeId ?? this.selectedOffice?.officeId ?? null;
+    const officeIdToUse = event?.officeId ?? this.selectedOffice?.officeId ?? this.officeId ?? null;
     const companyIdToUse = this.selectedCompanyContact?.contactId || null;
 
+    if (this.source === 'accounting' && event?.invoiceId) {
+      const returnParams = new URLSearchParams();
+      returnParams.set('tab', '0');
+      returnParams.set('invoiceKind', 'invoices');
+      if (officeIdToUse !== null) {
+        returnParams.set('officeId', String(officeIdToUse));
+      }
+      if (companyIdToUse) {
+        returnParams.set('companyId', companyIdToUse);
+      }
+      if (this.isSuperUser && this.organizationId) {
+        returnParams.set('organizationId', this.organizationId);
+      }
+      const listReturnPath = `/${RouterUrl.AccountingList}?${returnParams.toString()}`;
+
+      const params: string[] = [
+        'tab=invoices',
+        `invoiceId=${event.invoiceId}`,
+        'returnTo=invoice-list',
+        `listReturnPath=${encodeURIComponent(listReturnPath)}`
+      ];
+      if (officeIdToUse !== null) {
+        params.push(`officeId=${officeIdToUse}`);
+      }
+      params.push(`reservationId=${reservationId}`);
+      if (companyIdToUse) {
+        params.push(`companyId=${companyIdToUse}`);
+      }
+      if (this.isSuperUser && this.organizationId) {
+        params.push(`organizationId=${this.organizationId}`);
+      }
+      const sourceInvoice = this.allInvoices.find(invoice => invoice.invoiceId === event.invoiceId) ?? event;
+      const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
+      this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`, { state: { prefetchedInvoice: sourceInvoice } });
+      return;
+    }
+
+    const params: string[] = ['returnTo=invoice-list'];
     if (officeIdToUse !== null && officeIdToUse !== undefined) {
       params.push(`officeId=${officeIdToUse}`);
     }
-    if (reservationId) {
-      params.push(`reservationId=${reservationId}`);
-    }
+    params.push(`reservationId=${reservationId}`);
     if (companyIdToUse) {
       params.push(`companyId=${companyIdToUse}`);
     }

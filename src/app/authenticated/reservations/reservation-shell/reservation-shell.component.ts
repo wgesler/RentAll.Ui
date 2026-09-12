@@ -930,6 +930,11 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     }
 
     if (this.activeInvoiceId) {
+      if (this.route.snapshot.queryParamMap.get('returnTo') === 'invoice-list') {
+        this.navigateToAccountingInvoiceList();
+        return;
+      }
+
       this.closeEmbeddedInvoiceEditor();
       return;
     }
@@ -942,9 +947,39 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     this.navigateToReservationEntryOriginFallback();
   }
 
+  private navigateToAccountingInvoiceList(): void {
+    const qp = this.route.snapshot.queryParamMap;
+    const listReturnPath = qp.get('listReturnPath')?.trim();
+    if (listReturnPath) {
+      void this.router.navigateByUrl(listReturnPath.startsWith('/') ? listReturnPath : `/${listReturnPath}`);
+      return;
+    }
+
+    const params: string[] = ['tab=0', 'invoiceKind=invoices'];
+    const officeId = qp.get('officeId');
+    const companyId = qp.get('companyId');
+    const organizationId = qp.get('organizationId');
+    if (officeId) {
+      params.push(`officeId=${officeId}`);
+    }
+    if (companyId) {
+      params.push(`companyId=${companyId}`);
+    }
+    if (organizationId) {
+      params.push(`organizationId=${organizationId}`);
+    }
+
+    void this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
+  }
+
   private navigateToReservationEntryOriginFallback(): void {
     const qp = this.route.snapshot.queryParamMap;
     const returnTo = qp.get('returnTo');
+    if (returnTo === 'invoice-list') {
+      this.navigateToAccountingInvoiceList();
+      return;
+    }
+
     if (returnTo === 'security-deposits') {
       const path = qp.get('listReturnPath')?.trim();
       if (path) {
