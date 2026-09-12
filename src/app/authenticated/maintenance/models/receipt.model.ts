@@ -237,6 +237,8 @@ export interface ReceiptExtractResponse {
   vendorName?: string | null;
   billNumber?: string | null;
   bankCardId?: number | null;
+  officeId?: number | null;
+  cardPaymentDetected?: boolean | null;
   propertyIds?: string[] | null;
   detectedPropertyCodes?: string[] | null;
   split?: {
@@ -260,6 +262,7 @@ export interface ReceiptPrefill {
   description?: string | null;
   amount?: number | null;
   bankCardId?: number | null;
+  cardPaymentDetected?: boolean | null;
   vendorId?: string | null;
   vendorName?: string | null;
   agreementLineId?: number | null;

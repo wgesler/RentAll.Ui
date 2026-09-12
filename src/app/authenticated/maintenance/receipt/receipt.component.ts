@@ -2851,7 +2851,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.prefill = {
       key: extraction.key || `document-intelligence-${Date.now()}`,
-      officeId: this.getReceiptOfficeId(),
+      officeId: extraction.officeId && extraction.officeId > 0 ? extraction.officeId : this.getReceiptOfficeId(),
       propertyIds: (extraction.propertyIds || []).filter(propertyId => (propertyId || '').trim().length > 0),
       receiptDate: extraction.receiptDate ?? null,
       dueDate: extraction.dueDate ?? extraction.receiptDate ?? null,
@@ -2859,6 +2859,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       description: extraction.description ?? null,
       amount: extraction.amount ?? null,
       bankCardId: extraction.bankCardId ?? null,
+      cardPaymentDetected: extraction.cardPaymentDetected === true,
       vendorName: extraction.vendorName ?? null,
       billNumber: extraction.billNumber ?? null,
       split: extraction.split ?? null
@@ -2901,6 +2902,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const vendorId = (this.prefill.vendorId || '').trim() || null;
     const vendorName = (this.prefill.vendorName || '').trim() || null;
     const bankCardId = Number(this.prefill.bankCardId ?? 0);
+    const cardPaymentDetected = this.prefill.cardPaymentDetected === true;
 
     const prefillDueDate = this.getReceiptDateControlValue(this.prefill.dueDate || this.prefill.receiptDate || null);
     const prefillAccountingPeriod = this.getReceiptDateControlValue(this.prefill.accountingPeriod || this.prefill.receiptDate || null);
@@ -2912,7 +2914,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       amount: amount > 0 ? amount.toFixed(2) : '0.00',
       bankCardId: Number.isFinite(bankCardId) ? bankCardId : 0,
       vendorId,
-      vendorName: vendorId ? null : vendorName,
       billNumber: (this.prefill.billNumber || '').trim() || null,
       businessPrivate: this.prefill.businessPrivate === true
         || propertyIds.some(propertyId => isReceiptCompanyPropertyId(propertyId))
@@ -2932,6 +2933,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.onOverallBankCardChange();
+    if (vendorName && (!this.isOverallBillBankCard() || cardPaymentDetected)) {
+      this.form.patchValue({ vendorName: vendorId ? null : vendorName }, { emitEvent: false });
+    }
+    this.updateVendorFieldValidators();
     // Keep rent-roll prefilled dates authoritative for this initial load.
     this.form.patchValue({
       dueDate: prefillDueDate,
