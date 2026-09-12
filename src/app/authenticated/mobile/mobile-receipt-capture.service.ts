@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { take } from 'rxjs';
+import { BehaviorSubject, take } from 'rxjs';
 import { CommonMessage } from '../../enums/common-message.enum';
 import { AuthService } from '../../services/auth.service';
 import { ImageOptimizationFailedError, UtilityService } from '../../services/utility.service';
@@ -21,21 +21,26 @@ export class MobileReceiptCaptureService {
   private globalSelectionService = inject(GlobalSelectionService);
   private captureReceiptDraftService = inject(MobileCaptureReceiptDraftService);
   private toastr = inject(ToastrService);
-  private isProcessing = false;
+  private readonly captureInProgressSubject = new BehaviorSubject<boolean>(false);
+  readonly captureInProgress$ = this.captureInProgressSubject.asObservable();
 
   get isCaptureInProgress(): boolean {
-    return this.isProcessing;
+    return this.captureInProgressSubject.value;
+  }
+
+  private setCaptureInProgress(inProgress: boolean): void {
+    this.captureInProgressSubject.next(inProgress);
   }
 
   openCameraPicker(fileInput: HTMLInputElement): void {
-    if (this.isProcessing) {
+    if (this.isCaptureInProgress) {
       return;
     }
     fileInput.click();
   }
 
   openUploadPicker(fileInput: HTMLInputElement): void {
-    if (this.isProcessing) {
+    if (this.isCaptureInProgress) {
       return;
     }
     fileInput.click();
@@ -47,7 +52,7 @@ export class MobileReceiptCaptureService {
     if (inputElement) {
       inputElement.value = '';
     }
-    if (!file || this.isProcessing) {
+    if (!file || this.isCaptureInProgress) {
       return;
     }
 
@@ -62,7 +67,7 @@ export class MobileReceiptCaptureService {
       return;
     }
 
-    this.isProcessing = true;
+    this.setCaptureInProgress(true);
     try {
       const payload = await this.utilityService.buildOptimizedUploadPayload(file);
       let extraction: ReceiptExtractResponse | null = null;
@@ -89,7 +94,7 @@ export class MobileReceiptCaptureService {
         this.toastr.error(`Unable to prepare ${file.name}.`, CommonMessage.Error);
       }
     } finally {
-      this.isProcessing = false;
+      this.setCaptureInProgress(false);
     }
   }
 }

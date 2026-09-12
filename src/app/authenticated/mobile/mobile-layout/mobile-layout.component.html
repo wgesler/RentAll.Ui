@@ -2,3 +2,11 @@
   <app-header />
 }
 <app-mobile-sidebar />
+@if (receiptCaptureInProgress$ | async) {
+  <div class="mobile-receipt-capture-overlay" aria-live="polite" aria-busy="true" aria-label="Reading receipt">
+    <div class="mobile-receipt-capture-overlay-card">
+      <mat-spinner [diameter]="24"></mat-spinner>
+      <span class="mobile-receipt-capture-overlay-label">Reading receipt...</span>
+    </div>
+  </div>
+}

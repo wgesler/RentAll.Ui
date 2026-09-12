@@ -74,6 +74,9 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
       this.filterNavItems();
       this.markViewForCheck();
     });
+    this.mobileReceiptCaptureService.captureInProgress$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.markViewForCheck();
+    });
   }
 
   ngOnDestroy(): void {

@@ -66,3 +66,31 @@
 :host ::ng-deep .header-layout-debug-toggle {
   display: none !important;
 }
+
+.mobile-receipt-capture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.28);
+  pointer-events: all;
+}
+
+.mobile-receipt-capture-overlay-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+.mobile-receipt-capture-overlay-label {
+  color: #1c2c3f;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
