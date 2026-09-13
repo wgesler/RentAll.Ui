@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject } from '@
 import { MaterialModule } from '../../../material.module';
 import { DebugLayoutBandsService } from '../../../services/debug-layout-bands.service';
 import { HeaderComponent } from '../../shared/layout/header/header.component';
+import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-overlay/receipt-reading-overlay.component';
 import { MobileChromeOverlayService } from '../mobile-chrome-overlay.service';
 import { MobileReceiptCaptureService } from '../mobile-receipt-capture.service';
 import { MobileSidebarComponent } from '../mobile-sidebar/mobile-sidebar.component';
@@ -11,7 +12,7 @@ import { MobileViewportService } from '../mobile-viewport.service';
 @Component({
   standalone: true,
   selector: 'app-mobile-layout',
-  imports: [AsyncPipe, MaterialModule, HeaderComponent, MobileSidebarComponent],
+  imports: [AsyncPipe, MaterialModule, HeaderComponent, MobileSidebarComponent, ReceiptReadingOverlayComponent],
   templateUrl: './mobile-layout.component.html',
   styleUrl: './mobile-layout.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

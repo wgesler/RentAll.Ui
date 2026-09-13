@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
-import { Router } from '@angular/router';
-import { BehaviorSubject, Subject, finalize, skip, take, takeUntil } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { BehaviorSubject, Subject, finalize, map, of, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -8,9 +8,11 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactService } from '../../contacts/services/contact.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { MaintenanceService } from '../../maintenance/services/maintenance.service';
+import { ReceiptDraftService } from '../../maintenance/services/receipt-draft.service';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UserGroups } from '../../users/models/user-enums';
@@ -30,6 +32,7 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   @Input() sectionPath = '';
   @Input() tabPath = '';
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -38,8 +41,10 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   private contactService = inject(ContactService);
   private maintenanceService = inject(MaintenanceService);
   private receiptService = inject(ReceiptService);
+  private receiptDraftService = inject(ReceiptDraftService);
   private workOrderService = inject(WorkOrderService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private officeService = inject(OfficeService);
   private cdr = inject(ChangeDetectorRef);
   rows: MobileListRow[] = [];
   columns: ColumnSet = {};
@@ -47,6 +52,7 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   showFilter = false;
   selectedOfficeId: number | null = null;
   isSuperAdminUser = false;
+  showDrafts = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['list']));
   destroy$ = new Subject<void>();
 
@@ -67,6 +73,20 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
       }
       this.reloadList();
     });
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      const nextShowDrafts = this.isDraftQueryTrue(params.get('draft'));
+      if (nextShowDrafts !== this.showDrafts) {
+        this.showDrafts = nextShowDrafts;
+        if (this.tabPath === 'receipts') {
+          this.reloadList();
+        } else {
+          this.markViewForCheck();
+        }
+        return;
+      }
+      this.showDrafts = nextShowDrafts;
+    });
+    this.syncDraftModeFromQuery();
     this.loadList();
   }
 
@@ -173,7 +193,20 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   addReceipt(): void {
-    void this.router.navigate(['/mobile', 'maintenance', 'receipts', 'new']);
+    void this.router.navigate(
+      ['/mobile', 'maintenance', 'receipts', 'new'],
+      { queryParams: this.showDrafts ? { draft: 'true' } : undefined }
+    );
+  }
+
+  onShowDraftsToggle(checked: boolean): void {
+    if (checked === this.showDrafts) {
+      return;
+    }
+    void this.router.navigate(['/mobile', 'maintenance', 'receipts'], {
+      queryParams: checked ? { draft: 'true' } : { draft: null },
+      replaceUrl: true
+    });
   }
 
   addWorkOrder(): void {
@@ -185,6 +218,12 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
     if (this.sectionPath === 'maintenance' && this.tabPath === 'receipts') {
+      if (this.showDrafts) {
+        void this.router.navigate(['/mobile', this.sectionPath, this.tabPath, 'new'], {
+          queryParams: { receiptDraftId: row.id, draft: 'true' }
+        });
+        return;
+      }
       void this.router.navigate(['/mobile', this.sectionPath, this.tabPath, row.id]);
       return;
     }
@@ -276,6 +315,11 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   loadReceipts(): void {
+    if (this.showDrafts) {
+      this.loadReceiptDrafts();
+      return;
+    }
+
     this.receiptService.getReceipts().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list'))).subscribe({
       next: receipts => {
         this.rows = (receipts || []).filter(receipt => receipt.isActive !== false && this.mappingService.matchesMobileOfficeScope(receipt.officeId, this.selectedOfficeId)).map(receipt => this.mappingService.mapMobileReceiptListDisplay(receipt));
@@ -286,6 +330,57 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
         this.markViewForCheck();
       }
     });
+  }
+
+  loadReceiptDrafts(): void {
+    this.resolveReceiptDraftOfficeIds().pipe(take(1)).subscribe(officeIds => {
+      if (officeIds.length === 0) {
+        this.rows = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list');
+        this.markViewForCheck();
+        return;
+      }
+
+      this.receiptDraftService.searchReceiptDrafts({
+        officeIds,
+        includePromoted: false
+      }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list'))).subscribe({
+        next: drafts => {
+          this.rows = (drafts || [])
+            .filter(draft => draft.isActive !== false)
+            .map(draft => this.mappingService.mapMobileReceiptDraftListDisplay(draft));
+          this.markViewForCheck();
+        },
+        error: () => {
+          this.rows = [];
+          this.markViewForCheck();
+        }
+      });
+    });
+  }
+
+  private resolveReceiptDraftOfficeIds() {
+    if (this.selectedOfficeId && this.selectedOfficeId > 0) {
+      return of([this.selectedOfficeId]);
+    }
+
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      return of<number[]>([]);
+    }
+
+    return this.officeService.getOffices(organizationId).pipe(
+      map(offices => (offices || []).map(office => office.officeId).filter(id => id > 0))
+    );
+  }
+
+  private syncDraftModeFromQuery(): void {
+    this.showDrafts = this.isDraftQueryTrue(this.route.snapshot.queryParamMap.get('draft'));
+  }
+
+  private isDraftQueryTrue(value: string | null | undefined): boolean {
+    const normalized = (value || '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1';
   }
 
   loadWorkOrders(): void {

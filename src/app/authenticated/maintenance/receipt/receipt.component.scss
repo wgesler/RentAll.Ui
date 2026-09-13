@@ -47,6 +47,32 @@
   margin-top: 1.5rem;
 }
 
+.receipt-pdf-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 8rem;
+  height: 7rem;
+  border: 1px solid rgba(112, 112, 112, 0.27);
+  border-radius: 4px;
+  background: #f1f5f9;
+  overflow: hidden;
+
+  img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+}
+
+.receipt-pdf-preview__placeholder {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 2.5rem;
+  color: #94a3b8;
+}
+
 .receipt-inline-actions {
   display: flex;
   justify-content: flex-end;

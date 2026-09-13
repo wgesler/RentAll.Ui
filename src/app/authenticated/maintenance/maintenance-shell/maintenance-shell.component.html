@@ -189,7 +189,17 @@
           </mat-tab>
           <mat-tab label="Receipts">
             @if (selectedTabIndex === receiptsTabIndex) {
-            @if (showReceiptDetail) {
+            @if (showReceiptDraftDetail) {
+              @for (instance of [receiptDraftDetailInstance]; track instance) {
+                <app-receipt-draft
+                  [receiptDraftId]="selectedReceiptDraftId"
+                  [officeId]="selectedOfficeId"
+                  [property]="property"
+                  (backEvent)="onReceiptDraftBack()"
+                  (draftSavedEvent)="onReceiptDraftSaved($event)"
+                  (draftPromotedEvent)="onReceiptDraftPromoted($event)" />
+              }
+            } @else if (showReceiptDetail) {
               @for (instance of [receiptDetailInstance]; track instance) {
                 <app-receipt
                   [property]="property"
@@ -212,6 +222,7 @@
                 [shellContext]="'maintenance'"
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)"
+                (draftSelect)="onReceiptDraftSelect($event)"
                 (workOrderSelect)="onWorkOrderSelect($event)" />
             }
             }

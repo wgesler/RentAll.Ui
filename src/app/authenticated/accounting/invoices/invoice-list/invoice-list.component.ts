@@ -199,7 +199,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '20ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch', sortType: 'natural' },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '18ch', sortType: 'natural', wrap: false },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },

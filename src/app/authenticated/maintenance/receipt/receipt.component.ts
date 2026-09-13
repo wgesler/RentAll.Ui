@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
@@ -34,11 +34,12 @@ import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { MappingService } from '../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-overlay/receipt-reading-overlay.component';
 
 @Component({
   standalone: true,
   selector: 'app-receipt',
-  imports: [CommonModule, MaterialModule, ReactiveFormsModule, SearchableSelectComponent],
+  imports: [CommonModule, MaterialModule, ReactiveFormsModule, SearchableSelectComponent, ReceiptReadingOverlayComponent],
   templateUrl: './receipt.component.html',
   styleUrl: './receipt.component.scss'
 })
@@ -75,6 +76,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
   private router = inject(Router);
   private journalEntryService = inject(JournalEntryService);
 
@@ -95,6 +97,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   receiptFileName: string | null = null;
   receiptFileDetails: FileDetails | null = null;
   receiptPdfThumbnailUrl: string | null = null;
+  receiptPdfThumbnailLoading = false;
+  receiptPdfThumbnailRequestId = 0;
   hasNewReceiptUpload: boolean = false;
   isExtractingReceipt = false;
   originalReceiptPath: string | null = null;
@@ -105,6 +109,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   splitTotalValidationError = false;
   saveValidationHighlightActive = false;
   receiptFileValidationError = false;
+  headerPropertyExplicitlySelected = false;
+  splitPropertyExplicitlySelected = new Set<number>();
   isSyncingInitialSplit = false;
   receiptOfficeInitialized = false;
   propertyOptions: PropertyCodeResponse[] = [];
@@ -208,6 +214,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.loadChartOfAccounts();
       this.updateAccountingBillFieldValidators();
       this.updateSplitLineAccountValidators();
+      this.updateSplitLinePropertyValidators();
       this.cdr.markForCheck();
     }
 
@@ -245,16 +252,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   saveReceipt(): void {
-    this.updatePropertyRequirementByReceiptType();
-    this.updateVendorFieldValidators();
-    this.commitPendingAmountEdits();
-    this.syncInitialSplitWithOverallIfNeeded();
-    this.saveValidationHighlightActive = true;
-    this.saveValidationAttempted.emit();
-    this.form.markAllAsTouched();
-    this.receiptFileValidationError = !this.hasReceiptFileForSave();
+    if (this.isReceiptDraftMode) {
+      this.executeDraftSave();
+      return;
+    }
 
-    const validationErrors = this.collectReceiptSaveValidationErrors();
+    const validationErrors = this.validateBeforeReceiptSubmit();
     if (validationErrors.length > 0) {
       this.pendingSaveAndNew = false;
       this.showValidationErrorToast(validationErrors);
@@ -276,14 +279,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         workOrderId: normalizedWorkOrderId
       };
     });
-    const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
-    if (this.isSplitTotalGreaterThanReceipt(splitTotalAmount, amountValue)) {
-      this.pendingSaveAndNew = false;
-      this.splitTotalValidationError = true;
-      this.toastr.warning('Split total cannot be greater than the receipt amount.', 'Invalid split total');
-      return;
-    }
-    this.splitTotalValidationError = false;
     const bankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
     const isBill = bankCardId === 0;
     const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
@@ -395,22 +390,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           this.replaceSplitLines(saved.splits || []);
           this.lastPropertyIdsValue = this.getFormPropertyIds();
           this.receiptFileDetails = saved.fileDetails || this.receiptFileDetails;
-          if (saved.fileDetails?.file && saved.fileDetails?.contentType) {
-            this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
-              || `data:${saved.fileDetails.contentType};base64,${saved.fileDetails.file}`;
-            this.receiptFileName = saved.fileDetails.fileName || this.extractFileName(saved.receiptPath || '');
-            this.setReceiptPdfThumbnail(this.receiptPreviewDataUrl, saved.fileDetails.contentType);
-          } else {
-            this.receiptPreviewDataUrl = null;
-            this.receiptPdfThumbnailUrl = null;
-            this.receiptFileName = this.extractFileName(saved.receiptPath || '');
-          }
+          this.applyReceiptFilePreview(saved.fileDetails || null, saved.receiptPath || '');
           this.hasNewReceiptUpload = false;
           this.originalReceiptPath = saved.receiptPath ?? null;
           this.splitTotalValidationError = false;
           this.saveValidationHighlightActive = false;
           this.receiptFileValidationError = false;
           this.savedEvent.emit(saved);
+          this.afterReceiptSaved(saved);
           if (this.autoBackOnSave && (this.selectedPropertyId || this.isEmbeddedInShell)) {
             this.back();
           }
@@ -446,6 +433,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  afterReceiptSaved(_saved: ReceiptResponse): void {
+  }
+
   prepareFormForNewEntry(): void {
     this.receiptId = 'new';
     this.resetForm();
@@ -462,7 +452,57 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.toastr.error(`Please correct the highlighted fields before saving.${detailText}`, 'Error');
   }
 
-  collectReceiptSaveValidationErrors(): string[] {
+  prepareReceiptSaveValidation(requireReceiptFile: boolean): void {
+    this.updatePropertyRequirementByReceiptType();
+    this.updateVendorFieldValidators();
+    this.commitPendingAmountEdits();
+    this.syncInitialSplitWithOverallIfNeeded();
+    this.saveValidationHighlightActive = true;
+    this.saveValidationAttempted.emit();
+    this.form.markAllAsTouched();
+    this.receiptFileValidationError = requireReceiptFile && !this.hasReceiptFileForSave();
+    this.markViewForCheck();
+  }
+
+  validateBeforeReceiptSubmit(options?: { forPromote?: boolean }): string[] {
+    this.syncSplitPropertiesToPrefilledCompanySelection();
+    this.prepareReceiptSaveValidation(true);
+
+    const validationErrors = this.collectReceiptSaveValidationErrors({
+      requireReceiptFile: true,
+      requirePromoteFields: true,
+      requireExplicitPropertySelection: options?.forPromote
+        ? this.shouldRequireExplicitPropertySelectionForPromote()
+        : this.shouldRequireExplicitPropertySelectionForSave()
+    });
+    if (validationErrors.length > 0) {
+      return validationErrors;
+    }
+
+    const amountStr = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
+    const amountValue = parseFloat(amountStr) || 0;
+    const splitTotalAmount = this.getSplitTotalAmount(this.getPayloadSplitsFromForm());
+    if (this.isSplitTotalGreaterThanReceipt(splitTotalAmount, amountValue)) {
+      this.splitTotalValidationError = true;
+      return ['Split total cannot be greater than the receipt amount.'];
+    }
+    if (this.isDisplayedSplitTotalInvalid()) {
+      this.splitTotalValidationError = true;
+      return ['Split total must match the receipt amount.'];
+    }
+
+    this.splitTotalValidationError = false;
+    return [];
+  }
+
+  collectReceiptSaveValidationErrors(options?: {
+    requireReceiptFile?: boolean;
+    requirePromoteFields?: boolean;
+    requireExplicitPropertySelection?: boolean;
+  }): string[] {
+    const requireReceiptFile = options?.requireReceiptFile ?? !this.isReceiptDraftMode;
+    const requirePromoteFields = options?.requirePromoteFields ?? false;
+    const requireExplicitPropertySelection = options?.requireExplicitPropertySelection ?? false;
     const errors: string[] = [];
 
     if (!this.organizationId) {
@@ -476,12 +516,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       errors.push('Receipt/Bill Date is required');
     }
 
-    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
+    if ((requirePromoteFields || this.showAccountingBillFields)
+      && !this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
       this.form.get('dueDate')?.markAsTouched();
       errors.push('Due Date is required');
     }
 
-    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value)) {
+    if ((requirePromoteFields || this.showAccountingBillFields)
+      && !this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value)) {
       this.form.get('accountingPeriod')?.markAsTouched();
       errors.push('Accounting Period is required');
     }
@@ -492,7 +534,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       errors.push('At least one Property is required');
     }
 
-    if (!this.hasReceiptFileForSave()) {
+    if (requirePromoteFields) {
+      const officeId = this.getReceiptOfficeId();
+      if (!officeId || officeId <= 0) {
+        errors.push('Office is required');
+      }
+    }
+
+    if (requireReceiptFile && !this.hasReceiptFileForSave()) {
       this.receiptFileValidationError = true;
       errors.push('Receipt image or PDF is required');
     }
@@ -506,6 +555,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (missingRequiredSplitField) {
       errors.push(missingRequiredSplitField);
     }
+
+    errors.push(...this.collectExplicitPropertySelectionErrors(requireExplicitPropertySelection));
 
     const bankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
     const isBill = bankCardId === 0;
@@ -563,6 +614,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
       if (splitGroup.get('chartOfAccountId')?.invalid) {
         errors.push(`Split line ${lineNumber}: Account is required`);
+      }
+      if (splitGroup.get('propertyId')?.invalid) {
+        errors.push(this.getSplitPropertyValidationErrorMessage(splitGroup, lineNumber));
       }
     });
 
@@ -679,20 +733,22 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.updatePropertyRequirementByReceiptType();
     this.emitPropertySelectionRequiredState();
-    this.receiptFileDetails = receipt.fileDetails || null;
     this.hasNewReceiptUpload = false;
     this.originalReceiptPath = receipt.receiptPath ?? null;
     this.splitTotalValidationError = false;
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
-    if (receipt.fileDetails?.file && receipt.fileDetails?.contentType) {
-      this.receiptPreviewDataUrl = receipt.fileDetails.dataUrl || `data:${receipt.fileDetails.contentType};base64,${receipt.fileDetails.file}`;
-      this.receiptFileName = receipt.fileDetails.fileName || this.extractFileName(receipt.receiptPath || '');
-      this.setReceiptPdfThumbnail(this.receiptPreviewDataUrl, receipt.fileDetails.contentType);
+    this.applyReceiptFilePreview(receipt.fileDetails || null, receipt.receiptPath || '');
+    this.syncSplitPropertiesToPrefilledCompanySelection();
+    if (this.tracksExplicitPropertySelection) {
+      this.resetExplicitPropertySelection();
     } else {
-      this.receiptPreviewDataUrl = null;
-      this.receiptPdfThumbnailUrl = null;
-      this.receiptFileName = this.extractFileName(receipt.receiptPath || '');
+      this.headerPropertyExplicitlySelected = this.getPayloadPropertyIds().length > 0;
+      this.splitPropertyExplicitlySelected = new Set(
+        this.splitsFormArray.controls.map((control, index) =>
+          this.isSplitPropertyValid(control as FormGroup) ? index : -1
+        ).filter(index => index >= 0)
+      );
     }
   }
 
@@ -729,11 +785,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitTotalValidationError = false;
     this.pendingAutoSaveAttempt = false;
     this.receiptPreviewDataUrl = null;
-    this.receiptPdfThumbnailUrl = null;
+    this.clearReceiptPdfPreview();
     this.receiptFileName = null;
     this.receiptFileDetails = null;
     this.hasNewReceiptUpload = false;
     this.originalReceiptPath = null;
+    this.resetExplicitPropertySelection();
     this.amountFocused = false;
     this.amountEditValue = '';
     this.focusedSplitAmountIndex = null;
@@ -759,6 +816,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitsFormArray.clear();
     this.ensureAtLeastOneSplit();
     this.updateSplitLineAccountValidators();
+    this.updateSplitLinePropertyValidators();
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
     this.applyShellOfficeToReceipt();
@@ -812,15 +870,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           next: (properties) => {
             this.allPropertyOptions = (properties || []).filter(p => !!p.propertyId);
             this.applyPropertyOptionsForCurrentOffice();
-            if (this.isAddMode && this.selectedPropertyId) {
+            if (this.isAddMode && this.selectedPropertyId && !this.appliedPrefillKey) {
               this.form.patchValue({ propertyIds: [this.selectedPropertyId] });
-            } else if (this.showAccountingCompanyPropertyOption && this.shouldDefaultToAccountingCompany()) {
+            } else if (this.showAccountingCompanyPropertyOption && this.shouldDefaultToAccountingCompany() && !this.appliedPrefillKey) {
               this.applyAccountingCompanySelection();
             } else {
               this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) });
             }
             this.lastPropertyIdsValue = this.getFormPropertyIds();
             this.updatePropertyRequirementByReceiptType();
+            this.refreshDocumentExtractPrefillAfterPropertyOptionsLoaded();
           },
           error: () => {
             this.allPropertyOptions = [];
@@ -859,6 +918,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           this.accountingOffices = accountingOffices || [];
           this.syncBankCardOptionsForCurrentContext();
           this.applyDefaultSplitAccountsForAddMode();
+          this.reapplyDocumentExtractPrefillIfNeeded();
           this.cdr.markForCheck();
         });
       },
@@ -911,12 +971,38 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   resetBankCardsToOfficeScope(): void {
     this.showAllOrganizationBankCards = false;
-    if (this.form) {
+    if (this.form && !this.shouldPreservePrefillDuringOfficeScopeChange()) {
       this.form.patchValue({ bankCardId: 0 }, { emitEvent: false });
       this.onOverallBankCardChange();
     }
     this.syncBankCardOptionsForCurrentContext();
     this.cdr.markForCheck();
+  }
+
+  hasPendingDocumentExtractPrefill(): boolean {
+    const prefillKey = (this.prefill?.key || '').trim();
+    return !!prefillKey && prefillKey !== this.appliedPrefillKey;
+  }
+
+  shouldPreservePrefillDuringOfficeScopeChange(): boolean {
+    if (!this.isAddMode) {
+      return false;
+    }
+
+    if (this.hasPendingDocumentExtractPrefill()) {
+      return true;
+    }
+
+    if (!this.appliedPrefillKey) {
+      return false;
+    }
+
+    const bankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
+    const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
+    const vendorName = (this.form.get('vendorName')?.value || '').toString().trim();
+    const amount = this.getReceiptAmountValue();
+    const description = (this.form.get('description')?.value || '').toString().trim();
+    return bankCardId > 0 || !!vendorId || vendorName.length > 0 || amount > 0 || description.length > 0;
   }
 
   ensureEditModeBankCardVisible(): void {
@@ -1152,41 +1238,193 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.receipt.fileDetails = null;
     }
     this.receiptPreviewDataUrl = null;
-    this.receiptPdfThumbnailUrl = null;
+    this.clearReceiptPdfPreview();
     this.receiptFileName = null;
     this.receiptFileDetails = null;
     this.hasNewReceiptUpload = false;
   }
 
-  getReceiptPreviewContentType(): string {
-    const previewDataUrl = (this.receiptPreviewDataUrl || '').trim();
+  applyReceiptFilePreview(fileDetails: FileDetails | null, receiptPath?: string | null): void {
+    this.receiptFileDetails = fileDetails;
+    this.receiptFileName = fileDetails?.fileName || this.extractFileName(receiptPath || '');
+    const previewDataUrl = this.normalizeReceiptPreviewDataUrl(this.resolveReceiptFileDataUrl(fileDetails));
+    if (previewDataUrl) {
+      this.receiptPreviewDataUrl = previewDataUrl;
+      this.refreshReceiptPdfPreview(previewDataUrl);
+      this.markViewForCheck();
+      return;
+    }
+
+    this.receiptPreviewDataUrl = null;
+    this.clearReceiptPdfPreview();
+    this.receiptFileName = this.extractFileName(receiptPath || '');
+  }
+
+  resolveReceiptFileDataUrl(fileDetails: FileDetails | null | undefined): string | null {
+    if (!fileDetails?.file && !fileDetails?.dataUrl) {
+      return null;
+    }
+
+    const dataUrl = (fileDetails.dataUrl || '').trim();
+    if (dataUrl) {
+      return dataUrl;
+    }
+
+    const file = (fileDetails.file || '').trim();
+    if (!file) {
+      return null;
+    }
+
+    if (file.startsWith('data:')) {
+      return file;
+    }
+
+    const contentType = this.inferReceiptFileContentType(
+      fileDetails.fileName,
+      fileDetails.contentType,
+      file.startsWith('data:') ? file : null
+    );
+    return `data:${contentType};base64,${file}`;
+  }
+
+  inferReceiptFileContentType(
+    fileName: string | null | undefined,
+    contentType: string | null | undefined,
+    dataUrl?: string | null
+  ): string {
+    const normalizedFileName = (fileName || '').trim().toLowerCase();
+    const normalizedContentType = (contentType || '').trim().toLowerCase();
+    const normalizedDataUrl = (dataUrl || '').trim().toLowerCase();
+
+    if (normalizedContentType.includes('pdf') || normalizedDataUrl.includes('application/pdf')) {
+      return 'application/pdf';
+    }
+
+    if (normalizedFileName.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+
+    if (normalizedContentType) {
+      return normalizedContentType;
+    }
+
+    const dataUrlContentType = this.utilityService.getContentTypeFromDataUrl(dataUrl || '');
+    if (dataUrlContentType) {
+      return dataUrlContentType.toLowerCase();
+    }
+
+    return 'application/octet-stream';
+  }
+
+  normalizeReceiptPreviewDataUrl(dataUrl: string | null | undefined): string | null {
+    const normalizedDataUrl = (dataUrl || '').trim();
+    if (!normalizedDataUrl) {
+      return null;
+    }
+
+    if (!this.receiptPreviewLooksLikePdf(normalizedDataUrl)) {
+      return normalizedDataUrl;
+    }
+
+    if (normalizedDataUrl.toLowerCase().includes('application/pdf')) {
+      return normalizedDataUrl;
+    }
+
+    return normalizedDataUrl.replace(/^data:[^;]+/i, 'data:application/pdf');
+  }
+
+  receiptPreviewLooksLikePdf(dataUrl: string | null = this.receiptPreviewDataUrl): boolean {
+    const normalizedDataUrl = (dataUrl || '').trim().toLowerCase();
+    const contentType = this.getReceiptPreviewContentType(dataUrl);
+    const fileName = (this.receiptFileName || this.receiptFileDetails?.fileName || '').trim().toLowerCase();
+    const pathContentType = this.utilityService.getContentTypeFromPath(this.form?.get('receiptPath')?.value || this.receipt?.receiptPath || '');
+    const base64Payload = normalizedDataUrl.includes(',') ? normalizedDataUrl.split(',')[1] : normalizedDataUrl;
+    const sniffedContentType = this.utilityService.getContentTypeFromBase64(base64Payload);
+    return contentType.includes('pdf')
+      || normalizedDataUrl.includes('application/pdf')
+      || fileName.endsWith('.pdf')
+      || pathContentType === 'application/pdf'
+      || sniffedContentType === 'application/pdf'
+      || !!this.pdfThumbnailService.decodePdfBytes(dataUrl);
+  }
+
+  getReceiptPreviewContentType(dataUrl: string | null = this.receiptPreviewDataUrl): string {
+    const previewDataUrl = (dataUrl || '').trim();
     const dataUrlMatch = previewDataUrl.match(/^data:([^;]+);/i);
-    if (dataUrlMatch?.[1]) {
-      return dataUrlMatch[1].toLowerCase();
+    const fileName = (this.receiptFileName || this.receiptFileDetails?.fileName || '').trim().toLowerCase();
+    const dataUrlType = (dataUrlMatch?.[1] || '').trim().toLowerCase();
+
+    if (fileName.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+
+    if (dataUrlType.includes('pdf')) {
+      return 'application/pdf';
+    }
+
+    if (dataUrlType) {
+      return dataUrlType;
     }
 
     const detailsContentType = (this.receiptFileDetails?.contentType || '').trim().toLowerCase();
-    if (detailsContentType) {
-      return detailsContentType;
+    if (detailsContentType.includes('pdf')) {
+      return 'application/pdf';
     }
 
-    const fileName = (this.receiptFileName || '').trim().toLowerCase();
-    if (fileName.endsWith('.pdf')) {
-      return 'application/pdf';
+    if (detailsContentType) {
+      return detailsContentType;
     }
 
     return '';
   }
 
-  setReceiptPdfThumbnail(dataUrl: string | null, contentType: string | null): void {
-    if (!dataUrl || !contentType?.toLowerCase().includes('pdf')) {
-      this.receiptPdfThumbnailUrl = null;
+  refreshReceiptPdfPreview(dataUrl: string | null): void {
+    this.clearReceiptPdfPreview();
+    if (!dataUrl || !this.receiptPreviewLooksLikePdf(dataUrl)) {
       return;
     }
-    this.receiptPdfThumbnailUrl = null;
-    this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
-      this.receiptPdfThumbnailUrl = url;
+
+    const normalizedPdfDataUrl = this.pdfThumbnailService.normalizePdfDataUrl(
+      this.normalizeReceiptPreviewDataUrl(dataUrl)
+    );
+    if (!normalizedPdfDataUrl) {
+      return;
+    }
+
+    const requestId = ++this.receiptPdfThumbnailRequestId;
+    this.receiptPdfThumbnailLoading = true;
+    this.markViewForCheck();
+
+    void this.pdfThumbnailService.getFirstPageDataUrl(normalizedPdfDataUrl).then(url => {
+      if (requestId !== this.receiptPdfThumbnailRequestId) {
+        return;
+      }
+
+      this.ngZone.run(() => {
+        this.receiptPdfThumbnailUrl = url;
+        this.receiptPdfThumbnailLoading = false;
+        this.cdr.detectChanges();
+      });
+    }).catch(() => {
+      if (requestId !== this.receiptPdfThumbnailRequestId) {
+        return;
+      }
+
+      this.ngZone.run(() => {
+        this.receiptPdfThumbnailLoading = false;
+        this.cdr.detectChanges();
+      });
     });
+  }
+
+  setReceiptPdfThumbnail(dataUrl: string | null, _contentType: string | null): void {
+    this.refreshReceiptPdfPreview(dataUrl);
+  }
+
+  clearReceiptPdfPreview(): void {
+    this.receiptPdfThumbnailUrl = null;
+    this.receiptPdfThumbnailLoading = false;
+    this.receiptPdfThumbnailRequestId++;
   }
 
   openReceiptDialog(): void {
@@ -1263,8 +1501,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isReceiptPreviewPdf(): boolean {
-    const contentType = this.getReceiptPreviewContentType();
-    return contentType === 'application/pdf';
+    return this.receiptPreviewLooksLikePdf();
   }
 
   toBlobObjectUrl(src: string): string | null {
@@ -1585,7 +1822,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.manualSplitAccountIndexes.delete(splitIndex);
     this.updateSplitLineAccountValidators();
+    this.updateSplitLinePropertyValidators();
     this.updatePropertyRequirementByReceiptType();
+    this.syncSplitPropertiesToPrefilledCompanySelection();
+    if (this.tracksExplicitPropertySelection) {
+      this.splitPropertyExplicitlySelected.delete(splitIndex);
+    }
     this.refreshSplitWorkOrderDisplay(splitIndex);
   }
 
@@ -1729,7 +1971,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   addSplitLine(): void {
     this.splitsFormArray.push(this.createSplitFormGroup());
     this.updateSplitLineAccountValidators();
+    this.updateSplitLinePropertyValidators();
     this.applyDefaultSplitAccountFromReceiptType(this.splitsFormArray.length - 1);
+    this.syncSplitPropertiesToPrefilledCompanySelection();
     this.applyBillDescriptionToAllSplitLines();
   }
 
@@ -1738,6 +1982,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.shiftManualSplitAccountIndexesAfterRemove(index);
+    this.reindexSplitPropertyExplicitSelection(index);
     this.splitsFormArray.removeAt(index);
     if (this.focusedSplitAmountIndex !== null) {
       if (this.focusedSplitAmountIndex === index) {
@@ -1797,7 +2042,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.fb.group({
       receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
-      description: new FormControl((split?.description || '').trim(), [Validators.required]),
+      description: new FormControl(this.resolveSplitDescriptionFromSplit(split), [Validators.required]),
       propertyId: new FormControl<string | null>(resolvedPropertyId),
       workOrderId: new FormControl(split?.workOrderId ?? null),
       workOrderCode: new FormControl(normalizedWorkOrderCode),
@@ -1819,6 +2064,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       if (!amountRaw) return `Split line ${i + 1}: Amount is required.`;
       if (!description) return `Split line ${i + 1}: Description is required.`;
       if (receiptTypeId === null || receiptTypeId === undefined || receiptTypeId === '') return `Split line ${i + 1}: Type is required.`;
+      if (!this.isSplitPropertyValid(row)) {
+        const propertyControl = row.get('propertyId');
+        propertyControl?.setErrors({ required: true });
+        propertyControl?.markAsTouched();
+        return this.getSplitPropertyValidationErrorMessage(row, i + 1);
+      }
+      row.get('propertyId')?.setErrors(null);
       if (this.showSplitAccountColumn) {
         const chartOfAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
         const isNonExpense = this.isNonExpenseReceiptType(receiptTypeId);
@@ -1829,6 +2081,126 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     return null;
+  }
+
+  isSplitPropertyValid(row: FormGroup): boolean {
+    const rawPropertyId = row.get('propertyId')?.value;
+    if (this.normalizeSplitPropertyId(rawPropertyId)) {
+      return true;
+    }
+
+    return isReceiptCompanyPropertyId(rawPropertyId);
+  }
+
+  get tracksExplicitPropertySelection(): boolean {
+    return false;
+  }
+
+  shouldRequireExplicitPropertySelectionForSave(): boolean {
+    return false;
+  }
+
+  shouldRequireExplicitPropertySelectionForPromote(): boolean {
+    return this.shouldRequireExplicitPropertySelectionForSave();
+  }
+
+  markExplicitPropertySelectionFromFormIfPresent(): void {
+    if (!this.tracksExplicitPropertySelection) {
+      return;
+    }
+
+    if (this.getPayloadPropertyIds().length > 0) {
+      this.headerPropertyExplicitlySelected = true;
+    }
+
+    this.splitsFormArray.controls.forEach((control, index) => {
+      if (this.isSplitPropertyValid(control as FormGroup)) {
+        this.splitPropertyExplicitlySelected.add(index);
+      }
+    });
+  }
+
+  resetExplicitPropertySelection(): void {
+    this.headerPropertyExplicitlySelected = false;
+    this.splitPropertyExplicitlySelected.clear();
+  }
+
+  onHeaderPropertySelectionChange(): void {
+    this.headerPropertyExplicitlySelected = true;
+    this.markViewForCheck();
+  }
+
+  onSplitPropertySelectionChange(splitIndex: number): void {
+    this.splitPropertyExplicitlySelected.add(splitIndex);
+    this.markViewForCheck();
+  }
+
+  collectExplicitPropertySelectionErrors(requireExplicitPropertySelection = false): string[] {
+    if (!requireExplicitPropertySelection) {
+      return [];
+    }
+
+    const errors: string[] = [];
+    const selectedPropertyIds = this.getPayloadPropertyIds();
+    if (!this.headerPropertyExplicitlySelected || selectedPropertyIds.length === 0) {
+      this.form.get('propertyIds')?.markAsTouched();
+      errors.push('Properties must be selected');
+    }
+
+    for (let i = 0; i < this.splitsFormArray.length; i++) {
+      const row = this.splitsFormArray.at(i) as FormGroup;
+      const propertyControl = row.get('propertyId');
+      if (!this.splitPropertyExplicitlySelected.has(i) || !this.isSplitPropertyValid(row)) {
+        propertyControl?.setErrors({ required: true });
+        propertyControl?.markAsTouched();
+        errors.push(this.getSplitPropertyValidationErrorMessage(row, i + 1));
+      } else {
+        propertyControl?.setErrors(null);
+      }
+    }
+
+    return errors;
+  }
+
+  syncSplitPropertiesToPrefilledCompanySelection(): void {
+    if (!this.isAccountingCompanySelected()) {
+      return;
+    }
+
+    this.splitsFormArray.controls.forEach(control => {
+      const row = control as FormGroup;
+      if (Number(row.get('receiptTypeId')?.value ?? 0) !== ReceiptType.Company) {
+        return;
+      }
+
+      const rawPropertyId = row.get('propertyId')?.value;
+      if (this.normalizeSplitPropertyId(rawPropertyId) || isReceiptCompanyPropertyId(rawPropertyId)) {
+        return;
+      }
+
+      row.get('propertyId')?.setValue(RECEIPT_COMPANY_PROPERTY_ID, { emitEvent: false });
+    });
+    this.updateSplitLinePropertyValidators();
+  }
+
+  reindexSplitPropertyExplicitSelection(removedIndex: number): void {
+    const next = new Set<number>();
+    this.splitPropertyExplicitlySelected.forEach(index => {
+      if (index < removedIndex) {
+        next.add(index);
+      } else if (index > removedIndex) {
+        next.add(index - 1);
+      }
+    });
+    this.splitPropertyExplicitlySelected = next;
+  }
+
+  getSplitPropertyValidationErrorMessage(row: FormGroup, lineNumber: number): string {
+    const receiptTypeId = Number(row.get('receiptTypeId')?.value ?? 0);
+    if (receiptTypeId === ReceiptType.Company) {
+      return `Split line ${lineNumber}: Select Company or a property.`;
+    }
+    return `Split line ${lineNumber}: Property is required.`;
   }
 
   ensureAtLeastOneSplit(): void {
@@ -1843,9 +2215,55 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitsFormArray.clear();
     (splits || []).forEach(split => this.splitsFormArray.push(this.createSplitFormGroup(split)));
     this.ensureAtLeastOneSplit();
+    this.backfillFirstSplitDescriptionFromHeaderIfNeeded();
     this.applyDefaultSplitAccountsForAddMode();
     this.updateSplitLineAccountValidators();
+    this.updateSplitLinePropertyValidators();
     this.updatePropertyRequirementByReceiptType();
+  }
+
+  resolveSplitDescriptionFromSplit(split?: Partial<Split>): string {
+    const rawSplit = split as (Partial<Split> & Record<string, unknown>) | undefined;
+    return String(rawSplit?.description ?? rawSplit?.['Description'] ?? '').trim();
+  }
+
+  backfillFirstSplitDescriptionFromHeaderIfNeeded(): void {
+    if (!this.isAddMode || this.splitsFormArray.length !== 1) {
+      return;
+    }
+
+    const headerDescription = (this.form.get('description')?.value || '').trim();
+    if (!headerDescription) {
+      return;
+    }
+
+    const firstSplitGroup = this.splitsFormArray.at(0) as FormGroup | undefined;
+    const splitDescriptionControl = firstSplitGroup?.get('description');
+    if (!splitDescriptionControl) {
+      return;
+    }
+
+    const splitDescription = (splitDescriptionControl.value || '').trim();
+    if (splitDescription) {
+      return;
+    }
+
+    splitDescriptionControl.setValue(headerDescription, { emitEvent: false });
+    splitDescriptionControl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  getDraftPayloadSplitsFromForm(): Split[] {
+    return this.getPayloadSplitsFromForm().map((split, index) => {
+      const row = this.splitsFormArray.at(index) as FormGroup | undefined;
+      const rawPropertyId = row?.get('propertyId')?.value;
+      if (isReceiptCompanyPropertyId(rawPropertyId)) {
+        return { ...split, propertyId: RECEIPT_COMPANY_PROPERTY_ID };
+      }
+      if (!split.propertyId && Number(split.receiptTypeId) === ReceiptType.Company && this.isAccountingCompanySelected()) {
+        return { ...split, propertyId: RECEIPT_COMPANY_PROPERTY_ID };
+      }
+      return split;
+    });
   }
 
   getPayloadSplitsFromForm(): Split[] {
@@ -2089,7 +2507,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private getSplitPropertyId(splitIndex: number): string | null {
+  getSplitPropertyId(splitIndex: number): string | null {
     const row = this.splitsFormArray.at(splitIndex);
     const splitPropertyId = this.normalizeSplitPropertyId(row?.get('propertyId')?.value);
     if (splitPropertyId) {
@@ -2101,7 +2519,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       || null;
   }
 
-  private buildShellWorkOrderSelectionBase(): Pick<WorkOrderSelection, 'returnToReceiptDetail' | 'returnReceiptId'> {
+  buildShellWorkOrderSelectionBase(): Pick<WorkOrderSelection, 'returnToReceiptDetail' | 'returnReceiptId'> {
     if (!this.isEmbeddedInShell) {
       return {};
     }
@@ -2174,6 +2592,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.form.patchValue(patchValue, { emitEvent: false });
     }
     this.updateSplitLineAccountValidators();
+    this.updateSplitLinePropertyValidators();
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
     this.loadSplitAccountsForCurrentOffice();
@@ -2283,6 +2702,20 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         }
       }
       accountControl.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  updateSplitLinePropertyValidators(): void {
+    this.splitsFormArray.controls.forEach(control => {
+      const row = control as FormGroup;
+      const propertyControl = row.get('propertyId');
+      if (!propertyControl) {
+        return;
+      }
+      propertyControl.setValidators([
+        () => this.isSplitPropertyValid(row) ? null : { required: true }
+      ]);
+      propertyControl.updateValueAndValidity({ emitEvent: false });
     });
   }
   //#endregion
@@ -2447,7 +2880,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.lastPropertyIdsValue = [RECEIPT_COMPANY_PROPERTY_ID];
     this.selectedPropertyId = null;
     this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
+    this.syncSplitPropertiesToPrefilledCompanySelection();
     this.updatePropertyRequirementByReceiptType();
+    if (this.tracksExplicitPropertySelection) {
+      this.resetExplicitPropertySelection();
+    }
   }
 
   applyCompanyReceiptTypeWhenCompanyPropertySelected(): void {
@@ -2507,17 +2944,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isPropertySelectionRequired(): boolean {
-    if (this.showAccountingCompanyPropertyOption) {
-      return false;
-    }
-    if (this.isAccountingCompanySelected()) {
-      return false;
-    }
-    const splits = this.getPayloadSplitsFromForm();
-    if (!splits || splits.length === 0) {
-      return true;
-    }
-    return splits.some(split => Number(split.receiptTypeId) !== ReceiptType.Company);
+    return this.getFormPropertyIds().length === 0;
   }
 
   updatePropertyRequirementByReceiptType(): void {
@@ -2563,7 +2990,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .filter(propertyId => !isReceiptCompanyPropertyId(propertyId));
   }
 
-  getSplitPropertyOptions(): Array<{ value: string; label: string }> {
+  getSplitPropertyOptions(splitIndex?: number): Array<{ value: string; label: string }> {
     const codeLookup = new Map(
       (this.propertyOptions || []).map(property => [property.propertyId, (property.propertyCode || '').trim()])
     );
@@ -2571,19 +2998,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const selectedPropertyIds = this.getSelectedPropertyIds()
       .map(propertyId => (propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0);
+    let options: Array<{ value: string; label: string }>;
     if (selectedPropertyIds.length > 0) {
-      return selectedPropertyIds.map(propertyId => ({
+      options = selectedPropertyIds.map(propertyId => ({
         value: propertyId,
         label: codeLookup.get(propertyId) || propertyId
       }));
+    } else {
+      options = (this.propertyOptions || [])
+        .map(property => ({
+          value: (property.propertyId || '').trim(),
+          label: (property.propertyCode || '').trim()
+        }))
+        .filter(option => option.value.length > 0);
     }
 
-    return (this.propertyOptions || [])
-      .map(property => ({
-        value: (property.propertyId || '').trim(),
-        label: (property.propertyCode || '').trim()
-      }))
-      .filter(option => option.value.length > 0);
+    const row = splitIndex != null ? this.splitsFormArray.at(splitIndex) as FormGroup | null : null;
+    const isCompanySplit = Number(row?.get('receiptTypeId')?.value ?? 0) === ReceiptType.Company;
+    if (isCompanySplit && !options.some(option => isReceiptCompanyPropertyId(option.value))) {
+      options = [{ value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' }, ...options];
+    }
+
+    return options;
   }
 
   getSplitNullPropertyOptionLabel(): string {
@@ -2728,7 +3164,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.form.patchValue({ officeName: this.receipt.officeName || officeName }, { emitEvent: false });
     this.applyPropertyOptionsForCurrentOffice();
-    if (previousOfficeId !== this.normalizeOfficeId(nextOfficeId)) {
+    if (previousOfficeId !== this.normalizeOfficeId(nextOfficeId) && !this.shouldPreservePrefillDuringOfficeScopeChange()) {
       this.resetBankCardsToOfficeScope();
     }
   }
@@ -2821,11 +3257,71 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   
   //#region Utility Methods
   markViewForCheck(): void {
+    if (this.destroy$.closed) {
+      return;
+    }
     this.cdr.markForCheck();
   }
 
   get isEmbeddedInShell(): boolean {
     return this.shellContext === 'maintenance' || this.shellContext === 'accounting';
+  }
+
+  get isReceiptDraftMode(): boolean {
+    return false;
+  }
+
+  get shouldShowReceiptLoading(): boolean {
+    return (!this.isPageReady || !this.isReceiptContentReady) && !!this.receiptId && !this.isAddMode;
+  }
+
+  get loadingReceiptMessage(): string {
+    return 'Loading receipt...';
+  }
+
+  get receiptCodeFieldLabel(): string {
+    return 'Receipt Code';
+  }
+
+  get receiptCodeDisplayValue(): string {
+    return this.isAddMode ? '' : (this.receipt?.receiptCode || '');
+  }
+
+  get showSaveAndNewButton(): boolean {
+    return true;
+  }
+
+  get primarySaveButtonLabel(): string {
+    return 'Save';
+  }
+
+  get showDraftManagementActions(): boolean {
+    return false;
+  }
+
+  get isDraftPromoted(): boolean {
+    return false;
+  }
+
+  get promotedReceiptCodeDisplay(): string {
+    return '';
+  }
+
+  executeDraftSave(): void {
+  }
+
+  promoteReceiptDraft(): void {
+  }
+
+  deleteReceiptDraft(): void {
+  }
+
+  get isPromotingReceiptDraft(): boolean {
+    return false;
+  }
+
+  get isDeletingReceiptDraft(): boolean {
+    return false;
   }
 
   tryAutoSaveValidationAttempt(): void {
@@ -2910,6 +3406,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    this.appliedPrefillKey = prefillKey;
+
     const officeId = this.normalizeOfficeId(this.prefill.officeId);
     if (officeId) {
       this.setReceiptOfficeId(officeId);
@@ -2953,7 +3451,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       vendorId,
       billNumber: (this.prefill.billNumber || '').trim() || null,
       businessPrivate: this.prefill.businessPrivate === true
-        || propertyIds.some(propertyId => isReceiptCompanyPropertyId(propertyId))
     }, { emitEvent: false });
 
     if (splitPrefill || amount > 0 || description) {
@@ -2988,8 +3485,33 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.applyDescriptionToHeaderAndFirstSplitLine();
       this.cdr.detectChanges();
     });
-    this.appliedPrefillKey = prefillKey;
-    this.cdr.markForCheck();
+    this.syncSplitPropertiesToPrefilledCompanySelection();
+    if (this.tracksExplicitPropertySelection) {
+      this.resetExplicitPropertySelection();
+    }
+    this.markViewForCheck();
+  }
+
+  reapplyDocumentExtractPrefillIfNeeded(): void {
+    if (!this.isAddMode || !this.prefill || !this.form) {
+      return;
+    }
+
+    const prefillKey = (this.prefill.key || '').trim();
+    if (!prefillKey) {
+      return;
+    }
+
+    this.appliedPrefillKey = null;
+    this.applyPrefillIfNeeded();
+  }
+
+  refreshDocumentExtractPrefillAfterPropertyOptionsLoaded(): void {
+    if (!this.isAddMode || !this.prefill || !this.form) {
+      return;
+    }
+
+    this.reapplyDocumentExtractPrefillIfNeeded();
   }
 
   applyNextPrefillIfNeeded(): void {
@@ -3037,6 +3559,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearReceiptPdfPreview();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

@@ -1,23 +1,71 @@
 import { Injectable } from '@angular/core';
-import { getDocument, GlobalWorkerOptions, version as pdfjsVersion, type PDFDocumentProxy } from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
 
 /** Renders the first page of a PDF (data URL or base64) as an image data URL for use as a thumbnail. */
 @Injectable({ providedIn: 'root' })
 export class PdfThumbnailService {
   private workerInitialized = false;
 
-  constructor() {
-    this.initWorker();
+  ensureWorkerReady(): void {
+    if (this.workerInitialized) {
+      return;
+    }
+
+    try {
+      GlobalWorkerOptions.workerSrc = new URL('assets/pdfjs/pdf.worker.min.mjs', document.baseURI).href;
+    } catch {
+      const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
+      const normalizedBase = baseHref.endsWith('/') ? baseHref : `${baseHref}/`;
+      GlobalWorkerOptions.workerSrc = `${window.location.origin}${normalizedBase}assets/pdfjs/pdf.worker.min.mjs`;
+    }
+
+    this.workerInitialized = true;
   }
 
-  initWorker(): void {
-    if (this.workerInitialized) return;
+  normalizePdfDataUrl(pdfDataUrl: string | null | undefined): string | null {
+    const normalized = (pdfDataUrl || '').trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^data:application\/pdf(?:;|$)/i.test(normalized)) {
+      return normalized;
+    }
+
+    if (normalized.startsWith('data:')) {
+      return normalized.replace(/^data:[^;]+/i, 'data:application/pdf');
+    }
+
+    return `data:application/pdf;base64,${normalized}`;
+  }
+
+  decodePdfBytes(pdfDataUrl: string | null | undefined): Uint8Array | null {
+    const normalized = (pdfDataUrl || '').trim();
+    if (!normalized) {
+      return null;
+    }
+
     try {
-      const v = typeof pdfjsVersion === 'string' ? pdfjsVersion : '4.4.168';
-      GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${v}/build/pdf.worker.mjs`;
-      this.workerInitialized = true;
+      const base64Payload = normalized.startsWith('data:')
+        ? normalized.slice(normalized.indexOf(',') + 1)
+        : normalized;
+      const sanitizedBase64 = base64Payload.replace(/\s/g, '');
+      if (!sanitizedBase64) {
+        return null;
+      }
+
+      const binary = atob(sanitizedBase64);
+      if (binary.length < 4 || !binary.startsWith('%PDF')) {
+        return null;
+      }
+
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index++) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return bytes;
     } catch {
-      this.workerInitialized = true;
+      return null;
     }
   }
 
@@ -29,48 +77,41 @@ export class PdfThumbnailService {
    * @returns Promise of a data URL (image/jpeg) or null on error
    */
   async getFirstPageDataUrl(pdfDataUrl: string | null, maxSize = 400, maxScale = 2): Promise<string | null> {
-    if (!pdfDataUrl) return null;
-    let data: Uint8Array;
-    try {
-      if (pdfDataUrl.startsWith('data:')) {
-        const base64 = pdfDataUrl.split(',')[1];
-        if (!base64) return null;
-        const binary = atob(base64.replace(/\s/g, ''));
-        data = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) data[i] = binary.charCodeAt(i);
-      } else {
-        const binary = atob(pdfDataUrl.replace(/\s/g, ''));
-        data = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) data[i] = binary.charCodeAt(i);
-      }
-    } catch {
+    if (!pdfDataUrl) {
       return null;
     }
 
+    this.ensureWorkerReady();
+    const data = this.decodePdfBytes(pdfDataUrl);
+    if (!data) {
+      return null;
+    }
+
+    let pdf: PDFDocumentProxy | null = null;
     try {
-      const loadingTask = getDocument({ data });
-      const pdf: PDFDocumentProxy = await loadingTask.promise;
+      const loadingTask = getDocument({ data, useSystemFonts: true });
+      pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
       const scale = Math.min(maxSize / viewport.width, maxSize / viewport.height, maxScale);
       const scaledViewport = page.getViewport({ scale });
 
       const canvas = document.createElement('canvas');
-      canvas.width = scaledViewport.width;
-      canvas.height = scaledViewport.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
+      canvas.width = Math.max(1, Math.ceil(scaledViewport.width));
+      canvas.height = Math.max(1, Math.ceil(scaledViewport.height));
 
       await page.render({
-        canvasContext: ctx,
-        viewport: scaledViewport,
         canvas,
+        viewport: scaledViewport,
       }).promise;
 
-      await pdf.destroy();
       return canvas.toDataURL('image/jpeg', 0.85);
     } catch {
       return null;
+    } finally {
+      if (pdf) {
+        await pdf.destroy().catch(() => undefined);
+      }
     }
   }
 }

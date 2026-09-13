@@ -20,6 +20,7 @@ import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/w
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
 import { ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
+import { ReceiptDraftComponent } from '../receipt-draft/receipt-draft.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
@@ -42,6 +43,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     WorkOrderListComponent,
     ReceiptsListComponent,
     ReceiptComponent,
+    ReceiptDraftComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
     MaintenanceComponent
@@ -91,8 +93,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   maintenanceDetailInstance = 0;
 
   showReceiptDetail = false;
+  showReceiptDraftDetail = false;
   receiptDetailInstance = 0;
+  receiptDraftDetailInstance = 0;
   selectedReceiptId: string | null = null;
+  selectedReceiptDraftId: string | null = null;
   refreshReceiptsTrigger = 0;
   refreshWorkOrdersTrigger = 0;
   receiptSaveValidationAttempted = false;
@@ -431,8 +436,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return this.selectedTabIndex === this.receiptsTabIndex && this.showReceiptDetail;
   }
 
+  get isReceiptDraftDetailActive(): boolean {
+    return this.selectedTabIndex === this.receiptsTabIndex && this.showReceiptDraftDetail;
+  }
+
   get showTopBarBackButton(): boolean {
-    return this.isReceiptDetailActive || this.isWorkOrderDetailActive || this.isWorkOrderCreateActive;
+    return this.isReceiptDetailActive || this.isReceiptDraftDetailActive || this.isWorkOrderDetailActive || this.isWorkOrderCreateActive;
   }
 
   get isReceiptAddMode(): boolean {
@@ -708,7 +717,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.syncMaintenanceSearchRequests();
 
     if (this.selectedTabIndex === this.receiptsTabIndex) {
-      if (!this.showReceiptDetail) {
+      if (!this.showReceiptDetail && !this.showReceiptDraftDetail) {
         this.refreshReceiptsTrigger++;
       }
       return;
@@ -768,7 +777,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   isReceiptsOrWorkOrdersListTab(): boolean {
-    if (this.selectedTabIndex === this.receiptsTabIndex && !this.showReceiptDetail) {
+    if (this.selectedTabIndex === this.receiptsTabIndex && !this.showReceiptDetail && !this.showReceiptDraftDetail) {
       return true;
     }
     return this.showWorkOrdersTab
@@ -934,7 +943,46 @@ applyPageOfficeChangeEffects(): void {
     this.navigateToMaintenanceTabs(0);
   }
 
+  onReceiptDraftSelect(receiptDraftId: string | null): void {
+    this.receiptSaveValidationAttempted = false;
+    this.showReceiptDetail = false;
+    this.selectedReceiptId = null;
+    this.selectedReceiptDraftId = receiptDraftId;
+    this.showReceiptDraftDetail = true;
+    this.receiptDraftDetailInstance++;
+    this.selectedTabIndex = this.receiptsTabIndex;
+    this.showWorkOrderDetail = false;
+    this.selectedWorkOrderId = null;
+    this.workOrderReturnToReceiptList = false;
+    this.workOrderReturnToReceiptDetail = false;
+    this.workOrderReturnReceiptId = null;
+    this.cdr.markForCheck();
+  }
+
+  onReceiptDraftBack(): void {
+    this.showReceiptDraftDetail = false;
+    this.selectedReceiptDraftId = null;
+    this.selectedTabIndex = this.receiptsTabIndex;
+    this.refreshReceiptsTrigger++;
+    this.clearPropertyForListTab();
+  }
+
+  onReceiptDraftSaved(receiptDraftId: string): void {
+    this.selectedReceiptDraftId = receiptDraftId;
+    this.refreshReceiptsTrigger++;
+    this.cdr.markForCheck();
+  }
+
+  onReceiptDraftPromoted(selection: ReceiptSelection): void {
+    this.showReceiptDraftDetail = false;
+    this.selectedReceiptDraftId = null;
+    this.refreshReceiptsTrigger++;
+    this.onReceiptSelect(selection);
+  }
+
   onReceiptSelect(selection: ReceiptSelection): void {
+    this.showReceiptDraftDetail = false;
+    this.selectedReceiptDraftId = null;
     const receiptId = selection?.receiptId ?? null;
     const selectedOfficeId = this.normalizeOfficeId(selection?.officeId ?? null);
     const selectedPropertyId = resolveFirstRealReceiptPropertyId(selection?.propertyId ? [selection.propertyId] : selection?.receipt?.propertyIds);
@@ -1000,6 +1048,7 @@ applyPageOfficeChangeEffects(): void {
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
+    this.refreshReceiptsTrigger++;
     this.clearPropertyForListTab();
   }
 
@@ -1219,6 +1268,10 @@ applyPageOfficeChangeEffects(): void {
       this.onWorkOrderCreateBack();
       return;
     }
+    if (this.isReceiptDraftDetailActive) {
+      this.onReceiptDraftBack();
+      return;
+    }
     if (this.isReceiptDetailActive) {
       this.onReceiptBack();
       return;
@@ -1345,7 +1398,7 @@ applyPageOfficeChangeEffects(): void {
   }
 
   refreshVisibleMaintenanceLists(): void {
-    if (this.showReceiptDetail || this.showWorkOrderDetail) {
+    if (this.showReceiptDetail || this.showReceiptDraftDetail || this.showWorkOrderDetail) {
       return;
     }
     if (this.selectedTabIndex === this.receiptsTabIndex) {

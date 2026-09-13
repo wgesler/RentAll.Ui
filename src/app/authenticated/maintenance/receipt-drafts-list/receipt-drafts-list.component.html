@@ -1,0 +1,20 @@
+<div class="receipt-drafts-list">
+  <div class="list-toolbar">
+    <button mat-flat-button color="primary" type="button" (click)="onAddDraft()">New Draft</button>
+    <mat-checkbox [(ngModel)]="includePromoted" (change)="onIncludePromotedChange()">Include promoted</mat-checkbox>
+    <button mat-stroked-button type="button" (click)="reload()">Refresh</button>
+  </div>
+
+  @if (isServiceError) {
+    <p class="error-text">Unable to load receipt drafts.</p>
+  } @else if (isPageReady) {
+    <app-data-table
+      [data]="draftsDisplay"
+      [columns]="displayedColumns"
+      [hasColumnIndex]="true"
+      [hasFilter]="true"
+      [hasActionsRowClick]="true"
+      [rowColorColumn]="'rowColor'"
+      (rowClickEvent)="onRowClick($event)" />
+  }
+</div>

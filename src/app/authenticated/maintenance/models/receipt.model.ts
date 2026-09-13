@@ -221,6 +221,7 @@ export interface ReceiptSelection {
   receiptId: string | null;
   officeId: number | null;
   propertyId: string | null;
+  receiptDraftId?: string | null;
   agreementLineId?: number | null;
   notes?: string | null;
   autoSaveValidationAttempt?: boolean;

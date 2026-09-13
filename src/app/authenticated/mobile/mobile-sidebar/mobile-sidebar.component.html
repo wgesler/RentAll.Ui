@@ -30,25 +30,13 @@
           <a mat-list-item
             class="mat-list-item-closed"
             [disableRipple]="true"
-            matTooltip="Camera"
+            matTooltip="Capture receipt"
             matTooltipPosition="after"
             [matTooltipClass]="'sidenav-tooltip'"
-            [class.mobile-sidebar-item-disabled]="isReceiptCaptureInProgress()"
-            (click)="openCameraCapture(receiptCameraInput)">
+            [matMenuTriggerFor]="receiptCaptureMenu"
+            [class.mobile-sidebar-item-disabled]="isReceiptCaptureInProgress()">
             <div class="mat-list-item-content-open mat-list-item-content-closed">
               <mat-icon>photo_camera</mat-icon>
-            </div>
-          </a>
-          <a mat-list-item
-            class="mat-list-item-closed"
-            [disableRipple]="true"
-            matTooltip="Upload"
-            matTooltipPosition="after"
-            [matTooltipClass]="'sidenav-tooltip'"
-            [class.mobile-sidebar-item-disabled]="isReceiptCaptureInProgress()"
-            (click)="openUploadCapture(receiptUploadInput)">
-            <div class="mat-list-item-content-open mat-list-item-content-closed">
-              <mat-icon>upload_file</mat-icon>
             </div>
           </a>
         }
@@ -68,6 +56,21 @@
         </a>
       }
     }
+
+    <mat-menu #receiptCaptureMenu="matMenu" xPosition="after" panelClass="mobile-sidebar-capture-menu">
+      <button mat-menu-item type="button" (click)="openCameraCapture(receiptCameraInput)">
+        <mat-icon>photo_camera</mat-icon>
+        <span>Take Photo</span>
+      </button>
+      <button mat-menu-item type="button" (click)="openUploadCapture(receiptUploadInput)">
+        <mat-icon>photo_library</mat-icon>
+        <span>Photo Library</span>
+      </button>
+      <button mat-menu-item type="button" (click)="openUploadCapture(receiptUploadInput)">
+        <mat-icon>picture_as_pdf</mat-icon>
+        <span>Upload PDF</span>
+      </button>
+    </mat-menu>
 
     <mat-menu #tabMenu="matMenu" xPosition="after" panelClass="mobile-sidebar-tab-menu">
       @for (tab of getMenuTabs(); track tab.path) {

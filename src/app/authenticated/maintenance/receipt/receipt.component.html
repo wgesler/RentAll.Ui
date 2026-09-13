@@ -1,7 +1,10 @@
-@if ((!isPageReady || !isReceiptContentReady) && receiptId) {
+@if (isExtractingReceipt) {
+  <app-receipt-reading-overlay />
+}
+@if (shouldShowReceiptLoading) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading receipt...</p>
+    <p>{{ loadingReceiptMessage }}</p>
   </div>
 } @else {
   <div class="flex content-card-wrap justify-center" [class.shell-embedded-detail-wrap]="isEmbeddedInShell">
@@ -36,25 +39,27 @@
                     IsActive
                   </mat-checkbox>
                   @if (showInlineSaveButtons) {
-                    <button
-                      mat-raised-button
-                      type="button"
-                      color="accent"
-                      (click)="saveReceiptAndNew()"
-                      [disabled]="isSubmitting"
-                      class="text-nowrap flex-shrink-0">
-                      <mat-icon>save</mat-icon>
-                      Save & New
-                    </button>
+                    @if (showSaveAndNewButton) {
+                      <button
+                        mat-raised-button
+                        type="button"
+                        color="accent"
+                        (click)="saveReceiptAndNew()"
+                        [disabled]="isSubmitting || isDraftPromoted"
+                        class="text-nowrap flex-shrink-0">
+                        <mat-icon>save</mat-icon>
+                        Save & New
+                      </button>
+                    }
                     <button
                       mat-raised-button
                       type="button"
                       color="primary"
                       (click)="saveReceipt()"
-                      [disabled]="isSubmitting"
+                      [disabled]="isSubmitting || isDraftPromoted"
                       class="text-nowrap flex-shrink-0">
                       <mat-icon>save</mat-icon>
-                      Save
+                      {{ primarySaveButtonLabel }}
                     </button>
                   }
                 </div>
@@ -62,8 +67,8 @@
               <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
                 <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
                   <mat-form-field appearance="outline" class="receipt-overall-no-field">
-                    <mat-label>Receipt Code</mat-label>
-                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptCode || '')" readonly disabled>
+                    <mat-label>{{ receiptCodeFieldLabel }}</mat-label>
+                    <input matInput [value]="receiptCodeDisplayValue" readonly disabled>
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="receipt-overall-property-field"
                     [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
@@ -248,9 +253,10 @@
                                   [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
                               </td>
                               <td class="split-col-property">
-                                <select formControlName="propertyId" class="split-editable-input">
+                                <select formControlName="propertyId" class="split-editable-input"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')">
                                   <option [ngValue]="null">{{ getSplitNullPropertyOptionLabel() }}</option>
-                                  @for (option of getSplitPropertyOptions(); track option.value) {
+                                  @for (option of getSplitPropertyOptions(splitIndex); track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }
                                 </select>
@@ -358,35 +364,51 @@
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
                   </mat-checkbox>
+                  @if (isDraftPromoted && promotedReceiptCodeDisplay) {
+                    <span class="receipt-draft-promoted-badge">Promoted → {{ promotedReceiptCodeDisplay }}</span>
+                  }
                   @if (showInlineSaveButtons) {
-                    <button
-                      mat-raised-button
-                      type="button"
-                      color="accent"
-                      (click)="saveReceiptAndNew()"
-                      [disabled]="isSubmitting"
-                      class="text-nowrap flex-shrink-0">
-                      <mat-icon>save</mat-icon>
-                      Save & New
-                    </button>
+                    @if (showSaveAndNewButton) {
+                      <button
+                        mat-raised-button
+                        type="button"
+                        color="accent"
+                        (click)="saveReceiptAndNew()"
+                        [disabled]="isSubmitting || isDraftPromoted"
+                        class="text-nowrap flex-shrink-0">
+                        <mat-icon>save</mat-icon>
+                        Save & New
+                      </button>
+                    }
                     <button
                       mat-raised-button
                       type="button"
                       color="primary"
                       (click)="saveReceipt()"
-                      [disabled]="isSubmitting"
+                      [disabled]="isSubmitting || isDraftPromoted"
                       class="text-nowrap flex-shrink-0">
                       <mat-icon>save</mat-icon>
-                      Save
+                      {{ primarySaveButtonLabel }}
                     </button>
+                    @if (showDraftManagementActions) {
+                      <button
+                        mat-raised-button
+                        type="button"
+                        color="accent"
+                        (click)="promoteReceiptDraft()"
+                        [disabled]="isPromotingReceiptDraft || isDraftPromoted"
+                        class="text-nowrap flex-shrink-0">
+                        {{ isPromotingReceiptDraft ? 'Promoting...' : 'Promote to Receipt' }}
+                      </button>
+                    }
                   }
                 </div>
               </div>
               <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
                 <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
                   <mat-form-field appearance="outline" class="receipt-overall-no-field">
-                    <mat-label>Receipt Code</mat-label>
-                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptCode || '')" readonly disabled>
+                    <mat-label>{{ receiptCodeFieldLabel }}</mat-label>
+                    <input matInput [value]="receiptCodeDisplayValue" readonly disabled>
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="receipt-overall-property-field"
                     [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
@@ -527,9 +549,10 @@
                                   [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
                               </td>
                               <td class="split-col-property">
-                                <select formControlName="propertyId" class="split-editable-input">
+                                <select formControlName="propertyId" class="split-editable-input"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')">
                                   <option [ngValue]="null">{{ getSplitNullPropertyOptionLabel() }}</option>
-                                  @for (option of getSplitPropertyOptions(); track option.value) {
+                                  @for (option of getSplitPropertyOptions(splitIndex); track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }
                                 </select>
@@ -595,13 +618,15 @@
               <div class="flex items-center gap-3">
                 @if (receiptPreviewDataUrl) {
                   @if (isReceiptPreviewPdf()) {
-                    <div class="flex items-center justify-center object-contain max-w-xs h-32 border rounded bg-slate-100 p-2 cursor-pointer"
+                    <div class="receipt-pdf-preview cursor-pointer"
                       (click)="openReceiptDialog()"
                       matTooltip="Open receipt">
                       @if (receiptPdfThumbnailUrl) {
-                        <img [src]="receiptPdfThumbnailUrl" alt="Receipt PDF preview" class="object-contain max-w-xs h-full" />
+                        <img [src]="receiptPdfThumbnailUrl" alt="Receipt PDF preview" />
+                      } @else if (receiptPdfThumbnailLoading) {
+                        <mat-spinner diameter="28"></mat-spinner>
                       } @else {
-                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                        <mat-icon class="receipt-pdf-preview__placeholder">picture_as_pdf</mat-icon>
                       }
                     </div>
                   } @else {

@@ -59,7 +59,7 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
     'field-payee': "Brian's Construction",
     'field-amount': '$100.00',
     'field-words': 'One hundred and 00/100',
-    'field-memo': 'Sample memo - JE-000001',
+    'field-memo': 'Sample memo - JE-000000001',
     'stub-payee-vendor': "Brian's Construction",
     'stub-date-vendor': '07/15/2026',
     'stub-payee-company': "Brian's Construction",

@@ -1,5 +1,14 @@
 @if (tabPath === 'receipts' || tabPath === 'work-orders') {
   <div class="mobile-list-actions">
+    @if (tabPath === 'receipts') {
+      <mat-slide-toggle
+        [checked]="showDrafts"
+        color="primary"
+        class="mobile-receipts-drafts-toggle"
+        (change)="onShowDraftsToggle($event.checked)">
+        Drafts
+      </mat-slide-toggle>
+    }
     <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="tabPath === 'receipts' ? addReceipt() : addWorkOrder()">
       <mat-icon>add</mat-icon>
       Add

@@ -12,7 +12,10 @@ export enum EntityType {
   Property = 9,
   JournalEntry = 10,
   Receipt = 11,
-  Transfer = 13
+  Deposit = 12,
+  Transfer = 13,
+  Payment = 14,
+  ReceiptDraft = 15
 }
 
 export function getEntityType(entityTypeId: number | undefined): string {
@@ -31,7 +34,10 @@ export function getEntityType(entityTypeId: number | undefined): string {
     [EntityType.Property]: 'Property',
     [EntityType.JournalEntry]: 'Journal Entry',
     [EntityType.Receipt]: 'Receipt',
-    [EntityType.Transfer]: 'Transfer'
+    [EntityType.Deposit]: 'Deposit',
+    [EntityType.Transfer]: 'Transfer',
+    [EntityType.Payment]: 'Payment',
+    [EntityType.ReceiptDraft]: 'Receipt Draft'
   };
   
   return typeMap[entityTypeId] || '';

@@ -1,0 +1,16 @@
+<div class="receipt-drafts-shell">
+  <h2>Receipt Drafts</h2>
+
+  @if (showDetail) {
+    <app-receipt-draft
+      [receiptDraftId]="selectedReceiptDraftId"
+      (backEvent)="onBack()"
+      (draftSavedEvent)="onSaved($event)"
+      (draftPromotedEvent)="onPromoted($event)" />
+  } @else {
+    <app-receipt-drafts-list
+      [refreshTrigger]="listRefreshToken"
+      (draftSelect)="onDraftSelect($event)"
+      (addDraft)="onAddDraft()" />
+  }
+</div>

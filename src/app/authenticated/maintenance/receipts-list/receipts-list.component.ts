@@ -33,6 +33,8 @@ import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, buildBillSplitLineDescription, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
+import { ReceiptDraftResponse } from '../models/receipt-draft.model';
+import { ReceiptDraftService } from '../services/receipt-draft.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ThreeWayToggleComponent, ThreeWayToggleValue } from '../../shared/three-way-toggle/three-way-toggle.component';
@@ -55,10 +57,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() accountingListMode: 'all' | 'bills' | 'receipts' | 'utilities' = 'all';
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
+  @Output() draftSelect = new EventEmitter<string | null>();
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
   private receiptService = inject(ReceiptService);
+  private receiptDraftService = inject(ReceiptDraftService);
   private mappingService = inject(MappingService);
   private propertyService = inject(PropertyService);
   private accountingOfficeService = inject(AccountingOfficeService);
@@ -85,9 +89,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   accountingOffices: AccountingOfficeResponse[] = [];
   readonly activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
   activeFilterIndex: ThreeWayToggleValue = 0;
+  showDrafts = false;
   activeListCache: ReceiptResponse[] | null = null;
   inactiveListCache: ReceiptResponse[] | null = null;
   listCacheBaseKey: string | null = null;
+  draftListCache: ReceiptDraftResponse[] | null = null;
+  lastDraftSearchKey: string | null = null;
+  draftSearchInFlightKey: string | null = null;
+  drafts: ReceiptDraftResponse[] = [];
+  allDraftDisplays: ReceiptDisplayList[] = [];
+  draftsDisplay: ReceiptDisplayList[] = [];
   receipts: ReceiptResponse[] = [];
   receiptsDisplay: ReceiptDisplayList[] = [];
   allReceipts: ReceiptDisplayList[] = [];
@@ -253,6 +264,50 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return this.embeddedInAccounting && this.accountingListMode === 'bills';
   }
 
+  get isShowingDrafts(): boolean {
+    return this.embeddedInMaintenance && this.showDrafts;
+  }
+
+  get tableData(): ReceiptDisplayList[] {
+    return this.isShowingDrafts ? this.draftsDisplay : this.receiptsDisplay;
+  }
+
+  get tableColumns(): ColumnSet {
+    return this.receiptDisplayedColumns;
+  }
+
+  get deleteConfirmTitle(): string {
+    return this.isShowingDrafts ? 'Delete Receipt Draft' : 'Delete Receipt';
+  }
+
+  get deleteConfirmMessage(): string {
+    return this.isShowingDrafts
+      ? 'Are you sure you want to delete this receipt draft?'
+      : 'Are you sure you want to delete this receipt?';
+  }
+
+  private get displayRows(): ReceiptDisplayList[] {
+    return this.isShowingDrafts ? this.allDraftDisplays : this.allReceipts;
+  }
+
+  private set displayRows(rows: ReceiptDisplayList[]) {
+    if (this.isShowingDrafts) {
+      this.allDraftDisplays = rows;
+    } else {
+      this.allReceipts = rows;
+    }
+  }
+
+  get tableNoDataMessage(): string {
+    return this.isShowingDrafts
+      ? 'No receipt drafts'
+      : (this.embeddedInAccounting ? 'No bills' : 'No unaccounted receipts');
+  }
+
+  get loadingMessage(): string {
+    return this.isShowingDrafts ? 'Loading receipt drafts...' : 'Loading receipts...';
+  }
+
 
   //#region Receipts List
   ngOnInit(): void {
@@ -290,7 +345,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
       this.applyFilters();
       if (changes['searchRequest'].firstChange || propertyScopeChanged || searchCriteriaChanged) {
-        this.loadReceiptsForCurrentSearchCriteria(propertyScopeChanged);
+        if (this.isShowingDrafts) {
+          this.loadReceiptDrafts(propertyScopeChanged || searchCriteriaChanged);
+        } else {
+          this.loadReceiptsForCurrentSearchCriteria(propertyScopeChanged);
+        }
       }
     }
 
@@ -329,8 +388,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const triggerChanged = currentTrigger !== previousTrigger;
       const skipInitialDuplicate = changes['refreshTrigger'].firstChange && !!changes['searchRequest']?.firstChange;
       if (triggerChanged && !skipInitialDuplicate) {
-        this.invalidateActiveFilterCaches();
-        this.loadReceiptsForCurrentSearchCriteria(true);
+        if (this.isShowingDrafts) {
+          this.loadReceiptDrafts(true);
+        } else {
+          this.invalidateActiveFilterCaches();
+          this.loadReceiptsForCurrentSearchCriteria(true);
+        }
       }
     }
   }
@@ -375,6 +438,102 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.receiptSearchInFlightKey = null;
   }
 
+  invalidateDraftListCache(): void {
+    this.draftListCache = null;
+    this.lastDraftSearchKey = null;
+    this.draftSearchInFlightKey = null;
+  }
+
+  buildDraftSearchKey(): string {
+    return JSON.stringify({
+      officeIds: [...this.resolveMaintenanceSearchOfficeIds(this.searchRequest)].sort((a, b) => a - b),
+      propertyId: this.getSearchPropertyId()
+    });
+  }
+
+  loadReceiptDrafts(force = false): void {
+    if (!this.embeddedInMaintenance || !this.showDrafts) {
+      return;
+    }
+
+    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
+    if (officeIds.length === 0) {
+      this.invalidateDraftListCache();
+      this.drafts = [];
+      this.allDraftDisplays = [];
+      this.draftsDisplay = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'drafts');
+      this.markViewForCheck();
+      return;
+    }
+
+    const searchKey = this.buildDraftSearchKey();
+    if (force) {
+      this.invalidateDraftListCache();
+    } else if (searchKey === this.lastDraftSearchKey && this.draftListCache !== null) {
+      this.applyDraftListFromCache();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'drafts');
+      this.markViewForCheck();
+      return;
+    }
+
+    if (!force && searchKey === this.draftSearchInFlightKey) {
+      return;
+    }
+
+    this.draftSearchInFlightKey = searchKey;
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'drafts');
+    this.receiptDraftService.searchReceiptDrafts({
+      officeIds,
+      propertyId: this.getSearchPropertyId(),
+      includePromoted: false
+    }).pipe(
+      take(1),
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.draftSearchInFlightKey = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'drafts');
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: drafts => {
+        this.draftListCache = drafts ?? [];
+        this.lastDraftSearchKey = searchKey;
+        this.applyDraftListFromCache();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.drafts = [];
+        this.allDraftDisplays = [];
+        this.draftsDisplay = [];
+        this.toastr.error('Unable to load receipt drafts');
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  applyDraftListFromCache(): void {
+    this.drafts = this.draftListCache ?? [];
+    this.allDraftDisplays = this.mappingService.mapReceiptDraftDisplays(this.drafts);
+    this.applyReceiptDisplayMappings();
+    this.applyFilters();
+  }
+
+  private removeReceiptFromListCaches(receiptId: string): void {
+    const normalizedReceiptId = (receiptId || '').trim();
+    if (!normalizedReceiptId) {
+      return;
+    }
+
+    if (this.activeListCache) {
+      this.activeListCache = this.activeListCache.filter(item => item.receiptId !== normalizedReceiptId);
+    }
+    if (this.inactiveListCache) {
+      this.inactiveListCache = this.inactiveListCache.filter(item => item.receiptId !== normalizedReceiptId);
+    }
+  }
+
   hasRequiredActiveFilterCache(): boolean {
     if (this.activeFilterIndex === 0) {
       return this.activeListCache !== null;
@@ -386,6 +545,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getReceipts(force = false): void {
+    if (this.isShowingDrafts) {
+      return;
+    }
+
     if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
       this.invalidateActiveFilterCaches();
       this.receipts = [];
@@ -592,6 +755,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   addReceipt(): void {
+    if (this.isShowingDrafts) {
+      this.draftSelect.emit(null);
+      return;
+    }
+
     if (this.embeddedInMaintenance) {
       this.receiptSelect.emit({
         receiptId: 'new',
@@ -609,6 +777,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   deleteReceipt(event: ReceiptDisplayList): void {
+    if (this.isShowingDrafts) {
+      this.deleteReceiptDraft(event);
+      return;
+    }
+
     const receipt = this.receipts.find(item => item.receiptId === event.receiptId);
     this.journalEntryService.confirmDeleteIfAllowed(receipt?.postingStatusId, 'Receipt').pipe(
       take(1),
@@ -622,10 +795,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     ).subscribe({
       next: () => {
         this.toastr.success('Receipt deleted successfully', CommonMessage.Success);
-        this.receipts = this.receipts.filter(item => item.receiptId !== event.receiptId);
-        this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-        this.applyReceiptDisplayMappings();
-        this.applyFilters();
+        this.removeReceiptFromListCaches(event.receiptId);
+        if (this.usesMaintenanceSearch()) {
+          this.applyActiveFilterFromCache();
+        } else {
+          this.receipts = this.receipts.filter(item => item.receiptId !== event.receiptId);
+          this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+          this.applyReceiptDisplayMappings();
+          this.applyFilters();
+        }
         this.markViewForCheck();
       },
       error: () => {
@@ -635,8 +813,29 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  deleteReceiptDraft(event: ReceiptDisplayList): void {
+    const receiptDraftId = (event.receiptId || '').trim();
+    if (!receiptDraftId) {
+      return;
+    }
+
+    this.receiptDraftService.deleteReceiptDraft(receiptDraftId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Receipt draft deleted successfully', CommonMessage.Success);
+        this.draftListCache = (this.draftListCache ?? []).filter(item => item.receiptDraftId !== receiptDraftId);
+        this.applyDraftListFromCache();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.toastr.error('Unable to delete receipt draft');
+        this.markViewForCheck();
+      }
+    });
+  }
+
   onPayable(event: ReceiptDisplayList): void {
-    if (!this.embeddedInAccounting || event?.payableDisabled) {
+    if (this.isShowingDrafts || !this.embeddedInAccounting || event?.payableDisabled) {
       return;
     }
     if (this.isBillMissingReceiptAttachment(event)) {
@@ -875,7 +1074,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Inline Receipt Edits
   onReceiptCheckboxChange(event: ReceiptDisplayList): void {
-    if (!this.canEditIsActiveCheckbox) {
+    if (this.isShowingDrafts || !this.canEditIsActiveCheckbox) {
       return;
     }
     const changedCheckboxColumn = (event as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
@@ -933,7 +1132,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onReceiptDropdownChange(event: ReceiptDisplayList & { __changedDropdownColumn?: string }): void {
-    if (!this.isAdmin) {
+    if (this.isShowingDrafts || !this.isAdmin) {
       return;
     }
     const changedColumn = event.__changedDropdownColumn || '';
@@ -1046,7 +1245,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onReceiptInlineEditChange(event: ReceiptDisplayList & { __changedInlineColumn?: string; __inlineValue?: string }): void {
-    if (!this.isAdmin) {
+    if (this.isShowingDrafts || !this.isAdmin) {
       return;
     }
     const changedInlineColumn = event.__changedInlineColumn || '';
@@ -1149,26 +1348,38 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     receiptWindow.document.title = 'Receipt';
     receiptWindow.document.body.innerHTML = '<p style="font-family: Arial, sans-serif; padding: 12px;">Loading receipt...</p>';
 
-    this.receiptService.getReceiptById(item.receiptId).pipe(take(1)).subscribe({
-      next: (receipt: ReceiptResponse) => {
-        const fd = receipt?.fileDetails;
-        const imageSrc =
-          fd?.dataUrl ||
-          (fd?.file && fd?.contentType ? `data:${fd.contentType};base64,${fd.file}` : null);
-        if (!imageSrc) {
-          receiptWindow.close();
-          this.toastr.warning('Receipt file is not available.', 'Receipt');
-          this.markViewForCheck();
-          return;
-        }
-        this.renderReceiptInWindow(receiptWindow, imageSrc);
-        this.markViewForCheck();
-      },
-      error: () => {
+    const openLoadedRecord = (record: { fileDetails?: { dataUrl?: string; file?: string; contentType?: string } | null } | null) => {
+      const fd = record?.fileDetails;
+      const imageSrc =
+        fd?.dataUrl ||
+        (fd?.file && fd?.contentType ? `data:${fd.contentType};base64,${fd.file}` : null);
+      if (!imageSrc) {
         receiptWindow.close();
-        this.toastr.error('Unable to load receipt.', 'Receipt');
+        this.toastr.warning('Receipt file is not available.', 'Receipt');
         this.markViewForCheck();
+        return;
       }
+      this.renderReceiptInWindow(receiptWindow, imageSrc);
+      this.markViewForCheck();
+    };
+
+    const onLoadError = () => {
+      receiptWindow.close();
+      this.toastr.error('Unable to load receipt.', 'Receipt');
+      this.markViewForCheck();
+    };
+
+    if (this.isShowingDrafts) {
+      this.receiptDraftService.getReceiptDraftById(item.receiptId).pipe(take(1)).subscribe({
+        next: openLoadedRecord,
+        error: onLoadError
+      });
+      return;
+    }
+
+    this.receiptService.getReceiptById(item.receiptId).pipe(take(1)).subscribe({
+      next: openLoadedRecord,
+      error: onLoadError
     });
   }
 
@@ -1255,11 +1466,46 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.activeFilterIndex = index;
+    if (this.isShowingDrafts) {
+      this.applyFilters();
+      return;
+    }
     if (this.usesMaintenanceSearch()) {
       this.ensureActiveFilterCachesThen(() => this.applyActiveFilterFromCache());
       return;
     }
     this.applyFilters();
+  }
+
+  onShowDraftsToggleChange(checked: boolean): void {
+    if (checked === this.showDrafts) {
+      return;
+    }
+
+    this.showDrafts = checked;
+    this.setIsActiveCheckboxEditability();
+    if (checked) {
+      this.loadReceiptDrafts(false);
+    } else {
+      this.loadReceiptsForCurrentSearchCriteria(false);
+    }
+    this.markViewForCheck();
+  }
+
+  goToReceiptDraft(event: ReceiptDisplayList): void {
+    const receiptDraftId = (event?.receiptId || '').trim();
+    if (!receiptDraftId) {
+      return;
+    }
+    this.draftSelect.emit(receiptDraftId);
+  }
+
+  onTableRowClick(event: ReceiptDisplayList): void {
+    if (this.isShowingDrafts) {
+      this.goToReceiptDraft(event);
+      return;
+    }
+    this.goToReceipt(event);
   }
 
   onShowPaidToggleChange(checked: boolean): void {
@@ -1268,6 +1514,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
+    if (this.isShowingDrafts) {
+      this.draftsDisplay = this.filterRowsByActiveFilter(this.allDraftDisplays);
+      this.markViewForCheck();
+      return;
+    }
+
     let filtered = this.filterAccountingReceiptsByMode(this.excludeBusinessPrivateWhenMaintenanceShell(this.allReceipts));
     if (!this.authService.hasAccountingNavAccess()) {
       filtered = filtered.filter(receipt => receipt.isUtility !== true);
@@ -1441,6 +1693,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Search Criteria Methods
   loadReceiptsForCurrentSearchCriteria(force = false): void {
+    if (this.isShowingDrafts) {
+      this.loadReceiptDrafts(force);
+      return;
+    }
+
     if (!this.embeddedInMaintenance) {
       this.getReceipts(force);
       return;
@@ -1693,7 +1950,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyPropertyCodesToDisplays(): void {
-    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+    this.displayRows = (this.displayRows || []).map(receipt => ({
       ...receipt,
       propertyCode: this.buildPropertyCodesDisplay(receipt.propertyIds)
     }));
@@ -1718,7 +1975,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyBankCardDropdownsToDisplays(): void {
-    this.allReceipts = (this.allReceipts || []).map(receipt => {
+    this.displayRows = (this.displayRows || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const bankCardId = Number(receipt.bankCardId ?? 0);
       const optionsForOffice = this.getBankCardOptionsForReceiptScope(officeId);
@@ -1743,7 +2000,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyVendorCellsToDisplays(): void {
-    this.allReceipts = (this.allReceipts || []).map(receipt => {
+    this.displayRows = (this.displayRows || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorOptionsForOffice = this.getVendorOptionsForReceiptScope(officeId);
@@ -1804,7 +2061,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const officeIds = new Set<number>();
-    (this.allReceipts || []).forEach(receipt => {
+    (this.displayRows || []).forEach(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       if (Number.isFinite(officeId) && officeId > 0) {
         officeIds.add(officeId);
@@ -1826,7 +2083,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+    this.displayRows = (this.displayRows || []).map(receipt => ({
       ...receipt,
       accountDisplay: this.buildAccountDisplayFromSplits(receipt)
     }));
@@ -1861,7 +2118,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyPayableActionFlagsToDisplays(): void {
-    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+    this.displayRows = (this.displayRows || []).map(receipt => ({
       ...receipt,
       payableDisabled: Number(receipt.bankCardId ?? 0) !== 0
     }));
@@ -1870,7 +2127,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Inline Update Request Methods
   setIsActiveCheckboxEditability(): void {
-    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.canEditIsActiveCheckbox = this.isAdmin && !this.isShowingDrafts;
     [
       this.maintenanceReceiptDisplayedColumns,
       this.accountingReceiptDisplayedColumns,

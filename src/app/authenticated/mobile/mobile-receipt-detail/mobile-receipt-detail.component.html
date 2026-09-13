@@ -51,11 +51,11 @@
         </div>
         @if (showInlineSaveButtons) {
           <div class="mobile-receipt-save-actions">
-            <button mat-raised-button type="button" color="accent" (click)="saveReceiptAndNew()" [disabled]="isSubmitting">
-              <mat-icon>save</mat-icon>
-              Save &amp; New
+            <button mat-raised-button type="button" color="accent" (click)="saveReceiptAsDraft()" [disabled]="isSubmitting || isSavingDraft || isReceiptDraftPromoted">
+              <mat-icon>note_add</mat-icon>
+              Save as Draft
             </button>
-            <button mat-raised-button type="button" color="primary" (click)="saveReceipt()" [disabled]="isSubmitting">
+            <button mat-raised-button type="button" color="primary" (click)="saveReceipt()" [disabled]="isSubmitting || isSavingDraft || isReceiptDraftPromoted">
               <mat-icon>save</mat-icon>
               Save
             </button>
@@ -65,15 +65,16 @@
 
       <div class="mobile-receipt-fields">
         <mat-form-field appearance="outline" class="mobile-receipt-field">
-          <mat-label>Receipt Code</mat-label>
-          <input matInput [value]="isAddMode ? '' : (receipt?.receiptCode || '')" readonly disabled>
+          <mat-label>{{ isReceiptDraftFlow ? 'Draft Code' : 'Receipt Code' }}</mat-label>
+          <input matInput [value]="isReceiptDraftFlow ? draftCodeDisplay : (receipt?.receiptCode || '')" readonly disabled>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="mobile-receipt-field"
           [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
           [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
           <mat-label>Properties</mat-label>
-          <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
+          <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired() || tracksExplicitPropertySelection"
+            (selectionChange)="onHeaderPropertySelectionChange()">
             <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
             @for (option of propertyOptions; track option.propertyId) {
               <mat-option [value]="option.propertyId">{{ option.propertyCode }}</mat-option>
@@ -229,11 +230,13 @@
                 <input matInput type="text" formControlName="description" required>
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="mobile-receipt-field">
+              <mat-form-field appearance="outline" class="mobile-receipt-field"
+                [class.mat-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')"
+                [class.mat-mdc-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')">
                 <mat-label>Property</mat-label>
-                <mat-select formControlName="propertyId">
+                <mat-select formControlName="propertyId" (selectionChange)="onSplitPropertySelectionChange(splitIndex)">
                   <mat-option [value]="null">{{ getSplitNullPropertyOptionLabel() }}</mat-option>
-                  @for (option of getSplitPropertyOptions(); track option.value) {
+                  @for (option of getSplitPropertyOptions(splitIndex); track option.value) {
                     <mat-option [value]="option.value">{{ option.label }}</mat-option>
                   }
                 </mat-select>
@@ -340,10 +343,10 @@
         }
       </div>
 
-      @if (isSubmitting) {
+      @if (isSubmitting || isSavingDraft) {
         <div class="mobile-receipt-saving">
           <mat-spinner [diameter]="20" color="accent"></mat-spinner>
-          <span>Saving...</span>
+          <span>{{ isSavingDraft ? 'Saving draft...' : 'Saving...' }}</span>
         </div>
       }
     </form>

@@ -2727,3 +2727,7 @@ html.rentall-mobile-layout .mat-mdc-menu-panel.mobile-sidebar-tab-menu {
   max-height: min(70dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 64px - 52px - 16px));
   overflow-y: auto;
 }
+
+html.rentall-mobile-layout .mat-mdc-menu-panel.mobile-sidebar-capture-menu {
+  min-width: 200px;
+}

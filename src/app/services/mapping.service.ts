@@ -27,6 +27,7 @@ import { isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../auth
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
+import { ReceiptDraftResponse } from '../authenticated/maintenance/models/receipt-draft.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
@@ -2359,6 +2360,14 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       id: receipt.receiptId || '',
       amount: receipt.amountDisplay || this.formatter.currencyUsd(Number(receipt.amount) || 0),
       description: (receipt.descriptionDisplay || receipt.description || '').trim()
+    };
+  }
+
+  mapMobileReceiptDraftListDisplay(draft: ReceiptDraftResponse): MobileListRow {
+    return {
+      id: draft.receiptDraftId,
+      amount: this.formatter.currencyUsd(Number(draft.amount) || 0),
+      description: (draft.description || draft.draftCode || '').trim()
     };
   }
 
@@ -5015,6 +5024,92 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         createdByName: receipt.createdByName ?? receipt.createdBy ?? '',
         modifiedOn: this.formatter.formatDateString(receipt.modifiedOn),
         modifiedBy: receipt.modifiedBy
+      };
+    });
+  }
+
+  mapReceiptDraftDisplays(drafts: ReceiptDraftResponse[]): ReceiptDisplayList[] {
+    return (drafts || []).map((draft: ReceiptDraftResponse): ReceiptDisplayList => {
+      const isUtility = draft.isUtility === true;
+      const splits = this.mapReceiptSplitsFromApi(draft.splits, { isUtility });
+      const splitTotalAmount = this.utility.sumCurrencyAmounts(splits.map(split => split.amount));
+      const receiptAmount = this.utility.roundCurrency(Number(draft.amount) || 0);
+      const distinctReceiptTypes = Array.from(
+        new Set(
+          splits
+            .map(split => getReceiptType(split.receiptTypeId))
+            .filter(typeLabel => typeLabel.length > 0)
+        )
+      );
+      const workOrderDisplay = this.resolveReceiptWorkOrderListDisplay(splits, { isUtility });
+      const receiptTypeDisplay = distinctReceiptTypes.join(', ');
+      const receiptTypeTooltip = distinctReceiptTypes.join(', ');
+      const distinctAccounts = Array.from(
+        new Set(
+          splits
+            .map(split => (split.chartOfAccountDisplayName || '').trim())
+            .filter(label => label.length > 0)
+        )
+      );
+      const accountDisplay = distinctAccounts.join(', ');
+      const isFirstSplitBill = Number(draft.bankCardId ?? 0) === 0;
+      const vendorDisplay = (draft.vendorName || '').trim();
+      const isSplitAmountValid = this.utility.isSplitTotalWithinDocumentAmount(splitTotalAmount, receiptAmount);
+      const paidAmountValue = Number(draft.paidAmount ?? 0) || 0;
+      const dueAmountValue = Math.max(0, receiptAmount - paidAmountValue);
+      const notes = String(draft.agreementLineNotes ?? '').trim();
+      return {
+        receiptId: draft.receiptDraftId,
+        receiptCode: draft.draftCode,
+        invoiceId: null,
+        officeId: Number(draft.officeId ?? 0),
+        officeName: draft.officeName || '',
+        propertyIds: draft.propertyIds || [],
+        receiptDate: this.formatter.formatDateString(draft.receiptDate),
+        billNumber: (draft.billNumber || '').trim() || '—',
+        dueDate: this.formatter.formatDateString(draft.dueDate),
+        accountingPeriod: draft.accountingPeriod ?? '',
+        period: this.formatter.formatInvoiceListAccountingPeriod(draft.accountingPeriod),
+        created: this.formatter.formatInvoiceListCreatedOn(draft.createdOn),
+        propertyCode: '',
+        ticketId: '',
+        description: draft.description || '',
+        descriptionDisplay: draft.description || '',
+        amount: receiptAmount,
+        amountDisplay: this.formatter.currencyUsd(receiptAmount),
+        paidAmountValue,
+        dueAmountValue,
+        paidAmount: this.formatter.currencyUsd(paidAmountValue),
+        paidDate: draft.paidDate ? this.formatter.formatDateString(draft.paidDate) : null,
+        paymentDescription: (draft.paymentDescription || '').trim() || null,
+        dueAmount: this.formatter.currencyUsd(dueAmountValue),
+        splits,
+        splitTotalAmount,
+        splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
+        splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        bankCardId: draft.bankCardId ?? null,
+        vendorId: draft.vendorId ?? null,
+        vendorName: draft.vendorName ?? null,
+        agreementLineId: draft.agreementLineId ?? null,
+        notes,
+        infoHidden: false,
+        bankCardDisplayName: (draft.bankCardDisplayName || '').trim(),
+        accountDisplay,
+        vendorDisplay,
+        vendorDisplayReadOnly: !isFirstSplitBill,
+        isSplitAmountValid,
+        workOrderDisplay,
+        receiptTypeDisplay,
+        receiptTypeTooltip,
+        receiptPath: draft.receiptPath ?? null,
+        isUtility: draft.isUtility ?? false,
+        businessPrivate: draft.businessPrivate ?? false,
+        postingStatusId: null,
+        isActive: draft.isActive,
+        createdBy: draft.createdBy ?? '',
+        createdByName: draft.createdBy ?? '',
+        modifiedOn: this.formatter.formatDateString(draft.modifiedOn),
+        modifiedBy: draft.modifiedBy
       };
     });
   }

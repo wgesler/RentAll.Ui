@@ -231,6 +231,13 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
       this.router.navigate(['/mobile', this.section.path]);
       return;
     }
+    if (this.section.path === 'maintenance' && this.tab.path === 'receipts') {
+      const draftParam = String(queryParams['draft'] ?? '').trim();
+      void this.router.navigate(['/mobile', this.section.path, this.tab.path], {
+        queryParams: draftParam ? { draft: draftParam } : undefined
+      });
+      return;
+    }
     this.router.navigate(['/mobile', this.section.path, this.tab.path]);
   }
   //#endregion

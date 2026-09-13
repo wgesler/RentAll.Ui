@@ -57,13 +57,10 @@ export class MobileReceiptCaptureService {
     }
 
     const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    const officeId = Number(this.globalSelectionService.getSelectedOfficeIdValue() ?? 0);
+    const selectedOfficeId = Number(this.globalSelectionService.getSelectedOfficeIdValue() ?? 0);
+    const officeId = Number.isFinite(selectedOfficeId) && selectedOfficeId > 0 ? selectedOfficeId : null;
     if (!organizationId) {
       this.toastr.error('Organization is not available.', CommonMessage.Error);
-      return;
-    }
-    if (!Number.isFinite(officeId) || officeId <= 0) {
-      this.toastr.warning('Select an office before capturing a receipt.', CommonMessage.Error);
       return;
     }
 
@@ -72,7 +69,7 @@ export class MobileReceiptCaptureService {
       const payload = await this.utilityService.buildOptimizedUploadPayload(file);
       let extraction: ReceiptExtractResponse | null = null;
       try {
-        extraction = await this.receiptService.extractReceipt(organizationId, payload.fileDetails, officeId).pipe(take(1)).toPromise() ?? null;
+        extraction = await this.receiptService.extractReceipt(organizationId, payload.fileDetails, officeId ?? undefined).pipe(take(1)).toPromise() ?? null;
         if ((extraction?.warnings || []).length > 0) {
           this.toastr.warning('Receipt read with items to review.');
         }
@@ -81,12 +78,14 @@ export class MobileReceiptCaptureService {
       }
 
       this.captureReceiptDraftService.setDraft({
-        officeId,
+        officeId: officeId ?? 0,
         propertyId: null,
         fileDetails: payload.fileDetails,
         extraction
       });
-      await this.router.navigate(['/mobile', 'maintenance', 'receipts', 'new']);
+      await this.router.navigate(['/mobile', 'maintenance', 'receipts', 'new'], {
+        queryParams: {}
+      });
     } catch (error) {
       if (error instanceof ImageOptimizationFailedError) {
         this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);

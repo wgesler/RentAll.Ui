@@ -2,7 +2,7 @@
 // Position 1 (index 0) = primary + horizontal · 2 (index 1) = primary + dash · 3 (index 2) = primary + check.
 
 .three-way-toggle {
-  --three-way-toggle-track-width: 58px;
+  --three-way-toggle-track-width: 52px;
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
@@ -119,9 +119,9 @@
 }
 
 .three-way-toggle__label {
-  flex: 0 0 5.75rem;
-  width: 5.75rem;
-  margin-left: 8px;
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+  margin-left: 6px;
   font-size: var(--mat-slide-toggle-label-text-size, 14px);
   line-height: var(--mat-slide-toggle-label-text-line-height, 20px);
   font-weight: var(--mat-slide-toggle-label-text-weight, 400);

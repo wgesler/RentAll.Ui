@@ -44,18 +44,18 @@
 @if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading receipts...</p>
+    <p>{{ loadingMessage }}</p>
   </div>
 } @else if (isServiceError) {
-  <p class="empty-msg">Unable to load receipts.</p>
+  <p class="empty-msg">{{ isShowingDrafts ? 'Unable to load receipt drafts.' : 'Unable to load receipts.' }}</p>
 } @else {
   <div class="mat list-layout-standard dbg-band-main" [class.shell-list-tab-layout]="embeddedInMaintenance">
     <div class="tableDiv">
       <app-data-table
         tableName="receipts-list"
-        [data]="receiptsDisplay"
-        [columns]="receiptDisplayedColumns"
-        [noDataMessage]="embeddedInAccounting ? 'No bills' : 'No unaccounted receipts'"
+        [data]="tableData"
+        [columns]="tableColumns"
+        [noDataMessage]="tableNoDataMessage"
         [hasColumnIndex]="true"
         [hasFilter]="true"
         [hasToggleTop]="false"
@@ -65,13 +65,13 @@
         [hasButtonSelectAll]="showBillsTableSelections"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
-        [hasActionsPayable]="embeddedInAccounting && accountingListMode !== 'receipts'"
+        [hasActionsPayable]="embeddedInAccounting && accountingListMode !== 'receipts' && !isShowingDrafts"
         [hasActionsInfo]="embeddedInAccounting && accountingListMode === 'bills'"
         [infoIconLarge]="true"
         [infoActionColor]="'#1E88E5'"
         [hasWorkOrderCodeLink]="true"
-        [deleteConfirmTitle]="'Delete Receipt'"
-        [deleteConfirmMessage]="'Are you sure you want to delete this receipt?'"
+        [deleteConfirmTitle]="deleteConfirmTitle"
+        [deleteConfirmMessage]="deleteConfirmMessage"
         [itemsPerPage]="10"
         [hasDetailRow]="showBillsDetailRows"
         [detailRowTemplate]="receiptSplitsTemplate"
@@ -84,8 +84,8 @@
         [applyAmountBlurCallback]="onApplyAmountBlur.bind(this)"
         [applyAmountFocusCallback]="onApplyAmountFocus.bind(this)"
         [applyAmountEnterCallback]="onApplyAmountEnter.bind(this)"
-        (editEvent)="goToReceipt($event)"
-        (rowClickEvent)="goToReceipt($event)"
+        (editEvent)="onTableRowClick($event)"
+        (rowClickEvent)="onTableRowClick($event)"
         (receiptClickEvent)="openReceiptDialog($event)"
         (workOrderCodeClickEvent)="goToWorkOrderFromCode($event)"
         (dropdownChangeEvent)="onReceiptDropdownChange($event)"
@@ -97,6 +97,16 @@
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+            @if (embeddedInMaintenance) {
+              <mat-slide-toggle
+                id="toggle-receipts-show-drafts"
+                [checked]="showDrafts"
+                color="primary"
+                (change)="onShowDraftsToggleChange($event.checked)"
+                class="whitespace-nowrap">
+                Drafts
+              </mat-slide-toggle>
+            }
             <app-three-way-toggle
               [labels]="activeFilterLabels"
               [value]="activeFilterIndex"
