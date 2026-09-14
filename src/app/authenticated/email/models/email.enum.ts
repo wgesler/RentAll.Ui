@@ -13,7 +13,8 @@ export enum EmailType {
   OwnerAgreement = 10,
   OwnerStatement = 11,
   SecurityDeposit = 12,
-  Schedules = 13
+  Schedules = 13,
+  MissingReceipts = 14
 }
 
 export function getEmailType(emailTypeId: number | undefined): string {
@@ -33,7 +34,8 @@ export function getEmailType(emailTypeId: number | undefined): string {
     [EmailType.OwnerAgreement]: 'Owner Agreement',
     [EmailType.OwnerStatement]: 'Owner Statement',
     [EmailType.SecurityDeposit]: 'Security Deposit',
-    [EmailType.Schedules]: 'Schedules'
+    [EmailType.Schedules]: 'Schedules',
+    [EmailType.MissingReceipts]: 'Missing Receipts'
   };
 
   return typeMap[emailTypeId] || '';

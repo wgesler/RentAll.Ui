@@ -56,7 +56,8 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     description: { displayAs: 'Description', maxWidth: '28ch', wrap: true },
     isComplete: { displayAs: 'Complete', maxWidth: '10ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     isDraft: { displayAs: 'Draft', maxWidth: '8ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
-    isMissing: { displayAs: 'Missing', maxWidth: '9ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' }
+    isMissing: { displayAs: 'Missing', maxWidth: '9ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
+    isUnknown: { displayAs: 'Unknown', maxWidth: '10ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' }
   };
 
   reportLines: CreditReportLineDisplay[] = [];
@@ -385,6 +386,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
       return {
         ...line,
         isMissing: false,
+        isUnknown: false,
         isDraft: true,
         isComplete: false,
         receiptDraftId,
@@ -437,7 +439,8 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     const completeCount = this.reportLines.filter(line => line.isComplete).length;
     const draftCount = this.reportLines.filter(line => line.isDraft).length;
     const missingCount = this.reportLines.filter(line => line.isMissing).length;
-    return `${completeCount} complete · ${draftCount} draft · ${missingCount} missing`;
+    const unknownCount = this.reportLines.filter(line => line.isUnknown).length;
+    return `${completeCount} complete · ${draftCount} draft · ${missingCount} missing · ${unknownCount} unknown`;
   }
 
   get isCreateDraftsDisabled(): boolean {

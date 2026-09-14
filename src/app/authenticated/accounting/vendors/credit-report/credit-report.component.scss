@@ -34,8 +34,23 @@
 
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown {
+  .mat-mdc-select-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.25rem !important;
+    width: 100% !important;
+  }
+
   .mat-mdc-select-arrow-wrapper {
-    display: none !important;
+    display: flex !important;
+    position: static !important;
+    transform: none !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mat-mdc-select-arrow {
+    color: #1d4ed8 !important;
   }
 
   .mat-mdc-select,

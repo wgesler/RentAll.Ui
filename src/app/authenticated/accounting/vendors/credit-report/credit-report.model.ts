@@ -29,6 +29,7 @@ export interface CreditReportResponse {
   completeMatches: CreditReportLineResponse[];
   draftMatches: CreditReportLineResponse[];
   createdDrafts: CreditReportLineResponse[];
+  unknownMatches: CreditReportLineResponse[];
   warnings: string[];
 }
 
@@ -53,6 +54,7 @@ export interface CreditReportLineDisplay {
   isComplete: boolean;
   isDraft: boolean;
   isMissing: boolean;
+  isUnknown: boolean;
   receiptId?: string | null;
   receiptDraftId?: string | null;
   sourceLine?: CreditReportLineResponse;

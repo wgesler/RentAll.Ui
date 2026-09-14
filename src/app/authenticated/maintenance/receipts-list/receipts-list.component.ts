@@ -31,7 +31,15 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet, postingStatusColumn } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
+import { DocumentType } from '../../documents/models/document.enum';
 import { FileDetails } from '../../documents/models/document.model';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
+import { EmailHtmlService } from '../../email/services/email-html.service';
+import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { UserResponse } from '../../users/models/user.model';
+import { UserService } from '../../users/services/user.service';
 import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, buildBillSplitLineDescription, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { ReceiptDraftResponse } from '../models/receipt-draft.model';
@@ -79,6 +87,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private journalEntryService = inject(JournalEntryService);
   private paymentService = inject(PaymentService);
+  private userService = inject(UserService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private emailHtmlService = inject(EmailHtmlService);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
@@ -93,6 +104,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   readonly activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
   activeFilterIndex: ThreeWayToggleValue = 0;
   showDrafts = false;
+  selectedCardOwner = '';
+  cardOwnerOptions: string[] = [];
+  organizationUsers: UserResponse[] = [];
+  emailHtml: EmailHtmlResponse | null = null;
   activeListCache: ReceiptResponse[] | null = null;
   inactiveListCache: ReceiptResponse[] | null = null;
   listCacheBaseKey: string | null = null;
@@ -108,7 +123,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   expandedReceipts: Set<string> = new Set();
   isAllExpanded = false;
   propertyCodeLookup = new Map<string, string>();
-  bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
+  bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string; cardName: string }>>();
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
   chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
   allChartOfAccounts: ChartOfAccountResponse[] = [];
@@ -157,6 +172,19 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     postingStatusId: postingStatusColumn,
     isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+  };
+
+  readonly draftReceiptDisplayedColumns: ColumnSet = {
+    receiptCode: { displayAs: 'Draft', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
+    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    receiptDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
+    vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '35ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
+    bankCardDropdown: { displayAs: 'Card', wrap: true, maxWidth: '30ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter bank cards...' },
+    cardOwner: { displayAs: 'Card Owner', wrap: true, maxWidth: '30ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
@@ -216,7 +244,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       this.embeddedInAccounting ? '1' : '0',
       this.accountingListMode ?? '',
       this.isManualApplyMode ? '1' : '0',
-      this.authService.hasAccountingNavAccess() ? '1' : '0'
+      this.authService.hasAccountingNavAccess() ? '1' : '0',
+      this.isShowingDrafts ? '1' : '0'
     ].join('|');
 
     if (this.cachedReceiptDisplayedColumns && this.cachedReceiptDisplayedColumnsKey === cacheKey) {
@@ -233,6 +262,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const { isUtility, ...columnsWithoutIsUtility } = columns;
       return columnsWithoutIsUtility;
     };
+
+    if (this.isShowingDrafts) {
+      this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(this.draftReceiptDisplayedColumns);
+      this.cachedReceiptDisplayedColumnsKey = cacheKey;
+      return this.cachedReceiptDisplayedColumns;
+    }
 
     if (!this.embeddedInAccounting) {
       this.cachedReceiptDisplayedColumns = stripIsUtilityColumn(this.maintenanceReceiptDisplayedColumns);
@@ -269,6 +304,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   get isShowingDrafts(): boolean {
     return this.embeddedInMaintenance && this.showDrafts;
+  }
+
+  get showCreditReportButton(): boolean {
+    return this.embeddedInAccounting
+      && this.accountingListMode === 'receipts'
+      && !(this.selectedCardOwner || '').trim();
   }
 
   get tableData(): ReceiptDisplayList[] {
@@ -321,6 +362,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
     this.loadAccountingOffices();
+    this.loadOrganizationUsers();
+    this.loadEmailHtml();
     this.loadVendors();
     this.loadPropertyCodes();
     this.loadChartOfAccountsForAccounting();
@@ -1082,6 +1125,32 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: response => {
+        this.emailHtml = this.mappingService.mapEmailHtml(response);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.emailHtml = null;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadOrganizationUsers(): void {
+    this.userService.getUsers().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: users => {
+        this.organizationUsers = users || [];
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.organizationUsers = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
   loadVendors(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
@@ -1580,9 +1649,105 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
   }
 
+  onCardOwnerFilterChange(owner: string): void {
+    this.selectedCardOwner = owner || '';
+    this.applyFilters();
+  }
+
+  emailCardOwnerDrafts(): void {
+    const cardOwner = (this.selectedCardOwner || '').trim();
+    if (!cardOwner) {
+      return;
+    }
+
+    const rows = this.draftsDisplay || [];
+    if (rows.length === 0) {
+      this.toastr.warning('No drafts to email for this card owner.', CommonMessage.Error);
+      return;
+    }
+
+    const matches = this.findUsersMatchingCardOwner(cardOwner);
+    if (matches.length === 0) {
+      this.toastr.warning(`No employee matches card owner ${cardOwner}.`, CommonMessage.Error);
+      return;
+    }
+    if (matches.length > 1) {
+      this.toastr.warning(`Multiple employees match card owner ${cardOwner}.`, CommonMessage.Error);
+      return;
+    }
+
+    const recipient = matches[0];
+    const toEmail = (recipient.email || '').trim();
+    const toName = `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim() || cardOwner;
+    if (!toEmail) {
+      this.toastr.warning(`${toName} does not have an email address.`, CommonMessage.Error);
+      return;
+    }
+
+    const currentUser = this.authService.getUser();
+    const fromEmail = (currentUser?.email || '').trim();
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const organizationId = (currentUser?.organizationId || '').trim();
+    const selectedOfficeId = this.resolveEmailOfficeId();
+    if (!fromEmail || !fromName) {
+      this.toastr.warning('Current user email sender information is not available.', CommonMessage.Error);
+      return;
+    }
+    if (!organizationId || selectedOfficeId == null) {
+      this.toastr.warning('Organization or office is not available.', CommonMessage.Error);
+      return;
+    }
+
+    const listHtml = this.buildCardOwnerDraftsHtml(cardOwner, rows);
+    const fromPhone = this.formatter.phoneNumber(currentUser?.phone || '') || '';
+    const salutationName = toName.trim().split(/\s+/)[0] || toName;
+    const subject = (this.emailHtml?.missingReceiptsSubject || 'Missing Receipts: {{cardOwner}}')
+      .replace(/\{\{cardOwner\}\}/g, cardOwner);
+    const body = (this.emailHtml?.missingReceipts || '<p>Hi {{salutationName}},</p><p>Attached, please find the list of charges associated with your credit card that still in the draft state. Please take a look and complete them as soon as possible.</p><p>Thank you,</p><p>{{fromName}}<br>{{fromPhone}}</p>')
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\{\{cardOwner\}\}/g, cardOwner)
+      .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{fromEmail\}\}/g, fromEmail)
+      .replace(/\{\{fromPhone\}\}/g, fromPhone);
+    const emailConfig: EmailConfig = {
+      subject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.Attachment,
+      emailType: EmailType.MissingReceipts,
+      plainTextContent: '',
+      htmlContent: body,
+      fileDetails: {
+        fileName: `Card-Charges-${cardOwner.replace(/[^a-zA-Z0-9]+/g, '-')}.pdf`,
+        contentType: 'application/pdf',
+        file: ''
+      },
+      errorMessage: 'Error sending email. Please try again.'
+    };
+    const documentConfig: DocumentConfig = {
+      previewIframeHtml: listHtml,
+      previewIframeStyles: this.buildCardOwnerDraftsStyles(),
+      printStyleOptions: { landscape: true },
+      organizationId,
+      selectedOfficeId,
+      selectedOfficeName: this.accountingOffices.find(office => Number(office.officeId) === selectedOfficeId)?.name || '',
+      isDownloading: false
+    };
+
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig,
+      returnUrl: this.router.url
+    });
+    void this.router.navigateByUrl(RouterUrl.EmailCreate);
+  }
+
   applyFilters(): void {
     if (this.isShowingDrafts) {
-      this.draftsDisplay = this.filterRowsByActiveFilter(this.allDraftDisplays);
+      this.draftsDisplay = this.filterRowsByCardOwner(this.filterRowsByActiveFilter(this.allDraftDisplays));
       this.markViewForCheck();
       return;
     }
@@ -1648,6 +1813,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       filtered = this.filterRowsByActiveFilter(filtered);
     }
 
+    filtered = this.filterRowsByCardOwner(filtered);
     this.receiptsDisplay = filtered;
     if (this.showBillsDetailRows) {
       this.updateIsAllExpanded();
@@ -1834,14 +2000,27 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Dropdown Options Methods
+  rebuildCardOwnerOptions(): void {
+    const names = new Set<string>();
+    this.bankCardOptionsByOfficeId.forEach(options => {
+      options.forEach(option => {
+        const name = (option.cardName || '').trim();
+        if (name) {
+          names.add(name);
+        }
+      });
+    });
+    this.cardOwnerOptions = Array.from(names).sort((a, b) => a.localeCompare(b));
+  }
+
   isAllOfficesScope(): boolean {
     const scopedOfficeId = Number(this.officeId ?? 0);
     return !Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0;
   }
 
-  getAllOfficesBankCardOptions(): Array<{ bankCardId: number; label: string }> {
-    const merged = new Map<number, { bankCardId: number; label: string }>();
-    merged.set(0, { bankCardId: 0, label: 'Bill' });
+  getAllOfficesBankCardOptions(): Array<{ bankCardId: number; label: string; cardName: string }> {
+    const merged = new Map<number, { bankCardId: number; label: string; cardName: string }>();
+    merged.set(0, { bankCardId: 0, label: 'Bill', cardName: '' });
     this.bankCardOptionsByOfficeId.forEach(options => {
       options.forEach(option => {
         if (!merged.has(option.bankCardId)) {
@@ -1876,12 +2055,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     );
   }
 
-  getBankCardOptionsForReceiptScope(receiptOfficeId: number): Array<{ bankCardId: number; label: string }> {
+  getBankCardOptionsForReceiptScope(receiptOfficeId: number): Array<{ bankCardId: number; label: string; cardName: string }> {
     if (this.isAllOfficesScope()) {
       return this.getAllOfficesBankCardOptions();
     }
     const officeId = Number(receiptOfficeId ?? 0);
-    return this.bankCardOptionsByOfficeId.get(officeId) || [{ bankCardId: 0, label: 'Bill' }];
+    return this.bankCardOptionsByOfficeId.get(officeId) || [{ bankCardId: 0, label: 'Bill', cardName: '' }];
   }
 
   getVendorOptionsForReceiptScope(receiptOfficeId: number): Array<{ contactId: string; label: string }> {
@@ -1944,7 +2123,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Display Mapping Methods
    applyBankCardOptionsFromAccountingOffices(): void {
-    const officeMap = new Map<number, Array<{ bankCardId: number; label: string }>>();
+    const officeMap = new Map<number, Array<{ bankCardId: number; label: string; cardName: string }>>();
     (this.accountingOffices || []).forEach(office => {
       const officeId = Number(office.officeId);
       if (!Number.isFinite(officeId) || officeId <= 0) {
@@ -1952,17 +2131,19 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
       const mappedCards = this.mappingService.mapBankCardsFromResponse(office.bankCards as BankCardResponse[]);
       const cardOptions = [
-        { bankCardId: 0, label: 'Bill' },
+        { bankCardId: 0, label: 'Bill', cardName: '' },
         ...mappedCards
           .filter(card => Number(card.bankCardId) > 0)
           .map(card => ({
             bankCardId: Number(card.bankCardId),
-            label: this.toBankCardOptionLabel(card)
+            label: this.toBankCardOptionLabel(card),
+            cardName: (card.cardName || '').trim()
           }))
       ];
       officeMap.set(officeId, cardOptions);
     });
     this.bankCardOptionsByOfficeId = officeMap;
+    this.rebuildCardOwnerOptions();
     this.applyReceiptDisplayMappings();
     this.applyFilters();
     this.markViewForCheck();
@@ -2053,9 +2234,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         || 'Bill';
       const selectedLabel = this.resolveDropdownLabelFromOptions(optionLabels, preferredLabel);
       const displayOptions = this.ensureDropdownOptionLabels(optionLabels, selectedLabel);
+      const matchedCard = optionsForOffice.find(option => option.bankCardId === bankCardId);
       return {
         ...receipt,
         receiptDateReadOnly: !this.isAdmin,
+        cardOwner: this.mappingService.mapCreditReportCardOwner(matchedCard?.cardName),
         bankCardDropdown: {
           value: selectedLabel,
           isOverridable: this.isAdmin,
@@ -2963,6 +3146,91 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  filterRowsByCardOwner(rows: ReceiptDisplayList[]): ReceiptDisplayList[] {
+    const selected = this.normalizePersonName(this.selectedCardOwner);
+    if (!selected) {
+      return rows;
+    }
+    return rows.filter(row => this.normalizePersonName(row.cardOwner) === selected);
+  }
+
+  findUsersMatchingCardOwner(cardOwner: string): UserResponse[] {
+    const ownerTokens = this.normalizePersonName(cardOwner).split(' ').filter(token => token.length > 0);
+    if (ownerTokens.length === 0) {
+      return [];
+    }
+    return (this.organizationUsers || []).filter(user => {
+      if (user.isActive === false) {
+        return false;
+      }
+      const first = this.normalizePersonName(user.firstName);
+      const last = this.normalizePersonName(user.lastName);
+      if (!first || !last) {
+        return false;
+      }
+      const full = `${first} ${last}`;
+      const reverse = `${last} ${first}`;
+      const ownerName = ownerTokens.join(' ');
+      if (full === ownerName || reverse === ownerName) {
+        return true;
+      }
+      return ownerTokens.includes(first) && ownerTokens.includes(last);
+    });
+  }
+
+  normalizePersonName(value: string | null | undefined): string {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+  }
+
+  resolveEmailOfficeId(): number | null {
+    const scopedOfficeId = Number(this.officeId ?? 0);
+    if (Number.isFinite(scopedOfficeId) && scopedOfficeId > 0) {
+      return scopedOfficeId;
+    }
+    const fromRow = (this.draftsDisplay || []).find(row => Number(row.officeId) > 0);
+    if (fromRow) {
+      return Number(fromRow.officeId);
+    }
+    const fromOffice = (this.accountingOffices || []).find(office => Number(office.officeId) > 0);
+    return fromOffice ? Number(fromOffice.officeId) : null;
+  }
+
+  buildCardOwnerDraftsHtml(cardOwner: string, rows: ReceiptDisplayList[]): string {
+    const header = ['Draft', 'Property', 'Work Order', 'Date', 'Amount', 'Vendor', 'Card', 'Card Owner']
+      .map(label => `<th>${this.escapeHtml(label)}</th>`)
+      .join('');
+    const body = rows.map(row => {
+      const vendor = typeof row.vendorDisplay === 'string'
+        ? row.vendorDisplay
+        : (row.vendorDisplay && typeof row.vendorDisplay === 'object' ? row.vendorDisplay.value : '') || row.vendorName || '';
+      const card = row.bankCardDropdown?.value || row.bankCardDisplayName || '';
+      const cells = [
+        row.receiptCode,
+        row.propertyCode,
+        row.workOrderDisplay,
+        row.receiptDate,
+        row.amountDisplay,
+        vendor,
+        card,
+        row.cardOwner
+      ].map(value => `<td>${this.escapeHtml(String(value || ''))}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+    return `<div class="card-owner-drafts"><h2>Card charges - ${this.escapeHtml(cardOwner)}</h2><table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  buildCardOwnerDraftsStyles(): string {
+    return `.card-owner-drafts{font-family:Arial,sans-serif;font-size:11px;color:#111} .card-owner-drafts h2{font-size:16px;margin:0 0 12px} .card-owner-drafts table{width:100%;border-collapse:collapse} .card-owner-drafts th,.card-owner-drafts td{border:1px solid #ccc;padding:6px 8px;text-align:left} .card-owner-drafts th{background:#f3f3f3}`;
+  }
+
+  escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

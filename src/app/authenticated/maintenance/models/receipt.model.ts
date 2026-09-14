@@ -169,6 +169,7 @@ export interface ReceiptDisplayList {
   notes?: string;
   infoHidden?: boolean;
   bankCardDisplayName?: string;
+  cardOwner?: string;
   accountDisplay?: string;
   bankCardDropdown?: {
     value: string;

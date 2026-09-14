@@ -42,7 +42,6 @@ import { RegionComponent } from './authenticated/organizations/region/region.com
 import { MaintenanceShellComponent } from './authenticated/maintenance/maintenance-shell/maintenance-shell.component';
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
-import { ReceiptDraftsShellComponent } from './authenticated/maintenance/receipt-drafts-shell/receipt-drafts-shell.component';
 import { TicketShellComponent } from './authenticated/tickets/ticket-shell/ticket-shell.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { QuoteCreateComponent } from './authenticated/properties/quote-create/quote-create.component';
@@ -88,7 +87,6 @@ export const authRoutes: Routes = [
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.ReceiptDraftList, component: ReceiptDraftsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.DocumentList, component: DocumentsShellComponent, canActivate: [authRouteGuard] },

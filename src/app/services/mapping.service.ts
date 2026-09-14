@@ -1375,12 +1375,14 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       corporateInvoice: emailHtml?.corporateInvoice ?? '',
       ownerStatement: emailHtml?.ownerStatement ?? '',
       schedules: emailHtml?.schedules ?? '',
+      missingReceipts: emailHtml?.missingReceipts ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
       departureSubject: emailHtml?.departureSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
       invoiceSubject: emailHtml?.invoiceSubject ?? '',
       ownerStatementSubject: emailHtml?.ownerStatementSubject ?? '',
       scheduleSubject: emailHtml?.scheduleSubject ?? '',
+      missingReceiptsSubject: emailHtml?.missingReceiptsSubject ?? '',
       createdOn: emailHtml?.createdOn ?? '',
       modifiedOn: emailHtml?.modifiedOn
     };
@@ -5076,7 +5078,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
             .filter(typeLabel => typeLabel.length > 0)
         )
       );
-      const workOrderDisplay = this.resolveReceiptWorkOrderListDisplay(splits, { isUtility });
+      const workOrderDisplay = this.resolveReceiptWorkOrderListDisplay(splits, { isUtility }) || this.receiptWorkOrderMissingLabel;
       const receiptTypeDisplay = distinctReceiptTypes.join(', ');
       const receiptTypeTooltip = distinctReceiptTypes.join(', ');
       const distinctAccounts = Array.from(
@@ -5148,7 +5150,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     });
   }
 
-  mapCreditReportLines(lines: CreditReportLineResponse[], section: 'complete' | 'draft' | 'missing'): CreditReportLineDisplay[] {
+  mapCreditReportLines(lines: CreditReportLineResponse[], section: 'complete' | 'draft' | 'missing' | 'unknown'): CreditReportLineDisplay[] {
     return (lines || []).map((line, index) => ({
       lineKey: `${section}-${line.receiptId || line.receiptDraftId || index}-${line.chargeDate || ''}-${line.amount}`,
       chargeDate: this.formatter.formatDateString(line.chargeDate) || '—',
@@ -5162,6 +5164,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       isComplete: section === 'complete',
       isDraft: section === 'draft',
       isMissing: section === 'missing',
+      isUnknown: section === 'unknown',
       receiptId: line.receiptId ?? null,
       receiptDraftId: line.receiptDraftId ?? null,
       sourceLine: line
@@ -5182,6 +5185,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       isComplete: false,
       isDraft: true,
       isMissing: false,
+      isUnknown: false,
       receiptDraftId: draft.receiptDraftId,
       sourceLine: line.sourceLine
         ? {
@@ -5250,7 +5254,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       ...this.mapCreditReportLines(response.completeMatches || [], 'complete'),
       ...this.mapCreditReportLines(response.draftMatches || [], 'draft'),
       ...this.mapCreditReportLines(proposed.filter(line => !!(line.receiptDraftId || line.draftCode)), 'draft'),
-      ...this.mapCreditReportLines(proposed.filter(line => !(line.receiptDraftId || line.draftCode)), 'missing')
+      ...this.mapCreditReportLines(proposed.filter(line => !(line.receiptDraftId || line.draftCode)), 'missing'),
+      ...this.mapCreditReportLines(response.unknownMatches || [], 'unknown')
     ];
   }
 

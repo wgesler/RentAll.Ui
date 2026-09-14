@@ -96,20 +96,6 @@ export interface ReceiptDraftResponse {
   modifiedBy: string;
 }
 
-export interface ReceiptDraftDisplayList {
-  receiptDraftId: string;
-  draftCode: string;
-  receiptDate: string;
-  description: string;
-  amount: string;
-  officeName: string;
-  bankCardDisplayName: string;
-  sourceLabels: string;
-  statusLabel: string;
-  isPromoted: boolean;
-  rowColor?: string;
-}
-
 export interface PromoteReceiptDraftResponse {
   draft?: ReceiptDraftResponse | null;
   receipt: {
