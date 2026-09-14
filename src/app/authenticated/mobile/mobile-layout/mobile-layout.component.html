@@ -5,3 +5,8 @@
 @if (receiptCaptureInProgress$ | async) {
   <app-receipt-reading-overlay />
 }
+@if (showPendingReceiptDraftsPrompt) {
+  <app-pending-receipt-drafts-prompt
+    (confirmed)="onPendingReceiptDraftsPromptYes()"
+    (dismissed)="onPendingReceiptDraftsPromptNo()" />
+}

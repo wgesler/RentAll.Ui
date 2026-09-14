@@ -13,6 +13,7 @@ import { canShowLeadsNav, getFilteredSidebarNavItems, isPartnerOrganizationConte
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
+import { UserReceiptDraftNoticeService } from '../../../maintenance/services/user-receipt-draft-notice.service';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
 import { UserGroups } from '../../../users/models/user-enums';
@@ -35,6 +36,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private sidebarStateService = inject(SidebarStateService);
   private ticketService = inject(TicketService);
   private securityDepositService = inject(SecurityDepositService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private reservationService = inject(ReservationService);
   private leadsService = inject(LeadsService);
   private organizationFeatureService = inject(OrganizationFeatureService);
@@ -55,6 +57,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   hasAssignedTicketBadge = false;
   hasNewLeadBadge = false;
   hasSecurityDepositsOutstanding = false;
+  hasPendingUserReceiptDrafts = false;
   destroy$ = new Subject<void>();
 
 markViewForCheck(): void {
@@ -68,6 +71,11 @@ markViewForCheck(): void {
 
     this.securityDepositService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
       this.hasSecurityDepositsOutstanding = outstanding;
+      this.markViewForCheck();
+    });
+
+    this.userReceiptDraftNoticeService.hasPendingUserReceiptDrafts$.pipe(takeUntil(this.destroy$)).subscribe(pending => {
+      this.hasPendingUserReceiptDrafts = pending;
       this.markViewForCheck();
     });
 
@@ -96,6 +104,11 @@ markViewForCheck(): void {
       this.refreshLeadBadge();
       if (isLoggedIn && this.authService.hasAccountingNavAccess()) {
         this.securityDepositService.scheduleSecurityDepositsOutstandingRefreshAfterLogin();
+      }
+      if (isLoggedIn) {
+        this.userReceiptDraftNoticeService.scheduleRefreshAfterLogin();
+      } else {
+        this.userReceiptDraftNoticeService.clearPendingNotice();
       }
       this.markViewForCheck();
     });

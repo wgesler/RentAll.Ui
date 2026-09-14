@@ -1,3 +1,11 @@
+.maintenance-shell-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 .maintenance-list-wrap {
   margin-top: 0;
 }

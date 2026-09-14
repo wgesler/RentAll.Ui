@@ -1,2 +1,7 @@
 <app-header/>
 <app-sidebar/>
+@if (showPendingReceiptDraftsPrompt) {
+  <app-pending-receipt-drafts-prompt
+    (confirmed)="onPendingReceiptDraftsPromptYes()"
+    (dismissed)="onPendingReceiptDraftsPromptNo()" />
+}

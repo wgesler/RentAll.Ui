@@ -10,6 +10,7 @@ import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-ove
 import { ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../models/receipt-draft.model';
 import { ReceiptSelection, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptDraftService } from '../services/receipt-draft.service';
+import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
 import { buildReceiptDraftRequestFromForm } from '../services/receipt-draft-form.mapper';
 import { UtilityService } from '../../../services/utility.service';
 import { ReceiptComponent } from '../receipt/receipt.component';
@@ -27,6 +28,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
   @Output() draftPromotedEvent = new EventEmitter<ReceiptSelection>();
 
   private receiptDraftService = inject(ReceiptDraftService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private draftToastr = inject(ToastrService);
   private draftUtilityService = inject(UtilityService);
 
@@ -161,6 +163,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
         this.splitTotalValidationError = false;
         this.draftToastr.success('Receipt draft saved.', 'Success');
         this.draftSavedEvent.emit(draft.receiptDraftId);
+        this.userReceiptDraftNoticeService.notifyDraftsChanged();
         this.updateDraftFormDisabledState();
         this.form?.markAsPristine();
         if (this.backAfterDraftSave) {
@@ -225,6 +228,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
             ),
             receipt: null
           });
+          this.userReceiptDraftNoticeService.notifyDraftsChanged();
         },
         error: (err) => {
           this.draftToastr.error(this.resolveReceiptDraftSaveError(err), 'Error');
@@ -249,6 +253,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
       .subscribe({
         next: () => {
           this.draftToastr.success('Receipt draft deleted.', 'Success');
+          this.userReceiptDraftNoticeService.notifyDraftsChanged();
           this.back();
         },
         error: () => this.draftToastr.error('Unable to delete receipt draft.', 'Error')

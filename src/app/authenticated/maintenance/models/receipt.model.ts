@@ -212,6 +212,7 @@ export interface ReceiptDisplayList {
   createdByName?: string;
   modifiedOn: string;
   modifiedBy: string;
+  attentionDot?: boolean;
   expand?: string;
   expanded?: boolean;
   detailLines?: ReceiptSplitDetailLineDisplay[];

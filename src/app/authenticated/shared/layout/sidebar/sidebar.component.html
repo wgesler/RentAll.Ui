@@ -24,6 +24,9 @@
           @if ((navItem.url === 'accounting' || navItem.url?.startsWith('accounting/')) && hasSecurityDepositsOutstanding) {
             <span class="sidebar-ticket-badge-dot" aria-hidden="true"></span>
           }
+          @if (navItem.url === 'maintenance' && hasPendingUserReceiptDrafts) {
+            <span class="sidebar-ticket-badge-dot" aria-hidden="true"></span>
+          }
           @if (navItem.icon === 'dashboard') {
             <img src="assets/images/icons/dashboard.svg" alt="" class="sidebar-svg-icon" aria-hidden="true" />
           } @else {

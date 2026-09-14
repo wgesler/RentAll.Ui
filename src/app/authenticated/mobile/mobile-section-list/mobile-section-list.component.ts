@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Subject, finalize, map, of, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -13,6 +13,10 @@ import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { buildCardNameLookup, isDraftAssignedToUser, isReceiptAssignedToUser } from '../../maintenance/services/user-receipt-draft-match.util';
+import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { ReceiptDraftResponse } from '../../maintenance/models/receipt-draft.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UserGroups } from '../../users/models/user-enums';
@@ -45,6 +49,7 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   private workOrderService = inject(WorkOrderService);
   private globalSelectionService = inject(GlobalSelectionService);
   private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private cdr = inject(ChangeDetectorRef);
   rows: MobileListRow[] = [];
   columns: ColumnSet = {};
@@ -180,6 +185,10 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
 
   markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  get showReceiptAttentionColumn(): boolean {
+    return this.tabPath === 'receipts';
   }
 
   get rowsClickable(): boolean {
@@ -320,9 +329,16 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
 
-    this.receiptService.getReceipts().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list'))).subscribe({
-      next: receipts => {
-        this.rows = (receipts || []).filter(receipt => receipt.isActive !== false && this.mappingService.matchesMobileOfficeScope(receipt.officeId, this.selectedOfficeId)).map(receipt => this.mappingService.mapMobileReceiptListDisplay(receipt));
+    forkJoin({
+      receipts: this.receiptService.getReceipts().pipe(take(1)),
+      accountingOffices: this.loadAccountingOffices()
+    }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list'))).subscribe({
+      next: ({ receipts, accountingOffices }) => {
+        const cardNameByBankCardId = buildCardNameLookup(accountingOffices);
+        const user = this.authService.getUser();
+        this.rows = (receipts || [])
+          .filter(receipt => receipt.isActive !== false && this.mappingService.matchesMobileOfficeScope(receipt.officeId, this.selectedOfficeId))
+          .map(receipt => this.mapMobileReceiptRow(receipt, user, cardNameByBankCardId));
         this.markViewForCheck();
       },
       error: () => {
@@ -333,30 +349,68 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   loadReceiptDrafts(): void {
-    this.resolveReceiptDraftOfficeIds().pipe(take(1)).subscribe(officeIds => {
-      if (officeIds.length === 0) {
-        this.rows = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list');
-        this.markViewForCheck();
-        return;
-      }
-
-      this.receiptDraftService.searchReceiptDrafts({
-        officeIds,
-        includePromoted: false
-      }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list'))).subscribe({
-        next: drafts => {
-          this.rows = (drafts || [])
-            .filter(draft => draft.isActive !== false)
-            .map(draft => this.mappingService.mapMobileReceiptDraftListDisplay(draft));
-          this.markViewForCheck();
-        },
-        error: () => {
-          this.rows = [];
-          this.markViewForCheck();
+    this.resolveReceiptDraftOfficeIds().pipe(
+      take(1),
+      switchMap(officeIds => {
+        if (officeIds.length === 0) {
+          return of({ drafts: [] as ReceiptDraftResponse[], accountingOffices: [] });
         }
-      });
+
+        return forkJoin({
+          drafts: this.receiptDraftService.searchReceiptDrafts({
+            officeIds,
+            includePromoted: false
+          }).pipe(take(1)),
+          accountingOffices: this.loadAccountingOffices()
+        });
+      }),
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'list'))
+    ).subscribe({
+      next: ({ drafts, accountingOffices }) => {
+        const cardNameByBankCardId = buildCardNameLookup(accountingOffices);
+        const user = this.authService.getUser();
+        this.rows = (drafts || [])
+          .filter(draft => draft.isActive !== false)
+          .map(draft => this.mapMobileReceiptDraftRow(draft, user, cardNameByBankCardId));
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.rows = [];
+        this.markViewForCheck();
+      }
     });
+  }
+
+  private loadAccountingOffices() {
+    return this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+      take(1),
+      switchMap(() => this.accountingOfficeService.getAllAccountingOffices().pipe(take(1)))
+    );
+  }
+
+  private mapMobileReceiptRow(
+    receipt: ReceiptResponse,
+    user: { userId?: string | null; firstName?: string | null; lastName?: string | null } | null | undefined,
+    cardNameByBankCardId: Map<number, string>
+  ): MobileListRow {
+    const row = this.mappingService.mapMobileReceiptListDisplay(receipt);
+    if (user && isReceiptAssignedToUser(receipt, user, cardNameByBankCardId)) {
+      row['attentionDot'] = '1';
+    }
+    return row;
+  }
+
+  private mapMobileReceiptDraftRow(
+    draft: ReceiptDraftResponse,
+    user: { userId?: string | null; firstName?: string | null; lastName?: string | null } | null | undefined,
+    cardNameByBankCardId: Map<number, string>
+  ): MobileListRow {
+    const row = this.mappingService.mapMobileReceiptDraftListDisplay(draft);
+    if (user && isDraftAssignedToUser(draft, user, cardNameByBankCardId)) {
+      row['attentionDot'] = '1';
+    }
+    return row;
   }
 
   private resolveReceiptDraftOfficeIds() {

@@ -16,6 +16,7 @@ import { MobileTicketListComponent } from '../mobile-ticket-list/mobile-ticket-l
 import { AuthService } from '../../../services/auth.service';
 import { MOBILE_PROPERTY_DETAIL_TABS, MobileNavItem, MobileNavTab, MobileTicketFilterMode, getMobileNavItem, getMobileRouteParts, getMobileTab, getMobileTicketFilterMode, getMobileTicketTab, getMobileTicketTabs, getMobilePropertyBackUrl, getMobileReservationBackUrl, resolveMobilePropertyReturnTo, resolveMobileReservationReturnTo } from '../mobile-nav';
 import { getMobileTicketReturnRoute } from '../mobile-ticket-return.util';
+import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
 
 @Component({
   standalone: true,
@@ -33,6 +34,7 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
   @ViewChild('inspectionDetail') inspectionDetail?: MobileInspectionDetailComponent;
   private router = inject(Router);
   private authService = inject(AuthService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
   destroy$ = new Subject<void>();
   section: MobileNavItem | null = null;
@@ -52,6 +54,7 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
   reservationReturnTo: 'board' | 'list' = 'list';
   propertyReturnTo: 'board' | 'list' = 'list';
   titleTabs: MobileNavTab[] = [];
+  hasPendingUserReceiptDrafts = false;
 
   //#region Mobile-Section
   ngOnInit(): void {
@@ -59,6 +62,10 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
     this.syncFromUrl();
     this.router.events.pipe(filter(event => event instanceof NavigationEnd), takeUntil(this.destroy$)).subscribe(() => {
       this.syncFromUrl();
+    });
+    this.userReceiptDraftNoticeService.hasPendingUserReceiptDrafts$.pipe(takeUntil(this.destroy$)).subscribe(pending => {
+      this.hasPendingUserReceiptDrafts = pending;
+      this.markViewForCheck();
     });
   }
 
@@ -186,7 +193,11 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
       this.router.navigate(['/mobile', 'properties', this.detailId, menuTab.path], { queryParamsHandling: 'preserve' });
       return;
     }
-    this.router.navigate(['/mobile', this.section.path, menuTab.path]);
+    if (this.section.path === 'maintenance' && menuTab.path === 'receipts' && this.hasPendingUserReceiptDrafts) {
+      void this.router.navigate(['/mobile', 'maintenance', 'receipts'], { queryParams: { draft: 'true' } });
+      return;
+    }
+    void this.router.navigate(['/mobile', this.section.path, menuTab.path]);
   }
 
   isTitleTabSelected(menuTab: MobileNavTab): boolean {

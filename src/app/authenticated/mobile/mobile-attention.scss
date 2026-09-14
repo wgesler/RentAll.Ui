@@ -1,0 +1,50 @@
+.mobile-attention-dot-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #dc2626;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mobile-sidebar-badge-dot {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--mat-sys-error, #dc2626);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
+.mobile-sidebar-tab-menu-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mobile-sidebar-tab-menu-dot {
+  transform: none;
+}
+
+.mobile-list-table .col-attention,
+.mobile-ticket-table .col-attention {
+  width: 1rem;
+  min-width: 1rem;
+  max-width: 1rem;
+  padding-inline: 0.125rem;
+}
+
+.mobile-list-attention-dot,
+.mobile-ticket-attention-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #dc2626;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}

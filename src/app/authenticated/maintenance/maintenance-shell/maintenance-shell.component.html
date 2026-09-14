@@ -187,7 +187,15 @@
             }
             }
           </mat-tab>
-          <mat-tab label="Receipts">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="maintenance-shell-tab-label">
+                @if (hasPendingUserReceiptDrafts) {
+                  <span class="attention-badge-dot" aria-hidden="true">●</span>
+                }
+                Receipts
+              </span>
+            </ng-template>
             @if (selectedTabIndex === receiptsTabIndex) {
             @if (showReceiptDraftDetail) {
               @for (instance of [receiptDraftDetailInstance]; track instance) {
@@ -220,6 +228,7 @@
                 [searchRequest]="receiptSearchRequest"
                 [embeddedInMaintenance]="true"
                 [shellContext]="'maintenance'"
+                [initialShowDrafts]="initialReceiptsShowDrafts"
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)"
                 (draftSelect)="onReceiptDraftSelect($event)"

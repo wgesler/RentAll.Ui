@@ -1,3 +1,5 @@
+@import '../mobile-attention.scss';
+
 :host {
   display: block;
   height: 100%;
@@ -95,6 +97,7 @@ mat-sidenav {
       overflow: visible;
       line-height: 1;
     }
+
   }
 }
 

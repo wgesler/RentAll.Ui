@@ -15,4 +15,12 @@
     </button>
   </div>
 }
-<app-mobile-list-table [rows]="rows" [columns]="columns" [isPageReady]="isPageReady" [showFilter]="showFilter" [rowsClickable]="rowsClickable" (rowClick)="onRowClick($event)" />
+<app-mobile-list-table
+  [rows]="rows"
+  [columns]="columns"
+  [isPageReady]="isPageReady"
+  [showFilter]="showFilter"
+  [rowsClickable]="rowsClickable"
+  [rowNumberLabel]="showReceiptAttentionColumn ? 'No' : '#'"
+  [showAttentionColumn]="showReceiptAttentionColumn"
+  (rowClick)="onRowClick($event)" />

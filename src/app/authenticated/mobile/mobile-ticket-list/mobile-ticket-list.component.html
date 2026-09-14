@@ -14,6 +14,7 @@
       <thead>
         <tr>
           <th class="col-no">#</th>
+          <th class="col-attention" aria-hidden="true"></th>
           @for (entry of getColumnEntries(); track entry.name) {
             <th [style.width]="entry.column.maxWidth">{{ entry.column.displayAs }}</th>
           }
@@ -23,17 +24,13 @@
         @for (ticket of ticketsDisplay; track ticket.ticketId; let i = $index) {
           <tr class="mobile-ticket-row" (click)="onTicketClick(ticket)">
             <td class="col-no">{{ i + 1 }}</td>
-            @for (entry of getColumnEntries(); track entry.name) {
-              @if (entry.name === 'ticketCode') {
-                <td [style.width]="entry.column.maxWidth">
-                  @if (ticket.ticketAttentionDot) {
-                    <span class="mobile-ticket-attention-dot" aria-hidden="true">●</span>
-                  }
-                  <span class="mobile-ticket-code-text">{{ ticket.ticketCode }}</span>
-                </td>
-              } @else {
-                <td [style.width]="entry.column.maxWidth">{{ getCellValue(ticket, entry.name) }}</td>
+            <td class="col-attention">
+              @if (ticket.ticketAttentionDot) {
+                <span class="mobile-ticket-attention-dot" aria-hidden="true">●</span>
               }
+            </td>
+            @for (entry of getColumnEntries(); track entry.name) {
+              <td [style.width]="entry.column.maxWidth">{{ getCellValue(ticket, entry.name) }}</td>
             }
           </tr>
         }

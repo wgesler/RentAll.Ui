@@ -16,7 +16,12 @@
   <mat-menu #titleMenu="matMenu" panelClass="mobile-sidebar-tab-menu">
     @for (menuTab of titleTabs; track menuTab.path) {
       <button mat-menu-item type="button" class="office-menu-item" (click)="onTitleTabSelect(menuTab)">
-        <span class="office-menu-label">{{ menuTab.label }}</span>
+        <span class="office-menu-label mobile-sidebar-tab-menu-label">
+          @if (showTitleTabAttentionDot(menuTab)) {
+            <span class="mobile-attention-dot-text mobile-sidebar-tab-menu-dot" aria-hidden="true">●</span>
+          }
+          {{ menuTab.label }}
+        </span>
         @if (isTitleTabSelected(menuTab)) {
           <mat-icon class="office-selected-check">check</mat-icon>
         }

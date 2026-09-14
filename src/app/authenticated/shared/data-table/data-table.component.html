@@ -512,6 +512,14 @@
                         <mat-icon class="datatable-checkmark-icon" aria-hidden="true">check</mat-icon>
                       }
                     </div>
+                  } @else if (column.isAttentionDot) {
+                    <div class="datatable-attention-dot-cell"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()">
+                      @if (item[column.name]) {
+                        <span class="attention-badge-dot datatable-attention-dot" aria-hidden="true">●</span>
+                      }
+                    </div>
                   } @else if (column.isPostingStatus) {
                     @let postingVisual = getPostingStatusVisual(item, column.name || '');
                     <div class="datatable-posting-status-cell"

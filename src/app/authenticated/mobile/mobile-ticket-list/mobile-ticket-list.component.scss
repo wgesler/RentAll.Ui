@@ -59,17 +59,19 @@
   text-align: center;
 }
 
-.mobile-ticket-attention-dot {
-  display: inline;
-  color: #ff0000;
-  font-weight: 700;
-  margin-right: 0.2rem;
-  vertical-align: middle;
+.mobile-ticket-table .col-attention {
+  width: 1.25rem;
+  min-width: 1.25rem;
+  max-width: 1.25rem;
+  padding-inline: 0.25rem;
+  text-align: center;
 }
 
-.mobile-ticket-code-text {
-  display: inline;
-  vertical-align: middle;
-  color: #707070;
-  font-weight: 400;
+.mobile-ticket-attention-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff0000;
+  font-weight: 700;
+  line-height: 1;
 }

@@ -1,0 +1,12 @@
+<div class="pending-receipt-drafts-prompt" role="dialog" aria-modal="true" aria-labelledby="pending-receipt-drafts-title">
+  <div class="pending-receipt-drafts-prompt__panel">
+    <h2 id="pending-receipt-drafts-title" class="pending-receipt-drafts-prompt__title">Draft Receipts</h2>
+    <p class="pending-receipt-drafts-prompt__message">
+      You have draft receipts waiting for your completion. Go there now?
+    </p>
+    <div class="pending-receipt-drafts-prompt__actions">
+      <button mat-raised-button type="button" color="accent" (click)="dismissed.emit()">No</button>
+      <button mat-raised-button type="button" color="primary" (click)="confirmed.emit()">Yes</button>
+    </div>
+  </div>
+</div>

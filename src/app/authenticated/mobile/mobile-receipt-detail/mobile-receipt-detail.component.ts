@@ -21,6 +21,7 @@ import { SearchableSelectComponent } from '../../shared/searchable-select/search
 import { ReceiptExtractResponse, ReceiptResponse } from '../../maintenance/models/receipt.model';
 import { ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../../maintenance/models/receipt-draft.model';
 import { ReceiptDraftService } from '../../maintenance/services/receipt-draft.service';
+import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
 import { buildReceiptDraftRequestFromForm } from '../../maintenance/services/receipt-draft-form.mapper';
 import { MobileCaptureReceiptDraft, MobileCaptureReceiptDraftService } from '../mobile-capture-receipt-draft.service';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
@@ -52,6 +53,7 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
   private captureReceiptDraftService = inject(MobileCaptureReceiptDraftService);
   private receiptDraftService = inject(ReceiptDraftService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private mobileUtilityService = inject(UtilityService);
   private mobileCdr = inject(ChangeDetectorRef);
 
@@ -200,6 +202,7 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
         this.openedExistingReceiptDraft = true;
         this.receiptDescriptionChange.emit((draft.description || draft.draftCode || '').trim());
         this.mobileToastr.success('Receipt draft saved.', 'Success');
+        this.userReceiptDraftNoticeService.notifyDraftsChanged();
         if (this.autoBackOnSave) {
           this.back();
         }

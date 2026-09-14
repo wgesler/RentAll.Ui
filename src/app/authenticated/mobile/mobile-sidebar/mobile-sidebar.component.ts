@@ -11,6 +11,8 @@ import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MobileNavItem, MobileNavTab, getMobileLeadsTabs, getMobileNavItem, getMobileNavItems, getMobilePrimaryLink, getMobileRouteParts, getMobileTicketTabs } from '../mobile-nav';
 import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
 import { MobileReceiptCaptureService } from '../mobile-receipt-capture.service';
+import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
+import { MobileNavAttentionService, MobileNavAttentionState } from '../mobile-nav-attention.service';
 
 @Component({
   standalone: true,
@@ -29,6 +31,8 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
   private cdr = inject(ChangeDetectorRef);
   private mobileReceiptCaptureService = inject(MobileReceiptCaptureService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
+  private mobileNavAttentionService = inject(MobileNavAttentionService);
   readonly collapsedSidebarWidth = 64;
   @ViewChild('sideNav') sideNav: MatSidenav;
   navItems: MobileNavItem[] = [];
@@ -37,6 +41,13 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
   menuNavItem: MobileNavItem | null = null;
   isAdmin = false;
   isOwnerAdmin = false;
+  hasPendingUserReceiptDrafts = false;
+  navAttention: MobileNavAttentionState = {
+    hasLeadsAttention: false,
+    hasTicketsAttention: false,
+    leadTabAttention: {},
+    ticketTabAttention: {}
+  };
   destroy$ = new Subject<void>();
 
   //#region Mobile-Sidebar
@@ -77,6 +88,15 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
     this.mobileReceiptCaptureService.captureInProgress$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.markViewForCheck();
     });
+    this.userReceiptDraftNoticeService.hasPendingUserReceiptDrafts$.pipe(takeUntil(this.destroy$)).subscribe(pending => {
+      this.hasPendingUserReceiptDrafts = pending;
+      this.markViewForCheck();
+    });
+    this.mobileNavAttentionService.state$.pipe(takeUntil(this.destroy$)).subscribe(state => {
+      this.navAttention = state;
+      this.markViewForCheck();
+    });
+    this.mobileNavAttentionService.refresh();
   }
 
   ngOnDestroy(): void {
@@ -101,7 +121,11 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
     if (!this.menuNavItem) {
       return;
     }
-    this.router.navigate(['/mobile', this.menuNavItem.path, tab.path]);
+    if (this.menuNavItem.path === 'maintenance' && tab.path === 'receipts' && this.hasPendingUserReceiptDrafts) {
+      void this.router.navigate(['/mobile', 'maintenance', 'receipts'], { queryParams: { draft: 'true' } });
+    } else {
+      void this.router.navigate(['/mobile', this.menuNavItem.path, tab.path]);
+    }
     this.sideNav?.close();
   }
 
@@ -138,6 +162,33 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
 
   isTabSelected(tab: MobileNavTab): boolean {
     return this.selectedItem?.path === this.menuNavItem?.path && this.selectedTabPath === tab.path;
+  }
+
+  showNavItemAttentionDot(navItem: MobileNavItem): boolean {
+    if (navItem.path === 'maintenance') {
+      return this.hasPendingUserReceiptDrafts;
+    }
+    if (navItem.path === 'leads') {
+      return this.navAttention.hasLeadsAttention;
+    }
+    if (navItem.path === 'tickets') {
+      return this.navAttention.hasTicketsAttention;
+    }
+    return false;
+  }
+
+  showTabMenuAttentionDot(tab: MobileNavTab): boolean {
+    const sectionPath = this.menuNavItem?.path;
+    if (sectionPath === 'maintenance') {
+      return tab.path === 'receipts' && this.hasPendingUserReceiptDrafts;
+    }
+    if (sectionPath === 'leads') {
+      return !!this.navAttention.leadTabAttention[tab.path];
+    }
+    if (sectionPath === 'tickets') {
+      return !!this.navAttention.ticketTabAttention[tab.path];
+    }
+    return false;
   }
 
   getMenuTabs(): MobileNavTab[] {

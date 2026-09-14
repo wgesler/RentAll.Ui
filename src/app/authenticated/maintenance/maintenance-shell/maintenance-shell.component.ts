@@ -28,6 +28,7 @@ import { WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-ord
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
+import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
@@ -61,6 +62,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
 
   property: PropertyResponse | null = null;
@@ -136,6 +138,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   dateRangePinned = false;
   receiptSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   workOrderSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
+  hasPendingUserReceiptDrafts = false;
+  initialReceiptsShowDrafts = false;
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-maintenance-shell-pinned-dates';
@@ -149,6 +153,14 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   //#region Maintenance-Shell
   ngOnInit(): void {
+    this.userReceiptDraftNoticeService.hasPendingUserReceiptDrafts$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(pending => {
+        this.hasPendingUserReceiptDrafts = pending;
+        this.cdr.markForCheck();
+      });
+    this.userReceiptDraftNoticeService.refresh();
+
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.openWithAllSelections = ((this.route.snapshot.queryParamMap.get('scope') || '').trim().toLowerCase() === 'all');
     this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
@@ -878,6 +890,12 @@ applyPageOfficeChangeEffects(): void {
     const normalizedTab = this.normalizeRequestedTab(tabParam);
     if (normalizedTab !== null) {
       this.selectedTabIndex = normalizedTab;
+    }
+
+    const draftParam = (params.get('draft') || '').trim().toLowerCase();
+    if (draftParam === 'true' || draftParam === '1') {
+      this.initialReceiptsShowDrafts = true;
+      this.selectedTabIndex = this.receiptsTabIndex;
     }
 
     const receiptIdParam = (params.get('receiptId') || '').trim();

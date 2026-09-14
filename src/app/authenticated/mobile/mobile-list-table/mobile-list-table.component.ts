@@ -19,7 +19,7 @@ export class MobileListTableComponent implements OnChanges {
   @Input() showFilter = false;
   @Input() rowsClickable = false;
   @Input() rowNumberLabel = '#';
-  @Input() attentionDotColumn = '';
+  @Input() showAttentionColumn = false;
   @Output() rowClick = new EventEmitter<MobileListRow>();
   private cdr = inject(ChangeDetectorRef);
   filterText = '';

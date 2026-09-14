@@ -955,7 +955,8 @@ td.mat-mdc-cell.datatable-date-column {
   color: transparent;
 }
 
-.datatable-checkmark-cell {
+.datatable-checkmark-cell,
+.datatable-attention-dot-cell {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -963,6 +964,10 @@ td.mat-mdc-cell.datatable-date-column {
   min-height: 40px;
   pointer-events: none;
   user-select: none;
+}
+
+.datatable-attention-dot {
+  font-size: 0.875rem;
 }
 
 .datatable-checkmark-icon {

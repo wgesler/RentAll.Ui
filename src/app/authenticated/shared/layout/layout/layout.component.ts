@@ -3,20 +3,23 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { DEFAULT_INTERRUPTSOURCES, Idle } from '@ng-idle/core';
 import { Keepalive, NgIdleKeepaliveModule } from '@ng-idle/keepalive';
 import { Subject, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../../app.routes';
 import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../../../shared/utils/cdk-overlay.util';
 import { AuthService } from '../../../../services/auth.service';
+import { UserReceiptDraftNoticeService } from '../../../maintenance/services/user-receipt-draft-notice.service';
 import { GenericModalComponent } from '../../modals/generic/generic-modal.component';
+import { PendingReceiptDraftsPromptComponent } from '../../pending-receipt-drafts-prompt/pending-receipt-drafts-prompt.component';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 
 @Component({
     standalone: true,
     selector: 'app-layout',
-    imports: [RouterModule, HeaderComponent, SidebarComponent, MatButtonModule, MatIconModule, NgIdleKeepaliveModule],
+    imports: [RouterModule, HeaderComponent, SidebarComponent, MatButtonModule, MatIconModule, NgIdleKeepaliveModule, PendingReceiptDraftsPromptComponent],
     templateUrl: './layout.component.html',
     styleUrl: './layout.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -28,6 +31,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private cd = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
   private dialog = inject(MatDialog);
+  private router = inject(Router);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
 
   readonly timeoutData = { data: { title: 'Session Timed-Out', message: 'Would you like to continue?', no: 'Leave', yes: 'Stay' } };
   static isIdleModalOn = false;
@@ -38,6 +43,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   idleMonitor: boolean = false;
   destroy$ = new Subject<void>();
   dialogRef: MatDialogRef<GenericModalComponent>;
+  showPendingReceiptDraftsPrompt = false;
 
   constructor() {
     const idle = this.idle;
@@ -68,12 +74,46 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.idleMonitor = true;
     this.idle.watch();
 
+    this.userReceiptDraftNoticeService.resetLoginPrompt();
+    this.userReceiptDraftNoticeService.scheduleRefreshAfterLogin();
+    this.userReceiptDraftNoticeService.hasPendingUserReceiptDrafts$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.syncPendingReceiptDraftsPrompt());
+
+    this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
+      if (!isLoggedIn) {
+        this.userReceiptDraftNoticeService.clearPendingNotice();
+        this.showPendingReceiptDraftsPrompt = false;
+        this.cd.markForCheck();
+      }
+    });
+
     this.authService.jwtChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       if (this.authService.getIsLoggedIn() || this.authService.isLoggingOut()) {
         return;
       }
       this.stopIdleMonitoring();
     });
+
+    this.syncPendingReceiptDraftsPrompt();
+  }
+
+  onPendingReceiptDraftsPromptYes(): void {
+    this.userReceiptDraftNoticeService.markLoginPromptHandled();
+    this.showPendingReceiptDraftsPrompt = false;
+    this.cd.markForCheck();
+    void this.router.navigateByUrl(`${RouterUrl.MaintenanceList}?tab=2&draft=true`);
+  }
+
+  onPendingReceiptDraftsPromptNo(): void {
+    this.userReceiptDraftNoticeService.markLoginPromptHandled();
+    this.showPendingReceiptDraftsPrompt = false;
+    this.cd.markForCheck();
+  }
+
+  private syncPendingReceiptDraftsPrompt(): void {
+    this.showPendingReceiptDraftsPrompt = this.userReceiptDraftNoticeService.shouldShowLoginPrompt();
+    this.cd.markForCheck();
   }
 
   ngOnDestroy(): void {

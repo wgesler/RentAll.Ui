@@ -14,6 +14,7 @@ import {
   getMobileLeadsTabs,
   getMobileRouteParts
 } from '../mobile-nav';
+import { MobileNavAttentionService, MobileNavAttentionState } from '../mobile-nav-attention.service';
 
 @Component({
   standalone: true,
@@ -29,6 +30,7 @@ export class MobileLeadsPageComponent implements OnInit, OnDestroy {
   private organizationFeatureService = inject(OrganizationFeatureService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
+  private mobileNavAttentionService = inject(MobileNavAttentionService);
   private destroy$ = new Subject<void>();
 
   tab: MobileNavTab | null = null;
@@ -36,6 +38,12 @@ export class MobileLeadsPageComponent implements OnInit, OnDestroy {
   detailId = '';
   selectedOfficeId: number | null = null;
   isOwnerAdmin = false;
+  navAttention: MobileNavAttentionState = {
+    hasLeadsAttention: false,
+    hasTicketsAttention: false,
+    leadTabAttention: {},
+    ticketTabAttention: {}
+  };
 
   ngOnInit(): void {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
@@ -61,6 +69,14 @@ export class MobileLeadsPageComponent implements OnInit, OnDestroy {
       this.enforceAccess();
       this.markViewForCheck();
     });
+    this.mobileNavAttentionService.state$.pipe(takeUntil(this.destroy$)).subscribe(state => {
+      this.navAttention = state;
+      this.markViewForCheck();
+    });
+  }
+
+  showTitleTabAttentionDot(menuTab: MobileNavTab): boolean {
+    return !!this.navAttention.leadTabAttention[menuTab.path];
   }
 
   ngOnDestroy(): void {

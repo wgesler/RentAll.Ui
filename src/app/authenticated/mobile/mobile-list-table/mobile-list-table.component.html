@@ -23,6 +23,9 @@
       <thead>
         <tr>
           <th class="col-no">{{ rowNumberLabel }}</th>
+          @if (showAttentionColumn) {
+            <th class="col-attention" aria-hidden="true"></th>
+          }
           @for (entry of getColumnEntries(); track entry.name) {
             <th [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">{{ entry.column.displayAs }}</th>
           }
@@ -32,17 +35,15 @@
         @for (row of filteredRows; track row.id; let i = $index) {
           <tr [class.mobile-list-row-clickable]="rowsClickable" (click)="onRowClick(row)">
             <td class="col-no">{{ i + 1 }}</td>
+            @if (showAttentionColumn) {
+              <td class="col-attention">
+                @if (hasAttentionDot(row)) {
+                  <span class="mobile-list-attention-dot" aria-hidden="true">●</span>
+                }
+              </td>
+            }
             @for (entry of getColumnEntries(); track entry.name) {
-              @if (attentionDotColumn && entry.name === attentionDotColumn) {
-                <td [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">
-                  @if (hasAttentionDot(row)) {
-                    <span class="mobile-list-attention-dot" aria-hidden="true">●</span>
-                  }
-                  <span class="mobile-list-attention-text">{{ getCellValue(row, entry.name) }}</span>
-                </td>
-              } @else {
-                <td [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">{{ getCellValue(row, entry.name) }}</td>
-              }
+              <td [style.width]="entry.column.maxWidth" [style.min-width]="entry.column.maxWidth">{{ getCellValue(row, entry.name) }}</td>
             }
           </tr>
         }

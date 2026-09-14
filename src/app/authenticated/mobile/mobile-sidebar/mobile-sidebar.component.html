@@ -18,6 +18,9 @@
           [matMenuTriggerFor]="tabMenu"
           (click)="onMenuItemClick(navItem)">
           <div class="mat-list-item-content-open mat-list-item-content-closed" [class.active-list-item]="selectedItem?.path === navItem.path">
+            @if (showNavItemAttentionDot(navItem)) {
+              <span class="mobile-sidebar-badge-dot" aria-hidden="true"></span>
+            }
             <mat-icon>{{ navItem.icon }}</mat-icon>
           </div>
         </a>
@@ -75,7 +78,12 @@
     <mat-menu #tabMenu="matMenu" xPosition="after" panelClass="mobile-sidebar-tab-menu">
       @for (tab of getMenuTabs(); track tab.path) {
         <button mat-menu-item type="button" class="office-menu-item" (click)="onTabSelect(tab)">
-          <span class="office-menu-label">{{ tab.label }}</span>
+          <span class="office-menu-label mobile-sidebar-tab-menu-label">
+            @if (showTabMenuAttentionDot(tab)) {
+              <span class="mobile-attention-dot-text mobile-sidebar-tab-menu-dot" aria-hidden="true">●</span>
+            }
+            {{ tab.label }}
+          </span>
           @if (isTabSelected(tab)) {
             <mat-icon class="office-selected-check">check</mat-icon>
           }
