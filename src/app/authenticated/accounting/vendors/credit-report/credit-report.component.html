@@ -1,0 +1,40 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Reading credit report...</p>
+  </div>
+} @else {
+  <div class="mat list-layout-standard financial-report-layout pre-billing-report-layout">
+    <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
+      <div class="property-tab-actions-band__row financial-report-context-band__row">
+        <div class="financial-report-context-band__titles">
+          <p class="financial-report-report-title">Credit Report</p>
+          <button type="button" class="financial-report-context-btn">
+            <span class="financial-report-context-btn__entity">{{ reportEntityLine }}</span>
+            @if (reportPeriodLine) {
+              <span class="financial-report-context-btn__period">{{ reportPeriodLine }}</span>
+            }
+          </button>
+        </div>
+        <div class="financial-report-actions-wrap table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isCreateDraftsDisabled" (click)="createProposedDrafts()">Create Drafts</button>
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="cancel()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    @if (isServiceError) {
+      <div class="pre-billing-report-empty-state">
+        <p>Unable to read the uploaded credit report.</p>
+      </div>
+    } @else if (!hasProcessed) {
+      <div class="pre-billing-report-empty-state">
+        <p>Upload a credit card statement PDF or spreadsheet to compare charges with receipts.</p>
+      </div>
+    } @else {
+      <div class="tableDiv dbg-band-main">
+        <app-data-table tableName="credit-report" [data]="reportLines" [columns]="lineColumns" [noDataMessage]="'No credit card charges were found.'" [hasColumnIndex]="true" [hasFilter]="true" [hasToggleTop]="false" [hasButtonTop]="false" [hasActionsEdit]="true" [hasActionsDelete]="true" [hasWorkOrderCodeLink]="true" [itemsPerPage]="10" (dropdownChangeEvent)="onCardDropdownChange($event)" (editEvent)="editLine($event)" (rowClickEvent)="editLine($event)" (deleteEvent)="deleteLine($event)"></app-data-table>
+      </div>
+    }
+  </div>
+}

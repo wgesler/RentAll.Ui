@@ -7,6 +7,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ReceiptExtractResponse, ReceiptRequest, ReceiptResponse, isReceiptCompanyPropertyId } from '../models/receipt.model';
+import { CreditReportLineResponse, CreditReportResponse } from '../../accounting/vendors/credit-report/credit-report.model';
 
 @Injectable({
   providedIn: 'root'
@@ -89,6 +90,22 @@ export class ReceiptService {
       organizationId,
       officeId: officeId && officeId > 0 ? officeId : null,
       fileDetails
+    });
+  }
+
+  processCreditReport(organizationId: string, fileDetails: FileDetails, officeId?: number | null): Observable<CreditReportResponse> {
+    return this.http.post<CreditReportResponse>(`${this.controller}credit-report`, {
+      organizationId,
+      officeId: officeId && officeId > 0 ? officeId : null,
+      fileDetails
+    });
+  }
+
+  createCreditReportDrafts(organizationId: string, lines: CreditReportLineResponse[], officeId?: number | null): Observable<CreditReportResponse> {
+    return this.http.post<CreditReportResponse>(`${this.controller}credit-report/drafts`, {
+      organizationId,
+      officeId: officeId && officeId > 0 ? officeId : null,
+      lines
     });
   }
 

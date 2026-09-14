@@ -567,7 +567,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
     const vendorName = (this.form.get('vendorName')?.value || '').toString().trim() || null;
-    if (isBill && !vendorId) {
+    if (isBill && vendorName && !vendorId) {
+      this.form.get('bankCardId')?.markAsTouched();
+      errors.push('Bank Card is required to keep a typed Vendor name on the receipt.');
+    } else if (isBill && !vendorId) {
       this.form.get('vendorId')?.markAsTouched();
       errors.push('Vendor is required');
     }
@@ -2580,9 +2583,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return Number(rawValue ?? 0) === 0;
   }
 
+  get showVendorNameField(): boolean {
+    return this.isReceiptDraftMode || !this.isOverallBillBankCard();
+  }
+
   onOverallBankCardChange(): void {
     if (this.isOverallBillBankCard()) {
-      this.form.patchValue({ vendorName: null }, { emitEvent: false });
       this.applyCalculatedDueDate();
     } else {
       const patchValue: { vendorId: null; billNumber?: null } = { vendorId: null };
@@ -2969,12 +2975,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (this.isOverallBillBankCard()) {
-      vendorIdControl.setValidators([this.requireNonEmptyVendorId]);
-      vendorNameControl.clearValidators();
-    } else {
+    if (this.showVendorNameField) {
       vendorNameControl.setValidators([Validators.required]);
       vendorIdControl.clearValidators();
+    } else {
+      vendorIdControl.setValidators([this.requireNonEmptyVendorId]);
+      vendorNameControl.clearValidators();
     }
 
     vendorIdControl.updateValueAndValidity({ emitEvent: false });
@@ -3466,8 +3472,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.onOverallBankCardChange();
-    if (vendorName) {
-      this.form.patchValue({ vendorName: vendorId ? null : vendorName }, { emitEvent: false });
+    if (this.isOverallBillBankCard()) {
+      if (vendorId) {
+        this.form.patchValue({ vendorId, vendorName: null }, { emitEvent: false });
+      } else if (vendorName) {
+        this.form.patchValue({ vendorId: null, vendorName }, { emitEvent: false });
+      }
+    } else if (vendorName) {
+      this.form.patchValue({ vendorId: null, vendorName }, { emitEvent: false });
     }
     this.updateVendorFieldValidators();
     // Keep rent-roll prefilled dates authoritative for this initial load.

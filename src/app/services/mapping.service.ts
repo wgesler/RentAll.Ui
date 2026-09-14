@@ -15,6 +15,7 @@ import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashRep
 import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
+import { CreditReportLineDisplay, CreditReportLineResponse, CreditReportResponse } from '../authenticated/accounting/vendors/credit-report/credit-report.model';
 import { EntityType, getEntityType, getPaymentTermDays, getTermType, getTermTypes } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
@@ -27,8 +28,8 @@ import { isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../auth
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
-import { ReceiptDraftResponse } from '../authenticated/maintenance/models/receipt-draft.model';
-import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
+import { ReceiptDraftRequest, ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../authenticated/maintenance/models/receipt-draft.model';
+import { ReceiptDisplayList, ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
 import { PaymentKind, getInvoiceMethod, getInvoiceMethods, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
@@ -5028,6 +5029,40 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     });
   }
 
+  mapReceiptDraftUpdateRequest(
+    draft: ReceiptDraftResponse,
+    updates: Partial<Pick<ReceiptDraftRequest, 'vendorId' | 'vendorName'>> = {}
+  ): ReceiptDraftRequest {
+    const hasVendorId = Object.prototype.hasOwnProperty.call(updates, 'vendorId');
+    const hasVendorName = Object.prototype.hasOwnProperty.call(updates, 'vendorName');
+    return {
+      receiptDraftId: draft.receiptDraftId,
+      organizationId: draft.organizationId,
+      officeId: draft.officeId,
+      propertyIds: [...(draft.propertyIds || [])],
+      receiptDate: draft.receiptDate,
+      dueDate: draft.dueDate,
+      accountingPeriod: draft.accountingPeriod,
+      billNumber: draft.billNumber,
+      amount: Number(draft.amount) || 0,
+      description: draft.description,
+      bankCardId: draft.bankCardId,
+      vendorId: hasVendorId ? (updates.vendorId ?? null) : (draft.vendorId ?? null),
+      vendorName: hasVendorName ? (updates.vendorName ?? null) : (draft.vendorName ?? null),
+      paidAmount: draft.paidAmount,
+      paidDate: draft.paidDate,
+      paymentDescription: draft.paymentDescription,
+      splits: draft.splits || [],
+      agreementLineId: draft.agreementLineId,
+      receiptPath: draft.receiptPath,
+      isUtility: draft.isUtility,
+      businessPrivate: draft.businessPrivate,
+      isActive: draft.isActive !== false,
+      draftSourceFlags: draft.draftSourceFlags ?? ReceiptDraftSourceFlags.None,
+      extractionJson: draft.extractionJson ?? null
+    };
+  }
+
   mapReceiptDraftDisplays(drafts: ReceiptDraftResponse[]): ReceiptDisplayList[] {
     return (drafts || []).map((draft: ReceiptDraftResponse): ReceiptDisplayList => {
       const isUtility = draft.isUtility === true;
@@ -5052,7 +5087,6 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         )
       );
       const accountDisplay = distinctAccounts.join(', ');
-      const isFirstSplitBill = Number(draft.bankCardId ?? 0) === 0;
       const vendorDisplay = (draft.vendorName || '').trim();
       const isSplitAmountValid = this.utility.isSplitTotalWithinDocumentAmount(splitTotalAmount, receiptAmount);
       const paidAmountValue = Number(draft.paidAmount ?? 0) || 0;
@@ -5096,7 +5130,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         bankCardDisplayName: (draft.bankCardDisplayName || '').trim(),
         accountDisplay,
         vendorDisplay,
-        vendorDisplayReadOnly: !isFirstSplitBill,
+        vendorDisplayReadOnly: false,
         isSplitAmountValid,
         workOrderDisplay,
         receiptTypeDisplay,
@@ -5112,6 +5146,112 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         modifiedBy: draft.modifiedBy
       };
     });
+  }
+
+  mapCreditReportLines(lines: CreditReportLineResponse[], section: 'complete' | 'draft' | 'missing'): CreditReportLineDisplay[] {
+    return (lines || []).map((line, index) => ({
+      lineKey: `${section}-${line.receiptId || line.receiptDraftId || index}-${line.chargeDate || ''}-${line.amount}`,
+      chargeDate: this.formatter.formatDateString(line.chargeDate) || '—',
+      vendor: (line.vendorName || '').trim() || '—',
+      workOrderDisplay: this.resolveCreditReportWorkOrderDisplay(line),
+      amount: this.formatter.currencyUsd(Number(line.amount) || 0),
+      bankCardId: line.bankCardId ?? null,
+      cardOwner: '—',
+      documentCode: (line.receiptCode || line.draftCode || '').trim() || '—',
+      description: (line.description || '').trim(),
+      isComplete: section === 'complete',
+      isDraft: section === 'draft',
+      isMissing: section === 'missing',
+      receiptId: line.receiptId ?? null,
+      receiptDraftId: line.receiptDraftId ?? null,
+      sourceLine: line
+    }));
+  }
+
+  mapCreditReportLineFromDraft(line: CreditReportLineDisplay, draft: ReceiptDraftResponse): CreditReportLineDisplay {
+    const vendorName = (draft.vendorName || '').trim();
+    const draftCode = (draft.draftCode || '').trim();
+    return {
+      ...line,
+      chargeDate: this.formatter.formatDateString(draft.receiptDate) || line.chargeDate,
+      vendor: vendorName || '—',
+      amount: this.formatter.currencyUsd(Number(draft.amount) || 0),
+      bankCardId: draft.bankCardId ?? null,
+      documentCode: draftCode || line.documentCode,
+      description: (draft.description || '').trim(),
+      isComplete: false,
+      isDraft: true,
+      isMissing: false,
+      receiptDraftId: draft.receiptDraftId,
+      sourceLine: line.sourceLine
+        ? {
+            ...line.sourceLine,
+            chargeDate: draft.receiptDate ?? line.sourceLine.chargeDate,
+            amount: Number(draft.amount) || 0,
+            vendorName: vendorName || null,
+            vendorId: draft.vendorId ?? null,
+            bankCardId: draft.bankCardId ?? null,
+            bankCardDisplayName: (draft.bankCardDisplayName || '').trim() || null,
+            description: (draft.description || '').trim() || null,
+            receiptDraftId: draft.receiptDraftId,
+            draftCode: draftCode || null
+          }
+        : line.sourceLine
+    };
+  }
+
+  mapCreditReportCardOwner(cardName?: string | null): string {
+    return (cardName || '').trim() || '—';
+  }
+
+  mapCreditReportLinePrefill(line: CreditReportLineDisplay, officeId: number | null): ReceiptPrefill {
+    const source = line.sourceLine;
+    const amount = Number(source?.amount ?? 0);
+    const chargeDate = source?.chargeDate || null;
+    return {
+      key: `${line.lineKey}-${Date.now()}`,
+      officeId,
+      receiptDate: chargeDate,
+      dueDate: chargeDate,
+      accountingPeriod: chargeDate,
+      amount: Number.isFinite(amount) ? amount : 0,
+      vendorId: Number(line.bankCardId ?? source?.bankCardId ?? 0) > 0 ? null : (source?.vendorId ?? null),
+      vendorName: (source?.vendorName || '').trim() || (line.vendor !== '—' ? line.vendor : null),
+      bankCardId: line.bankCardId ?? source?.bankCardId ?? null,
+      cardPaymentDetected: true,
+      description: (source?.description || '').trim() || null
+    };
+  }
+
+  resolveCreditReportCardDisplay(line: CreditReportLineResponse): string {
+    const officeCard = (line.bankCardDisplayName || '').trim();
+    if (officeCard && officeCard.toLowerCase() !== 'bill')
+      return officeCard;
+
+    const lastFour = String(line.cardLastFour || '').replace(/\D/g, '');
+    return lastFour ? `****${lastFour.slice(-4)}` : '—';
+  }
+
+  resolveCreditReportWorkOrderDisplay(line: CreditReportLineResponse): string {
+    const splits: Split[] = (line.splits || []).map(split => ({
+      amount: 0,
+      description: '',
+      receiptTypeId: Number(split.receiptTypeId ?? -1),
+      workOrderId: split.workOrderId ?? null,
+      workOrderCode: (split.workOrderCode || '').trim() || null,
+      workOrder: (split.workOrderCode || '').trim() || undefined
+    }));
+    return this.resolveReceiptWorkOrderListDisplay(splits, { isUtility: line.isUtility }) || this.receiptWorkOrderMissingLabel;
+  }
+
+  mapCreditReportReportLines(response: CreditReportResponse): CreditReportLineDisplay[] {
+    const proposed = response.createdDrafts || [];
+    return [
+      ...this.mapCreditReportLines(response.completeMatches || [], 'complete'),
+      ...this.mapCreditReportLines(response.draftMatches || [], 'draft'),
+      ...this.mapCreditReportLines(proposed.filter(line => !!(line.receiptDraftId || line.draftCode)), 'draft'),
+      ...this.mapCreditReportLines(proposed.filter(line => !(line.receiptDraftId || line.draftCode)), 'missing')
+    ];
   }
 
   mapReceiptSplitDetailLines(receipt: Pick<ReceiptDisplayList, 'receiptId' | 'receiptDate' | 'paidDate' | 'paidAmountValue' | 'paymentDescription' | 'splits'>): ReceiptSplitDetailLineDisplay[] {

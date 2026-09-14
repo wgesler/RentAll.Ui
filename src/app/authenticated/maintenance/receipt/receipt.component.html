@@ -100,7 +100,17 @@
                     [keepPanelOpenOnValues]="[moreBankCardsOptionValue]"
                     (valueChange)="onOverallBankCardSelectionChange($event)">
                   </app-searchable-select>
-                  @if (isOverallBillBankCard()) {
+                  @if (showVendorNameField) {
+                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field receipt-overall-vendor-field--wide"
+                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
+                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
+                      <mat-label>Vendor</mat-label>
+                      <input matInput formControlName="vendorName" required>
+                      @if (shouldShowControlError(form.get('vendorName'))) {
+                        <mat-error>Vendor is required</mat-error>
+                      }
+                    </mat-form-field>
+                  } @else {
                     <app-searchable-select
                       class="receipt-overall-vendor-field"
                       [renderInFormField]="true"
@@ -119,19 +129,11 @@
                       [noResultsText]="'No vendors match your search'"
                       (valueChange)="onOverallVendorSelectionChange($any($event))">
                     </app-searchable-select>
+                  }
+                  @if (isOverallBillBankCard()) {
                     <mat-form-field appearance="outline" class="receipt-overall-bill-number-field">
                       <mat-label>Bill Number</mat-label>
                       <input matInput formControlName="billNumber" maxlength="50">
-                    </mat-form-field>
-                  } @else {
-                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field receipt-overall-vendor-field--wide"
-                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
-                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
-                      <mat-label>Vendor</mat-label>
-                      <input matInput formControlName="vendorName" required>
-                      @if (shouldShowControlError(form.get('vendorName'))) {
-                        <mat-error>Vendor is required</mat-error>
-                      }
                     </mat-form-field>
                   }
                 </div>
@@ -440,7 +442,17 @@
                     [keepPanelOpenOnValues]="[moreBankCardsOptionValue]"
                     (valueChange)="onOverallBankCardSelectionChange($event)">
                   </app-searchable-select>
-                  @if (isOverallBillBankCard()) {
+                  @if (showVendorNameField) {
+                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field"
+                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
+                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
+                      <mat-label>Vendor</mat-label>
+                      <input matInput formControlName="vendorName" required>
+                      @if (shouldShowControlError(form.get('vendorName'))) {
+                        <mat-error>Vendor is required</mat-error>
+                      }
+                    </mat-form-field>
+                  } @else {
                     <app-searchable-select
                       class="receipt-overall-vendor-field"
                       [renderInFormField]="true"
@@ -459,16 +471,6 @@
                       [noResultsText]="'No vendors match your search'"
                       (valueChange)="onOverallVendorSelectionChange($any($event))">
                     </app-searchable-select>
-                  } @else {
-                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field"
-                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
-                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
-                      <mat-label>Vendor</mat-label>
-                      <input matInput formControlName="vendorName" required>
-                      @if (shouldShowControlError(form.get('vendorName'))) {
-                        <mat-error>Vendor is required</mat-error>
-                      }
-                    </mat-form-field>
                   }
                 </div>
                 <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row">

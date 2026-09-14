@@ -35,6 +35,10 @@ import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/wo
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { WorkOrderPreviewSelection, WorkOrderResponse } from '../../maintenance/models/work-order.model';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
+import { CreditReportComponent } from '../vendors/credit-report/credit-report.component';
+import { CreditReportLineEdit } from '../vendors/credit-report/credit-report.model';
+import { ReceiptDraftComponent } from '../../maintenance/receipt-draft/receipt-draft.component';
+import { FileDetails } from '../../documents/models/document.model';
 import { DepositsListComponent } from '../bank/deposits-list/deposits-list.component';
 import { DepositComponent } from '../bank/deposit/deposit.component';
 import { DepositResponse, DepositSelection } from '../models/deposit.model';
@@ -155,7 +159,9 @@ interface AccountingShellNavigationState {
     MissingInvoiceReportComponent,
     PreBillingReportComponent,
     ReceiptsListComponent,
+    CreditReportComponent,
     ReceiptComponent,
+    ReceiptDraftComponent,
     DepositsListComponent,
     DepositComponent,
     PaymentListComponent,
@@ -216,6 +222,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
+  @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild(PaymentListComponent) accountingPaymentList?: PaymentListComponent;
   @ViewChild('preBillingInvoiceEditor') preBillingInvoiceEditor?: InvoiceComponent;
@@ -239,7 +246,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly tabBillsReceipts = 1;
   readonly tabBankActivities = 2;
   readonly tabOwners = 3;
-  readonly tabMaxIndexLimited = 1;
+  readonly tabMaxIndexLimited = 2;
   readonly tabReports = 4;
   readonly tabGeneralLedger = 5;
   readonly tabMaxIndex = 5;
@@ -346,6 +353,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   rentRollTransitionUnlockTimer: ReturnType<typeof setTimeout> | null = null;
   billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
   showReceiptsReceiptDetail = false;
+  showReceiptsDraftDetail = false;
+  selectedReceiptsDraftId: string | null = null;
+  receiptsDraftDetailInstance = 0;
+  showCreditReport = false;
+  creditReportFileDetails: FileDetails | null = null;
+  creditReportReceiptId: string | null = null;
+  creditReportDraftId: string | null = null;
+  creditReportDraftPrefill: ReceiptPrefill | null = null;
+  creditReportEditingLineKey: string | null = null;
+  creditReportEditorInstance = 0;
   selectedReceiptsReceiptId: string | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
   receiptsReceiptDetailInstance = 0;
@@ -1804,19 +1821,100 @@ hydrateSelectedInvoiceForActiveId(): void {
     if (reopeningReceiptsReceiptAdd) {
       this.receiptsReceiptDetailInstance++;
     }
+    this.showReceiptsDraftDetail = false;
+    this.selectedReceiptsDraftId = null;
     this.showReceiptsReceiptDetail = true;
+  }
+
+  onReceiptsDraftSelect(receiptDraftId: string | null): void {
+    const propertyStub = this.buildBillsReceiptPropertyStub(this.selectedOfficeId);
+    propertyStub.propertyCode = 'Company';
+    this.receiptsReceiptProperty = propertyStub;
+    this.showReceiptsReceiptDetail = false;
+    this.selectedReceiptsReceiptId = null;
+    this.selectedReceiptsDraftId = (receiptDraftId || '').trim() || null;
+    this.receiptsDraftDetailInstance++;
+    this.showReceiptsDraftDetail = true;
+  }
+
+  onReceiptsDraftBack(): void {
+    this.showReceiptsDraftDetail = false;
+    this.selectedReceiptsDraftId = null;
+    this.receiptsReceiptProperty = null;
+    this.receiptsRefreshTrigger++;
+  }
+
+  onReceiptsDraftSaved(receiptDraftId: string): void {
+    this.selectedReceiptsDraftId = (receiptDraftId || '').trim() || this.selectedReceiptsDraftId;
+  }
+
+  onReceiptsDraftPromoted(selection: ReceiptSelection): void {
+    this.showReceiptsDraftDetail = false;
+    this.selectedReceiptsDraftId = null;
+    this.receiptsRefreshTrigger++;
+    this.onReceiptsReceiptSelect(selection);
   }
 
   onReceiptsReceiptBack(): void {
     this.showReceiptsReceiptDetail = false;
+    this.showReceiptsDraftDetail = false;
+    this.selectedReceiptsDraftId = null;
     this.selectedReceiptsReceiptId = null;
     this.receiptsReceiptProperty = null;
     this.selectedBillsPropertyId = null;
     this.selectedBillsReceiptKind = 'receipts';
     this.resetBillsReceiptsWorkOrderDetailState();
     this.clearBillsReceiptsWorkOrderReturnContext();
+    this.onCreditReportBack();
     this.syncBillsSearchRequest();
     this.refreshActiveBillsReceiptList();
+  }
+
+  onCreditReportSelected(fileDetails: FileDetails): void {
+    this.creditReportFileDetails = fileDetails;
+    this.showCreditReport = true;
+    this.showReceiptsReceiptDetail = false;
+    this.showReceiptsDraftDetail = false;
+    this.selectedReceiptsDraftId = null;
+  }
+
+  onCreditReportBack(): void {
+    const wasOpen = this.showCreditReport;
+    this.showCreditReport = false;
+    this.creditReportFileDetails = null;
+    this.onCreditReportEditorBack();
+    if (wasOpen) {
+      this.receiptsRefreshTrigger++;
+    }
+  }
+
+  onCreditReportLineEdit(event: CreditReportLineEdit): void {
+    const receiptId = String(event?.receiptId || '').trim();
+    const receiptDraftId = String(event?.receiptDraftId || '').trim();
+    const propertyStub = this.buildBillsReceiptPropertyStub(this.selectedOfficeId);
+    propertyStub.propertyCode = 'Company';
+    this.receiptsReceiptProperty = propertyStub;
+    this.creditReportReceiptId = receiptId || null;
+    this.creditReportDraftId = receiptDraftId || null;
+    this.creditReportDraftPrefill = event?.prefill ?? null;
+    this.creditReportEditingLineKey = String(event?.lineKey || '').trim() || null;
+    this.creditReportEditorInstance++;
+  }
+
+  onCreditReportEditorBack(): void {
+    this.creditReportReceiptId = null;
+    this.creditReportDraftId = null;
+    this.creditReportDraftPrefill = null;
+    this.creditReportEditingLineKey = null;
+  }
+
+  onCreditReportDraftSaved(draftId: string): void {
+    const lineKey = this.creditReportEditingLineKey;
+    const savedDraftId = String(draftId || '').trim();
+    if (lineKey && savedDraftId) {
+      this.creditReport?.markLineSavedAsDraft(lineKey, savedDraftId);
+    }
+    this.onCreditReportEditorBack();
   }
 
   onBillsReceiptsWorkOrderSelect(selection: WorkOrderSelection): void {
@@ -4938,6 +5036,23 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.selectedTabIndex === this.tabBillsReceipts
       && this.selectedBillsReceiptKind === 'receipts'
       && this.showReceiptsReceiptDetail;
+  }
+
+  get isReceiptsDraftDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabBillsReceipts
+      && this.selectedBillsReceiptKind === 'receipts'
+      && this.showReceiptsDraftDetail;
+  }
+
+  get isCreditReportActive(): boolean {
+    return this.selectedTabIndex === this.tabBillsReceipts
+      && this.selectedBillsReceiptKind === 'receipts'
+      && this.showCreditReport;
+  }
+
+  get isCreditReportEditorActive(): boolean {
+    return this.isCreditReportActive
+      && (!!this.creditReportReceiptId || !!this.creditReportDraftId || !!this.creditReportDraftPrefill);
   }
 
   get isBillsReceiptsWorkOrderDetailActive(): boolean {

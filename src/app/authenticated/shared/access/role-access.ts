@@ -79,7 +79,7 @@ const accountingNavAccess: AccessRule = {
   excludedRoles: []
 };
 
-/** Deposits, GL, reports, and journal sync/clear: org admins only. */
+/** Owners, GL, reports, and journal sync/clear: org admins only. */
 const accountingFullAccess: AccessRule = {
   requiredRoles: [UserGroups.Admin],
   excludedRoles: []

@@ -104,6 +104,17 @@
     @include financial-report-header-titles;
   }
 
+  .financial-report-layout .financial-report-actions-wrap {
+    grid-column: 3;
+    justify-self: end;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   .financial-report-layout
     .financial-report-context-band__row:not(:has(.financial-report-actions-wrap))
     .financial-report-context-band__titles,

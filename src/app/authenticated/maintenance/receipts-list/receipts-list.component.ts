@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -31,6 +31,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet, postingStatusColumn } from '../../shared/data-table/models/column-data';
 import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
+import { FileDetails } from '../../documents/models/document.model';
 import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, buildBillSplitLineDescription, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { ReceiptDraftResponse } from '../models/receipt-draft.model';
@@ -61,6 +62,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  @Output() creditReportClick = new EventEmitter<FileDetails>();
   private receiptService = inject(ReceiptService);
   private receiptDraftService = inject(ReceiptDraftService);
   private mappingService = inject(MappingService);
@@ -81,6 +83,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
   @ViewChild('receiptSplitsTemplate') receiptSplitsTemplate?: TemplateRef<unknown>;
+  @ViewChild('creditReportFileInput') creditReportFileInput?: ElementRef<HTMLInputElement>;
 
   isPageReady = false;
   isServiceError: boolean = false;
@@ -754,6 +757,28 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  openCreditReport(): void {
+    this.creditReportFileInput?.nativeElement.click();
+  }
+
+  async onCreditReportFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
+    if (input) {
+      input.value = '';
+    }
+    if (!file) {
+      return;
+    }
+
+    try {
+      const payload = await this.utilityService.buildUploadPayloadFromFile(file, file.type || 'application/octet-stream');
+      this.creditReportClick.emit(payload.fileDetails);
+    } catch {
+      this.toastr.error(`Unable to prepare ${file.name}.`, CommonMessage.Error);
+    }
+  }
+
   addReceipt(): void {
     if (this.isShowingDrafts) {
       this.draftSelect.emit(null);
@@ -1245,7 +1270,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onReceiptInlineEditChange(event: ReceiptDisplayList & { __changedInlineColumn?: string; __inlineValue?: string }): void {
-    if (this.isShowingDrafts || !this.isAdmin) {
+    if (!this.isAdmin) {
+      return;
+    }
+    if (this.isShowingDrafts) {
+      if (event.__changedInlineColumn !== 'vendorDisplay') {
+        return;
+      }
+      this.saveDraftVendorName(event);
       return;
     }
     const changedInlineColumn = event.__changedInlineColumn || '';
@@ -1331,6 +1363,41 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.markViewForCheck();
         }
       });
+  }
+
+  saveDraftVendorName(event: ReceiptDisplayList & { __inlineValue?: string }): void {
+    const receiptDraftId = String(event.receiptId || '').trim();
+    if (!receiptDraftId) {
+      return;
+    }
+    const nextVendorName = this.normalizeVendorDisplayText(event.__inlineValue);
+    let previousVendorName = this.normalizeVendorDisplayText(event.vendorName);
+
+    this.receiptDraftService.getReceiptDraftById(receiptDraftId).pipe(take(1), switchMap(draft => {
+      previousVendorName = this.normalizeVendorDisplayText(draft.vendorName);
+      if (nextVendorName === previousVendorName) {
+        return EMPTY;
+      }
+      return this.receiptDraftService.updateReceiptDraft(this.mappingService.mapReceiptDraftUpdateRequest(draft, {
+        vendorName: nextVendorName || null,
+        vendorId: null
+      }));
+    })).subscribe({
+      next: saved => {
+        this.drafts = this.drafts.map(draft => draft.receiptDraftId === saved.receiptDraftId ? saved : draft);
+        this.draftListCache = (this.draftListCache ?? []).map(draft => draft.receiptDraftId === saved.receiptDraftId ? saved : draft);
+        this.allDraftDisplays = this.mappingService.mapReceiptDraftDisplays(this.drafts);
+        this.applyReceiptDisplayMappings();
+        this.applyFilters();
+        this.toastr.success('Draft updated.', CommonMessage.Success);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.applyReceiptVendorDisplayValue(receiptDraftId, previousVendorName);
+        this.toastr.error('Unable to update the draft.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
   }
 
   onReceiptInfo(event: ReceiptDisplayList): void {
@@ -2005,6 +2072,18 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorOptionsForOffice = this.getVendorOptionsForReceiptScope(officeId);
       const matchedVendorOption = this.findVendorOptionForReceipt(vendorOptionsForOffice, receipt);
+
+      if (this.isShowingDrafts) {
+        const draftVendorName = this.normalizeVendorDisplayText(receipt.vendorName)
+          || this.normalizeVendorDisplayText(matchedVendorOption?.label);
+        return {
+          ...receipt,
+          vendorDisplay: draftVendorName,
+          vendorDisplayReadOnly: !this.isAdmin,
+          vendorDisplayClickToEdit: this.isAdmin,
+          vendorDisplayEditing: false
+        };
+      }
 
       if (isBill) {
         const vendorLabels = vendorOptionsForOffice.map(option => option.label);

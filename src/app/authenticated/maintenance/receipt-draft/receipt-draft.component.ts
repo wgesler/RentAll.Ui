@@ -35,6 +35,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
   isPromotingDraft = false;
   isDeletingDraft = false;
   private openedExistingReceiptDraft = false;
+  private backAfterDraftSave = false;
 
   constructor() {
     super();
@@ -161,11 +162,18 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
         this.draftToastr.success('Receipt draft saved.', 'Success');
         this.draftSavedEvent.emit(draft.receiptDraftId);
         this.updateDraftFormDisabledState();
+        this.form?.markAsPristine();
+        if (this.backAfterDraftSave) {
+          this.backAfterDraftSave = false;
+          super.back();
+          return;
+        }
         if (this.autoBackOnSave) {
           this.back();
         }
       },
       error: (err) => {
+        this.backAfterDraftSave = false;
         this.draftToastr.error(this.resolveReceiptDraftSaveError(err), 'Error');
       }
     });
@@ -316,7 +324,9 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
       this.ensureAtLeastOneSplit();
     }
 
+    const loadedVendorName = (draft.vendorName || '').trim();
     this.onOverallBankCardChange();
+    this.form.patchValue({ vendorId: null, vendorName: loadedVendorName }, { emitEvent: false });
     this.updateVendorFieldValidators();
     this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
     this.syncSplitPropertiesToPrefilledCompanySelection();
@@ -396,8 +406,8 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
         amount: this.form.get('amount')?.value,
         description: this.form.get('description')?.value,
         bankCardId: Number(this.form.get('bankCardId')?.value ?? 0),
-        vendorId: this.normalizeGuidOrNull(this.form.get('vendorId')?.value),
-        vendorName: this.form.get('vendorName')?.value,
+        vendorId: null,
+        vendorName: (this.form.get('vendorName')?.value || '').toString().trim() || null,
         isUtility: this.form.get('isUtility')?.value,
         businessPrivate: this.form.get('businessPrivate')?.value,
         isActive: this.form.get('isActive')?.value,

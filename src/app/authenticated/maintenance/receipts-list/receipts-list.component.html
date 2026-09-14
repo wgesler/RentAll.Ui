@@ -122,6 +122,13 @@
                 Apply Payments
               </button>
             }
+            @if (embeddedInAccounting && accountingListMode === 'receipts') {
+              <input #creditReportFileInput type="file" hidden accept=".pdf,.csv,.xlsx,.xls,image/*" (change)="onCreditReportFileSelected($event)" />
+              <button mat-raised-button type="button" color="accent" id="credit-report-button" class="whitespace-nowrap items-center flex gap-1" (click)="openCreditReport()">
+                <mat-icon>upload</mat-icon>
+                Credit Report
+              </button>
+            }
             <button mat-raised-button type="button" color="primary" id="add-receipt-button" class="text-nowrap flex-shrink-0" (click)="addReceipt()">
               <mat-icon>add</mat-icon>
               Add

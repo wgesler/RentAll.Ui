@@ -119,7 +119,7 @@ const USER_GUIDE_SHELL_CHILDREN: Record<string, UserGuideTocDefinition[]> = {
       { id: 'printChecks', label: 'Print Checks' },
       { id: 'securityDeposits', label: 'Security Deposits' },
       { id: 'reconcile', label: 'Reconcile' }
-    ], ctx => ctx.hasAccountingFullAccess),
+    ]),
     menuGroup('accounting/owners', 'Owners', [
       { id: 'workOrders', label: 'Work Orders' },
       { id: 'utilities', label: 'Utilities & Bills' },

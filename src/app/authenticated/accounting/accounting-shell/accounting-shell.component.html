@@ -292,7 +292,7 @@
             }
             </div>
           </div>
-        } @else if (hasAccountingFullAccess && selectedTabIndex === tabBankActivities) {
+        } @else if (selectedTabIndex === tabBankActivities) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -743,8 +743,23 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isCreditReportEditorActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onCreditReportEditorBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        } @else if (isCreditReportActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onCreditReportBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isReceiptsReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onReceiptsReceiptBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        } @else if (isReceiptsDraftDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onReceiptsDraftBack()">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
@@ -1066,7 +1081,50 @@
                   </app-receipts-list>
                 }
               } @else if (selectedBillsReceiptKind === 'receipts') {
-                @if (showReceiptsReceiptDetail) {
+                @if (showCreditReport) {
+                  <div [hidden]="isCreditReportEditorActive">
+                    <app-credit-report
+                      [organizationId]="organizationId"
+                      [officeId]="selectedOfficeId"
+                      [fileDetails]="creditReportFileDetails"
+                      (closed)="onCreditReportBack()"
+                      (lineEdit)="onCreditReportLineEdit($event)" />
+                  </div>
+                  @if (creditReportReceiptId) {
+                    @for (instance of [creditReportEditorInstance]; track instance) {
+                      <app-receipt
+                        [property]="receiptsReceiptProperty"
+                        [receiptId]="creditReportReceiptId"
+                        [officeId]="selectedOfficeId"
+                        [shellContext]="'accounting'"
+                        [preferReceiptModeOnAdd]="true"
+                        [autoSaveAttemptToken]="0"
+                        (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
+                        (backEvent)="onCreditReportEditorBack()"
+                        (savedEvent)="onCreditReportEditorBack()" />
+                    }
+                  } @else if (creditReportDraftId || creditReportDraftPrefill) {
+                    @for (instance of [creditReportEditorInstance]; track instance) {
+                      <app-receipt-draft
+                        [property]="receiptsReceiptProperty"
+                        [receiptDraftId]="creditReportDraftId"
+                        [officeId]="selectedOfficeId"
+                        [prefill]="creditReportDraftPrefill"
+                        (backEvent)="onCreditReportEditorBack()"
+                        (draftSavedEvent)="onCreditReportDraftSaved($event)" />
+                    }
+                  }
+                } @else if (showReceiptsDraftDetail) {
+                  @for (instance of [receiptsDraftDetailInstance]; track instance) {
+                    <app-receipt-draft
+                      [property]="receiptsReceiptProperty"
+                      [receiptDraftId]="selectedReceiptsDraftId"
+                      [officeId]="selectedOfficeId"
+                      (backEvent)="onReceiptsDraftBack()"
+                      (draftSavedEvent)="onReceiptsDraftSaved($event)"
+                      (draftPromotedEvent)="onReceiptsDraftPromoted($event)" />
+                  }
+                } @else if (showReceiptsReceiptDetail) {
                   @for (instance of [receiptsReceiptDetailInstance]; track instance) {
                     <app-receipt
                     [property]="receiptsReceiptProperty"
@@ -1089,8 +1147,10 @@
                     [accountingListMode]="'receipts'"
                     [refreshTrigger]="receiptsRefreshTrigger"
                     (receiptSelect)="onReceiptsReceiptSelect($event)"
+                    (draftSelect)="onReceiptsDraftSelect($event)"
                     (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
-                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                    (journalEntriesChanged)="onJournalEntriesChanged()"
+                    (creditReportClick)="onCreditReportSelected($event)">
                   </app-receipts-list>
                 }
               } @else if (selectedBillsReceiptKind === 'workOrders') {
@@ -1137,7 +1197,6 @@
               }
             }
           </mat-tab>
-          @if (hasAccountingFullAccess) {
           <mat-tab>
             <ng-template mat-tab-label>
               <button
@@ -1364,6 +1423,7 @@
               }
             }
           </mat-tab>
+          @if (hasAccountingFullAccess) {
           <mat-tab>
             <ng-template mat-tab-label>
               <button
