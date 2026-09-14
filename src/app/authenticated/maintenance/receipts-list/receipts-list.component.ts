@@ -318,9 +318,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get showCreditReportButton(): boolean {
-    return this.embeddedInAccounting
-      && this.accountingListMode === 'receipts'
-      && !(this.selectedCardOwner || '').trim();
+    if ((this.selectedCardOwner || '').trim()) {
+      return false;
+    }
+
+    if (this.embeddedInMaintenance) {
+      return true;
+    }
+
+    return this.embeddedInAccounting && this.accountingListMode === 'receipts';
   }
 
   get tableData(): ReceiptDisplayList[] {

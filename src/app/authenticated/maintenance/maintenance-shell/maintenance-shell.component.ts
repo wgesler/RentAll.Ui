@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, filter, map, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -18,7 +18,10 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { ReceiptPrefill, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { CreditReportComponent } from '../../accounting/vendors/credit-report/credit-report.component';
+import { CreditReportLineEdit } from '../../accounting/vendors/credit-report/credit-report.model';
+import { FileDetails } from '../../documents/models/document.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { ReceiptDraftComponent } from '../receipt-draft/receipt-draft.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
@@ -45,6 +48,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ReceiptsListComponent,
     ReceiptComponent,
     ReceiptDraftComponent,
+    CreditReportComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
     MaintenanceComponent
@@ -140,6 +144,15 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   workOrderSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   hasPendingUserReceiptDrafts = false;
   initialReceiptsShowDrafts = false;
+  showCreditReport = false;
+  creditReportFileDetails: FileDetails | null = null;
+  creditReportReceiptId: string | null = null;
+  creditReportDraftId: string | null = null;
+  creditReportDraftPrefill: ReceiptPrefill | null = null;
+  creditReportEditingLineKey: string | null = null;
+  creditReportEditorInstance = 0;
+
+  @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-maintenance-shell-pinned-dates';
@@ -452,8 +465,22 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return this.selectedTabIndex === this.receiptsTabIndex && this.showReceiptDraftDetail;
   }
 
+  get isCreditReportActive(): boolean {
+    return this.selectedTabIndex === this.receiptsTabIndex && this.showCreditReport;
+  }
+
+  get isCreditReportEditorActive(): boolean {
+    return this.isCreditReportActive
+      && (!!this.creditReportReceiptId || !!this.creditReportDraftId || !!this.creditReportDraftPrefill);
+  }
+
   get showTopBarBackButton(): boolean {
-    return this.isReceiptDetailActive || this.isReceiptDraftDetailActive || this.isWorkOrderDetailActive || this.isWorkOrderCreateActive;
+    return this.isCreditReportEditorActive
+      || this.isCreditReportActive
+      || this.isReceiptDetailActive
+      || this.isReceiptDraftDetailActive
+      || this.isWorkOrderDetailActive
+      || this.isWorkOrderCreateActive;
   }
 
   get isReceiptAddMode(): boolean {
@@ -961,6 +988,54 @@ applyPageOfficeChangeEffects(): void {
     this.navigateToMaintenanceTabs(0);
   }
 
+  onCreditReportSelected(fileDetails: FileDetails): void {
+    this.creditReportFileDetails = fileDetails;
+    this.showCreditReport = true;
+    this.showReceiptDetail = false;
+    this.showReceiptDraftDetail = false;
+    this.selectedReceiptId = null;
+    this.selectedReceiptDraftId = null;
+    this.cdr.markForCheck();
+  }
+
+  onCreditReportBack(): void {
+    const wasOpen = this.showCreditReport;
+    this.showCreditReport = false;
+    this.creditReportFileDetails = null;
+    this.onCreditReportEditorBack();
+    if (wasOpen) {
+      this.refreshReceiptsTrigger++;
+    }
+    this.cdr.markForCheck();
+  }
+
+  onCreditReportLineEdit(event: CreditReportLineEdit): void {
+    this.creditReportReceiptId = String(event?.receiptId || '').trim() || null;
+    this.creditReportDraftId = String(event?.receiptDraftId || '').trim() || null;
+    this.creditReportDraftPrefill = event?.prefill ?? null;
+    this.creditReportEditingLineKey = String(event?.lineKey || '').trim() || null;
+    this.creditReportEditorInstance++;
+    this.cdr.markForCheck();
+  }
+
+  onCreditReportEditorBack(): void {
+    this.creditReportReceiptId = null;
+    this.creditReportDraftId = null;
+    this.creditReportDraftPrefill = null;
+    this.creditReportEditingLineKey = null;
+    this.cdr.markForCheck();
+  }
+
+  onCreditReportDraftSaved(draftId: string): void {
+    const lineKey = this.creditReportEditingLineKey;
+    const savedDraftId = String(draftId || '').trim();
+    if (lineKey && savedDraftId) {
+      this.creditReport?.markLineSavedAsDraft(lineKey, savedDraftId);
+    }
+    this.onCreditReportEditorBack();
+    this.cdr.markForCheck();
+  }
+
   onReceiptDraftSelect(receiptDraftId: string | null): void {
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
@@ -1284,6 +1359,14 @@ applyPageOfficeChangeEffects(): void {
   onTopBarBackClick(): void {
     if (this.isWorkOrderCreateActive) {
       this.onWorkOrderCreateBack();
+      return;
+    }
+    if (this.isCreditReportEditorActive) {
+      this.onCreditReportEditorBack();
+      return;
+    }
+    if (this.isCreditReportActive) {
+      this.onCreditReportBack();
       return;
     }
     if (this.isReceiptDraftDetailActive) {

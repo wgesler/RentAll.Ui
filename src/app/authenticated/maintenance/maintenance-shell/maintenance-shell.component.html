@@ -197,7 +197,38 @@
               </span>
             </ng-template>
             @if (selectedTabIndex === receiptsTabIndex) {
-            @if (showReceiptDraftDetail) {
+            @if (showCreditReport) {
+              <div [hidden]="isCreditReportEditorActive">
+                <app-credit-report
+                  [organizationId]="organizationId"
+                  [officeId]="selectedOfficeId"
+                  [fileDetails]="creditReportFileDetails"
+                  (closed)="onCreditReportBack()"
+                  (lineEdit)="onCreditReportLineEdit($event)" />
+              </div>
+              @if (creditReportReceiptId) {
+                @for (instance of [creditReportEditorInstance]; track instance) {
+                  <app-receipt
+                    [property]="property"
+                    [receiptId]="creditReportReceiptId"
+                    [officeId]="selectedOfficeId"
+                    [shellContext]="'maintenance'"
+                    (workOrderSelect)="onWorkOrderSelect($event)"
+                    (backEvent)="onCreditReportEditorBack()"
+                    (savedEvent)="onCreditReportEditorBack()" />
+                }
+              } @else if (creditReportDraftId || creditReportDraftPrefill) {
+                @for (instance of [creditReportEditorInstance]; track instance) {
+                  <app-receipt-draft
+                    [property]="property"
+                    [receiptDraftId]="creditReportDraftId"
+                    [officeId]="selectedOfficeId"
+                    [prefill]="creditReportDraftPrefill"
+                    (backEvent)="onCreditReportEditorBack()"
+                    (draftSavedEvent)="onCreditReportDraftSaved($event)" />
+                }
+              }
+            } @else if (showReceiptDraftDetail) {
               @for (instance of [receiptDraftDetailInstance]; track instance) {
                 <app-receipt-draft
                   [receiptDraftId]="selectedReceiptDraftId"
@@ -232,7 +263,8 @@
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)"
                 (draftSelect)="onReceiptDraftSelect($event)"
-                (workOrderSelect)="onWorkOrderSelect($event)" />
+                (workOrderSelect)="onWorkOrderSelect($event)"
+                (creditReportClick)="onCreditReportSelected($event)" />
             }
             }
           </mat-tab>
