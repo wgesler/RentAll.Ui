@@ -36,6 +36,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   readonly fixPollIntervalMs = 500;
   readonly fixPollMaxAttempts = 3600;
+  readonly documentLinksFixPollMaxAttempts = 14400;
   readonly fixAllOrder: HealthCheckKey[] = [
     'documentLinks',
     'paymentInvoice',
@@ -380,14 +381,14 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   pollDocumentLinksRepairJob(jobId: string, rowKey: HealthCheckKey): Observable<JournalEntrySyncResult> {
     return timer(0, this.fixPollIntervalMs).pipe(
-      take(this.fixPollMaxAttempts),
+      take(this.documentLinksFixPollMaxAttempts),
       switchMap(() => this.generalLedgerService.getAllJournalEntrySyncJobStatus(jobId)),
       tap(status => this.updateDocumentLinksRepairProgress(rowKey, status)),
       filter(status => status.isCompleted),
       take(1),
       map(status => this.mapDocumentLinksRepairJobStatus(status)),
-      timeout(this.fixPollIntervalMs * this.fixPollMaxAttempts + 5000),
-      catchError(() => throwError(() => new Error('Fix timed out while waiting for document link repair to finish.')))
+      timeout(this.fixPollIntervalMs * this.documentLinksFixPollMaxAttempts + 5000),
+      catchError(() => throwError(() => new Error('Document link repair is still running or timed out after 2 hours. Check Application Log, then retry Fix on that row.')))
     );
   }
 
