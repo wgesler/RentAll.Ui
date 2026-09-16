@@ -91,13 +91,45 @@ export function healthKeyToPaymentKindId(key: HealthCheckKey): number | null {
   }
 }
 
+const emptyGuid = '00000000-0000-0000-0000-000000000000';
+
+function isJournalEntryDuplicateIssue(issueText: string): boolean {
+  const normalized = issueText.toLowerCase();
+  return normalized.includes('duplicate open invoice payment je')
+    || normalized.includes('duplicate open invoice charge je')
+    || normalized.includes('duplicate open deposit je');
+}
+
+function routeIssueDocumentId(issueText: string, documentId: string, ids: Set<string>): void {
+  if (!documentId || documentId === emptyGuid) {
+    return;
+  }
+
+  ids.add(documentId);
+}
+
+function routeIssueRelatedId(issueText: string, relatedId: string | null | undefined, ids: Set<string>): void {
+  const id = String(relatedId ?? '').trim();
+  if (!id || id === emptyGuid) {
+    return;
+  }
+
+  const normalized = issueText.toLowerCase();
+  if (isJournalEntryDuplicateIssue(normalized)) {
+    return;
+  }
+
+  if (normalized.includes('duplicate invoice payment documents')) {
+    ids.add(id);
+  }
+}
+
 export function extractHealthFixDocumentIds(issues: DocumentHealthIssue[] | null | undefined): string[] {
   const ids = new Set<string>();
   for (const issue of issues ?? []) {
-    const documentId = String(issue.documentId ?? '').trim();
-    if (documentId.length > 0 && documentId !== '00000000-0000-0000-0000-000000000000') {
-      ids.add(documentId);
-    }
+    const issueText = String(issue.issue ?? '');
+    routeIssueDocumentId(issueText, String(issue.documentId ?? '').trim(), ids);
+    routeIssueRelatedId(issueText, issue.relatedId, ids);
   }
 
   return Array.from(ids);
@@ -121,6 +153,28 @@ export function resolveHealthFixDocumentIds(
   }
 
   return [];
+}
+
+/** Office scan → broken document IDs → one-by-one repair (not blind office-wide sync). */
+export function describeOfficeScanRepairProgress(
+  phase: 'scanning' | 'found' | 'repairing' | 'verifying' | 'clean' | 'no-ids',
+  brokenCount?: number,
+  repairedCount?: number
+): string {
+  switch (phase) {
+    case 'scanning':
+      return 'Scanning entire office…';
+    case 'found':
+      return `Found ${brokenCount ?? 0} broken document(s) — repairing one-by-one…`;
+    case 'repairing':
+      return `Repairing ${repairedCount ?? 0}/${brokenCount ?? 0}…`;
+    case 'verifying':
+      return 'Re-scanning office to verify…';
+    case 'clean':
+      return 'Office clean — nothing to repair.';
+    case 'no-ids':
+      return 'Scan found issues but no document IDs — run Check again.';
+  }
 }
 
 export interface HealthIssueDisplayRow extends DocumentHealthIssue {

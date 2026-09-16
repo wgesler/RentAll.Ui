@@ -11,7 +11,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, HealthIssueDisplayRow, healthKeyToPaymentKindId, healthKeyToSyncType, resolveHealthFixDocumentIds } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthFixSyncType, HealthIssueDisplayRow, describeOfficeScanRepairProgress, healthKeyToPaymentKindId, healthKeyToSyncType, resolveHealthFixDocumentIds } from '../models/health.model';
 import { DocumentHealthStateService } from '../services/document-health-state.service';
 import { HealthService } from '../services/health.service';
 
@@ -239,7 +239,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
     this.clearUnresolvedDisplay();
     this.isFixingAll = true;
-    const fixedKeys = new Set<HealthCheckKey>();
     let index = 0;
     const outcomes: FixAllOutcome[] = [];
 
@@ -252,30 +251,14 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       }
 
       const row = fixableRows[index++];
-      const rowIsClean = row.summary?.isClean === true;
-      const skipSyncBecauseDeduped = fixedKeys.has(row.key);
-      const skipSync = rowIsClean || skipSyncBecauseDeduped;
-      if (!skipSync) {
-        fixedKeys.add(row.key);
-      }
 
       this.patchRow(row.key, {
-        fixing: !skipSync,
-        fixProgress: skipSync ? null : 'Starting…',
+        fixing: true,
+        fixProgress: 'Checking…',
         errorMessage: null
       });
 
-      const pipeline = skipSync
-        ? (rowIsClean
-          ? of({
-              syncResult: this.emptySyncResult(),
-              checkResult: { summary: row.summary!, issues: row.issues ?? [] }
-            })
-          : this.runCheck(row.key).pipe(map(checkResult => ({
-              syncResult: this.emptySyncResult(),
-              checkResult
-            }))))
-        : this.runFixAndCheck(row.key, row.issues);
+      const pipeline = this.runFixAndCheck(row.key, row.issues);
 
       pipeline.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
         this.patchRow(row.key, { fixing: false, fixProgress: null });
@@ -354,6 +337,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const syncType = healthKeyToSyncType(key);
     if (!syncType) {
       return throwError(() => new Error(`Fix is not available for: ${key}`));
+    }
+
+    if (documentIds.length === 0) {
+      return throwError(() => new Error('At least one document ID is required to run Fix.'));
     }
 
     const officeIds = this.getOfficeIdsForRequest();
@@ -449,16 +436,15 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   updateFixProgress(rowKey: HealthCheckKey, status: JournalEntrySyncJobStatus, syncType: HealthFixSyncType): void {
     const typeStatus = status.types.find(row => row.type === syncType) ?? status.types[0];
     if (!typeStatus) {
-      this.patchRow(rowKey, { fixProgress: status.message ?? 'Fixing…' });
+      this.patchRow(rowKey, { fixProgress: status.message ?? 'Repairing…' });
       return;
     }
 
     const total = typeStatus.total ?? 0;
     const processed = typeStatus.processed ?? 0;
-    const label = typeStatus.status || 'Running';
     const progress = total > 0
-      ? `${label} ${processed}/${total}`
-      : (status.message ?? label);
+      ? describeOfficeScanRepairProgress('repairing', total, processed)
+      : (status.message ?? describeOfficeScanRepairProgress('repairing'));
 
     this.patchRow(rowKey, { fixProgress: progress });
   }
@@ -501,17 +487,36 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     key: HealthCheckKey,
     fallbackIssues?: DocumentHealthIssue[] | null
   ): Observable<{ syncResult: JournalEntrySyncResult; checkResult: DocumentHealthResult }> {
+    const canFix = this.rows.find(row => row.key === key)?.canFix ?? true;
+
+    this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('scanning') });
+
+    // 1) Scan entire office for this document type (health-check proc).
+    // 2) Keep broken document IDs from scan results.
+    // 3) Repair each broken document one-by-one (API loops IDs — not blind office sync).
+    // 4) Re-scan office to verify.
     return this.runCheck(key).pipe(
       take(1),
       tap(checkResult => {
+        this.applyCheckSummary(key, checkResult, false, canFix);
+        const documentIds = resolveHealthFixDocumentIds(checkResult, fallbackIssues);
         const expectedIssues =
           (checkResult.summary?.documentsMissingJe ?? 0) +
           (checkResult.summary?.duplicateOpenJes ?? 0);
-        if (expectedIssues > 0 || !checkResult.summary?.isClean) {
-          this.patchRow(key, { fixProgress: 'Fixing office…' });
+
+        if (expectedIssues === 0 && checkResult.summary?.isClean) {
+          this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('clean') });
+        } else if (documentIds.length > 0) {
+          this.patchRow(key, {
+            fixProgress: describeOfficeScanRepairProgress('found', documentIds.length),
+            issues: checkResult.issues ?? []
+          });
+        } else {
+          this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('no-ids') });
         }
       }),
       switchMap(checkResult => {
+        const documentIds = resolveHealthFixDocumentIds(checkResult, fallbackIssues);
         const expectedIssues =
           (checkResult.summary?.documentsMissingJe ?? 0) +
           (checkResult.summary?.duplicateOpenJes ?? 0);
@@ -520,12 +525,35 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
           return of({ syncResult: this.emptySyncResult(), checkResult });
         }
 
-        return this.runFix(key, []).pipe(
+        if (documentIds.length === 0) {
+          if (key === 'documentLinks') {
+            this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('found', expectedIssues) });
+            return this.runFix(key, []).pipe(
+              take(1),
+              switchMap(syncResult => {
+                this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('verifying') });
+                return this.runCheck(key).pipe(
+                  take(1),
+                  map(recheckResult => ({ syncResult, checkResult: recheckResult }))
+                );
+              })
+            );
+          }
+
+          return throwError(() => new Error(
+            `${key}: Office scan found ${expectedIssues} issue(s) but no document IDs to repair. Run Check again.`
+          ));
+        }
+
+        return this.runFix(key, documentIds).pipe(
           take(1),
-          switchMap(syncResult => this.runCheck(key).pipe(
-            take(1),
-            map(recheckResult => ({ syncResult, checkResult: recheckResult }))
-          ))
+          switchMap(syncResult => {
+            this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('verifying') });
+            return this.runCheck(key).pipe(
+              take(1),
+              map(recheckResult => ({ syncResult, checkResult: recheckResult }))
+            );
+          })
         );
       })
     );
