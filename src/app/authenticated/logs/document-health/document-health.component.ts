@@ -10,7 +10,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, describeOfficeScanRepairProgress } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, describeOfficeScanRepairProgress } from '../models/health.model';
 import { DocumentHealthStateService } from '../services/document-health-state.service';
 import { HealthService } from '../services/health.service';
 
