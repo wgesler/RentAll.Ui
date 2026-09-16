@@ -1519,10 +1519,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   //#region Undeposited Funds Methods
   filterUndepositedFundsOpenLines(lines: JournalEntryLineSearchResponse[], depositedLineIds: Set<string> = new Set()): JournalEntryLineSearchResponse[] {
-    const openDebits = lines
+    const eligibleLines = lines.filter(line => !this.isExcludedUndepositedFundsSearchLine(line));
+
+    const openDebits = eligibleLines
       .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
-    const depositCredits = lines
+    const depositCredits = eligibleLines
       .filter(line => this.getLineNetAmountFromSearchLine(line) < 0)
       .filter(line => Number(line.sourceTypeId) === SourceType.Deposit)
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
@@ -1554,13 +1556,24 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       !settledDebitIds.has(line.journalEntryLineId)
       && !depositedLineIds.has(line.journalEntryLineId)
     );
-    const openPaymentRefunds = lines
+    const openPaymentRefunds = eligibleLines
       .filter(line => this.isUndepositedFundsPaymentRefundSearchLine(line))
       .filter(line => !depositedLineIds.has(line.journalEntryLineId))
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
 
     return [...openDebitLines, ...openPaymentRefunds]
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
+  }
+
+  isExcludedUndepositedFundsSearchLine(
+    line: Pick<JournalEntryLineSearchResponse, 'sourceTypeId' | 'reservationId' | 'reservationCode'>
+  ): boolean {
+    if (Number(line.sourceTypeId) !== SourceType.Journal) {
+      return false;
+    }
+
+    return !this.normalizeLineContextId(line.reservationId)
+      && !this.normalizeLineContextId(line.reservationCode);
   }
 
   isUndepositedFundsPaymentRefundSearchLine(
@@ -3252,13 +3265,20 @@ triggerCheckPrint(): void {
   }
 
   get activeDisplayedColumns(): ColumnSet {
+    const columns = this.undepositedFundsOnly
+      ? {
+        ...this.displayedColumns,
+        source: { ...this.displayedColumns['source'], maxWidth: '20ch' }
+      }
+      : this.displayedColumns;
+
     if (!this.usesGroupedJournalEntryDisplay) {
-      return this.displayedColumns;
+      return columns;
     }
 
     return {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-      ...this.displayedColumns
+      ...columns
     };
   }
 
