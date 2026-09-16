@@ -12,7 +12,7 @@ import { AccountingOfficeService } from '../../../organizations/services/account
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferResponse } from '../../models/transfer.model';
+import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferResponse } from '../../models/transfer.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { TransferService } from '../../services/transfer.service';
 @Component({
@@ -44,7 +44,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   currentTransfer: TransferResponse | null = null;
-  currentLineAllocations: TransferReportLineAllocationResponse[] = [];
   transferReportLoadId = 0;
   displayedColumns: ColumnSet = {};
 
@@ -143,21 +142,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
         if (this.transferReportLoadId !== loadId) {
           return;
         }
-        this.transferService.getTransferReportLineAllocations(transferId).pipe(take(1)).subscribe({
-          next: lineAllocations => {
-            if (this.transferReportLoadId !== loadId) {
-              return;
-            }
-            this.applyTransfer(transfer, lineAllocations);
-          },
-          error: (error: HttpErrorResponse) => {
-            if (this.transferReportLoadId !== loadId) {
-              return;
-            }
-            console.error('Transfer Report - error loading deposit allocations:', error);
-            this.showTransferReportLoadError(error, 'Unable to load transfer report allocations');
-          }
-        });
+        this.applyTransfer(transfer);
       },
       error: (error: HttpErrorResponse) => {
         if (this.transferReportLoadId !== loadId) {
@@ -171,9 +156,8 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  applyTransfer(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[]): void {
+  applyTransfer(transfer: TransferResponse): void {
     this.currentTransfer = transfer;
-    this.currentLineAllocations = lineAllocations;
     this.isServiceError = false;
     this.refreshReportDisplay();
     this.finishTransferReportLoad();
@@ -190,9 +174,9 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.applyColumnHeaders(this.currentTransfer);
-    this.rowsDisplay = this.mappingService.mapTransferToFlatReportRowsFromDepositAllocations(
+    this.rowsDisplay = this.mappingService.mapTransferToFlatReportRowsFromTransferSplits(
       this.currentTransfer,
-      this.currentLineAllocations
+      this.resolveAccountIds(this.currentTransfer)
     );
     this.markViewForCheck();
   }
@@ -200,7 +184,6 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   showTransferReportLoadError(error: HttpErrorResponse, prefix: string): void {
     this.isServiceError = true;
     this.currentTransfer = null;
-    this.currentLineAllocations = [];
     this.rowsDisplay = [];
     const apiMessage = typeof error.error === 'string'
       ? error.error

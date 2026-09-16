@@ -33,7 +33,7 @@ import { ReceiptDisplayList, ReceiptPrefill, ReceiptRequest, ReceiptResponse, Re
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
 import { PaymentKind, getInvoiceMethod, getInvoiceMethods, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
-import { TransferDisplayList, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
+import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -6199,6 +6199,124 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       contactId: String(raw['contactId'] ?? raw['ContactId'] ?? '').trim() || null,
       description: String(raw['description'] ?? raw['Description'] ?? '').trim()
     };
+  }
+
+  mapTransferToFlatReportRowsFromTransferSplits(
+    transfer: TransferResponse,
+    accountIds: TransferFlatReportAccountIds
+  ): TransferFlatReportRowDisplay[] {
+    const splits = this.mapTransferSplitsFromApi(transfer.splits)
+      .filter(split => Math.abs(Number(split.amount) || 0) > 0.005);
+    const groups = this.groupTransferSplitsForReport(splits);
+    const transferDate = this.formatter.formatDateString(transfer.transferDate);
+    const dateRange = this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod) || transferDate;
+    const location = (transfer.officeName || '').trim();
+
+    return groups
+      .map(group => this.buildTransferFlatReportRowFromSplitGroup(
+        group,
+        transfer,
+        accountIds,
+        transferDate,
+        dateRange,
+        location
+      ))
+      .filter(row => row.escrowDepositValue !== 0 || row.rowTotalValue !== 0);
+  }
+
+  groupTransferSplitsForReport(splits: TransferSplit[]): TransferSplit[][] {
+    const emptyGuid = '00000000-0000-0000-0000-000000000000';
+    const linkedGroups = new Map<string, TransferSplit[]>();
+    const unlinked: TransferSplit[] = [];
+
+    splits.forEach(split => {
+      const lineId = (split.journalEntryLineId || '').trim();
+      if (lineId && lineId !== emptyGuid) {
+        if (!linkedGroups.has(lineId)) {
+          linkedGroups.set(lineId, []);
+        }
+        linkedGroups.get(lineId)?.push(split);
+        return;
+      }
+      unlinked.push(split);
+    });
+
+    const groups = Array.from(linkedGroups.values());
+    const unlinkedByDescription = new Map<string, TransferSplit[]>();
+    unlinked.forEach((split, index) => {
+      const key = (split.description || '').trim() || `split:${index}`;
+      if (!unlinkedByDescription.has(key)) {
+        unlinkedByDescription.set(key, []);
+      }
+      unlinkedByDescription.get(key)?.push(split);
+    });
+
+    return [...groups, ...Array.from(unlinkedByDescription.values())];
+  }
+
+  buildTransferFlatReportRowFromSplitGroup(
+    group: TransferSplit[],
+    transfer: TransferResponse,
+    accountIds: TransferFlatReportAccountIds,
+    transferDate: string,
+    dateRange: string,
+    location: string
+  ): TransferFlatReportRowDisplay {
+    const context = group[0];
+    const businessValue = this.sumTransferSplitAmountForAccount(group, accountIds.businessAccountId);
+    const ownerEscrowValue = this.sumTransferSplitAmountForAccount(group, accountIds.ownersAccountId);
+    const secDepValue = this.sumTransferSplitAmountForAccount(group, accountIds.secDepAccountId);
+    const sdwValue = this.sumTransferSplitAmountForAccount(group, accountIds.sdwAccountId);
+    const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
+    const sourceAmount = group
+      .map(split => Number(split.sourceJournalEntryLineAmount))
+      .find(value => Number.isFinite(value) && Math.abs(value) > 0.005);
+    const escrowDepositValue = sourceAmount !== undefined
+      ? this.roundCurrency(Math.abs(sourceAmount))
+      : rowTotalValue;
+    const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
+    const reservationCode = (context?.reservationCode || '').trim() || (transfer.transferCode || '').trim();
+    const propertyCode = (context?.propertyCode || '').trim();
+    const contactName = (context?.contactName || '').trim();
+    const description = (context?.description || transfer.description || '').trim();
+
+    return {
+      transferDate,
+      type: 'Transfer',
+      propertyId: (context?.propertyId || transfer.propertyId || '').trim() || null,
+      propertyCode,
+      reservationId: (context?.reservationId || '').trim() || null,
+      reservationCode,
+      dateRange: description || dateRange,
+      escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
+      escrowDepositValue,
+      business: this.formatFlatReportAmount(businessValue),
+      businessValue,
+      ownerEscrow: this.formatFlatReportAmount(ownerEscrowValue),
+      ownerEscrowValue,
+      secDep: this.formatFlatReportAmount(secDepValue),
+      secDepValue,
+      sdw: this.formatFlatReportAmount(sdwValue),
+      sdwValue,
+      location,
+      contactName,
+      rowTotal: this.formatFlatReportAmount(rowTotalValue),
+      rowTotalValue,
+      outOfBalance: this.formatFlatReportAmount(outOfBalanceValue),
+      outOfBalanceValue
+    };
+  }
+
+  sumTransferSplitAmountForAccount(splits: TransferSplit[], accountId: number | null | undefined): number {
+    const id = Number(accountId ?? 0);
+    if (!(id > 0)) {
+      return 0;
+    }
+    return this.roundCurrency(
+      splits
+        .filter(split => Number(split.chartOfAccountId) === id)
+        .reduce((sum, split) => sum + (Number(split.amount) || 0), 0)
+    );
   }
 
   mapTransferToFlatReportRowsFromDepositAllocations(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[]): TransferFlatReportRowDisplay[] {
