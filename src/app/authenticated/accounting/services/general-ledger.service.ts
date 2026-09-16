@@ -295,6 +295,16 @@ export class GeneralLedgerService {
     );
   }
 
+  startDocumentLinksRepairJob(officeIds: number[]): Observable<StartJournalEntrySyncJobResponse> {
+    return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/document-links-repair/start`, {
+      officeIds
+    }).pipe(
+      map(response => ({
+        jobId: String(response?.jobId ?? '')
+      }))
+    );
+  }
+
   startDocumentTypeJournalEntrySyncJob(
     officeIds: number[],
     syncType: string,

@@ -146,9 +146,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       this.patchRow(row.key, { checking: false });
     })).subscribe({
       next: result => this.applyCheckSummary(row.key, result, true, row.canFix),
-      error: () => {
-        this.patchRow(row.key, { errorMessage: CommonMessage.ServiceError });
-        this.toastr.error(CommonMessage.ServiceError, row.label);
+      error: error => {
+        const message = this.resolveObservedError(error);
+        this.patchRow(row.key, { errorMessage: message });
+        this.toastr.error(message, row.label);
       }
     });
   }
@@ -170,9 +171,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
         this.applyCheckSummary(row.key, checkResult, false, row.canFix);
         this.handleFixOutcome(row.key, row.label, syncResult, checkResult);
       },
-      error: () => {
-        this.patchRow(row.key, { fixing: false, fixProgress: null, errorMessage: CommonMessage.ServiceError });
-        this.toastr.error(CommonMessage.ServiceError, row.label);
+      error: error => {
+        const message = this.resolveObservedError(error);
+        this.patchRow(row.key, { fixing: false, fixProgress: null, errorMessage: message });
+        this.toastr.error(message, row.label);
       }
     });
   }
@@ -200,8 +202,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
         runNext();
       })).subscribe({
         next: result => this.applyCheckSummary(row.key, result, false, row.canFix),
-        error: () => {
-          this.patchRow(row.key, { errorMessage: CommonMessage.ServiceError });
+        error: error => {
+          this.patchRow(row.key, { errorMessage: this.resolveObservedError(error) });
           runNext();
         }
       });
@@ -273,12 +275,13 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
             checkResult
           });
         },
-        error: () => {
-          this.patchRow(row.key, { errorMessage: CommonMessage.ServiceError });
+        error: error => {
+          const message = this.resolveObservedError(error);
+          this.patchRow(row.key, { errorMessage: message });
           outcomes.push({
             key: row.key,
             label: row.label,
-            syncResult: { documentsProcessed: 0, journalEntriesCreated: 0, journalEntriesSkipped: 0, journalEntriesDeleted: 0, errors: [CommonMessage.ServiceError] },
+            syncResult: { documentsProcessed: 0, journalEntriesCreated: 0, journalEntriesSkipped: 0, journalEntriesDeleted: 0, errors: [message] },
             checkResult: { summary: { section: '', documentType: row.label, totalDocuments: 0, documentsWithJe: 0, documentsMissingJe: 0, duplicateOpenJes: 0, isClean: false }, issues: [] }
           });
         }
@@ -322,7 +325,15 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   runFix(key: HealthCheckKey, documentIds: string[]): Observable<JournalEntrySyncResult> {
     if (key === 'documentLinks') {
-      return this.healthService.repairDocumentLinks(this.getOfficeIdsForRequest());
+      return this.generalLedgerService.startDocumentLinksRepairJob(this.getOfficeIdsForRequest()).pipe(
+        switchMap(start => {
+          if (!start.jobId) {
+            return throwError(() => new Error('Document link repair job did not return an ID.'));
+          }
+
+          return this.pollDocumentLinksRepairJob(start.jobId, key);
+        })
+      );
     }
 
     const syncType = healthKeyToSyncType(key);
@@ -353,6 +364,19 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     );
   }
 
+  pollDocumentLinksRepairJob(jobId: string, rowKey: HealthCheckKey): Observable<JournalEntrySyncResult> {
+    return timer(0, this.fixPollIntervalMs).pipe(
+      take(this.fixPollMaxAttempts),
+      switchMap(() => this.generalLedgerService.getAllJournalEntrySyncJobStatus(jobId)),
+      tap(status => this.updateDocumentLinksRepairProgress(rowKey, status)),
+      filter(status => status.isCompleted),
+      take(1),
+      map(status => this.mapDocumentLinksRepairJobStatus(status)),
+      timeout(this.fixPollIntervalMs * this.fixPollMaxAttempts + 5000),
+      catchError(() => throwError(() => new Error('Fix timed out while waiting for document link repair to finish.')))
+    );
+  }
+
   pollDocumentTypeSyncJob(jobId: string, syncType: HealthFixSyncType, rowKey: HealthCheckKey): Observable<JournalEntrySyncResult> {
     return timer(0, this.fixPollIntervalMs).pipe(
       take(this.fixPollMaxAttempts),
@@ -364,6 +388,51 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       timeout(this.fixPollIntervalMs * this.fixPollMaxAttempts + 5000),
       catchError(() => throwError(() => new Error('Fix timed out while waiting for sync to finish.')))
     );
+  }
+
+  updateDocumentLinksRepairProgress(rowKey: HealthCheckKey, status: JournalEntrySyncJobStatus): void {
+    const trackedTypes = ['payment', 'documentLinkPayment', 'documentLinkDeposit', 'documentLinkTransfer', 'splitLinkRepair'];
+    const activeType = [...status.types]
+      .reverse()
+      .find(typeStatus => trackedTypes.includes(typeStatus.type) && (typeStatus.status ?? '').toLowerCase() === 'running')
+      ?? status.types.find(typeStatus => trackedTypes.includes(typeStatus.type));
+
+    if (!activeType) {
+      this.patchRow(rowKey, { fixProgress: status.message ?? 'Repairing document links…' });
+      return;
+    }
+
+    const total = activeType.total ?? 0;
+    const processed = activeType.processed ?? 0;
+    const label = activeType.label || activeType.type;
+    const progress = total > 0 ? `${label} ${processed}/${total}` : (status.message ?? label);
+    this.patchRow(rowKey, { fixProgress: progress });
+  }
+
+  mapDocumentLinksRepairJobStatus(status: JournalEntrySyncJobStatus): JournalEntrySyncResult {
+    const trackedTypes = ['payment', 'documentLinkPayment', 'documentLinkDeposit', 'documentLinkTransfer', 'splitLinkRepair'];
+    const relevantTypes = status.types.filter(typeStatus => trackedTypes.includes(typeStatus.type));
+    const processed = relevantTypes.reduce((sum, typeStatus) => sum + (typeStatus.processed ?? 0), 0);
+    const skipped = relevantTypes.reduce((sum, typeStatus) => sum + (typeStatus.skipped ?? 0), 0);
+    const syncErrors = relevantTypes
+      .flatMap(typeStatus => (typeStatus.errorMessages ?? []).map(message => message.trim()))
+      .filter(message => message.length > 0);
+
+    if (syncErrors.length === 0 && relevantTypes.some(typeStatus => (typeStatus.errors ?? 0) > 0)) {
+      syncErrors.push('One or more document link repair steps reported sync errors.');
+    }
+
+    if ((status.message ?? '').toLowerCase().includes('failed')) {
+      syncErrors.push(status.message ?? 'Document link repair failed.');
+    }
+
+    return {
+      documentsProcessed: processed,
+      journalEntriesCreated: Math.max(0, processed - skipped),
+      journalEntriesSkipped: skipped,
+      journalEntriesDeleted: 0,
+      errors: syncErrors
+    };
   }
 
   updateFixProgress(rowKey: HealthCheckKey, status: JournalEntrySyncJobStatus, syncType: HealthFixSyncType): void {
@@ -477,6 +546,14 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  resolveObservedError(error: unknown): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message.trim();
+    }
+
+    return this.healthService.mapHttpError(error);
+  }
+
   patchRow(key: HealthCheckKey, patch: Partial<HealthCheckRowState>): void {
     this.rows = this.rows.map(row => row.key === key ? { ...row, ...patch } : row);
     this.persistSessionState();

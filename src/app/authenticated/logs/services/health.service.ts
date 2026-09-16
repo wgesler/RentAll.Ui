@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { catchError, map, Observable, throwError } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { ConfigService } from '../../../services/config.service';
 import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary } from '../models/health.model';
@@ -77,7 +78,8 @@ export class HealthService {
 
   repairDocumentLinks(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
     return this.http.post<unknown>(this.controller + 'document-links/fix', { officeIds }).pipe(
-      map(result => this.mapJournalEntrySyncResult(result))
+      map(result => this.mapJournalEntrySyncResult(result)),
+      catchError(error => throwError(() => new Error(this.mapHttpError(error))))
     );
   }
   //#endregion
@@ -91,8 +93,36 @@ export class HealthService {
   //#region Utility Methods
   postCheck(path: string, officeIds: number[]): Observable<DocumentHealthResult> {
     return this.http.post<unknown>(this.controller + path, { officeIds }).pipe(
-      map(result => this.mapDocumentHealthResult(result))
+      map(result => this.mapDocumentHealthResult(result)),
+      catchError(error => throwError(() => new Error(this.mapHttpError(error))))
     );
+  }
+
+  mapHttpError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const body = error.error;
+      if (typeof body === 'string' && body.trim().length > 0) {
+        return body.trim();
+      }
+
+      if (body && typeof body === 'object') {
+        const payload = body as Record<string, unknown>;
+        const message = payload['message'] ?? payload['Message'] ?? payload['title'] ?? payload['detail'];
+        if (message != null && String(message).trim().length > 0) {
+          return String(message).trim();
+        }
+      }
+
+      if (error.message.trim().length > 0) {
+        return error.message.trim();
+      }
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message.trim();
+    }
+
+    return CommonMessage.ServiceError;
   }
 
   mapDocumentHealthResult(raw: unknown): DocumentHealthResult {
