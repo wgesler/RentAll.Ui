@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
+import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { ConfigService } from '../../../services/config.service';
 import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary } from '../models/health.model';
 
@@ -69,6 +70,18 @@ export class HealthService {
   }
   //#endregion
 
+  //#region Document Link Methods
+  checkDocumentLinks(officeIds: number[] = []): Observable<DocumentHealthResult> {
+    return this.postCheck('document-links/check', officeIds);
+  }
+
+  repairDocumentLinks(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.http.post<unknown>(this.controller + 'document-links/fix', { officeIds }).pipe(
+      map(result => this.mapJournalEntrySyncResult(result))
+    );
+  }
+  //#endregion
+
   //#region Manual Journal Entry Methods
   checkManualJournalEntries(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('manual-journal-entry/check', officeIds);
@@ -121,6 +134,18 @@ export class HealthService {
     }));
 
     return { summary, issues };
+  }
+
+  mapJournalEntrySyncResult(raw: unknown): JournalEntrySyncResult {
+    const payload = (raw ?? {}) as Record<string, unknown>;
+    const errorsRaw = (payload['errors'] ?? payload['Errors'] ?? []) as string[];
+    return {
+      documentsProcessed: Number(payload['documentsProcessed'] ?? payload['DocumentsProcessed'] ?? 0),
+      journalEntriesCreated: Number(payload['journalEntriesCreated'] ?? payload['JournalEntriesCreated'] ?? 0),
+      journalEntriesSkipped: Number(payload['journalEntriesSkipped'] ?? payload['JournalEntriesSkipped'] ?? 0),
+      journalEntriesDeleted: Number(payload['journalEntriesDeleted'] ?? payload['JournalEntriesDeleted'] ?? 0),
+      errors: errorsRaw.map(error => String(error))
+    };
   }
   //#endregion
 }

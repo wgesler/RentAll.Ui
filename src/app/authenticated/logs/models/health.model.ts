@@ -10,6 +10,7 @@ export type HealthCheckKey =
   | 'paymentOwner'
   | 'deposit'
   | 'transfer'
+  | 'documentLinks'
   | 'manualJournalEntry';
 
 export interface DocumentHealthSummary {

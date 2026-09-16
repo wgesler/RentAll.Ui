@@ -52,6 +52,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     { key: 'paymentOwner', label: 'Payments (Owner)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'deposit', label: 'Deposits', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'transfer', label: 'Transfers', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'documentLinks', label: 'Payment / Deposit / Transfer Links', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'manualJournalEntry', label: 'Manual Journal Entries', canFix: false, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null }
   ];
 
@@ -310,6 +311,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
         return this.healthService.checkDeposits(officeIds);
       case 'transfer':
         return this.healthService.checkTransfers(officeIds);
+      case 'documentLinks':
+        return this.healthService.checkDocumentLinks(officeIds);
       case 'manualJournalEntry':
         return this.healthService.checkManualJournalEntries(officeIds);
       default:
@@ -318,6 +321,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   }
 
   runFix(key: HealthCheckKey, documentIds: string[]): Observable<JournalEntrySyncResult> {
+    if (key === 'documentLinks') {
+      return this.healthService.repairDocumentLinks(this.getOfficeIdsForRequest());
+    }
+
     const syncType = healthKeyToSyncType(key);
     if (!syncType) {
       return throwError(() => new Error(`Fix is not available for: ${key}`));
@@ -429,6 +436,16 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
           (checkResult.summary?.duplicateOpenJes ?? 0);
 
         if (documentIds.length === 0) {
+          if (expectedIssues > 0 && key === 'documentLinks') {
+            return this.runFix(key, []).pipe(
+              take(1),
+              switchMap(syncResult => this.runCheck(key).pipe(
+                take(1),
+                map(recheckResult => ({ syncResult, checkResult: recheckResult }))
+              ))
+            );
+          }
+
           if (expectedIssues > 0) {
             return throwError(() => new Error('Check found issues but no document IDs to fix. Run Check again, then Fix.'));
           }
