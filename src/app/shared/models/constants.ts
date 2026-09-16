@@ -2,6 +2,8 @@
  * Shared constants used across the application
  */
 export const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+export const SYSTEM_USER_ID = '99999999-9999-9999-9999-999999999999';
+export const SYSTEM_ORGANIZATION_ID = '99999999-9999-9999-9999-999999999999';
 
 
 

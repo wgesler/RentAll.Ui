@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, catchError, of, take, tap } from 'rxjs';
 import { BrandingResponse } from '../authenticated/organizations/models/branding.model';
 import { OrganizationService } from '../authenticated/organizations/services/organization.service';
 import { AuthService } from './auth.service';
+import { SYSTEM_ORGANIZATION_ID } from '../shared/models/constants';
 
 @Injectable({
   providedIn: 'root'
@@ -14,7 +15,7 @@ export class BrandingService {
   private authService = inject(AuthService);
 
   private readonly systemDefaultBranding: BrandingResponse = {
-    organizationId: '99999999-9999-9999-9999-999999999999',
+    organizationId: SYSTEM_ORGANIZATION_ID,
     primaryColor: '#3f51b5',
     accentColor: '#ae1f66',
     headerBackgroundColor: '#3f51b5',
