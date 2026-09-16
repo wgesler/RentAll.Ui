@@ -19,11 +19,19 @@ export class HealthService {
   checkReceipts(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('receipt/check', officeIds);
   }
+
+  fixReceipts(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('receipt/fix', officeIds);
+  }
   //#endregion
 
   //#region Bill Methods
   checkBills(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('bill/check', officeIds);
+  }
+
+  fixBills(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('bill/fix', officeIds);
   }
   //#endregion
 
@@ -31,11 +39,19 @@ export class HealthService {
   checkWorkOrders(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('work-order/check', officeIds);
   }
+
+  fixWorkOrders(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('work-order/fix', officeIds);
+  }
   //#endregion
 
   //#region Invoice Methods
   checkInvoices(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('invoice/check', officeIds);
+  }
+
+  fixInvoices(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('invoice/fix', officeIds);
   }
   //#endregion
 
@@ -50,12 +66,24 @@ export class HealthService {
     return this.postCheck('payment-invoice/check', officeIds);
   }
 
+  fixInvoicePayments(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('payment-invoice/fix', officeIds);
+  }
+
   checkBillPayments(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('payment-bill/check', officeIds);
   }
 
+  fixBillPayments(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('payment-bill/fix', officeIds);
+  }
+
   checkOwnerPayments(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('payment-owner/check', officeIds);
+  }
+
+  fixOwnerPayments(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('payment-owner/fix', officeIds);
   }
   //#endregion
 
@@ -63,11 +91,19 @@ export class HealthService {
   checkDeposits(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('deposit/check', officeIds);
   }
+
+  fixDeposits(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('deposit/fix', officeIds);
+  }
   //#endregion
 
   //#region Transfer Methods
   checkTransfers(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('transfer/check', officeIds);
+  }
+
+  fixTransfers(officeIds: number[] = []): Observable<JournalEntrySyncResult> {
+    return this.postFix('transfer/fix', officeIds);
   }
   //#endregion
 
@@ -94,6 +130,13 @@ export class HealthService {
   postCheck(path: string, officeIds: number[]): Observable<DocumentHealthResult> {
     return this.http.post<unknown>(this.controller + path, { officeIds }).pipe(
       map(result => this.mapDocumentHealthResult(result)),
+      catchError(error => throwError(() => new Error(this.mapHttpError(error))))
+    );
+  }
+
+  postFix(path: string, officeIds: number[]): Observable<JournalEntrySyncResult> {
+    return this.http.post<unknown>(this.controller + path, { officeIds }).pipe(
+      map(result => this.mapJournalEntrySyncResult(result)),
       catchError(error => throwError(() => new Error(this.mapHttpError(error))))
     );
   }

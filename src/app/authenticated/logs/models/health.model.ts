@@ -91,71 +91,7 @@ export function healthKeyToPaymentKindId(key: HealthCheckKey): number | null {
   }
 }
 
-const emptyGuid = '00000000-0000-0000-0000-000000000000';
-
-function isJournalEntryDuplicateIssue(issueText: string): boolean {
-  const normalized = issueText.toLowerCase();
-  return normalized.includes('duplicate open invoice payment je')
-    || normalized.includes('duplicate open invoice charge je')
-    || normalized.includes('duplicate open deposit je');
-}
-
-function routeIssueDocumentId(issueText: string, documentId: string, ids: Set<string>): void {
-  if (!documentId || documentId === emptyGuid) {
-    return;
-  }
-
-  ids.add(documentId);
-}
-
-function routeIssueRelatedId(issueText: string, relatedId: string | null | undefined, ids: Set<string>): void {
-  const id = String(relatedId ?? '').trim();
-  if (!id || id === emptyGuid) {
-    return;
-  }
-
-  const normalized = issueText.toLowerCase();
-  if (isJournalEntryDuplicateIssue(normalized)) {
-    return;
-  }
-
-  if (normalized.includes('duplicate invoice payment documents')) {
-    ids.add(id);
-  }
-}
-
-export function extractHealthFixDocumentIds(issues: DocumentHealthIssue[] | null | undefined): string[] {
-  const ids = new Set<string>();
-  for (const issue of issues ?? []) {
-    const issueText = String(issue.issue ?? '');
-    routeIssueDocumentId(issueText, String(issue.documentId ?? '').trim(), ids);
-    routeIssueRelatedId(issueText, issue.relatedId, ids);
-  }
-
-  return Array.from(ids);
-}
-
-export function resolveHealthFixDocumentIds(
-  checkResult: DocumentHealthResult,
-  fallbackIssues?: DocumentHealthIssue[] | null
-): string[] {
-  const fromCheck = extractHealthFixDocumentIds(checkResult.issues);
-  if (fromCheck.length > 0) {
-    return fromCheck;
-  }
-
-  const issueCount =
-    (checkResult.summary?.documentsMissingJe ?? 0) +
-    (checkResult.summary?.duplicateOpenJes ?? 0);
-
-  if (issueCount > 0) {
-    return extractHealthFixDocumentIds(fallbackIssues);
-  }
-
-  return [];
-}
-
-/** Office scan → broken document IDs → one-by-one repair (not blind office-wide sync). */
+/** Api scans office, repairs each broken document, then Ui re-checks to verify. */
 export function describeOfficeScanRepairProgress(
   phase: 'scanning' | 'found' | 'repairing' | 'verifying' | 'clean' | 'no-ids',
   brokenCount?: number,
