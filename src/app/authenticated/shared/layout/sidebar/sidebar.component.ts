@@ -9,7 +9,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
-import { canShowLeadsNav, getFilteredSidebarNavItems, isPartnerOrganizationContext } from '../../access/role-access';
+import { getFilteredSidebarNavItems, getSidebarFilterOptions } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
@@ -143,14 +143,7 @@ markViewForCheck(): void {
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
     const userGroups = user?.userGroups as Array<string | number> | undefined;
-    this.navItems = getFilteredSidebarNavItems(userGroups, {
-      canShowLeads: canShowLeadsNav(this.authService),
-      canShowOwners: this.authService.isOwnerAdmin() && this.authService.hasAccessToOwners(),
-      isPartnerOrg: isPartnerOrganizationContext(
-        this.commonService.getOrganizationTypeId(),
-        this.authService.hasRole(UserGroups.SuperAdmin)
-      )
-    });
+    this.navItems = getFilteredSidebarNavItems(userGroups, getSidebarFilterOptions(this.authService, this.commonService.getOrganizationTypeId()));
   }
 
   refreshAssignedTicketBadge(): void {

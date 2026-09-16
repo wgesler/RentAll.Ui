@@ -50,7 +50,7 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
       }
       return router.parseUrl(getPartnerFallbackUrl());
     }
-    if (!canUserAccessUrl(userGroups, state.url)) {
+    if (!canUserAccessUrl(userGroups, state.url, mobileFilterOptions)) {
         // If navigation is coming from an already-loaded route (user clicked in-app),
         // cancel and keep the user on the current page.
         const hasCurrentRoute = !!router.routerState.snapshot.url && router.routerState.snapshot.url !== '/';
@@ -59,7 +59,7 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
         }
 
         // For direct URL entry / initial load, still redirect to a valid authorized page.
-        const fallbackUrl = getAuthorizedFallbackUrl(userGroups);
+        const fallbackUrl = getAuthorizedFallbackUrl(userGroups, mobileFilterOptions);
         return router.parseUrl(fallbackUrl);
     }
 

@@ -419,32 +419,102 @@ export function getRouteRuleForUrl(url: string): AccessRule | null {
   }
   return routeRulesBySegment[segment] ?? null;
 }
+
+export type SidebarNavFilterOptions = {
+  canShowLeads?: boolean;
+  canShowOwners?: boolean;
+  canShowTickets?: boolean;
+  canShowMaintenance?: boolean;
+  canShowAccounting?: boolean;
+  isPartnerOrg?: boolean;
+};
+
+type FeatureGateKey = keyof Pick<
+  SidebarNavFilterOptions,
+  'canShowLeads' | 'canShowOwners' | 'canShowTickets' | 'canShowMaintenance' | 'canShowAccounting'
+>;
+
+const FEATURE_GATED_ROUTE_SEGMENTS: Record<string, FeatureGateKey> = {
+  [RouterToken.Leads]: 'canShowLeads',
+  [RouterToken.OwnerShell]: 'canShowOwners',
+  [RouterToken.TicketList]: 'canShowTickets',
+  [RouterToken.MaintenanceList]: 'canShowMaintenance',
+  [WORK_ORDER_SEGMENT]: 'canShowMaintenance',
+  [RouterToken.WorkOrderCreate]: 'canShowMaintenance',
+  [RECEIPT_SEGMENT]: 'canShowMaintenance',
+  [RouterToken.AccountingList]: 'canShowAccounting',
+  [RouterToken.InvoiceCreate]: 'canShowAccounting',
+  [RouterToken.CostCodesList]: 'canShowAccounting',
+  [RouterToken.AccountingOfficeList]: 'canShowAccounting'
+};
+
+function hasFeatureAccessForUrl(url: string, featureOptions?: SidebarNavFilterOptions): boolean {
+  if (!featureOptions) {
+    return true;
+  }
+
+  const segment = getPrimaryAuthSegment(url);
+  if (!segment) {
+    return true;
+  }
+
+  const gateKey = FEATURE_GATED_ROUTE_SEGMENTS[segment];
+  if (!gateKey) {
+    return true;
+  }
+
+  return featureOptions[gateKey] !== false;
+}
+
+function passesRoleAndFeatureAccess(
+  roleAllowed: boolean,
+  url: string,
+  featureOptions?: SidebarNavFilterOptions
+): boolean {
+  return roleAllowed && hasFeatureAccessForUrl(url, featureOptions);
+}
 //#endregion
 
 //#region Navigation and Routing
-export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boolean {
+export function canUserAccessUrl(
+  userGroups: UserGroupInput,
+  url: string,
+  featureOptions?: SidebarNavFilterOptions
+): boolean {
   const segment = getPrimaryAuthSegment(url);
   if (segment === RouterToken.UserGuide) {
     return true;
   }
   if (hasOwnerAndRealtorRoles(userGroups)) {
-    return segment !== null && OWNER_REALTOR_ALLOWED_SEGMENTS.has(segment);
+    return passesRoleAndFeatureAccess(
+      segment !== null && OWNER_REALTOR_ALLOWED_SEGMENTS.has(segment),
+      url,
+      featureOptions
+    );
   }
   if (isOwnerOnlyUser(userGroups)) {
-    return segment === RouterToken.DashboardOwner;
+    return passesRoleAndFeatureAccess(segment === RouterToken.DashboardOwner, url, featureOptions);
   }
   if (hasRealtorRole(userGroups)) {
-    return segment !== null && REALTOR_ALLOWED_SEGMENTS.has(segment);
+    return passesRoleAndFeatureAccess(
+      segment !== null && REALTOR_ALLOWED_SEGMENTS.has(segment),
+      url,
+      featureOptions
+    );
   }
   if (isInspectorOnlyUser(userGroups)) {
-    return segment !== null && INSPECTOR_ALLOWED_SEGMENTS.has(segment);
+    return passesRoleAndFeatureAccess(
+      segment !== null && INSPECTOR_ALLOWED_SEGMENTS.has(segment),
+      url,
+      featureOptions
+    );
   }
 
   const rule = getRouteRuleForUrl(url);
   if (!rule) {
-    return true;
+    return hasFeatureAccessForUrl(url, featureOptions);
   }
-  return hasAccessByRule(userGroups, rule);
+  return passesRoleAndFeatureAccess(hasAccessByRule(userGroups, rule), url, featureOptions);
 }
 
 export function getUserGuideNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
@@ -533,12 +603,7 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
 
 export function filterSidebarNavItems(
   items: NavItemDefinition[],
-  options: {
-    canShowLeads?: boolean;
-    canShowOwners?: boolean;
-    isPartnerOrg?: boolean;
-    userGroups?: UserGroupInput;
-  }
+  options: SidebarNavFilterOptions & { userGroups?: UserGroupInput }
 ): NavItemDefinition[] {
   let filtered = items;
 
@@ -556,6 +621,27 @@ export function filterSidebarNavItems(
     });
   }
 
+  if (options.canShowTickets === false) {
+    filtered = filtered.filter(item => {
+      const url = String(item.url || '');
+      return url !== RouterToken.TicketList && !url.startsWith(`${RouterToken.TicketList}/`);
+    });
+  }
+
+  if (options.canShowMaintenance === false) {
+    filtered = filtered.filter(item => {
+      const url = String(item.url || '');
+      return url !== RouterToken.MaintenanceList && !url.startsWith(`${RouterToken.MaintenanceList}/`);
+    });
+  }
+
+  if (options.canShowAccounting === false) {
+    filtered = filtered.filter(item => {
+      const url = String(item.url || '');
+      return url !== RouterToken.AccountingList && !url.startsWith(`${RouterToken.AccountingList}/`);
+    });
+  }
+
   if (options.isPartnerOrg) {
     filtered = filterNavItemsForPartner(filtered, options.userGroups);
   }
@@ -565,11 +651,7 @@ export function filterSidebarNavItems(
 
 export function getFilteredSidebarNavItems(
   userGroups: UserGroupInput,
-  options: {
-    canShowLeads?: boolean;
-    canShowOwners?: boolean;
-    isPartnerOrg?: boolean;
-  }
+  options: SidebarNavFilterOptions
 ): NavItemDefinition[] {
   return filterSidebarNavItems(getVisibleNavItems(userGroups), {
     ...options,
@@ -584,12 +666,6 @@ export function isPartnerOrganizationContext(
   return !isSuperAdmin && Number(organizationTypeId) === OrganizationType.Partner;
 }
 
-export type SidebarNavFilterOptions = {
-  canShowLeads?: boolean;
-  canShowOwners?: boolean;
-  isPartnerOrg?: boolean;
-};
-
 export function canShowLeadsNav(authService: {
   hasRole: (group: UserGroups) => boolean;
   hasAccessToLeads: () => boolean;
@@ -601,11 +677,68 @@ export function canShowLeadsNav(authService: {
   ) && authService.hasAccessToLeads();
 }
 
-export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
+export function canShowOwnersNav(authService: {
+  isOwnerAdmin: () => boolean;
+  hasAccessToOwners: () => boolean;
+}): boolean {
+  return authService.isOwnerAdmin() && authService.hasAccessToOwners();
+}
+
+export function canShowTicketsNav(authService: {
+  hasTicketingAccess: () => boolean;
+}): boolean {
+  return authService.hasTicketingAccess();
+}
+
+export function canShowMaintenanceNav(authService: {
+  hasAccessToManagement: () => boolean;
+}): boolean {
+  return authService.hasAccessToManagement();
+}
+
+export function canShowAccountingNav(authService: {
+  hasAccountingNavAccess: () => boolean;
+  hasAccountingAccess: () => boolean;
+}): boolean {
+  return authService.hasAccountingNavAccess() && authService.hasAccountingAccess();
+}
+
+export function getSidebarFilterOptions(
+  authService: {
+    hasRole: (group: UserGroups) => boolean;
+    hasAccessToLeads: () => boolean;
+    isOwnerAdmin: () => boolean;
+    hasAccessToOwners: () => boolean;
+    hasTicketingAccess: () => boolean;
+    hasAccessToManagement: () => boolean;
+    hasAccountingNavAccess: () => boolean;
+    hasAccountingAccess: () => boolean;
+  },
+  organizationTypeId?: number | null
+): SidebarNavFilterOptions {
+  return {
+    canShowLeads: canShowLeadsNav(authService),
+    canShowOwners: canShowOwnersNav(authService),
+    canShowTickets: canShowTicketsNav(authService),
+    canShowMaintenance: canShowMaintenanceNav(authService),
+    canShowAccounting: canShowAccountingNav(authService),
+    isPartnerOrg: isPartnerOrganizationContext(
+      organizationTypeId,
+      authService.hasRole(UserGroups.SuperAdmin)
+    )
+  };
+}
+
+export function getAuthorizedFallbackUrl(
+  userGroups: UserGroupInput,
+  featureOptions?: SidebarNavFilterOptions
+): string {
   if (isInspectorOnlyUser(userGroups)) {
     return `/${RouterToken.Auth}/${RouterToken.DashboardStaff}`;
   }
-  const firstVisibleItem = getVisibleNavItems(userGroups)[0];
+  const firstVisibleItem = featureOptions
+    ? getFilteredSidebarNavItems(userGroups, featureOptions)[0]
+    : getVisibleNavItems(userGroups)[0];
   const token = firstVisibleItem?.url || RouterToken.Dashboard;
   return `/${RouterToken.Auth}/${token}`;
 }

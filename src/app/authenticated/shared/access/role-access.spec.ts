@@ -1,5 +1,6 @@
+import { RouterToken } from '../../../app.routes.tokens';
 import { UserGroups } from '../../users/models/user-enums';
-import { canPartnerAccessUrl, canUserAccessUrl, filterNavItemsForPartner, getVisibleNavItems, isOwnerOnlyUser } from './role-access';
+import { canPartnerAccessUrl, canUserAccessUrl, filterNavItemsForPartner, filterSidebarNavItems, getVisibleNavItems, isOwnerOnlyUser } from './role-access';
 
 describe('role-access owner and realtor behavior', () => {
   it('treats owner-only users as owner-only', () => {
@@ -51,5 +52,38 @@ describe('role-access owner and realtor behavior', () => {
     expect(urls).toEqual(['boards', 'properties', 'contacts', 'settings', 'logs']);
     expect(canPartnerAccessUrl('/auth/logs', partnerOrgAdmin)).toBeTrue();
     expect(canPartnerAccessUrl('/auth/logs', [UserGroups.PartnerAdmin])).toBeFalse();
+  });
+
+  it('hides tickets and maintenance when feature flags are off', () => {
+    const adminGroups = [UserGroups.Admin];
+    const navItems = getVisibleNavItems(adminGroups);
+    const filtered = filterSidebarNavItems(navItems, {
+      canShowTickets: false,
+      canShowMaintenance: false
+    });
+    const urls = filtered.map(item => item.url);
+
+    expect(urls).not.toContain(RouterToken.TicketList);
+    expect(urls).not.toContain(RouterToken.MaintenanceList);
+  });
+
+  it('blocks feature-gated routes when the org feature is off', () => {
+    const adminGroups = [UserGroups.Admin];
+    const featureOptions = {
+      canShowLeads: false,
+      canShowOwners: false,
+      canShowTickets: false,
+      canShowMaintenance: false,
+      canShowAccounting: false
+    };
+
+    expect(canUserAccessUrl(adminGroups, '/auth/leads', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/owner', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/tickets', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/maintenance', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/work-order/1', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/accounting', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/cost-codes', featureOptions)).toBeFalse();
+    expect(canUserAccessUrl(adminGroups, '/auth/properties', featureOptions)).toBeTrue();
   });
 });

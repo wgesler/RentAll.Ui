@@ -3,10 +3,9 @@ import { AuthService } from '../../services/auth.service';
 import { UserGroups } from '../users/models/user-enums';
 import {
   canPartnerAccessUrl,
-  canShowLeadsNav,
   canUserAccessUrl,
   getFilteredSidebarNavItems,
-  isPartnerOrganizationContext,
+  getSidebarFilterOptions,
   type NavItemDefinition,
   type SidebarNavFilterOptions,
   type UserGroupInput
@@ -149,14 +148,7 @@ export function getMobileSidebarFilterOptions(
   authService: AuthService,
   organizationTypeId?: number | null
 ): SidebarNavFilterOptions {
-  return {
-    canShowLeads: canShowLeadsNav(authService),
-    canShowOwners: authService.isOwnerAdmin() && authService.hasAccessToOwners(),
-    isPartnerOrg: isPartnerOrganizationContext(
-      organizationTypeId,
-      authService.hasRole(UserGroups.SuperAdmin)
-    )
-  };
+  return getSidebarFilterOptions(authService, organizationTypeId);
 }
 
 function getAllowedMobilePaths(
@@ -288,9 +280,9 @@ export function canUserAccessMobileUrl(
     if (!allowedPaths.has('dashboard')) {
       return false;
     }
-    return canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.Dashboard}`)
-      || canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.DashboardStaff}`)
-      || canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.DashboardOwner}`);
+    return canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.Dashboard}`, filterOptions)
+      || canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.DashboardStaff}`, filterOptions)
+      || canUserAccessUrl(userGroups, `/${RouterToken.Auth}/${RouterToken.DashboardOwner}`, filterOptions);
   }
 
   if (section && !allowedPaths.has(section)) {
@@ -305,7 +297,7 @@ export function canUserAccessMobileUrl(
     return canPartnerAccessUrl(mobileUrlToAuthUrl(url), userGroups);
   }
 
-  return canUserAccessUrl(userGroups, mobileUrlToAuthUrl(url));
+  return canUserAccessUrl(userGroups, mobileUrlToAuthUrl(url), filterOptions);
 }
 
 export function getMobileFallbackUrl(

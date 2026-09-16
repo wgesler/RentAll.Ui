@@ -285,6 +285,10 @@ export class AuthService {
         return this.hasOrganizationFeature(FeatureType.Owners, features);
     }
 
+    hasAccessToManagement(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.Management, features);
+    }
+
     hasPartnerIntegrationAccess(features?: FeatureResponse[]): boolean {
         return this.hasOrganizationFeature(FeatureType.PartnerIntegration, features);
     }
