@@ -36,6 +36,18 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   readonly fixPollIntervalMs = 500;
   readonly fixPollMaxAttempts = 3600;
+  readonly fixAllOrder: HealthCheckKey[] = [
+    'documentLinks',
+    'paymentInvoice',
+    'invoice',
+    'deposit',
+    'transfer',
+    'paymentBill',
+    'paymentOwner',
+    'receipt',
+    'bill',
+    'workOrder'
+  ];
 
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -64,13 +76,13 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   unresolvedHint = '';
 
   issueColumns: ColumnSet = {
-    issue: { displayAs: 'Issue', maxWidth: '20ch', wrap: true },
-    documentCode: { displayAs: 'Document', maxWidth: '11ch' },
-    relatedCode: { displayAs: 'Related', maxWidth: '13ch' },
-    officeNameDisplay: { displayAs: 'Office', maxWidth: '7ch' },
-    amountDisplay: { displayAs: 'Amount', maxWidth: '8ch', alignment: 'right' },
-    transactionDateDisplay: { displayAs: 'Date', maxWidth: '10ch', alignment: 'center' },
-    detailDisplay: { displayAs: 'Detail', wrap: true }
+    issue: { displayAs: 'Issue', wrap: true },
+    documentCode: { displayAs: 'Document' },
+    relatedCode: { displayAs: 'Related' },
+    officeNameDisplay: { displayAs: 'Office' },
+    amountDisplay: { displayAs: 'Amount', alignment: 'right' },
+    transactionDateDisplay: { displayAs: 'Date', alignment: 'center' },
+    detailDisplay: { displayAs: 'Detail', wrap: true, maxWidth: 'auto' }
   };
 
   //#region Document-Health
@@ -217,7 +229,9 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const fixableRows = this.rows.filter(row => row.canFix);
+    const fixableRows = this.fixAllOrder
+      .map(key => this.rows.find(row => row.key === key))
+      .filter((row): row is HealthCheckRowState => !!row?.canFix);
     if (fixableRows.length === 0) {
       return;
     }
@@ -690,6 +704,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const detail = issue.detail ?? '';
     return {
       ...issue,
+      documentCode: this.formatIssueDocumentCode(issue.documentCode),
+      relatedCode: issue.relatedCode ? this.formatIssueDocumentCode(issue.relatedCode) : issue.relatedCode,
       transactionDateDisplay: issue.transactionDate ?? '',
       amountDisplay: issue.amount == null ? '' : Number(issue.amount).toFixed(2),
       officeNameDisplay: this.getOfficeNameForOfficeId(issue.officeId),
@@ -697,6 +713,15 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       detailDisplay: detail,
       expanded: false
     };
+  }
+
+  formatIssueDocumentCode(value: string | null | undefined): string {
+    const code = String(value ?? '').trim();
+    if (!code) {
+      return '';
+    }
+
+    return code.replace(/^Invoice\s+/i, '');
   }
 
   onIssueRowClick(row: HealthIssueDisplayRow): void {

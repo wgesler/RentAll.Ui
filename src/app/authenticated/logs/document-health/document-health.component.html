@@ -67,7 +67,7 @@
           } @else if (row.fixing) {
             {{ row.fixProgress ?? 'Fixing…' }}
           } @else if (row.errorMessage) {
-            Error
+            <span class="document-health-status-error" [title]="row.errorMessage">Error — {{ row.errorMessage }}</span>
           } @else if (row.summary) {
             {{ row.summary.isClean ? 'Clean' : 'Issues' }}
           } @else {
