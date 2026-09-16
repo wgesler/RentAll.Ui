@@ -143,8 +143,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
     transactionDate: { displayAs: 'Date', maxWidth: '14ch' },
-    journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
-    source: { displayAs: 'Source', maxWidth: '16ch' },
+    journalEntryCode: { displayAs: 'Entry No', maxWidth: '16ch', sortType: 'natural' },
+    source: { displayAs: 'Source', maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
