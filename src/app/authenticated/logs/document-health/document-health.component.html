@@ -37,14 +37,14 @@
       <span>Actions</span>
       <span>Total</span>
       <span>With JE</span>
-      <span>Missing</span>
+      <span>Issues</span>
       <span>Duplicates</span>
       <span>Status</span>
     </div>
 
     @for (row of rows; track row.key) {
       <div class="document-health-row" [class.document-health-row-active]="activeRowKey === row.key">
-        <span class="document-health-label">{{ row.label }}</span>
+        <button type="button" class="document-health-label document-health-label-btn" [disabled]="(row.issues?.length ?? 0) === 0" (click)="viewRowIssues(row)">{{ row.label }}</button>
         <span class="document-health-actions">
           <button mat-raised-button type="button" color="primary" class="document-health-action-btn" [disabled]="isRowBusy(row) || isBulkBusy" (click)="checkRow(row)">
             <mat-icon>search</mat-icon>

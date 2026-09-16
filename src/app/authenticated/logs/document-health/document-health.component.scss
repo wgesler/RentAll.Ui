@@ -121,6 +121,19 @@
   text-overflow: ellipsis;
 }
 
+.document-health-label-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.document-health-label-btn:disabled {
+  cursor: default;
+}
+
 .document-health-actions {
   display: flex;
   flex-wrap: nowrap;

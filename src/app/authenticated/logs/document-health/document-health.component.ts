@@ -495,25 +495,37 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   applyCheckSummary(key: HealthCheckKey, result: DocumentHealthResult, showToast: boolean, canFix: boolean): void {
     const issues = result.issues ?? [];
     this.patchRow(key, { summary: result.summary, issues, errorMessage: null });
-    this.clearUnresolvedDisplay();
-
     const label = this.rows.find(row => row.key === key)?.label ?? 'Health check';
 
-    if (!canFix && !result.summary.isClean && issues.length > 0) {
-      this.showUnresolvedIssues(key, result, ['Fix is not available for manual journal entries — correct in General Ledger.']);
+    if (!result.summary.isClean && issues.length > 0) {
+      this.showUnresolvedIssues(key, result, !canFix ? ['Fix is not available for manual journal entries — correct in General Ledger.'] : []);
       if (showToast) {
-        this.toastr.warning(`${issues.length} issue(s) require manual correction.`, label);
+        this.toastr.warning(
+          canFix ? `${issues.length} issue(s) found — review below or click Fix.` : `${issues.length} issue(s) require manual correction.`,
+          label
+        );
       }
       return;
     }
 
+    this.clearUnresolvedDisplay();
+
     if (showToast) {
       if (result.summary.isClean) {
-        this.toastr.success('No JE link issues found.', label);
+        this.toastr.success('No issues found.', label);
       } else {
-        this.toastr.warning(`${issues.length} issue(s) found — click Fix to repair.`, label);
+        this.toastr.warning('Issues reported but no detail rows returned — run Check again.', label);
       }
     }
+  }
+
+  viewRowIssues(row: HealthCheckRowState): void {
+    if ((row.issues?.length ?? 0) === 0) {
+      return;
+    }
+
+    this.showUnresolvedIssues(row.key, { summary: row.summary ?? { section: '', documentType: row.label, totalDocuments: 0, documentsWithJe: 0, documentsMissingJe: 0, duplicateOpenJes: 0, isClean: false }, issues: row.issues }, []);
+    this.cdr.markForCheck();
   }
 
   handleFixOutcome(
