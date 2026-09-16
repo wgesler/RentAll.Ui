@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
@@ -26,7 +27,12 @@ import { OrganizationService } from '../../organizations/services/organization.s
 import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { UserGroups, getStartupPages, getUserGroupOptions } from '../models/user-enums';
+import {
+  getAllowedStartupPages,
+  getSidebarFilterOptionsForUser,
+  resolveStartupPageId
+} from '../../shared/access/role-access';
+import { UserGroups, getUserGroupOptions } from '../models/user-enums';
 import { UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
@@ -61,6 +67,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   private officeService = inject(OfficeService);
   private agentService = inject(AgentService);
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private formatterService = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
@@ -96,6 +103,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   isCurrentUserSuperAdmin: boolean = false;
   hasDocuSignAccess = false;
   organizationId = '';
+  private allFeatures: FeatureResponse[] = [];
   
   // Profile picture properties
   isUploadingProfilePicture: boolean = false;
@@ -132,7 +140,6 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
     this.isPrivilegedOfficeEditor = this.authService.isAdmin();
     this.isCurrentUserSuperAdmin = this.hasRole(UserGroups.SuperAdmin);
     this.initializeUserGroups();
-    this.initializeStartupPages();
     this.loadOrganizations();
     if (!this.isPrivilegedOfficeEditor) {
       this.loadOffices();
@@ -140,7 +147,9 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
     this.loadProperties();
     this.loadAgents();
     this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(features => {
+      this.allFeatures = features ?? [];
       this.applyUserFeatureAccess(features);
+      this.syncStartupPages();
     });
     this.loadUserFeatureAccess();
     
@@ -164,7 +173,6 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user');
         this.buildForm();
         this.setupPasswordValidation();
-        this.applySelectedOrganizationDefault();
       } else {
         this.buildForm();
         this.setupPasswordValidation();
@@ -294,7 +302,9 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
       : null;
     
     const userRequest: UserRequest = {
-      organizationId: formValue.organizationId,
+      organizationId: this.canSelectOrganization
+        ? formValue.organizationId
+        : (this.organizationId || formValue.organizationId),
       firstName: formValue.firstName,
       lastName: formValue.lastName,
       email: formValue.email,
@@ -468,7 +478,9 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       this.organizationService.getOrganizations().pipe(take(1)).subscribe({
         next: (organizations) => {
           this.organizations = organizations || [];
-          this.applySelectedOrganizationDefault();
+          this.applyOrganizationFieldMode();
+          this.syncStartupPages();
+          this.markViewForCheck();
         },
         error: () => {
           this.organizations = [];
@@ -480,14 +492,44 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     this.organizationListService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
       next: (organizations) => {
         this.organizations = organizations || [];
-        this.applySelectedOrganizationDefault();
+        this.applyOrganizationFieldMode();
+        this.syncStartupPages();
+        this.markViewForCheck();
       },
       error: () => {}
     });
   }
 
+  get canSelectOrganization(): boolean {
+    return this.isCurrentUserSuperAdmin;
+  }
+
+  get organizationDisplayName(): string {
+    const organizationId = (
+      this.form?.get('organizationId')?.value ||
+      this.user?.organizationId ||
+      this.organizationId ||
+      ''
+    ).trim();
+    if (!organizationId) {
+      return '';
+    }
+
+    const fromList = this.organizations.find(org => org.organizationId === organizationId);
+    if (fromList?.name) {
+      return fromList.name;
+    }
+
+    const cachedOrganization = this.commonService.getOrganizationValue();
+    if (cachedOrganization?.organizationId === organizationId && cachedOrganization.name) {
+      return cachedOrganization.name;
+    }
+
+    return '';
+  }
+
   applySelectedOrganizationDefault(): void {
-    if (!this.isAddMode || !this.form || this.selfEdit) {
+    if (!this.isAddMode || !this.form || this.selfEdit || !this.canSelectOrganization) {
       return;
     }
     const organizationId = (this.selectedOrganizationId || '').trim();
@@ -501,9 +543,43 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     this.form.get('organizationId')?.setValue(organizationId);
   }
 
+  applyOrganizationFieldMode(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const organizationControl = this.form.get('organizationId');
+    if (!organizationControl) {
+      return;
+    }
+
+    if (this.canSelectOrganization) {
+      organizationControl.enable({ emitEvent: false });
+      if (this.isAddMode) {
+        this.applySelectedOrganizationDefault();
+      }
+      return;
+    }
+
+    if (!this.isPrivilegedOfficeEditor && !this.isAddMode) {
+      return;
+    }
+
+    const organizationId = (this.user?.organizationId || this.organizationId || '').trim();
+    if (!organizationId) {
+      return;
+    }
+
+    organizationControl.setValue(organizationId, { emitEvent: false });
+    organizationControl.disable({ emitEvent: false });
+    if (this.isPrivilegedOfficeEditor) {
+      this.loadOfficesForUserOrganization(organizationId, this.form.get('officeAccess')?.value || []);
+    }
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedOrganizationId'] && !changes['selectedOrganizationId'].firstChange && this.isAddMode) {
-      this.applySelectedOrganizationDefault();
+      this.applyOrganizationFieldMode();
     }
   }
 
@@ -774,6 +850,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
         this.filterOfficesByOrganization();
       }
       this.loadUserFeatureAccess();
+      this.syncStartupPages();
       // Clear office access only for user-initiated organization changes.
       // Do not clear during initial populate from the loaded user record.
       if (!this.isPopulatingUserForm) {
@@ -791,11 +868,15 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       if (!Array.isArray(groups) || !groups.some(group => ['Inspector', 'Housekeeping', 'Facilities'].includes(group))) {
         this.form.get('properties')?.setValue([], { emitEvent: false });
       }
+      this.syncStartupPages();
     });
 
     this.form.get('agentId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.applyCommissionRateState();
     });
+
+    this.applyOrganizationFieldMode();
+    this.syncStartupPages();
   }
 
   populateForm(): void {
@@ -867,6 +948,8 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       this.filterOfficesByOrganization();
       this.syncDefaultOfficeOptions();
       this.applyCommissionRateState();
+      this.applyOrganizationFieldMode();
+      this.syncStartupPages();
       this.isPopulatingUserForm = false;
      }
   }
@@ -953,8 +1036,53 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     });
   }
 
-  initializeStartupPages(): void {
-    this.availableStartupPages = getStartupPages();
+  syncStartupPages(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const userGroups = this.form.get('userGroups')?.value as string[] | undefined;
+    const options = this.buildStartupPageFilterOptions(userGroups);
+    this.availableStartupPages = getAllowedStartupPages(userGroups, options);
+
+    const currentStartupPageId = this.form.get('startupPageId')?.value;
+    const resolvedStartupPageId = resolveStartupPageId(currentStartupPageId, userGroups, options);
+    if (currentStartupPageId !== resolvedStartupPageId) {
+      this.form.get('startupPageId')?.setValue(resolvedStartupPageId, { emitEvent: false });
+    }
+    this.markViewForCheck();
+  }
+
+  buildStartupPageFilterOptions(userGroups: Array<string | number> | undefined) {
+    const organizationId = this.resolveUserOrganizationId();
+    const organizationTypeId = this.resolveOrganizationTypeId(organizationId);
+    const features = this.allFeatures;
+
+    return getSidebarFilterOptionsForUser(userGroups, organizationTypeId, {
+      hasAccessToLeads: organizationId
+        ? this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Leads, features)
+        : false,
+      hasAccessToOwners: organizationId
+        ? this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Owners, features)
+        : false,
+      hasTicketingAccess: organizationId
+        ? this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Ticketing, features)
+        : false,
+      hasAccessToManagement: organizationId
+        ? this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Management, features)
+        : false,
+      hasAccountingAccess: organizationId
+        ? this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Accounting, features)
+        : false
+    });
+  }
+
+  resolveOrganizationTypeId(organizationId: string): number | null {
+    if (!organizationId) {
+      return null;
+    }
+    const organization = this.organizations.find(item => item.organizationId === organizationId);
+    return organization?.organizationTypeId ?? null;
   }
   //#endregion
 

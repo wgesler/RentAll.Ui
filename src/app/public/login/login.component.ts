@@ -130,7 +130,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
           this.router.navigateByUrl(
             this.usingMobileDevice
               ? getMobileStartupUrl(this.authService, this.commonService.getOrganizationTypeId())
-              : this.authService.getStartupPageUrl()
+              : this.authService.getStartupPageUrl(this.commonService.getOrganizationTypeId())
           );
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');

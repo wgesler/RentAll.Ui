@@ -5,9 +5,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, skip, startWith, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
+import { isPartnerAdminEmployeesOnlyContext } from '../../shared/access/role-access';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { UserGroups } from '../models/user-enums';
@@ -25,6 +27,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
+  private commonService = inject(CommonService);
   private organizationService = inject(OrganizationService);
   private globalSelectionService = inject(GlobalSelectionService);
 
@@ -39,17 +42,26 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedOfficeId: number | null = null;
   selectedOrganizationId: string | null = null;
   isSuperAdminUser = false;
+  employeesOnlyPartnerAdmin = false;
   organizationOptions: { value: string; label: string }[] = [];
   destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.isSuperAdminUser = this.authService.hasRole(UserGroups.SuperAdmin);
+    this.employeesOnlyPartnerAdmin = isPartnerAdminEmployeesOnlyContext(
+      this.commonService.getOrganizationTypeId(),
+      this.authService.getUser()?.userGroups as Array<string | number> | undefined
+    );
     if (this.isSuperAdminUser) {
       this.loadOrganizations();
     }
     const tabIndex = getNumberQueryParam(this.route.snapshot.queryParams, 'tab', 0, 5);
     if (tabIndex !== null) {
-      this.selectedTabIndex = tabIndex;
+      this.selectedTabIndex = this.employeesOnlyPartnerAdmin ? 0 : tabIndex;
+    }
+    if (this.employeesOnlyPartnerAdmin && this.selectedTabIndex !== 0) {
+      this.selectedTabIndex = 0;
+      this.updateUrlWithCurrentState();
     }
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
@@ -71,6 +83,9 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onTabIndexChange(tabIndex: number): void {
+    if (this.employeesOnlyPartnerAdmin) {
+      tabIndex = 0;
+    }
     this.selectedTabIndex = tabIndex;
     this.showUserForm = false;
     this.formUserId = null;

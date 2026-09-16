@@ -1,6 +1,6 @@
-import { RouterToken } from '../../../app.routes.tokens';
+import { RouterToken, RouterUrl } from '../../../app.routes.tokens';
 import { OrganizationType } from '../../organizations/models/organization-enum';
-import { UserGroups } from '../../users/models/user-enums';
+import { StartupPage, UserGroups, getStartupPages } from '../../users/models/user-enums';
 
 export interface AccessRule {
   requiredRoles: UserGroups[];
@@ -203,12 +203,15 @@ function getCompanyNavItemsByUrls(urls: readonly string[]): NavItemDefinition[] 
 
 export const PROPERTY_MANAGEMENT_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
 export const PROPERTY_PROVIDER_NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
-export const PARTNER_NAV_ITEMS: NavItemDefinition[] = getCompanyNavItemsByUrls([
+const PARTNER_BASE_NAV_URLS: readonly string[] = [
   RouterToken.ReservationBoard,
+  RouterToken.ReservationBoardSelection,
   RouterToken.PropertyList,
   RouterToken.Contacts,
   RouterToken.OrganizationConfiguration
-]);
+];
+
+export const PARTNER_NAV_ITEMS: NavItemDefinition[] = getCompanyNavItemsByUrls(PARTNER_BASE_NAV_URLS);
 
 export const NAV_ITEMS_BY_ORGANIZATION_TYPE: Record<number, NavItemDefinition[]> = {
   [OrganizationType.PropertyManagement]: PROPERTY_MANAGEMENT_NAV_ITEMS,
@@ -216,14 +219,63 @@ export const NAV_ITEMS_BY_ORGANIZATION_TYPE: Record<number, NavItemDefinition[]>
   [OrganizationType.Partner]: PARTNER_NAV_ITEMS
 };
 
-const PARTNER_ALLOWED_SEGMENTS = new Set(PARTNER_NAV_ITEMS.map(item => item.url));
+export function isPartnerOrganizationAdmin(userGroups: UserGroupInput): boolean {
+  const groups = getUserGroupNumbers(userGroups);
+  return groups.includes(UserGroups.Admin) || groups.includes(UserGroups.PartnerAdmin);
+}
+
+/** Partner org PartnerAdmin without Org Admin — Users shell Employees tab only. */
+export function isPartnerAdminEmployeesOnlyContext(
+  organizationTypeId: number | null | undefined,
+  userGroups: UserGroupInput
+): boolean {
+  if (Number(organizationTypeId) !== OrganizationType.Partner) {
+    return false;
+  }
+  const groups = getUserGroupNumbers(userGroups);
+  return groups.includes(UserGroups.PartnerAdmin) && !groups.includes(UserGroups.Admin);
+}
+
+function canAccessPartnerUsersNav(userGroups: UserGroupInput): boolean {
+  return isPartnerOrganizationAdmin(userGroups);
+}
+
+function canAccessPartnerLogsNav(userGroups: UserGroupInput): boolean {
+  return isOrgAdmin(userGroups);
+}
+
+function canAccessPartnerNavUrl(url: string, userGroups: UserGroupInput): boolean {
+  if (url === RouterToken.UserList) {
+    return canAccessPartnerUsersNav(userGroups);
+  }
+  if (url === RouterToken.Logs) {
+    return canAccessPartnerLogsNav(userGroups);
+  }
+  return false;
+}
 
 function getPartnerAllowedSegments(userGroups: UserGroupInput): Set<string> {
-  const allowed = new Set(PARTNER_ALLOWED_SEGMENTS);
-  if (isOrgAdmin(userGroups)) {
+  const allowed = new Set<string>(PARTNER_BASE_NAV_URLS);
+  if (canAccessPartnerUsersNav(userGroups)) {
+    allowed.add(RouterToken.UserList);
+  }
+  if (canAccessPartnerLogsNav(userGroups)) {
     allowed.add(RouterToken.Logs);
   }
   return allowed;
+}
+
+export function getPartnerSidebarNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
+  const allowed = getPartnerAllowedSegments(userGroups);
+  return COMPANY_USERS_NAV_ITEMS.filter(item => {
+    if (!allowed.has(item.url)) {
+      return false;
+    }
+    if (item.url === RouterToken.UserList || item.url === RouterToken.Logs) {
+      return canAccessPartnerNavUrl(item.url, userGroups);
+    }
+    return hasAccessByRule(userGroups, item);
+  });
 }
 //#endregion
 
@@ -485,6 +537,9 @@ export function canUserAccessUrl(
   if (segment === RouterToken.UserGuide) {
     return true;
   }
+  if (featureOptions?.isPartnerOrg) {
+    return canPartnerAccessUrl(url, userGroups);
+  }
   if (hasOwnerAndRealtorRoles(userGroups)) {
     return passesRoleAndFeatureAccess(
       segment !== null && OWNER_REALTOR_ALLOWED_SEGMENTS.has(segment),
@@ -550,9 +605,8 @@ function collapseUserGuideNavItems(items: NavItemDefinition[]): NavItemDefinitio
   return collapsed;
 }
 
-export function filterNavItemsForPartner(items: NavItemDefinition[], userGroups?: UserGroupInput): NavItemDefinition[] {
-  const allowed = getPartnerAllowedSegments(userGroups);
-  return items.filter(item => allowed.has(item.url));
+export function filterNavItemsForPartner(_items: NavItemDefinition[], userGroups?: UserGroupInput): NavItemDefinition[] {
+  return getPartnerSidebarNavItems(userGroups);
 }
 
 export function canPartnerAccessUrl(url: string, userGroups?: UserGroupInput): boolean {
@@ -642,10 +696,6 @@ export function filterSidebarNavItems(
     });
   }
 
-  if (options.isPartnerOrg) {
-    filtered = filterNavItemsForPartner(filtered, options.userGroups);
-  }
-
   return filtered;
 }
 
@@ -653,6 +703,9 @@ export function getFilteredSidebarNavItems(
   userGroups: UserGroupInput,
   options: SidebarNavFilterOptions
 ): NavItemDefinition[] {
+  if (options.isPartnerOrg) {
+    return getPartnerSidebarNavItems(userGroups);
+  }
   return filterSidebarNavItems(getVisibleNavItems(userGroups), {
     ...options,
     userGroups
@@ -727,6 +780,110 @@ export function getSidebarFilterOptions(
       authService.hasRole(UserGroups.SuperAdmin)
     )
   };
+}
+
+export type OrganizationFeatureNavAccess = {
+  hasAccessToLeads: boolean;
+  hasAccessToOwners: boolean;
+  hasTicketingAccess: boolean;
+  hasAccessToManagement: boolean;
+  hasAccountingAccess: boolean;
+};
+
+const STARTUP_PAGE_NAV_SEGMENTS: Record<StartupPage, readonly string[]> = {
+  [StartupPage.Dashboard]: [RouterToken.Dashboard, RouterToken.DashboardOwner, RouterToken.DashboardStaff],
+  [StartupPage.Boards]: [RouterToken.ReservationBoard],
+  [StartupPage.Reservations]: [RouterToken.ReservationList],
+  [StartupPage.Properties]: [RouterToken.PropertyList],
+  [StartupPage.Accounting]: [RouterToken.AccountingList],
+  [StartupPage.Organizations]: [RouterToken.OrganizationList]
+};
+
+export function getSidebarFilterOptionsForUser(
+  userGroups: UserGroupInput,
+  organizationTypeId: number | null | undefined,
+  featureAccess: OrganizationFeatureNavAccess
+): SidebarNavFilterOptions {
+  const groups = getUserGroupNumbers(userGroups);
+  const isSuperAdmin = groups.includes(UserGroups.SuperAdmin);
+  const hasLeadsRole = groups.some(group =>
+    [UserGroups.Admin, UserGroups.Agent, UserGroups.AgentAdmin].includes(group)
+  );
+
+  return {
+    canShowLeads: hasLeadsRole && featureAccess.hasAccessToLeads,
+    canShowOwners: groups.includes(UserGroups.OwnerAdmin) && featureAccess.hasAccessToOwners,
+    canShowTickets: featureAccess.hasTicketingAccess,
+    canShowMaintenance: featureAccess.hasAccessToManagement,
+    canShowAccounting: hasAccountingNavAccess(userGroups) && featureAccess.hasAccountingAccess,
+    isPartnerOrg: isPartnerOrganizationContext(organizationTypeId, isSuperAdmin)
+  };
+}
+
+function isStartupPageAllowed(
+  startupPageId: number,
+  userGroups: UserGroupInput,
+  options: SidebarNavFilterOptions
+): boolean {
+  const segments = STARTUP_PAGE_NAV_SEGMENTS[startupPageId as StartupPage];
+  if (!segments) {
+    return false;
+  }
+  const navUrls = new Set(getFilteredSidebarNavItems(userGroups, options).map(item => item.url));
+  return segments.some(segment => navUrls.has(segment));
+}
+
+export function getAllowedStartupPages(
+  userGroups: UserGroupInput,
+  options: SidebarNavFilterOptions
+): { value: number; label: string }[] {
+  return getStartupPages().filter(page => isStartupPageAllowed(page.value, userGroups, options));
+}
+
+export function resolveStartupPageId(
+  startupPageId: number | null | undefined,
+  userGroups: UserGroupInput,
+  options: SidebarNavFilterOptions
+): number {
+  const requested = startupPageId ?? StartupPage.Dashboard;
+  if (isStartupPageAllowed(requested, userGroups, options)) {
+    return requested;
+  }
+  const allowed = getAllowedStartupPages(userGroups, options);
+  if (allowed.length > 0) {
+    return allowed[0].value;
+  }
+  return StartupPage.Boards;
+}
+
+export function getStartupPageUrlForUser(
+  startupPageId: number | null | undefined,
+  userGroups: UserGroupInput,
+  options: SidebarNavFilterOptions
+): string {
+  const resolved = resolveStartupPageId(startupPageId, userGroups, options);
+  switch (resolved) {
+    case StartupPage.Dashboard:
+      if (hasOwnerRole(userGroups)) {
+        return RouterUrl.DashboardOwner;
+      }
+      if (isServiceProvider(userGroups)) {
+        return RouterUrl.DashboardStaff;
+      }
+      return RouterUrl.Dashboard;
+    case StartupPage.Boards:
+      return RouterUrl.ReservationBoard;
+    case StartupPage.Reservations:
+      return RouterUrl.ReservationList;
+    case StartupPage.Properties:
+      return RouterUrl.PropertyList;
+    case StartupPage.Accounting:
+      return RouterUrl.AccountingList;
+    case StartupPage.Organizations:
+      return RouterUrl.OrganizationList;
+    default:
+      return getAuthorizedFallbackUrl(userGroups, options).replace(/^\//, '');
+  }
 }
 
 export function getAuthorizedFallbackUrl(

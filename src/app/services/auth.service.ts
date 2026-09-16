@@ -4,11 +4,16 @@ import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { BehaviorSubject, Observable, catchError, finalize, map, of, take, tap } from 'rxjs';
-import { RouterToken, RouterUrl } from '../app.routes';
+import { RouterToken } from '../app.routes';
 import { FeatureType } from '../authenticated/organizations/models/organization-enum';
 import { FeatureResponse } from '../authenticated/organizations/models/organization-feature.model';
 import { StartupPage } from '../authenticated/users/models/user-enums';
-import { hasAccountingFullAccess, hasAccountingNavAccess, hasOwnerRole, isServiceProvider } from '../authenticated/shared/access/role-access';
+import {
+  getSidebarFilterOptions,
+  getStartupPageUrlForUser,
+  hasAccountingFullAccess,
+  hasAccountingNavAccess
+} from '../authenticated/shared/access/role-access';
 import { StorageKey } from '../enums/storage-keys.enum';
 import { AuthResponse } from '../public/login/models/auth-response';
 import { JwtContainer, JwtUser } from '../public/login/models/jwt';
@@ -298,31 +303,12 @@ export class AuthService {
         return this.jwtContainer$?.value?.sub;
     }
 
-    getStartupPageUrl(): string {
-        const userGroups = this.getUser()?.userGroups as Array<string | number> | undefined;
-        const startupPageId = this.getUser()?.startupPage ?? this.getUser()?.startupPageId ?? StartupPage.Dashboard;
-        switch (startupPageId) {
-            case StartupPage.Dashboard:
-                if (hasOwnerRole(userGroups)) {
-                    return RouterUrl.DashboardOwner;
-                }
-                if (isServiceProvider(userGroups)) {
-                    return RouterUrl.DashboardStaff;
-                }
-                return RouterUrl.Dashboard;
-            case StartupPage.Boards:
-                return RouterUrl.ReservationBoard;
-            case StartupPage.Reservations:
-                return RouterUrl.ReservationList;
-            case StartupPage.Properties:
-                return RouterUrl.PropertyList;
-            case StartupPage.Accounting:
-                return RouterUrl.AccountingList;
-            case StartupPage.Organizations:
-                return RouterUrl.OrganizationList;
-            default:
-                return RouterUrl.Dashboard;
-        }
+    getStartupPageUrl(organizationTypeId?: number | null): string {
+        const user = this.getUser();
+        const userGroups = user?.userGroups as Array<string | number> | undefined;
+        const startupPageId = user?.startupPage ?? user?.startupPageId ?? StartupPage.Dashboard;
+        const options = getSidebarFilterOptions(this, organizationTypeId);
+        return getStartupPageUrlForUser(startupPageId, userGroups, options);
     }
 
     setAuthData(response: AuthResponse): void {

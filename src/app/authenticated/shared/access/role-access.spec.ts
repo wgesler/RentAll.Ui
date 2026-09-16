@@ -1,6 +1,18 @@
 import { RouterToken } from '../../../app.routes.tokens';
 import { UserGroups } from '../../users/models/user-enums';
-import { canPartnerAccessUrl, canUserAccessUrl, filterNavItemsForPartner, filterSidebarNavItems, getVisibleNavItems, isOwnerOnlyUser } from './role-access';
+import { OrganizationType } from '../../organizations/models/organization-enum';
+import { StartupPage } from '../../users/models/user-enums';
+import {
+  canPartnerAccessUrl,
+  canUserAccessUrl,
+  filterNavItemsForPartner,
+  filterSidebarNavItems,
+  getAllowedStartupPages,
+  getVisibleNavItems,
+  isOwnerOnlyUser,
+  isPartnerAdminEmployeesOnlyContext,
+  resolveStartupPageId
+} from './role-access';
 
 describe('role-access owner and realtor behavior', () => {
   it('treats owner-only users as owner-only', () => {
@@ -32,26 +44,47 @@ describe('role-access owner and realtor behavior', () => {
     expect(urls.length).toBe(2);
   });
 
-  it('limits partner nav to boards, properties, contacts, and settings', () => {
-    const partnerAdminOnly = [UserGroups.PartnerAdmin];
-    const navItems = filterNavItemsForPartner(getVisibleNavItems(partnerAdminOnly), partnerAdminOnly);
+  it('limits non-admin partner nav to boards, properties, contacts, and settings', () => {
+    const partnerAgent = [UserGroups.Agent];
+    const navItems = filterNavItemsForPartner(getVisibleNavItems(partnerAgent), partnerAgent);
     const urls = navItems.map(item => item.url);
 
     expect(urls).toEqual(['boards', 'properties', 'contacts', 'settings']);
-    expect(canPartnerAccessUrl('/auth/boards', partnerAdminOnly)).toBeTrue();
-    expect(canPartnerAccessUrl('/auth/properties/1', partnerAdminOnly)).toBeTrue();
-    expect(canPartnerAccessUrl('/auth/logs', partnerAdminOnly)).toBeFalse();
-    expect(canPartnerAccessUrl('/auth/accounting', partnerAdminOnly)).toBeFalse();
+    expect(canPartnerAccessUrl('/auth/boards', partnerAgent)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/properties/1', partnerAgent)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/selection', partnerAgent)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/users', partnerAgent)).toBeFalse();
+    expect(canPartnerAccessUrl('/auth/logs', partnerAgent)).toBeFalse();
+    expect(canPartnerAccessUrl('/auth/accounting', partnerAgent)).toBeFalse();
   });
 
-  it('includes logs in partner nav for org admins only', () => {
-    const partnerOrgAdmin = [UserGroups.Admin, UserGroups.PartnerAdmin];
+  it('includes users but not logs for PartnerAdmin-only partner org users', () => {
+    const partnerOrgAdmin = [UserGroups.PartnerAdmin];
     const navItems = filterNavItemsForPartner(getVisibleNavItems(partnerOrgAdmin), partnerOrgAdmin);
     const urls = navItems.map(item => item.url);
 
-    expect(urls).toEqual(['boards', 'properties', 'contacts', 'settings', 'logs']);
-    expect(canPartnerAccessUrl('/auth/logs', partnerOrgAdmin)).toBeTrue();
-    expect(canPartnerAccessUrl('/auth/logs', [UserGroups.PartnerAdmin])).toBeFalse();
+    expect(urls).toEqual(['boards', 'properties', 'contacts', 'users', 'settings']);
+    expect(canPartnerAccessUrl('/auth/users', partnerOrgAdmin)).toBeTrue();
+    expect(canPartnerAccessUrl('/auth/logs', partnerOrgAdmin)).toBeFalse();
+    expect(canUserAccessUrl(partnerOrgAdmin, '/auth/users', { isPartnerOrg: true })).toBeTrue();
+    expect(canUserAccessUrl(partnerOrgAdmin, '/auth/logs', { isPartnerOrg: true })).toBeFalse();
+    expect(canUserAccessUrl([UserGroups.Agent], '/auth/users', { isPartnerOrg: true })).toBeFalse();
+  });
+
+  it('limits partner PartnerAdmin to employees-only users shell context', () => {
+    expect(isPartnerAdminEmployeesOnlyContext(OrganizationType.Partner, [UserGroups.PartnerAdmin])).toBeTrue();
+    expect(isPartnerAdminEmployeesOnlyContext(OrganizationType.Partner, [UserGroups.Admin])).toBeFalse();
+    expect(isPartnerAdminEmployeesOnlyContext(OrganizationType.Partner, [UserGroups.Admin, UserGroups.PartnerAdmin])).toBeFalse();
+    expect(isPartnerAdminEmployeesOnlyContext(OrganizationType.PropertyManagement, [UserGroups.PartnerAdmin])).toBeFalse();
+  });
+
+  it('includes users and logs for Admin-only partner org users', () => {
+    const partnerAdminOnly = [UserGroups.Admin];
+    const urls = filterNavItemsForPartner(getVisibleNavItems(partnerAdminOnly), partnerAdminOnly).map(item => item.url);
+
+    expect(urls).toContain('users');
+    expect(urls).toContain('logs');
+    expect(canPartnerAccessUrl('/auth/logs', partnerAdminOnly)).toBeTrue();
   });
 
   it('hides tickets and maintenance when feature flags are off', () => {
@@ -85,5 +118,15 @@ describe('role-access owner and realtor behavior', () => {
     expect(canUserAccessUrl(adminGroups, '/auth/accounting', featureOptions)).toBeFalse();
     expect(canUserAccessUrl(adminGroups, '/auth/cost-codes', featureOptions)).toBeFalse();
     expect(canUserAccessUrl(adminGroups, '/auth/properties', featureOptions)).toBeTrue();
+  });
+
+  it('limits partner startup pages to sidebar destinations without dashboard', () => {
+    const partnerAgent = [UserGroups.Agent];
+    const partnerOptions = { isPartnerOrg: true };
+
+    const allowedValues = getAllowedStartupPages(partnerAgent, partnerOptions).map(page => page.value);
+    expect(allowedValues).toEqual([StartupPage.Boards, StartupPage.Properties]);
+    expect(allowedValues).not.toContain(StartupPage.Dashboard);
+    expect(resolveStartupPageId(StartupPage.Dashboard, partnerAgent, partnerOptions)).toBe(StartupPage.Boards);
   });
 });

@@ -66,12 +66,16 @@
               @if (isPrivilegedOfficeEditor || isAddMode) {
                 <mat-form-field appearance="outline" class="col-span-3">
                   <mat-label>Organization</mat-label>
-                  <mat-select formControlName="organizationId" required>
-                    <mat-option value="">Select Organization</mat-option>
-                    @for (org of organizations; track org.organizationId) {
-                      <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
-                    }
-                  </mat-select>
+                  @if (canSelectOrganization) {
+                    <mat-select formControlName="organizationId" required>
+                      <mat-option value="">Select Organization</mat-option>
+                      @for (org of organizations; track org.organizationId) {
+                        <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
+                      }
+                    </mat-select>
+                  } @else {
+                    <input matInput [value]="organizationDisplayName" readonly disabled>
+                  }
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="col-span-3">

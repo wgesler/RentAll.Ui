@@ -41,6 +41,13 @@
     </div>
 
     <mat-card>
+      @if (employeesOnlyPartnerAdmin) {
+        @if (showUserForm && formTabIndex === 0) {
+          <app-user [id]="formUserId ?? 'new'" [selectedOrganizationId]="selectedOrganizationId" (closed)="onUserClosed($event)" />
+        } @else {
+          <app-user-list [tabIndex]="0" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
+        }
+      } @else {
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Employees">
           @if (showUserForm && formTabIndex === 0) {
@@ -85,6 +92,7 @@
           }
         </mat-tab>
       </mat-tab-group>
+      }
     </mat-card>
   </section>
 </div>
