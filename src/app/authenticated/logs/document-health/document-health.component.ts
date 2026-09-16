@@ -38,11 +38,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   readonly fixPollMaxAttempts = 3600;
   readonly documentLinksFixPollMaxAttempts = 14400;
   readonly fixAllOrder: HealthCheckKey[] = [
-    'documentLinks',
     'paymentInvoice',
     'invoice',
     'deposit',
     'transfer',
+    'documentLinks',
     'paymentBill',
     'paymentOwner',
     'receipt',
@@ -356,10 +356,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return throwError(() => new Error(`Fix is not available for: ${key}`));
     }
 
-    if (documentIds.length === 0) {
-      return of(this.emptySyncResult());
-    }
-
     const officeIds = this.getOfficeIdsForRequest();
     const paymentKindId = healthKeyToPaymentKindId(key);
     return this.generalLedgerService.startDocumentTypeJournalEntrySyncJob(
@@ -508,36 +504,23 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     return this.runCheck(key).pipe(
       take(1),
       tap(checkResult => {
-        const fixCount = resolveHealthFixDocumentIds(checkResult, fallbackIssues).length;
-        if (fixCount > 0) {
-          this.patchRow(key, { fixProgress: `Fixing 0/${fixCount}…` });
+        const expectedIssues =
+          (checkResult.summary?.documentsMissingJe ?? 0) +
+          (checkResult.summary?.duplicateOpenJes ?? 0);
+        if (expectedIssues > 0 || !checkResult.summary?.isClean) {
+          this.patchRow(key, { fixProgress: 'Fixing office…' });
         }
       }),
       switchMap(checkResult => {
-        const documentIds = resolveHealthFixDocumentIds(checkResult, fallbackIssues);
         const expectedIssues =
           (checkResult.summary?.documentsMissingJe ?? 0) +
           (checkResult.summary?.duplicateOpenJes ?? 0);
 
-        if (documentIds.length === 0) {
-          if (expectedIssues > 0 && key === 'documentLinks') {
-            return this.runFix(key, []).pipe(
-              take(1),
-              switchMap(syncResult => this.runCheck(key).pipe(
-                take(1),
-                map(recheckResult => ({ syncResult, checkResult: recheckResult }))
-              ))
-            );
-          }
-
-          if (expectedIssues > 0) {
-            return throwError(() => new Error('Check found issues but no document IDs to fix. Run Check again, then Fix.'));
-          }
-
+        if (expectedIssues === 0 && checkResult.summary?.isClean) {
           return of({ syncResult: this.emptySyncResult(), checkResult });
         }
 
-        return this.runFix(key, documentIds).pipe(
+        return this.runFix(key, []).pipe(
           take(1),
           switchMap(syncResult => this.runCheck(key).pipe(
             take(1),
