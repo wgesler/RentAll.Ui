@@ -272,13 +272,19 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
       const row = fixableRows[index++];
 
+      const checkLinksOnly = row.key === 'documentLinks';
       this.patchRow(row.key, {
         fixing: true,
-        fixProgress: 'Fixing…',
+        fixProgress: checkLinksOnly ? 'Checking…' : 'Fixing…',
         errorMessage: null
       });
 
-      const pipeline = this.runFixAndCheck(row.key);
+      const pipeline = checkLinksOnly
+        ? this.runCheck(row.key).pipe(map(checkResult => ({
+            syncResult: { documentsProcessed: 0, journalEntriesCreated: 0, journalEntriesSkipped: 0, journalEntriesDeleted: 0, errors: [] },
+            checkResult
+          })))
+        : this.runFixAndCheck(row.key);
 
       pipeline.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
         this.patchRow(row.key, { fixing: false, fixProgress: null });
@@ -332,7 +338,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const officeLabel = this.describeSelectedOfficeScope();
     const dialogData: GenericModalData = {
       title: 'Run Fix All?',
-      message: `This runs Fix on every repairable document type for ${officeLabel}, including payment/deposit/transfer links. It can take a long time and rewrite many documents. Prefer fixing one row at a time when possible.`,
+      message: `This runs Fix on every repairable document type for ${officeLabel} except payment/deposit/transfer links — that row is Check only. It can take a long time and rewrite many documents. Prefer fixing one row at a time when possible.`,
       icon: 'warning',
       iconColor: 'warn',
       no: 'Cancel',
