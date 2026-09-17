@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { finalize, last, map, Observable, of, Subject, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -10,6 +11,8 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, countHealthFixDocuments, describeOfficeScanRepairProgress, mapHealthFixJobStatusToSyncResult, sumHealthFixJobProgress } from '../models/health.model';
 import { DocumentHealthStateService } from '../services/document-health-state.service';
 import { HealthService } from '../services/health.service';
@@ -29,6 +32,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   private officeService = inject(OfficeService);
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -167,24 +171,16 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.patchRow(row.key, { fixing: true, fixProgress: 'Fixing…', errorMessage: null });
-    this.clearUnresolvedDisplay();
+    if (row.key === 'documentLinks') {
+      this.confirmDocumentLinksFix().pipe(take(1)).subscribe(confirmed => {
+        if (confirmed) {
+          this.executeFixRow(row);
+        }
+      });
+      return;
+    }
 
-    this.runFixAndCheck(row.key).pipe(
-      take(1),
-      takeUntil(this.destroy$),
-      finalize(() => this.patchRow(row.key, { fixing: false, fixProgress: null }))
-    ).subscribe({
-      next: ({ syncResult, checkResult }) => {
-        this.applyCheckSummary(row.key, checkResult, false, row.canFix);
-        this.handleFixOutcome(row.key, row.label, syncResult, checkResult);
-      },
-      error: error => {
-        const message = this.resolveObservedError(error);
-        this.patchRow(row.key, { fixing: false, fixProgress: null, errorMessage: message });
-        this.toastr.error(message, row.label);
-      }
-    });
+    this.executeFixRow(row);
   }
 
   checkAll(): void {
@@ -232,6 +228,35 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.confirmFixAll().pipe(take(1)).subscribe(confirmed => {
+      if (confirmed) {
+        this.executeFixAll(fixableRows);
+      }
+    });
+  }
+
+  private executeFixRow(row: HealthCheckRowState): void {
+    this.patchRow(row.key, { fixing: true, fixProgress: 'Fixing…', errorMessage: null });
+    this.clearUnresolvedDisplay();
+
+    this.runFixAndCheck(row.key).pipe(
+      take(1),
+      takeUntil(this.destroy$),
+      finalize(() => this.patchRow(row.key, { fixing: false, fixProgress: null }))
+    ).subscribe({
+      next: ({ syncResult, checkResult }) => {
+        this.applyCheckSummary(row.key, checkResult, false, row.canFix);
+        this.handleFixOutcome(row.key, row.label, syncResult, checkResult);
+      },
+      error: error => {
+        const message = this.resolveObservedError(error);
+        this.patchRow(row.key, { fixing: false, fixProgress: null, errorMessage: message });
+        this.toastr.error(message, row.label);
+      }
+    });
+  }
+
+  private executeFixAll(fixableRows: HealthCheckRowState[]): void {
     this.clearUnresolvedDisplay();
     this.isFixingAll = true;
     let index = 0;
@@ -282,6 +307,53 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     };
 
     runNext();
+  }
+
+  private confirmDocumentLinksFix(): Observable<boolean> {
+    const officeLabel = this.describeSelectedOfficeScope();
+    const dialogData: GenericModalData = {
+      title: 'Run Document Links Fix?',
+      message: `This repairs payment, deposit, and transfer document links for ${officeLabel}. It can take several minutes and may change stamps and split links. Use Check first when doing manual SQL fixes.`,
+      icon: 'warning',
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Run Fix',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    return this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' }).afterClosed().pipe(
+      map(result => result === true)
+    );
+  }
+
+  private confirmFixAll(): Observable<boolean> {
+    const officeLabel = this.describeSelectedOfficeScope();
+    const dialogData: GenericModalData = {
+      title: 'Run Fix All?',
+      message: `This runs Fix on every repairable document type for ${officeLabel}, including payment/deposit/transfer links. It can take a long time and rewrite many documents. Prefer fixing one row at a time when possible.`,
+      icon: 'warning',
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Run Fix All',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    return this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' }).afterClosed().pipe(
+      map(result => result === true)
+    );
+  }
+
+  private describeSelectedOfficeScope(): string {
+    if (this.selectedOfficeId == null) {
+      return 'all offices you can access';
+    }
+
+    const office = this.offices.find(item => item.officeId === this.selectedOfficeId);
+    return office?.officeCode?.trim() || `office ${this.selectedOfficeId}`;
   }
   //#endregion
 
