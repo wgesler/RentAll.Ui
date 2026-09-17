@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
-import { finalize, map, Observable, Subject, switchMap, take, takeUntil, throwError } from 'rxjs';
+import { finalize, last, map, Observable, of, Subject, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -10,7 +10,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, describeOfficeScanRepairProgress } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, countHealthFixDocuments, describeOfficeScanRepairProgress, mapHealthFixJobStatusToSyncResult, sumHealthFixJobProgress } from '../models/health.model';
 import { DocumentHealthStateService } from '../services/document-health-state.service';
 import { HealthService } from '../services/health.service';
 
@@ -346,14 +346,54 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   runFixAndCheck(key: HealthCheckKey): Observable<{ syncResult: JournalEntrySyncResult; checkResult: DocumentHealthResult }> {
     this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('scanning') });
+    const officeIds = this.getOfficeIdsForRequest();
 
-    return this.runFix(key).pipe(
+    return this.runCheck(key).pipe(
       take(1),
-      switchMap(syncResult => {
-        this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('verifying') });
-        return this.runCheck(key).pipe(
-          take(1),
-          map(checkResult => ({ syncResult, checkResult }))
+      switchMap(initialCheck => {
+        const brokenCount = countHealthFixDocuments(initialCheck.issues);
+        this.patchRow(key, {
+          summary: initialCheck.summary,
+          issues: initialCheck.issues ?? [],
+          errorMessage: null,
+          fixProgress: initialCheck.summary.isClean
+            ? describeOfficeScanRepairProgress('clean')
+            : describeOfficeScanRepairProgress('repairing', brokenCount, 0)
+        });
+
+        if (initialCheck.summary.isClean) {
+          return of({
+            syncResult: { documentsProcessed: 0, journalEntriesCreated: 0, journalEntriesSkipped: 0, journalEntriesDeleted: 0, errors: [] },
+            checkResult: initialCheck
+          });
+        }
+
+        return this.healthService.startHealthFixJob(key, officeIds).pipe(
+          switchMap(start => {
+            if (!start.jobId) {
+              return throwError(() => new Error('Health fix job did not return an ID.'));
+            }
+
+            return this.healthService.watchHealthFixJob(start.jobId).pipe(
+              tap(status => {
+                const progress = sumHealthFixJobProgress(status);
+                const total = progress.total > 0 ? progress.total : brokenCount;
+                this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('repairing', total, progress.processed) });
+              }),
+              last(),
+              switchMap(status => {
+                if (!status.isCompleted) {
+                  return throwError(() => new Error('Health fix progress polling timed out.'));
+                }
+
+                this.patchRow(key, { fixProgress: describeOfficeScanRepairProgress('verifying') });
+                return this.runCheck(key).pipe(
+                  take(1),
+                  map(checkResult => ({ syncResult: mapHealthFixJobStatusToSyncResult(status), checkResult }))
+                );
+              })
+            );
+          })
         );
       })
     );

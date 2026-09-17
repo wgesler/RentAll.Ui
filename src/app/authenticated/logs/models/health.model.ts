@@ -1,4 +1,4 @@
-import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
+import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 
 export type HealthCheckKey =
   | 'receipt'
@@ -103,7 +103,7 @@ export function describeOfficeScanRepairProgress(
     case 'found':
       return `Found ${brokenCount ?? 0} broken document(s) — repairing one-by-one…`;
     case 'repairing':
-      return `Repairing ${repairedCount ?? 0}/${brokenCount ?? 0}…`;
+      return `${repairedCount ?? 0}/${brokenCount ?? 0} processing`;
     case 'verifying':
       return 'Re-scanning office to verify…';
     case 'clean':
@@ -136,4 +136,33 @@ export interface FixAllOutcome {
   label: string;
   syncResult: JournalEntrySyncResult;
   checkResult: DocumentHealthResult;
+}
+
+export function countHealthFixDocuments(issues: DocumentHealthIssue[] | null | undefined): number {
+  return new Set((issues ?? []).map(issue => String(issue.documentId ?? '').trim()).filter(id => !!id)).size;
+}
+
+export function sumHealthFixJobProgress(status: JournalEntrySyncJobStatus): { total: number; processed: number } {
+  const types = status.types ?? [];
+  return {
+    total: types.reduce((sum, row) => sum + (row.total ?? 0), 0),
+    processed: types.reduce((sum, row) => sum + (row.processed ?? 0), 0)
+  };
+}
+
+export function mapHealthFixJobStatusToSyncResult(status: JournalEntrySyncJobStatus): JournalEntrySyncResult {
+  const types = status.types ?? [];
+  const errors = types.flatMap(row => row.errorMessages ?? []).filter(message => !!String(message).trim());
+  const failedMessage = String(status.message ?? '').trim();
+  if (failedMessage && /failed/i.test(failedMessage)) {
+    errors.push(failedMessage);
+  }
+
+  return {
+    documentsProcessed: types.reduce((sum, row) => sum + (row.processed ?? 0), 0),
+    journalEntriesCreated: 0,
+    journalEntriesSkipped: types.reduce((sum, row) => sum + (row.skipped ?? 0), 0),
+    journalEntriesDeleted: 0,
+    errors
+  };
 }

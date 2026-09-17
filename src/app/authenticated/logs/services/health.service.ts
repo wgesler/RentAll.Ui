@@ -1,10 +1,11 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, map, Observable, throwError } from 'rxjs';
+import { catchError, map, Observable, switchMap, take, takeWhile, throwError, timer } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
-import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
+import { GeneralLedgerService } from '../../accounting/services/general-ledger.service';
+import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { ConfigService } from '../../../services/config.service';
-import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary, HealthCheckKey, healthKeyToPaymentKindId, healthKeyToSyncType } from '../models/health.model';
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +13,7 @@ import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary } from
 export class HealthService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+  private generalLedgerService = inject(GeneralLedgerService);
 
   private readonly controller = this.configService.config().apiUrl + 'health/';
 
@@ -138,6 +140,27 @@ export class HealthService {
     return this.http.post<unknown>(this.controller + path, { officeIds }).pipe(
       map(result => this.mapJournalEntrySyncResult(result)),
       catchError(error => throwError(() => new Error(this.mapHttpError(error))))
+    );
+  }
+
+  startHealthFixJob(key: HealthCheckKey, officeIds: number[]): Observable<{ jobId: string }> {
+    if (key === 'documentLinks') {
+      return this.generalLedgerService.startDocumentLinksRepairJob(officeIds);
+    }
+
+    const syncType = healthKeyToSyncType(key);
+    if (!syncType) {
+      return throwError(() => new Error(`Fix is not available for: ${key}`));
+    }
+
+    return this.generalLedgerService.startDocumentTypeJournalEntrySyncJob(officeIds, syncType, [], healthKeyToPaymentKindId(key), true);
+  }
+
+  watchHealthFixJob(jobId: string): Observable<JournalEntrySyncJobStatus> {
+    return timer(0, 500).pipe(
+      take(1800),
+      switchMap(() => this.generalLedgerService.getAllJournalEntrySyncJobStatus(jobId)),
+      takeWhile(status => !status.isCompleted, true)
     );
   }
 
