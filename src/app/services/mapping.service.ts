@@ -2630,6 +2630,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       marketsCitiesServed: null,
       furnishedPropertiesInPortfolio: null,
       aboutYourBusiness: this.utility.trimOrNull(lead.message),
+      howHearAboutUs: null,
       notes: this.utility.trimOrNull(lead.notes),
       emailPhoneConsent: false,
       smsConsent: false,

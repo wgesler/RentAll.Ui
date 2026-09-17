@@ -12,6 +12,7 @@ export interface LeadPartnerRequest {
   marketsCitiesServed: string | null;
   furnishedPropertiesInPortfolio: string | null;
   aboutYourBusiness: string | null;
+  howHearAboutUs: string | null;
   notes: string | null;
   emailPhoneConsent: boolean;
   smsConsent: boolean;
@@ -35,6 +36,7 @@ export interface LeadPartnerResponse {
   marketsCitiesServed: string | null;
   furnishedPropertiesInPortfolio: string | null;
   aboutYourBusiness: string | null;
+  howHearAboutUs: string | null;
   notes: string | null;
   createdOn: string | null;
   createdBy: string | null;
