@@ -984,8 +984,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         && Number(line.debit || 0) > 0);
     }
     if (this.undepositedFundsOnly) {
-      const depositedLineIds = this.filterDepositedJournalEntryLineIds(deposits || []);
-      resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, depositedLineIds);
+      const settledLineIds = this.resolveSettledUndepositedFundsLineIds(resolvedLines, deposits || []);
+      resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, settledLineIds);
     }
     if (this.usesUntransferredOpenLinesFilter()) {
       const escrowAccountIdSet = new Set(filteredAccountIds);
@@ -1518,6 +1518,45 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   //#endregion
 
   //#region Undeposited Funds Methods
+  resolveSettledUndepositedFundsLineIds(
+    lines: JournalEntryLineSearchResponse[],
+    deposits: DepositResponse[]
+  ): Set<string> {
+    const settledLineIds = this.filterDepositedJournalEntryLineIds(deposits);
+
+    for (const deposit of deposits || []) {
+      const depositId = this.normalizeLineContextId(deposit.depositId);
+      if (!depositId) {
+        continue;
+      }
+
+      const activeSplits = (deposit.splits || []).filter(split => Math.abs(Number(split.amount || 0)) > 0.005);
+      const allSplitsLinked = activeSplits.length > 0
+        && activeSplits.every(split => !!this.normalizeJournalEntryLineId(split.journalEntryLineId));
+
+      if (!allSplitsLinked) {
+        continue;
+      }
+
+      for (const line of lines) {
+        if (Number(line.sourceTypeId) !== SourceType.Deposit) {
+          continue;
+        }
+
+        const lineDepositId = this.normalizeLineContextId(line.depositId || line.sourceId);
+        if (lineDepositId !== depositId) {
+          continue;
+        }
+
+        if (this.getLineNetAmountFromSearchLine(line) > 0.005) {
+          settledLineIds.add(line.journalEntryLineId);
+        }
+      }
+    }
+
+    return settledLineIds;
+  }
+
   filterUndepositedFundsOpenLines(lines: JournalEntryLineSearchResponse[], depositedLineIds: Set<string> = new Set()): JournalEntryLineSearchResponse[] {
     const eligibleLines = lines.filter(line => !this.isExcludedUndepositedFundsSearchLine(line));
 
@@ -1591,8 +1630,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     journalEntryKindId: number | null | undefined,
     netAmount: number
   ): boolean {
+    const sourceType = Number(sourceTypeId);
     return netAmount < -0.005
-      && Number(sourceTypeId) === SourceType.Invoice
+      && (sourceType === SourceType.Invoice || sourceType === SourceType.InvoicePayment)
       && Number(journalEntryKindId) === JournalEntryKind.Payment;
   }
 
