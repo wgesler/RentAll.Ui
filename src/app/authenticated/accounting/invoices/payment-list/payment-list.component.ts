@@ -153,9 +153,9 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly paymentLedgerLineDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
-    invoiceCode: { displayAs: 'Invoice', maxWidth: '15ch', wrap: false, sortType: 'natural' },
-    ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
+    invoiceCode: { displayAs: 'Invoice', maxWidth: '22ch', wrap: false, sortType: 'natural' },
+    ledgerLineDate: { displayAs: 'Date', maxWidth: '18ch', wrap: false, alignment: 'center' },
+    description: { displayAs: 'Description', maxWidth: '22ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
 

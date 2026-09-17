@@ -25,7 +25,7 @@
                       [style.width]="getPaymentAllocationColumnWidth(columnName)"
                       [style.min-width]="getPaymentAllocationColumnMinWidth(columnName)"
                       [style.text-align]="getPaymentAllocationColumnSet()[columnName].alignment || 'left'"
-                      [class.no-wrap]="true">
+                      [class.no-wrap]="!getPaymentAllocationColumnSet()[columnName].wrap">
                     @if (isInvoiceAllocationLink(line, columnName)) {
                       <span class="text-blue-700 underline cursor-pointer"
                             (click)="onInvoiceAllocationClick($event, line)">
