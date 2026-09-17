@@ -361,6 +361,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
             : describeOfficeScanRepairProgress('repairing', brokenCount, 0)
         });
 
+        if (!initialCheck.summary.isClean && (initialCheck.issues?.length ?? 0) > 0) {
+          this.showUnresolvedIssues(key, initialCheck, [], 'Scan found these issues. The list refreshes when Fix finishes.');
+        }
+
         if (initialCheck.summary.isClean) {
           return of({
             syncResult: { documentsProcessed: 0, journalEntriesCreated: 0, journalEntriesSkipped: 0, journalEntriesDeleted: 0, errors: [] },
@@ -498,7 +502,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.toastr.error(detailParts.join(' '), label);
   }
 
-  showUnresolvedIssues(key: HealthCheckKey, result: DocumentHealthResult, syncErrors: string[]): void {
+  showUnresolvedIssues(key: HealthCheckKey, result: DocumentHealthResult, syncErrors: string[], hint?: string): void {
     const issues = result.issues ?? [];
     this.activeRowKey = key;
     this.issueRows = this.applySyncErrorsToIssueRows(
@@ -507,9 +511,9 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     );
 
     this.showIssueHint = true;
-    this.unresolvedHint = syncErrors.length > 0
+    this.unresolvedHint = hint ?? (syncErrors.length > 0
       ? 'Fix ran but could not resolve everything. Review each row — document issues and sync errors are listed below.'
-      : 'Fix ran but could not resolve all document issues. Review each row below for document, office, and detail.';
+      : 'Fix ran but could not resolve all document issues. Review each row below for document, office, and detail.');
 
     this.persistSessionState();
     this.cdr.markForCheck();
