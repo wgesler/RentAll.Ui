@@ -24,8 +24,9 @@ import { BuildingComponent } from '../building/building.component';
 import { ColorListComponent } from '../color-list/color-list.component';
 import { ColorComponent } from '../color/color.component';
 import { AccountingOfficeResponse } from '../models/accounting-office.model';
-import { OrganizationType } from '../models/organization-enum';
-import { OrganizationResponse } from '../models/organization.model';
+import { FeatureType, OrganizationType } from '../models/organization-enum';
+import { OrganizationPartnerOptionResponse, OrganizationResponse } from '../models/organization.model';
+import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OfficeResponse } from '../models/office.model';
 import { OfficeListComponent, OfficeCopyPayload } from '../office-list/office-list.component';
 import { OfficeComponent } from '../office/office.component';
@@ -73,6 +74,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private navigationContext = inject(NavigationContextService);
   private organizationService = inject(OrganizationService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
   private officeService = inject(OfficeService);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
@@ -89,7 +91,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
-  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
+  expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   isEditingOffice: boolean = false;
@@ -128,6 +130,11 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   selectedOrganizationId: string | null = null;
   currentUserOrganizationId: string | null = null;
   settingsOfficesInitialized = false;
+  hasPartnerIntegrationFeature = false;
+  partnerOrganizations: OrganizationPartnerOptionResponse[] = [];
+  partnersIn: string[] = [];
+  partnersOut: string[] = [];
+  isSavingPartnerShare = false;
 
   destroy$ = new Subject<void>();
 
@@ -155,6 +162,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       this.loadOrganizations();
     } else {
       this.loadSettingsOffices();
+      this.loadPartnerSettings();
     }
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applySettingsOfficeFromGlobal(officeId);
@@ -283,6 +291,7 @@ refreshSettingsOfficeScopedLists(): void {
     this.settingsOfficesInitialized = false;
     this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.loadSettingsOffices();
+    this.loadPartnerSettings();
   }
 
   get effectiveOrganizationId(): string | null {
@@ -504,8 +513,90 @@ refreshSettingsOfficeScopedLists(): void {
     this.shouldRefreshStateForms = true;
   }
 
+  loadPartnerSettings(): void {
+    const organizationId = this.effectiveOrganizationId;
+    this.hasPartnerIntegrationFeature = false;
+    this.partnerOrganizations = [];
+    this.partnersIn = [];
+    this.partnersOut = [];
+    if (!organizationId || !this.isAdminLikeSettingsUser) {
+      return;
+    }
+
+    this.organizationFeatureService.getFeaturesByOrganization(organizationId).pipe(take(1)).subscribe({
+      next: (features) => {
+        this.hasPartnerIntegrationFeature = (features || []).some(feature =>
+          feature.featureTypeId === FeatureType.PartnerIntegration && feature.hasAccess);
+        if (!this.hasPartnerIntegrationFeature) {
+          return;
+        }
+
+        this.organizationService.getPartnerSettings(organizationId).pipe(take(1)).subscribe({
+          next: (settings) => {
+            this.partnerOrganizations = settings?.partnerOrganizations || [];
+            this.partnersIn = (settings?.partnersIn || []).map(id => String(id));
+            this.partnersOut = (settings?.partnersOut || []).map(id => String(id));
+          }
+        });
+      }
+    });
+  }
+
+  onPartnersInChange(selected: string[]): void {
+    this.updatePartnerShare(this.partnersIn, selected || [], true);
+  }
+
+  onPartnersOutChange(selected: string[]): void {
+    this.updatePartnerShare(this.partnersOut, selected || [], false);
+  }
+
+  private updatePartnerShare(current: string[], next: string[], isIn: boolean): void {
+    const organizationId = this.effectiveOrganizationId;
+    if (!organizationId || this.isSavingPartnerShare) {
+      return;
+    }
+
+    const currentSet = new Set(current);
+    const nextSet = new Set(next);
+    const added = next.filter(id => !currentSet.has(id));
+    const removed = current.filter(id => !nextSet.has(id));
+    if (added.length === 0 && removed.length === 0) {
+      return;
+    }
+
+    this.isSavingPartnerShare = true;
+    const request = added.length
+      ? (isIn
+        ? this.organizationService.addPartnerIn(organizationId, added[0])
+        : this.organizationService.addPartnerOut(organizationId, added[0]))
+      : (isIn
+        ? this.organizationService.deletePartnerIn(organizationId, removed[0])
+        : this.organizationService.deletePartnerOut(organizationId, removed[0]));
+
+    request.pipe(take(1)).subscribe({
+      next: () => {
+        if (isIn) {
+          this.partnersIn = next;
+        } else {
+          this.partnersOut = next;
+        }
+        this.isSavingPartnerShare = false;
+        if (added.length + removed.length > 1) {
+          this.updatePartnerShare(isIn ? this.partnersIn : this.partnersOut, next, isIn);
+        }
+      },
+      error: () => {
+        this.isSavingPartnerShare = false;
+        this.loadPartnerSettings();
+      }
+    });
+  }
+
   onPanelOpened(section: string): void {
     this.expandedSections[section] = true;
+    if (section === 'partners') {
+      this.loadPartnerSettings();
+    }
   }
 
   onPanelClosed(section: string): void {

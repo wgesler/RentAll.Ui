@@ -71,4 +71,16 @@ export interface OrganizationListDisplay {
   isActive: boolean;
 }
 
+export interface OrganizationPartnerOptionResponse {
+  organizationId: string;
+  organizationCode: string;
+  name: string;
+}
+
+export interface OrganizationPartnerSettingsResponse {
+  partnerOrganizations: OrganizationPartnerOptionResponse[];
+  partnersIn: string[];
+  partnersOut: string[];
+}
+
 

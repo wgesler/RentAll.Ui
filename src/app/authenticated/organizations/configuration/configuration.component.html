@@ -80,6 +80,37 @@
             </mat-expansion-panel>
           }
 
+          @if (isAdminLikeSettingsUser && hasPartnerIntegrationFeature) {
+            <mat-expansion-panel [expanded]="expandedSections.partners"
+              (opened)="onPanelOpened('partners')"
+              (closed)="onPanelClosed('partners')"
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Partners</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                <div class="info-form grid grid-cols-2 gap-4">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Share My Properties With</mat-label>
+                    <mat-select [ngModel]="partnersOut" (ngModelChange)="onPartnersOutChange($event)" multiple [disabled]="isSavingPartnerShare">
+                      @for (organization of partnerOrganizations; track organization.organizationId) {
+                        <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Share Properties From</mat-label>
+                    <mat-select [ngModel]="partnersIn" (ngModelChange)="onPartnersInChange($event)" multiple [disabled]="isSavingPartnerShare">
+                      @for (organization of partnerOrganizations; track organization.organizationId) {
+                        <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              </div>
+            </mat-expansion-panel>
+          }
+
           @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
             <!-- Agents Section -->
             <mat-expansion-panel [expanded]="expandedSections.agents" 

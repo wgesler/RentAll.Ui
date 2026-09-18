@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { SUPPRESS_GLOBAL_ERROR_TOAST } from '../../../interceptor/http-context';
 import { BrandingRequest, BrandingResponse } from '../models/branding.model';
-import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
+import { OrganizationPartnerSettingsResponse, OrganizationRequest, OrganizationResponse } from '../models/organization.model';
 import { UserGuideImageUploadRequest, UserGuideImageUploadResponse, UserGuideRequest, UserGuideResponse } from '../models/user-guide.model';
 
 @Injectable({
@@ -42,6 +42,26 @@ export class OrganizationService {
   // DELETE: Delete organization
   deleteOrganization(organizationId: string): Observable<void> {
     return this.http.delete<void>(this.controller + organizationId);
+  }
+
+  getPartnerSettings(organizationId: string): Observable<OrganizationPartnerSettingsResponse> {
+    return this.http.get<OrganizationPartnerSettingsResponse>(this.controller + organizationId + '/partners');
+  }
+
+  addPartnerIn(organizationId: string, partnerOrganizationId: string): Observable<void> {
+    return this.http.post<void>(this.controller + organizationId + '/partners/in/' + partnerOrganizationId, {});
+  }
+
+  deletePartnerIn(organizationId: string, partnerOrganizationId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + organizationId + '/partners/in/' + partnerOrganizationId);
+  }
+
+  addPartnerOut(organizationId: string, partnerOrganizationId: string): Observable<void> {
+    return this.http.post<void>(this.controller + organizationId + '/partners/out/' + partnerOrganizationId, {});
+  }
+
+  deletePartnerOut(organizationId: string, partnerOrganizationId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + organizationId + '/partners/out/' + partnerOrganizationId);
   }
 
   getBranding(): Observable<BrandingResponse> {
