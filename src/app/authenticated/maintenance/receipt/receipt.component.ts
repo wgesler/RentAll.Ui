@@ -3402,38 +3402,90 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.applyPrefillIfNeeded();
   }
 
+  isReceiptTextEmpty(value: unknown): boolean {
+    return !(value ?? '').toString().trim();
+  }
+
+  isReceiptAmountEmpty(value: unknown): boolean {
+    const raw = this.sanitizeSignedDecimalInput((value ?? '').toString()).trim();
+    if (!raw) {
+      return true;
+    }
+    const amount = parseFloat(raw);
+    return !Number.isFinite(amount) || Math.abs(amount) < 0.000001;
+  }
+
+  isReceiptBankCardEmpty(value: unknown): boolean {
+    const bankCardId = Number(value ?? 0);
+    return !Number.isFinite(bankCardId) || bankCardId <= 0;
+  }
+
+  isReceiptDateUnentered(value: unknown, treatTodayAsEmpty: boolean): boolean {
+    if (value == null || value === '') {
+      return true;
+    }
+    if (!treatTodayAsEmpty) {
+      return false;
+    }
+    const parsed = value instanceof Date ? value : this.utilityService.parseCalendarDateInput(value as string);
+    if (!parsed) {
+      return true;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compare = new Date(parsed.getTime());
+    compare.setHours(0, 0, 0, 0);
+    return compare.getTime() === today.getTime();
+  }
+
+  hasEnteredSplitData(): boolean {
+    return this.splitsFormArray.controls.some(control => {
+      const row = control as FormGroup;
+      if (!this.isReceiptAmountEmpty(row.get('amount')?.value)) {
+        return true;
+      }
+      if (!this.isReceiptTextEmpty(row.get('description')?.value)) {
+        return true;
+      }
+      return !this.isReceiptTextEmpty(row.get('workOrderId')?.value) || !this.isReceiptTextEmpty(row.get('workOrderCode')?.value);
+    });
+  }
+
   applyPrefillIfNeeded(): void {
     if (!this.isAddMode || !this.prefill || !this.form) {
       return;
     }
 
     const prefillKey = (this.prefill.key || '').trim();
-    if (!prefillKey || prefillKey === this.appliedPrefillKey) {
+    if (!prefillKey) {
       return;
     }
 
+    const isFirstApply = prefillKey !== this.appliedPrefillKey;
     this.appliedPrefillKey = prefillKey;
 
     const officeId = this.normalizeOfficeId(this.prefill.officeId);
-    if (officeId) {
+    if (officeId && !this.getReceiptOfficeId()) {
       this.setReceiptOfficeId(officeId);
     }
-    this.activeAgreementLineId = this.normalizeAgreementLineId(this.prefill.agreementLineId);
-    this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(this.prefill.agreementLineNotes);
+    if (!this.activeAgreementLineId) {
+      this.activeAgreementLineId = this.normalizeAgreementLineId(this.prefill.agreementLineId);
+    }
+    if (!this.activeAgreementLineNotes) {
+      this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(this.prefill.agreementLineNotes);
+    }
     this.applyAgreementLineOverrides();
 
-    const propertyIds = (this.prefill.propertyIds || [])
-      .map(propertyId => (propertyId || '').trim())
-      .filter(propertyId => propertyId.length > 0);
+    const propertyIds = (this.prefill.propertyIds || []).map(propertyId => (propertyId || '').trim()).filter(propertyId => propertyId.length > 0);
     const realPropertyIds = propertyIds.filter(propertyId => !isReceiptCompanyPropertyId(propertyId));
-    if (realPropertyIds.length > 0) {
-      this.form.patchValue({
-        propertyIds: realPropertyIds,
-        propertyCode: this.getPropertyCodesDisplay(realPropertyIds)
-      }, { emitEvent: false });
-      this.lastPropertyIdsValue = realPropertyIds;
-    } else {
-      this.applyAccountingCompanySelection();
+    const hasEnteredProperty = this.headerPropertyExplicitlySelected || this.getSelectedPropertyIds().length > 0;
+    if (!hasEnteredProperty) {
+      if (realPropertyIds.length > 0) {
+        this.form.patchValue({ propertyIds: realPropertyIds, propertyCode: this.getPropertyCodesDisplay(realPropertyIds) }, { emitEvent: false });
+        this.lastPropertyIdsValue = realPropertyIds;
+      } else if (this.getFormPropertyIds().length === 0) {
+        this.applyAccountingCompanySelection();
+      }
     }
 
     const parsedAmount = Number(this.prefill.amount ?? 0);
@@ -3443,65 +3495,118 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const vendorId = (this.prefill.vendorId || '').trim() || null;
     const vendorName = (this.prefill.vendorName || '').trim() || null;
     const bankCardId = Number(this.prefill.bankCardId ?? 0);
-    const cardPaymentDetected = this.prefill.cardPaymentDetected === true;
+    const enteredVendorId = this.form.get('vendorId')?.value;
+    const enteredVendorName = this.form.get('vendorName')?.value;
+    const enteredBillNumber = this.form.get('billNumber')?.value;
+    const patch: { receiptDate?: Date; dueDate?: Date; accountingPeriod?: Date; description?: string; amount?: string; bankCardId?: number; vendorId?: string | null; vendorName?: string | null; billNumber?: string | null; businessPrivate?: boolean } = {};
 
-    const prefillDueDate = this.getReceiptDateControlValue(this.prefill.dueDate || this.prefill.receiptDate || null);
-    const prefillAccountingPeriod = this.getReceiptDateControlValue(this.prefill.accountingPeriod || this.prefill.receiptDate || null);
-    this.form.patchValue({
-      receiptDate: this.getReceiptDateControlValue(this.prefill.receiptDate || null),
-      dueDate: prefillDueDate,
-      accountingPeriod: prefillAccountingPeriod,
-      description,
-      amount: amount > 0 ? amount.toFixed(2) : '0.00',
-      bankCardId: Number.isFinite(bankCardId) ? bankCardId : 0,
-      vendorId,
-      billNumber: (this.prefill.billNumber || '').trim() || null,
-      businessPrivate: this.prefill.businessPrivate === true
-    }, { emitEvent: false });
+    if (this.isReceiptDateUnentered(this.form.get('receiptDate')?.value, isFirstApply) && this.prefill.receiptDate) {
+      patch.receiptDate = this.getReceiptDateControlValue(this.prefill.receiptDate);
+    }
+    if (this.isReceiptDateUnentered(this.form.get('dueDate')?.value, isFirstApply) && (this.prefill.dueDate || this.prefill.receiptDate)) {
+      patch.dueDate = this.getReceiptDateControlValue(this.prefill.dueDate || this.prefill.receiptDate || null);
+    }
+    if (this.isReceiptDateUnentered(this.form.get('accountingPeriod')?.value, isFirstApply) && (this.prefill.accountingPeriod || this.prefill.receiptDate)) {
+      patch.accountingPeriod = this.getReceiptDateControlValue(this.prefill.accountingPeriod || this.prefill.receiptDate || null);
+    }
+    if (this.isReceiptTextEmpty(this.form.get('description')?.value) && description) {
+      patch.description = description;
+    }
+    if (this.isReceiptAmountEmpty(this.form.get('amount')?.value) && amount > 0) {
+      patch.amount = amount.toFixed(2);
+    }
+    if (this.isReceiptBankCardEmpty(this.form.get('bankCardId')?.value) && Number.isFinite(bankCardId) && bankCardId > 0) {
+      patch.bankCardId = bankCardId;
+    }
+    if (this.isReceiptTextEmpty(enteredVendorId) && this.isReceiptTextEmpty(enteredVendorName)) {
+      if (vendorId) {
+        patch.vendorId = vendorId;
+        patch.vendorName = null;
+      } else if (vendorName) {
+        patch.vendorId = null;
+        patch.vendorName = vendorName;
+      }
+    }
+    if (this.isReceiptTextEmpty(enteredBillNumber) && (this.prefill.billNumber || '').trim()) {
+      patch.billNumber = (this.prefill.billNumber || '').trim();
+    }
+    if (this.prefill.businessPrivate === true && this.form.get('businessPrivate')?.value !== true) {
+      patch.businessPrivate = true;
+    }
+    if (Object.keys(patch).length > 0) {
+      this.form.patchValue(patch, { emitEvent: false });
+    }
 
-    if (splitPrefill || amount > 0 || description) {
+    const filledDescription = typeof patch.description === 'string';
+    if (!this.hasEnteredSplitData() && (splitPrefill || typeof patch.amount === 'string' || filledDescription)) {
       const splitAmount = Number(splitPrefill?.amount ?? amount);
       const splitChartOfAccountId = Number(splitPrefill?.chartOfAccountId ?? 0);
       const splitReceiptTypeId = Number(splitPrefill?.receiptTypeId ?? 1);
       this.replaceSplitLines([{
         amount: Number.isFinite(splitAmount) ? splitAmount : amount,
-        description,
+        description: filledDescription ? description : (this.form.get('description')?.value || '').trim(),
         receiptTypeId: Number.isFinite(splitReceiptTypeId) ? splitReceiptTypeId : 1,
         chartOfAccountId: Number.isFinite(splitChartOfAccountId) && splitChartOfAccountId > 0 ? splitChartOfAccountId : null
       } as Split]);
+    } else {
+      this.applySplitPrefillToEmptyFirstLine(splitPrefill);
     }
 
-    this.onOverallBankCardChange();
-    if (this.isOverallBillBankCard()) {
-      if (vendorId) {
-        this.form.patchValue({ vendorId, vendorName: null }, { emitEvent: false });
-      } else if (vendorName) {
+    if (typeof patch.bankCardId === 'number') {
+      this.onOverallBankCardChange();
+      if (!this.isReceiptTextEmpty(enteredVendorId) || !this.isReceiptTextEmpty(enteredVendorName)) {
+        this.form.patchValue({ vendorId: enteredVendorId, vendorName: enteredVendorName }, { emitEvent: false });
+      } else if (this.isOverallBillBankCard()) {
+        if (vendorId) {
+          this.form.patchValue({ vendorId, vendorName: null }, { emitEvent: false });
+        } else if (vendorName) {
+          this.form.patchValue({ vendorId: null, vendorName }, { emitEvent: false });
+        }
+      } else if (vendorName && this.isReceiptTextEmpty(this.form.get('vendorName')?.value)) {
         this.form.patchValue({ vendorId: null, vendorName }, { emitEvent: false });
       }
-    } else if (vendorName) {
-      this.form.patchValue({ vendorId: null, vendorName }, { emitEvent: false });
+      if (!this.isReceiptTextEmpty(enteredBillNumber)) {
+        this.form.patchValue({ billNumber: enteredBillNumber }, { emitEvent: false });
+      }
     }
     this.updateVendorFieldValidators();
-    // Keep rent-roll prefilled dates authoritative for this initial load.
-    this.form.patchValue({
-      dueDate: prefillDueDate,
-      accountingPeriod: prefillAccountingPeriod
-    }, { emitEvent: false });
     this.syncInitialSplitWithOverallIfNeeded();
     this.updatePropertyRequirementByReceiptType();
     this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.syncSelectedPropertyIdFromForm();
     this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
-    this.applyDescriptionToHeaderAndFirstSplitLine(description);
-    queueMicrotask(() => {
-      this.applyDescriptionToHeaderAndFirstSplitLine();
-      this.cdr.detectChanges();
-    });
-    this.syncSplitPropertiesToPrefilledCompanySelection();
-    if (this.tracksExplicitPropertySelection) {
-      this.resetExplicitPropertySelection();
+    if (filledDescription) {
+      this.backfillFirstSplitDescriptionFromHeaderIfNeeded();
     }
+    this.syncSplitPropertiesToPrefilledCompanySelection();
     this.markViewForCheck();
+  }
+
+  applySplitPrefillToEmptyFirstLine(splitPrefill: ReceiptPrefill['split']): void {
+    if (!splitPrefill || this.splitsFormArray.length !== 1) {
+      return;
+    }
+
+    const row = this.splitsFormArray.at(0) as FormGroup | undefined;
+    if (!row) {
+      return;
+    }
+
+    const splitPatch: { amount?: string; description?: string; chartOfAccountId?: number } = {};
+    const splitAmount = Number(splitPrefill.amount ?? 0);
+    if (this.isReceiptAmountEmpty(row.get('amount')?.value) && Number.isFinite(splitAmount) && splitAmount > 0) {
+      splitPatch.amount = splitAmount.toFixed(2);
+    }
+    if (this.isReceiptTextEmpty(row.get('description')?.value) && (splitPrefill.description || '').trim()) {
+      splitPatch.description = (splitPrefill.description || '').trim();
+    }
+    const splitChartOfAccountId = Number(splitPrefill.chartOfAccountId ?? 0);
+    if (!(Number(row.get('chartOfAccountId')?.value ?? 0) > 0) && Number.isFinite(splitChartOfAccountId) && splitChartOfAccountId > 0) {
+      splitPatch.chartOfAccountId = splitChartOfAccountId;
+    }
+    if (Object.keys(splitPatch).length > 0) {
+      row.patchValue(splitPatch, { emitEvent: false });
+    }
   }
 
   reapplyDocumentExtractPrefillIfNeeded(): void {
@@ -3514,7 +3619,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.appliedPrefillKey = null;
     this.applyPrefillIfNeeded();
   }
 
