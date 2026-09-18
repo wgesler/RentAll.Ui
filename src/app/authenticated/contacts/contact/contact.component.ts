@@ -23,9 +23,11 @@ import { PropertyListResponse } from '../../properties/models/property.model';
 import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes } from '../models/contact-enum';
 import { getInvoiceMethods } from '../../accounting/models/accounting-enum';
 import { getProrateTypes } from '../../reservations/models/reservation-enum';
-import { ContactRequest, ContactResponse } from '../models/contact.model';
+import { ContactCardRequest, ContactCardResponse, ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
+import { ContactCardService } from '../services/contact-card.service';
+import { getCardTypes } from '../../organizations/models/card-type-enum';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UserService } from '../../users/services/user.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
@@ -60,6 +62,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @Input() publicReadOnlyContactCode: string | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
   contactService = inject(ContactService);
+  contactCardService = inject(ContactCardService);
   router = inject(Router);
   fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
@@ -134,6 +137,13 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
 
   @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('contactCardPanInput') contactCardPanInputRef: ElementRef<HTMLInputElement> | null = null;
+  contactCard: ContactCardResponse | null = null;
+  cardTypeOptions: { value: number; label: string }[] = getCardTypes();
+  isContactCardSaving = false;
+  isContactCardPanDecrypting = false;
+  isEditingContactCardNumber = false;
+  revealedContactCardPan = '';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isPageReady = false;
@@ -176,6 +186,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     // When opened in dialog with preloaded contact (e.g. from property owner click), use it so the form shows filled immediately (no jump).
     if (this.dialogData?.preloadedContact) {
       this.contact = this.dialogData.preloadedContact;
+      this.applyContactCardFromContact(this.contact);
       this.contactId = this.contact.contactId;
       this.isAddMode = false;
       if (this.dialogData.entityTypeId != null) this.presetEntityTypeId = this.dialogData.entityTypeId;
@@ -351,6 +362,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.contactService.getContactByGuid(this.contactId).pipe(take(1), finalize(() => this.clearContactLoading())).subscribe({
       next: (response: ContactResponse) => {
         this.contact = response;
+        this.applyContactCardFromContact(response);
         this.buildForm();
         this.populateForm();
         this.applyContactTypeLockedState();
@@ -489,6 +501,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       accountNumber: this.compactDialogMode && this.contact
         ? (this.contact.accountNumber ?? null)
         : ((formValue.accountNumber || '').trim() || null),
+      contactCardId: this.contact?.contactCardId ?? this.contactCard?.contactCardId ?? null,
       paymentTermsId: this.compactDialogMode && this.contact
         ? (this.contact.paymentTermsId ?? null)
         : (formValue.paymentTermsId ?? null),
@@ -1828,6 +1841,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       bankName: savedContact.bankName ?? originalRequest.bankName,
       routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
       accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
+      contactCardId: savedContact.contactCardId ?? originalRequest.contactCardId ?? null,
       paymentTermsId: savedContact.paymentTermsId ?? originalRequest.paymentTermsId ?? null,
       prorateTypeId: savedContact.prorateTypeId ?? originalRequest.prorateTypeId ?? null,
       invoiceMethodTypeId: savedContact.invoiceMethodTypeId ?? originalRequest.invoiceMethodTypeId ?? null,
@@ -1868,6 +1882,237 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
   //#endregion 
+
+  //#region Card On File
+  applyContactCardFromContact(contact: ContactResponse | null): void {
+    this.contactCard = contact?.contactCard ? this.mappingService.mapContactCardFromResponse(contact.contactCard) : null;
+    this.isEditingContactCardNumber = false;
+    this.revealedContactCardPan = '';
+  }
+
+  onAddContactCardClick(): void {
+    if (this.isAddMode || !this.contactId || this.contactId === 'new') {
+      this.toastr.warning('Save the contact before adding a card on file.', CommonMessage.Error);
+      return;
+    }
+
+    this.contactCard = {
+      contactCardId: 0,
+      organizationId: this.contact?.organizationId || this.selectedOrganizationId || '',
+      officeId: Number(this.contact?.officeId || this.form?.get('officeId')?.value || 0),
+      cardTypeId: -1,
+      cardName: '',
+      displayName: '',
+      cardNumber: '',
+      rawCardNumber: '',
+      lastFour: ''
+    };
+  }
+
+  removeContactCard(): void {
+    if (!this.contactCard) {
+      return;
+    }
+
+    if ((this.contactCard.contactCardId || 0) <= 0) {
+      this.contactCard = null;
+      return;
+    }
+
+    this.contactCardService.deleteContactCard(this.contactId, this.contactCard.contactCardId).pipe(take(1)).subscribe({
+      next: () => {
+        this.contactCard = null;
+        if (this.contact) {
+          this.contact.contactCardId = null;
+          this.contact.contactCard = null;
+        }
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to delete contact card.', CommonMessage.Error);
+      }
+    });
+  }
+
+  onContactCardFieldChange(): void {
+    if (!this.contactCard || this.isAddMode || this.isContactCardSaving) {
+      return;
+    }
+
+    if ((this.contactCard.contactCardId || 0) > 0) {
+      this.persistContactCardUpdate();
+      return;
+    }
+
+    this.persistContactCardCreate();
+  }
+
+  persistContactCardCreate(): void {
+    if (!this.contactCard || (this.contactCard.contactCardId || 0) > 0 || this.isContactCardSaving) {
+      return;
+    }
+
+    if (!this.isValidContactCardType(this.contactCard.cardTypeId) || !(this.contactCard.cardName || '').trim() || this.getContactCardNumberDigits().length < 13) {
+      return;
+    }
+
+    this.isContactCardSaving = true;
+    const request = this.buildContactCardRequest();
+    this.contactCardService.createContactCard(this.contactId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
+      next: (response) => {
+        this.contactCard = this.mappingService.mapContactCardFromResponse(response);
+        if (this.contact && this.contactCard) {
+          this.contact.contactCardId = this.contactCard.contactCardId;
+          this.contact.contactCard = this.contactCard;
+        }
+        this.revealedContactCardPan = '';
+        this.isEditingContactCardNumber = false;
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to create contact card.', CommonMessage.Error);
+      }
+    });
+  }
+
+  persistContactCardUpdate(): void {
+    if (!this.contactCard || (this.contactCard.contactCardId || 0) <= 0 || this.isContactCardSaving) {
+      return;
+    }
+
+    if (!this.isValidContactCardType(this.contactCard.cardTypeId) || !(this.contactCard.cardName || '').trim()) {
+      return;
+    }
+
+    const request = this.buildContactCardRequest();
+    this.isContactCardSaving = true;
+    this.contactCardService.updateContactCard(this.contactId, this.contactCard.contactCardId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
+      next: (response) => {
+        this.contactCard = this.mappingService.mapContactCardFromResponse(response);
+        if (this.contact) {
+          this.contact.contactCardId = this.contactCard?.contactCardId ?? this.contact.contactCardId;
+          this.contact.contactCard = this.contactCard;
+        }
+        this.revealedContactCardPan = '';
+        this.isEditingContactCardNumber = false;
+        this.toastr.success('Card on file updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to update contact card.', CommonMessage.Error);
+      }
+    });
+  }
+
+  onContactCardNumberInput(event: Event): void {
+    this.formatterService.formatCreditCardInput(event, null);
+    if (!this.contactCard) {
+      return;
+    }
+
+    const input = event.target as HTMLInputElement;
+    const cardNumber = input.value || '';
+    this.contactCard.cardNumber = cardNumber;
+    this.contactCard.rawCardNumber = this.formatterService.stripCreditCardFormatting(cardNumber);
+    this.contactCard.lastFour = this.mappingService.normalizeBankCardLastFour(null, this.contactCard.rawCardNumber);
+  }
+
+  onContactCardPanFocus(): void {
+    this.isEditingContactCardNumber = true;
+    if (!this.contactCard) {
+      return;
+    }
+
+    if ((this.contactCard.contactCardId || 0) <= 0) {
+      const sourceDigits = this.contactCard.rawCardNumber || this.formatterService.stripCreditCardFormatting(this.contactCard.cardNumber || '');
+      this.contactCard.cardNumber = sourceDigits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      return;
+    }
+
+    if (this.revealedContactCardPan) {
+      this.contactCard.rawCardNumber = this.revealedContactCardPan;
+      this.contactCard.cardNumber = this.revealedContactCardPan.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      return;
+    }
+
+    this.isContactCardPanDecrypting = true;
+    this.contactCardService.getContactCardPan(this.contactId, this.contactCard.contactCardId).pipe(take(1), finalize(() => { this.isContactCardPanDecrypting = false; this.markViewForCheck(); })).subscribe({
+      next: (response) => {
+        const digits = this.formatterService.stripCreditCardFormatting(response?.cardNumber || '');
+        this.revealedContactCardPan = digits;
+        if (this.contactCard) {
+          this.contactCard.rawCardNumber = digits;
+          this.contactCard.cardNumber = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+        }
+        this.isEditingContactCardNumber = true;
+        this.markViewForCheck();
+        setTimeout(() => {
+          if (this.contactCardPanInputRef?.nativeElement && this.contactCard) {
+            this.contactCardPanInputRef.nativeElement.value = this.contactCard.cardNumber;
+            this.contactCardPanInputRef.nativeElement.focus();
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load card number');
+        this.isEditingContactCardNumber = false;
+      }
+    });
+  }
+
+  onContactCardPanBlur(): void {
+    if (this.isContactCardPanDecrypting) {
+      return;
+    }
+
+    this.isEditingContactCardNumber = false;
+    this.onContactCardFieldChange();
+    if (!this.contactCard || (this.contactCard.contactCardId || 0) <= 0) {
+      return;
+    }
+
+    if (this.getContactCardNumberDigits().length < 13) {
+      this.contactCard.rawCardNumber = '';
+      this.contactCard.cardNumber = this.mappingService.formatBankCardMaskedPan(this.contactCard.lastFour);
+      this.revealedContactCardPan = '';
+    }
+  }
+
+  getContactCardDisplayLabel(): string {
+    return (this.contactCard?.displayName || '').trim() || this.mappingService.formatBankCardMaskedPan(this.contactCard?.lastFour);
+  }
+
+  getContactCardPanDisplay(): string {
+    if (!this.contactCard) {
+      return '';
+    }
+
+    if ((this.contactCard.contactCardId || 0) <= 0 || this.isEditingContactCardNumber) {
+      return this.contactCard.cardNumber || '';
+    }
+
+    return this.mappingService.formatBankCardMaskedPan(this.contactCard.lastFour);
+  }
+
+  buildContactCardRequest(): ContactCardRequest {
+    const isPersisted = (this.contactCard?.contactCardId || 0) > 0;
+    const digits = this.getContactCardNumberDigits();
+    return {
+      contactCardId: isPersisted ? this.contactCard?.contactCardId : undefined,
+      cardTypeId: Number(this.contactCard?.cardTypeId),
+      cardName: (this.contactCard?.cardName || '').trim(),
+      cardNumber: isPersisted && digits.length < 13 ? '' : digits
+    };
+  }
+
+  getContactCardNumberDigits(): string {
+    return this.formatterService.stripCreditCardFormatting(this.contactCard?.rawCardNumber || this.contactCard?.cardNumber || '');
+  }
+
+  isValidContactCardType(cardTypeId: number): boolean {
+    return this.cardTypeOptions.some(option => option.value === cardTypeId);
+  }
+  //#endregion
 
   //#region Utility Methods
   markViewForCheck(): void {

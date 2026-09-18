@@ -17,7 +17,7 @@ import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, Secur
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { CreditReportLineDisplay, CreditReportLineResponse, CreditReportResponse } from '../authenticated/accounting/vendors/credit-report/credit-report.model';
 import { EntityType, getEntityType, getPaymentTermDays, getTermType, getTermTypes } from '../authenticated/contacts/models/contact-enum';
-import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
+import { ContactCardResponse, ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
@@ -340,7 +340,33 @@ export class MappingService {
       vendorTypeId,
       paymentTermsId,
       prorateTypeId,
-      invoiceMethodTypeId
+      invoiceMethodTypeId,
+      contactCardId: Number.isFinite(Number(raw['contactCardId'])) && Number(raw['contactCardId']) > 0 ? Number(raw['contactCardId']) : (base.contactCardId ?? null),
+      contactCard: this.mapContactCardFromResponse(raw['contactCard'] ?? base.contactCard)
+    };
+  }
+
+  mapContactCardFromResponse(raw: unknown): ContactCardResponse | null {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const mapped = this.mapBankCardsFromResponse([{ ...(raw as ContactCardResponse), bankCardId: Number((raw as Record<string, unknown>)['contactCardId'] ?? (raw as ContactCardResponse).contactCardId ?? 0) } as unknown as BankCardResponse]);
+    const card = mapped[0];
+    if (!card) {
+      return null;
+    }
+
+    return {
+      contactCardId: Number((raw as Record<string, unknown>)['contactCardId'] ?? card.bankCardId ?? 0),
+      organizationId: card.organizationId,
+      officeId: card.officeId,
+      cardTypeId: card.cardTypeId,
+      cardName: card.cardName,
+      displayName: card.displayName,
+      cardNumber: card.cardNumber,
+      rawCardNumber: card.rawCardNumber,
+      lastFour: card.lastFour
     };
   }
 
@@ -373,6 +399,7 @@ export class MappingService {
       bankName: contact.bankName ?? null,
       routingNumber: contact.routingNumber ?? null,
       accountNumber: contact.accountNumber ?? null,
+      contactCardId: contact.contactCardId ?? null,
       markup: contact.markup ?? null,
       revenueSplitOwner: contact.revenueSplitOwner ?? null,
       revenueSplitOffice: contact.revenueSplitOffice ?? null,

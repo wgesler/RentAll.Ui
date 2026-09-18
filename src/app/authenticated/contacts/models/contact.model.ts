@@ -43,6 +43,7 @@ export interface ContactRequest {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  contactCardId?: number | null;
   paymentTermsId?: number | null;
   prorateTypeId?: number | null;
   invoiceMethodTypeId?: number | null;
@@ -96,12 +97,37 @@ export interface ContactResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  contactCardId?: number | null;
+  contactCard?: ContactCardResponse | null;
   paymentTermsId?: number | null;
   prorateTypeId?: number | null;
   invoiceMethodTypeId?: number | null;
   addAsUser?: number | null;
   isOwnerReady?: boolean;
   isActive: boolean;
+}
+
+export interface ContactCardRequest {
+  contactCardId?: number;
+  cardTypeId: number;
+  cardName: string;
+  cardNumber: string;
+}
+
+export interface ContactCardResponse {
+  contactCardId: number;
+  organizationId: string;
+  officeId: number;
+  cardTypeId: number;
+  cardName: string;
+  displayName: string;
+  cardNumber: string;
+  rawCardNumber?: string;
+  lastFour: string;
+}
+
+export interface ContactCardPanResponse {
+  cardNumber: string;
 }
 
 export interface ContactListDisplay {
