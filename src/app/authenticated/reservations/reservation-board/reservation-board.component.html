@@ -100,7 +100,7 @@
         @if (!isOwnerScopedView && !readOnly) {
           <div class="form-titlebar-actions-wrap uniform-gap">
             @if (!isPartnerAdmin) {
-            <div class="five-way-toggle" [class.five-way-toggle--three]="!hasPartnerIntegration" aria-label="Furnished property filter">
+            <div class="five-way-toggle" aria-label="Property filter">
               <div class="five-way-toggle__control">
                 <div
                   class="five-way-toggle__switch"
@@ -125,9 +125,12 @@
                           <span class="five-way-toggle__plus" aria-hidden="true"></span>
                         }
                         @case (3) {
-                          <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                          <span class="five-way-toggle__x" aria-hidden="true"></span>
                         }
                         @case (4) {
+                          <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                        }
+                        @case (5) {
                           <span class="five-way-toggle__check" aria-hidden="true"></span>
                         }
                       }
@@ -293,6 +296,7 @@
               <tr class="property-row"
                   [class.row-selected]="isPropertySelected(property.propertyId)"
                   [class.partner-property-row]="partnersBoardToggleChecked"
+                  [class.property-row--inactive]="isAllFilterSelected && !property.isActive"
                   (mouseenter)="onPartnerPropertyRowHover(property.propertyId, $event)"
                   (mouseleave)="onPartnerPropertyRowLeave()"
                   (mousedown)="!readOnly && $event.shiftKey ? $event.preventDefault() : null"

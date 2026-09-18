@@ -3292,7 +3292,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       propertyStatusId: p.propertyStatusId,
       statusLetter: getPropertyStatusLetter(p.propertyStatusId),
       availableFrom: p.availableFrom,
-      availableUntil: p.availableUntil
+      availableUntil: p.availableUntil,
+      isActive: p.isActive !== false
     }));
   }
 

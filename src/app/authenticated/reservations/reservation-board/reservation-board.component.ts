@@ -34,7 +34,7 @@ import { BoardProperty, CalendarDay, PropertyHoverFieldGroups } from '../models/
 import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
-import { FiveWayToggleValue, getFiveWayFilterLabel} from '../models/property-filter-model';
+import { BoardFilterIndex, FiveWayToggleValue, getFiveWayFilterLabel } from '../models/property-filter-model';
 import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
@@ -81,6 +81,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   properties: BoardProperty[] = [];
   allPropertyRows: PropertyListResponse[] = [];
   standardPropertyRowsCache: PropertyListResponse[] | null = null;
+  inactivePropertyRowsCache: PropertyListResponse[] | null = null;
   partnerPropertyRowsCache: PropertyListResponse[] | null = null;
   propertyRows: PropertyListResponse[] = [];
   calendarDays: CalendarDay[] = [];
@@ -231,8 +232,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
         const wasPartnersMode = this.partnersBoardToggleChecked;
         this.partnersBoardToggleChecked = value === true;
         if (this.partnersBoardToggleChecked) {
-          this.furnishedSliderIndex = 3;
-        } else if (this.furnishedSliderIndex === 3) {
+          this.furnishedSliderIndex = BoardFilterIndex.Partners;
+        } else if (this.furnishedSliderIndex === BoardFilterIndex.Partners) {
           this.furnishedSliderIndex = this.furnishedPropertyToggleChecked ? 1 : 0;
         }
         if (wasPartnersMode !== this.partnersBoardToggleChecked) {
@@ -641,16 +642,20 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   }
   //#endregion
 
-  //#region Five-Way Property Filter
+  //#region Six-Way Property Filter
   resolveFiveWayToggleIndexFromGlobalState(): FiveWayToggleValue {
     if (this.hasPartnerIntegration && this.partnersBoardToggleChecked) {
-      return 3;
+      return BoardFilterIndex.Partners;
     }
     return this.furnishedPropertyToggleChecked ? 1 : 0;
   }
 
   get furnishedToggleMaxIndex(): FiveWayToggleValue {
-    return this.hasPartnerIntegration ? 4 : 2;
+    return BoardFilterIndex.All;
+  }
+
+  get isAllFilterSelected(): boolean {
+    return this.furnishedSliderIndex === BoardFilterIndex.All;
   }
 
   clampFurnishedSliderIndex(index: number): FiveWayToggleValue {
@@ -659,12 +664,16 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   loadPropertiesForFiveWayFilterPosition(index: FiveWayToggleValue): void {
     const clampedIndex = this.clampFurnishedSliderIndex(index);
-    if (clampedIndex === 3) {
-      this.ensurePartnerPropertyCacheThen(() => this.applyFiveWayFilterFromCache(3));
+    if (clampedIndex === BoardFilterIndex.Inactive) {
+      this.ensureInactivePropertyCacheThen(() => this.applyFiveWayFilterFromCache(BoardFilterIndex.Inactive));
       return;
     }
-    if (clampedIndex === 4) {
-      this.ensureAllPropertyCachesThen(() => this.applyFiveWayFilterFromCache(4));
+    if (clampedIndex === BoardFilterIndex.Partners) {
+      this.ensurePartnerPropertyCacheThen(() => this.applyFiveWayFilterFromCache(BoardFilterIndex.Partners));
+      return;
+    }
+    if (clampedIndex === BoardFilterIndex.All) {
+      this.ensureAllPropertyCachesThen(() => this.applyFiveWayFilterFromCache(BoardFilterIndex.All));
       return;
     }
     this.ensureStandardPropertyCacheThen(() => this.applyFiveWayFilterFromCache(clampedIndex));
@@ -672,25 +681,28 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   applyFiveWayFilterFromCache(index: FiveWayToggleValue): void {
     const scopedStandard = this.scopeBoardPropertiesToOffice(this.standardPropertyRowsCache ?? []);
-    const partner = this.partnerPropertyRowsCache ?? [];
+    const scopedInactive = this.scopeBoardPropertiesToOffice(this.inactivePropertyRowsCache ?? []);
+    const partner = this.hasPartnerIntegration ? (this.partnerPropertyRowsCache ?? []) : [];
 
     let rows: PropertyListResponse[];
     switch (index) {
-      case 0:
+      case BoardFilterIndex.Furnished:
         rows = scopedStandard.filter(property => !this.mappingService.toBooleanValue(property.unfurnished));
         break;
-      case 1:
+      case BoardFilterIndex.Unfurnished:
         rows = scopedStandard.filter(property => this.mappingService.toBooleanValue(property.unfurnished));
         break;
-      case 2:
-        // Both — full standard property list, no furnished/unfurnished filter
+      case BoardFilterIndex.Both:
         rows = [...scopedStandard];
         break;
-      case 3:
+      case BoardFilterIndex.Inactive:
+        rows = [...scopedInactive];
+        break;
+      case BoardFilterIndex.Partners:
         rows = partner;
         break;
-      case 4:
-        rows = this.mergePropertyRowsById(scopedStandard, partner);
+      case BoardFilterIndex.All:
+        rows = this.mergePropertyRowsById(scopedStandard, scopedInactive, partner);
         break;
       default:
         rows = scopedStandard;
@@ -707,7 +719,20 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     this.fetchStandardPropertyCache(onReady);
   }
 
+  ensureInactivePropertyCacheThen(onReady: () => void): void {
+    if (this.inactivePropertyRowsCache !== null) {
+      onReady();
+      return;
+    }
+    this.fetchInactivePropertyCache(onReady);
+  }
+
   ensurePartnerPropertyCacheThen(onReady: () => void): void {
+    if (!this.hasPartnerIntegration) {
+      this.partnerPropertyRowsCache = this.partnerPropertyRowsCache ?? [];
+      onReady();
+      return;
+    }
     if (this.partnerPropertyRowsCache !== null) {
       onReady();
       return;
@@ -717,17 +742,37 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   ensureAllPropertyCachesThen(onReady: () => void): void {
     const needStandard = this.standardPropertyRowsCache === null;
-    const needPartner = this.partnerPropertyRowsCache === null;
-    if (!needStandard && !needPartner) {
+    const needInactive = this.inactivePropertyRowsCache === null;
+    const needPartner = this.hasPartnerIntegration && this.partnerPropertyRowsCache === null;
+    if (!this.hasPartnerIntegration && this.partnerPropertyRowsCache === null) {
+      this.partnerPropertyRowsCache = [];
+    }
+    if (!needStandard && !needInactive && !needPartner) {
       onReady();
       return;
     }
+    if (needStandard && needInactive && needPartner) {
+      this.fetchStandardInactiveAndPartnerPropertyCaches(onReady);
+      return;
+    }
+    if (needStandard && needInactive) {
+      this.fetchStandardAndInactivePropertyCaches(onReady);
+      return;
+    }
     if (needStandard && needPartner) {
-      this.fetchStandardAndPartnerPropertyCaches(onReady);
+      this.fetchStandardAndPartnerPropertyCaches(() => this.ensureInactivePropertyCacheThen(onReady));
+      return;
+    }
+    if (needInactive && needPartner) {
+      this.fetchInactiveAndPartnerPropertyCaches(onReady);
       return;
     }
     if (needStandard) {
       this.fetchStandardPropertyCache(onReady);
+      return;
+    }
+    if (needInactive) {
+      this.fetchInactivePropertyCache(onReady);
       return;
     }
     this.fetchPartnerPropertyCache(onReady);
@@ -750,6 +795,30 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       },
       error: () => {
         this.standardPropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  fetchInactivePropertyCache(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.inactivePropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    this.propertyService.getPropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        this.inactivePropertyRowsCache = (properties || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
+        onReady();
+      },
+      error: () => {
+        this.inactivePropertyRowsCache = [];
         this.clearBoardPropertyRows();
         this.isPartnerBoardLoading = false;
         this.markViewForCheck();
@@ -811,6 +880,100 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     });
   }
 
+  fetchStandardAndInactivePropertyCaches(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.standardPropertyRowsCache = [];
+      this.inactivePropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    forkJoin({
+      standard: this.propertyService.getActivePropertiesBySelectionCriteria(this.userId),
+      allStandard: this.propertyService.getPropertiesBySelectionCriteria(this.userId)
+    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: ({ standard, allStandard }) => {
+        this.standardPropertyRowsCache = standard || [];
+        this.inactivePropertyRowsCache = (allStandard || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
+        onReady();
+      },
+      error: () => {
+        this.standardPropertyRowsCache = [];
+        this.inactivePropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  fetchInactiveAndPartnerPropertyCaches(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.inactivePropertyRowsCache = [];
+      this.partnerPropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    forkJoin({
+      allStandard: this.propertyService.getPropertiesBySelectionCriteria(this.userId),
+      partner: this.partnerService.getActivePropertiesBySelectionCriteria(this.userId)
+    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: ({ allStandard, partner }) => {
+        this.inactivePropertyRowsCache = (allStandard || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
+        this.partnerPropertyRowsCache = partner || [];
+        onReady();
+      },
+      error: () => {
+        this.inactivePropertyRowsCache = [];
+        this.partnerPropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  fetchStandardInactiveAndPartnerPropertyCaches(onReady: () => void): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.standardPropertyRowsCache = [];
+      this.inactivePropertyRowsCache = [];
+      this.partnerPropertyRowsCache = [];
+      this.clearBoardPropertyRows();
+      this.completeBoardPropertyLoad();
+      onReady();
+      return;
+    }
+
+    forkJoin({
+      standard: this.propertyService.getActivePropertiesBySelectionCriteria(this.userId),
+      allStandard: this.propertyService.getPropertiesBySelectionCriteria(this.userId),
+      partner: this.partnerService.getActivePropertiesBySelectionCriteria(this.userId)
+    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
+      next: ({ standard, allStandard, partner }) => {
+        this.standardPropertyRowsCache = standard || [];
+        this.inactivePropertyRowsCache = (allStandard || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
+        this.partnerPropertyRowsCache = partner || [];
+        onReady();
+      },
+      error: () => {
+        this.standardPropertyRowsCache = [];
+        this.inactivePropertyRowsCache = [];
+        this.partnerPropertyRowsCache = [];
+        this.clearBoardPropertyRows();
+        this.isPartnerBoardLoading = false;
+        this.markViewForCheck();
+      }
+    });
+  }
+
   completeBoardPropertyLoad(): void {
     this.isPartnerBoardLoading = false;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
@@ -826,6 +989,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   invalidateBoardPropertyCaches(): void {
     this.standardPropertyRowsCache = null;
+    this.inactivePropertyRowsCache = null;
     this.partnerPropertyRowsCache = null;
   }
 
@@ -869,31 +1033,10 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   resolveFurnishedToggleIndexFromTrackClick(track: HTMLElement, clientX: number): FiveWayToggleValue {
     const rect = track.getBoundingClientRect();
-    const x = clientX - rect.left;
     const stepCount = this.furnishedToggleMaxIndex + 1;
-    const stepWidth = rect.width / stepCount;
-    if (stepCount === 3) {
-      if (x >= stepWidth * 2) {
-        return 2;
-      }
-      if (x >= stepWidth) {
-        return 1;
-      }
-      return 0;
-    }
-    if (x >= stepWidth * 4) {
-      return 4;
-    }
-    if (x >= stepWidth * 3) {
-      return 3;
-    }
-    if (x >= stepWidth * 2) {
-      return 2;
-    }
-    if (x >= stepWidth) {
-      return 1;
-    }
-    return 0;
+    const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+    const index = Math.min(stepCount - 1, Math.max(0, Math.floor(ratio * stepCount)));
+    return this.clampFurnishedSliderIndex(index);
   }
 
   setFurnishedSliderIndex(index: FiveWayToggleValue): void {
@@ -909,29 +1052,31 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     const nextIndex = this.clampFurnishedSliderIndex(index);
     this.furnishedSliderIndex = nextIndex;
 
-    if (nextIndex === 3) {
+    if (nextIndex === BoardFilterIndex.Partners) {
       if (!this.partnersBoardToggleChecked) {
         this.beginPartnerBoardTransition();
         this.globalSelectionService.setPartnersBoardSelection(true);
       } else if (this.partnerPropertyRowsCache !== null) {
-        this.applyFiveWayFilterFromCache(3);
+        this.applyFiveWayFilterFromCache(BoardFilterIndex.Partners);
       }
       this.markViewForCheck();
       return;
     }
 
-    if (previousIndex === 3 && this.partnersBoardToggleChecked) {
+    if (previousIndex === BoardFilterIndex.Partners && this.partnersBoardToggleChecked) {
       this.beginPartnerBoardTransition();
       this.globalSelectionService.setPartnersBoardSelection(false);
     }
 
-    if (nextIndex === 0) {
+    if (nextIndex === BoardFilterIndex.Furnished) {
       this.globalSelectionService.setFurnishedPropertySelection(false);
-    } else if (nextIndex === 1) {
+    } else if (nextIndex === BoardFilterIndex.Unfurnished) {
       this.globalSelectionService.setFurnishedPropertySelection(true);
-    } else if (nextIndex === 2) {
+    } else if (nextIndex === BoardFilterIndex.Both) {
       this.applyBothPropertyFilter();
-    } else if (nextIndex === 4 && !this.hasOwnerScope() && !this.partnersBoardToggleChecked) {
+    } else if ((nextIndex === BoardFilterIndex.Inactive || nextIndex === BoardFilterIndex.All)
+      && !this.hasOwnerScope()
+      && !this.partnersBoardToggleChecked) {
       this.loadPropertiesForFiveWayFilterPosition(nextIndex);
     }
 
@@ -1558,7 +1703,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   }
 
   applyBoardPropertyFilter(): void {
-    if (!this.hasOwnerScope() && (this.furnishedSliderIndex === 2 || this.furnishedSliderIndex === 3 || this.furnishedSliderIndex === 4)) {
+    if (!this.hasOwnerScope() && this.furnishedSliderIndex >= BoardFilterIndex.Both) {
       this.propertyRows = this.allPropertyRows || [];
       this.loadExternalCalendarReservations();
       return;
@@ -2118,6 +2263,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     this.allPropertyRows.forEach(syncRow);
     this.propertyRows.forEach(syncRow);
     this.standardPropertyRowsCache?.forEach(syncRow);
+    this.inactivePropertyRowsCache?.forEach(syncRow);
     this.partnerPropertyRowsCache?.forEach(syncRow);
   }
 

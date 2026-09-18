@@ -26,6 +26,7 @@ export interface BoardProperty {
   statusLetter: string;
   availableFrom?: string;
   availableUntil?: string;
+  isActive: boolean;
 }
 
 export interface CalendarDay {

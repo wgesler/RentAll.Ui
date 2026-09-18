@@ -1,11 +1,20 @@
-/** Reservation board five-way filter — positions 1–5 map to index 0–4. */
-export type FiveWayToggleValue = 0 | 1 | 2 | 3 | 4;
+/** Reservation board six-way filter — positions 1–6 map to index 0–5. */
+export type FiveWayToggleValue = 0 | 1 | 2 | 3 | 4 | 5;
+
+export const BoardFilterIndex = {
+  Furnished: 0,
+  Unfurnished: 1,
+  Both: 2,
+  Inactive: 3,
+  Partners: 4,
+  All: 5
+} as const;
 
 export interface ReservationBoardFiveWayFilterOption {
   readonly index: FiveWayToggleValue;
   /** Shown beside the toggle thumb for this position. */
   readonly label: string;
-  /** Documents the API call this position will invoke (placeholder until endpoints exist). */
+  /** Documents the API call this position will invoke. */
   readonly apiCall: string;
 }
 
@@ -23,17 +32,22 @@ export const RESERVATION_BOARD_FIVE_WAY_FILTER_OPTIONS: readonly ReservationBoar
   {
     index: 2,
     label: 'Both',
-    apiCall: 'GET property/user/{userId}/active — cached; no furnish filter (full standard list)'
+    apiCall: 'GET property/user/{userId}/active — cached; no furnish filter (full active list)'
   },
   {
     index: 3,
+    label: 'InActive',
+    apiCall: 'GET property/user/{userId} — cached; client filter inactive'
+  },
+  {
+    index: 4,
     label: 'Partners',
     apiCall: 'GET partner/user/{userId}/active — cached separately'
   },
   {
-    index: 4,
+    index: 5,
     label: 'All',
-    apiCall: 'Merge cached standard + cached partner lists'
+    apiCall: 'Merge cached active + inactive + partner lists'
   }
 ] as const;
 
