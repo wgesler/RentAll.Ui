@@ -1545,6 +1545,10 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
     opacity: 0 !important;
 }
 
+.datatable-row-inactive {
+    opacity: 0.45;
+}
+
 .datatable-row-active {
     background-color: #ffffba;
 

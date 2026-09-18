@@ -34,7 +34,7 @@ import { BoardProperty, CalendarDay, PropertyHoverFieldGroups } from '../models/
 import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
-import { BoardFilterIndex, FiveWayToggleValue, getFiveWayFilterLabel } from '../models/property-filter-model';
+import { BoardFilterIndex, FiveWayToggleValue, getBoardFilterMaxIndex, getFiveWayFilterLabel, isAllFilterIndex, isPartnersFilterIndex } from '../models/property-filter-model';
 import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
@@ -651,11 +651,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   }
 
   get furnishedToggleMaxIndex(): FiveWayToggleValue {
-    return BoardFilterIndex.All;
+    return getBoardFilterMaxIndex(this.hasPartnerIntegration);
   }
 
   get isAllFilterSelected(): boolean {
-    return this.furnishedSliderIndex === BoardFilterIndex.All;
+    return isAllFilterIndex(this.furnishedSliderIndex, this.hasPartnerIntegration);
   }
 
   clampFurnishedSliderIndex(index: number): FiveWayToggleValue {
@@ -668,12 +668,12 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       this.ensureInactivePropertyCacheThen(() => this.applyFiveWayFilterFromCache(BoardFilterIndex.Inactive));
       return;
     }
-    if (clampedIndex === BoardFilterIndex.Partners) {
-      this.ensurePartnerPropertyCacheThen(() => this.applyFiveWayFilterFromCache(BoardFilterIndex.Partners));
+    if (isPartnersFilterIndex(clampedIndex, this.hasPartnerIntegration)) {
+      this.ensurePartnerPropertyCacheThen(() => this.applyFiveWayFilterFromCache(clampedIndex));
       return;
     }
-    if (clampedIndex === BoardFilterIndex.All) {
-      this.ensureAllPropertyCachesThen(() => this.applyFiveWayFilterFromCache(BoardFilterIndex.All));
+    if (isAllFilterIndex(clampedIndex, this.hasPartnerIntegration)) {
+      this.ensureAllPropertyCachesThen(() => this.applyFiveWayFilterFromCache(clampedIndex));
       return;
     }
     this.ensureStandardPropertyCacheThen(() => this.applyFiveWayFilterFromCache(clampedIndex));
@@ -698,14 +698,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       case BoardFilterIndex.Inactive:
         rows = [...scopedInactive];
         break;
-      case BoardFilterIndex.Partners:
-        rows = partner;
-        break;
-      case BoardFilterIndex.All:
-        rows = this.mergePropertyRowsById(scopedStandard, scopedInactive, partner);
-        break;
       default:
-        rows = scopedStandard;
+        if (isPartnersFilterIndex(index, this.hasPartnerIntegration)) {
+          rows = partner;
+        } else if (isAllFilterIndex(index, this.hasPartnerIntegration)) {
+          rows = this.mergePropertyRowsById(scopedStandard, scopedInactive, partner);
+        } else {
+          rows = scopedStandard;
+        }
     }
 
     this.applyFiveWayFilterPropertyRows(rows);
@@ -1052,18 +1052,18 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     const nextIndex = this.clampFurnishedSliderIndex(index);
     this.furnishedSliderIndex = nextIndex;
 
-    if (nextIndex === BoardFilterIndex.Partners) {
+    if (isPartnersFilterIndex(nextIndex, this.hasPartnerIntegration)) {
       if (!this.partnersBoardToggleChecked) {
         this.beginPartnerBoardTransition();
         this.globalSelectionService.setPartnersBoardSelection(true);
       } else if (this.partnerPropertyRowsCache !== null) {
-        this.applyFiveWayFilterFromCache(BoardFilterIndex.Partners);
+        this.applyFiveWayFilterFromCache(nextIndex);
       }
       this.markViewForCheck();
       return;
     }
 
-    if (previousIndex === BoardFilterIndex.Partners && this.partnersBoardToggleChecked) {
+    if (isPartnersFilterIndex(previousIndex, this.hasPartnerIntegration) && this.partnersBoardToggleChecked) {
       this.beginPartnerBoardTransition();
       this.globalSelectionService.setPartnersBoardSelection(false);
     }
@@ -1074,7 +1074,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       this.globalSelectionService.setFurnishedPropertySelection(true);
     } else if (nextIndex === BoardFilterIndex.Both) {
       this.applyBothPropertyFilter();
-    } else if ((nextIndex === BoardFilterIndex.Inactive || nextIndex === BoardFilterIndex.All)
+    } else if ((nextIndex === BoardFilterIndex.Inactive || isAllFilterIndex(nextIndex, this.hasPartnerIntegration))
       && !this.hasOwnerScope()
       && !this.partnersBoardToggleChecked) {
       this.loadPropertiesForFiveWayFilterPosition(nextIndex);
@@ -1099,7 +1099,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   //#region Get Methods
 
   get furnishedFilterLabel(): string {
-    return getFiveWayFilterLabel(this.furnishedSliderIndex);
+    return getFiveWayFilterLabel(this.furnishedSliderIndex, this.hasPartnerIntegration);
   }
 
   get officeOptions(): OfficeResponse[] {

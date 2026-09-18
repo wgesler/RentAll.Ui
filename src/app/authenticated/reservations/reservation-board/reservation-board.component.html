@@ -100,7 +100,7 @@
         @if (!isOwnerScopedView && !readOnly) {
           <div class="form-titlebar-actions-wrap uniform-gap">
             @if (!isPartnerAdmin) {
-            <div class="five-way-toggle" aria-label="Property filter">
+            <div class="five-way-toggle" [class.five-way-toggle--five]="!hasPartnerIntegration" aria-label="Property filter">
               <div class="five-way-toggle__control">
                 <div
                   class="five-way-toggle__switch"
@@ -128,7 +128,11 @@
                           <span class="five-way-toggle__x" aria-hidden="true"></span>
                         }
                         @case (4) {
-                          <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                          @if (hasPartnerIntegration) {
+                            <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                          } @else {
+                            <span class="five-way-toggle__check" aria-hidden="true"></span>
+                          }
                         }
                         @case (5) {
                           <span class="five-way-toggle__check" aria-hidden="true"></span>

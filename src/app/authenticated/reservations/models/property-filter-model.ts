@@ -51,6 +51,21 @@ export const RESERVATION_BOARD_FIVE_WAY_FILTER_OPTIONS: readonly ReservationBoar
   }
 ] as const;
 
-export function getFiveWayFilterLabel(index: FiveWayToggleValue): string {
-  return RESERVATION_BOARD_FIVE_WAY_FILTER_OPTIONS[index]?.label ?? RESERVATION_BOARD_FIVE_WAY_FILTER_OPTIONS[0].label;
+export function getFiveWayFilterLabel(index: FiveWayToggleValue, hasPartnerIntegration = true): string {
+  const labels = hasPartnerIntegration
+    ? ['Furnished', 'Unfurnished', 'Both', 'InActive', 'Partners', 'All']
+    : ['Furnished', 'Unfurnished', 'Both', 'InActive', 'All'];
+  return labels[index] ?? labels[0];
+}
+
+export function getBoardFilterMaxIndex(hasPartnerIntegration: boolean): FiveWayToggleValue {
+  return hasPartnerIntegration ? BoardFilterIndex.All : 4;
+}
+
+export function isPartnersFilterIndex(index: number, hasPartnerIntegration: boolean): boolean {
+  return hasPartnerIntegration && index === BoardFilterIndex.Partners;
+}
+
+export function isAllFilterIndex(index: number, hasPartnerIntegration: boolean): boolean {
+  return index === (hasPartnerIntegration ? BoardFilterIndex.All : 4);
 }

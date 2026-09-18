@@ -5,7 +5,6 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Ho
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
-import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
@@ -28,11 +27,13 @@ import { PropertyCalendarTesterDialogComponent } from '../../shared/modals/prope
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { PropertyLeaseType, getPropertyStatuses, getPropertyLeaseType } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
-import { PropertyListDisplay } from '../models/property.model';
+import { PropertyListDisplay, PropertyListResponse } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyService } from '../services/property.service';
+import { PartnerService } from '../../partners/services/partner.service';
+import { BoardFilterIndex, FiveWayToggleValue, getBoardFilterMaxIndex, getFiveWayFilterLabel, isAllFilterIndex, isPartnersFilterIndex } from '../../reservations/models/property-filter-model';
 type PropertyListDisplayRow = PropertyListDisplay & {
   propertyStatusText: string;
   propertyLeaseType: string;
@@ -71,14 +72,17 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private ngZone = inject(NgZone);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private propertyListingShareService = inject(PropertyListingShareService);
+  private partnerService = inject(PartnerService);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('propertyListContextMenuTrigger') propertyListContextMenuTrigger?: MatMenuTrigger;
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
-  showInactive: boolean = false;
   furnishedPropertyToggleChecked = false;
+  furnishedSliderIndex: FiveWayToggleValue = 0;
+  hasPartnerIntegration = false;
   allProperties: PropertyListDisplayRow[] = [];
+  partnerProperties: PropertyListDisplayRow[] | null = null;
   propertiesDisplay: PropertyListDisplayRow[] = [];
 
   offices: OfficeResponse[] = [];
@@ -139,6 +143,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.setIsActiveCheckboxEditability();
     this.userId = this.user?.userId || '';
     this.organizationId = this.user?.organizationId?.trim() ?? '';
+    this.hasPartnerIntegration = this.authService.hasPartnerIntegrationAccess();
+    this.furnishedSliderIndex = this.globalSelectionService.getFurnishedPropertySelection() === true ? 1 : 0;
     this.pageOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     const officeIdParam = this.route.snapshot.queryParams['officeId'];
@@ -163,6 +169,9 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.furnishedPropertyToggleChecked = v === true;
+      if (this.furnishedSliderIndex <= 1) {
+        this.furnishedSliderIndex = v === true ? 1 : 0;
+      }
       if (this.officeScopeResolved) {
         this.applyFilters();
       }
@@ -452,13 +461,104 @@ showPropertyCalendarUrlDialog(
   //#endregion
 
   //#region Filter Methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
+  get furnishedToggleMaxIndex(): FiveWayToggleValue {
+    return getBoardFilterMaxIndex(this.hasPartnerIntegration);
   }
 
-  onUnfurnishedToggle(event: MatSlideToggleChange): void {
-    this.globalSelectionService.setFurnishedPropertySelection(event.checked);
+  get furnishedFilterLabel(): string {
+    return getFiveWayFilterLabel(this.furnishedSliderIndex, this.hasPartnerIntegration);
+  }
+
+  get isAllFilterSelected(): boolean {
+    return isAllFilterIndex(this.furnishedSliderIndex, this.hasPartnerIntegration);
+  }
+
+  onFurnishedToggleTrackClick(event: MouseEvent): void {
+    const track = (event.currentTarget as HTMLElement).querySelector('.five-way-toggle__track');
+    if (!(track instanceof HTMLElement)) {
+      return;
+    }
+    this.setFurnishedSliderIndex(this.resolveFurnishedToggleIndexFromTrackClick(track, event.clientX));
+  }
+
+  onFurnishedToggleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.setFurnishedSliderIndex(this.clampFurnishedSliderIndex(this.furnishedSliderIndex - 1));
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.setFurnishedSliderIndex(this.clampFurnishedSliderIndex(this.furnishedSliderIndex + 1));
+    }
+  }
+
+  resolveFurnishedToggleIndexFromTrackClick(track: HTMLElement, clientX: number): FiveWayToggleValue {
+    const rect = track.getBoundingClientRect();
+    const stepCount = this.furnishedToggleMaxIndex + 1;
+    const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+    const index = Math.min(stepCount - 1, Math.max(0, Math.floor(ratio * stepCount)));
+    return this.clampFurnishedSliderIndex(index);
+  }
+
+  clampFurnishedSliderIndex(index: number): FiveWayToggleValue {
+    return Math.max(0, Math.min(this.furnishedToggleMaxIndex, index)) as FiveWayToggleValue;
+  }
+
+  setFurnishedSliderIndex(index: FiveWayToggleValue): void {
+    const nextIndex = this.clampFurnishedSliderIndex(index);
+    if (nextIndex === this.furnishedSliderIndex) {
+      return;
+    }
+    this.furnishedSliderIndex = nextIndex;
+    if (nextIndex === BoardFilterIndex.Furnished) {
+      this.globalSelectionService.setFurnishedPropertySelection(false);
+    } else if (nextIndex === BoardFilterIndex.Unfurnished) {
+      this.globalSelectionService.setFurnishedPropertySelection(true);
+    }
+    if (isPartnersFilterIndex(nextIndex, this.hasPartnerIntegration) || this.isAllFilterSelected) {
+      this.ensurePartnerPropertiesThen(() => this.applyFilters());
+      this.markViewForCheck();
+      return;
+    }
+    this.applyFilters();
+    this.markViewForCheck();
+  }
+
+  ensurePartnerPropertiesThen(onReady: () => void): void {
+    if (!this.hasPartnerIntegration) {
+      this.partnerProperties = this.partnerProperties ?? [];
+      onReady();
+      return;
+    }
+    if (this.partnerProperties !== null) {
+      onReady();
+      return;
+    }
+    if (!this.userId) {
+      this.partnerProperties = [];
+      onReady();
+      return;
+    }
+    this.partnerService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1)).subscribe({
+      next: (properties) => {
+        this.partnerProperties = this.mapListRows(properties || []);
+        onReady();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.partnerProperties = [];
+        onReady();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  mapListRows(properties: PropertyListResponse[]): PropertyListDisplayRow[] {
+    return this.applyPropertyContactDisplayNames(
+      this.mappingService.mapPropertyListRows(properties || []).map(row => ({
+        ...row,
+        propertyLeaseType: this.getPropertyLeaseTypeListLabel(row.propertyLeaseTypeId)
+      }))
+    );
   }
 
   applyFilters(): void {
@@ -466,20 +566,37 @@ showPropertyCalendarUrlDialog(
       return;
     }
 
-    let filtered = this.allProperties;
+    const officeScoped = (rows: PropertyListDisplayRow[]) => this.selectedOffice
+      ? rows.filter(property => property.officeId === this.selectedOffice.officeId)
+      : rows;
+    const standard = officeScoped(this.allProperties);
+    const partners = officeScoped(this.partnerProperties ?? []);
+    const isActive = (property: PropertyListDisplayRow) => this.mappingService.toBooleanValue(property.isActive);
+    const isUnfurnished = (property: PropertyListDisplayRow) => this.mappingService.toBooleanValue(property.unfurnished);
 
-    filtered = this.showInactive
-      ? filtered.filter(property => property.isActive === false)
-      : filtered.filter(property => property.isActive === true);
-
-    if (this.selectedOffice) {
-      filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
+    let filtered: PropertyListDisplayRow[];
+    if (this.furnishedSliderIndex === BoardFilterIndex.Furnished) {
+      filtered = standard.filter(property => isActive(property) && !isUnfurnished(property));
+    } else if (this.furnishedSliderIndex === BoardFilterIndex.Unfurnished) {
+      filtered = standard.filter(property => isActive(property) && isUnfurnished(property));
+    } else if (this.furnishedSliderIndex === BoardFilterIndex.Both) {
+      filtered = standard.filter(property => isActive(property));
+    } else if (this.furnishedSliderIndex === BoardFilterIndex.Inactive) {
+      filtered = standard.filter(property => !isActive(property));
+    } else if (isPartnersFilterIndex(this.furnishedSliderIndex, this.hasPartnerIntegration)) {
+      filtered = partners;
+    } else if (this.isAllFilterSelected) {
+      const byId = new Map<string, PropertyListDisplayRow>();
+      [...standard, ...partners].forEach(property => byId.set(property.propertyId, property));
+      filtered = Array.from(byId.values());
+    } else {
+      filtered = standard.filter(property => isActive(property));
     }
 
-    filtered = filtered.filter(property => property.unfurnished === this.globalSelectionService.getFurnishedPropertySelection());
-
+    const dimInactive = this.isAllFilterSelected;
     filtered.forEach(property => {
-      (property as any).rowActive = this.selectedPropertyIds.has(property.propertyId);
+      (property as PropertyListDisplayRow & { rowActive?: boolean; rowInactive?: boolean }).rowActive = this.selectedPropertyIds.has(property.propertyId);
+      (property as PropertyListDisplayRow & { rowInactive?: boolean }).rowInactive = dimInactive && !isActive(property);
     });
     this.propertiesDisplay = [...filtered];
   }
