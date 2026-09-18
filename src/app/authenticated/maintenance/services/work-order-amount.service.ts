@@ -11,19 +11,13 @@ export interface WorkOrderAmountContext {
   providedIn: 'root'
 })
 export class WorkOrderAmountService {
-  roundCurrency(value: unknown, roundUp: boolean = false): number {
+  roundCurrency(value: unknown): number {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {
       return 0;
     }
 
-    const scaled = numeric * 100;
-    const rounded = roundUp
-      ? (numeric >= 0
-        ? Math.ceil(scaled - Number.EPSILON)
-        : Math.floor(scaled + Number.EPSILON))
-      : Math.round(scaled);
-    return rounded / 100;
+    return Math.round((numeric + Number.EPSILON) * 100) / 100;
   }
 
   calculateLineTotal(receiptAmount: unknown, laborHours: unknown, laborCost: unknown): number {
@@ -177,8 +171,7 @@ export class WorkOrderAmountService {
   applyMarkupToReceiptAmount(baseAmount: unknown, context?: WorkOrderAmountContext): number {
     const amount = Number(baseAmount) || 0;
     const factor = this.getMarkupFactor(context);
-    const shouldRoundUp = factor > 1 && context?.applyMarkup === true && context?.isOwnerType === true;
-    return this.roundCurrency(amount * factor, shouldRoundUp);
+    return this.roundCurrency(amount * factor);
   }
 
   removeMarkupFromReceiptAmount(markedAmount: unknown, context?: WorkOrderAmountContext): number {
