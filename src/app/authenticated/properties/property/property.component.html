@@ -667,6 +667,76 @@
                       }
                     </mat-form-field>
                   </div>
+                  @if (!isExternalPartnerPropertyView) {
+                    @if (isPropertyManagementLease) {
+                    <div class="mb-4 flex items-center gap-3 mt-4">
+                      <app-searchable-select [disabled]="isExternalPartnerPropertyView"
+                        class="owner-select-field owner-select-field-primary"
+                        [renderInFormField]="true"
+                        [formFieldLabel]="'Owner'"
+                        [required]="true"
+                        [value]="form.get('owner1Id')?.value || ''"
+                        [options]="ownerOptions"
+                        [triggerValueClickable]="hasOwnerSelected('owner1Id')"
+                        [showSearchInput]="true"
+                        [searchPlaceholder]="'Type to filter owners...'"
+                        [nullOptionLabel]="''"
+                        [noResultsText]="'No owners match your search'"
+                        [showError]="!!(form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
+                        [errorText]="'Owner is required'"
+                        (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
+                        (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
+                      </app-searchable-select>
+                      <app-searchable-select [disabled]="isExternalPartnerPropertyView"
+                        class="owner-select-field owner-select-field-secondary"
+                        [renderInFormField]="true"
+                        [formFieldLabel]="'Owner 2 (Optional)'"
+                        [value]="form.get('owner2Id')?.value ?? null"
+                        [options]="ownerOptions"
+                        [triggerValueClickable]="hasOwnerSelected('owner2Id')"
+                        [showSearchInput]="true"
+                        [searchPlaceholder]="'Type to filter owners...'"
+                        [nullOptionLabel]="''"
+                        [noResultsText]="'No owners match your search'"
+                        (valueChange)="onOwnerDropdownChange('owner2Id', $event)"
+                        (triggerValueClick)="onOwnerNameClick($event, 'owner2Id')">
+                      </app-searchable-select>
+                      <app-searchable-select [disabled]="isExternalPartnerPropertyView"
+                        class="owner-select-field owner-select-field-secondary"
+                        [renderInFormField]="true"
+                        [formFieldLabel]="'Owner 3 (Optional)'"
+                        [value]="form.get('owner3Id')?.value ?? null"
+                        [options]="ownerOptions"
+                        [triggerValueClickable]="hasOwnerSelected('owner3Id')"
+                        [showSearchInput]="true"
+                        [searchPlaceholder]="'Type to filter owners...'"
+                        [nullOptionLabel]="''"
+                        [noResultsText]="'No owners match your search'"
+                        (valueChange)="onOwnerDropdownChange('owner3Id', $event)"
+                        (triggerValueClick)="onOwnerNameClick($event, 'owner3Id')">
+                      </app-searchable-select>
+                    </div>
+                    } @else {
+                    <div class="mb-4 flex items-center gap-3 mt-4">
+                      <app-searchable-select [disabled]="isExternalPartnerPropertyView"
+                        class="vendor-select-field"
+                        [renderInFormField]="true"
+                        [formFieldLabel]="'Vendor'"
+                        [required]="true"
+                        [disabled]="isPartnerOrganization"
+                        [value]="form.get('vendorId')?.value ?? null"
+                        [options]="vendorOptions"
+                        [showSearchInput]="!isPartnerOrganization"
+                        [searchPlaceholder]="'Type to filter vendors...'"
+                        [nullOptionLabel]="''"
+                        [noResultsText]="'No vendors match your search'"
+                        [showError]="!!(form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched)"
+                        [errorText]="'Vendor is required'"
+                        (valueChange)="onVendorDropdownChange($event)">
+                      </app-searchable-select>
+                    </div>
+                    }
+                  }
                   <div class="basic-row w-full min-w-0">
                     <div class="w-full min-w-0">
                       <div class="flex items-center justify-between mb-2">
@@ -674,87 +744,18 @@
                         <button mat-raised-button type="button" color="primary" (click)="addExternalCalendar()">Add iCal</button>
                       </div>
                       @for (link of externalCalendars; track $index) {
-                        <div class="flex items-center gap-2 mb-2">
+                        <div class="flex items-center gap-1 mb-2">
                           <mat-form-field appearance="outline" class="w-full min-w-0">
                             <mat-label>iCal URL</mat-label>
-                            <input matInput [(ngModel)]="externalCalendars[$index]" [ngModelOptions]="{standalone: true}" maxlength="4000" />
+                            <input matInput [(ngModel)]="link.url" [ngModelOptions]="{standalone: true}" maxlength="4000" />
                           </mat-form-field>
-                          <button mat-raised-button type="button" color="accent" (click)="removeExternalCalendar($index)">Remove</button>
+                          <button mat-icon-button type="button" class="delete-ledger-line-btn" style="color: #ae1f66;" (click)="removeExternalCalendar($index)" aria-label="Remove iCal URL" matTooltip="Remove this iCal URL">
+                            <mat-icon style="color: #ae1f66;">close</mat-icon>
+                          </button>
                         </div>
                       }
                     </div>
                   </div>
-                }
-                @if (!isOwnerView && !isExternalPartnerPropertyView) {
-                  <!-- Owners (property management lease) or Vendor (other lease types) -->
-                  @if (isPropertyManagementLease) {
-                  <div class="mb-4 flex items-center gap-3 mt-4">
-                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
-                      class="owner-select-field owner-select-field-primary"
-                      [renderInFormField]="true"
-                      [formFieldLabel]="'Owner'"
-                      [required]="true"
-                      [value]="form.get('owner1Id')?.value || ''"
-                      [options]="ownerOptions"
-                      [triggerValueClickable]="hasOwnerSelected('owner1Id')"
-                      [showSearchInput]="true"
-                      [searchPlaceholder]="'Type to filter owners...'"
-                      [nullOptionLabel]="''"
-                      [noResultsText]="'No owners match your search'"
-                      [showError]="!!(form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
-                      [errorText]="'Owner is required'"
-                      (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
-                      (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
-                    </app-searchable-select>
-                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
-                      class="owner-select-field owner-select-field-secondary"
-                      [renderInFormField]="true"
-                      [formFieldLabel]="'Owner 2 (Optional)'"
-                      [value]="form.get('owner2Id')?.value ?? null"
-                      [options]="ownerOptions"
-                      [triggerValueClickable]="hasOwnerSelected('owner2Id')"
-                      [showSearchInput]="true"
-                      [searchPlaceholder]="'Type to filter owners...'"
-                      [nullOptionLabel]="''"
-                      [noResultsText]="'No owners match your search'"
-                      (valueChange)="onOwnerDropdownChange('owner2Id', $event)"
-                      (triggerValueClick)="onOwnerNameClick($event, 'owner2Id')">
-                    </app-searchable-select>
-                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
-                      class="owner-select-field owner-select-field-secondary"
-                      [renderInFormField]="true"
-                      [formFieldLabel]="'Owner 3 (Optional)'"
-                      [value]="form.get('owner3Id')?.value ?? null"
-                      [options]="ownerOptions"
-                      [triggerValueClickable]="hasOwnerSelected('owner3Id')"
-                      [showSearchInput]="true"
-                      [searchPlaceholder]="'Type to filter owners...'"
-                      [nullOptionLabel]="''"
-                      [noResultsText]="'No owners match your search'"
-                      (valueChange)="onOwnerDropdownChange('owner3Id', $event)"
-                      (triggerValueClick)="onOwnerNameClick($event, 'owner3Id')">
-                    </app-searchable-select>
-                  </div>
-                  } @else {
-                  <div class="mb-4 flex items-center gap-3 mt-4">
-                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
-                      class="vendor-select-field"
-                      [renderInFormField]="true"
-                      [formFieldLabel]="'Vendor'"
-                      [required]="true"
-                      [disabled]="isPartnerOrganization"
-                      [value]="form.get('vendorId')?.value ?? null"
-                      [options]="vendorOptions"
-                      [showSearchInput]="!isPartnerOrganization"
-                      [searchPlaceholder]="'Type to filter vendors...'"
-                      [nullOptionLabel]="''"
-                      [noResultsText]="'No vendors match your search'"
-                      [showError]="!!(form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched)"
-                      [errorText]="'Vendor is required'"
-                      (valueChange)="onVendorDropdownChange($event)">
-                    </app-searchable-select>
-                  </div>
-                  }
                 }
               </div>
             </mat-expansion-panel>

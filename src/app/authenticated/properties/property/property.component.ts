@@ -146,7 +146,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   propertyId: string;
   property: PropertyResponse;
-  externalCalendars: string[] = [];
+  externalCalendars: { url: string }[] = [];
   selectedReservationId: string | null = null;
   copiedPropertyInformation: PropertyInformationResponse | null = null;
   pendingCopyFromPropertyId: string | null = null;
@@ -1001,7 +1001,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       formData.monthlyRate = this.property.monthlyRate !== null && this.property.monthlyRate !== undefined ? this.property.monthlyRate.toFixed(2) : '0.00';
       delete formData.externalCalendars;
       delete formData.externalCalendar;
-      this.externalCalendars = this.mappingService.mapPropertyICalsFromResponse(this.property.externalCalendars);
+      this.externalCalendars = this.mappingService.mapPropertyICalsFromResponse(this.property.externalCalendars).map(url => ({ url }));
       formData.departureFee = this.property.departureFee !== null && this.property.departureFee !== undefined ? this.property.departureFee.toFixed(2) : '0.00';
       formData.maidServiceFee = this.property.maidServiceFee !== null && this.property.maidServiceFee !== undefined ? this.property.maidServiceFee.toFixed(2) : '0.00';
       formData.petFee = this.property.petFee !== null && this.property.petFee !== undefined ? this.property.petFee.toFixed(2) : '0.00';
@@ -2683,7 +2683,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   }
 
   addExternalCalendar(): void {
-    this.externalCalendars = [...this.externalCalendars, ''];
+    this.externalCalendars = [...this.externalCalendars, { url: '' }];
     this.markViewForCheck();
   }
 
@@ -2693,7 +2693,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   }
 
   buildExternalCalendarRequest(): string[] {
-    return this.externalCalendars.map(url => (url || '').trim()).filter(url => url.length > 0);
+    return this.externalCalendars.map(link => (link.url || '').trim()).filter(url => url.length > 0);
   }
 
   markViewForCheck(): void {
