@@ -446,9 +446,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     if (!force && (this.isLoadingReservations || this.lastLoadedOfficeId === currentOfficeId)) return;
 
     const scopedOwnerId = this.getScopedOwnerId();
-    const reservations$ = scopedOwnerId
-      ? this.reservationService.getReservationsByOwner(scopedOwnerId)
-      : this.reservationService.getReservationList();
+    const reservations$ = this.partnersBoardToggleChecked
+      ? this.partnerService.getReservationListByUser(this.userId)
+      : scopedOwnerId
+        ? this.reservationService.getReservationsByOwner(scopedOwnerId)
+        : this.reservationService.getReservationList();
 
     this.isLoadingReservations = true;
     if (!silent) {

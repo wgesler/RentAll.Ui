@@ -6,6 +6,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { PropertyListingShareResponse } from '../../properties/models/property-listing-share.model';
 import { PropertyPhotoResponse } from '../../properties/models/property-photo.model';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { PartnerCityStateResponse, PartnerContactResponse } from '../models/partner.model';
 
 @Injectable({
@@ -21,6 +22,12 @@ export class PartnerService {
   getAllProperties(): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'properties').pipe(
       map(properties => (properties || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>))),
+      catchError(() => of([]))
+    );
+  }
+
+  getReservationListByUser(userId: string): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'reservations/user/' + userId).pipe(
       catchError(() => of([]))
     );
   }
