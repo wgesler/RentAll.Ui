@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
+import { GlobalSelectionService } from './global-selection.service';
 
 @Injectable({
     providedIn: 'root'
@@ -11,6 +12,7 @@ import { OfficeRequest, OfficeResponse } from '../models/office.model';
 export class OfficeService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+  private globalSelectionService = inject(GlobalSelectionService);
 
   
   private readonly controller = this.configService.config().apiUrl + 'organization/office/';
@@ -28,7 +30,7 @@ export class OfficeService {
     }
     return this.http.get<OfficeResponse[]>(this.controller + id).pipe(
       tap((offices) => {
-        this.allOffices$.next(offices || []);
+        this.allOffices$.next(this.globalSelectionService.filterOfficeListForUser(offices || []));
         this.officesLoaded$.next(true);
         this.loadedOrganizationId = id;
       }),

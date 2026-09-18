@@ -51,7 +51,7 @@ export class GlobalSelectionService {
 
   /** Working Office in the user profile menu — the only intentional user write path. */
   setUserGlobalOfficeSelection(officeId: number | null): void {
-    this.applyGlobalOfficeSelection(officeId);
+    this.applyGlobalOfficeSelection(this.normalizeAccessibleOfficeId(officeId));
   }
 
   /** Logout / missing org — drop persisted global office. */
@@ -151,12 +151,36 @@ export class GlobalSelectionService {
   }
 
 applyGlobalOfficeSelection(officeId: number | null): void {
-    if (this.selectedOfficeId$.value === officeId) {
-      this.writeOfficeIdToStorage(officeId);
+    const nextOfficeId = this.normalizeAccessibleOfficeId(officeId);
+    if (this.selectedOfficeId$.value === nextOfficeId) {
+      this.writeOfficeIdToStorage(nextOfficeId);
       return;
     }
-    this.selectedOfficeId$.next(officeId);
-    this.writeOfficeIdToStorage(officeId);
+    this.selectedOfficeId$.next(nextOfficeId);
+    this.writeOfficeIdToStorage(nextOfficeId);
+  }
+
+  normalizeAccessibleOfficeId(officeId: number | null): number | null {
+    if (officeId == null) {
+      return null;
+    }
+    const parsedOfficeId = Number(officeId);
+    if (!Number.isFinite(parsedOfficeId) || parsedOfficeId <= 0) {
+      return null;
+    }
+    const officeAccessIds = this.getUserOfficeAccessIds();
+    if (officeAccessIds.size === 0 || officeAccessIds.has(parsedOfficeId)) {
+      return parsedOfficeId;
+    }
+    return null;
+  }
+
+  getUserOfficeAccessIds(): Set<number> {
+    return new Set(
+      (this.authService.getUser()?.officeAccess || [])
+        .map((id: unknown) => Number(id))
+        .filter(id => Number.isFinite(id) && id > 0)
+    );
   }
 
 resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
@@ -232,18 +256,12 @@ resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
 
   filterOfficeListForUser(offices: OfficeResponse[]): OfficeResponse[] {
     const source = offices || [];
-    const officeAccessArray = this.authService.getUser()?.officeAccess || [];
-    const officeAccessSet = new Set(
-      officeAccessArray
-        .map((id: unknown) => Number(id))
-        .filter(id => Number.isFinite(id) && id > 0)
-    );
-
-    if (officeAccessSet.size === 0) {
+    const officeAccessIds = this.getUserOfficeAccessIds();
+    if (officeAccessIds.size === 0) {
       return source;
     }
 
-    return source.filter(office => officeAccessSet.has(Number(office.officeId)));
+    return source.filter(office => officeAccessIds.has(Number(office.officeId)));
   }
 
   readOfficeIdFromStorage(): number | null {
