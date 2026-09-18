@@ -2286,6 +2286,14 @@ mat-form-field input,
   }
 }
 
+.contact-form-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
+  padding: 0 !important;
+  border-radius: 0.5rem !important;
+  overflow: auto !important;
+  max-height: 90vh !important;
+  background: #fff;
+}
+
 /* Accounting form dialogs: edge-to-edge slate header, rounded white shell (Begin Reconciliation pattern). */
 .accounting-form-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
   padding: 0 !important;

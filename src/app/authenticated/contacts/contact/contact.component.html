@@ -649,56 +649,10 @@
                 </mat-form-field>
               }
 
+              @if (form.get('entityTypeId')?.value === EntityType.Vendor || canViewContactCardOnFile) {
               <div class="col-span-4">
                 <mat-accordion multi="true">
-                  <mat-expansion-panel [expanded]="true" class="mb-4">
-                    <mat-expansion-panel-header>
-                      <mat-panel-title class="contact-form-title">Card On File</mat-panel-title>
-                    </mat-expansion-panel-header>
-                    @if (!contactCard) {
-                      <button mat-raised-button type="button" color="primary" (click)="onAddContactCardClick()">
-                        Add Card
-                      </button>
-                    } @else {
-                      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <mat-form-field appearance="outline">
-                          <mat-label>Type</mat-label>
-                          <mat-select [(ngModel)]="contactCard.cardTypeId" [ngModelOptions]="{standalone: true}" (ngModelChange)="onContactCardFieldChange()">
-                            <mat-option [value]="-1">Select Card Type</mat-option>
-                            @for (cardType of cardTypeOptions; track cardType.value) {
-                              <mat-option [value]="cardType.value">{{ cardType.label }}</mat-option>
-                            }
-                          </mat-select>
-                        </mat-form-field>
-                        <mat-form-field appearance="outline">
-                          <mat-label>Name On Card</mat-label>
-                          <input matInput [(ngModel)]="contactCard.cardName" [ngModelOptions]="{standalone: true}" (blur)="onContactCardFieldChange()" />
-                        </mat-form-field>
-                        <mat-form-field appearance="outline">
-                          <mat-label>Card Display</mat-label>
-                          <input matInput [value]="getContactCardDisplayLabel()" readonly tabindex="-1" />
-                        </mat-form-field>
-                        <mat-form-field appearance="outline">
-                          <mat-label>Card Number</mat-label>
-                          <input
-                            #contactCardPanInput
-                            matInput
-                            [value]="getContactCardPanDisplay()"
-                            inputmode="numeric"
-                            (focus)="onContactCardPanFocus()"
-                            (blur)="onContactCardPanBlur()"
-                            (input)="onContactCardNumberInput($event)" />
-                          @if (isContactCardPanDecrypting) {
-                            <mat-hint>Decrypting</mat-hint>
-                          }
-                        </mat-form-field>
-                      </div>
-                      <div class="mt-2">
-                        <button mat-raised-button type="button" color="accent" (click)="removeContactCard()">Remove Card</button>
-                      </div>
-                    }
-                  </mat-expansion-panel>
-                  @if (form.get('entityTypeId')?.value === EntityType.Vendor) {
+                    @if (form.get('entityTypeId')?.value === EntityType.Vendor) {
                     <mat-expansion-panel [expanded]="true" class="mb-4">
                       <mat-expansion-panel-header>
                         <mat-panel-title class="contact-form-title">W9 &amp; Insurance</mat-panel-title>
@@ -824,10 +778,59 @@
                           </div>
                         </div>
                     </mat-expansion-panel>
-                  }
-
+                    }
+                    @if (canViewContactCardOnFile) {
+                    <mat-expansion-panel [expanded]="true" class="mb-4">
+                      <mat-expansion-panel-header>
+                        <mat-panel-title class="contact-form-title">Card On File</mat-panel-title>
+                      </mat-expansion-panel-header>
+                      @if (!contactCard) {
+                        <button mat-raised-button type="button" color="primary" (click)="onAddContactCardClick()">
+                          Add Card
+                        </button>
+                      } @else {
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <mat-form-field appearance="outline">
+                            <mat-label>Type</mat-label>
+                            <mat-select [(ngModel)]="contactCard.cardTypeId" [ngModelOptions]="{standalone: true}" (ngModelChange)="onContactCardFieldChange()">
+                              <mat-option [value]="-1">Select Card Type</mat-option>
+                              @for (cardType of cardTypeOptions; track cardType.value) {
+                                <mat-option [value]="cardType.value">{{ cardType.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Name On Card</mat-label>
+                            <input matInput [(ngModel)]="contactCard.cardName" [ngModelOptions]="{standalone: true}" (blur)="onContactCardFieldChange()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Card Display</mat-label>
+                            <input matInput [value]="getContactCardDisplayLabel()" readonly tabindex="-1" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Card Number</mat-label>
+                            <input
+                              #contactCardPanInput
+                              matInput
+                              [value]="getContactCardPanDisplay()"
+                              inputmode="numeric"
+                              (focus)="onContactCardPanFocus()"
+                              (blur)="onContactCardPanBlur()"
+                              (input)="onContactCardNumberInput($event)" />
+                            @if (isContactCardPanDecrypting) {
+                              <mat-hint>Decrypting</mat-hint>
+                            }
+                          </mat-form-field>
+                        </div>
+                        <div class="mt-2">
+                          <button mat-raised-button type="button" color="accent" (click)="removeContactCard()">Remove Card</button>
+                        </div>
+                      }
+                    </mat-expansion-panel>
+                    }
                 </mat-accordion>
               </div>
+              }
 
             </div>
           </form>

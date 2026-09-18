@@ -2927,6 +2927,52 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.validateNumberOfPeopleAgainstContacts();
   }
 
+  hasContactSelected(): boolean {
+    const value = this.form?.get('contactId')?.value;
+    return !!value && !this.newContactDialogService.isNewContactOptionValue(value);
+  }
+
+  hasAdditionalContactSelected(index: number): boolean {
+    const value = this.additionalContactRows[index]?.contactId;
+    return !!value && !this.newContactDialogService.isNewContactOptionValue(value);
+  }
+
+  onContactNameClick(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const value = this.form?.get('contactId')?.value;
+    if (value && !this.newContactDialogService.isNewContactOptionValue(value)) {
+      this.openEditContactDialog(String(value));
+    }
+  }
+
+  onAdditionalContactNameClick(event: Event, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const value = this.additionalContactRows[index]?.contactId;
+    if (value && !this.newContactDialogService.isNewContactOptionValue(value)) {
+      this.openEditContactDialog(String(value));
+    }
+  }
+
+  openEditContactDialog(contactId: string): void {
+    if (!contactId || this.newContactDialogService.isNewContactOptionValue(contactId)) {
+      return;
+    }
+
+    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
+      next: (contact) => {
+        this.newContactDialogService.openEditContactDialog({
+          contact,
+          entityTypeId: contact.entityTypeId ?? this.getNewContactEntityTypeIdForReservation() ?? EntityType.Tenant
+        }).pipe(take(1)).subscribe();
+      },
+      error: () => {
+        this.toastr.error('Failed to load contact.');
+      }
+    });
+  }
+
   onAdditionalContactNameChange(index: number, contactId: string | number | null): void {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId).trim();
     if (this.newContactDialogService.isNewContactOptionValue(normalizedContactId)) {

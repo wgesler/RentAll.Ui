@@ -191,6 +191,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.isAddMode = false;
       if (this.dialogData.entityTypeId != null) this.presetEntityTypeId = this.dialogData.entityTypeId;
       if (this.dialogData.compactDialogMode != null) this.compactDialogMode = this.dialogData.compactDialogMode;
+      if (this.dialogData.showDialogCancelButton != null) this.showDialogCancelButton = this.dialogData.showDialogCancelButton;
     } else {
       if (this.dialogData) {
         if (this.dialogData.entityTypeId != null) {
@@ -1892,6 +1893,14 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion 
 
   //#region Card On File
+  get canViewContactCardOnFile(): boolean {
+    return this.authService.hasRole(UserGroups.SuperAdmin)
+      || this.authService.hasRole(UserGroups.Admin)
+      || this.authService.hasRole(UserGroups.OfficeAdmin)
+      || this.authService.hasRole(UserGroups.Accounting)
+      || this.authService.hasRole(UserGroups.AccountingAdmin);
+  }
+
   applyContactCardFromContact(contact: ContactResponse | null): void {
     this.contactCard = contact?.contactCard ? this.mappingService.mapContactCardFromResponse(contact.contactCard) : null;
     this.isEditingContactCardNumber = false;
@@ -1899,6 +1908,9 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onAddContactCardClick(): void {
+    if (!this.canViewContactCardOnFile) {
+      return;
+    }
     this.contactCard = {
       contactCardId: 0,
       organizationId: this.contact?.organizationId || this.selectedOrganizationId || '',
@@ -1913,7 +1925,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   removeContactCard(): void {
-    if (!this.contactCard) {
+    if (!this.canViewContactCardOnFile || !this.contactCard) {
       return;
     }
 
@@ -2075,6 +2087,9 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onContactCardPanFocus(): void {
+    if (!this.canViewContactCardOnFile) {
+      return;
+    }
     this.isEditingContactCardNumber = true;
     if (!this.contactCard) {
       return;

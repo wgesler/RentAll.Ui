@@ -113,6 +113,8 @@ export class NewContactDialogService {
     const dialogRef = this.dialog.open(ContactComponent, {
       width: '1200px',
       maxWidth: '95vw',
+      maxHeight: '90vh',
+      panelClass: 'contact-form-dialog-panel',
       disableClose: true,
       data
     });
@@ -131,6 +133,8 @@ export class NewContactDialogService {
     const dialogRef = this.dialog.open(ContactComponent, {
       width: '1200px',
       maxWidth: '95vw',
+      maxHeight: '90vh',
+      panelClass: 'contact-form-dialog-panel',
       disableClose: true,
       data: {
         preloadedContact: options.contact,

@@ -200,6 +200,9 @@
   background: #e2e8f0;
   border-radius: 0.5rem 0.5rem 0 0;
   padding: 0.5rem 1rem 0.5rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .contact-dialog-title {
@@ -214,9 +217,10 @@
 
 .contact-dialog-shell--with-titlebar {
   width: 100%;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
 }
 
 .contact-dialog-shell--with-titlebar > .contact-dialog-header,
@@ -247,6 +251,11 @@
 
 .info-form .grid {
   gap: calc(var(--global-form-row-gap) * 2) var(--global-form-field-gap-x) !important;
+}
+
+.contact-dialog-wrap-compact .info-form .grid {
+  column-gap: var(--global-form-field-gap-x) !important;
+  row-gap: var(--global-form-row-gap) !important;
 }
 
 

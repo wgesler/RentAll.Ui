@@ -329,13 +329,15 @@
                 [value]="form.get('contactId')?.value || ''"
                 [options]="contactNameOptions"
                 [disabled]="form.get('contactId')?.disabled ?? false"
+                [triggerValueClickable]="hasContactSelected()"
                 [showSearchInput]="true"
                 [searchPlaceholder]="'Type to filter contacts...'"
                 [nullOptionLabel]="'Select Contact'"
                 [noResultsText]="'No contacts match your search'"
                 [showError]="!!(form.get('contactId')?.invalid && form.get('contactId')?.touched)"
                 [errorText]="'Contact Name is required'"
-                (valueChange)="onContactNameChange($event)">
+                (valueChange)="onContactNameChange($event)"
+                (triggerValueClick)="onContactNameClick($event)">
               </app-searchable-select>
 
               @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
@@ -381,12 +383,14 @@
                   [required]="false"
                   [value]="contactRow.contactId || ''"
                   [options]="contactNameOptionsNoCreate"
+                  [triggerValueClickable]="hasAdditionalContactSelected($index)"
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
                   [nullOptionLabel]="'Select Contact'"
                   [noResultsText]="'No contacts match your search'"
-                  (valueChange)="onAdditionalContactNameChange($index, $event)">
+                  (valueChange)="onAdditionalContactNameChange($index, $event)"
+                  (triggerValueClick)="onAdditionalContactNameClick($event, $index)">
                 </app-searchable-select>
 
                 <mat-form-field appearance="outline" class="col-span-1">
