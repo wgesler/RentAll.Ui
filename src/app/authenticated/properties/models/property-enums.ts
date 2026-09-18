@@ -209,6 +209,7 @@ export function getPropertyStatuses(): { value: number, label: string }[] {
 
 //#region CheckinTimes
 export enum CheckinTimes {
+  ElevenAM = 0,
   TwelvePM = 1,
   OnePM = 2,
   TwoPM = 3,
@@ -219,9 +220,10 @@ export enum CheckinTimes {
 
 // Gets the check-in time label string from a CheckinTimes enum value
 export function getCheckInTime(checkInTimeId: number | undefined): string {
-  if (!checkInTimeId) return '';
+  if (checkInTimeId === undefined || checkInTimeId === null) return '';
   
   const timeMap: { [key: number]: string } = {
+    [CheckinTimes.ElevenAM]: '11:00 AM',
     [CheckinTimes.TwelvePM]: '12:00 PM',
     [CheckinTimes.OnePM]: '1:00 PM',
     [CheckinTimes.TwoPM]: '2:00 PM',
@@ -230,12 +232,13 @@ export function getCheckInTime(checkInTimeId: number | undefined): string {
     [CheckinTimes.FivePM]: '5:00 PM'
   };
   
-  return timeMap[checkInTimeId] || '';
+  return timeMap[checkInTimeId] ?? '';
 }
 
 // Gets the array of check-in time options for dropdowns
 export function getCheckInTimes(): { value: number, label: string }[] {
   return [
+    { value: CheckinTimes.ElevenAM, label: '11:00 AM' },
     { value: CheckinTimes.TwelvePM, label: '12:00 PM' },
     { value: CheckinTimes.OnePM, label: '1:00 PM' },
     { value: CheckinTimes.TwoPM, label: '2:00 PM' },
