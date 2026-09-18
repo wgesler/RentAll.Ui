@@ -703,8 +703,8 @@ export class UtilityService {
     return `${code}: ${contactName}`;
   }
 
-  getReservationBoardLabel(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null) {
-    if (!reservation) 
+  getReservationBoardLabel(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null, hideName = false) {
+    if (!reservation || hideName) 
       return '';
     
     const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);

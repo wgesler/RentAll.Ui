@@ -1327,7 +1327,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
         return result;
       }
       const contact = reservation.contactId ? this.contacts.find(c => c.contactId === reservation.contactId) ?? null : null;
-      const fullName = this.utilityService.getReservationBoardLabel(reservation, contact).toUpperCase();
+      const fullName = this.utilityService.getReservationBoardLabel(reservation, contact, this.partnersBoardToggleChecked).toUpperCase();
       const reservationDays = Math.floor((departure.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       if (reservationDays > 0 && this.shouldCenterAcrossReservation(arrival, departure)) {
