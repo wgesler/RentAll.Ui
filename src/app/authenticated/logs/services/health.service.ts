@@ -5,7 +5,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { GeneralLedgerService } from '../../accounting/services/general-ledger.service';
 import { JournalEntrySyncJobStatus, JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
 import { ConfigService } from '../../../services/config.service';
-import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary, HealthCheckKey, healthKeyToPaymentKindId, healthKeyToSyncType } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, DocumentHealthSummary, HealthCheckKey, TransactionChainExport, healthKeyToPaymentKindId, healthKeyToSyncType } from '../models/health.model';
 
 @Injectable({
   providedIn: 'root'
@@ -16,6 +16,20 @@ export class HealthService {
   private generalLedgerService = inject(GeneralLedgerService);
 
   private readonly controller = this.configService.config().apiUrl + 'health/';
+
+  exportTransactionChain(
+    officeIds: number[] = [],
+    startDate: string | null = null,
+    endDate: string | null = null
+  ): Observable<TransactionChainExport> {
+    return this.http.post<unknown>(this.controller + 'transaction-chain/export', {
+      officeIds,
+      startDate,
+      endDate
+    }).pipe(
+      map(result => this.mapTransactionChainExport(result))
+    );
+  }
 
   //#region Receipt Methods
   checkReceipts(officeIds: number[] = []): Observable<DocumentHealthResult> {
@@ -189,6 +203,37 @@ export class HealthService {
     }
 
     return CommonMessage.ServiceError;
+  }
+
+  mapTransactionChainExport(raw: unknown): TransactionChainExport {
+    const payload = (raw ?? {}) as Record<string, unknown>;
+    const summaryRaw = payload['summary'] ?? payload['Summary'];
+
+    return {
+      chain: this.mapExportRows(payload['chain'] ?? payload['Chain']),
+      invoices: this.mapExportRows(payload['invoices'] ?? payload['Invoices']),
+      invoiceLines: this.mapExportRows(payload['invoiceLines'] ?? payload['InvoiceLines']),
+      payments: this.mapExportRows(payload['payments'] ?? payload['Payments']),
+      deposits: this.mapExportRows(payload['deposits'] ?? payload['Deposits']),
+      transfers: this.mapExportRows(payload['transfers'] ?? payload['Transfers']),
+      summary: summaryRaw ? this.mapExportRow(summaryRaw) : null
+    };
+  }
+
+  private mapExportRows(raw: unknown): Record<string, unknown>[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(row => this.mapExportRow(row));
+  }
+
+  private mapExportRow(raw: unknown): Record<string, unknown> {
+    if (!raw || typeof raw !== 'object') {
+      return {};
+    }
+
+    return { ...(raw as Record<string, unknown>) };
   }
 
   mapDocumentHealthResult(raw: unknown): DocumentHealthResult {

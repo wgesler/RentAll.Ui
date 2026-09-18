@@ -150,6 +150,16 @@ export function sumHealthFixJobProgress(status: JournalEntrySyncJobStatus): { to
   };
 }
 
+export interface TransactionChainExport {
+  chain: Record<string, unknown>[];
+  invoices: Record<string, unknown>[];
+  invoiceLines: Record<string, unknown>[];
+  payments: Record<string, unknown>[];
+  deposits: Record<string, unknown>[];
+  transfers: Record<string, unknown>[];
+  summary: Record<string, unknown> | null;
+}
+
 export function mapHealthFixJobStatusToSyncResult(status: JournalEntrySyncJobStatus): JournalEntrySyncResult {
   const types = status.types ?? [];
   const errors = types.flatMap(row => row.errorMessages ?? []).filter(message => !!String(message).trim());

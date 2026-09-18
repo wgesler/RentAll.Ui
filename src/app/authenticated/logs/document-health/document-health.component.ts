@@ -13,9 +13,10 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, countHealthFixDocuments, describeOfficeScanRepairProgress, mapHealthFixJobStatusToSyncResult, sumHealthFixJobProgress } from '../models/health.model';
+import { DocumentHealthIssue, DocumentHealthResult, FixAllOutcome, HealthCheckKey, HealthCheckRowState, HealthIssueDisplayRow, TransactionChainExport, countHealthFixDocuments, describeOfficeScanRepairProgress, mapHealthFixJobStatusToSyncResult, sumHealthFixJobProgress } from '../models/health.model';
 import { DocumentHealthStateService } from '../services/document-health-state.service';
 import { HealthService } from '../services/health.service';
+import { DocumentExportService } from '../../../services/document-export.service';
 
 @Component({
   standalone: true,
@@ -29,6 +30,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   private healthService = inject(HealthService);
   private healthStateService = inject(DocumentHealthStateService);
+  private documentExportService = inject(DocumentExportService);
   private officeService = inject(OfficeService);
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
@@ -72,6 +74,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   issueRows: HealthIssueDisplayRow[] = [];
   isCheckingAll = false;
   isFixingAll = false;
+  isExportingTransactions = false;
   showIssueHint = false;
   unresolvedHint = '';
 
@@ -127,6 +130,51 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     return this.selectedOfficeId != null && this.selectedOfficeId > 0
       ? [this.selectedOfficeId]
       : [];
+  }
+
+  downloadTransactionReport(): void {
+    if (this.isExportingTransactions || this.isBulkBusy) {
+      return;
+    }
+
+    this.isExportingTransactions = true;
+    this.healthService.exportTransactionChain(this.getOfficeIdsForRequest()).pipe(
+      take(1),
+      finalize(() => {
+        this.isExportingTransactions = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe({
+      next: exportData => {
+        this.documentExportService.exportMultiSheetExcel(
+          this.buildTransactionReportFileName(),
+          this.buildTransactionReportSheets(exportData)
+        );
+        this.toastr.success('Transaction report downloaded.');
+      },
+      error: error => {
+        this.toastr.error(this.resolveObservedError(error), 'Download Transactions');
+      }
+    });
+  }
+
+  private buildTransactionReportFileName(): string {
+    const office = this.offices.find(item => item.officeId === this.selectedOfficeId);
+    const officeLabel = office?.officeCode?.trim() || 'AllOffices';
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return `TransactionReport_${officeLabel}_${stamp}`;
+  }
+
+  private buildTransactionReportSheets(exportData: TransactionChainExport) {
+    return [
+      { name: 'Chain', rows: exportData.chain },
+      { name: 'Invoices', rows: exportData.invoices },
+      { name: 'InvoiceLines', rows: exportData.invoiceLines },
+      { name: 'Payments', rows: exportData.payments },
+      { name: 'Deposits', rows: exportData.deposits },
+      { name: 'Transfers', rows: exportData.transfers },
+      { name: 'Summary', rows: exportData.summary ? [exportData.summary] : [] }
+    ];
   }
 
   resetHealthResults(): void {

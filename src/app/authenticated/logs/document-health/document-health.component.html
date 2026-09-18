@@ -20,11 +20,15 @@
       }
     </div>
     <div class="document-health-header-actions form-titlebar-actions-wrap uniform-gap">
-      <button mat-raised-button type="button" color="primary" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy" (click)="checkAll()">
+      <button mat-raised-button type="button" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy || isExportingTransactions" (click)="downloadTransactionReport()">
+        <mat-icon>download</mat-icon>
+        Download Transactions
+      </button>
+      <button mat-raised-button type="button" color="primary" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy || isExportingTransactions" (click)="checkAll()">
         <mat-icon>playlist_add_check</mat-icon>
         Check All
       </button>
-      <button mat-raised-button type="button" color="accent" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy" (click)="fixAll()">
+      <button mat-raised-button type="button" color="accent" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy || isExportingTransactions" (click)="fixAll()">
         <mat-icon>build</mat-icon>
         Fix All
       </button>

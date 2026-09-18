@@ -16,6 +16,11 @@ export interface ExcelExportTableDocument {
   rows: ExcelExportTableRow[];
 }
 
+export interface ExcelExportSheet {
+  name: string;
+  rows: Record<string, unknown>[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -73,6 +78,65 @@ buildExcelBlob(headers: string[], rows: string[][]): Blob {
       [workbookBytes],
       { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
     );
+  }
+
+  exportMultiSheetExcel(fileName: string, sheets: ExcelExportSheet[]): void {
+    const blob = this.buildMultiSheetExcelBlob(sheets);
+    this.downloadBlob(blob, this.resolveExcelFileName(fileName));
+  }
+
+  buildMultiSheetExcelBlob(sheets: ExcelExportSheet[]): Blob {
+    const workbook = utils.book_new();
+
+    for (const sheet of sheets || []) {
+      const exportRows = this.toReadableExportRows(sheet.rows || []);
+      const worksheet = exportRows.length > 0
+        ? utils.json_to_sheet(exportRows)
+        : utils.aoa_to_sheet([['No rows']]);
+      utils.book_append_sheet(workbook, worksheet, this.sanitizeSheetName(sheet.name));
+    }
+
+    const workbookBytes = write(workbook, { bookType: 'xlsx', type: 'array' });
+    return new Blob(
+      [workbookBytes],
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    );
+  }
+
+  private toReadableExportRows(rows: Record<string, unknown>[]): Record<string, string>[] {
+    return rows.map(row => {
+      const exportRow: Record<string, string> = {};
+      for (const [key, value] of Object.entries(row || {})) {
+        exportRow[this.formatExportHeader(key)] = this.formatExportCell(value);
+      }
+      return exportRow;
+    });
+  }
+
+  private formatExportHeader(key: string): string {
+    const normalized = key.replace(/^[A-Z]/, match => match.toLowerCase());
+    return normalized
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, char => char.toUpperCase())
+      .trim();
+  }
+
+  private formatExportCell(value: unknown): string {
+    if (value == null) {
+      return '';
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? String(value) : '';
+    }
+    return String(value);
+  }
+
+  private sanitizeSheetName(name: string): string {
+    const trimmed = (name || 'Sheet').trim() || 'Sheet';
+    return trimmed.replace(/[\\/*?:\[\]]/g, '').slice(0, 31);
   }
 
 resolveExcelFileName(fileName: string): string {
