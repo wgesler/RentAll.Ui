@@ -515,19 +515,22 @@ refreshSettingsOfficeScopedLists(): void {
 
   loadPartnerSettings(): void {
     const organizationId = this.effectiveOrganizationId;
-    this.hasPartnerIntegrationFeature = false;
-    this.partnerOrganizations = [];
-    this.partnersIn = [];
-    this.partnersOut = [];
     if (!organizationId || !this.isAdminLikeSettingsUser) {
+      this.hasPartnerIntegrationFeature = false;
+      this.partnerOrganizations = [];
+      this.partnersIn = [];
+      this.partnersOut = [];
       return;
     }
 
     this.organizationFeatureService.getFeaturesByOrganization(organizationId).pipe(take(1)).subscribe({
       next: (features) => {
         this.hasPartnerIntegrationFeature = (features || []).some(feature =>
-          feature.featureTypeId === FeatureType.PartnerIntegration && feature.hasAccess);
+          Number(feature.featureTypeId) === FeatureType.PartnerIntegration && !!feature.hasAccess);
         if (!this.hasPartnerIntegrationFeature) {
+          this.partnerOrganizations = [];
+          this.partnersIn = [];
+          this.partnersOut = [];
           return;
         }
 
@@ -536,8 +539,26 @@ refreshSettingsOfficeScopedLists(): void {
             this.partnerOrganizations = settings?.partnerOrganizations || [];
             this.partnersIn = (settings?.partnersIn || []).map(id => String(id));
             this.partnersOut = (settings?.partnersOut || []).map(id => String(id));
-          }
+            if (this.partnerOrganizations.length === 0) {
+              this.loadPartnerOrganizationsFallback(organizationId);
+            }
+          },
+          error: () => this.loadPartnerOrganizationsFallback(organizationId)
         });
+      }
+    });
+  }
+
+  private loadPartnerOrganizationsFallback(organizationId: string): void {
+    this.organizationService.getOrganizations().pipe(take(1)).subscribe({
+      next: (organizations) => {
+        this.partnerOrganizations = (organizations || [])
+          .filter(organization => organization.organizationId !== organizationId && organization.isActive !== false)
+          .map(organization => ({
+            organizationId: organization.organizationId,
+            organizationCode: organization.organizationCode,
+            name: organization.name
+          }));
       }
     });
   }

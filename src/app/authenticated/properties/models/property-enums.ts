@@ -264,12 +264,14 @@ export enum CheckoutTimes {
   TenAM = 3,
   ElevenAM = 4,
   TwelvePM = 5,
-  OnePM = 6
+  OnePM = 6,
+  TwoPM = 7,
+  ThreePM = 8
 }
 
 // Gets the check-out time label string from a CheckoutTimes enum value
 export function getCheckOutTime(checkOutTimeId: number | undefined): string {
-  if (!checkOutTimeId) return '';
+  if (checkOutTimeId === undefined || checkOutTimeId === null) return '';
   
   const timeMap: { [key: number]: string } = {
     [CheckoutTimes.EightAM]: '8:00 AM',
@@ -277,10 +279,12 @@ export function getCheckOutTime(checkOutTimeId: number | undefined): string {
     [CheckoutTimes.TenAM]: '10:00 AM',
     [CheckoutTimes.ElevenAM]: '11:00 AM',
     [CheckoutTimes.TwelvePM]: '12:00 PM',
-    [CheckoutTimes.OnePM]: '1:00 PM'
+    [CheckoutTimes.OnePM]: '1:00 PM',
+    [CheckoutTimes.TwoPM]: '2:00 PM',
+    [CheckoutTimes.ThreePM]: '3:00 PM'
   };
   
-  return timeMap[checkOutTimeId] || '';
+  return timeMap[checkOutTimeId] ?? '';
 }
 
 // Gets the array of check-out time options for dropdowns
@@ -291,7 +295,9 @@ export function getCheckOutTimes(): { value: number, label: string }[] {
     { value: CheckoutTimes.TenAM, label: '10:00 AM' },
     { value: CheckoutTimes.ElevenAM, label: '11:00 AM' },
     { value: CheckoutTimes.TwelvePM, label: '12:00 PM' },
-    { value: CheckoutTimes.OnePM, label: '1:00 PM' }
+    { value: CheckoutTimes.OnePM, label: '1:00 PM' },
+    { value: CheckoutTimes.TwoPM, label: '2:00 PM' },
+    { value: CheckoutTimes.ThreePM, label: '3:00 PM' }
   ];
 }
 
