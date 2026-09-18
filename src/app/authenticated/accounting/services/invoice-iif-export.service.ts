@@ -286,7 +286,21 @@ export class InvoiceIifExportService {
   }
 
   formatQuickBooksDocNumber(invoiceCode: string): string {
-    return this.sanitizeText(invoiceCode).replace(/^R-/i, '');
+    const sanitized = this.sanitizeText(invoiceCode).replace(/^R-/i, '');
+    const match = /^(\d+)(-.*)?$/.exec(sanitized);
+    if (!match) {
+      return sanitized;
+    }
+
+    const digits = match[1];
+    const suffix = match[2] || '';
+    if (digits.length <= 6) {
+      return sanitized;
+    }
+
+    const significant = digits.replace(/^0+/, '') || '0';
+    const firstSegment = significant.length >= 6 ? significant : significant.padStart(6, '0');
+    return `${firstSegment}${suffix}`;
   }
 
   formatAmount(value: number): string {
