@@ -64,7 +64,7 @@ export class PropertyCalendarUrlDialogComponent {
   }
 
   formatResponseLabel(key: string): string {
-    if (key === 'externalCalendar') {
+    if (key === 'externalCalendar' || key === 'externalCalendars') {
       return 'External Calendar';
     }
 

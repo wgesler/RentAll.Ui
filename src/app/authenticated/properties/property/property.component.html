@@ -668,13 +668,21 @@
                     </mat-form-field>
                   </div>
                   <div class="basic-row w-full min-w-0">
-                    <mat-form-field appearance="outline" class="w-full min-w-0">
-                      <mat-label>External iCalendar</mat-label>
-                      <input matInput formControlName="externalCalendar" maxlength="4000">
-                      @if (form.get('externalCalendar')?.hasError('maxlength') && form.get('externalCalendar')?.touched) {
-                        <mat-error>Maximum 4000 characters</mat-error>
+                    <div class="w-full min-w-0">
+                      <div class="flex items-center justify-between mb-2">
+                        <span>External iCalendar</span>
+                        <button mat-raised-button type="button" color="primary" (click)="addExternalCalendar()">Add iCal</button>
+                      </div>
+                      @for (link of externalCalendars; track $index) {
+                        <div class="flex items-center gap-2 mb-2">
+                          <mat-form-field appearance="outline" class="w-full min-w-0">
+                            <mat-label>iCal URL</mat-label>
+                            <input matInput [(ngModel)]="externalCalendars[$index]" [ngModelOptions]="{standalone: true}" maxlength="4000" />
+                          </mat-form-field>
+                          <button mat-raised-button type="button" color="accent" (click)="removeExternalCalendar($index)">Remove</button>
+                        </div>
                       }
-                    </mat-form-field>
+                    </div>
                   </div>
                 }
                 @if (!isOwnerView && !isExternalPartnerPropertyView) {

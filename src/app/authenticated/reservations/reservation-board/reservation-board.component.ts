@@ -507,19 +507,20 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   loadExternalCalendarReservations(): void {
     const currentSequence = ++this.externalCalendarLoadSequence;
-    const propertiesWithExternalCalendar = (this.propertyRows || []).filter(property => String(property.externalCalendar || '').trim() !== '');
+    const propertiesWithExternalCalendar = (this.propertyRows || []).filter(property => this.mappingService.getPropertyICalUrls(property).length > 0);
     if (propertiesWithExternalCalendar.length === 0) {
       this.externalCalendarReservations = [];
       this.combineBoardReservations();
       return;
     }
 
-    const requests = propertiesWithExternalCalendar.map(property => {
-      const externalCalendarUrl = String(property.externalCalendar || '').trim();
-      return this.commonService.importExternalCalendar(externalCalendarUrl, property.propertyCode).pipe(
-        map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [])),
-        catchError(() => of([] as ReservationListResponse[]))
-      );
+    const requests = propertiesWithExternalCalendar.flatMap(property => {
+      return this.mappingService.getPropertyICalUrls(property).map((externalCalendarUrl, calendarIndex) => {
+        return this.commonService.importExternalCalendar(externalCalendarUrl, property.propertyCode).pipe(
+          map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [], String(calendarIndex))),
+          catchError(() => of([] as ReservationListResponse[]))
+        );
+      });
     });
 
     forkJoin(requests).pipe(take(1)).subscribe({

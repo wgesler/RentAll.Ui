@@ -20,14 +20,14 @@ export class PartnerService {
 
   getAllProperties(): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'properties').pipe(
-      map(properties => properties || []),
+      map(properties => (properties || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>))),
       catchError(() => of([]))
     );
   }
 
   getActivePropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'properties/user/' + userId + '/active').pipe(
-      map(properties => properties || []),
+      map(properties => (properties || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>))),
       catchError(() => of([]))
     );
   }

@@ -551,6 +551,10 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    if (!this.validatePendingContactCardForSave()) {
+      return;
+    }
+
     const save$ = this.isAddMode && !linkedContactId
       ? this.contactService.createContact(contactRequest)
       : this.contactService.updateContact(contactRequest);
@@ -559,7 +563,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       next: (savedContact: ContactResponse) => {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        const savedContactId = savedContact?.contactId || contactRequest.contactId;
+        const savedContactId = String(savedContact?.contactId || contactRequest.contactId || '').trim();
         const savedEntityTypeId = savedContact?.entityTypeId ?? contactRequest.entityTypeId;
         const finalizeContactSave = (): void => {
           if (this.isEmbedded) {
@@ -572,43 +576,47 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
           finalizeContactSave();
         };
 
-        if (this.isAddMode && entityTypeId === EntityType.Owner && this.shouldCreateOwnerUser(savedContact)) {
-          const ownerUserRequest = this.buildOwnerUserRequest(savedContact, contactRequest);
-          if (!ownerUserRequest) {
-            this.toastr.warning('Owner saved, but user account could not be created (missing contact code or email).', CommonMessage.Error);
-            finishSave();
+        const continueAfterContact = (): void => {
+          if (this.isAddMode && entityTypeId === EntityType.Owner && this.shouldCreateOwnerUser(savedContact)) {
+            const ownerUserRequest = this.buildOwnerUserRequest(savedContact, contactRequest);
+            if (!ownerUserRequest) {
+              this.toastr.warning('Owner saved, but user account could not be created (missing contact code or email).', CommonMessage.Error);
+              finishSave();
+              return;
+            }
+            this.runCreateUserAndLinkContact(
+              savedContact,
+              contactRequest,
+              ownerUserRequest,
+              'Owner user account created and linked successfully.',
+              'Owner saved, but user account or link step could not be completed.',
+              finishSave
+            );
             return;
           }
-          this.runCreateUserAndLinkContact(
-            savedContact,
-            contactRequest,
-            ownerUserRequest,
-            'Owner user account created and linked successfully.',
-            'Owner saved, but user account or link step could not be completed.',
-            finishSave
-          );
-          return;
-        }
 
-        if (this.isAddMode && entityTypeId === EntityType.Vendor && this.shouldCreateVendorUser(formValue, savedContact)) {
-          const vendorUserRequest = this.buildVendorUserRequest(savedContact, contactRequest);
-          if (!vendorUserRequest) {
-            this.toastr.warning('Vendor saved, but user account could not be created (missing vendor code or email).', CommonMessage.Error);
-            finishSave();
+          if (this.isAddMode && entityTypeId === EntityType.Vendor && this.shouldCreateVendorUser(formValue, savedContact)) {
+            const vendorUserRequest = this.buildVendorUserRequest(savedContact, contactRequest);
+            if (!vendorUserRequest) {
+              this.toastr.warning('Vendor saved, but user account could not be created (missing vendor code or email).', CommonMessage.Error);
+              finishSave();
+              return;
+            }
+            this.runCreateUserAndLinkContact(
+              savedContact,
+              contactRequest,
+              vendorUserRequest,
+              'Vendor user account created and linked successfully.',
+              'Vendor saved, but user account or link step could not be completed.',
+              finishSave
+            );
             return;
           }
-          this.runCreateUserAndLinkContact(
-            savedContact,
-            contactRequest,
-            vendorUserRequest,
-            'Vendor user account created and linked successfully.',
-            'Vendor saved, but user account or link step could not be completed.',
-            finishSave
-          );
-          return;
-        }
 
-        finishSave();
+          finishSave();
+        };
+
+        this.persistPendingContactCardThen(savedContactId, continueAfterContact);
       },
       error: () => {}
     });
@@ -1891,11 +1899,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onAddContactCardClick(): void {
-    if (this.isAddMode || !this.contactId || this.contactId === 'new') {
-      this.toastr.warning('Save the contact before adding a card on file.', CommonMessage.Error);
-      return;
-    }
-
     this.contactCard = {
       contactCardId: 0,
       organizationId: this.contact?.organizationId || this.selectedOrganizationId || '',
@@ -1947,18 +1950,70 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.persistContactCardCreate();
   }
 
-  persistContactCardCreate(): void {
+  hasCompleteDraftContactCard(): boolean {
+    if (!this.contactCard || (this.contactCard.contactCardId || 0) > 0) {
+      return false;
+    }
+
+    return this.isValidContactCardType(this.contactCard.cardTypeId)
+      && !!(this.contactCard.cardName || '').trim()
+      && this.getContactCardNumberDigits().length >= 13;
+  }
+
+  hasStartedDraftContactCard(): boolean {
+    if (!this.contactCard || (this.contactCard.contactCardId || 0) > 0) {
+      return false;
+    }
+
+    return this.isValidContactCardType(this.contactCard.cardTypeId)
+      || !!(this.contactCard.cardName || '').trim()
+      || this.getContactCardNumberDigits().length > 0;
+  }
+
+  validatePendingContactCardForSave(): boolean {
+    if (!this.hasStartedDraftContactCard()) {
+      return true;
+    }
+
+    if (this.hasCompleteDraftContactCard()) {
+      return true;
+    }
+
+    this.toastr.error('Please complete the card on file (type, name, and number) before saving.', CommonMessage.Error);
+    return false;
+  }
+
+  persistPendingContactCardThen(savedContactId: string, then: () => void): void {
+    const targetContactId = (savedContactId || '').trim();
+    if (!this.hasCompleteDraftContactCard() || !targetContactId || targetContactId === 'new') {
+      then();
+      return;
+    }
+
+    this.contactId = targetContactId;
+    this.persistContactCardCreate(targetContactId, then);
+  }
+
+  persistContactCardCreate(contactIdOverride?: string, then?: () => void): void {
     if (!this.contactCard || (this.contactCard.contactCardId || 0) > 0 || this.isContactCardSaving) {
+      then?.();
       return;
     }
 
     if (!this.isValidContactCardType(this.contactCard.cardTypeId) || !(this.contactCard.cardName || '').trim() || this.getContactCardNumberDigits().length < 13) {
+      then?.();
+      return;
+    }
+
+    const targetContactId = (contactIdOverride || this.contactId || '').trim();
+    if (!targetContactId || targetContactId === 'new') {
+      then?.();
       return;
     }
 
     this.isContactCardSaving = true;
     const request = this.buildContactCardRequest();
-    this.contactCardService.createContactCard(this.contactId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
+    this.contactCardService.createContactCard(targetContactId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
       next: (response) => {
         this.contactCard = this.mappingService.mapContactCardFromResponse(response);
         if (this.contact && this.contactCard) {
@@ -1968,9 +2023,11 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         this.revealedContactCardPan = '';
         this.isEditingContactCardNumber = false;
         this.markViewForCheck();
+        then?.();
       },
       error: () => {
-        this.toastr.error('Failed to create contact card.', CommonMessage.Error);
+        this.toastr.error('Contact saved, but the card on file could not be created.', CommonMessage.Error);
+        then?.();
       }
     });
   }

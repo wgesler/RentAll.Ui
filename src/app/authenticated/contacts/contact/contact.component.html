@@ -655,9 +655,7 @@
                     <mat-expansion-panel-header>
                       <mat-panel-title class="contact-form-title">Card On File</mat-panel-title>
                     </mat-expansion-panel-header>
-                    @if (isAddMode) {
-                      <p class="text-sm text-slate-600">Save the contact before adding a card on file.</p>
-                    } @else if (!contactCard) {
+                    @if (!contactCard) {
                       <button mat-raised-button type="button" color="primary" (click)="onAddContactCardClick()">
                         Add Card
                       </button>

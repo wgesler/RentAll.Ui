@@ -2185,7 +2185,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     this.addMobileDetailField(fields, 'sofabed', 'Sofabed', property.sofabed == null ? '' : String(property.sofabed));
     this.addMobileDetailField(fields, 'latitude', 'Latitude', property.latitude == null ? '' : String(property.latitude));
     this.addMobileDetailField(fields, 'longitude', 'Longitude', property.longitude == null ? '' : String(property.longitude));
-    this.addMobileDetailField(fields, 'externalCalendar', 'External Calendar', property.externalCalendar);
+    this.addMobileDetailField(fields, 'externalCalendars', 'External Calendar', this.formatPropertyICalUrls(property.externalCalendars));
     this.addMobileDetailField(fields, 'unfurnished', 'Unfurnished', property.unfurnished ? 'true' : 'false', yesNo);
     this.addMobileDetailField(fields, 'heating', 'Heating', property.heating ? 'true' : 'false', yesNo);
     this.addMobileDetailField(fields, 'ac', 'A/C', property.ac ? 'true' : 'false', yesNo);
@@ -2329,7 +2329,9 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     assignInt('sofabed', property.sofabed ?? 0);
     assignDecimal('latitude', property.latitude ?? 0);
     assignDecimal('longitude', property.longitude ?? 0);
-    assignText('externalCalendar');
+    if (values.has('externalCalendars')) {
+      overrides.externalCalendars = text('externalCalendars').split(',').map(url => url.trim()).filter(url => url.length > 0);
+    }
     assignBool('unfurnished', !!property.unfurnished);
     assignBool('heating', !!property.heating);
     assignBool('ac', !!property.ac);
@@ -2991,7 +2993,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         ),
         onlineChecked: o.onlineChecked === true,
         offlineChecked: o.offlineChecked === true,
-        externalCalendar: o.externalCalendar ?? null,
+        externalCalendars: this.mapPropertyICalsFromResponse(o.externalCalendars),
         isActive: o.isActive,
         unfurnished: this.toBooleanValue(o.unfurnished),
       };
@@ -3072,6 +3074,42 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     });
   }
 
+  mapPropertyListResponse(raw: Record<string, unknown> | PropertyListResponse): PropertyListResponse {
+    const row = raw as Record<string, unknown>;
+    return {
+      ...(raw as PropertyListResponse),
+      externalCalendars: this.mapPropertyICalsFromResponse(row['externalCalendars'] ?? row['ExternalCalendars'] ?? row['externalCalendar'] ?? row['ExternalCalendar'])
+    };
+  }
+
+  mapPropertyICalsFromResponse(raw: unknown): string[] {
+    if (typeof raw === 'string') {
+      const url = raw.trim();
+      return url ? [url] : [];
+    }
+
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(item => {
+      if (typeof item === 'string') {
+        return item.trim();
+      }
+
+      const row = item as Record<string, unknown>;
+      return String(row['iCalUrl'] ?? row['ICalUrl'] ?? '').trim();
+    }).filter(url => url.length > 0);
+  }
+
+  getPropertyICalUrls(property: { externalCalendars?: string[] | null } | null | undefined): string[] {
+    return this.mapPropertyICalsFromResponse(property?.externalCalendars);
+  }
+
+  formatPropertyICalUrls(raw: unknown): string {
+    return this.getPropertyICalUrls({ externalCalendars: this.mapPropertyICalsFromResponse(raw) }).join(', ');
+  }
+
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
     const leaseTypeId = raw['propertyLeaseTypeId'] ?? raw['propertyLeaseId'];
     const noticeStatusId = raw['noticeStatusId'] ?? raw['NoticeStatusId'];
@@ -3085,7 +3123,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     const description = raw['description'] ?? raw['Description'];
     const amenities = raw['amenities'] ?? raw['Amenities'];
     const notes = raw['notes'] ?? raw['Notes'];
-    const externalCalendar = raw['externalCalendar'] ?? raw['ExternalCalendar'];
+    const externalCalendars = raw['externalCalendars'] ?? raw['ExternalCalendars'] ?? raw['externalCalendar'] ?? raw['ExternalCalendar'];
     const confirmationNo = raw['confirmationNo'] ?? raw['ConfirmationNo'];
     return {
       ...rest,
@@ -3095,7 +3133,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       description: description == null ? null : String(description),
       amenities: amenities == null ? null : String(amenities),
       notes: notes == null ? null : String(notes),
-      externalCalendar: externalCalendar == null ? null : String(externalCalendar),
+      externalCalendars: this.mapPropertyICalsFromResponse(externalCalendars),
       confirmationNo: confirmationNo == null ? null : String(confirmationNo),
       ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
@@ -6807,14 +6845,15 @@ roundCurrency(value: number): number {
 
   mapExternalCalendarEventsToReservationList(
     property: Pick<PropertyListResponse, 'propertyId' | 'propertyCode' | 'officeId' | 'officeName' | 'monthlyRate' | 'dailyRate'>,
-    events: ExternalCalendarImportEvent[]
+    events: ExternalCalendarImportEvent[],
+    calendarKey = '0'
   ): ReservationListResponse[] {
     const defaultLabel = 'External Calendar';
     return (events || []).map((event, index) => {
       const summary = String(event.summary || '').trim() || defaultLabel;
       const uid = String(event.uid || '').trim() || `${event.arrivalDate}-${event.departureDate}-${index}`;
       return {
-        reservationId: `extcal:${property.propertyId}:${uid}`,
+        reservationId: `extcal:${property.propertyId}:${calendarKey}:${uid}`,
         reservationCode: summary,
         propertyId: property.propertyId,
         propertyCode: property.propertyCode,

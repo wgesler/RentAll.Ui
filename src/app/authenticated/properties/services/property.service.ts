@@ -42,11 +42,11 @@ getOrganizationId(): string {
 
   // GET: Get property list (summary view)
   getPropertyList(): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'list');
+    return this.http.get<PropertyListResponse[]>(this.controller + 'list').pipe(map(list => this.mapPropertyListResponses(list)));
   }
 
   getActivePropertyList(): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'active-list');
+    return this.http.get<PropertyListResponse[]>(this.controller + 'active-list').pipe(map(list => this.mapPropertyListResponses(list)));
   }
 
   getPropertyCodes(): Observable<PropertyCodeResponse[]> {
@@ -187,16 +187,19 @@ refreshCachedPropertyCodesAfterMutation(): void {
 
   // POST: Get properties by selection criteria
   getPropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId);
+    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId).pipe(map(list => this.mapPropertyListResponses(list)));
   }
 
   getActivePropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId + '/active');
+    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId + '/active').pipe(map(list => this.mapPropertyListResponses(list)));
   }
 
-  // GET: Get properties associated with owner
   getPropertiesByOwner(ownerId: string): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId);
+    return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId).pipe(map(list => this.mapPropertyListResponses(list)));
+  }
+
+  mapPropertyListResponses(list: PropertyListResponse[] | null | undefined): PropertyListResponse[] {
+    return (list || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>));
   }
 
   // GET: Get calendar URL/tokenized calendar response for a property

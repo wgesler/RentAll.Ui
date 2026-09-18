@@ -824,7 +824,7 @@ export class MixedMappingService {
       description: property.description ?? null,
       amenities: property.amenities ?? null,
       notes: property.notes ?? null,
-      externalCalendar: property.externalCalendar ?? null
+      externalCalendars: this.mappingService.mapPropertyICalsFromResponse(property.externalCalendars)
     } as PropertyRequest;
     return { ...base, ...(overrides ?? {}) };
   }

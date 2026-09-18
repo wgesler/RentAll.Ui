@@ -1,5 +1,6 @@
 import type { CalendarDateString } from '../../../services/utility.service';
 
+
 export interface PropertyRequest {
   // Top section
   propertyId?: string | null;
@@ -63,7 +64,7 @@ export interface PropertyRequest {
   buildingId?: number | null;
   latitude: number;
   longitude: number;
-  externalCalendar?: string | null;
+  externalCalendars?: string[];
 
   // Features & Security section
   unfurnished: boolean;
@@ -210,7 +211,7 @@ export interface PropertyResponse {
   buildingId?: number | null;
   latitude: number;
   longitude: number;
-  externalCalendar?: string | null;
+  externalCalendars?: string[];
   
   // Features & Security section
   unfurnished: boolean;
@@ -338,7 +339,7 @@ export interface PropertyListResponse{
   offInspectingDate?: CalendarDateString | null;
   onlineChecked: boolean;
   offlineChecked: boolean;
-  externalCalendar?: string | null;
+  externalCalendars?: string[];
   isActive: boolean;
  }
 
@@ -400,7 +401,7 @@ export interface PropertyListDisplay {
   offInspectingDate?: CalendarDateString | null;
   onlineChecked: boolean;
   offlineChecked: boolean;
-  externalCalendar?: string | null;
+  externalCalendars?: string[];
   isActive: boolean;
 }
 

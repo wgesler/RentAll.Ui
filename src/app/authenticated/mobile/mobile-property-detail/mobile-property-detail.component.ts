@@ -107,7 +107,7 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
     'departureFee',
     'maidServiceFee',
     'petFee',
-    'externalCalendar',
+    'externalCalendars',
     'owner1Id',
     'owner2Id',
     'owner3Id',
