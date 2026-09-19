@@ -300,7 +300,6 @@
               <tr class="property-row"
                   [class.row-selected]="isPropertySelected(property.propertyId)"
                   [class.partner-property-row]="partnersBoardToggleChecked"
-                  [class.property-row--inactive]="isAllFilterSelected && !property.isActive"
                   (mouseenter)="onPartnerPropertyRowHover(property.propertyId, $event)"
                   (mouseleave)="onPartnerPropertyRowLeave()"
                   (mousedown)="!readOnly && $event.shiftKey ? $event.preventDefault() : null"

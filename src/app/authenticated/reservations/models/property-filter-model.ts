@@ -47,7 +47,7 @@ export const RESERVATION_BOARD_FIVE_WAY_FILTER_OPTIONS: readonly ReservationBoar
   {
     index: 5,
     label: 'All',
-    apiCall: 'Merge cached active + inactive + partner lists'
+    apiCall: 'Merge cached active standard + partner lists (excludes inactive)'
   }
 ] as const;
 

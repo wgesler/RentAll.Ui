@@ -587,16 +587,14 @@ showPropertyCalendarUrlDialog(
       filtered = partners;
     } else if (this.isAllFilterSelected) {
       const byId = new Map<string, PropertyListDisplayRow>();
-      [...standard, ...partners].forEach(property => byId.set(property.propertyId, property));
+      [...standard.filter(property => isActive(property)), ...partners].forEach(property => byId.set(property.propertyId, property));
       filtered = Array.from(byId.values());
     } else {
       filtered = standard.filter(property => isActive(property));
     }
 
-    const dimInactive = this.isAllFilterSelected;
     filtered.forEach(property => {
-      (property as PropertyListDisplayRow & { rowActive?: boolean; rowInactive?: boolean }).rowActive = this.selectedPropertyIds.has(property.propertyId);
-      (property as PropertyListDisplayRow & { rowInactive?: boolean }).rowInactive = dimInactive && !isActive(property);
+      (property as PropertyListDisplayRow & { rowActive?: boolean }).rowActive = this.selectedPropertyIds.has(property.propertyId);
     });
     this.propertiesDisplay = [...filtered];
   }

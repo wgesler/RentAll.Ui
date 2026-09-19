@@ -702,7 +702,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
         if (isPartnersFilterIndex(index, this.hasPartnerIntegration)) {
           rows = partner;
         } else if (isAllFilterIndex(index, this.hasPartnerIntegration)) {
-          rows = this.mergePropertyRowsById(scopedStandard, scopedInactive, partner);
+          rows = this.mergePropertyRowsById(scopedStandard, partner);
         } else {
           rows = scopedStandard;
         }
@@ -742,37 +742,20 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
 
   ensureAllPropertyCachesThen(onReady: () => void): void {
     const needStandard = this.standardPropertyRowsCache === null;
-    const needInactive = this.inactivePropertyRowsCache === null;
     const needPartner = this.hasPartnerIntegration && this.partnerPropertyRowsCache === null;
     if (!this.hasPartnerIntegration && this.partnerPropertyRowsCache === null) {
       this.partnerPropertyRowsCache = [];
     }
-    if (!needStandard && !needInactive && !needPartner) {
+    if (!needStandard && !needPartner) {
       onReady();
       return;
     }
-    if (needStandard && needInactive && needPartner) {
-      this.fetchStandardInactiveAndPartnerPropertyCaches(onReady);
-      return;
-    }
-    if (needStandard && needInactive) {
-      this.fetchStandardAndInactivePropertyCaches(onReady);
-      return;
-    }
     if (needStandard && needPartner) {
-      this.fetchStandardAndPartnerPropertyCaches(() => this.ensureInactivePropertyCacheThen(onReady));
-      return;
-    }
-    if (needInactive && needPartner) {
-      this.fetchInactiveAndPartnerPropertyCaches(onReady);
+      this.fetchStandardAndPartnerPropertyCaches(onReady);
       return;
     }
     if (needStandard) {
       this.fetchStandardPropertyCache(onReady);
-      return;
-    }
-    if (needInactive) {
-      this.fetchInactivePropertyCache(onReady);
       return;
     }
     this.fetchPartnerPropertyCache(onReady);
