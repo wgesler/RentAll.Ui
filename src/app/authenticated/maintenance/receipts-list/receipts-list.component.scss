@@ -2,6 +2,25 @@
   width: 100%;
 }
 
+:host ::ng-deep th.mat-header-cell.mat-column-receiptDate,
+:host ::ng-deep th.mat-mdc-header-cell.mat-column-receiptDate {
+  text-align: center !important;
+}
+
+:host ::ng-deep th.mat-column-receiptDate .mat-sort-header-container,
+:host ::ng-deep th.mat-column-receiptDate .mat-mdc-sort-header-container {
+  display: block !important;
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+:host ::ng-deep th.mat-column-receiptDate .mat-sort-header-content,
+:host ::ng-deep th.mat-column-receiptDate .mat-mdc-sort-header-content {
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
 .journal-entry-sync-btn {
   flex-shrink: 0;
   font-size: 14px;

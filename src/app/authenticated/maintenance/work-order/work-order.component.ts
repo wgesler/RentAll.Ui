@@ -2012,7 +2012,7 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
     this.accountingOffice = office;
     const currentNo = Number(office.workOrderNo) || 0;
     this.nextWorkOrderNo = currentNo + 1;
-    const paddedCode = String(this.nextWorkOrderNo).padStart(5, '0');
+    const paddedCode = String(this.nextWorkOrderNo).padStart(9, '0');
     this.generatedWorkOrderCode = `WO-${paddedCode}`;
     this.form.patchValue({ workOrderCode: this.generatedWorkOrderCode }, { emitEvent: false });
   }

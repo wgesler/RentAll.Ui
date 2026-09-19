@@ -105,7 +105,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   workOrderSearchInFlightKey: string | null = null;
 
   workOrderDisplayedColumns: ColumnSet = {
-    workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '15ch' },
+    workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '20ch' },
     title: { displayAs: 'Title', wrap: false, maxWidth: '25ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },

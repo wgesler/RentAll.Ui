@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, AfterViewInit, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, ElementRef, EventEmitter, Input, NgZone, AfterViewInit, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { MatDateFormats, provideNativeDateAdapter } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
@@ -257,7 +257,12 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
 
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;
+  @ViewChild('tableHScroll') tableHScroll?: ElementRef<HTMLDivElement>;
+  @ViewChild('viewportHScroll') viewportHScroll?: ElementRef<HTMLDivElement>;
   subheaderSectionCollapsed = false;
+  tableHScrollWidth = 0;
+  showViewportHScroll = false;
+  viewportHScrollStyle = { left: '0px', width: '0px' };
 
   buttons: ButtonData[] = [];
   dataSource = new MatTableDataSource<TableItem>();
@@ -274,6 +279,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   private stickySortApplied = false;
   private initialSortApplied = false;
   private lastUserSort: { sortColumn: string; sortDirection: 'asc' | 'desc' } | null = null;
+  private tableHResizeObserver?: ResizeObserver;
+  private viewportHScrollParent: HTMLElement | Window | null = null;
+  private syncingTableHScroll = false;
+  private pendingTableHScrollFrame = 0;
   
   isDateColumn(column: ColumnData): boolean {
     const target = `${column?.name ?? ''} ${column?.displayAs ?? ''}`.toLowerCase();
@@ -400,6 +409,9 @@ markViewForCheck(): void {
     event?.preventDefault();
     this.subheaderSectionCollapsed = !this.subheaderSectionCollapsed;
     this.markViewForCheck();
+    this.zone.onStable.pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.bindViewportHScroll();
+    });
   }
 
   onSubheaderSectionKeydown(event: KeyboardEvent): void {
@@ -488,6 +500,7 @@ markViewForCheck(): void {
 
   ngOnDestroy(): void {
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);
+    this.unbindViewportHScroll();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -503,6 +516,7 @@ markViewForCheck(): void {
   ngAfterViewInit(): void {
     this.zone.onStable.pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
       this.attachTableSortAndPaginator();
+      this.bindViewportHScroll();
     });
   }
 
@@ -1481,7 +1495,7 @@ normalizeFilterValue(value: unknown): string {
         ...column,
         // override any user-input values
         name: name,
-        displayAs: column?.displayAs || this.setColumnNameCasing(name) || '',
+        displayAs: column?.isAttentionDot ? '' : (column?.displayAs || this.setColumnNameCasing(name) || ''),
       });
       this.displayedColumns.push(name);
     }
@@ -1753,6 +1767,9 @@ applyStickySortIfNeeded(): void {
     this.selection.clear();
     this.selectionSet.emit(this.selection);
     this.isAllSelected = false;
+    this.zone.onStable.pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshViewportHScroll();
+    });
   }
 
   /** Re-render rows without clearing checkbox selection (e.g. after programmatic apply-amount updates). */
@@ -1833,6 +1850,110 @@ applyStickySortIfNeeded(): void {
     }
     
     return actualRow['expanded'] === true;
+  }
+
+  bindViewportHScroll(): void {
+    this.unbindViewportHScroll();
+    const tablePane = this.tableHScroll?.nativeElement;
+    if (!tablePane) {
+      this.showViewportHScroll = false;
+      this.markViewForCheck();
+      return;
+    }
+
+    this.tableHResizeObserver = new ResizeObserver(() => this.refreshViewportHScroll());
+    this.tableHResizeObserver.observe(tablePane);
+    const table = tablePane.querySelector('table');
+    if (table) {
+      this.tableHResizeObserver.observe(table);
+    }
+
+    this.viewportHScrollParent = (tablePane.closest('mat-sidenav-content') as HTMLElement | null) ?? window;
+    this.viewportHScrollParent.addEventListener('scroll', this.onViewportHScrollParentScroll, { passive: true });
+    window.addEventListener('resize', this.onViewportHScrollParentScroll);
+    this.refreshViewportHScroll();
+  }
+
+  unbindViewportHScroll(): void {
+    this.tableHResizeObserver?.disconnect();
+    this.tableHResizeObserver = undefined;
+    if (this.pendingTableHScrollFrame) {
+      cancelAnimationFrame(this.pendingTableHScrollFrame);
+      this.pendingTableHScrollFrame = 0;
+    }
+    this.viewportHScrollParent?.removeEventListener('scroll', this.onViewportHScrollParentScroll);
+    window.removeEventListener('resize', this.onViewportHScrollParentScroll);
+    this.viewportHScrollParent = null;
+  }
+
+  onViewportHScrollParentScroll = (): void => {
+    if (this.pendingTableHScrollFrame) {
+      return;
+    }
+    this.pendingTableHScrollFrame = requestAnimationFrame(() => {
+      this.pendingTableHScrollFrame = 0;
+      this.refreshViewportHScroll();
+    });
+  };
+
+  refreshViewportHScroll(): void {
+    const tablePane = this.tableHScroll?.nativeElement;
+    if (!tablePane) {
+      this.showViewportHScroll = false;
+      this.markViewForCheck();
+      return;
+    }
+
+    const table = tablePane.querySelector('table') ?? tablePane;
+    this.tableHScrollWidth = table.scrollWidth;
+    const overflowing = this.tableHScrollWidth > tablePane.clientWidth + 1;
+    const rect = tablePane.getBoundingClientRect();
+    const viewportBottom = window.innerHeight;
+    const tableVisible = rect.top < viewportBottom && rect.bottom > 0;
+    const nativeBarBelowFold = rect.bottom > viewportBottom + 1;
+    this.showViewportHScroll = overflowing && tableVisible && nativeBarBelowFold;
+    this.viewportHScrollStyle = {
+      left: `${Math.max(0, rect.left)}px`,
+      width: `${tablePane.clientWidth}px`
+    };
+    this.markViewForCheck();
+    queueMicrotask(() => this.syncViewportHScrollFromTable());
+  }
+
+  syncViewportHScrollFromTable(): void {
+    const tablePane = this.tableHScroll?.nativeElement;
+    const bar = this.viewportHScroll?.nativeElement;
+    if (!tablePane || !bar || this.syncingTableHScroll) {
+      return;
+    }
+    this.syncingTableHScroll = true;
+    bar.scrollLeft = tablePane.scrollLeft;
+    this.syncingTableHScroll = false;
+  }
+
+  onTablePaneHScroll(): void {
+    if (this.syncingTableHScroll) {
+      return;
+    }
+    this.syncingTableHScroll = true;
+    const bar = this.viewportHScroll?.nativeElement;
+    if (bar) {
+      bar.scrollLeft = this.tableHScroll?.nativeElement.scrollLeft ?? 0;
+    }
+    this.syncingTableHScroll = false;
+  }
+
+  onViewportHScroll(): void {
+    if (this.syncingTableHScroll) {
+      return;
+    }
+    this.syncingTableHScroll = true;
+    const tablePane = this.tableHScroll?.nativeElement;
+    const bar = this.viewportHScroll?.nativeElement;
+    if (tablePane && bar) {
+      tablePane.scrollLeft = bar.scrollLeft;
+    }
+    this.syncingTableHScroll = false;
   }
 
   getDetailRowContext(row: PurposefulAny): any {

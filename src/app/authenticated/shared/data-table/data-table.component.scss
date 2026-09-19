@@ -429,6 +429,34 @@ tr.mat-mdc-row.mat-no-data-row,
     overflow-y: hidden;
 }
 
+.is-scrollable.datatable-hscroll-native-hidden {
+    scrollbar-width: none;
+}
+
+.is-scrollable.datatable-hscroll-native-hidden::-webkit-scrollbar {
+    height: 0;
+    display: none;
+}
+
+.datatable-viewport-hscroll {
+    position: fixed;
+    bottom: 0;
+    height: 14px;
+    z-index: 20;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--mat-sys-surface, #fff);
+}
+
+.datatable-viewport-hscroll--hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.datatable-viewport-hscroll__spacer {
+    height: 1px;
+}
+
 .mat-table,
 .mat-mdc-table {
     min-width: 100%;

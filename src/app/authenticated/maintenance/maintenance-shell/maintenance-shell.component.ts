@@ -205,6 +205,19 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     );
 
     this.applyInitialQueryParams(this.route.snapshot.queryParamMap);
+    this.userReceiptDraftNoticeService.openReceiptsDraftsRequested$
+      .pipe(filter(requested => requested), takeUntil(this.destroy$))
+      .subscribe(() => this.applyOpenReceiptsDraftsFromPrompt());
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      const tabRaw = (params.get('tab') || '').trim();
+      if (tabRaw !== '') {
+        const normalizedTab = this.normalizeRequestedTab(Number(tabRaw));
+        if (normalizedTab !== null) {
+          this.selectedTabIndex = normalizedTab;
+        }
+      }
+      this.applyOpenReceiptsDraftsFromPrompt();
+    });
 
     this.route.paramMap.pipe(filter(params => params.has('id')), takeUntil(this.destroy$)).subscribe(params => {
       if (this.isReceiptsOrWorkOrdersListTab()) {
@@ -919,8 +932,8 @@ applyPageOfficeChangeEffects(): void {
       this.selectedTabIndex = normalizedTab;
     }
 
-    const draftParam = (params.get('draft') || '').trim().toLowerCase();
-    if (draftParam === 'true' || draftParam === '1') {
+    const draftParam = (params.get('drafts') || params.get('draft') || '').trim().toLowerCase();
+    if (this.applyOpenReceiptsDraftsFromPrompt() || draftParam === 'true' || draftParam === '1') {
       this.initialReceiptsShowDrafts = true;
       this.selectedTabIndex = this.receiptsTabIndex;
     }
@@ -948,6 +961,22 @@ applyPageOfficeChangeEffects(): void {
       this.skipNextOfficeChange = true;
       this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
     }
+  }
+
+  applyOpenReceiptsDraftsFromPrompt(): boolean {
+    if (!this.userReceiptDraftNoticeService.consumeOpenReceiptsDrafts()) {
+      return false;
+    }
+
+    this.initialReceiptsShowDrafts = true;
+    this.selectedTabIndex = this.receiptsTabIndex;
+    this.showReceiptDetail = false;
+    this.showReceiptDraftDetail = false;
+    this.clearPropertyForListTab();
+    this.skipNextOfficeChange = true;
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.cdr.markForCheck();
+    return true;
   }
 
   async onTabIndexChange(nextTabIndex: number): Promise<void> {

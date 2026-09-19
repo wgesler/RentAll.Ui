@@ -92,7 +92,11 @@
   }
 
   @if (!subheaderCollapsible || !subheaderSectionCollapsed) {
-  <div class="is-scrollable">
+  <div
+    #tableHScroll
+    class="is-scrollable"
+    [class.datatable-hscroll-native-hidden]="showViewportHScroll"
+    (scroll)="onTablePaneHScroll()">
     <table class="data-table" mat-table [dataSource]="dataSource" matSort (matSortChange)="onMatSortChange($event)" [multiTemplateDataRows]="hasDetailRow">
       <ng-container>
         <tr class="mat-row mat-no-data-row" *matNoDataRow>
@@ -706,4 +710,13 @@
           </mat-paginator>
         </div>
   }
+  </div>
+  <div
+    #viewportHScroll
+    class="datatable-viewport-hscroll"
+    [class.datatable-viewport-hscroll--hidden]="!showViewportHScroll"
+    [style.left]="viewportHScrollStyle.left"
+    [style.width]="viewportHScrollStyle.width"
+    (scroll)="onViewportHScroll()">
+    <div class="datatable-viewport-hscroll__spacer" [style.width.px]="tableHScrollWidth"></div>
   </div>

@@ -178,6 +178,10 @@
     .split-col-description {
       width: auto;
     }
+
+    .split-col-work-order {
+      width: 18ch;
+    }
   }
 }
 
@@ -254,7 +258,7 @@
     }
 
     .split-col-work-order {
-      width: 126px;
+      width: 18ch;
     }
   }
 }
@@ -351,7 +355,7 @@
   }
 
   .split-col-work-order {
-    width: 126px;
+    width: 18ch;
   }
 
   .split-col-account {
@@ -470,6 +474,11 @@ select.split-editable-input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.split-col-work-order .split-readonly-input {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .split-work-order-link-btn {

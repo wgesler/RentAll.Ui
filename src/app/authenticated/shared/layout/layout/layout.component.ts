@@ -85,7 +85,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
         this.userReceiptDraftNoticeService.clearPendingNotice();
         this.showPendingReceiptDraftsPrompt = false;
         this.cd.markForCheck();
+        return;
       }
+      this.userReceiptDraftNoticeService.scheduleRefreshAfterLogin();
     });
 
     this.authService.jwtChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -100,9 +102,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   onPendingReceiptDraftsPromptYes(): void {
     this.userReceiptDraftNoticeService.markLoginPromptHandled();
+    this.userReceiptDraftNoticeService.requestOpenReceiptsDrafts();
     this.showPendingReceiptDraftsPrompt = false;
     this.cd.markForCheck();
-    void this.router.navigateByUrl(`${RouterUrl.MaintenanceList}?tab=2&draft=true`);
+    void this.router.navigateByUrl(`${RouterUrl.MaintenanceList}?tab=2`);
   }
 
   onPendingReceiptDraftsPromptNo(): void {

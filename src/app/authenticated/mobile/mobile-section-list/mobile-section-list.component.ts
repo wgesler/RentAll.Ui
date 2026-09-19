@@ -9,6 +9,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { MaintenanceService } from '../../maintenance/services/maintenance.service';
 import { ReceiptDraftService } from '../../maintenance/services/receipt-draft.service';
+import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -50,6 +51,7 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   private globalSelectionService = inject(GlobalSelectionService);
   private officeService = inject(OfficeService);
   private accountingOfficeService = inject(AccountingOfficeService);
+  private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
   rows: MobileListRow[] = [];
   columns: ColumnSet = {};
@@ -429,7 +431,8 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   private syncDraftModeFromQuery(): void {
-    this.showDrafts = this.isDraftQueryTrue(this.route.snapshot.queryParamMap.get('draft'));
+    this.showDrafts = this.userReceiptDraftNoticeService.consumeOpenReceiptsDrafts()
+      || this.isDraftQueryTrue(this.route.snapshot.queryParamMap.get('drafts') || this.route.snapshot.queryParamMap.get('draft'));
   }
 
   private isDraftQueryTrue(value: string | null | undefined): boolean {

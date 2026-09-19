@@ -54,9 +54,10 @@ export class MobileLayoutComponent implements OnInit, OnDestroy {
 
   onPendingReceiptDraftsPromptYes(): void {
     this.userReceiptDraftNoticeService.markLoginPromptHandled();
+    this.userReceiptDraftNoticeService.requestOpenReceiptsDrafts();
     this.showPendingReceiptDraftsPrompt = false;
     this.cdr.markForCheck();
-    void this.router.navigateByUrl('/mobile/maintenance/receipts?draft=true');
+    void this.router.navigateByUrl('/mobile/maintenance/receipts');
   }
 
   onPendingReceiptDraftsPromptNo(): void {

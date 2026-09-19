@@ -26,6 +26,8 @@ export class UserReceiptDraftNoticeService {
   private refreshLoadId = 0;
   private scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private loginPromptHandled = false;
+  private readonly openReceiptsDraftsRequestedSubject = new BehaviorSubject<boolean>(false);
+  readonly openReceiptsDraftsRequested$ = this.openReceiptsDraftsRequestedSubject.asObservable();
 
   shouldShowLoginPrompt(): boolean {
     return this.pendingSubject.value && !this.loginPromptHandled;
@@ -37,6 +39,18 @@ export class UserReceiptDraftNoticeService {
 
   markLoginPromptHandled(): void {
     this.loginPromptHandled = true;
+  }
+
+  requestOpenReceiptsDrafts(): void {
+    this.openReceiptsDraftsRequestedSubject.next(true);
+  }
+
+  consumeOpenReceiptsDrafts(): boolean {
+    const requested = this.openReceiptsDraftsRequestedSubject.value;
+    if (requested) {
+      this.openReceiptsDraftsRequestedSubject.next(false);
+    }
+    return requested;
   }
 
   refresh(options?: UserReceiptDraftNoticeRefreshOptions): void {
@@ -58,6 +72,7 @@ export class UserReceiptDraftNoticeService {
   }
 
   scheduleRefreshAfterLogin(): void {
+    this.loginPromptHandled = false;
     this.refresh({ delayMs: this.loginRefreshDelayMs });
   }
 
@@ -66,6 +81,7 @@ export class UserReceiptDraftNoticeService {
     this.refreshLoadId++;
     this.pendingSubject.next(false);
     this.loginPromptHandled = false;
+    this.openReceiptsDraftsRequestedSubject.next(false);
   }
 
   notifyDraftsChanged(): void {

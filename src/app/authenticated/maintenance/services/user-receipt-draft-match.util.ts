@@ -31,22 +31,24 @@ export function personNameMatchesCardOwner(
 }
 
 function isReceiptLikeAssignedToUser(
-  item: { createdBy?: string | null; bankCardId?: number | null },
+  item: { createdBy?: string | null; createdByName?: string | null; bankCardId?: number | null; bankCardDisplayName?: string | null },
   user: { userId?: string | null; firstName?: string | null; lastName?: string | null },
   cardNameByBankCardId: Map<number, string>
 ): boolean {
-  const userId = String(user.userId || '').trim();
+  const userId = String(user.userId || '').trim().toLowerCase();
   const createdBy = String(item.createdBy || '').trim();
-  if (userId && createdBy && userId === createdBy) {
+  if (userId && createdBy && userId === createdBy.toLowerCase()) {
+    return true;
+  }
+
+  if (personNameMatchesCardOwner(user.firstName, user.lastName, createdBy)
+    || personNameMatchesCardOwner(user.firstName, user.lastName, item.createdByName)) {
     return true;
   }
 
   const bankCardId = Number(item.bankCardId ?? 0);
-  if (bankCardId <= 0) {
-    return false;
-  }
-
-  const cardName = cardNameByBankCardId.get(bankCardId) || '';
+  const cardName = (bankCardId > 0 ? cardNameByBankCardId.get(bankCardId) : '')
+    || String(item.bankCardDisplayName || '').trim();
   return personNameMatchesCardOwner(user.firstName, user.lastName, cardName);
 }
 
