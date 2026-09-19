@@ -65,6 +65,12 @@
     padding: 16px !important;
   }
 
+  .reservation-notes-textarea {
+    resize: vertical !important;
+    overflow: auto !important;
+    min-height: 2.5rem;
+  }
+
   &.mat-expanded {
     margin: 0 0 16px 0 !important;
   }

@@ -621,6 +621,10 @@
                   </div>
                 </mat-form-field>
               </div>
+                  <mat-form-field appearance="outline" class="col-span-4 reservation-notes-field">
+                    <mat-label>Notes</mat-label>
+                    <textarea matInput formControlName="notes" rows="2" class="reservation-notes-textarea"></textarea>
+                  </mat-form-field>
                 </div>
               </mat-expansion-panel>
 
@@ -1037,14 +1041,6 @@
                 }
               </mat-expansion-panel>
             </mat-accordion>
-            </div>
-
-            <!-- Notes Section -->
-            <div class="grid grid-cols-4 form-standard-grid mt-4">
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Notes</mat-label>
-                <textarea matInput formControlName="notes" rows="6"></textarea>
-              </mat-form-field>
             </div>
 
             @if (isSubmitting) {
