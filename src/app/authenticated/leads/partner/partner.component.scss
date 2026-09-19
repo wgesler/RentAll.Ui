@@ -18,3 +18,9 @@
   box-sizing: border-box;
   padding-inline: var(--global-page-inner-padding);
 }
+
+.partner-lead-textarea {
+  resize: vertical !important;
+  overflow: auto !important;
+  min-height: 3.75rem;
+}

@@ -157,6 +157,12 @@
     align-items: flex-start !important;
   }
 
+  textarea.partner-lead-textarea {
+    resize: vertical !important;
+    overflow: auto !important;
+    min-height: 3.75rem !important;
+  }
+
   .mat-mdc-select-value,
   .mat-mdc-select-min-line {
     font-size: 13px !important;
