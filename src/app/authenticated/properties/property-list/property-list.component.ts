@@ -570,7 +570,7 @@ showPropertyCalendarUrlDialog(
       ? rows.filter(property => property.officeId === this.selectedOffice.officeId)
       : rows;
     const standard = officeScoped(this.allProperties);
-    const partners = officeScoped(this.partnerProperties ?? []);
+    const partners = this.partnerProperties ?? [];
     const isActive = (property: PropertyListDisplayRow) => this.mappingService.toBooleanValue(property.isActive);
     const isUnfurnished = (property: PropertyListDisplayRow) => this.mappingService.toBooleanValue(property.unfurnished);
 
@@ -584,10 +584,11 @@ showPropertyCalendarUrlDialog(
     } else if (this.furnishedSliderIndex === BoardFilterIndex.Inactive) {
       filtered = standard.filter(property => !isActive(property));
     } else if (isPartnersFilterIndex(this.furnishedSliderIndex, this.hasPartnerIntegration)) {
-      filtered = partners;
+      filtered = partners.filter(property => isActive(property));
     } else if (this.isAllFilterSelected) {
       const byId = new Map<string, PropertyListDisplayRow>();
-      [...standard.filter(property => isActive(property)), ...partners].forEach(property => byId.set(property.propertyId, property));
+      [...standard.filter(property => isActive(property)), ...partners.filter(property => isActive(property))]
+        .forEach(property => byId.set(property.propertyId, property));
       filtered = Array.from(byId.values());
     } else {
       filtered = standard.filter(property => isActive(property));
