@@ -85,7 +85,7 @@
             <div class="col-span-4 flex items-center gap-x-1.5 work-order-header-fields-row" style="min-width: 0;">
               <mat-form-field appearance="outline" class="work-order-code-field" style="flex: 0 0 14%; min-width: 0; max-width: 14%;">
                 <mat-label>Code</mat-label>
-                <input matInput [value]="form.get('workOrderCode')?.value || ''" readonly disabled>
+                <input matInput [value]="workOrderCodeDisplay" readonly disabled>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="work-order-date-field" style="flex: 0 0 13%; min-width: 0; max-width: 13%;">

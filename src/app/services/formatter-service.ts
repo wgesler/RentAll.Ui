@@ -189,6 +189,76 @@ export class FormatterService {
         return this.datePipe.transform(fromCalendar, 'MM/yyyy') || '';
     }
 
+    private entityCodePadByPrefix = new Map<string, number>();
+    private entityCodeDefaultPad = 6;
+
+    setEntityCodeSequences(sequences?: Array<{ prefix?: string; nextNumber?: number }> | null): void {
+        this.entityCodePadByPrefix.clear();
+        this.entityCodeDefaultPad = 6;
+        (sequences || []).forEach(sequence => {
+            const prefix = String(sequence?.prefix || '').trim().toUpperCase();
+            if (!prefix) {
+                return;
+            }
+            const nextNumber = Number(sequence?.nextNumber) || 0;
+            const floor = prefix === 'JE' ? 9 : 6;
+            const pad = Math.max(floor, nextNumber > 0 ? String(nextNumber).length : floor);
+            this.entityCodePadByPrefix.set(prefix, pad);
+            if (prefix !== 'JE') {
+                this.entityCodeDefaultPad = Math.max(this.entityCodeDefaultPad, pad);
+            }
+        });
+    }
+
+    clearEntityCodeSequences(): void {
+        this.entityCodePadByPrefix.clear();
+        this.entityCodeDefaultPad = 6;
+    }
+
+    getEntityCodeDisplayPad(prefix?: string | null): number {
+        const key = String(prefix || '').trim().toUpperCase();
+        if (key === 'JE') {
+            return this.entityCodePadByPrefix.get('JE') ?? 9;
+        }
+        if (key && this.entityCodePadByPrefix.has(key)) {
+            return this.entityCodePadByPrefix.get(key) ?? this.entityCodeDefaultPad;
+        }
+        return this.entityCodeDefaultPad;
+    }
+
+    formatEntityCodeForDisplay(value: unknown): string {
+        if (value == null) {
+            return '';
+        }
+
+        const raw = String(value);
+        const trimmed = raw.trim();
+        if (!trimmed || trimmed === 'New' || trimmed === 'Missing' || trimmed === 'NONE' || trimmed === '—') {
+            return trimmed || raw;
+        }
+
+        if (trimmed.includes(',')) {
+            return trimmed
+                .split(',')
+                .map(part => this.formatEntityCodeForDisplay(part.trim()))
+                .join(', ');
+        }
+
+        const match = /^([A-Za-z]+)-(\d+)(.*)$/.exec(trimmed);
+        if (!match) {
+            return trimmed;
+        }
+
+        const prefix = match[1];
+        const numeric = Number(match[2]);
+        if (!Number.isFinite(numeric)) {
+            return trimmed;
+        }
+
+        const pad = this.getEntityCodeDisplayPad(prefix);
+        return `${prefix}-${String(numeric).padStart(pad, '0')}${match[3] ?? ''}`;
+    }
+
     //#endregion
 
     /** Calendar / SQL **DATE** string (`YYYY-MM-DD` or ISO with that prefix) → `MM/dd/yyyy`. */

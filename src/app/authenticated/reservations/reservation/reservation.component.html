@@ -128,7 +128,7 @@
                   [class.col-span-3]="!canEditProperty">
                   <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                     <mat-label>Reservation</mat-label>
-                    <input matInput formControlName="reservationCode" readonly class="readonly-field">
+                    <input matInput [value]="reservationCodeDisplay" readonly class="readonly-field">
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="col-span-5 min-w-0">
                     <mat-label>Property Address</mat-label>

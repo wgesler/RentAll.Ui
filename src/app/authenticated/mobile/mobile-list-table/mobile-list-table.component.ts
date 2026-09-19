@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { ColumnData, ColumnSet } from '../../shared/data-table/models/column-data';
 import { MobileListRow } from './mobile-list.model';
@@ -22,6 +23,7 @@ export class MobileListTableComponent implements OnChanges {
   @Input() showAttentionColumn = false;
   @Output() rowClick = new EventEmitter<MobileListRow>();
   private cdr = inject(ChangeDetectorRef);
+  private formatter = inject(FormatterService);
   filterText = '';
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -36,7 +38,11 @@ export class MobileListTableComponent implements OnChanges {
       return this.rows;
     }
     const columnNames = Object.keys(this.columns);
-    return this.rows.filter(row => columnNames.some(name => String(row[name] ?? '').toLowerCase().includes(query)));
+    return this.rows.filter(row => columnNames.some(name => {
+      const raw = String(row[name] ?? '').toLowerCase();
+      const display = this.formatter.formatEntityCodeForDisplay(row[name]).toLowerCase();
+      return raw.includes(query) || display.includes(query);
+    }));
   }
 
   getColumnEntries(): { name: string; column: ColumnData }[] {
@@ -44,7 +50,7 @@ export class MobileListTableComponent implements OnChanges {
   }
 
   getCellValue(row: MobileListRow, name: string): string {
-    return String(row[name] ?? '');
+    return this.formatter.formatEntityCodeForDisplay(row[name]);
   }
 
   hasAttentionDot(row: MobileListRow): boolean {

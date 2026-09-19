@@ -116,6 +116,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   associatedWorkOrderReceiptIds = new Set<string>();
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
+
+  get workOrderCodeDisplay(): string {
+    return this.formatter.formatEntityCodeForDisplay(this.form?.get('workOrderCode')?.value || '');
+  }
   nextWorkOrderNo: number | null = null;
   propertyReservations: ReservationListResponse[] = [];
   propertyAgreement: PropertyAgreementResponse | null = null;

@@ -244,43 +244,43 @@
                   </mat-chip-listbox>
                   } @case ('name') {
                   @if (hasSubDescription) {
-                    <strong>{{item[column.name]}}</strong> <br/> {{item?.description}}
+                    <strong>{{formatDisplayCode(item[column.name])}}</strong> <br/> {{item?.description}}
                   } @else {
-                    {{item[column.name]}}
+                    {{formatDisplayCode(item[column.name])}}
                   }
                   } @case ('email') {
                   <span (click)="onEmailClick($event, item)"
                     class="text-blue-700 underline cursor-pointer"
                     id="table-email-link-{{templateTableId}}-{{i}}">
-                    {{item[column.name]}}
+                    {{formatDisplayCode(item[column.name])}}
                   </span>
                   } @case ('contactName') {
                   @if (hasContactNameLink) {
                     <span (click)="onContactClick($event, item)"
                       class="text-blue-700 underline cursor-pointer"
                       id="table-contact-link-{{templateTableId}}-{{i}}">
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     </span>
                   } @else {
-                    {{item[column.name]}}
+                    {{formatDisplayCode(item[column.name])}}
                   }
                   } @case ('contact') {
                   <span (click)="onContactClick($event, item)"
                     class="text-blue-700 underline cursor-pointer"
                     id="table-contact-link-{{templateTableId}}-{{i}}">
-                    {{item[column.name]}}
+                    {{formatDisplayCode(item[column.name])}}
                   </span>
                   } @case ('owner') {
                   <span (click)="onContactClick($event, item)"
                     class="text-blue-700 underline cursor-pointer"
                     id="table-owner-link-{{templateTableId}}-{{i}}">
-                    {{item[column.name]}}
+                    {{formatDisplayCode(item[column.name])}}
                   </span>
                   } @case ('ownerName') {
                   <span (click)="onContactClick($event, item)"
                     class="text-blue-700 underline cursor-pointer"
                     id="table-owner-link-{{templateTableId}}-{{i}}">
-                    {{item[column.name]}}
+                    {{formatDisplayCode(item[column.name])}}
                   </span>
                   } @case ('attachmentPath') {
                   @if (item[column.name]) {
@@ -322,7 +322,7 @@
                       (click)="$event.stopPropagation()"
                       class="text-blue-700 underline cursor-pointer"
                       id="table-website-link-{{templateTableId}}-{{i}}">
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     </a>
                   }
                   } @case ('color') {
@@ -333,7 +333,7 @@
                       [style.border]="'1px solid #ccc'"
                       [style.border-radius.px]="4"
                     class="inline-block flex-shrink-0"></div>
-                    <span>{{item[column.name]}}</span>
+                    <span>{{formatDisplayCode(item[column.name])}}</span>
                   </div>
                   } @case ('ratingStars') {
                     <span class="datatable-cell-center">{{item[column.name] ?? ''}}</span>
@@ -342,50 +342,50 @@
                       <span (click)="onPropertyCodeClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-property-code-link-{{templateTableId}}-{{i}}">
-                        {{item[column.name]}}
+                        {{formatDisplayCode(item[column.name])}}
                       </span>
                     } @else {
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('reservationCode') {
                     @if (hasReservationCodeLink && item?.reservationId) {
                       <span (click)="onReservationCodeClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-reservation-code-link-{{templateTableId}}-{{i}}">
-                        {{item[column.name]}}
+                        {{formatDisplayCode(item[column.name])}}
                       </span>
                     } @else {
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('invoiceCode') {
                     @if (hasInvoiceCodeLink && item?.invoiceId) {
                       <span (click)="onInvoiceCodeClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-invoice-code-link-{{templateTableId}}-{{i}}">
-                        {{item[column.name]}}
+                        {{formatDisplayCode(item[column.name])}}
                       </span>
                     } @else {
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('journalEntryCode') {
                     @if (hasJournalEntryCodeLink && item?.journalEntryId) {
                       <span (click)="onJournalEntryCodeClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-journal-entry-code-link-{{templateTableId}}-{{i}}">
-                        {{item[column.name]}}
+                        {{formatDisplayCode(item[column.name])}}
                       </span>
                     } @else {
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('source') {
                     @if (hasSourceLink && item?.sourceLinkable) {
                       <span (click)="onSourceClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-source-link-{{templateTableId}}-{{i}}">
-                        {{item[column.name]}}
+                        {{formatDisplayCode(item[column.name])}}
                       </span>
                     } @else {
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('workOrderDisplay') {
                     @if (hasWorkOrderCodeLink) {
@@ -397,7 +397,7 @@
                             id="table-work-order-missing-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
                             (mousedown)="$event.stopPropagation()"
                             (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
-                            {{ workOrderCode }}
+                            {{ formatDisplayCode(workOrderCode) }}
                           </span>
                         } @else {
                         <span
@@ -405,12 +405,12 @@
                           id="table-work-order-code-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
                           (mousedown)="$event.stopPropagation()"
                           (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
-                          {{workOrderCode}}
+                          {{formatDisplayCode(workOrderCode)}}
                         </span>
                         }@if (codeIndex < workOrderCodes.length - 1) {<span>, </span>}
                       }
                     } @else {
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('accountDisplay') {
                     @let accountLabels = getDelimitedValues(item[column.name]);
@@ -419,7 +419,7 @@
                     }
                   } @case ('receiptTypeDisplay') {
                     <span [matTooltip]="item?.receiptTypeTooltip || null" matTooltipPosition="above">
-                      {{item[column.name]}}
+                      {{formatDisplayCode(item[column.name])}}
                     </span>
                   } @case ('scheduleDepartureDate') {
                     @if (getScheduleDateCellText(item[column.name])) {
@@ -457,7 +457,7 @@
                       <mat-datepicker #editableDatePicker></mat-datepicker>
                     </mat-form-field>
                   } @else if (column.editableType === 'date') {
-                    @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
+                    @if (item[column.name] !== 'NONE') { {{formatDisplayCode(item[column.name])}} }
                   } @else if (column.editableType === 'text' && item[(column.name ?? '') + 'ReadOnly'] !== true && !(item[column.name]?.options?.length || column.options?.length)) {
                     @if (item[(column.name ?? '') + 'ClickToEdit'] === true && item[(column.name ?? '') + 'Editing'] !== true) {
                       <span
@@ -481,7 +481,7 @@
                         style="width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                     }
                   } @else if (column.editableType === 'text' && !(item[column.name]?.options?.length || column.options?.length)) {
-                    @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
+                    @if (item[column.name] !== 'NONE') { {{formatDisplayCode(item[column.name])}} }
                   } @else if (column.obfuscate) {
                     <span>
                       {{item.obfuscate ? obfuscateValue(item[column.name]) : item[column.name]}}
@@ -613,10 +613,10 @@
                       </button>
                     } @else {
                       @if (getColumnAlignment(column) === 'center') {
-                        <span class="datatable-cell-center" [style.color]="item[column.name + 'IsAlert'] ? '#d32f2f' : null">{{item[column.name] === 'NONE' ? '' : (item[column.name] ?? '')}}</span>
+                        <span class="datatable-cell-center" [style.color]="item[column.name + 'IsAlert'] ? '#d32f2f' : null">{{item[column.name] === 'NONE' ? '' : formatDisplayCode(item[column.name] ?? '')}}</span>
                       } @else {
                         @if (item[column.name] !== 'NONE') {
-                          <span [style.color]="item[column.name + 'IsAlert'] ? '#d32f2f' : null">{{item[column.name]}}</span>
+                          <span [style.color]="item[column.name + 'IsAlert'] ? '#d32f2f' : null">{{formatDisplayCode(item[column.name])}}</span>
                         }
                       }
                     }

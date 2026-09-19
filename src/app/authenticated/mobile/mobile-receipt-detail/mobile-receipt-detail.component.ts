@@ -150,7 +150,7 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
       return 'New';
     }
     const draftCode = (this.receiptDraft?.draftCode || '').trim();
-    return draftCode || 'New';
+    return draftCode ? this.formatter.formatEntityCodeForDisplay(draftCode) : 'New';
   }
 
   override afterReceiptSaved(saved: ReceiptResponse): void {

@@ -502,7 +502,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   get invoiceCodeDisplay(): string {
-    return this.selectedInvoice?.invoiceCode || ' ';
+    return this.formatterService.formatEntityCodeForDisplay(this.selectedInvoice?.invoiceCode || ' ');
   }
   //#endregion
 

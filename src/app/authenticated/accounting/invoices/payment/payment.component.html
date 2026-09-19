@@ -33,7 +33,7 @@
                 <div class="col-span-4 payment-overall-row payment-overall-primary-row payment-overall-primary-row--outbound">
                   <mat-form-field appearance="outline" class="payment-overall-code-field">
                     <mat-label>Payment Code</mat-label>
-                    <input matInput [value]="isAddMode ? '' : (payment?.paymentCode || '')" readonly disabled>
+                    <input matInput [value]="isAddMode ? '' : formatter.formatEntityCodeForDisplay(payment?.paymentCode || '')" readonly disabled>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="payment-overall-date-field">
@@ -104,7 +104,7 @@
               <div class="col-span-4 payment-overall-row payment-overall-primary-row">
                 <mat-form-field appearance="outline" class="payment-overall-code-field">
                   <mat-label>Payment Code</mat-label>
-                  <input matInput [value]="isAddMode ? '' : (payment?.paymentCode || '')" readonly disabled>
+                  <input matInput [value]="isAddMode ? '' : formatter.formatEntityCodeForDisplay(payment?.paymentCode || '')" readonly disabled>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="payment-overall-date-field">

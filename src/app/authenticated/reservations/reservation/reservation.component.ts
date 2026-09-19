@@ -3089,6 +3089,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       ?? null;
   }
 
+  get reservationCodeDisplay(): string {
+    return this.formatterService.formatEntityCodeForDisplay(this.form?.get('reservationCode')?.value || '');
+  }
+
   get sharedReservationId(): string | null {
     if (this.isAddMode) {
       return null;

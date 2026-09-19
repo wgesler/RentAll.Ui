@@ -859,6 +859,10 @@ markViewForCheck(): void {
       .filter(token => token.length > 0);
   }
 
+  formatDisplayCode(value: unknown): string {
+    return this.formatter.formatEntityCodeForDisplay(value);
+  }
+
   getScheduleDateCellText(cell: unknown): string {
     if (cell && typeof cell === 'object' && 'text' in cell) {
       return String((cell as { text: string }).text || '');
@@ -1407,7 +1411,12 @@ parseDateValue(value: unknown): Date | null {
   }
 
 getFilterableColumnValue(item: TableItem, column: string): string {
-    return this.normalizeFilterValue(this.flattenFilterSourceValue(item?.[column]));
+    const raw = this.normalizeFilterValue(this.flattenFilterSourceValue(item?.[column]));
+    const display = this.normalizeFilterValue(this.formatDisplayCode(item?.[column]));
+    if (display && display !== raw) {
+      return `${raw} ${display}`;
+    }
+    return raw;
   }
 
 flattenFilterSourceValue(value: unknown): string {

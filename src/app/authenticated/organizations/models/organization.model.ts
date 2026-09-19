@@ -51,6 +51,14 @@ export interface OrganizationResponse {
   sendGridName?: string;
   suffixKeyName?: string;
   isActive: boolean;
+  codeSequences?: OrganizationCodeSequence[];
+}
+
+export interface OrganizationCodeSequence {
+  entityTypeId: number;
+  entityType: string;
+  prefix: string;
+  nextNumber: number;
 }
 
 export interface OrganizationListDisplay {

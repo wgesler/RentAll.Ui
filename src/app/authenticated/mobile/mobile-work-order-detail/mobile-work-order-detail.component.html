@@ -38,7 +38,7 @@
       <div class="mobile-work-order-fields">
         <mat-form-field appearance="outline" class="mobile-work-order-field mobile-work-order-readonly-field">
           <mat-label>Code</mat-label>
-          <input matInput [value]="isAddMode ? 'New' : (form.get('workOrderCode')?.value || '')" readonly disabled tabindex="-1">
+          <input matInput [value]="isAddMode ? 'New' : workOrderCodeDisplay" readonly disabled tabindex="-1">
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="mobile-work-order-field"

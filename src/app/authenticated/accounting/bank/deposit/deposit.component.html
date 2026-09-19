@@ -31,7 +31,7 @@
               <div class="col-span-4 deposit-overall-row deposit-overall-primary-row">
                 <mat-form-field appearance="outline" class="deposit-overall-no-field">
                   <mat-label>Deposit Code</mat-label>
-                  <input matInput [value]="isAddMode ? '' : (deposit?.depositCode || '')" readonly disabled>
+                  <input matInput [value]="isAddMode ? '' : formatter.formatEntityCodeForDisplay(deposit?.depositCode || '')" readonly disabled>
                 </mat-form-field>
                 <app-searchable-select
                   class="deposit-overall-bank-account-field"

@@ -28,6 +28,7 @@ import { PropertyService } from '../authenticated/properties/services/property.s
 import { ReservationService } from '../authenticated/reservations/services/reservation.service';
 import { resetViewportScroll, teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../shared/utils/cdk-overlay.util';
 import { ConfigService } from './config.service';
+import { FormatterService } from './formatter-service';
 import { StorageService } from './storage.service';
 
 @Injectable({
@@ -446,6 +447,7 @@ export class AuthService {
             this.injector.get(ReservationService).clearReservationCodes();
             this.injector.get(OrganizationFeatureService).clearFeatures();
             this.injector.get(AccountingOfficeService).clearAccountingOffices();
+            this.injector.get(FormatterService).clearEntityCodeSequences();
         } catch {
             /* Bootstrap services may not be available during teardown */
         }

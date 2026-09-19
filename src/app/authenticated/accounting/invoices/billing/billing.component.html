@@ -29,7 +29,7 @@
 
               <mat-form-field appearance="outline" class="titlebar-field-invoice-no">
                 <mat-label>Invoice No</mat-label>
-                <input matInput [value]="form.get('invoiceCode')?.value ?? ' '" readonly [disabled]="true">
+                <input matInput [value]="formatter.formatEntityCodeForDisplay(form.get('invoiceCode')?.value ?? ' ')" readonly [disabled]="true">
               </mat-form-field>
             </div>
           }

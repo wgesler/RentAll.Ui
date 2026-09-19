@@ -31,7 +31,7 @@
               <div class="col-span-4 transfer-overall-row transfer-overall-primary-row">
                 <mat-form-field appearance="outline" class="transfer-overall-no-field">
                   <mat-label>Transfer Code</mat-label>
-                  <input matInput [value]="isAddMode ? '' : (transfer?.transferCode || '')" readonly disabled>
+                  <input matInput [value]="isAddMode ? '' : formatter.formatEntityCodeForDisplay(transfer?.transferCode || '')" readonly disabled>
                 </mat-form-field>
                 <app-searchable-select
                   class="transfer-overall-bank-account-field"
