@@ -301,7 +301,7 @@
                       <input matInput type="email" formControlName="companyEmail" placeholder="Enter company email" required>
                     </mat-form-field>
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-ninths">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-tenths">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Payment Terms</mat-label>
                       <mat-select formControlName="paymentTermsId">
@@ -309,6 +309,10 @@
                           <mat-option [value]="term.value">{{ term.label }}</mat-option>
                         }
                       </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Markup</mat-label>
+                      <input matInput type="text" formControlName="markup" (focus)="clearContactMarkupOnFocus($event)" (input)="onContactMarkupInput($event)" (blur)="formatContactMarkupOnBlur()" (keydown)="formatContactMarkupOnEnter($event)" />
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Prorate Type</mat-label>
@@ -397,7 +401,7 @@
                       </mat-form-field>
                     }
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Company Name</mat-label>
                       <input matInput formControlName="companyName" placeholder="Enter company name" [required]="vendorCompanyNameRequired()">
@@ -417,6 +421,10 @@
                           <mat-option [value]="term.value">{{ term.label }}</mat-option>
                         }
                       </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Markup</mat-label>
+                      <input matInput type="text" formControlName="markup" (focus)="clearContactMarkupOnFocus($event)" (input)="onContactMarkupInput($event)" (blur)="formatContactMarkupOnBlur()" (keydown)="formatContactMarkupOnEnter($event)" />
                     </mat-form-field>
                   </div>
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-twelfths">

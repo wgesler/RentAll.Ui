@@ -471,7 +471,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       phone: strippedPhone ? strippedPhone : null,
       extension: ((formValue.extension || '').trim() || null),
       notes: this.compactDialogMode && this.contact ? (this.contact.notes ?? undefined) : (formValue.notes || undefined),
-      markup: this.compactDialogMode && this.contact != null ? (this.contact.markup ?? this.formatterService.parsePercentageValue(formValue.markup, 25)) : this.formatterService.parsePercentageValue(formValue.markup, 25),
+      markup: this.formatterService.parsePercentageValue(formValue.markup, 0),
       rating: Number(formValue.rating ?? 0),
       displayName: resolveDisplayName(),
       isInternational: isInternational,
@@ -649,7 +649,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       state: new FormControl(''),
       zip: new FormControl(''),
       notes: new FormControl(''),
-      markup: new FormControl('25%'),
+      markup: new FormControl('0%'),
       revenueSplitOwner: new FormControl<string>('0%'),
       revenueSplitOffice: new FormControl<string>('0%'),
       workingCapitalBalance: new FormControl<string>('$0.00'),
@@ -669,7 +669,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.setupConditionalFields();
-    this.formatContractMarkup();
+    this.formatContactMarkupOnBlur();
 
     this.form.get('entityTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(entityTypeId => {
       this.applyEntityTypeContactValidators(entityTypeId);
@@ -759,7 +759,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         extension: this.contact.extension || '',
         email: this.utilityService.getDisplayContactEmail(this.contact.email),
         notes: this.contact.notes || '',
-        markup: this.formatterService.formatPercentageValue(this.contact.markup, 25),
+        markup: this.formatterService.formatPercentageValue(this.contact.markup, 0),
         revenueSplitOwner: this.formatAgreementPercentForDisplay(this.contact.revenueSplitOwner),
         revenueSplitOffice: this.formatAgreementPercentForDisplay(this.contact.revenueSplitOffice),
         workingCapitalBalance: this.formatAgreementDecimalForDisplay(this.contact.workingCapitalBalance),
@@ -1589,8 +1589,21 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Contract Negotiation Helpers
-  formatContractMarkup(): void {
-    this.formatterService.formatPercentageOnBlur(this.form.get('markup'), 25);
+  onContactMarkupInput(event: Event): void {
+    this.formatterService.formatPercentageInput(event, this.form.get('markup'));
+    this.form.markAsDirty();
+  }
+
+  clearContactMarkupOnFocus(event: FocusEvent): void {
+    this.formatterService.clearPercentageOnFocus(event, this.form.get('markup'));
+  }
+
+  formatContactMarkupOnBlur(): void {
+    this.formatterService.formatPercentageOnBlur(this.form.get('markup'), 0);
+  }
+
+  formatContactMarkupOnEnter(event: KeyboardEvent): void {
+    this.formatterService.formatPercentageOnEnter(event, this.form.get('markup'), 0);
   }
 
   formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
