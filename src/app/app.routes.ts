@@ -1,173 +1,107 @@
 import { Routes } from '@angular/router';
 import { RouterToken } from './app.routes.tokens';
-import { AccountingShellComponent } from './authenticated/accounting/accounting-shell/accounting-shell.component';
-import { BillingShellComponent } from './authenticated/accounting/billing-shell/billing-shell.component';
-import { CostCodesListComponent } from './authenticated/accounting/setup/cost-codes-list/cost-codes-list.component';
-import { CostCodesComponent } from './authenticated/accounting/setup/cost-codes/cost-codes.component';
-import { BillingCreateComponent } from './authenticated/accounting/invoices/billing-create/billing-create.component';
-import { InvoiceCreateComponent } from './authenticated/accounting/invoices/invoice-create/invoice-create.component';
-import { BillingComponent } from './authenticated/accounting/invoices/billing/billing.component';
-import { ContactComponent } from './authenticated/contacts/contact/contact.component';
-import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
-import { DashboardShellComponent } from './authenticated/dashboards/dashboard-shell/dashboard-shell.component';
-import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
-import { DashboardStaffComponent } from './authenticated/dashboards/dashboard-staff/dashboard-staff.component';
-import { DocumentsShellComponent } from './authenticated/documents/documents-shell/documents-shell.component';
-import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
-import { DocumentComponent } from './authenticated/documents/document/document.component';
-import { EmailCreateComponent } from './authenticated/email/email-create/email-create.component';
-import { EmailComponent } from './authenticated/email/email/email.component';
-import { EmailsShellComponent } from './authenticated/email/emails-shell/emails-shell.component';
-import { AlertListComponent } from './authenticated/email/alert-list/alert-list.component';
-import { AlertComponent } from './authenticated/email/alert/alert.component';
-import { LogsShellComponent } from './authenticated/logs/logs-shell/logs-shell.component';
-import { AccountingOfficeListComponent } from './authenticated/organizations/accounting-office-list/accounting-office-list.component';
-import { AccountingOfficeComponent } from './authenticated/organizations/accounting-office/accounting-office.component';
-import { AgentListComponent } from './authenticated/organizations/agent-list/agent-list.component';
-import { AgentComponent } from './authenticated/organizations/agent/agent.component';
-import { AreaListComponent } from './authenticated/organizations/area-list/area-list.component';
-import { AreaComponent } from './authenticated/organizations/area/area.component';
-import { BuildingListComponent } from './authenticated/organizations/building-list/building-list.component';
-import { BuildingComponent } from './authenticated/organizations/building/building.component';
-import { ColorListComponent } from './authenticated/organizations/color-list/color-list.component';
-import { ColorComponent } from './authenticated/organizations/color/color.component';
-import { ConfigurationComponent } from './authenticated/organizations/configuration/configuration.component';
-import { LeadsShellComponent } from './authenticated/leads/leads-shell/leads-shell.component';
-import { OfficeListComponent } from './authenticated/organizations/office-list/office-list.component';
-import { OfficeComponent } from './authenticated/organizations/office/office.component';
-import { OrganizationListComponent } from './authenticated/organizations/organization-list/organization-list.component';
-import { OrganizationComponent } from './authenticated/organizations/organization/organization.component';
-import { RegionListComponent } from './authenticated/organizations/region-list/region-list.component';
-import { RegionComponent } from './authenticated/organizations/region/region.component';
-import { MaintenanceShellComponent } from './authenticated/maintenance/maintenance-shell/maintenance-shell.component';
-import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
-import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
-import { TicketShellComponent } from './authenticated/tickets/ticket-shell/ticket-shell.component';
-import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
-import { QuoteCreateComponent } from './authenticated/properties/quote-create/quote-create.component';
-import { PropertyShellComponent } from './authenticated/properties/property-shell/property-shell.component';
-import { PropertySelectionComponent } from './authenticated/properties/property-selection/property-selection.component';
-import { ReservationBoardComponent } from './authenticated/reservations/reservation-board/reservation-board.component';
-import { ReservationListComponent } from './authenticated/reservations/reservation-list/reservation-list.component';
-import { ReservationShellComponent } from './authenticated/reservations/reservation-shell/reservation-shell.component';
-import { HelpGuidePageComponent } from './authenticated/shared/user-guide/help-guide/help-guide-page.component';
-import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
-import { UsersShellComponent } from './authenticated/users/users-shell/users-shell.component';
-import { UserComponent } from './authenticated/users/user/user.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
-import { MobileInspectionIssuesPageComponent } from './authenticated/mobile/mobile-inspection-issues-page/mobile-inspection-issues-page.component';
-import { MobileBoardPageComponent } from './authenticated/mobile/mobile-board-page/mobile-board-page.component';
-import { MobileDashboardPageComponent } from './authenticated/mobile/mobile-dashboard-page/mobile-dashboard-page.component';
-import { MobileEmailCreatePageComponent } from './authenticated/mobile/mobile-email-create-page/mobile-email-create-page.component';
-import { MobileLayoutComponent } from './authenticated/mobile/mobile-layout/mobile-layout.component';
-import { MobileSectionPageComponent } from './authenticated/mobile/mobile-section-page/mobile-section-page.component';
-import { MobileLeadsPageComponent } from './authenticated/mobile/mobile-leads-page/mobile-leads-page.component';
-import { MobileQuoteCreatePageComponent } from './authenticated/mobile/mobile-quote-create-page/mobile-quote-create-page.component';
-import { LoginComponent } from './public/login/login.component';
-import { OwnerShellComponent } from './authenticated/owners/owner-shell/owner-shell.component';
-import { PropertyListingPublicComponent } from './public/property-listing-public/property-listing-public.component';
-import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
 
 export { RouterToken, RouterUrl } from './app.routes.tokens';
 
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
-  { path: RouterToken.Dashboard, component: DashboardShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.DashboardStaff, component: DashboardStaffComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Dashboard, loadComponent: () => import('./authenticated/dashboards/dashboard-shell/dashboard-shell.component').then(m => m.DashboardShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.DashboardStaff, loadComponent: () => import('./authenticated/dashboards/dashboard-staff/dashboard-staff.component').then(m => m.DashboardStaffComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.DashboardOwner, loadComponent: () => import('./authenticated/dashboards/dashboard-owner/dashboard-owner.component').then(m => m.DashboardOwnerComponent), canActivate: [authRouteGuard] },
   { path: 'rentals', redirectTo: RouterToken.ReservationList, pathMatch: 'full' },
-  { path: RouterToken.ContactList, component: ContactsShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Contacts, component: ContactsShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.MaintenanceList, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.TicketList, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.Ticket, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Property, component: PropertyShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.DocumentList, component: DocumentsShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.EmailList, component: EmailsShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AlertList, component: AlertListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.EmailCreate, component: EmailCreateComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Email, component: EmailComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Alert, component: AlertComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AccountingList, component: AccountingShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Accounting, component: AccountingShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.BillingList, component: BillingShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Billing, component: BillingComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.BillingCreate, component: BillingCreateComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.CostCodesList, component: CostCodesListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.CostCodes, component: CostCodesComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Reservation, component: ReservationShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.ReservationBoardSelection, component: PropertySelectionComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.QuoteCreate, component: QuoteCreateComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.UserList, component: UsersShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.User, component: UserComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.OrganizationList, component: OrganizationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Organization, component: OrganizationComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.OrganizationConfiguration, component: ConfigurationComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AreaList, component: AreaListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Area, component: AreaComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.BuildingList, component: BuildingListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Building, component: BuildingComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.OfficeList, component: OfficeListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Office, component: OfficeComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AccountingOfficeList, component: AccountingOfficeListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AccountingOffice, component: AccountingOfficeComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.RegionList, component: RegionListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Region, component: RegionComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.ColorList, component: ColorListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Color, component: ColorComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Leads, component: LeadsShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.OwnerShell, component: OwnerShellComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Logs, component: LogsShellComponent, canActivate: [authRouteGuard] },
-  { path: `${RouterToken.OwnerShell}/:token`, component: OwnerShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ContactList, loadComponent: () => import('./authenticated/contacts/contacts-shell/contacts-shell.component').then(m => m.ContactsShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Contacts, loadComponent: () => import('./authenticated/contacts/contacts-shell/contacts-shell.component').then(m => m.ContactsShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Contact, loadComponent: () => import('./authenticated/contacts/contact/contact.component').then(m => m.ContactComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.MaintenanceList, loadComponent: () => import('./authenticated/maintenance/maintenance-shell/maintenance-shell.component').then(m => m.MaintenanceShellComponent), canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.TicketList, loadComponent: () => import('./authenticated/tickets/ticket-shell/ticket-shell.component').then(m => m.TicketShellComponent), canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.Ticket, loadComponent: () => import('./authenticated/tickets/ticket-shell/ticket-shell.component').then(m => m.TicketShellComponent), canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.MaintenanceWorkOrder, loadComponent: () => import('./authenticated/maintenance/work-order/work-order.component').then(m => m.WorkOrderComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.WorkOrderCreate, loadComponent: () => import('./authenticated/maintenance/work-order-create/work-order-create.component').then(m => m.WorkOrderCreateComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Maintenance, loadComponent: () => import('./authenticated/maintenance/maintenance-shell/maintenance-shell.component').then(m => m.MaintenanceShellComponent), canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.PropertyList, loadComponent: () => import('./authenticated/properties/property-list/property-list.component').then(m => m.PropertyListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Property, loadComponent: () => import('./authenticated/properties/property-shell/property-shell.component').then(m => m.PropertyShellComponent), canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.DocumentList, loadComponent: () => import('./authenticated/documents/documents-shell/documents-shell.component').then(m => m.DocumentsShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.DocumentView, loadComponent: () => import('./authenticated/documents/document-view/document-view.component').then(m => m.DocumentViewComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Document, loadComponent: () => import('./authenticated/documents/document/document.component').then(m => m.DocumentComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.EmailList, loadComponent: () => import('./authenticated/email/emails-shell/emails-shell.component').then(m => m.EmailsShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.AlertList, loadComponent: () => import('./authenticated/email/alert-list/alert-list.component').then(m => m.AlertListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.EmailCreate, loadComponent: () => import('./authenticated/email/email-create/email-create.component').then(m => m.EmailCreateComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Email, loadComponent: () => import('./authenticated/email/email/email.component').then(m => m.EmailComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Alert, loadComponent: () => import('./authenticated/email/alert/alert.component').then(m => m.AlertComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingList, loadComponent: () => import('./authenticated/accounting/accounting-shell/accounting-shell.component').then(m => m.AccountingShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Accounting, loadComponent: () => import('./authenticated/accounting/accounting-shell/accounting-shell.component').then(m => m.AccountingShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.BillingList, loadComponent: () => import('./authenticated/accounting/billing-shell/billing-shell.component').then(m => m.BillingShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Billing, loadComponent: () => import('./authenticated/accounting/invoices/billing/billing.component').then(m => m.BillingComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.BillingCreate, loadComponent: () => import('./authenticated/accounting/invoices/billing-create/billing-create.component').then(m => m.BillingCreateComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.InvoiceCreate, loadComponent: () => import('./authenticated/accounting/invoices/invoice-create/invoice-create.component').then(m => m.InvoiceCreateComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.CostCodesList, loadComponent: () => import('./authenticated/accounting/setup/cost-codes-list/cost-codes-list.component').then(m => m.CostCodesListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.CostCodes, loadComponent: () => import('./authenticated/accounting/setup/cost-codes/cost-codes.component').then(m => m.CostCodesComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.ReservationList, loadComponent: () => import('./authenticated/reservations/reservation-list/reservation-list.component').then(m => m.ReservationListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Reservation, loadComponent: () => import('./authenticated/reservations/reservation-shell/reservation-shell.component').then(m => m.ReservationShellComponent), canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.ReservationBoard, loadComponent: () => import('./authenticated/reservations/reservation-board/reservation-board.component').then(m => m.ReservationBoardComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.ReservationBoardSelection, loadComponent: () => import('./authenticated/properties/property-selection/property-selection.component').then(m => m.PropertySelectionComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.QuoteCreate, loadComponent: () => import('./authenticated/properties/quote-create/quote-create.component').then(m => m.QuoteCreateComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.AgentList, loadComponent: () => import('./authenticated/organizations/agent-list/agent-list.component').then(m => m.AgentListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Agent, loadComponent: () => import('./authenticated/organizations/agent/agent.component').then(m => m.AgentComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.UserList, loadComponent: () => import('./authenticated/users/users-shell/users-shell.component').then(m => m.UsersShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.User, loadComponent: () => import('./authenticated/users/user/user.component').then(m => m.UserComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.OrganizationList, loadComponent: () => import('./authenticated/organizations/organization-list/organization-list.component').then(m => m.OrganizationListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Organization, loadComponent: () => import('./authenticated/organizations/organization/organization.component').then(m => m.OrganizationComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.OrganizationConfiguration, loadComponent: () => import('./authenticated/organizations/configuration/configuration.component').then(m => m.ConfigurationComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.AreaList, loadComponent: () => import('./authenticated/organizations/area-list/area-list.component').then(m => m.AreaListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Area, loadComponent: () => import('./authenticated/organizations/area/area.component').then(m => m.AreaComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.BuildingList, loadComponent: () => import('./authenticated/organizations/building-list/building-list.component').then(m => m.BuildingListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Building, loadComponent: () => import('./authenticated/organizations/building/building.component').then(m => m.BuildingComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.OfficeList, loadComponent: () => import('./authenticated/organizations/office-list/office-list.component').then(m => m.OfficeListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Office, loadComponent: () => import('./authenticated/organizations/office/office.component').then(m => m.OfficeComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingOfficeList, loadComponent: () => import('./authenticated/organizations/accounting-office-list/accounting-office-list.component').then(m => m.AccountingOfficeListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingOffice, loadComponent: () => import('./authenticated/organizations/accounting-office/accounting-office.component').then(m => m.AccountingOfficeComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.RegionList, loadComponent: () => import('./authenticated/organizations/region-list/region-list.component').then(m => m.RegionListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Region, loadComponent: () => import('./authenticated/organizations/region/region.component').then(m => m.RegionComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.ColorList, loadComponent: () => import('./authenticated/organizations/color-list/color-list.component').then(m => m.ColorListComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Color, loadComponent: () => import('./authenticated/organizations/color/color.component').then(m => m.ColorComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Leads, loadComponent: () => import('./authenticated/leads/leads-shell/leads-shell.component').then(m => m.LeadsShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.OwnerShell, loadComponent: () => import('./authenticated/owners/owner-shell/owner-shell.component').then(m => m.OwnerShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Logs, loadComponent: () => import('./authenticated/logs/logs-shell/logs-shell.component').then(m => m.LogsShellComponent), canActivate: [authRouteGuard] },
+  { path: `${RouterToken.OwnerShell}/:token`, loadComponent: () => import('./authenticated/owners/owner-shell/owner-shell.component').then(m => m.OwnerShellComponent), canActivate: [authRouteGuard] },
 ]
 
 const mobileRoutes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
-  { path: 'dashboard', component: MobileDashboardPageComponent },
-  { path: 'home', component: MobileBoardPageComponent },
+  { path: 'dashboard', loadComponent: () => import('./authenticated/mobile/mobile-dashboard-page/mobile-dashboard-page.component').then(m => m.MobileDashboardPageComponent) },
+  { path: 'home', loadComponent: () => import('./authenticated/mobile/mobile-board-page/mobile-board-page.component').then(m => m.MobileBoardPageComponent) },
   { path: 'leads', redirectTo: 'leads/rentals', pathMatch: 'full' },
-  { path: 'leads/:tab', component: MobileLeadsPageComponent },
-  { path: 'leads/:tab/:id', component: MobileLeadsPageComponent },
+  { path: 'leads/:tab', loadComponent: () => import('./authenticated/mobile/mobile-leads-page/mobile-leads-page.component').then(m => m.MobileLeadsPageComponent) },
+  { path: 'leads/:tab/:id', loadComponent: () => import('./authenticated/mobile/mobile-leads-page/mobile-leads-page.component').then(m => m.MobileLeadsPageComponent) },
   { path: 'tickets', redirectTo: 'tickets/my-tickets', pathMatch: 'full' },
-  { path: 'tickets/:tab', component: MobileSectionPageComponent },
-  { path: 'tickets/:tab/:id', component: MobileSectionPageComponent },
+  { path: 'tickets/:tab', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'tickets/:tab/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
   { path: 'maintenance', redirectTo: 'maintenance/inspection', pathMatch: 'full' },
-  { path: 'maintenance/inspection/:id/issues', component: MobileInspectionIssuesPageComponent },
-  { path: 'maintenance/:tab', component: MobileSectionPageComponent },
-  { path: 'maintenance/:tab/:id', component: MobileSectionPageComponent },
-  { path: 'reservations', component: MobileSectionPageComponent },
-  { path: 'reservations/:id', component: MobileSectionPageComponent },
-  { path: 'properties', component: MobileSectionPageComponent },
-  { path: 'properties/:id', component: MobileSectionPageComponent },
-  { path: 'properties/:id/:tab', component: MobileSectionPageComponent },
+  { path: 'maintenance/inspection/:id/issues', loadComponent: () => import('./authenticated/mobile/mobile-inspection-issues-page/mobile-inspection-issues-page.component').then(m => m.MobileInspectionIssuesPageComponent) },
+  { path: 'maintenance/:tab', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'maintenance/:tab/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'reservations', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'reservations/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'properties', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'properties/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'properties/:id/:tab', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
   { path: 'contacts', redirectTo: 'contacts/tenants', pathMatch: 'full' },
-  { path: 'contacts/:tab', component: MobileSectionPageComponent },
-  { path: 'contacts/:tab/:id', component: MobileSectionPageComponent },
-  { path: 'email/create', component: MobileEmailCreatePageComponent },
-  { path: 'quote-create', component: MobileQuoteCreatePageComponent },
+  { path: 'contacts/:tab', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'contacts/:tab/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'email/create', loadComponent: () => import('./authenticated/mobile/mobile-email-create-page/mobile-email-create-page.component').then(m => m.MobileEmailCreatePageComponent) },
+  { path: 'quote-create', loadComponent: () => import('./authenticated/mobile/mobile-quote-create-page/mobile-quote-create-page.component').then(m => m.MobileQuoteCreatePageComponent) },
 ];
 
 export const routes: Routes = [
 	{ path: '', redirectTo: RouterToken.Login, pathMatch: 'full' },
-  { path: RouterToken.Login, component: LoginComponent, canActivate: [unAuthRouteGuard] },
-  { path: 'listing/:token', component: PropertyListingPublicComponent },
-  { path: 'owners/:token', component: OwnerShellComponent },
-  { path: RouterToken.UserGuide, component: HelpGuidePageComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Mobile, component: MobileLayoutComponent, children: mobileRoutes, canActivate: [authRouteGuard] },
-  { path: RouterToken.Auth, component: LayoutComponent, children: authRoutes, canActivate: [authRouteGuard] },
-  { path: '**', component: PageNotFoundComponent },
+  { path: RouterToken.Login, loadComponent: () => import('./public/login/login.component').then(m => m.LoginComponent), canActivate: [unAuthRouteGuard] },
+  { path: 'listing/:token', loadComponent: () => import('./public/property-listing-public/property-listing-public.component').then(m => m.PropertyListingPublicComponent) },
+  { path: 'owners/:token', loadComponent: () => import('./authenticated/owners/owner-shell/owner-shell.component').then(m => m.OwnerShellComponent) },
+  { path: RouterToken.UserGuide, loadComponent: () => import('./authenticated/shared/user-guide/help-guide/help-guide-page.component').then(m => m.HelpGuidePageComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Mobile, loadComponent: () => import('./authenticated/mobile/mobile-layout/mobile-layout.component').then(m => m.MobileLayoutComponent), children: mobileRoutes, canActivate: [authRouteGuard] },
+  { path: RouterToken.Auth, loadComponent: () => import('./authenticated/shared/layout/layout/layout.component').then(m => m.LayoutComponent), children: authRoutes, canActivate: [authRouteGuard] },
+  { path: '**', loadComponent: () => import('./shared/page-not-found/page-not-found.component').then(m => m.PageNotFoundComponent) },
 ];

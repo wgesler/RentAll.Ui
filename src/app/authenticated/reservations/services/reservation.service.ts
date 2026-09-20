@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, catchError, firstValueFrom, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, finalize, firstValueFrom, of, shareReplay, switchMap, take, tap } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
@@ -40,6 +40,8 @@ export class ReservationService {
   private allReservationCodes$ = new BehaviorSubject<ReservationCodeResponse[]>([]);
   private reservationCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
+  private reservationCodesLoad$: Observable<ReservationCodeResponse[]> | null = null;
+  private reservationCodesLoadOrganizationId: string | null = null;
 
   getOrganizationId(): string {
     return this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -93,7 +95,19 @@ export class ReservationService {
     if (this.reservationCodesLoaded$.value && this.loadedOrganizationId === id) {
       return this.getAllReservationCodes().pipe(take(1));
     }
-    return this.loadAllReservationCodes().pipe(take(1), switchMap(() => this.getAllReservationCodes().pipe(take(1))));
+    if (!this.reservationCodesLoad$ || this.reservationCodesLoadOrganizationId !== id) {
+      this.reservationCodesLoadOrganizationId = id;
+      this.reservationCodesLoad$ = this.loadAllReservationCodes().pipe(
+        take(1),
+        switchMap(() => this.getAllReservationCodes().pipe(take(1))),
+        finalize(() => {
+          this.reservationCodesLoad$ = null;
+          this.reservationCodesLoadOrganizationId = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.reservationCodesLoad$;
   }
 
   refreshReservationCodes(): Observable<ReservationCodeResponse[]> {
@@ -120,6 +134,8 @@ export class ReservationService {
   }
 
   clearReservationCodes(): void {
+    this.reservationCodesLoad$ = null;
+    this.reservationCodesLoadOrganizationId = null;
     this.allReservationCodes$.next([]);
     this.reservationCodesLoaded$.next(false);
     this.loadedOrganizationId = null;
@@ -237,5 +253,4 @@ export class ReservationService {
     return this.http.post<ReservationPaymentResponse[]>(this.controller + 'payment/apply-rent-change', request);
   }
 }
-
 

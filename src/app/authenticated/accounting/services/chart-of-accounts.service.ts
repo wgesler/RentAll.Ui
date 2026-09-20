@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, of, shareReplay, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { ChartOfAccountRequest, ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -14,6 +14,7 @@ export class ChartOfAccountsService {
   private readonly controller = this.configService.config().apiUrl + 'accounting/chart-of-account/';
   private allChartOfAccounts$ = new BehaviorSubject<ChartOfAccountResponse[]>([]);
   private chartOfAccountsLoaded$ = new BehaviorSubject<boolean>(false);
+  private chartOfAccountsLoad$: Observable<ChartOfAccountResponse[]> | null = null;
 
   getChartOfAccountsForAllOffices(): Observable<ChartOfAccountResponse[]> {
     return this.http.get<ChartOfAccountResponse[]>(this.controller + 'office');
@@ -58,7 +59,15 @@ export class ChartOfAccountsService {
     if (this.chartOfAccountsLoaded$.value) {
       return this.getAllChartOfAccounts().pipe(take(1));
     }
-    return this.loadAllChartOfAccounts().pipe(take(1), switchMap(() => this.getAllChartOfAccounts().pipe(take(1))));
+    if (!this.chartOfAccountsLoad$) {
+      this.chartOfAccountsLoad$ = this.loadAllChartOfAccounts().pipe(
+        take(1),
+        switchMap(() => this.getAllChartOfAccounts().pipe(take(1))),
+        finalize(() => this.chartOfAccountsLoad$ = null),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.chartOfAccountsLoad$;
   }
 
   /** @deprecated Use ensureChartOfAccountsLoaded() */
@@ -86,6 +95,7 @@ export class ChartOfAccountsService {
   }
 
   clearChartOfAccounts(): void {
+    this.chartOfAccountsLoad$ = null;
     this.allChartOfAccounts$.next([]);
     this.chartOfAccountsLoaded$.next(false);
   }

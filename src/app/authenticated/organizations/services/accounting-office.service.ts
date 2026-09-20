@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, map, of, shareReplay, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AccountingOfficeRequest, AccountingOfficeResponse, AccountingOfficeCheckNumberUpdateRequest, AccountingOfficeCheckNumberUpdateResponse, AccountingOfficeCheckStockUpdateRequest, AccountingOfficeCheckStockUpdateResponse, AccountingOfficeWorkOrderNoUpdateRequest, AccountingOfficeWorkOrderNoUpdateResponse, ResyncAccountingOfficePostingStatusRequest, ReopenHardClosedPostingStatusRequest, ResyncAccountingOfficeClosedPeriodResult } from '../models/accounting-office.model';
 
@@ -16,6 +16,8 @@ export class AccountingOfficeService {
   private allAccountingOffices$ = new BehaviorSubject<AccountingOfficeResponse[]>([]);
   private accountingOfficesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
+  private accountingOfficesLoad$: Observable<AccountingOfficeResponse[]> | null = null;
+  private accountingOfficesLoadOrganizationId: string | null = null;
   private readonly controller = this.configService.config().apiUrl + 'organization/accounting-office/';
 
   /** GET api/organization/accounting-office; SuperAdmin may pass organizationId to scope the list. */
@@ -43,7 +45,19 @@ export class AccountingOfficeService {
     if (this.accountingOfficesLoaded$.value && this.loadedOrganizationId === id) {
       return this.getAllAccountingOffices().pipe(take(1));
     }
-    return this.loadAllAccountingOffices(id || undefined).pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
+    if (!this.accountingOfficesLoad$ || this.accountingOfficesLoadOrganizationId !== id) {
+      this.accountingOfficesLoadOrganizationId = id;
+      this.accountingOfficesLoad$ = this.loadAllAccountingOffices(id || undefined).pipe(
+        take(1),
+        switchMap(() => this.getAllAccountingOffices().pipe(take(1))),
+        finalize(() => {
+          this.accountingOfficesLoad$ = null;
+          this.accountingOfficesLoadOrganizationId = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.accountingOfficesLoad$;
   }
 
   refreshAccountingOffices(organizationId?: string): Observable<AccountingOfficeResponse[]> {
@@ -62,6 +76,8 @@ export class AccountingOfficeService {
   }
 
   clearAccountingOffices(): void {
+    this.accountingOfficesLoad$ = null;
+    this.accountingOfficesLoadOrganizationId = null;
     this.allAccountingOffices$.next([]);
     this.accountingOfficesLoaded$.next(false);
     this.loadedOrganizationId = null;

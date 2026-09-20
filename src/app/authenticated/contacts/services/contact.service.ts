@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, map, of, shareReplay, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
@@ -20,6 +20,7 @@ export class ContactService {
   private readonly controller = this.configService.config().apiUrl + 'contact/';
   private allContacts$ = new BehaviorSubject<ContactResponse[]>([]);
   private contactsLoaded$ = new BehaviorSubject<boolean>(false);
+  private contactsLoad$: Observable<ContactResponse[]> | null = null;
 
   loadAllContacts(): Observable<ContactResponse[]> {
     const url = this.controller;
@@ -40,7 +41,15 @@ export class ContactService {
 
   ensureContactsLoaded(): Observable<ContactResponse[]> {
     if (this.contactsLoaded$.value) return this.getAllContacts().pipe(take(1));
-    return this.loadAllContacts().pipe(take(1), switchMap(() => this.getAllContacts().pipe(take(1))));
+    if (!this.contactsLoad$) {
+      this.contactsLoad$ = this.loadAllContacts().pipe(
+        take(1),
+        switchMap(() => this.getAllContacts().pipe(take(1))),
+        finalize(() => this.contactsLoad$ = null),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.contactsLoad$;
   }
 
   refreshContacts(): Observable<ContactResponse[]> {
@@ -67,6 +76,7 @@ export class ContactService {
   }
 
   clearContacts(): void {
+    this.contactsLoad$ = null;
     this.allContacts$.next([]);
     this.contactsLoaded$.next(false);
   }
@@ -154,4 +164,3 @@ export class ContactService {
     return this.refreshCacheAfterMutation(this.http.post<AppendPropertyCodeToContactsResponse>(`${this.controller}append-property-code`, request));
   }
 }
-

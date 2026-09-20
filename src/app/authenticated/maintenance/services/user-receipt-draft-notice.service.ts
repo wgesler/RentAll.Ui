@@ -84,6 +84,10 @@ export class UserReceiptDraftNoticeService {
     this.openReceiptsDraftsRequestedSubject.next(false);
   }
 
+  setPendingNotice(pending: boolean): void {
+    this.pendingSubject.next(pending);
+  }
+
   notifyDraftsChanged(): void {
     this.refresh();
   }

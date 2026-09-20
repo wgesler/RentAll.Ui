@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, map, of, shareReplay, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AgentRequest, AgentResponse } from '../models/agent.model';
 
@@ -15,6 +15,7 @@ export class AgentService {
   private readonly controller = this.configService.config().apiUrl + 'organization/agent/';
   private allAgents$ = new BehaviorSubject<AgentResponse[]>([]);
   private agentsLoaded$ = new BehaviorSubject<boolean>(false);
+  private agentsLoad$: Observable<AgentResponse[]> | null = null;
 
   loadAllAgents(): Observable<AgentResponse[]> {
     return this.http.get<AgentResponse[]>(this.controller).pipe(
@@ -35,7 +36,15 @@ export class AgentService {
     if (this.agentsLoaded$.value) {
       return this.getAllAgents().pipe(take(1));
     }
-    return this.loadAllAgents().pipe(take(1), switchMap(() => this.getAllAgents().pipe(take(1))));
+    if (!this.agentsLoad$) {
+      this.agentsLoad$ = this.loadAllAgents().pipe(
+        take(1),
+        switchMap(() => this.getAllAgents().pipe(take(1))),
+        finalize(() => this.agentsLoad$ = null),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.agentsLoad$;
   }
 
   refreshAgents(): Observable<AgentResponse[]> {
@@ -51,6 +60,7 @@ export class AgentService {
   }
 
   clearAgents(): void {
+    this.agentsLoad$ = null;
     this.allAgents$.next([]);
     this.agentsLoaded$.next(false);
   }
@@ -84,6 +94,5 @@ export class AgentService {
     return this.refreshCacheAfterMutation(this.http.delete<void>(this.controller + agentId));
   }
 }
-
 
 

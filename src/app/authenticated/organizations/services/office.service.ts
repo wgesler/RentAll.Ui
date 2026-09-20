@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, of, shareReplay, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { GlobalSelectionService } from './global-selection.service';
@@ -19,6 +19,7 @@ export class OfficeService {
   private allOffices$ = new BehaviorSubject<OfficeResponse[]>([]);
   private officesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
+  private officesLoad$: Observable<OfficeResponse[]> | null = null;
 
    loadAllOffices(organizationId: string): Observable<OfficeResponse[]> {
     const id = organizationId?.trim();
@@ -51,12 +52,21 @@ export class OfficeService {
       return of([]);
     }
     if (this.officesLoaded$.value && this.loadedOrganizationId === id) return this.getAllOffices().pipe(take(1));
-    return this.loadAllOffices(id).pipe(take(1), switchMap(() => this.getAllOffices().pipe(take(1))));
+    if (this.officesLoad$ && this.loadedOrganizationId === id) return this.officesLoad$;
+    this.loadedOrganizationId = id;
+    this.officesLoad$ = this.loadAllOffices(id).pipe(
+      take(1),
+      switchMap(() => this.getAllOffices().pipe(take(1))),
+      finalize(() => this.officesLoad$ = null),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.officesLoad$;
   }
 
   refreshOffices(organizationId: string): Observable<OfficeResponse[]> {
     this.officesLoaded$.next(false);
     this.loadedOrganizationId = null;
+    this.officesLoad$ = null;
     return this.loadAllOffices(organizationId).pipe(take(1), switchMap(() => this.getAllOffices().pipe(take(1))));
   }
 
@@ -76,6 +86,7 @@ export class OfficeService {
 
   // Clear all offices (e.g., on logout)
   clearOffices(): void {
+    this.officesLoad$ = null;
     this.allOffices$.next([]);
     this.officesLoaded$.next(false);
     this.loadedOrganizationId = null;
@@ -125,7 +136,5 @@ export class OfficeService {
     return this.http.delete<void>(this.controller + officeId);
   }
 }
-
-
 
 

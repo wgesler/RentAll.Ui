@@ -78,7 +78,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadDailyQuote();
     this.loadStates();
 
-    // Watch for login changes and re-initialize organization list, contacts, and offices
+    // Prime shared application caches once. Routed feature code still loads lazily.
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
       if (isLoggedIn) {
         this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -90,9 +90,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadPropertyCodes();
         this.loadReservationCodes();
         this.loadPropertySelectionFilterState();
-        if (this.authService.hasAccountingNavAccess()) {
-          this.securityDepositService.scheduleSecurityDepositsOutstandingRefreshAfterLogin();
-        }
       } else {
         this.organizationId = '';
         this.securityDepositService.clearSecurityDepositsOutstanding();
@@ -182,7 +179,7 @@ export class AppComponent implements OnInit, OnDestroy {
         const activeOffices = (offices || []).filter(office => office.isActive);
         return forkJoin({
           accountingOffices: this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)),
-          features: this.organizationFeatureService.refreshFeatures(this.organizationId).pipe(take(1))
+          features: this.organizationFeatureService.ensureFeaturesLoaded(this.organizationId).pipe(take(1))
         }).pipe(
           map(({ features }) => {
             this.globalSelectionService.reconcileGlobalOfficeWithAvailableOffices(activeOffices);

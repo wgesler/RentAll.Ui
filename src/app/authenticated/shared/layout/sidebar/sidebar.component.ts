@@ -3,14 +3,12 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Observable, Subject, forkJoin, map, shareReplay, take, takeUntil } from 'rxjs';
+import { Observable, Subject, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
-import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
 import { getFilteredSidebarNavItems, getSidebarFilterOptions } from '../../access/role-access';
-import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
 import { UserReceiptDraftNoticeService } from '../../../maintenance/services/user-receipt-draft-notice.service';
@@ -18,6 +16,7 @@ import { ReservationService } from '../../../reservations/services/reservation.s
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
 import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
+import { SidebarAttentionService } from '../services/sidebar-attention.service';
 
 @Component({
     standalone: true,
@@ -40,6 +39,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private reservationService = inject(ReservationService);
   private leadsService = inject(LeadsService);
   private organizationFeatureService = inject(OrganizationFeatureService);
+  private sidebarAttentionService = inject(SidebarAttentionService);
   private cdr = inject(ChangeDetectorRef);
 
   readonly expandedSidebarWidth = 175;
@@ -66,8 +66,6 @@ markViewForCheck(): void {
 
   ngOnInit(): void {
     this.filterNavItemsByRole();
-    this.refreshAssignedTicketBadge();
-    this.refreshLeadBadge();
 
     this.securityDepositService.securityDepositsOutstanding$.pipe(takeUntil(this.destroy$)).subscribe(outstanding => {
       this.hasSecurityDepositsOutstanding = outstanding;
@@ -100,14 +98,8 @@ markViewForCheck(): void {
     // Re-filter when login status changes
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
       this.filterNavItemsByRole();
-      this.refreshAssignedTicketBadge();
-      this.refreshLeadBadge();
-      if (isLoggedIn && this.authService.hasAccountingNavAccess()) {
-        this.securityDepositService.scheduleSecurityDepositsOutstandingRefreshAfterLogin();
-      }
-      if (isLoggedIn) {
-        this.userReceiptDraftNoticeService.scheduleRefreshAfterLogin();
-      } else {
+      this.refreshAttentionSummary();
+      if (!isLoggedIn) {
         this.userReceiptDraftNoticeService.clearPendingNotice();
       }
       this.markViewForCheck();
@@ -115,8 +107,6 @@ markViewForCheck(): void {
 
     this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.filterNavItemsByRole();
-      this.refreshAssignedTicketBadge();
-      this.refreshLeadBadge();
       this.markViewForCheck();
     });
 
@@ -126,11 +116,11 @@ markViewForCheck(): void {
     });
 
     this.ticketService.ticketStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.refreshAssignedTicketBadge();
+      this.refreshAttentionSummary();
     });
 
     this.leadsService.leadStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.refreshLeadBadge();
+      this.refreshAttentionSummary();
     });
 
     this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -146,82 +136,25 @@ markViewForCheck(): void {
     this.navItems = getFilteredSidebarNavItems(userGroups, getSidebarFilterOptions(this.authService, this.commonService.getOrganizationTypeId()));
   }
 
-  refreshAssignedTicketBadge(): void {
-    if (!this.authService.hasTicketingAccess()) {
+  refreshAttentionSummary(): void {
+    if (!this.authService.getIsLoggedIn()) {
       this.hasAssignedTicketBadge = false;
-      this.markViewForCheck();
+      this.hasNewLeadBadge = false;
+      this.hasSecurityDepositsOutstanding = false;
       return;
     }
 
-    const currentUserId = String(this.authService.getUser()?.userId || '').trim();
-    const currentUserAgentId = String(this.authService.getUser()?.agentId || '').trim();
-    if (!currentUserId) {
-      this.hasAssignedTicketBadge = false;
-      this.markViewForCheck();
-      return;
-    }
-
-    this.ticketService.getTickets().pipe(take(1)).subscribe({
-      next: tickets => {
-        this.hasAssignedTicketBadge = (tickets || []).some(ticket => {
-          const assigneeId = String(ticket.assigneeId || '').trim();
-          const agentId = String(ticket.agentId || '').trim();
-          const createdBy = String(ticket.createdBy || '').trim();
-          const isAssignedToCurrentUser = assigneeId === currentUserId || (currentUserAgentId !== '' && agentId === currentUserAgentId);
-          const isCreatedByCurrentUser = createdBy === currentUserId;
-          if (ticket.ticketStateTypeId === TicketStateType.caseCreated) {
-            return isCreatedByCurrentUser;
-          }
-          if (ticket.ticketStateTypeId === TicketStateType.assigned) {
-            return isAssignedToCurrentUser;
-          }
-          return false;
-        });
+    this.sidebarAttentionService.getSummary().pipe(take(1)).subscribe({
+      next: summary => {
+        this.hasAssignedTicketBadge = this.authService.hasTicketingAccess() && summary.assignedTicketCount > 0;
+        this.hasNewLeadBadge = this.authService.hasAccessToLeads() && summary.newLeadCount > 0;
+        this.hasSecurityDepositsOutstanding = this.authService.hasAccountingNavAccess() && summary.securityDepositCount > 0;
+        this.securityDepositService.setSecurityDepositsOutstanding(this.hasSecurityDepositsOutstanding);
+        this.userReceiptDraftNoticeService.setPendingNotice(summary.pendingReceiptDraftCount > 0);
         this.markViewForCheck();
       },
-      error: () => {
-        this.hasAssignedTicketBadge = false;
-        this.markViewForCheck();
-      }
+      error: () => this.markViewForCheck()
     });
-  }
-
-  refreshLeadBadge(): void {
-    if (!this.authService.hasAccessToLeads()) {
-      this.hasNewLeadBadge = false;
-      this.markViewForCheck();
-      return;
-    }
-
-    const hasLeadsNavItem = this.navItems.some(navItem => {
-      const url = String(navItem?.url || '');
-      return url === 'leads' || url.startsWith('leads/');
-    });
-    if (!hasLeadsNavItem) {
-      this.hasNewLeadBadge = false;
-      this.markViewForCheck();
-      return;
-    }
-
-    forkJoin({
-      rentals: this.leadsService.getRentalLeads(),
-      owners: this.leadsService.getOwnerLeads(),
-      generals: this.leadsService.getGeneralLeads(),
-      partners: this.leadsService.getPartnerLeads()
-    }).pipe(take(1)).subscribe({
-      next: ({ rentals, owners, generals, partners }) => {
-        this.hasNewLeadBadge = this.hasNewLeadState(rentals) || this.hasNewLeadState(owners) || this.hasNewLeadState(generals) || this.hasNewLeadState(partners);
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.hasNewLeadBadge = false;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  hasNewLeadState(rows: Array<{ leadStateId?: number }> | null | undefined): boolean {
-    return (rows || []).some(row => row?.leadStateId === LeadStateType.New);
   }
 
   refreshSecurityDepositsOutstandingBadge(): void {
@@ -241,7 +174,7 @@ markViewForCheck(): void {
       return;
     }
 
-    this.securityDepositService.refreshSecurityDepositsOutstanding();
+    this.refreshAttentionSummary();
   }
     
   get desktopSidebarWidth(): number {

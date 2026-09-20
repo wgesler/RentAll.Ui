@@ -75,7 +75,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.idle.watch();
 
     this.userReceiptDraftNoticeService.resetLoginPrompt();
-    this.userReceiptDraftNoticeService.scheduleRefreshAfterLogin();
     this.userReceiptDraftNoticeService.hasPendingUserReceiptDrafts$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.syncPendingReceiptDraftsPrompt());
@@ -87,7 +86,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
         this.cd.markForCheck();
         return;
       }
-      this.userReceiptDraftNoticeService.scheduleRefreshAfterLogin();
     });
 
     this.authService.jwtChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {

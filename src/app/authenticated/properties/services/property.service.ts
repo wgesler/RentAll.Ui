@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, firstValueFrom, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, firstValueFrom, of, shareReplay, switchMap, take, tap } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { AuthService } from '../../../services/auth.service';
@@ -35,6 +35,8 @@ export class PropertyService {
   private allPropertyCodes$ = new BehaviorSubject<PropertyCodeResponse[]>([]);
   private propertyCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
+  private propertyCodesLoad$: Observable<PropertyCodeResponse[]> | null = null;
+  private propertyCodesLoadOrganizationId: string | null = null;
 
 getOrganizationId(): string {
     return this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -84,7 +86,19 @@ getOrganizationId(): string {
     if (this.propertyCodesLoaded$.value && this.loadedOrganizationId === id) {
       return this.getAllPropertyCodes().pipe(take(1));
     }
-    return this.loadAllPropertyCodes().pipe(take(1), switchMap(() => this.getAllPropertyCodes().pipe(take(1))));
+    if (!this.propertyCodesLoad$ || this.propertyCodesLoadOrganizationId !== id) {
+      this.propertyCodesLoadOrganizationId = id;
+      this.propertyCodesLoad$ = this.loadAllPropertyCodes().pipe(
+        take(1),
+        switchMap(() => this.getAllPropertyCodes().pipe(take(1))),
+        finalize(() => {
+          this.propertyCodesLoad$ = null;
+          this.propertyCodesLoadOrganizationId = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    return this.propertyCodesLoad$;
   }
 
   refreshPropertyCodes(): Observable<PropertyCodeResponse[]> {
@@ -111,6 +125,8 @@ refreshCachedPropertyCodesAfterMutation(): void {
   }
 
   clearPropertyCodes(): void {
+    this.propertyCodesLoad$ = null;
+    this.propertyCodesLoadOrganizationId = null;
     this.allPropertyCodes$.next([]);
     this.propertyCodesLoaded$.next(false);
     this.loadedOrganizationId = null;
@@ -272,7 +288,6 @@ refreshCachedPropertyCodesAfterMutation(): void {
     };
   }
 }
-
 
 
 
