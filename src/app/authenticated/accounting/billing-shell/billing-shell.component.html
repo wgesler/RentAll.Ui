@@ -1,5 +1,6 @@
 <div class="flex content-card-wrap justify-center items-start">
   <section class="content-card">
+    @if (!activeInvoiceId && !showPreview) {
     <div class="flex justify-between items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
       <div class="flex items-center flex-wrap py-4">
         <span class="flex flex-shrink-0 items-center gap-2">
@@ -19,19 +20,40 @@
         </div>
       </div>
     </div>
+    }
 
     <mat-card>
       <div class="dbg-band-main">
-        <app-invoice-list
-          [source]="'billing'"
-          [organizationId]="selectedOrganizationId"
-          [organizationName]="selectedOrganizationName"
-          [organizationOptions]="organizationTitleBarOptions"
-          [officeId]="null"
-          [reservationId]="null"
-          [companyId]="null"
-          (organizationIdChange)="onInvoiceOrganizationChange($event)">
-        </app-invoice-list>
+        @if (showPreview && previewInvoiceId) {
+          <app-billing-create
+            [shellMode]="true"
+            [invoiceId]="previewInvoiceId"
+            [organizationId]="selectedOrganizationId"
+            (backEvent)="onEditorBack()">
+          </app-billing-create>
+        } @else if (activeInvoiceId) {
+          <app-billing
+            [shellMode]="true"
+            [invoiceIdInput]="activeInvoiceId"
+            [organizationIdInput]="selectedOrganizationId"
+            (backEvent)="onEditorBack()"
+            (previewEvent)="onBillingPreview($event)">
+          </app-billing>
+        } @else {
+          <app-invoice-list
+            [source]="'billing'"
+            [organizationId]="selectedOrganizationId"
+            [organizationName]="selectedOrganizationName"
+            [organizationOptions]="organizationTitleBarOptions"
+            [officeId]="null"
+            [reservationId]="null"
+            [companyId]="null"
+            [embedDocumentPreviewInShell]="true"
+            (organizationIdChange)="onInvoiceOrganizationChange($event)"
+            (invoiceSelect)="onInvoiceSelect($event)"
+            (previewEvent)="onPreview($event)">
+          </app-invoice-list>
+        }
       </div>
     </mat-card>
   </section>

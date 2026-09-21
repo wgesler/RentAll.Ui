@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -44,6 +44,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   @Input() organizationId: string | null = null; 
   @Input() invoiceId: string | null = null;
+  @Input() shellMode = false;
+  @Output() backEvent = new EventEmitter<void>();
   private accountingService = inject(InvoiceService);
   private fb = inject(FormBuilder);
   private utilityService = inject(UtilityService);
@@ -398,6 +400,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
           list[0] ||
           null;
         this.updateAccountingOfficeLogo();
+        if (this.recipientOrganization) {
+          this.loadInvoicesForRecipientOrganization();
+        }
       },
       error: (err) => {
         console.error('Could not load accounting office list:', err);
@@ -486,12 +491,23 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   selectInvoiceAfterDataLoad(invoiceId: string): void {
-    if (!this.invoices.length) {
-      setTimeout(() => this.selectInvoiceAfterDataLoad(invoiceId), 300);
+    if (this.invoices.some(invoice => invoice.invoiceId === invoiceId)) {
+      this.onInvoiceSelected(invoiceId);
       return;
     }
 
-    this.onInvoiceSelected(invoiceId);
+    this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1)).subscribe({
+      next: (invoice) => {
+        if (!this.invoices.some(existing => existing.invoiceId === invoice.invoiceId)) {
+          this.invoices = [...this.invoices, invoice];
+          this.availableInvoices = this.invoices.map(item => ({
+            value: item,
+            label: item.invoiceCode || `Invoice ${item.invoiceId}`
+          }));
+        }
+        this.onInvoiceSelected(invoiceId);
+      }
+    });
   }
 
   get organizationTitleBarOptions(): { value: string, label: string }[] {
@@ -858,6 +874,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Utility Methods
   goBack(): void {
+    if (this.shellMode) {
+      this.backEvent.emit();
+      return;
+    }
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
     

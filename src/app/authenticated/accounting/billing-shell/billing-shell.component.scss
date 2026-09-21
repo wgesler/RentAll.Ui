@@ -2,6 +2,9 @@ mat-card {
   overflow: hidden;
 }
 
-app-invoice-list {
+app-invoice-list,
+app-billing,
+app-billing-create {
   display: block;
+  width: 100%;
 }

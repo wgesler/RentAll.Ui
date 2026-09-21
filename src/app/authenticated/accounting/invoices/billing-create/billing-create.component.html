@@ -1,124 +1,150 @@
-@if (!isPageReady) {
-  <div class="flex content-card-wrap justify-center">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-          </span>
-          @if (form) {
-            <div class="header-title form-titlebar-fields-wrap">
-              <app-title-bar-select
-                [label]="'Organization'"
-                [formFieldClass]="'titlebar-field-company'"
-                [value]="form.get('selectedOrganizationId')?.value ?? null"
-                [options]="organizationTitleBarOptions"
-                [nullOptionLabel]="'Select Organization'"
-                [noResultsText]="'No organizations match your search'"
-                (valueChange)="onTitleBarOrganizationChange($event)">
-              </app-title-bar-select>
+<ng-template #billingActionButtons>
+  <button mat-raised-button type="button" color="accent" (click)="onPrint()"
+    class="text-nowrap flex-shrink-0"
+    [disabled]="!selectedInvoice || !previewIframeHtml">
+    <mat-icon>print</mat-icon>
+    Print
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+    class="text-nowrap flex-shrink-0"
+    [disabled]="!selectedInvoice || !previewIframeHtml">
+    <mat-icon>email</mat-icon>
+    Email
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onDownload()"
+    class="text-nowrap flex-shrink-0"
+    [disabled]="!selectedInvoice || !previewIframeHtml || isDownloading">
+    <mat-icon>download</mat-icon>
+    {{ isDownloading ? 'Downloading...' : 'Download' }}
+  </button>
+  <button mat-raised-button type="button" color="primary" id="save-button"
+    (click)="saveInvoice()"
+    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+    <mat-icon>save</mat-icon>
+    Document
+  </button>
+</ng-template>
 
-              <mat-form-field appearance="outline" class="titlebar-field-invoice-no">
-                <mat-label>Invoice No</mat-label>
-                <input matInput [value]="invoiceCodeDisplay" readonly [disabled]="true">
-              </mat-form-field>
-            </div>
-          }
+<ng-template #billingEditorField>
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Invoice (HTML)</mat-label>
+    <textarea
+      matInput
+      formControlName="invoice"
+      rows="20"
+      [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
+    </textarea>
+    <mat-hint>
+      Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}. These will be replaced with actual values when generating the invoice. Select an Office and Invoice to see a preview.
+    </mat-hint>
+  </mat-form-field>
+</ng-template>
+
+<ng-template #billingTitleBar>
+  <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+    <div class="flex items-center flex-wrap py-4">
+      <span class="flex flex-column items-center gap-3 flex-shrink-0">
+        <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+      </span>
+      @if (form) {
+        <div class="header-title form-titlebar-fields-wrap">
+          <app-title-bar-select
+            [label]="'Organization'"
+            [formFieldClass]="'titlebar-field-company'"
+            [value]="form.get('selectedOrganizationId')?.value ?? null"
+            [options]="organizationTitleBarOptions"
+            [nullOptionLabel]="'Select Organization'"
+            [noResultsText]="'No organizations match your search'"
+            (valueChange)="onTitleBarOrganizationChange($event)">
+          </app-title-bar-select>
+
+          <mat-form-field appearance="outline" class="titlebar-field-invoice-no">
+            <mat-label>Invoice No</mat-label>
+            <input matInput [value]="invoiceCodeDisplay" readonly [disabled]="true">
+          </mat-form-field>
         </div>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
+      }
+    </div>
+    <div class="flex gap-2">
+      <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
+        class="scale-90 text-nowrap flex-shrink-0">
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </button>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #billingButtonRow>
+  <div class="datatable-search-wrap dbg-band-actions px-4">
+    <div class="datatable-search-wrap__row">
+      <div class="datatable-search-wrap__actions">
+        <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+          <ng-container *ngTemplateOutlet="billingActionButtons"></ng-container>
         </div>
       </div>
-      <mat-card>
-        <div class="loading-container">
-          <mat-spinner [diameter]="40"></mat-spinner>
-          <p>Loading invoice...</p>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #documentPreviewContent>
+  <form [formGroup]="form" class="invoice-create-form">
+    <ng-container *ngTemplateOutlet="billingButtonRow"></ng-container>
+    @if (selectedInvoice && previewIframeHtml) {
+      <div class="dbg-band-main">
+        <div class="document-preview-frame">
+          <iframe
+            [srcdoc]="safePreviewIframeHtml"
+            class="document-preview-iframe preview-iframe"
+            #previewIframe
+            [attr.key]="iframeKey"
+            (load)="onPreviewIframeLoad()"
+            frameborder="0">
+          </iframe>
         </div>
-      </mat-card>
-    </section>
+      </div>
+    } @else {
+      <div class="dbg-band-main">
+        <ng-container *ngTemplateOutlet="billingEditorField"></ng-container>
+      </div>
+    }
+  </form>
+</ng-template>
+
+@if (!isPageReady) {
+  @if (shellMode) {
+    <div class="billing-create-shell">
+      <ng-container *ngTemplateOutlet="billingTitleBar"></ng-container>
+      <div class="loading-container">
+        <mat-spinner [diameter]="40"></mat-spinner>
+        <p>Loading invoice...</p>
+      </div>
+    </div>
+  } @else {
+    <div class="flex content-card-wrap justify-center">
+      <section class="content-card">
+        <ng-container *ngTemplateOutlet="billingTitleBar"></ng-container>
+        <mat-card>
+          <div class="loading-container">
+            <mat-spinner [diameter]="40"></mat-spinner>
+            <p>Loading invoice...</p>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else if (shellMode) {
+  <div class="billing-create-shell">
+    <ng-container *ngTemplateOutlet="billingTitleBar"></ng-container>
+    <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
   </div>
 } @else {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-        </span>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-        </div>
-      </div>
+      <ng-container *ngTemplateOutlet="billingTitleBar"></ng-container>
       <mat-card>
-        <div class="mat">
-          <form [formGroup]="form" class="invoice-create-form">
-            
-            <div class="mt-8 px-4 flex justify-end items-center uniform-gap form-titlebar-actions-wrap">
-              <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
-                class="text-nowrap flex-shrink-0"
-                [disabled]="!selectedInvoice || !previewIframeHtml">
-                <mat-icon>print</mat-icon>
-                Print
-              </button>
-              <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
-                class="text-nowrap flex-shrink-0"
-                [disabled]="!selectedInvoice || !previewIframeHtml">
-                <mat-icon>email</mat-icon>
-                Email
-              </button>
-              <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
-                class="text-nowrap flex-shrink-0"
-                [disabled]="!selectedInvoice || !previewIframeHtml || isDownloading">
-                <mat-icon>download</mat-icon>
-                {{ isDownloading ? 'Downloading...' : 'Download' }}
-              </button>
-              <button mat-raised-button type="button" color="primary" id="save-button" 
-                (click)="saveInvoice()"
-                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-                <mat-icon>save</mat-icon>
-                Document
-              </button>
-            </div>
-
-            <div class="editor-section">
-              @if (selectedInvoice && previewIframeHtml) {
-                <div class="preview-section">
-                  <iframe 
-                    [srcdoc]="safePreviewIframeHtml" 
-                    #previewIframe
-                    class="preview-iframe"
-                    [attr.key]="iframeKey"
-                    (load)="onPreviewIframeLoad()"
-                    frameborder="0">
-                  </iframe>
-                </div>
-              } @else {
-                <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Invoice (HTML)</mat-label>
-                  <textarea 
-                    matInput 
-                    formControlName="invoice" 
-                    rows="20"
-                    [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
-                  </textarea>
-                  <mat-hint>
-                    Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}. These will be replaced with actual values when generating the invoice. Select an Office and Invoice to see a preview.
-                  </mat-hint>
-                </mat-form-field>
-              }
-            </div>
-
-          </form>
-        </div>
+        <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
       </mat-card>
     </section>
   </div>

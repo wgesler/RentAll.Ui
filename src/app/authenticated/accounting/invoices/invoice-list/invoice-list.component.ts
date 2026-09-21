@@ -211,6 +211,22 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' }
   };
 
+  billingInvoicesDisplayedColumns: ColumnSet = {
+    expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+    reservationCode: { displayAs: 'Company', maxWidth: '15ch', sortType: 'natural' },
+    responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '20ch' },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '18ch', sortType: 'natural', wrap: false },
+    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
+    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
+    created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
+    postingStatusId: postingStatusColumn,
+    totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' }
+  };
+
   invoicesDisplayedColumns: ColumnSet = {};
 
   ledgerLinesDisplayedColumns: ColumnSet = {
@@ -360,11 +376,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompanyContact?.contactId || null);
 
     // Embedded shells own the editor swap; do not rely on a sibling-route remount / query-only nav.
-    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation')) {
+    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation' || this.source === 'billing')) {
       this.invoiceSelect.emit({
         invoiceId: 'new',
         officeId: officeIdToUse,
-        reservationId: reservationIdToUse,
+        reservationId: this.source === 'billing' ? this.organizationId : reservationIdToUse,
         companyId: companyIdToUse,
         invoice: null
       });
@@ -443,7 +459,36 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }  //#endregion
 
   //#region Action Methods
+  openBillingDocument(invoice: InvoiceResponse): void {
+    const invoiceId = invoice?.invoiceId;
+    if (!invoiceId) {
+      return;
+    }
+
+    const organizationId = invoice.reservationId || this.organizationId || null;
+    if (this.embedDocumentPreviewInShell) {
+      this.previewEvent.emit({
+        invoiceId,
+        invoiceCode: invoice.invoiceCode ?? null,
+        officeId: invoice.officeId ?? 1,
+        reservationId: organizationId
+      });
+      return;
+    }
+
+    const params = [`invoiceId=${invoiceId}`, 'returnTo=billing'];
+    if (organizationId) {
+      params.push(`organizationId=${organizationId}`);
+    }
+    this.router.navigateByUrl(`/${RouterUrl.BillingCreate}?${params.join('&')}`);
+  }
+
   printInvoice(invoice: InvoiceResponse): void {
+    if (this.source === 'billing') {
+      this.openBillingDocument(invoice);
+      return;
+    }
+
     if (!invoice?.invoiceId) {
       return;
     }
@@ -456,6 +501,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   downloadInvoice(invoice: InvoiceResponse): void {
+    if (this.source === 'billing') {
+      this.openBillingDocument(invoice);
+      return;
+    }
+
     if (!invoice?.invoiceId) {
       return;
     }
@@ -480,14 +530,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
 
     // Embedded shells own the editor swap; do not rely on a sibling-route remount / query-only nav.
-    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation')) {
+    if (this.embedDocumentPreviewInShell && (this.source === 'accounting' || this.source === 'reservation' || this.source === 'billing')) {
       // Prefer the cached InvoiceResponse — row click emits a display row whose ledgerLines
       // are already remapped for the table and must not be treated as API payload.
       const sourceInvoice = this.allInvoices.find(invoice => invoice.invoiceId === event.invoiceId) ?? event;
       this.invoiceSelect.emit({
         invoiceId: event.invoiceId,
         officeId: officeIdToUse ?? event.officeId ?? null,
-        reservationId: reservationIdToUse ?? event.reservationId ?? null,
+        reservationId: this.source === 'billing'
+          ? (event.reservationId || this.organizationId)
+          : (reservationIdToUse ?? event.reservationId ?? null),
         invoice: sourceInvoice
       });
       return;
@@ -541,6 +593,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToReservation(event: InvoiceResponse): void {
+    if (this.source === 'billing') {
+      return;
+    }
+
     if (this.showPaymentForm) {
       return;
     }
@@ -631,6 +687,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
       params.push(`companyId=${companyIdToUse}`);
+    }
+
+    if (this.source === 'billing') {
+      this.openBillingDocument(event);
+      return;
     }
 
     if (this.source === 'reservation' && this.embedDocumentPreviewInShell) {
@@ -1533,8 +1594,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   rebuildInvoicesDisplayedColumns(): void {
-    const columns = { ...this.baseInvoicesDisplayedColumns };
-    if ((this.source === 'accounting' || this.source === 'billing') && this.isSuperUser) {
+    const columns = this.source === 'billing'
+      ? { ...this.billingInvoicesDisplayedColumns }
+      : { ...this.baseInvoicesDisplayedColumns };
+
+    if (this.source === 'accounting' && this.isSuperUser) {
       columns['reservationCode'] = { ...columns['reservationCode'], displayAs: 'Company' };
     }
 

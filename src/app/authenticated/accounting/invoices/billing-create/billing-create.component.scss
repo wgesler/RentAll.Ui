@@ -1,6 +1,46 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.billing-create-shell {
+  width: 100%;
+}
+
+.datatable-search-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  min-height: var(--datatable-search-wrap-min-height);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: var(--datatable-search-wrap-margin-bottom);
+  box-sizing: border-box;
+}
+
+.datatable-search-wrap__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.datatable-search-wrap__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .invoice-create-form {
   display: flex;
   flex-direction: column;
+  gap: 0;
+}
+
+.invoice-create-form--shell-bands {
   gap: 0;
 }
 
@@ -31,8 +71,15 @@
   overflow: hidden;
 }
 
+.preview-section,
+.document-preview-frame {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .preview-iframe {
   width: 100%;
+  min-width: 8.5in;
   min-height: 500px;
   border: none;
   display: block;

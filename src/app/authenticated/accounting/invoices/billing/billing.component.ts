@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, ChangeDetectorRef } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -34,6 +34,11 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
 })
 
 export class BillingComponent implements OnInit, OnDestroy {
+  @Input() shellMode = false;
+  @Input() invoiceIdInput: string | null = null;
+  @Input() organizationIdInput: string | null = null;
+  @Output() backEvent = new EventEmitter<void>();
+  @Output() previewEvent = new EventEmitter<InvoiceResponse>();
   private cdr = inject(ChangeDetectorRef);
   invoiceService = inject(InvoiceService);
   router = inject(Router);
@@ -87,6 +92,21 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.isPaymentMode = false;
     this.loadCostCodes();
     this.loadOrganizations();
+
+    if (this.shellMode) {
+      this.invoiceId = this.invoiceIdInput || 'new';
+      this.isAddMode = this.invoiceId === 'new';
+      this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+        this.buildForm();
+        this.setupFormHandlers();
+        if (!this.isAddMode) {
+          this.getInvoice();
+        } else {
+          this.handleAddModeQueryParams();
+        }
+      });
+      return;
+    }
         
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
@@ -110,6 +130,11 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   handleAddModeQueryParams(): void {
+    if (this.shellMode) {
+      this.processQueryParams({ organizationId: this.organizationIdInput });
+      return;
+    }
+
     // Process initial query params immediately from snapshot
     const snapshotParams = this.route.snapshot.queryParams;
     this.processQueryParams(snapshotParams);
@@ -1173,6 +1198,10 @@ recomputeLedgerLineNumbers(): void {
   }
 
   navigateBack(formValue: any): void {
+    if (this.shellMode) {
+      this.backEvent.emit();
+      return;
+    }
     const returnTo = this.route.snapshot.queryParams['returnTo'] || 'accounting';
     if (returnTo === 'billing') {
       this.router.navigateByUrl(RouterUrl.BillingList);
@@ -1184,6 +1213,11 @@ recomputeLedgerLineNumbers(): void {
   navigateToBillingCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
     if (!invoiceToUse?.invoiceId) {
       this.navigateBack(formValue || this.form?.getRawValue() || {});
+      return;
+    }
+
+    if (this.shellMode) {
+      this.previewEvent.emit(invoiceToUse);
       return;
     }
 
@@ -1219,6 +1253,10 @@ recomputeLedgerLineNumbers(): void {
   }
 
   back(): void {
+    if (this.shellMode) {
+      this.backEvent.emit();
+      return;
+    }
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'] || 'accounting';
 
