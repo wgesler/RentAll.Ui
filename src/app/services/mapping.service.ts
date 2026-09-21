@@ -223,6 +223,7 @@ export class MappingService {
         organizationId: org.organizationId,
         organizationCode: org.organizationCode,
         name: org.name,
+        displayName: org.displayName,
         organizationTypeId: org.organizationTypeId,
         organizationType: getOrganizationType(org.organizationTypeId),
         address1: org.address1,

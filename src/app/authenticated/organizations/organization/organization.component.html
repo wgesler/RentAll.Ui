@@ -43,7 +43,7 @@
                 <input matInput formControlName="organizationCode" readonly>
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Organization Type</mat-label>
                 <mat-select formControlName="organizationTypeId" required>
                   @for (type of organizationTypes; track type.value) {
@@ -55,6 +55,11 @@
               <mat-form-field appearance="outline" class="col-span-3">
                 <mat-label>Name</mat-label>
                 <input matInput #firstInput formControlName="name" required>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Display Name</mat-label>
+                <input matInput formControlName="displayName" maxlength="25">
               </mat-form-field>
 
               @if (form.get('isInternational')?.value) {
@@ -134,12 +139,12 @@
                 <input matInput formControlName="contactEmail" type="email">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>SendGrid Name</mat-label>
                 <input matInput formControlName="sendGridName">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Suffix Key Name</mat-label>
                 <input matInput formControlName="suffixKeyName">
               </mat-form-field>

@@ -41,6 +41,7 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     organizationCode: { displayAs: 'Code', maxWidth: '16ch' },
     organizationType: { displayAs: 'Type', maxWidth: '22ch' },
     name: { displayAs: 'Name', maxWidth: '30ch' },
+    displayName: { displayAs: 'Display Name', maxWidth: '18ch' },
     city: { displayAs: 'City', maxWidth: '25ch' },
     state: { displayAs: 'State', maxWidth: '10ch' },
     zip: { displayAs: 'Zip' , maxWidth: '10ch'},

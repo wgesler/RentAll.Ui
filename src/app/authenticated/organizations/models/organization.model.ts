@@ -4,6 +4,7 @@ export interface OrganizationRequest {
   organizationId?: string;
   organizationCode?: string;
   name: string;
+  displayName?: string;
   organizationTypeId: number;
   address1: string;
   address2?: string;
@@ -30,6 +31,7 @@ export interface OrganizationResponse {
   organizationId: string;
   organizationCode: string;
   name: string;
+  displayName?: string;
   organizationTypeId: number;
   organizationType?: string;
   address1: string;
@@ -65,6 +67,7 @@ export interface OrganizationListDisplay {
   organizationId: string;
   organizationCode: string;
   name: string;
+  displayName?: string;
   organizationTypeId: number;
   organizationType: string;
   address1: string;
@@ -83,6 +86,7 @@ export interface OrganizationPartnerOptionResponse {
   organizationId: string;
   organizationCode: string;
   name: string;
+  displayName?: string;
 }
 
 export interface OrganizationPartnerSettingsResponse {
