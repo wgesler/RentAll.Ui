@@ -145,14 +145,19 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       const newOrganizationId = changes['organizationId'].currentValue;
       if (newOrganizationId && newOrganizationId !== this.selectedOrganizationId) {
         this.selectedOrganizationId = newOrganizationId;
-        this.onOrganizationSelected(newOrganizationId);
+        if (this.organizations.length) {
+          this.applyRecipientOrganization(newOrganizationId, false);
+        }
       }
     }
-        
+
     if (changes['invoiceId']) {
       const newInvoiceId = changes['invoiceId'].currentValue;
-      if (newInvoiceId && newInvoiceId !== (this.selectedInvoice?.invoiceId ?? null)) {
-        this.selectInvoiceAfterDataLoad(newInvoiceId);
+      if (newInvoiceId) {
+        this.invoiceId = newInvoiceId;
+        if (newInvoiceId !== (this.selectedInvoice?.invoiceId ?? null)) {
+          this.selectInvoiceAfterDataLoad(newInvoiceId);
+        }
       }
     }
   }
@@ -257,11 +262,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
           this.selectedOrganizationId = this.recipientOrganization.organizationId;
           this.form.patchValue({ selectedOrganizationId: this.selectedOrganizationId }, { emitEvent: false });
           this.loadInvoicesForRecipientOrganization();
+        } else if (this.invoiceId) {
+          this.selectInvoiceAfterDataLoad(this.invoiceId);
         } else {
-          this.selectedOrganizationId = null;
-          this.invoices = [];
-          this.availableInvoices = [];
-          this.form.patchValue({ selectedOrganizationId: null, selectedInvoiceId: null }, { emitEvent: false });
+          this.form.patchValue({ selectedOrganizationId: this.selectedOrganizationId, selectedInvoiceId: null }, { emitEvent: false });
           this.form.get('selectedInvoiceId')?.disable();
         }
       },
@@ -285,9 +289,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     const officeIds = (this.accountingOffices || []).map(o => o.officeId).filter(id => id > 0);
     if (officeIds.length === 0) {
-      this.invoices = [];
-      this.availableInvoices = [];
-      this.form.get('selectedInvoiceId')?.disable();
+      if (this.invoiceId) {
+        this.selectInvoiceAfterDataLoad(this.invoiceId);
+      }
       return;
     }
 
@@ -315,6 +319,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
         if (this.invoiceId && this.invoices.some(i => i.invoiceId === this.invoiceId)) {
           this.onInvoiceSelected(this.invoiceId);
+        } else if (this.invoices.length > 0) {
+          this.onInvoiceSelected(this.invoices[0].invoiceId);
         }
       },
       error: () => {
@@ -454,7 +460,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   //#endregion
 
   //#region Form Response Methods
-  onOrganizationSelected(organizationId: string | null): void {
+  applyRecipientOrganization(organizationId: string | null, resetInvoice: boolean): void {
     this.selectedOrganizationId = organizationId;
     this.form.patchValue({ selectedOrganizationId: organizationId }, { emitEvent: false });
 
@@ -462,17 +468,27 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       ? this.organizations.find(o => o.organizationId === organizationId) || null
       : null;
 
-    this.availableInvoices = [];
-    this.selectedInvoice = null;
-    this.form.patchValue({ selectedInvoiceId: null }, { emitEvent: false });
-    this.form.get('selectedInvoiceId')?.disable();
-    this.clearPreview();
+    if (resetInvoice) {
+      this.invoiceId = null;
+      this.selectedInvoice = null;
+      this.availableInvoices = [];
+      this.form.patchValue({ selectedInvoiceId: null }, { emitEvent: false });
+      this.form.get('selectedInvoiceId')?.disable();
+      this.clearPreview();
+    }
 
     if (!this.recipientOrganization) {
+      if (this.invoiceId) {
+        this.selectInvoiceAfterDataLoad(this.invoiceId);
+      }
       return;
     }
 
     this.loadInvoicesForRecipientOrganization();
+  }
+
+  onOrganizationSelected(organizationId: string | null): void {
+    this.applyRecipientOrganization(organizationId, true);
   }
 
   onTitleBarOrganizationChange(value: string | number | null): void {
@@ -485,18 +501,18 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       this.clearPreview();
       return;
     }
-    
+
+    this.invoiceId = invoiceId;
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
-
-    if (this.selectedInvoice) {
-      this.form.patchValue({ selectedInvoiceId: invoiceId }, { emitEvent: false });
-      this.form.get('selectedInvoiceId')?.enable();
-      this.loadAccountingOffice();
+    if (!this.selectedInvoice) {
+      this.selectInvoiceAfterDataLoad(invoiceId);
+      return;
     }
 
-    if (this.selectedInvoice) {
-      this.loadInvoice();
-    }
+    this.form.patchValue({ selectedInvoiceId: invoiceId }, { emitEvent: false });
+    this.form.get('selectedInvoiceId')?.enable();
+    this.loadAccountingOffice();
+    this.loadInvoice();
   }
 
   selectInvoiceAfterDataLoad(invoiceId: string): void {
