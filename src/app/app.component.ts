@@ -22,6 +22,7 @@ import { ReservationService } from './authenticated/reservations/services/reserv
 import { SecurityDepositService } from './authenticated/accounting/services/security-deposit.service';
 import { DebugLayoutBandsService } from './services/debug-layout-bands.service';
 import { UtilityService } from './services/utility.service';
+import { UserGroups } from './authenticated/users/models/user-enums';
 
 @Component({
     standalone: true,
@@ -314,8 +315,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const userGuid = user.userGuid || user.userId;
     const adminUserGuid = '00000000-0000-0000-0000-000000000000';
 
-    if (userGuid === adminUserGuid) {
-      // Admin user: Get all organizations
+    if (userGuid === adminUserGuid || this.authService.hasRole(UserGroups.SuperAdmin)) {
       this.organizationService.getOrganizations().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'); })).subscribe({
         next: (organizations) => {
           this.organizationListService.setOrganizations(organizations);

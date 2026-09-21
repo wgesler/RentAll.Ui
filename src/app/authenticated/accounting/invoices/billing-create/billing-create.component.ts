@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, filter, finalize, firstValueFrom, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, firstValueFrom, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -24,6 +24,7 @@ import { DocumentService } from '../../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OrganizationResponse } from '../../../organizations/models/organization.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { OrganizationListService } from '../../../organizations/services/organization-list.service';
 import { OrganizationService } from '../../../organizations/services/organization.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
 import { InvoiceResponse } from '../../models/invoice.model';
@@ -56,7 +57,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   private sanitizer = inject(DomSanitizer);
   private emailHtmlService = inject(EmailHtmlService);
   private accountingOfficeService = inject(AccountingOfficeService);
+  private organizationListService = inject(OrganizationListService);
   private organizationService = inject(OrganizationService);
+  private destroy$ = new Subject<void>();
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private emailCreateDraftService = inject(EmailCreateDraftService);
@@ -76,6 +79,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   invoices: InvoiceResponse[] = [];
   availableInvoices: { value: InvoiceResponse, label: string }[] = [];
   selectedInvoice: InvoiceResponse | null = null;
+  billingTemplateHtml = '';
 
   emailHtml: EmailHtmlResponse | null = null;
   previewIframeHtml: string = '';
@@ -119,6 +123,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       }
       
       this.loadOrganizationsList();
+      this.loadAccountingOffice();
       this.loadEmailHtml();
       
       this.http.get('assets/billing.html', { responseType: 'text' }).pipe(
@@ -127,6 +132,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       ).subscribe({
         next: (html: string) => {
           if (html) {
+            this.billingTemplateHtml = html;
             this.form.patchValue({ invoice: html });
           }
         }
@@ -243,39 +249,38 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   //#endregion
 
   //#region Data Loading Methods
+  applyOrganizationsFromCache(organizations: OrganizationResponse[]): void {
+    this.organizations = (organizations || []).filter(o => o.isActive);
+    const currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
+    this.billingOrganization = currentUserOrganizationId ? this.organizations.find(o => o.organizationId === currentUserOrganizationId) || null : null;
+    this.updateOrgLogo();
+    this.applyRecipientFromInvoice(this.selectedInvoice);
+
+    const recipientOrganizationId = this.selectedOrganizationId || this.selectedInvoice?.reservationId || null;
+    this.recipientOrganization = this.recipientOrganization
+      || (recipientOrganizationId ? this.organizations.find(o => o.organizationId === recipientOrganizationId) || null : null);
+
+    if (this.recipientOrganization) {
+      this.selectedOrganizationId = this.recipientOrganization.organizationId;
+      this.form.patchValue({ selectedOrganizationId: this.selectedOrganizationId }, { emitEvent: false });
+      this.loadInvoicesForRecipientOrganization();
+    } else if (this.invoiceId) {
+      this.selectInvoiceAfterDataLoad(this.invoiceId);
+    } else {
+      this.form.patchValue({ selectedOrganizationId: this.selectedOrganizationId, selectedInvoiceId: null }, { emitEvent: false });
+      this.form.get('selectedInvoiceId')?.disable();
+    }
+
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations');
+    this.markLogoSourceLoaded('organizations');
+  }
+
   loadOrganizationsList(): void {
-    this.organizationService.getOrganizations().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations');
-      this.markLogoSourceLoaded('organizations');
-    })).subscribe({
-      next: (organizations) => {
-        this.organizations = (organizations || []).filter(o => o.isActive);
-        const currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
-        this.billingOrganization = currentUserOrganizationId ? this.organizations.find(o => o.organizationId === currentUserOrganizationId) || null : null;
-        this.loadAccountingOffice();
-        this.updateOrgLogo();
-
-        const recipientOrganizationId = this.selectedOrganizationId || null;
-        this.recipientOrganization = recipientOrganizationId ? this.organizations.find(o => o.organizationId === recipientOrganizationId) || null : null;
-
-        if (this.recipientOrganization) {
-          this.selectedOrganizationId = this.recipientOrganization.organizationId;
-          this.form.patchValue({ selectedOrganizationId: this.selectedOrganizationId }, { emitEvent: false });
-          this.loadInvoicesForRecipientOrganization();
-        } else if (this.invoiceId) {
-          this.selectInvoiceAfterDataLoad(this.invoiceId);
-        } else {
-          this.form.patchValue({ selectedOrganizationId: this.selectedOrganizationId, selectedInvoiceId: null }, { emitEvent: false });
-          this.form.get('selectedInvoiceId')?.disable();
-        }
-      },
-      error: () => {
-        this.organizations = [];
-        this.billingOrganization = null;
-        this.recipientOrganization = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
-        this.markLogoSourceLoaded('accountingOffice');
+    this.organizationListService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe(organizations => {
+      if ((organizations || []).length === 0) {
+        return;
       }
+      this.applyOrganizationsFromCache(organizations);
     });
   }
 
@@ -331,13 +336,35 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
-  refreshPreview(): void {
-    const formHtml = this.form?.value?.invoice;
-    if (!this.selectedInvoice || !formHtml || !String(formHtml).trim()) {
+  applyRecipientFromInvoice(invoice: InvoiceResponse | null): void {
+    const organizationId = invoice?.reservationId || this.selectedOrganizationId;
+    if (!organizationId) {
       return;
     }
 
-    this.processAndSetHtml(this.replacePlaceholders(formHtml));
+    const normalizedId = String(organizationId).toLowerCase();
+    const recipient = (this.organizations || []).find(o => String(o.organizationId).toLowerCase() === normalizedId)
+      || (invoice?.reservationCode
+        ? (this.organizations || []).find(o => o.organizationCode === invoice.reservationCode) || null
+        : null);
+
+    if (!recipient) {
+      return;
+    }
+
+    this.recipientOrganization = recipient;
+    this.selectedOrganizationId = recipient.organizationId;
+    this.form.patchValue({ selectedOrganizationId: recipient.organizationId }, { emitEvent: false });
+    this.refreshPreview();
+  }
+
+  refreshPreview(): void {
+    const template = this.billingTemplateHtml || this.form?.value?.invoice;
+    if (!this.selectedInvoice || !template || !String(template).trim()) {
+      return;
+    }
+
+    this.processAndSetHtml(this.replacePlaceholders(template));
   }
 
   loadInvoice(): void {
@@ -348,6 +375,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     this.accountingService.getInvoiceByGuid(this.selectedInvoice.invoiceId).pipe(take(1)).subscribe({
       next: (response: InvoiceResponse) => {
         this.selectedInvoice = response;
+        this.applyRecipientFromInvoice(response);
+        if (!this.selectedAccountingOffice) {
+          this.loadAccountingOffice();
+        }
         const formHtml = this.form.value.invoice;
         if (formHtml && formHtml.trim()) {
           this.refreshPreview();
@@ -365,10 +396,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     this.http.get('assets/billing.html', { responseType: 'text' }).pipe(take(1)).subscribe({
       next: (html: string) => {
         if (html) {
+          this.billingTemplateHtml = html;
           this.form.patchValue({ invoice: html });
           if (this.selectedInvoice) {
-            const processedHtml = this.replacePlaceholders(html);
-            this.processAndSetHtml(processedHtml);
+            this.refreshPreview();
           }
         } else {
           this.clearPreview();
@@ -391,38 +422,36 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
-  loadAccountingOffice(): void {
-    if (!this.billingOrganization?.organizationId) {
-      this.selectedAccountingOffice = null;
-      this.accountingOfficeLogo = '';
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
-      this.markLogoSourceLoaded('accountingOffice');
-      return;
-    }
+  assignRemittanceOffice(offices: AccountingOfficeResponse[]): void {
+    const list = offices || [];
+    this.accountingOffices = list;
+    this.selectedAccountingOffice =
+      list.find(o => o.officeId === 1 && !!o.bankName) ||
+      list.find(o => o.officeId === 1) ||
+      list.find(o => !!o.bankName) ||
+      list[0] ||
+      null;
+    this.updateAccountingOfficeLogo();
+    this.refreshPreview();
+  }
 
-    this.accountingOfficeService.ensureAccountingOfficesLoaded(this.billingOrganization.organizationId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
-      this.markLogoSourceLoaded('accountingOffice');
-    })).subscribe({
-      next: (offices: AccountingOfficeResponse[]) => {
-        const list = offices || [];
-        this.accountingOffices = list;
-        this.selectedAccountingOffice =
-          list.find(o => o.officeId === 1) ||
-          list[0] ||
-          null;
-        this.updateAccountingOfficeLogo();
-        if (this.selectedInvoice) {
-          this.refreshPreview();
-        }
-        if (this.recipientOrganization) {
-          this.loadInvoicesForRecipientOrganization();
-        }
+  loadAccountingOffice(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.assignRemittanceOffice(offices);
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
+          this.markLogoSourceLoaded('accountingOffice');
+          if (this.recipientOrganization) {
+            this.loadInvoicesForRecipientOrganization();
+          }
+        });
       },
-      error: (err) => {
-        console.error('Could not load accounting office list:', err);
+      error: () => {
         this.selectedAccountingOffice = null;
         this.accountingOfficeLogo = '';
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
+        this.markLogoSourceLoaded('accountingOffice');
       }
     });
   }
@@ -578,20 +607,19 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currency((this.selectedInvoice.totalAmount || 0) - (this.selectedInvoice.paidAmount || 0)));
     }
 
-    // Replace contact placeholders
-    if (this.recipientOrganization) {
-      result = result.replace(/\{\{companyName\}\}/g, this.recipientOrganization.name || '');
-      result = result.replace(/\{\{companyCode\}\}/g, this.recipientOrganization.organizationCode || '');
-      result = result.replace(/\{\{contactName\}\}/g, this.recipientOrganization.contactName || '');
-      result = result.replace(/\{\{contactEmail\}\}/g, this.recipientOrganization.contactEmail || '');
-      result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.recipientOrganization.phone) || '');
-      result = result.replace(/\{\{contactAddress1\}\}/g, this.recipientOrganization.address1 || '');
-      result = result.replace(/\{\{contactAddress2\}\}/g, this.recipientOrganization.address2 || '');
-      result = result.replace(/\{\{contactCity\}\}/g, this.recipientOrganization.city || '');
-      result = result.replace(/\{\{contactState\}\}/g, this.recipientOrganization.state || '');
-      result = result.replace(/\{\{contactZip\}\}/g, this.recipientOrganization.zip || '');
-      result = result.replace(/\{\{contactAddress\}\}/g, this.getOrganizationAddress() || '');
-    }
+    const companyName = this.recipientOrganization?.name || this.selectedInvoice?.responsibleParty || '';
+    const companyCode = this.recipientOrganization?.organizationCode || this.selectedInvoice?.reservationCode || '';
+    result = result.replace(/\{\{companyName\}\}/g, companyName);
+    result = result.replace(/\{\{companyCode\}\}/g, companyCode);
+    result = result.replace(/\{\{contactName\}\}/g, this.recipientOrganization?.contactName || '');
+    result = result.replace(/\{\{contactEmail\}\}/g, this.recipientOrganization?.contactEmail || '');
+    result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.recipientOrganization?.phone) || '');
+    result = result.replace(/\{\{contactAddress1\}\}/g, this.recipientOrganization?.address1 || '');
+    result = result.replace(/\{\{contactAddress2\}\}/g, this.recipientOrganization?.address2 || '');
+    result = result.replace(/\{\{contactCity\}\}/g, this.recipientOrganization?.city || '');
+    result = result.replace(/\{\{contactState\}\}/g, this.recipientOrganization?.state || '');
+    result = result.replace(/\{\{contactZip\}\}/g, this.recipientOrganization?.zip || '');
+    result = result.replace(/\{\{contactAddress\}\}/g, this.getOrganizationAddress() || '');
 
     // Preferred logo: accounting office first, then billing organization logo.
     const preferredLogoDataUrl = this.accountingOfficeLogo || this.orgLogo || '';
@@ -934,6 +962,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   } 
   //#endregion

@@ -4,7 +4,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { OrganizationService } from '../../organizations/services/organization.service';
+import { OrganizationListService } from '../../organizations/services/organization-list.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { InvoicePreviewSelection, InvoiceResponse, InvoiceSelection } from '../models/invoice.model';
 import { BillingCreateComponent } from '../invoices/billing-create/billing-create.component';
@@ -20,7 +20,7 @@ import { InvoiceListComponent } from '../invoices/invoice-list/invoice-list.comp
 })
 export class BillingShellComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
-  private organizationService = inject(OrganizationService);
+  private organizationListService = inject(OrganizationListService);
   private cdr = inject(ChangeDetectorRef);
 
   organizations: OrganizationResponse[] = [];
@@ -107,10 +107,8 @@ export class BillingShellComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOrganizations(): void {
-    this.organizationService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (organizations) => {
-        this.organizations = (organizations || []).filter(o => o.organizationId !== this.currentUserOrganizationId);
-      }
+    this.organizationListService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe(organizations => {
+      this.organizations = (organizations || []).filter(o => o.organizationId !== this.currentUserOrganizationId);
     });
   }
   //#endregion
