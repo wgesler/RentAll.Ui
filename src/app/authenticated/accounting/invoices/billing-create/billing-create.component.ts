@@ -325,6 +325,15 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  refreshPreview(): void {
+    const formHtml = this.form?.value?.invoice;
+    if (!this.selectedInvoice || !formHtml || !String(formHtml).trim()) {
+      return;
+    }
+
+    this.processAndSetHtml(this.replacePlaceholders(formHtml));
+  }
+
   loadInvoice(): void {
     if (!this.selectedInvoice?.invoiceId) {
       return;
@@ -335,8 +344,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         this.selectedInvoice = response;
         const formHtml = this.form.value.invoice;
         if (formHtml && formHtml.trim()) {
-          const processedHtml = this.replacePlaceholders(formHtml);
-          this.processAndSetHtml(processedHtml);
+          this.refreshPreview();
         } else {
           this.loadInvoiceHtml();
         }
@@ -386,20 +394,21 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(this.billingOrganization.organizationId).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
       this.markLogoSourceLoaded('accountingOffice');
     })).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
         const list = offices || [];
         this.accountingOffices = list;
-        const preferredOfficeId = this.selectedInvoice?.officeId || 1;
         this.selectedAccountingOffice =
-          list.find(o => o.officeId === preferredOfficeId) ||
           list.find(o => o.officeId === 1) ||
           list[0] ||
           null;
         this.updateAccountingOfficeLogo();
+        if (this.selectedInvoice) {
+          this.refreshPreview();
+        }
         if (this.recipientOrganization) {
           this.loadInvoicesForRecipientOrganization();
         }
