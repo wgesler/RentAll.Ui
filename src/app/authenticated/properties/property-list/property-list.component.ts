@@ -553,12 +553,10 @@ showPropertyCalendarUrlDialog(
   }
 
   mapListRows(properties: PropertyListResponse[]): PropertyListDisplayRow[] {
-    return this.applyPropertyContactDisplayNames(
-      this.mappingService.mapPropertyListRows(properties || []).map(row => ({
-        ...row,
-        propertyLeaseType: this.getPropertyLeaseTypeListLabel(row.propertyLeaseTypeId)
-      }))
-    );
+    return this.mappingService.mapPropertyListRows(properties || []).map(row => ({
+      ...row,
+      propertyLeaseType: this.getPropertyLeaseTypeListLabel(row.propertyLeaseTypeId)
+    }));
   }
 
   applyFilters(): void {
