@@ -155,7 +155,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       domain: (formValue.domain || '').trim(),
       phone: phoneDigits,
       fax: faxDigits || undefined,
-      currentInvoiceNo: 0,
+      currentInvoiceNo: this.isAddMode ? 0 : (this.organization?.currentInvoiceNo ?? 0),
       isInternational: isInternational,
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
