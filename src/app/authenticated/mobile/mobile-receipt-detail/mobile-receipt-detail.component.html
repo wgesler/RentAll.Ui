@@ -283,13 +283,13 @@
                 <mat-label>Work Order</mat-label>
                 @if (isSplitWorkOrderClickable(splitIndex)) {
                   <input matInput readonly tabindex="0" class="mobile-receipt-work-order-input"
+                    formControlName="workOrder"
                     [class.mobile-receipt-work-order-input--missing]="isSplitWorkOrderMissing(splitIndex)"
                     [class.mobile-receipt-work-order-input--real]="!isSplitWorkOrderMissing(splitIndex)"
                     [attr.title]="isSplitWorkOrderMissing(splitIndex) ? 'Create work order' : 'Open work order'"
-                    [value]="getSplitWorkOrderDisplay(splitIndex)"
                     (click)="openWorkOrderFromSplit($event, splitIndex)">
                 } @else {
-                  <input matInput readonly tabindex="-1" [value]="getSplitWorkOrderDisplay(splitIndex)">
+                  <input matInput readonly tabindex="-1" formControlName="workOrder">
                 }
               </mat-form-field>
               }
