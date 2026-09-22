@@ -1845,7 +1845,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.splitPropertyExplicitlySelected.delete(splitIndex);
     }
     this.refreshSplitWorkOrderDisplay(splitIndex);
-    this.markViewForCheck();
+    this.cdr.detectChanges();
   }
 
   refreshSplitWorkOrderDisplay(splitIndex: number): void {
@@ -1860,7 +1860,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       workOrderCode,
       workOrder: workOrderCode
     }, { isUtility: this.getReceiptIsUtilityValue() });
-    row.patchValue({ workOrder: display }, { emitEvent: false });
+    row.get('workOrder')?.setValue(display);
   }
 
   refreshAllSplitWorkOrderDisplays(): void {
@@ -1964,13 +1964,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!accountId) {
       if (force) {
         row.get('chartOfAccountId')?.setValue(null, { emitEvent: false });
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       }
       return;
     }
 
     row.get('chartOfAccountId')?.setValue(accountId, { emitEvent: false });
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   applyDefaultSplitAccountsForAddMode(): void {

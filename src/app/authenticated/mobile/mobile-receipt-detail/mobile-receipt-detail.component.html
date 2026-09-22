@@ -278,21 +278,18 @@
                 </app-searchable-select>
               }
 
-              @if (!(isAccountingShell && isOverallBillBankCard())) {
-              <mat-form-field appearance="outline" class="mobile-receipt-field">
+              <mat-form-field appearance="outline" class="mobile-receipt-field"
+                [floatLabel]="getSplitWorkOrderDisplay(splitIndex) ? 'always' : 'auto'">
                 <mat-label>Work Order</mat-label>
-                @if (isSplitWorkOrderClickable(splitIndex)) {
-                  <input matInput readonly tabindex="0" class="mobile-receipt-work-order-input"
-                    formControlName="workOrder"
-                    [class.mobile-receipt-work-order-input--missing]="isSplitWorkOrderMissing(splitIndex)"
-                    [class.mobile-receipt-work-order-input--real]="!isSplitWorkOrderMissing(splitIndex)"
-                    [attr.title]="isSplitWorkOrderMissing(splitIndex) ? 'Create work order' : 'Open work order'"
-                    (click)="openWorkOrderFromSplit($event, splitIndex)">
-                } @else {
-                  <input matInput readonly tabindex="-1" formControlName="workOrder">
-                }
+                <input matInput readonly
+                  formControlName="workOrder"
+                  class="mobile-receipt-work-order-input"
+                  [tabindex]="isSplitWorkOrderClickable(splitIndex) ? 0 : -1"
+                  [class.mobile-receipt-work-order-input--missing]="isSplitWorkOrderMissing(splitIndex)"
+                  [class.mobile-receipt-work-order-input--real]="isSplitWorkOrderReal(splitIndex)"
+                  [attr.title]="isSplitWorkOrderMissing(splitIndex) ? 'Create work order' : isSplitWorkOrderReal(splitIndex) ? 'Open work order' : null"
+                  (click)="isSplitWorkOrderClickable(splitIndex) && openWorkOrderFromSplit($event, splitIndex)">
               </mat-form-field>
-              }
             </div>
           }
         </div>
