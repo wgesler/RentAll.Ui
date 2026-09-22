@@ -1469,7 +1469,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   }
 
   getTransferEscrowAmount(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): number {
-    return this.roundCurrencyValue(Math.abs(this.getLineNetAmount(line)));
+    return this.roundCurrencyValue(this.getLineNetAmount(line));
   }
 
   getLineNetAmountFromSearchLine(line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit'>): number {
@@ -2424,7 +2424,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       const escrowAmount = this.roundCurrencyValue(Number(allocation.escrowAmount || 0));
       const depositSplit = (deposit?.splits || []).find(split =>
         Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - escrowAmount) <= 0.005
-        || String(split.journalEntryLineId || '').trim() === String(allocation.journalEntryLineId || '').trim()
+        || String(split.journalEntryLineId || '').trim().toLowerCase() === String(allocation.journalEntryLineId || '').trim().toLowerCase()
       );
 
       return {
@@ -2438,10 +2438,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   buildTransferAllocationMatchKey(depositId: string, escrowAmount: number, journalEntryLineId?: string | null): string {
     const normalizedDepositId = String(depositId || '').trim().toLowerCase();
     const normalizedLineId = String(journalEntryLineId || '').trim().toLowerCase();
-    const normalizedAmount = this.roundCurrencyValue(Math.abs(Number(escrowAmount || 0)));
+    const roundedAmount = this.roundCurrencyValue(Number(escrowAmount || 0));
     return normalizedLineId
-      ? `${normalizedDepositId}|${normalizedAmount}|${normalizedLineId}`
-      : `${normalizedDepositId}|${normalizedAmount}`;
+      ? `${normalizedDepositId}|${roundedAmount}|${normalizedLineId}`
+      : `${normalizedDepositId}|${roundedAmount}`;
   }
 
   buildTransferDepositAllocationItems(selectedLines: JournalEntryLineListDisplay[]): TransferDepositAllocationItemRequest[] {
@@ -2452,7 +2452,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
         }
 
-        const escrowAmount = this.roundCurrencyValue(Math.abs(workItem.escrowAmount));
+        const escrowAmount = this.roundCurrencyValue(workItem.escrowAmount);
         if (escrowAmount === 0) {
           return null;
         }
@@ -2492,12 +2492,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       const lineAmount = this.getTransferEscrowAmount(line);
       const depositAmount = deposit ? this.roundCurrencyValue(Number(deposit.amount || 0)) : 0;
       const splitTotal = paymentSplits.length > 0
-        ? this.roundCurrencyValue(paymentSplits.reduce((sum, split) => sum + Math.abs(Number(split.amount || 0)), 0))
+        ? this.roundCurrencyValue(paymentSplits.reduce((sum, split) => sum + Number(split.amount || 0), 0))
         : 0;
       const shouldExpandToPaymentSplits = paymentSplits.length > 1 && (
         Number(line.sourceTypeId) === SourceType.Deposit
-        || (depositAmount > 0 && Math.abs(lineAmount - depositAmount) <= 0.005)
-        || (splitTotal > 0 && Math.abs(lineAmount - splitTotal) <= 0.005)
+        || Math.abs(lineAmount - depositAmount) <= 0.005
+        || Math.abs(lineAmount - splitTotal) <= 0.005
       );
 
       if (shouldExpandToPaymentSplits) {
@@ -2524,7 +2524,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       }
 
       const matchingSplit = paymentSplits.find(split =>
-        Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - escrowAmount) <= 0.005
+        Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - lineAmount) <= 0.005
         || String(split.journalEntryLineId || '').trim() === allocationJournalEntryLineId);
 
       workItems.push({
