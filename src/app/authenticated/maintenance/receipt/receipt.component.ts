@@ -1817,11 +1817,24 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onSplitReceiptTypeChange(splitIndex: number): void {
-    this.applyDefaultSplitAccountFromReceiptType(splitIndex, true);
+  onSplitReceiptTypeChange(splitIndex: number, selectedReceiptTypeId?: number | string | null): void {
     const row = this.splitsFormArray.at(splitIndex);
-    if (this.isNonExpenseReceiptType(row?.get('receiptTypeId')?.value)) {
-      row?.get('chartOfAccountId')?.setValue(null, { emitEvent: false });
+    if (!row) {
+      return;
+    }
+
+    let receiptTypeId = row.get('receiptTypeId')?.value;
+    if (selectedReceiptTypeId !== undefined && selectedReceiptTypeId !== null && selectedReceiptTypeId !== '') {
+      const parsedReceiptTypeId = Number(selectedReceiptTypeId);
+      if (Number.isFinite(parsedReceiptTypeId)) {
+        receiptTypeId = parsedReceiptTypeId;
+        row.get('receiptTypeId')?.setValue(parsedReceiptTypeId, { emitEvent: false });
+      }
+    }
+
+    this.applyDefaultSplitAccountFromReceiptType(splitIndex, true, receiptTypeId);
+    if (this.isNonExpenseReceiptType(row.get('receiptTypeId')?.value)) {
+      row.get('chartOfAccountId')?.setValue(null, { emitEvent: false });
     }
     this.manualSplitAccountIndexes.delete(splitIndex);
     this.updateSplitLineAccountValidators();
@@ -1832,6 +1845,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.splitPropertyExplicitlySelected.delete(splitIndex);
     }
     this.refreshSplitWorkOrderDisplay(splitIndex);
+    this.markViewForCheck();
   }
 
   refreshSplitWorkOrderDisplay(splitIndex: number): void {
@@ -1935,7 +1949,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  applyDefaultSplitAccountFromReceiptType(splitIndex: number, force = false): void {
+  applyDefaultSplitAccountFromReceiptType(splitIndex: number, force = false, receiptTypeId?: number | null): void {
     const row = this.splitsFormArray.at(splitIndex);
     if (!row) {
       return;
@@ -1946,17 +1960,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const accountId = this.resolveDefaultChartOfAccountIdForReceiptType(row.get('receiptTypeId')?.value);
+    const accountId = this.resolveDefaultChartOfAccountIdForReceiptType(receiptTypeId ?? row.get('receiptTypeId')?.value);
     if (!accountId) {
       if (force) {
         row.get('chartOfAccountId')?.setValue(null, { emitEvent: false });
-        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
       return;
     }
 
     row.get('chartOfAccountId')?.setValue(accountId, { emitEvent: false });
-    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   applyDefaultSplitAccountsForAddMode(): void {
@@ -3180,7 +3194,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getReceiptOfficeId(): number | null {
-    const officeId = Number(this.receipt?.officeId ?? 0);
+    const officeId = Number(this.receipt?.officeId ?? this.officeId ?? 0);
     return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
   }
 

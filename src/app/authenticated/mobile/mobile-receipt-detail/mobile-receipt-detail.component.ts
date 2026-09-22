@@ -91,7 +91,9 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
       this.openedExistingReceiptDraft = !!queryReceiptDraftId;
     }
 
-    this.shellContext = this.authService.isAdmin() ? 'accounting' : 'maintenance';
+    this.shellContext = this.authService.hasAccountingNavAccess() && this.authService.hasAccountingAccess()
+      ? 'accounting'
+      : 'maintenance';
     this.showInlineSaveButtons = true;
     this.autoBackOnSave = true;
     super.ngOnInit();
@@ -131,6 +133,11 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
 
   get isReceiptDraftFlow(): boolean {
     return this.isAddMode && !!(this.receiptDraftId || this.receiptDraft);
+  }
+
+  override getReceiptOfficeId(): number | null {
+    return super.getReceiptOfficeId()
+      ?? this.normalizeOfficeId(this.receiptDraft?.officeId);
   }
 
   override get tracksExplicitPropertySelection(): boolean {

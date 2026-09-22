@@ -247,7 +247,7 @@
                 [class.mat-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'receiptTypeId')"
                 [class.mat-mdc-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'receiptTypeId')">
                 <mat-label>Type</mat-label>
-                <mat-select formControlName="receiptTypeId" required (selectionChange)="onSplitReceiptTypeChange(splitIndex)">
+                <mat-select formControlName="receiptTypeId" required (selectionChange)="onSplitReceiptTypeChange(splitIndex, $event.value)">
                   @for (option of receiptTypeOptions; track option.value) {
                     <mat-option [value]="option.value">{{ option.label }}</mat-option>
                   }
