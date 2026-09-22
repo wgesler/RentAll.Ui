@@ -6340,7 +6340,7 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       .map(split => Number(split.sourceJournalEntryLineAmount))
       .find(value => Number.isFinite(value) && Math.abs(value) > 0.005);
     const escrowDepositValue = sourceAmount !== undefined
-      ? this.roundCurrency(Math.abs(sourceAmount))
+      ? this.roundCurrency(sourceAmount)
       : rowTotalValue;
     const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
     const reservationCode = (context?.reservationCode || '').trim() || (transfer.transferCode || '').trim();
