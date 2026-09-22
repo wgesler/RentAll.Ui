@@ -278,6 +278,7 @@
                 </app-searchable-select>
               }
 
+              @if (!(isAccountingShell && isOverallBillBankCard())) {
               <mat-form-field appearance="outline" class="mobile-receipt-field"
                 [floatLabel]="getSplitWorkOrderDisplay(splitIndex) ? 'always' : 'auto'">
                 <mat-label>Work Order</mat-label>
@@ -290,6 +291,7 @@
                   [attr.title]="isSplitWorkOrderMissing(splitIndex) ? 'Create work order' : isSplitWorkOrderReal(splitIndex) ? 'Open work order' : null"
                   (click)="isSplitWorkOrderClickable(splitIndex) && openWorkOrderFromSplit($event, splitIndex)">
               </mat-form-field>
+              }
             </div>
           }
         </div>
