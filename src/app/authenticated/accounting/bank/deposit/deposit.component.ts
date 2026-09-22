@@ -266,7 +266,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.deposit?.postingStatusId, 'Deposit').pipe(take(1)).subscribe(canProceed => {
+    this.journalEntryService.confirmDepositEditIfAllowed(this.deposit?.postingStatusId, this.deposit).pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.deposit?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         return;

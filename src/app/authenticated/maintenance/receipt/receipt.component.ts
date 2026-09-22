@@ -2112,12 +2112,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (this.getPayloadPropertyIds().length > 0) {
+    if (this.getSelectedPropertyIds().length > 0) {
       this.headerPropertyExplicitlySelected = true;
     }
 
     this.splitsFormArray.controls.forEach((control, index) => {
-      if (this.isSplitPropertyValid(control as FormGroup)) {
+      if (this.normalizeSplitPropertyId((control as FormGroup).get('propertyId')?.value)) {
         this.splitPropertyExplicitlySelected.add(index);
       }
     });
@@ -2142,6 +2142,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!requireExplicitPropertySelection) {
       return [];
     }
+
+    this.markExplicitPropertySelectionFromFormIfPresent();
 
     const errors: string[] = [];
     const selectedPropertyIds = this.getPayloadPropertyIds();

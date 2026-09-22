@@ -538,7 +538,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.payment?.postingStatusId, 'Payment').pipe(take(1)).subscribe(canProceed => {
+    this.journalEntryService.confirmPaymentEditIfAllowed(this.payment?.postingStatusId, [], this.payment).pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.payment?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         return;
@@ -1638,9 +1638,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     paymentPostingStatusId: number | null | undefined,
     relatedPostingStatusIds: Array<number | null | undefined>
   ): Observable<boolean> {
-    return this.journalEntryService.confirmPaymentIfAllowed(
-      [paymentPostingStatusId, ...relatedPostingStatusIds],
-      'Payment'
+    return this.journalEntryService.confirmPaymentEditIfAllowed(
+      paymentPostingStatusId,
+      relatedPostingStatusIds,
+      this.payment
     );
   }
 

@@ -193,7 +193,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.invoice?.postingStatusId, 'Invoice').pipe(take(1)).subscribe(canProceed => {
+    this.journalEntryService.confirmInvoiceEditIfAllowed(this.invoice?.postingStatusId, this.invoice).pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.invoice?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.isSubmitting = false;

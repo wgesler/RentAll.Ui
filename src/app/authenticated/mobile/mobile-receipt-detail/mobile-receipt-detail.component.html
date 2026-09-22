@@ -74,6 +74,7 @@
           [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
           <mat-label>Properties</mat-label>
           <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired() || tracksExplicitPropertySelection"
+            [compareWith]="comparePropertyIdOption"
             (selectionChange)="onHeaderPropertySelectionChange()">
             <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
             @for (option of propertyOptions; track option.propertyId) {
@@ -234,7 +235,7 @@
                 [class.mat-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')"
                 [class.mat-mdc-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')">
                 <mat-label>Property</mat-label>
-                <mat-select formControlName="propertyId" (selectionChange)="onSplitPropertySelectionChange(splitIndex)">
+                <mat-select formControlName="propertyId" [compareWith]="comparePropertyIdOption" (selectionChange)="onSplitPropertySelectionChange(splitIndex)">
                   <mat-option [value]="null">{{ getSplitNullPropertyOptionLabel() }}</mat-option>
                   @for (option of getSplitPropertyOptions(splitIndex); track option.value) {
                     <mat-option [value]="option.value">{{ option.label }}</mat-option>
