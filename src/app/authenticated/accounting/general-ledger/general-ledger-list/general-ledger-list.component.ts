@@ -1468,6 +1468,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return this.roundCurrencyValue(Number(line.debitValue || 0) - Number(line.creditValue || 0));
   }
 
+  getTransferEscrowAmount(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): number {
+    return this.roundCurrencyValue(Math.abs(this.getLineNetAmount(line)));
+  }
+
   getLineNetAmountFromSearchLine(line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit'>): number {
     return this.roundCurrencyValue(Number(line.debit || 0) - Number(line.credit || 0));
   }
@@ -2434,7 +2438,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   buildTransferAllocationMatchKey(depositId: string, escrowAmount: number, journalEntryLineId?: string | null): string {
     const normalizedDepositId = String(depositId || '').trim().toLowerCase();
     const normalizedLineId = String(journalEntryLineId || '').trim().toLowerCase();
-    const normalizedAmount = this.roundCurrencyValue(Number(escrowAmount || 0));
+    const normalizedAmount = this.roundCurrencyValue(Math.abs(Number(escrowAmount || 0)));
     return normalizedLineId
       ? `${normalizedDepositId}|${normalizedAmount}|${normalizedLineId}`
       : `${normalizedDepositId}|${normalizedAmount}`;
@@ -2448,7 +2452,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
         }
 
-        const escrowAmount = this.roundCurrencyValue(workItem.escrowAmount);
+        const escrowAmount = this.roundCurrencyValue(Math.abs(workItem.escrowAmount));
         if (escrowAmount === 0) {
           return null;
         }
@@ -2485,7 +2489,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       const paymentSplits = (deposit?.splits || []).filter(split =>
         Math.abs(this.roundCurrencyValue(Number(split.amount || 0))) > 0.005);
 
-      const lineAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
+      const lineAmount = this.getTransferEscrowAmount(line);
       const depositAmount = deposit ? this.roundCurrencyValue(Number(deposit.amount || 0)) : 0;
       const splitTotal = paymentSplits.length > 0
         ? this.roundCurrencyValue(paymentSplits.reduce((sum, split) => sum + Math.abs(Number(split.amount || 0)), 0))
@@ -2514,7 +2518,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       }
 
       const allocationJournalEntryLineId = String(line.journalEntryLineId || '').trim();
-      const escrowAmount = this.roundCurrencyValue(this.getLineNetAmount(line));
+      const escrowAmount = this.getTransferEscrowAmount(line);
       if (!allocationJournalEntryLineId || escrowAmount === 0) {
         continue;
       }
