@@ -6294,32 +6294,24 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
 
   groupTransferSplitsForReport(splits: TransferSplit[]): TransferSplit[][] {
     const emptyGuid = '00000000-0000-0000-0000-000000000000';
-    const linkedGroups = new Map<string, TransferSplit[]>();
-    const unlinked: TransferSplit[] = [];
+    const groups = new Map<string, TransferSplit[]>();
 
-    splits.forEach(split => {
+    splits.forEach((split, index) => {
       const lineId = (split.journalEntryLineId || '').trim();
-      if (lineId && lineId !== emptyGuid) {
-        if (!linkedGroups.has(lineId)) {
-          linkedGroups.set(lineId, []);
-        }
-        linkedGroups.get(lineId)?.push(split);
-        return;
+      const description = (split.description || '').trim();
+      const key = lineId && lineId !== emptyGuid && description
+        ? `${lineId}|${description}`
+        : lineId && lineId !== emptyGuid
+          ? lineId
+          : description || `split:${index}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
       }
-      unlinked.push(split);
+      groups.get(key)?.push(split);
     });
 
-    const groups = Array.from(linkedGroups.values());
-    const unlinkedByDescription = new Map<string, TransferSplit[]>();
-    unlinked.forEach((split, index) => {
-      const key = (split.description || '').trim() || `split:${index}`;
-      if (!unlinkedByDescription.has(key)) {
-        unlinkedByDescription.set(key, []);
-      }
-      unlinkedByDescription.get(key)?.push(split);
-    });
-
-    return [...groups, ...Array.from(unlinkedByDescription.values())];
+    return Array.from(groups.values());
   }
 
   buildTransferFlatReportRowFromSplitGroup(

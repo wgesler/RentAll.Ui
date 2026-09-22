@@ -367,7 +367,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const officeLabel = this.describeSelectedOfficeScope();
     const dialogData: GenericModalData = {
       title: 'Run Document Links Fix?',
-      message: `This repairs payment, deposit, and transfer document links for ${officeLabel}. It can take several minutes and may change stamps and split links. Use Check first when doing manual SQL fixes.`,
+      message: `This repairs payment, deposit, and transfer document links for ${officeLabel} — including DepositId stamps on all payment-linked journal entries (Owner Actual, SDW, Prepayment, etc.). It can take several minutes and may change stamps and split links. Use Check first when doing manual SQL fixes.`,
       icon: 'warning',
       iconColor: 'warn',
       no: 'Cancel',
