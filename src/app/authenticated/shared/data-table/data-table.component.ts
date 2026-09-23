@@ -119,6 +119,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsCheckAll: boolean = false;
   @Input() hasActionsRowClick: boolean = false;
   @Input() hasActionsSave: boolean = false;
+  @Input() hasActionsFix: boolean = false;
   @Input() hasActionsSelect: boolean = false;
   @Input() hasActionsInspect: boolean = false;
   @Input() hasActionsView: boolean = false;
@@ -221,6 +222,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() rowClickMouseEvent = new EventEmitter<PurposefulAny>();
   @Output() rowContextMenuEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
+  @Output() fixEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
   @Output() inspectEvent = new EventEmitter<PurposefulAny>();
   @Output() viewEvent = new EventEmitter<PurposefulAny>();
@@ -709,6 +711,11 @@ markViewForCheck(): void {
 
   emitSaveEvent(_event: Event, rowItem: PurposefulAny): void {
     this.saveEvent.emit(rowItem);
+  }
+
+  emitFixEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.fixEvent.emit(rowItem);
   }
 
   emitDownloadEvent(event: Event, rowItem: PurposefulAny): void {
@@ -1485,7 +1492,7 @@ normalizeFilterValue(value: unknown): string {
     }
     columns = { ...columns, ...rest };
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsInvoice || this.hasActionsSkip || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsPartner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsPrint || this.hasActionsCancel || this.hasActionsLock || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsFix || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsInvoice || this.hasActionsSkip || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsPartner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsPrint || this.hasActionsCancel || this.hasActionsLock || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -1537,6 +1544,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsCheckAll) this.buttons.push({name: 'checkAll', callback: (event, rowItem) => this.emitCheckAllEvent(event, rowItem), color: '#2E7D32', tooltip: 'Check All', tooltipPosition: 'before', icon: 'done', suspendOnUpdate: false});
     if (this.hasActionsClearTracking) this.buttons.push({name: 'clearTracking', callback: (event, rowItem) => this.emitClearTrackingEvent(event, rowItem), color: '#1E88E5', tooltip: 'Clear Tracking', tooltipPosition: 'before', icon: 'restart_alt', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
+    if (this.hasActionsFix)      this.buttons.push({name: 'fix', callback: (event, rowItem) => this.emitFixEvent(event, rowItem), color: 'primary', tooltip: 'Fix', tooltipPosition: 'before', icon: 'build', suspendOnUpdate: true});
     if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: this.downloadActionColor, tooltip: this.downloadActionTooltip, tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
     if (this.hasActionsInfo && placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
     if (this.hasActionsSkip) this.buttons.push({name: 'skip', callback: (event, rowItem) => this.emitSkipEvent(event, rowItem), color: this.skipActionColor, tooltip: this.skipActionTooltip, tooltipPosition: 'before', icon: 'event_busy', suspendOnUpdate: false});

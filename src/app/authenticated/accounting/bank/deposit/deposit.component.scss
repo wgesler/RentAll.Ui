@@ -281,6 +281,14 @@
   border-color: var(--mat-sys-primary, #1976d2);
 }
 
+.split-editable-input:disabled {
+  background-color: var(--mat-sys-surface, #fff);
+  color: rgba(0, 0, 0, 0.45);
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.45);
+  opacity: 1;
+  cursor: default;
+}
+
 .split-editable-input--amount {
   text-align: right;
 }

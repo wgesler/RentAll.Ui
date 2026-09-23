@@ -34,6 +34,7 @@ export interface DocumentHealthIssue {
   amount: number | null;
   transactionDate: string | null;
   detail: string | null;
+  hasPostedJournalEntry?: boolean;
 }
 
 export interface DocumentHealthResult {
@@ -118,6 +119,11 @@ export interface HealthIssueDisplayRow extends DocumentHealthIssue {
   amountDisplay: string;
   officeNameDisplay: string;
   detailDisplay: string;
+  postedDisplay: string;
+  documentType: string;
+  checkKey: HealthCheckKey | null;
+  fixHidden: boolean;
+  updating: boolean;
   expanded: boolean;
 }
 

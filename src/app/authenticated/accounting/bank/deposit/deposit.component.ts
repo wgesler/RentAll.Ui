@@ -27,7 +27,7 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 
-type DepositSplitContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable';
+type DepositSplitContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable' | 'undepositedFunds';
 
 @Component({
   standalone: true,
@@ -724,16 +724,21 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return 'ownerPayable';
     }
 
+    if (accountId === Number(accountingOffice.defaultUndepFundsAccountId ?? 0)) {
+      return 'undepositedFunds';
+    }
+
     return 'default';
   }
 
   shouldShowSplitProperty(splitGroup: AbstractControl): boolean {
     const mode = this.getSplitContextMode(splitGroup);
-    return mode === 'accountsPayable' || mode === 'ownerPayable' || mode === 'accountsReceivable';
+    return mode === 'accountsPayable' || mode === 'ownerPayable' || mode === 'accountsReceivable' || mode === 'undepositedFunds';
   }
 
   shouldShowSplitReservation(splitGroup: AbstractControl): boolean {
-    return this.getSplitContextMode(splitGroup) === 'accountsReceivable';
+    const mode = this.getSplitContextMode(splitGroup);
+    return mode === 'accountsReceivable' || mode === 'undepositedFunds';
   }
 
   shouldShowSplitContact(splitGroup: AbstractControl): boolean {
@@ -836,6 +841,10 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
 
+    if (this.getSplitContextMode(splitGroup) === 'undepositedFunds') {
+      return;
+    }
+
     const reservationIds = new Set(this.buildSplitReservationOptions(splitGroup).map(option => String(option.value)));
     if (!reservationIds.has(reservationId)) {
       splitGroup.patchValue({ reservationId: null }, { emitEvent: false });
@@ -856,7 +865,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   shouldShowSplitReservationError(splitGroup: AbstractControl): boolean {
-    if (!this.saveValidationHighlightActive || !this.shouldShowSplitReservation(splitGroup)) {
+    if (!this.saveValidationHighlightActive || this.getSplitContextMode(splitGroup) !== 'accountsReceivable') {
       return false;
     }
 
@@ -939,7 +948,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       amount: new FormControl(Number.isFinite(amount) ? this.roundCurrency(amount).toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required]),
       propertyId: new FormControl(split?.propertyId || null),
+      propertyCode: new FormControl(split?.propertyCode || null),
       reservationId: new FormControl(split?.reservationId || null),
+      reservationCode: new FormControl(split?.reservationCode || null),
       contactId: new FormControl(split?.contactId || null),
       journalEntryLineId: new FormControl(split?.journalEntryLineId || null),
       chartOfAccountId: new FormControl(split?.chartOfAccountId ?? null, [Validators.required, this.requireAccountId])

@@ -1,11 +1,24 @@
 <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
       <div class="flex items-center flex-wrap py-4">
         <span class="flex flex-column items-center gap-3 flex-shrink-0">
           <mat-icon class="flex-shrink-0">article</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Logs</span>
         </span>
+        <div class="header-title form-titlebar-fields-wrap">
+          @if (selectedTabIndex === 0 && showOfficeDropdown) {
+            <app-title-bar-select
+              [label]="selectedOfficeId ? 'Office' : 'All Offices'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedOfficeId"
+              [options]="officeOptions"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeDropdownChange($event)">
+            </app-title-bar-select>
+          }
+        </div>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
         @if (selectedTabIndex !== 0) {
@@ -29,7 +42,7 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" preserveContent class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Health">
-          <app-document-health />
+          <app-document-health [officeId]="selectedOfficeId" />
         </mat-tab>
 
         <mat-tab label="Application Log">

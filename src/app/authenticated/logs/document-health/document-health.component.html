@@ -4,20 +4,6 @@
       <p class="document-health-intro">
         Use <strong>Check</strong> for counts in the grid. Use <strong>Fix</strong> to repair JEs — details below appear only when Fix could not resolve an issue.
       </p>
-      @if (showOfficeDropdown) {
-        <mat-form-field appearance="outline" class="document-health-office-field">
-          <mat-label>Office</mat-label>
-          <mat-select
-            [value]="selectedOfficeId"
-            (selectionChange)="onOfficeSelectionChange($event.value)"
-            [canSelectNullableOptions]="true">
-            <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office.officeId">{{ office.officeCode }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      }
     </div>
     <div class="document-health-header-actions form-titlebar-actions-wrap uniform-gap">
       <button mat-raised-button type="button" class="document-health-check-all text-nowrap flex-shrink-0" [disabled]="isBulkBusy || isExportingTransactions" (click)="downloadTransactionReport()">
@@ -107,13 +93,15 @@
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasActionsRowClick]="true"
+          [hasActionsFix]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="issueDetailTemplate"
           [includeDetailRowHeader]="false"
           [hasButtonTop]="false"
           [itemsPerPage]="25"
           [noDataMessage]="'Unresolved issues appear here after Fix could not repair them (or after Check on Manual JEs).'"
-          (rowClickEvent)="onIssueRowClick($event)" />
+          (rowClickEvent)="onIssueRowClick($event)"
+          (fixEvent)="onFixIssue($event)" />
       </div>
     </div>
   </div>

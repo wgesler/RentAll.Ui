@@ -161,6 +161,9 @@
                               (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
                           </td>
                           <td class="split-col-property" [class.split-col-context-inactive]="!shouldShowSplitProperty(splitGroup)">
+                            @if (getSplitContextMode(splitGroup) === 'undepositedFunds') {
+                              <input type="text" class="split-editable-input" [value]="splitGroup.get('propertyCode')?.value || ''" disabled>
+                            } @else {
                             <app-searchable-select
                               class="split-account-select"
                               [renderInFormField]="false"
@@ -178,8 +181,12 @@
                               [selectClass]="getSplitContextSelectClass(splitGroup, 'property')"
                               [showError]="shouldShowSplitPropertyError(splitGroup)"
                               (valueChange)="onSplitPropertySelectionChange(splitIndex, $event)" />
+                            }
                           </td>
                           <td class="split-col-reservation" [class.split-col-context-inactive]="!shouldShowSplitReservation(splitGroup)">
+                            @if (getSplitContextMode(splitGroup) === 'undepositedFunds') {
+                              <input type="text" class="split-editable-input" [value]="splitGroup.get('reservationCode')?.value || ''" disabled>
+                            } @else {
                             <app-searchable-select
                               class="split-account-select"
                               [renderInFormField]="false"
@@ -187,7 +194,7 @@
                               [value]="splitGroup.get('reservationId')?.value ?? null"
                               [options]="getSplitReservationOptions(splitGroup)"
                               [disabled]="!shouldShowSplitReservation(splitGroup)"
-                              [required]="shouldShowSplitReservation(splitGroup)"
+                              [required]="getSplitContextMode(splitGroup) === 'accountsReceivable'"
                               [showInstructionOption]="shouldShowSplitReservation(splitGroup)"
                               [instructionOptionValue]="null"
                               [nullOptionLabel]="shouldShowSplitReservation(splitGroup) ? getSplitReservationNullLabel() : '—'"
@@ -197,6 +204,7 @@
                               [selectClass]="getSplitContextSelectClass(splitGroup, 'reservation')"
                               [showError]="shouldShowSplitReservationError(splitGroup)"
                               (valueChange)="onSplitReservationSelectionChange(splitIndex, $event)" />
+                            }
                           </td>
                           @if (shouldShowSplitContactColumn()) {
                             <td class="split-col-contact">

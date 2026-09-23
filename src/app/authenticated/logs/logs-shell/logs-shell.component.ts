@@ -1,8 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { finalize, forkJoin, take } from 'rxjs';
+import { Subject, finalize, forkJoin, skip, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AccountingErrorLogComponent } from '../accounting-error-log/accounting-error-log.component';
 import { AccountingErrorLogListComponent } from '../accounting-error-log-list/accounting-error-log-list.component';
 import { AccountingLogComponent } from '../accounting-log/accounting-log.component';
@@ -39,12 +45,21 @@ import { LogService } from '../services/log.service';
     GeneralErrorLogComponent,
     PropertyUploadLogListComponent,
     PropertyUploadLogComponent,
-    DocumentHealthComponent
+    DocumentHealthComponent,
+    TitleBarSelectComponent
   ]
 })
 export class LogsShellComponent implements OnInit, OnDestroy {
   private logService = inject(LogService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private destroy$ = new Subject<void>();
 
+  organizationId = '';
+  offices: OfficeResponse[] = [];
+  showOfficeDropdown = false;
+  selectedOfficeId: number | null = null;
   selectedTabIndex = 0;
   reloadToken = 0;
   isDeletingAll = false;
@@ -57,8 +72,26 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   selectedGeneralError: GeneralErrorLogResponse | null = null;
   selectedPropertyUploadLog: PropertyUploadLogResponse | null = null;
 
+  get officeOptions(): SearchableSelectOption[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
   //#region Logs-Shell
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices
+    });
+    this.loadOffices();
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+    });
+  }
 
   onTabIndexChange(tabIndex: number): void {
     this.selectedTabIndex = tabIndex;
@@ -66,6 +99,31 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Loading Methods
+  loadOffices(): void {
+    if (!this.organizationId) {
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.showOfficeDropdown = this.offices.length > 1;
+          this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+            topBarPinned: false,
+            pageOfficeId: this.selectedOfficeId,
+            offices: this.offices
+          });
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.showOfficeDropdown = false;
+        this.selectedOfficeId = null;
+      }
+    });
+  }
+
   deleteAllLogs(): void {
     this.isDeletingAll = true;
     this.errorMessage = null;
@@ -115,6 +173,16 @@ export class LogsShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
+  onOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.selectedOfficeId = officeId;
+    if (officeId != null && this.offices.length > 0 && !this.offices.some(office => office.officeId === officeId)) {
+      this.selectedOfficeId = null;
+    } else if (this.offices.length === 1) {
+      this.selectedOfficeId = this.offices[0].officeId;
+    }
+  }
+
   onListActionCompleted(): void {
     this.closeAccountingErrorLog();
     this.closeDatabaseErrorLog();
@@ -200,6 +268,19 @@ export class LogsShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {}
+  applyOfficeFromGlobal(officeId: number | null): void {
+    this.showOfficeDropdown = this.offices.length > 1;
+    this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
+      topBarPinned: false,
+      pageOfficeId: this.selectedOfficeId,
+      offices: this.offices,
+      globalOfficeId: officeId
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
   //#endregion
 }

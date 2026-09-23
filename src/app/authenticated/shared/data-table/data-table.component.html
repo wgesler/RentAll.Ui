@@ -194,7 +194,15 @@
                   } @case ('actions') {
                   <div class="flex items-center justify-start" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                     @for (button of buttons; track button.name) {
-                      @if (!(button.name === 'info' && item?.infoHidden === true)) {
+                      @if (button.name === 'fix' && item?.fixHidden !== true) {
+                        <button mat-raised-button type="button" color="accent" (click)="button.callback($event, item)" [disabled]="!hasActionsEnabled || item?.updating">
+                          @if (item?.updating) {
+                            <mat-spinner diameter="16" />
+                          } @else {
+                            Fix
+                          }
+                        </button>
+                      } @else if (!(button.name === 'info' && item?.infoHidden === true) && button.name !== 'fix') {
                         <span [matTooltip]="getButtonTooltip(button.name, button.tooltip, item)"
                           [matTooltipClass]="button.name === 'info' ? infoTooltipClass : ''"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"

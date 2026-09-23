@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { finalize, last, map, Observable, of, Subject, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -37,6 +37,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
+  private officeReady = false;
 
   readonly fixAllOrder: HealthCheckKey[] = [
     'paymentInvoice',
@@ -54,7 +55,20 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   organizationId = '';
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-  showOfficeDropdown = false;
+
+  @Input() set officeId(value: number | null) {
+    const next = value ?? null;
+    if (this.selectedOfficeId === next) {
+      return;
+    }
+
+    if (!this.officeReady) {
+      this.selectedOfficeId = next;
+      return;
+    }
+
+    this.onOfficeSelectionChange(next);
+  }
 
   rows: HealthCheckRowState[] = [
     { key: 'receipt', label: 'Receipts', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
@@ -72,6 +86,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   activeRowKey: HealthCheckKey | null = null;
   issueRows: HealthIssueDisplayRow[] = [];
+  isRebuildingIssue = false;
   isCheckingAll = false;
   isFixingAll = false;
   isExportingTransactions = false;
@@ -85,6 +100,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     officeNameDisplay: { displayAs: 'Office' },
     amountDisplay: { displayAs: 'Amount', alignment: 'right' },
     transactionDateDisplay: { displayAs: 'Date', alignment: 'center' },
+    postedDisplay: { displayAs: 'Posted', alignment: 'center' },
     detailDisplay: { displayAs: 'Detail', wrap: true, maxWidth: 'auto' }
   };
 
@@ -92,6 +108,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.restoreSessionState();
+    this.officeReady = true;
 
     if (!this.organizationId) {
       return;
@@ -101,7 +118,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(office => office.isActive !== false);
-          this.showOfficeDropdown = this.offices.length > 0;
           this.validateSelectedOfficeId();
           this.refreshIssueRowOfficeNames();
           this.cdr.markForCheck();
@@ -631,8 +647,9 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   showUnresolvedIssues(key: HealthCheckKey, result: DocumentHealthResult, syncErrors: string[], hint?: string): void {
     const issues = result.issues ?? [];
     this.activeRowKey = key;
+    const canFix = this.rows.find(row => row.key === key)?.canFix ?? false;
     this.issueRows = this.applySyncErrorsToIssueRows(
-      issues.map(issue => this.mapIssueToDisplayRow(issue)),
+      issues.map(issue => this.mapIssueToDisplayRow(issue, key, canFix, result.summary.documentType)),
       syncErrors
     );
 
@@ -664,11 +681,12 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     unresolvedOutcomes.forEach(outcome => {
       const issues = outcome.checkResult.issues ?? [];
       const syncErrors = outcome.syncResult.errors ?? [];
+      const canFix = this.rows.find(row => row.key === outcome.key)?.canFix ?? false;
       const displayRows = issues.map(issue => this.mapIssueToDisplayRow({
         ...issue,
         issue: `[${outcome.label}] ${issue.issue}`,
         detail: issue.detail ?? ''
-      }));
+      }, outcome.key, canFix, outcome.checkResult.summary.documentType));
       combinedIssues.push(...this.applySyncErrorsToIssueRows(displayRows, syncErrors));
     });
 
@@ -682,8 +700,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     setTimeout(() => this.resultsPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   }
 
-  mapIssueToDisplayRow(issue: DocumentHealthIssue): HealthIssueDisplayRow {
+  mapIssueToDisplayRow(issue: DocumentHealthIssue, checkKey: HealthCheckKey | null = null, canFix = false, documentType = ''): HealthIssueDisplayRow {
     const detail = issue.detail ?? '';
+    const hasPostedJournalEntry = !!issue.hasPostedJournalEntry;
+    const documentId = String(issue.documentId ?? '').trim();
+    const fixHidden = !canFix || hasPostedJournalEntry || !documentId || documentId.startsWith('sync-error');
     return {
       ...issue,
       documentCode: this.formatIssueDocumentCode(issue.documentCode),
@@ -693,8 +714,57 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       officeNameDisplay: this.getOfficeNameForOfficeId(issue.officeId),
       detail,
       detailDisplay: detail,
+      postedDisplay: hasPostedJournalEntry ? 'Posted' : '',
+      documentType,
+      checkKey,
+      fixHidden,
+      updating: false,
       expanded: false
     };
+  }
+
+  onFixIssue(row: HealthIssueDisplayRow): void {
+    if (!row || row.fixHidden || row.updating || this.isRebuildingIssue) {
+      return;
+    }
+
+    const documentId = String(row.documentId ?? '').trim();
+    if (!documentId || !row.documentType || !row.officeId) {
+      return;
+    }
+
+    this.isRebuildingIssue = true;
+    this.issueRows = this.issueRows.map(item => item === row ? { ...item, updating: true } : item);
+    this.cdr.markForCheck();
+
+    this.healthService.rebuildJournalEntries(row.documentType, documentId, row.officeId, row.relatedId).pipe(take(1), finalize(() => {
+      this.isRebuildingIssue = false;
+      this.cdr.markForCheck();
+    })).subscribe({
+      next: result => {
+        const errors = result.errors ?? [];
+        if (errors.length > 0) {
+          this.toastr.error(errors[0], row.documentCode || 'Fix');
+        } else {
+          this.toastr.success(`Fix complete. Created ${result.journalEntriesCreated}, deleted ${result.journalEntriesDeleted}.`, row.documentCode || 'Fix');
+        }
+
+        const checkKey = row.checkKey ?? this.activeRowKey;
+        const checkRow = this.rows.find(item => item.key === checkKey);
+        if (!checkRow) {
+          return;
+        }
+
+        this.runCheck(checkRow.key).pipe(take(1)).subscribe({
+          next: checkResult => this.applyCheckSummary(checkRow.key, checkResult, false, checkRow.canFix),
+          error: checkError => this.toastr.error(this.resolveObservedError(checkError), checkRow.label)
+        });
+      },
+      error: error => {
+        this.issueRows = this.issueRows.map(item => item.documentId === row.documentId ? { ...item, updating: false } : item);
+        this.toastr.error(this.resolveObservedError(error), row.documentCode || 'Fix');
+      }
+    });
   }
 
   formatIssueDocumentCode(value: string | null | undefined): string {
@@ -815,12 +885,21 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const savedOfficeId = saved.selectedOfficeId ?? null;
+    if (savedOfficeId !== this.selectedOfficeId) {
+      return;
+    }
+
     this.rows = saved.rows;
-    this.selectedOfficeId = saved.selectedOfficeId ?? null;
     this.activeRowKey = saved.activeRowKey;
     this.issueRows = saved.issueRows.map(row => ({
       ...row,
       detailDisplay: row.detailDisplay ?? row.detail ?? '',
+      postedDisplay: row.postedDisplay ?? (row.hasPostedJournalEntry ? 'Posted' : ''),
+      documentType: row.documentType ?? '',
+      checkKey: row.checkKey ?? null,
+      fixHidden: row.fixHidden ?? true,
+      updating: false,
       expanded: !!row.expanded
     }));
     this.showIssueHint = saved.showIssueHint;
