@@ -40,16 +40,16 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   private officeReady = false;
 
   readonly fixAllOrder: HealthCheckKey[] = [
-    'paymentInvoice',
+    'receipt',
+    'bill',
+    'workOrder',
     'invoice',
     'deposit',
+    'paymentInvoice',
     'transfer',
     'documentLinks',
     'paymentBill',
-    'paymentOwner',
-    'receipt',
-    'bill',
-    'workOrder'
+    'paymentOwner'
   ];
 
   organizationId = '';
@@ -75,12 +75,12 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     { key: 'bill', label: 'Bills', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'workOrder', label: 'Work Orders', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'invoice', label: 'Invoices', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
-    { key: 'paymentInvoice', label: 'Payments (Invoice)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
-    { key: 'paymentBill', label: 'Payments (Bill)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
-    { key: 'paymentOwner', label: 'Payments (Owner)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'deposit', label: 'Deposits', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'paymentInvoice', label: 'Payments (Invoice)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'transfer', label: 'Transfers', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'documentLinks', label: 'Payment / Deposit / Transfer Links', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'paymentBill', label: 'Payments (Bill)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'paymentOwner', label: 'Payments (Owner)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'manualJournalEntry', label: 'Manual Journal Entries', canFix: false, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null }
   ];
 
@@ -336,19 +336,13 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
       const row = fixableRows[index++];
 
-      const checkLinksOnly = row.key === 'documentLinks';
       this.patchRow(row.key, {
         fixing: true,
-        fixProgress: checkLinksOnly ? 'Checking…' : 'Fixing…',
+        fixProgress: 'Fixing…',
         errorMessage: null
       });
 
-      const pipeline = checkLinksOnly
-        ? this.runCheck(row.key).pipe(map(checkResult => ({
-            syncResult: { documentsProcessed: 0, journalEntriesCreated: 0, journalEntriesSkipped: 0, journalEntriesDeleted: 0, errors: [] },
-            checkResult
-          })))
-        : this.runFixAndCheck(row.key);
+      const pipeline = this.runFixAndCheck(row.key);
 
       pipeline.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
         this.patchRow(row.key, { fixing: false, fixProgress: null });
@@ -402,7 +396,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const officeLabel = this.describeSelectedOfficeScope();
     const dialogData: GenericModalData = {
       title: 'Run Fix All?',
-      message: `This runs Fix on every repairable document type for ${officeLabel} except payment/deposit/transfer links — that row is Check only. It can take a long time and rewrite many documents. Prefer fixing one row at a time when possible.`,
+      message: `This runs Fix on every repairable document type for ${officeLabel}, including payment/deposit/transfer links. It can take a long time and rewrite many documents. Prefer fixing one row at a time when possible.`,
       icon: 'warning',
       iconColor: 'warn',
       no: 'Cancel',
@@ -704,7 +698,14 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const detail = issue.detail ?? '';
     const hasPostedJournalEntry = !!issue.hasPostedJournalEntry;
     const documentId = String(issue.documentId ?? '').trim();
-    const fixHidden = !canFix || hasPostedJournalEntry || !documentId || documentId.startsWith('sync-error');
+    const allowsPostedLinkFix = checkKey === 'deposit'
+      || checkKey === 'documentLinks'
+      || checkKey === 'paymentInvoice'
+      || checkKey === 'transfer';
+    const fixHidden = !canFix
+      || (!allowsPostedLinkFix && hasPostedJournalEntry)
+      || !documentId
+      || documentId.startsWith('sync-error');
     return {
       ...issue,
       documentCode: this.formatIssueDocumentCode(issue.documentCode),
