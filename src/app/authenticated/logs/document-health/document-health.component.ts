@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { finalize, last, map, Observable, of, Subject, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -26,8 +26,6 @@ import { DocumentExportService } from '../../../services/document-export.service
   imports: [CommonModule, MaterialModule, DataTableComponent]
 })
 export class DocumentHealthComponent implements OnInit, OnDestroy {
-  @ViewChild('resultsPanel') resultsPanel?: ElementRef<HTMLElement>;
-
   private healthService = inject(HealthService);
   private healthStateService = inject(DocumentHealthStateService);
   private documentExportService = inject(DocumentExportService);
@@ -86,7 +84,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
   activeRowKey: HealthCheckKey | null = null;
   issueRows: HealthIssueDisplayRow[] = [];
-  isRebuildingIssue = false;
   isCheckingAll = false;
   isFixingAll = false;
   isExportingTransactions = false;
@@ -654,7 +651,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
     this.persistSessionState();
     this.cdr.markForCheck();
-    setTimeout(() => this.resultsPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   }
 
   applyFixAllOutcome(outcomes: FixAllOutcome[]): void {
@@ -691,21 +687,11 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     this.toastr.error(`Fix All finished — ${unresolvedOutcomes.length} type(s) still have issues. Created ${totalCreated}, skipped ${totalSkipped}.`);
     this.persistSessionState();
     this.cdr.markForCheck();
-    setTimeout(() => this.resultsPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   }
 
-  mapIssueToDisplayRow(issue: DocumentHealthIssue, checkKey: HealthCheckKey | null = null, canFix = false, documentType = ''): HealthIssueDisplayRow {
+  mapIssueToDisplayRow(issue: DocumentHealthIssue, checkKey: HealthCheckKey | null = null, _canFix = false, documentType = ''): HealthIssueDisplayRow {
     const detail = issue.detail ?? '';
     const hasPostedJournalEntry = !!issue.hasPostedJournalEntry;
-    const documentId = String(issue.documentId ?? '').trim();
-    const allowsPostedLinkFix = checkKey === 'deposit'
-      || checkKey === 'documentLinks'
-      || checkKey === 'paymentInvoice'
-      || checkKey === 'transfer';
-    const fixHidden = !canFix
-      || (!allowsPostedLinkFix && hasPostedJournalEntry)
-      || !documentId
-      || documentId.startsWith('sync-error');
     return {
       ...issue,
       documentCode: this.formatIssueDocumentCode(issue.documentCode),
@@ -718,54 +704,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       postedDisplay: hasPostedJournalEntry ? 'Posted' : '',
       documentType,
       checkKey,
-      fixHidden,
-      updating: false,
       expanded: false
     };
-  }
-
-  onFixIssue(row: HealthIssueDisplayRow): void {
-    if (!row || row.fixHidden || row.updating || this.isRebuildingIssue) {
-      return;
-    }
-
-    const documentId = String(row.documentId ?? '').trim();
-    if (!documentId || !row.documentType || !row.officeId) {
-      return;
-    }
-
-    this.isRebuildingIssue = true;
-    this.issueRows = this.issueRows.map(item => item === row ? { ...item, updating: true } : item);
-    this.cdr.markForCheck();
-
-    this.healthService.rebuildJournalEntries(row.documentType, documentId, row.officeId, row.relatedId).pipe(take(1), finalize(() => {
-      this.isRebuildingIssue = false;
-      this.cdr.markForCheck();
-    })).subscribe({
-      next: result => {
-        const errors = result.errors ?? [];
-        if (errors.length > 0) {
-          this.toastr.error(errors[0], row.documentCode || 'Fix');
-        } else {
-          this.toastr.success(`Fix complete. Created ${result.journalEntriesCreated}, deleted ${result.journalEntriesDeleted}.`, row.documentCode || 'Fix');
-        }
-
-        const checkKey = row.checkKey ?? this.activeRowKey;
-        const checkRow = this.rows.find(item => item.key === checkKey);
-        if (!checkRow) {
-          return;
-        }
-
-        this.runCheck(checkRow.key).pipe(take(1)).subscribe({
-          next: checkResult => this.applyCheckSummary(checkRow.key, checkResult, false, checkRow.canFix),
-          error: checkError => this.toastr.error(this.resolveObservedError(checkError), checkRow.label)
-        });
-      },
-      error: error => {
-        this.issueRows = this.issueRows.map(item => item.documentId === row.documentId ? { ...item, updating: false } : item);
-        this.toastr.error(this.resolveObservedError(error), row.documentCode || 'Fix');
-      }
-    });
   }
 
   formatIssueDocumentCode(value: string | null | undefined): string {
@@ -899,8 +839,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       postedDisplay: row.postedDisplay ?? (row.hasPostedJournalEntry ? 'Posted' : ''),
       documentType: row.documentType ?? '',
       checkKey: row.checkKey ?? null,
-      fixHidden: row.fixHidden ?? true,
-      updating: false,
       expanded: !!row.expanded
     }));
     this.showIssueHint = saved.showIssueHint;

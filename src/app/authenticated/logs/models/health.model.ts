@@ -122,8 +122,6 @@ export interface HealthIssueDisplayRow extends DocumentHealthIssue {
   postedDisplay: string;
   documentType: string;
   checkKey: HealthCheckKey | null;
-  fixHidden: boolean;
-  updating: boolean;
   expanded: boolean;
 }
 

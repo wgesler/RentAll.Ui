@@ -278,18 +278,6 @@ export class HealthService {
     return { summary, issues };
   }
 
-  rebuildJournalEntries(documentType: string, documentId: string, officeId: number, relatedId: string | null): Observable<JournalEntrySyncResult> {
-    return this.http.post<unknown>(this.controller + 'rebuild', {
-      officeId,
-      documentType,
-      documentId,
-      relatedId
-    }).pipe(
-      map(result => this.mapJournalEntrySyncResult(result)),
-      catchError(error => throwError(() => new Error(this.mapHttpError(error))))
-    );
-  }
-
   mapJournalEntrySyncResult(raw: unknown): JournalEntrySyncResult {
     const payload = (raw ?? {}) as Record<string, unknown>;
     const errorsRaw = (payload['errors'] ?? payload['Errors'] ?? []) as string[];

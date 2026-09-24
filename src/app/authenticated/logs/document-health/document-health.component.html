@@ -68,7 +68,7 @@
     }
   </div>
 
-  <div #resultsPanel class="document-health-results">
+  <div class="document-health-results">
     <div class="document-health-results-header">
       <h3>Unresolved{{ activeRowLabel() ? ' — ' + activeRowLabel() : '' }}</h3>
       <span class="document-health-results-count">{{ issueRows.length }} row(s)</span>
@@ -93,15 +93,13 @@
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasActionsRowClick]="true"
-          [hasActionsFix]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="issueDetailTemplate"
           [includeDetailRowHeader]="false"
           [hasButtonTop]="false"
           [itemsPerPage]="25"
           [noDataMessage]="'Unresolved issues appear here after Fix could not repair them (or after Check on Manual JEs).'"
-          (rowClickEvent)="onIssueRowClick($event)"
-          (fixEvent)="onFixIssue($event)" />
+          (rowClickEvent)="onIssueRowClick($event)" />
       </div>
     </div>
   </div>
