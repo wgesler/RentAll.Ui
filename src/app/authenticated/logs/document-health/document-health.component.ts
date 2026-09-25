@@ -42,8 +42,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     'bill',
     'workOrder',
     'invoice',
-    'deposit',
     'paymentInvoice',
+    'deposit',
     'transfer',
     'documentLinks',
     'paymentBill',
@@ -73,10 +73,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     { key: 'bill', label: 'Bills', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'workOrder', label: 'Work Orders', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'invoice', label: 'Invoices', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
-    { key: 'deposit', label: 'Deposits', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'paymentInvoice', label: 'Payments (Invoice)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'deposit', label: 'Deposits', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'transfer', label: 'Transfers', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
-    { key: 'documentLinks', label: 'Payment / Deposit / Transfer Links', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
+    { key: 'documentLinks', label: 'Document links (optional — run last)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'paymentBill', label: 'Payments (Bill)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'paymentOwner', label: 'Payments (Owner)', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
     { key: 'manualJournalEntry', label: 'Manual Journal Entries', canFix: false, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null }
@@ -374,7 +374,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const officeLabel = this.describeSelectedOfficeScope();
     const dialogData: GenericModalData = {
       title: 'Run Document Links Fix?',
-      message: `This repairs payment, deposit, and transfer document links for ${officeLabel} — including DepositId stamps on all payment-linked journal entries (Owner Actual, SDW, Prepayment, etc.). It can take several minutes and may change stamps and split links. Use Check first when doing manual SQL fixes.`,
+      message: `This re-syncs JE document stamps (PaymentId, DepositId, TransferId) for rows still flagged on the Document links check for ${officeLabel}. Run after Payments (Invoice), Deposits, and Transfers Fix — each of those steps already repairs its own links. Use only if issues remain.`,
       icon: 'warning',
       iconColor: 'warn',
       no: 'Cancel',
@@ -393,7 +393,7 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     const officeLabel = this.describeSelectedOfficeScope();
     const dialogData: GenericModalData = {
       title: 'Run Fix All?',
-      message: `This runs Fix on every repairable document type for ${officeLabel}, including payment/deposit/transfer links. It can take a long time and rewrite many documents. Prefer fixing one row at a time when possible.`,
+      message: `This runs Fix on every repairable document type for ${officeLabel} in workflow order (Payments Invoice → Deposits → Transfers → Document links last). It can take a long time. Prefer fixing one row at a time when possible.`,
       icon: 'warning',
       iconColor: 'warn',
       no: 'Cancel',
@@ -717,6 +717,30 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     return code.replace(/^Invoice\s+/i, '');
   }
 
+  /** Sync errors use `Deposit {code} {amount}:` before the first colon (see BuildHealthDepositFixError). */
+  parseSyncErrorDocumentKey(documentKey: string): { documentCode: string; amount: number | null } {
+    const key = documentKey.trim();
+    const depositWithAmount = /^Deposit\s+(\S+)\s+([\d,.]+)$/i.exec(key);
+    if (depositWithAmount) {
+      return {
+        documentCode: depositWithAmount[1],
+        amount: Number(depositWithAmount[2].replace(/,/g, ''))
+      };
+    }
+
+    const depositLegacySplit = /^Deposit\s+(\S+)\s+split\s+\d+$/i.exec(key);
+    if (depositLegacySplit) {
+      return { documentCode: depositLegacySplit[1], amount: null };
+    }
+
+    const transfer = /^Transfer\s+(\S+)$/i.exec(key);
+    if (transfer) {
+      return { documentCode: transfer[1], amount: null };
+    }
+
+    return { documentCode: key, amount: null };
+  }
+
   onIssueRowClick(row: HealthIssueDisplayRow): void {
     if (!row) {
       return;
@@ -789,20 +813,21 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       };
     });
 
-    const leftoverRows = Array.from(errorsByDocumentCode.entries()).map(([documentCode, detail], index) =>
-      this.mapIssueToDisplayRow({
+    const leftoverRows = Array.from(errorsByDocumentCode.entries()).map(([documentKey, detail], index) => {
+      const parsed = this.parseSyncErrorDocumentKey(documentKey);
+      return this.mapIssueToDisplayRow({
         issue: 'Sync error',
         organizationId: '',
         officeId: 0,
-        documentCode,
-        documentId: `sync-error-${documentCode}-${index}`,
+        documentCode: parsed.documentCode,
+        documentId: `sync-error-${documentKey}-${index}`,
         relatedCode: null,
         relatedId: null,
-        amount: null,
+        amount: parsed.amount,
         transactionDate: null,
         detail
-      })
-    );
+      });
+    });
 
     const unmatchedRows = unmatchedErrors.map((detail, index) => this.mapIssueToDisplayRow({
       issue: 'Sync error',
