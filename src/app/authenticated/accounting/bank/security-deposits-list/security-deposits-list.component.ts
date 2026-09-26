@@ -78,6 +78,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   showPaymentForm = false;
   paymentDialogMode: 'return' | 'transfer' = 'return';
   isSubmittingPayment = false;
+  isUndoing = false;
   paymentOfficeId: number | null = null;
   paymentTargetReservationId: string | null = null;
   paymentTargetReservationCode: string | null = null;
@@ -265,6 +266,30 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   onTransfer(row: UnreturnedSecurityDepositDisplay): void {
     this.openApplyPaymentDialog(row, 'transfer');
+  }
+
+  onUndo(row: UnreturnedSecurityDepositDisplay): void {
+    if (row.undoDisabled || this.isUndoing) {
+      return;
+    }
+
+    const reservationId = String(row.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    this.isUndoing = true;
+    this.securityDepositService.undoSecurityDeposit(reservationId).pipe(take(1), finalize(() => { this.isUndoing = false; this.markViewForCheck(); }), takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.toastr.success('Security deposit actions undone.', CommonMessage.Success);
+        this.loadRows();
+        this.securityDepositService.refreshSecurityDepositsOutstanding();
+      },
+      error: (error: HttpErrorResponse) => {
+        const apiMessage = typeof error.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message;
+        this.toastr.error(apiMessage || 'Unable to undo security deposit.', CommonMessage.Error);
+      }
+    });
   }
 
   openApplyPaymentDialog(row: UnreturnedSecurityDepositDisplay, mode: 'return' | 'transfer'): void {

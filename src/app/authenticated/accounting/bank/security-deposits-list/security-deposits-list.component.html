@@ -31,6 +31,7 @@
         [hasActionsDelete]="false"
         [hasActionsPayable]="true"
         [hasActionsTransfer]="true"
+        [hasActionsUndo]="true"
         [hasReservationCodeLink]="true"
         [hasInvoiceCodeLink]="true"
         [hasJournalEntryCodeLink]="true"
@@ -40,7 +41,8 @@
         (reservationCodeClickEvent)="openReservation($event)"
         (invoiceCodeClickEvent)="openInvoice($event)"
         (payableEvent)="onPayable($event)"
-        (transferEvent)="onTransfer($event)">
+        (transferEvent)="onTransfer($event)"
+        (undoEvent)="onUndo($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
             <app-security-deposit-return-payment-dialog

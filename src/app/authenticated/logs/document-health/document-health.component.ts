@@ -781,8 +781,19 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       return rows;
     }
 
-    const errorsByDocumentCode = new Map<string, string>();
+    const errorsBySyncKey = new Map<string, string>();
     const unmatchedErrors: string[] = [];
+
+    const syncKeyForRow = (documentCode: string, amount: number | null | undefined): string => {
+      const code = String(documentCode ?? '').trim();
+      if (!code) {
+        return '';
+      }
+      if (amount == null || Number.isNaN(Number(amount))) {
+        return code;
+      }
+      return `${code}|${Number(amount).toFixed(2)}`;
+    };
 
     for (const message of syncErrors) {
       const trimmed = message.trim();
@@ -792,19 +803,26 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
 
       const match = /^([^:]+):\s*(.+)$/s.exec(trimmed);
       if (match) {
-        errorsByDocumentCode.set(match[1].trim(), match[2].trim());
+        const documentKey = match[1].trim();
+        const parsed = this.parseSyncErrorDocumentKey(documentKey);
+        const key = syncKeyForRow(parsed.documentCode, parsed.amount);
+        errorsBySyncKey.set(key || documentKey, match[2].trim());
       } else {
         unmatchedErrors.push(trimmed);
       }
     }
 
     const updatedRows = rows.map(row => {
-      const syncDetail = errorsByDocumentCode.get(row.documentCode);
+      const rowAmount = row.amountDisplay ? Number(row.amountDisplay) : null;
+      const syncDetail =
+        errorsBySyncKey.get(syncKeyForRow(row.documentCode, rowAmount))
+        ?? errorsBySyncKey.get(row.documentCode);
       if (!syncDetail) {
         return row;
       }
 
-      errorsByDocumentCode.delete(row.documentCode);
+      errorsBySyncKey.delete(syncKeyForRow(row.documentCode, rowAmount));
+      errorsBySyncKey.delete(row.documentCode);
       const detail = row.detail ? `${row.detail} ${syncDetail}` : syncDetail;
       return {
         ...row,
@@ -813,8 +831,14 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
       };
     });
 
-    const leftoverRows = Array.from(errorsByDocumentCode.entries()).map(([documentKey, detail], index) => {
-      const parsed = this.parseSyncErrorDocumentKey(documentKey);
+    const leftoverRows = Array.from(errorsBySyncKey.entries()).map(([documentKey, detail], index) => {
+      const pipeIndex = documentKey.indexOf('|');
+      const parsed = pipeIndex >= 0
+        ? {
+            documentCode: documentKey.slice(0, pipeIndex),
+            amount: Number(documentKey.slice(pipeIndex + 1))
+          }
+        : this.parseSyncErrorDocumentKey(documentKey);
       return this.mapIssueToDisplayRow({
         issue: 'Sync error',
         organizationId: '',

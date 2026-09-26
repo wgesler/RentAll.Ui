@@ -114,6 +114,10 @@ export class SecurityDepositService {
     return this.http.put<ReservationResponse>(this.controller + 'transfer', request);
   }
 
+  undoSecurityDeposit(reservationId: string): Observable<ReservationResponse> {
+    return this.http.put<ReservationResponse>(this.controller + reservationId + '/undo', {});
+  }
+
   getSecurityDepositDetail(reservationId: string): Observable<Record<string, unknown>> {
     return this.http.get<Record<string, unknown>>(this.controller + reservationId + '/detail');
   }

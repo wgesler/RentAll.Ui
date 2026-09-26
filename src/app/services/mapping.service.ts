@@ -6821,7 +6821,8 @@ roundCurrency(value: number): number {
         depositReturned,
         depositComplete,
         payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0,
-        transferDisabled: collectedAmount <= 0 || collectedAmount <= returnedBalanceAmount || remainingTransferAmount <= 0
+        transferDisabled: collectedAmount <= 0 || collectedAmount <= returnedBalanceAmount || remainingTransferAmount <= 0,
+        undoDisabled: !depositReturned && !depositComplete
       };
     });
   }
