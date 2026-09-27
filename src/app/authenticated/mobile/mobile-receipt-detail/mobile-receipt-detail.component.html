@@ -73,9 +73,7 @@
           [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
           [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
           <mat-label>Properties</mat-label>
-          <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired() || tracksExplicitPropertySelection"
-            [compareWith]="comparePropertyIdOption"
-            (selectionChange)="onHeaderPropertySelectionChange()">
+          <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()" [compareWith]="comparePropertyIdOption">
             <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
             @for (option of propertyOptions; track option.propertyId) {
               <mat-option [value]="option.propertyId">{{ option.propertyCode }}</mat-option>
@@ -197,7 +195,7 @@
         </div>
 
         <div class="mobile-receipt-splits-list" formArrayName="splits">
-          @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+          @for (splitGroup of splitsFormArray.controls; track splitGroup; let splitIndex = $index) {
             <div class="mobile-receipt-split-card" [formGroupName]="splitIndex">
               <div class="mobile-receipt-split-card-header">
                 <span class="mobile-receipt-split-no">No: {{ splitIndex + 1 }}</span>
@@ -235,7 +233,7 @@
                 [class.mat-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')"
                 [class.mat-mdc-form-field-invalid]="shouldShowSplitControlError(splitGroup, 'propertyId')">
                 <mat-label>Property</mat-label>
-                <mat-select formControlName="propertyId" [compareWith]="comparePropertyIdOption" (selectionChange)="onSplitPropertySelectionChange(splitIndex)">
+                <mat-select formControlName="propertyId" [compareWith]="comparePropertyIdOption">
                   <mat-option [value]="null">{{ getSplitNullPropertyOptionLabel() }}</mat-option>
                   @for (option of getSplitPropertyOptions(splitIndex); track option.value) {
                     <mat-option [value]="option.value">{{ option.label }}</mat-option>

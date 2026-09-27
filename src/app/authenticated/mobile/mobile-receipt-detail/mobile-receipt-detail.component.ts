@@ -11,7 +11,7 @@ import {
   SimpleChanges,
   inject
 } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -19,6 +19,7 @@ import { finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { ReceiptExtractResponse, ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { ReceiptType } from '../../maintenance/models/maintenance-enums';
 import { ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../../maintenance/models/receipt-draft.model';
 import { ReceiptDraftService } from '../../maintenance/services/receipt-draft.service';
 import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
@@ -140,18 +141,6 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
       ?? this.normalizeOfficeId(this.receiptDraft?.officeId);
   }
 
-  override get tracksExplicitPropertySelection(): boolean {
-    return this.isAddMode;
-  }
-
-  override shouldRequireExplicitPropertySelectionForSave(): boolean {
-    return this.isAddMode;
-  }
-
-  override shouldRequireExplicitPropertySelectionForPromote(): boolean {
-    return this.isAddMode;
-  }
-
   get draftCodeDisplay(): string {
     if (this.isLoadingReceiptDraft) {
       return 'New';
@@ -224,11 +213,45 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
 
   override applyLoadedReceipt(receipt: ReceiptResponse): void {
     super.applyLoadedReceipt(receipt);
+    this.restoreMobileSplitPropertySelections();
     if (this.isAccountingShell) {
       this.updateAccountingBillFieldValidators();
       this.updateSplitLineAccountValidators();
     }
     this.receiptDescriptionChange.emit((receipt.description || '').trim());
+  }
+
+  override getSplitPropertyOptions(splitIndex?: number): Array<{ value: string; label: string }> {
+    const options = [...super.getSplitPropertyOptions(splitIndex)];
+    const row = splitIndex != null ? this.splitsFormArray.at(splitIndex) as FormGroup | null : null;
+    const currentPropertyId = (row?.get('propertyId')?.value || '').toString().trim();
+    if (currentPropertyId && !options.some(option => this.comparePropertyIdOption(option.value, currentPropertyId))) {
+      options.push({ value: currentPropertyId, label: this.splitPropertyOptionLabel(currentPropertyId) });
+    }
+    return options;
+  }
+
+  restoreMobileSplitPropertySelections(): void {
+    this.splitsFormArray.controls.forEach(control => {
+      const row = control as FormGroup;
+      const propertyControl = row.get('propertyId');
+      const currentPropertyId = (propertyControl?.value || '').toString().trim();
+      if (currentPropertyId) {
+        return;
+      }
+      if (Number(row.get('receiptTypeId')?.value ?? 0) !== ReceiptType.Company) {
+        return;
+      }
+      propertyControl?.setValue(this.accountingCompanyPropertyId, { emitEvent: false });
+    });
+  }
+
+  splitPropertyOptionLabel(propertyId: string): string {
+    if (this.comparePropertyIdOption(propertyId, this.accountingCompanyPropertyId)) {
+      return 'Company';
+    }
+    const match = (this.propertyOptions || []).find(property => this.comparePropertyIdOption(property.propertyId, propertyId));
+    return (match?.propertyCode || '').trim() || propertyId;
   }
 
   override loadSplitAccountsForCurrentOffice(): void {
@@ -354,9 +377,7 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
       this.form.patchValue({ receiptPath: draft.receiptPath }, { emitEvent: false });
     }
 
-    const propertyIds = (draft.propertyIds || [])
-      .map(propertyId => (propertyId || '').trim())
-      .filter(propertyId => propertyId.length > 0);
+    const propertyIds = this.toFormPropertyIds(draft.propertyIds, draft.splits);
 
     this.form.patchValue({
       receiptDate: this.getReceiptDateControlValue(draft.receiptDate ?? null),
@@ -373,6 +394,7 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
       businessPrivate: draft.businessPrivate ?? false,
       isActive: draft.isActive
     }, { emitEvent: false });
+    this.lastPropertyIdsValue = this.getFormPropertyIds();
 
     const headerDescription = (draft.description ?? '').trim();
     const draftSplits = (draft.splits || []).map((split, index) => ({
@@ -395,11 +417,8 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
     this.applyCompanyReceiptTypeWhenCompanyPropertySelected();
     this.syncSplitPropertiesToPrefilledCompanySelection();
     this.syncInitialSplitDescriptionFromHeader(headerDescription);
+    this.restoreMobileSplitPropertySelections();
     this.receiptDescriptionChange.emit((headerDescription || draft.draftCode || '').trim());
-    if (this.tracksExplicitPropertySelection) {
-      this.resetExplicitPropertySelection();
-      this.markExplicitPropertySelectionFromFormIfPresent();
-    }
 
     const storedExtraction = this.parseStoredExtractionJson(draft.extractionJson);
     const hasSavedExtractedFields = headerDescription.length > 0 || draft.amount != null;

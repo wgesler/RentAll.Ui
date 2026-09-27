@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { isReceiptCompanyPropertyId } from '../models/receipt.model';
+import { isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../models/receipt.model';
 import {
   PromoteReceiptDraftResponse,
   ReceiptDraftRequest,
@@ -100,7 +100,9 @@ export class ReceiptDraftService {
       organizationId,
       officeId: Number(request.officeId ?? 0) > 0 ? Number(request.officeId) : null,
       propertyIds: (request.propertyIds || [])
-        .map(propertyId => this.normalizeGuid(propertyId))
+        .map(propertyId => isReceiptCompanyPropertyId(propertyId)
+          ? RECEIPT_COMPANY_PROPERTY_ID
+          : this.normalizeGuid(propertyId))
         .filter((propertyId): propertyId is string => !!propertyId),
       receiptDate: request.receiptDate ?? null,
       dueDate: request.dueDate ?? null,
