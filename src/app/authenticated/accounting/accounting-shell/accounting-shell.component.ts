@@ -2996,6 +2996,13 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     }
     if (kind === 'missingInvoiceReport') {
       this.syncMissingInvoiceOfficeIds();
+      if (!kindChanged) {
+        if (this.showMissingInvoiceEditor) {
+          this.closeMissingInvoiceEditor(false);
+        } else {
+          this.missingInvoiceRefreshTrigger++;
+        }
+      }
     }
 
     if (previousTab !== this.tabInvoices) {
@@ -4951,14 +4958,9 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
   }
 
   syncMissingInvoiceOfficeIds(): void {
-    const next = this.selectedOfficeId != null && this.selectedOfficeId > 0
+    this.missingInvoiceOfficeIds = this.selectedOfficeId != null && this.selectedOfficeId > 0
       ? [this.selectedOfficeId]
       : (this.offices || []).map(office => office.officeId).filter(id => id > 0);
-    const nextKey = next.join(',');
-    const currentKey = this.missingInvoiceOfficeIds.join(',');
-    if (nextKey !== currentKey) {
-      this.missingInvoiceOfficeIds = next;
-    }
   }
 
   buildInvoiceReportMonthOptions(): { value: string; label: string }[] {

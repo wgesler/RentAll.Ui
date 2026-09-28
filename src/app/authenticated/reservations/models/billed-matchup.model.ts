@@ -13,8 +13,10 @@ export interface BilledMatchupResponse {
   endDate: string;
   invoiceStart: string;
   billingType: number;
-  totalNumberOfDays: number;
-  daysSinceStart: number;
+  monthStart: string;
+  monthEnd: string;
+  periodStart: string;
+  periodEnd: string;
   daysStayed: number;
   daysBilled: number;
   rentalFeeLines: string[];

@@ -53,6 +53,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
   readonly invoiceReportDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+    officeName: { displayAs: 'Office', maxWidth: '20ch', wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '25ch' },
@@ -223,6 +224,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
       return {
         ...invoice,
+        officeName: (invoice.officeName || '').trim() || '—',
         invoiceNumber: invoice.invoiceCode || '',
         reservationCode: invoice.reservationCode || '—',
         propertyCode: (invoice.propertyCode || '').trim() || '—',
