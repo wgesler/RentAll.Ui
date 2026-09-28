@@ -174,6 +174,14 @@ export class ReservationService {
     return this.http.put<ReservationResponse>(this.controller, reservation);
   }
 
+  deactivateReservation(reservationId: string): Observable<void> {
+    return this.http.put<void>(`${this.controller}${reservationId}/deactivate`, {});
+  }
+
+  activateReservation(reservationId: string): Observable<void> {
+    return this.http.put<void>(`${this.controller}${reservationId}/activate`, {});
+  }
+
   // Loads the reservation by id, maps every field to ReservationRequest, merges overrides, then PUTs.
   // Use this for inline/partial updates (list toggles, maintenance provider fields, etc.) so nothing is lost.
   async updateModifiedReservation(

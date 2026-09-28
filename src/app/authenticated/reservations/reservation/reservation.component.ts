@@ -483,20 +483,32 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       }
     }
 
+    const previousIsActive = typeof this.reservation?.isActive === 'number'
+      ? this.reservation.isActive === 1
+      : Boolean(this.reservation?.isActive ?? true);
+    const nextIsActive = reservationRequest.isActive ?? true;
+    const isActiveChanging = !this.isAddMode && previousIsActive !== nextIsActive;
+    if (isActiveChanging) {
+      reservationRequest = { ...reservationRequest, isActive: previousIsActive };
+    }
+
     const save$ = this.isAddMode
       ? this.reservationService.createReservation(reservationRequest)
       : this.reservationService.updateReservation(reservationRequest);
 
-    const previousIsActive = typeof this.reservation?.isActive === 'number'
-      ? this.reservation.isActive === 1
-      : Boolean(this.reservation?.isActive ?? true);
-
-    save$.pipe(take(1),switchMap((response: ReservationResponse) => {
+    save$.pipe(
+      take(1),
+      switchMap((response: ReservationResponse) => {
         const reservationId = String(response?.reservationId || reservationRequest.reservationId || '').trim();
-        if (this.isAddMode || !reservationId) {
+        if (!isActiveChanging || !reservationId) {
           return of(response);
         }
-        return this.invoiceService.syncInvoicesForReservationActiveChange(reservationId,previousIsActive,reservationRequest.isActive ?? true).pipe(map(() => response));
+        const activeState$ = nextIsActive
+          ? this.reservationService.activateReservation(reservationId)
+          : this.reservationService.deactivateReservation(reservationId);
+        return activeState$.pipe(
+          map(() => ({ ...response, isActive: nextIsActive }))
+        );
       }),
       finalize(() => this.isSubmitting = false)
     ).subscribe({

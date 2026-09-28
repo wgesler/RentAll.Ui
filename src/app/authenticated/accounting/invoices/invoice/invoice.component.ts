@@ -4,7 +4,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy
 import { FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -1052,7 +1052,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       ? this.calculateNewPaymentAmount()
       : this.calculatePaidAmount();
     
-    const invoiceRequest: InvoiceRequest = {
+    let invoiceRequest: InvoiceRequest = {
       organizationId: user?.organizationId || '',
       officeId: formValue.officeId,
       officeName: officeName,
@@ -1082,7 +1082,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     };
 
     const isCreating = this.isAddMode;
-    
+    const previousIsActive = Boolean(this.invoice?.isActive ?? true);
+    const nextIsActive = invoiceRequest.isActive ?? true;
+    const isActiveChanging = !isCreating && previousIsActive !== nextIsActive;
+    if (isActiveChanging) {
+      invoiceRequest = { ...invoiceRequest, isActive: previousIsActive };
+    }
+
     if (!isCreating) {
       invoiceRequest.invoiceId = this.invoiceId;
     }
@@ -1091,7 +1097,21 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       ? this.invoiceService.createInvoice(invoiceRequest)
       : this.invoiceService.updateInvoice(invoiceRequest);
 
-    save$.pipe(take(1), finalize(() => {
+    save$.pipe(
+      take(1),
+      switchMap((savedInvoice: InvoiceResponse) => {
+        const invoiceId = String(savedInvoice?.invoiceId || this.invoiceId || '').trim();
+        if (!isActiveChanging || !invoiceId) {
+          return of(savedInvoice);
+        }
+        const activeState$ = nextIsActive
+          ? this.invoiceService.activateInvoice(invoiceId)
+          : this.invoiceService.deactivateInvoice(invoiceId);
+        return activeState$.pipe(
+          map(() => ({ ...savedInvoice, isActive: nextIsActive }))
+        );
+      }),
+      finalize(() => {
       this.isSubmitting = false;
       this.cdr.markForCheck();
     })).subscribe({

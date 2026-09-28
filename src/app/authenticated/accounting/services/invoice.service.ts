@@ -210,62 +210,11 @@ firstDayOfMonthFromCalendarDate(calendarDate: string): string {
     });
   }
 
-  deactivateInvoicesByReservationId(reservationId: string): Observable<{ deactivatedCount: number }> {
-    return this.http.put<{ deactivatedCount: number }>(
-      this.controller + 'invoice/reservation/' + reservationId + '/deactivate',
-      {}
-    );
+  deactivateInvoice(invoiceId: string): Observable<void> {
+    return this.http.put<void>(`${this.controller}invoice/${invoiceId}/deactivate`, {});
   }
 
-  reactivateInvoicesByReservationId(reservationId: string): Observable<{ reactivatedCount: number }> {
-    return this.http.put<{ reactivatedCount: number }>(
-      this.controller + 'invoice/reservation/' + reservationId + '/reactivate',
-      {}
-    );
-  }
-
-  syncInvoicesForReservationActiveChange( reservationId: string,previousIsActive: boolean, nextIsActive: boolean): Observable<void> {
-    const id = reservationId?.trim();
-    const previous = !!previousIsActive;
-    const next = !!nextIsActive;
-    if (!id || previous === next) {
-      return of(undefined);
-    }
-
-    const showSuccess = (count: number) => {
-      this.toastr.success(this.formatAssociatedInvoicesSyncMessage(next, count), CommonMessage.Success);
-    };
-    const showFailure = () => {
-      this.toastr.warning(
-        next ? 'Related invoices could not be reactivated.' : 'Related invoices could not be inactivated.',
-        CommonMessage.Error
-      );
-      return of(undefined);
-    };
-
-    if (next) {
-      return this.reactivateInvoicesByReservationId(id).pipe(
-        tap(result => showSuccess(result.reactivatedCount)),
-        catchError(showFailure),
-        map(() => undefined)
-      );
-    }
-
-    return this.deactivateInvoicesByReservationId(id).pipe(
-      tap(result => showSuccess(result.deactivatedCount)),
-      catchError(showFailure),
-      map(() => undefined)
-    );
-  }
-
-  formatAssociatedInvoicesSyncMessage(reactivated: boolean, count: number): string {
-    const normalizedCount = Math.max(0, Number(count) || 0);
-    const invoiceNoun = normalizedCount === 1 ? 'invoice' : 'invoices';
-    const verb = reactivated ? 'reactivated' : 'inactivated';
-    if (normalizedCount === 0) {
-      return `No related ${invoiceNoun} were ${verb}.`;
-    }
-    const auxiliary = normalizedCount === 1 ? 'was' : 'were';
-    return `${normalizedCount} related ${invoiceNoun} ${auxiliary} also ${verb}.`;
+  activateInvoice(invoiceId: string): Observable<void> {
+    return this.http.put<void>(`${this.controller}invoice/${invoiceId}/activate`, {});
   }
 }

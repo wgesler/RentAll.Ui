@@ -807,9 +807,11 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
   updateReservationIsActive(reservationId: string, previousValue: boolean, nextValue: boolean): void {
     this.applyReservationIsActiveValue(reservationId, nextValue);
 
-    void this.reservationService.updateModifiedReservation(reservationId, { isActive: nextValue }).then(async () => {
+    const activeState$ = nextValue
+      ? this.reservationService.activateReservation(reservationId)
+      : this.reservationService.deactivateReservation(reservationId);
+    void firstValueFrom(activeState$).then(() => {
       this.toastr.success('Reservation updated.', CommonMessage.Success);
-      await firstValueFrom(this.invoiceService.syncInvoicesForReservationActiveChange(reservationId, previousValue, nextValue));
     }).catch(() => {
       this.applyReservationIsActiveValue(reservationId, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);
