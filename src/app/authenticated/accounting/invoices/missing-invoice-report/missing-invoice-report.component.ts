@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, switchMap, take, takeUntil, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -15,7 +16,7 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceResponse, LedgerLineListDisplay, PreBillingInvoiceDisplay } from '../../models/invoice.model';
+import { InvoiceResponse, LedgerLineListDisplay, MissingInvoiceReportDisplay } from '../../models/invoice.model';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
 import { ReservationService } from '../../../reservations/services/reservation.service';
@@ -51,17 +52,18 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly invoiceReportDisplayedColumns: ColumnSet = {
+  private readonly invoiceReportBaseColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     officeName: { displayAs: 'Office', maxWidth: '20ch', wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '25ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural' },
-    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
-    totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
+    monthStart: { displayAs: 'Month', maxWidth: '12ch', alignment: 'center' },
+    periodRange: { displayAs: 'Period', maxWidth: '22ch', alignment: 'center', wrap: false },
+    daysStayed: { displayAs: 'Days Stayed', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    daysBilled: { displayAs: 'Days Billed', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    totalAmount: { displayAs: 'Preview Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
+
+  showIgnored = false;
 
   readonly ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
@@ -77,7 +79,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
   isServiceError = false;
   invoices: InvoiceResponse[] = [];
-  invoicesDisplay: PreBillingInvoiceDisplay[] = [];
+  invoicesDisplay: MissingInvoiceReportDisplay[] = [];
   expandedRowKeys = new Set<string>();
   selectedRowKeys = new Set<string>();
   isAllExpanded = false;
@@ -88,6 +90,17 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['missingInvoiceReport']));
   destroy$ = new Subject<void>();
+
+  get invoiceReportDisplayedColumns(): ColumnSet {
+    if (!this.showIgnored) {
+      return this.invoiceReportBaseColumns;
+    }
+
+    return {
+      ignore: { displayAs: 'Ignored', maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', isCheckbox: true, checkboxEditable: false },
+      ...this.invoiceReportBaseColumns
+    };
+  }
 
   //#region Missing Invoice Report
   ngOnInit(): void {
@@ -167,7 +180,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     this.isServiceError = false;
 
     this.reservationService.rebuildBilledMatchup(officeIds).pipe(
-      switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds })),
+      switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds, includeIgnored: this.showIgnored })),
       take(1),
       finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
@@ -180,7 +193,9 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
         this.expandedRowKeys.clear();
         this.selectedRowKeys.clear();
         this.isAllExpanded = false;
-        this.noDataMessage = 'No missing invoices through the current month.';
+        this.noDataMessage = this.showIgnored
+          ? 'No ignored missing invoice rows.'
+          : 'No missing invoices through the current month.';
         this.buildInvoicesDisplay();
         this.markViewForCheck();
       },
@@ -222,22 +237,29 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
 
+      const monthStart = invoice.billedMonthStart || invoice.accountingPeriod;
+      const periodStart = invoice.billedPeriodStart;
+      const periodEnd = invoice.billedPeriodEnd;
+
       return {
         ...invoice,
+        ignore: this.showIgnored ? true : 'NONE',
         officeName: (invoice.officeName || '').trim() || '—',
         invoiceNumber: invoice.invoiceCode || '',
         reservationCode: invoice.reservationCode || '—',
-        propertyCode: (invoice.propertyCode || '').trim() || '—',
-        responsibleParty: invoice.responsibleParty || invoice.contactName || invoice.companyName || '',
-        period: this.formatter.formatInvoiceListAccountingPeriod(invoice.accountingPeriod),
-        invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
+        monthStart: this.formatter.formatDateString(monthStart),
+        periodRange: periodStart && periodEnd
+          ? `${this.formatter.formatDateString(periodStart)} – ${this.formatter.formatDateString(periodEnd)}`
+          : '—',
+        daysStayed: invoice.billedDaysStayed ?? '—',
+        daysBilled: invoice.billedDaysBilled ?? '—',
         totalAmount: '$' + this.formatter.currency(totalAmount),
         totalAmountValue: totalAmount,
         ledgerLines: mappedLedgerLines,
         expand: rowKey,
         expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,
         selected: rowKey ? this.selectedRowKeys.has(rowKey) : false,
-        expandClick: (event: Event, item: PreBillingInvoiceDisplay) => {
+        expandClick: (event: Event, item: MissingInvoiceReportDisplay) => {
           event.stopPropagation();
           const key = this.getRowKey(item);
           if (!key) {
@@ -277,14 +299,14 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     const selected = Array.isArray(selection?.selected) ? selection.selected : [];
     this.selectedRowKeys = new Set(
       selected
-        .map(item => this.getRowKey(item as PreBillingInvoiceDisplay))
+        .map(item => this.getRowKey(item as MissingInvoiceReportDisplay))
         .filter(key => !!key)
     );
     this.syncSelectedRowsOnDisplay();
     this.markViewForCheck();
   }
 
-  onCreateInvoice(rowDisplay: PreBillingInvoiceDisplay): void {
+  onCreateInvoice(rowDisplay: MissingInvoiceReportDisplay): void {
     const preview = this.resolveInvoicePreview(rowDisplay);
     if (!preview) {
       return;
@@ -293,7 +315,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     this.createInvoices([preview]);
   }
 
-  onEditInvoice(rowDisplay: PreBillingInvoiceDisplay): void {
+  onEditInvoice(rowDisplay: MissingInvoiceReportDisplay): void {
     const preview = this.resolveInvoicePreview(rowDisplay);
     if (!preview) {
       return;
@@ -366,7 +388,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     return this.invoices.filter(invoice => this.selectedRowKeys.has(this.getRowKey(invoice)));
   }
 
-  resolveInvoicePreview(rowDisplay: PreBillingInvoiceDisplay): InvoiceResponse | null {
+  resolveInvoicePreview(rowDisplay: MissingInvoiceReportDisplay): InvoiceResponse | null {
     const rowKey = this.getRowKey(rowDisplay);
     if (!rowKey) {
       return null;
@@ -388,7 +410,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     return Object.keys(this.ledgerLinesDisplayedColumns);
   }
 
-  getLedgerLineColumnValue(line: LedgerLineListDisplay, columnName: string, invoice: PreBillingInvoiceDisplay, lineIndex?: number): string {
+  getLedgerLineColumnValue(line: LedgerLineListDisplay, columnName: string, invoice: MissingInvoiceReportDisplay, lineIndex?: number): string {
     switch (columnName) {
       case 'lineNo':
         return lineIndex !== undefined ? String(lineIndex + 1) : '—';
@@ -475,14 +497,16 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     return `Through ${monthLabel}`;
   }
 
-  getRowKey(invoice: Pick<InvoiceResponse, 'reservationId' | 'accountingPeriod'> | null | undefined): string {
+  getRowKey(invoice: Pick<InvoiceResponse, 'reservationId' | 'accountingPeriod' | 'billedMonthStart'> | null | undefined): string {
     const reservationId = (invoice?.reservationId || '').trim();
-    const accountingPeriod = this.invoiceService.firstDayOfMonthFromCalendarDate(invoice?.accountingPeriod || '');
-    if (!reservationId || !accountingPeriod) {
+    const monthKey = this.invoiceService.firstDayOfMonthFromCalendarDate(
+      invoice?.billedMonthStart || invoice?.accountingPeriod || ''
+    );
+    if (!reservationId || !monthKey) {
       return '';
     }
 
-    return `${reservationId}|${accountingPeriod}`;
+    return `${reservationId}|${monthKey}`;
   }
 
   normalizeOfficeIds(value: number[] | null | undefined): number[] {
@@ -491,6 +515,41 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
   resolveOfficeIds(): number[] {
     return this.normalizeOfficeIds(this.officeIds);
+  }
+
+  onIgnoredToggleChange(event: MatSlideToggleChange): void {
+    this.showIgnored = event.checked;
+    this.loadReport();
+  }
+
+  onIgnoreRow(rowDisplay: MissingInvoiceReportDisplay): void {
+    const billedId = rowDisplay.billedId ?? 0;
+    if (billedId <= 0) {
+      return;
+    }
+
+    this.reservationService.setBilledIgnore(billedId, true).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.toastr.success('Missing invoice row ignored.', 'Missing Invoice Report');
+        this.loadReport();
+      },
+      error: () => this.toastr.error('Unable to ignore this row.', 'Missing Invoice Report')
+    });
+  }
+
+  onRestoreIgnoredRow(rowDisplay: MissingInvoiceReportDisplay): void {
+    const billedId = rowDisplay.billedId ?? 0;
+    if (billedId <= 0) {
+      return;
+    }
+
+    this.reservationService.setBilledIgnore(billedId, false).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.toastr.success('Missing invoice row restored.', 'Missing Invoice Report');
+        this.loadReport();
+      },
+      error: () => this.toastr.error('Unable to restore this row.', 'Missing Invoice Report')
+    });
   }
   //#endregion
 

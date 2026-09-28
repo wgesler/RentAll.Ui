@@ -20,6 +20,7 @@ export interface BilledMatchupResponse {
   daysStayed: number;
   daysBilled: number;
   rentalFeeLines: string[];
+  ignore: boolean;
   createdOn: string;
   createdBy: string;
   modifiedOn: string;

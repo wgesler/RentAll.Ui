@@ -265,5 +265,13 @@ export class ReservationService {
       officeIds: ids.join(',')
     });
   }
+
+  setBilledIgnore(billedId: number, ignore: boolean): Observable<BilledMatchupResponse> {
+    if (billedId <= 0) {
+      throw new Error('BilledId is required to update ignore.');
+    }
+
+    return this.http.put<BilledMatchupResponse>(`${this.controller}billed/${billedId}/ignore`, { ignore });
+  }
 }
 

@@ -153,7 +153,8 @@ firstDayOfMonthFromCalendarDate(calendarDate: string): string {
     }
 
     return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/missing/search`, {
-      officeIds
+      officeIds,
+      includeIgnored: !!request.includeIgnored
     }).pipe(
       map(invoices =>
         (invoices ?? []).map(inv => this.mappingService.mapInvoiceResponse(inv as unknown as Record<string, unknown>))

@@ -83,10 +83,13 @@
           [buttonTextTop]="'Create'"
           [buttonIconTop]="'add'"
           [buttonColorTop]="'primary'"
-          [buttonDisabledTop]="isCreateTopButtonDisabled"
-          [hasActionsInvoice]="true"
+          [buttonDisabledTop]="isCreateTopButtonDisabled || showIgnored"
+          [hasActionsInvoice]="!showIgnored"
           [invoiceActionTooltip]="'Create Invoice'"
-          [hasActionsEdit]="true"
+          [hasActionsEdit]="!showIgnored"
+          [hasActionsSkip]="!showIgnored"
+          [skipActionTooltip]="'Ignore'"
+          [hasActionsRestore]="showIgnored"
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
           [includeDetailRowHeader]="false"
@@ -98,7 +101,16 @@
           (selectionSet)="onSelectionSet($event)"
           (topButtonEvent)="onCreateSelectedInvoices()"
           (invoiceEvent)="onCreateInvoice($event)"
-          (editEvent)="onEditInvoice($event)">
+          (editEvent)="onEditInvoice($event)"
+          (skipEvent)="onIgnoreRow($event)"
+          (restoreEvent)="onRestoreIgnoredRow($event)">
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+              <mat-slide-toggle id="toggle-missing-invoice-ignored" [checked]="showIgnored" color="primary" (change)="onIgnoredToggleChange($event)" class="whitespace-nowrap">
+                Ignored
+              </mat-slide-toggle>
+            </div>
+          </div>
         </app-data-table>
       </div>
     }

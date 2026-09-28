@@ -9,6 +9,8 @@ export interface PreBillingInvoiceSearchRequest {
 /** Body for POST accounting/invoice/missing/search — matches API GetMissingInvoicesDto. */
 export interface MissingInvoiceSearchRequest {
   officeIds: number[];
+  /** When true, load only ignored billed mismatch rows. */
+  includeIgnored?: boolean;
 }
 
 /** Body for POST accounting/invoice/reservation/preview-all/search — matches API GetReservationInvoicePreviewsDto. */
@@ -27,6 +29,24 @@ export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAm
   expanded?: boolean;
   selected?: boolean;
   expandClick?: (event: Event, item: PreBillingInvoiceDisplay) => void;
+}
+
+/** Missing Invoice Report — one row per Accounting.Billed mismatch (DaysStayed > DaysBilled). */
+export interface MissingInvoiceReportDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'ledgerLines'> {
+  /** `'NONE'` hides ignore checkbox in the grid when not viewing ignored rows. */
+  ignore?: boolean | 'NONE';
+  invoiceNumber: string;
+  monthStart: string;
+  periodRange: string;
+  daysStayed: string | number;
+  daysBilled: string | number;
+  totalAmount: string;
+  totalAmountValue: number;
+  ledgerLines?: LedgerLineListDisplay[];
+  expand?: string;
+  expanded?: boolean;
+  selected?: boolean;
+  expandClick?: (event: Event, item: MissingInvoiceReportDisplay) => void;
 }
 
 export interface InvoiceGetRequest {
@@ -99,6 +119,15 @@ export interface InvoiceResponse {
   createdBy: string;
   modifiedOn: string;
   modifiedBy: string;
+  billedId?: number | null;
+  billedIgnore?: boolean | null;
+  billedDaysStayed?: number | null;
+  billedDaysBilled?: number | null;
+  billedMonthStart?: CalendarDateString | null;
+  billedMonthEnd?: CalendarDateString | null;
+  billedPeriodStart?: CalendarDateString | null;
+  billedPeriodEnd?: CalendarDateString | null;
+  billedRentalFeeLines?: string | null;
 }
 
 export interface InvoiceSelection {
