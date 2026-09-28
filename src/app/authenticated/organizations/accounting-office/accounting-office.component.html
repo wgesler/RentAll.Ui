@@ -165,6 +165,32 @@
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="accounting-period-field">
+                      <mat-label>Invoice Start Month</mat-label>
+                      <mat-select formControlName="invoiceStartMonth" required>
+                        @for (month of yearEndMonthOptions; track month.value) {
+                          <mat-option [value]="month.value">{{ month.label }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('invoiceStartMonth')?.hasError('required') && form.get('invoiceStartMonth')?.touched) {
+                        <mat-error>Required.</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="accounting-period-field">
+                      <mat-label>Invoice Start Year</mat-label>
+                      <input matInput formControlName="invoiceStartYear" type="text" class="no-spinner" inputmode="numeric" maxlength="4" required>
+                      @if (form.get('invoiceStartYear')?.hasError('required') && form.get('invoiceStartYear')?.touched) {
+                        <mat-error>Required.</mat-error>
+                      }
+                      @if ((form.get('invoiceStartYear')?.hasError('accountingYearMin') || form.get('invoiceStartYear')?.hasError('accountingYearFormat')) && form.get('invoiceStartYear')?.touched) {
+                        <mat-error>Must be after 2020.</mat-error>
+                      }
+                      @if (form.get('invoiceStartYear')?.hasError('accountingYearMax') && form.get('invoiceStartYear')?.touched) {
+                        <mat-error>Must be {{ accountingYearMax }} or earlier.</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="accounting-period-field">
                       <mat-label>Year End Month</mat-label>
                       <mat-select formControlName="yearEndMonth" required>
                         @for (month of yearEndMonthOptions; track month.value) {
@@ -248,7 +274,7 @@
                         @if (isResyncingPostingStatus) {
                           <mat-spinner diameter="18" class="accounting-period-resync-spinner"></mat-spinner>
                         }
-                        <span>Resync Posting Status</span>
+                        <span>Resync</span>
                       </span>
                     </button>
                   </div>

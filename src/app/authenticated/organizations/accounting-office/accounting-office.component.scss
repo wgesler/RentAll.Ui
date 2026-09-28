@@ -10,7 +10,7 @@ input.no-spinner[type='number'] {
 
 .accounting-period-row {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr)) var(--accounting-period-resync-column-width, 12rem);
+  grid-template-columns: repeat(10, minmax(0, 1fr)) var(--accounting-period-resync-column-width, 6rem);
   gap: 0.5rem;
   align-items: start;
   min-width: 0;
@@ -24,7 +24,7 @@ input.no-spinner[type='number'] {
 .accounting-period-resync-button {
   margin-top: 0.35rem;
   width: 100%;
-  max-width: var(--accounting-period-resync-column-width, 12rem);
+  max-width: var(--accounting-period-resync-column-width, 6rem);
   box-sizing: border-box;
   align-self: start;
 }

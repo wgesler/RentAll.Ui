@@ -21,6 +21,7 @@ import {
   ReservationPaymentRequest,
   ReservationPaymentResponse
 } from '../models/reservation-payment.model';
+import { BilledMatchupResponse } from '../models/billed-matchup.model';
 import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 
 @Injectable({
@@ -251,6 +252,18 @@ export class ReservationService {
 
   applyReservationRentChange(request: ApplyReservationRentChangeRequest): Observable<ReservationPaymentResponse[]> {
     return this.http.post<ReservationPaymentResponse[]>(this.controller + 'payment/apply-rent-change', request);
+  }
+
+  /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */
+  rebuildBilledMatchup(officeIds: number[]): Observable<BilledMatchupResponse[]> {
+    const ids = (officeIds ?? []).filter(id => id > 0);
+    if (ids.length === 0) {
+      throw new Error('At least one office ID is required to rebuild billed matchup rows.');
+    }
+
+    return this.http.post<BilledMatchupResponse[]>(`${this.controller}billed/rebuild`, {
+      officeIds: ids.join(',')
+    });
   }
 }
 

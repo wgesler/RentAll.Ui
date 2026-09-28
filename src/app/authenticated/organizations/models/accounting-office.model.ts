@@ -23,6 +23,8 @@ export interface AccountingOfficeRequest {
   bankPhone: string;
   startMonth: number;
   startYear: number;
+  invoiceStartMonth: number;
+  invoiceStartYear: number;
   yearEndMonth: number;
   yearEndDay: number;
   softClosedMonth: number;
@@ -80,6 +82,8 @@ export interface AccountingOfficeResponse {
   bankPhone: string;
   startMonth: number;
   startYear: number;
+  invoiceStartMonth: number;
+  invoiceStartYear: number;
   yearEndMonth: number;
   yearEndDay: number;
   softClosedMonth: number;

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
-import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, take, takeUntil, tap } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, switchMap, take, takeUntil, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -18,6 +18,7 @@ import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, PreBillingInvoiceDisplay } from '../../models/invoice.model';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
+import { ReservationService } from '../../../reservations/services/reservation.service';
 
 @Component({
   selector: 'app-missing-invoice-report',
@@ -40,6 +41,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate?: TemplateRef<unknown>;
 
   private invoiceService = inject(InvoiceService);
+  private reservationService = inject(ReservationService);
   private costCodesService = inject(CostCodesService);
   private utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
@@ -163,7 +165,10 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
     this.isServiceError = false;
 
-    this.invoiceService.searchMissingInvoices({ officeIds }).pipe(take(1), finalize(() => {
+    this.reservationService.rebuildBilledMatchup(officeIds).pipe(
+      switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds })),
+      take(1),
+      finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
         this.markViewForCheck();
       }),
