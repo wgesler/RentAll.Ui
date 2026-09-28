@@ -86,8 +86,8 @@
           [buttonTextTop]="'Create'"
           [buttonIconTop]="'add'"
           [buttonColorTop]="'primary'"
-          [buttonDisabledTop]="isCreateTopButtonDisabled || !showMissing"
-          [hasActionsInvoice]="showMissing"
+          [buttonDisabledTop]="isCreateTopButtonDisabled"
+          [hasActionsInvoice]="true"
           [invoiceActionTooltip]="'Bill'"
           [hasActionsEdit]="true"
           [hasDetailRow]="true"
@@ -106,13 +106,6 @@
           (reservationCodeClickEvent)="goToReservation($event)"
           (invoiceCodeClickEvent)="openInvoiceEditor($event)"
           (checkboxChangeEvent)="onIgnoreCheckboxChange($event)">
-          <div dataTableFilterActions>
-            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
-              <mat-slide-toggle id="toggle-missing-invoice-missing" [checked]="showMissing" color="primary" (change)="onMissingToggleChange($event)" class="whitespace-nowrap">
-                Missing
-              </mat-slide-toggle>
-            </div>
-          </div>
         </app-data-table>
       </div>
     }

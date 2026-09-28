@@ -913,8 +913,8 @@
                     <app-invoice
                       #missingInvoiceEditor
                       [shellMode]="true"
-                      [shellCreateInPlace]="!(missingInvoiceDraft.invoiceId || '').trim()"
-                      [invoiceIdInput]="(missingInvoiceDraft.invoiceId || '').trim() || 'new'"
+                      [shellCreateInPlace]="true"
+                      [invoiceIdInput]="'new'"
                       [prefetchedInvoice]="missingInvoiceDraft"
                       [officeIdInput]="missingInvoiceDraft.officeId"
                       [reservationIdInput]="missingInvoiceDraft.reservationId ?? null"

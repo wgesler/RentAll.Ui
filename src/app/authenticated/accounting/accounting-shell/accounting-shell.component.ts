@@ -2126,6 +2126,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.depositDetailInstance++;
     }
     this.showDepositsDetail = true;
+    this.cdr.markForCheck();
   }
 
   onDepositBack(): void {

@@ -9,8 +9,6 @@ export interface PreBillingInvoiceSearchRequest {
 /** Body for POST accounting/invoice/missing/search — matches API GetMissingInvoicesDto. */
 export interface MissingInvoiceSearchRequest {
   officeIds: number[];
-  /** When true (default), non-ignored mismatches; when false, full billed table for active reservations. */
-  missingOnly?: boolean;
 }
 
 /** Body for POST accounting/invoice/reservation/preview-all/search — matches API GetReservationInvoicePreviewsDto. */

@@ -1,5 +1,5 @@
-@if ((!isPageReady || !isDepositContentReady) && depositId) {
-  <div class="loading-container">
+@if ((!isPageReady || !isDepositContentReady) && depositId && depositId !== 'new') {
+  <div class="loading-container deposit-loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading deposit...</p>
   </div>
@@ -169,7 +169,7 @@
                               [renderInFormField]="false"
                               [panelWidth]="null"
                               [value]="splitGroup.get('propertyId')?.value ?? null"
-                              [options]="getSplitPropertyOptions(splitGroup)"
+                              [options]="splitPropertyOptions"
                               [disabled]="!shouldShowSplitProperty(splitGroup)"
                               [required]="shouldShowSplitProperty(splitGroup) && (getSplitContextMode(splitGroup) === 'accountsReceivable' || getSplitContextMode(splitGroup) === 'ownerPayable')"
                               [showInstructionOption]="shouldShowSplitProperty(splitGroup)"
@@ -192,7 +192,7 @@
                               [renderInFormField]="false"
                               [panelWidth]="null"
                               [value]="splitGroup.get('reservationId')?.value ?? null"
-                              [options]="getSplitReservationOptions(splitGroup)"
+                              [options]="splitReservationOptions(splitGroup)"
                               [disabled]="!shouldShowSplitReservation(splitGroup)"
                               [required]="getSplitContextMode(splitGroup) === 'accountsReceivable'"
                               [showInstructionOption]="shouldShowSplitReservation(splitGroup)"
@@ -214,7 +214,7 @@
                                   [renderInFormField]="false"
                                   [panelWidth]="null"
                                   [value]="splitGroup.get('contactId')?.value ?? null"
-                                  [options]="getSplitContactOptions(splitGroup)"
+                                  [options]="splitContactOptions"
                                   [required]="true"
                                   [showInstructionOption]="true"
                                   [instructionOptionValue]="null"

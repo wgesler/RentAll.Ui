@@ -4,9 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../../app.routes';
-import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, of, switchMap, take, takeUntil, tap } from 'rxjs';
-import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -28,7 +26,7 @@ import { UserGroups } from '../../../users/models/user-enums';
 @Component({
   selector: 'app-missing-invoice-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, MaterialModule, DataTableComponent],
   templateUrl: './missing-invoice-report.component.html',
   styleUrl: './missing-invoice-report.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -71,9 +69,6 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     daysBilled: { displayAs: 'Days Billed', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     ignore: { displayAs: 'Ignore', maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', isCheckbox: true, checkboxEditable: true }
   };
-
-  /** When true (default), list billed mismatches; when false, matched billed rows. */
-  showMissing = true;
 
   readonly ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
@@ -191,7 +186,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
         );
         return of([]);
       }),
-      switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds, missingOnly: this.showMissing })),
+      switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds })),
       take(1),
       finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
@@ -204,9 +199,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
         this.expandedRowKeys.clear();
         this.selectedRowKeys.clear();
         this.isAllExpanded = false;
-        this.noDataMessage = this.showMissing
-          ? 'No missing invoices through the current month.'
-          : 'No billed matchup rows for active reservations through the current month.';
+        this.noDataMessage = 'No missing invoices through the current month.';
         this.buildInvoicesDisplay();
         this.markViewForCheck();
       },
@@ -271,7 +264,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
         daysBilled: invoice.billedDaysBilled ?? '—',
         ledgerLines: mappedLedgerLines,
         canOpenInvoice: this.canOpenInvoiceSource(invoice),
-        invoiceDisabled: !this.showMissing,
+        invoiceDisabled: false,
         editDisabled: false,
         expand: rowKey,
         expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,
@@ -324,11 +317,6 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   }
 
   onCreateInvoice(rowDisplay: MissingInvoiceReportDisplay): void {
-    if (!this.showMissing) {
-      this.toastr.warning('Turn Missing on to bill rows from this report.', 'Missing Invoice Report');
-      return;
-    }
-
     const preview = this.resolveInvoicePreview(rowDisplay);
     if (!preview) {
       this.toastr.warning('No invoice preview is available for this row.', 'Missing Invoice Report');
@@ -369,11 +357,6 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   }
 
   onCreateSelectedInvoices(): void {
-    if (!this.showMissing) {
-      this.toastr.warning('Turn Missing on to bill rows from this report.', 'Missing Invoice Report');
-      return;
-    }
-
     const previews = this.getSelectedInvoicePreviews();
     if (previews.length === 0) {
       this.toastr.warning('Please select an invoice to be created.', 'Missing Invoice Report');
@@ -594,11 +577,6 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
       ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])],
       { queryParams }
     );
-  }
-
-  onMissingToggleChange(event: MatSlideToggleChange): void {
-    this.showMissing = event.checked;
-    this.loadReport();
   }
 
   onIgnoreCheckboxChange(rowDisplay: MissingInvoiceReportDisplay): void {

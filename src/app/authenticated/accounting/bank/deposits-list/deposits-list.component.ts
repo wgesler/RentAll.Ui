@@ -230,13 +230,60 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     const selectedPropertyId = (event.propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
       .find(propertyId => propertyId.length > 0) || null;
-    const deposit = this.deposits.find(item => item.depositId === event.depositId) ?? null;
+    const depositId = (event.depositId || '').trim();
+    const deposit = this.findDepositResponseForRow(event);
     this.depositSelect.emit({
-      depositId: event.depositId,
+      depositId,
       officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
       propertyId: selectedPropertyId,
       deposit
     });
+  }
+
+  private findDepositResponseForRow(event: DepositDisplayList): DepositResponse | null {
+    const depositId = (event.depositId || '').trim();
+    if (!depositId) {
+      return null;
+    }
+    const idNorm = depositId.toLowerCase();
+    const byId = this.deposits.find(item => (item.depositId || '').trim().toLowerCase() === idNorm);
+    if (byId) {
+      return byId;
+    }
+    const code = (event.depositCode || '').trim();
+    if (code) {
+      const byCode = this.deposits.find(item => (item.depositCode || '').trim() === code);
+      if (byCode) {
+        return byCode;
+      }
+    }
+    return this.buildDepositResponseFromDisplayRow(event);
+  }
+
+  private buildDepositResponseFromDisplayRow(row: DepositDisplayList): DepositResponse {
+    const splits = row.splits ?? [];
+    return {
+      depositId: (row.depositId || '').trim(),
+      depositCode: row.depositCode || '',
+      organizationId: this.authService.getUser()?.organizationId || '',
+      officeId: row.officeId,
+      officeName: row.officeName || '',
+      propertyId: row.propertyId ?? null,
+      propertyIds: row.propertyIds ?? [],
+      depositDate: row.depositDate,
+      accountingPeriod: row.period || row.depositDate,
+      description: row.descriptionDisplay || '',
+      amount: row.amount,
+      bankAccountId: row.bankAccountId ?? null,
+      bankAccountDisplayName: row.bankAccountDisplay,
+      splits,
+      transferId: row.transferId ?? null,
+      transferCode: row.transferCode,
+      postingStatusId: row.postingStatusId ?? null,
+      isActive: row.isActive,
+      modifiedOn: row.modifiedOn,
+      modifiedBy: row.modifiedBy
+    };
   }
 
   goToProperty(event: DepositDisplayList): void {

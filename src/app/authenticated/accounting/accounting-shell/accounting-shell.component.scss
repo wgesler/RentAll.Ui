@@ -554,6 +554,23 @@ mat-card {
   text-align: center;
 }
 
+.accounting-deposit-detail-loading {
+  width: 100%;
+
+  .loading-container {
+    min-height: 22rem;
+  }
+}
+
+.accounting-deposit-detail-host--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .accounting-shell-subview-title {
   display: flex;
   align-items: flex-end;

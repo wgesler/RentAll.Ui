@@ -69,15 +69,22 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   isPageReady = false;
   isDepositContentReady = false;
   organizationId = '';
+  private splitContactsLoadStarted = false;
+  private splitReservationsLoadStarted = false;
+  private depositLoadSeq = 0;
   deposit: DepositResponse | null = null;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   propertyOptions: PropertyCodeResponse[] = [];
   reservationOptions: ReservationCodeResponse[] = [];
+  splitReservationOptionsByPropertyId = new Map<string, SearchableSelectOption<string>[]>();
+  emptySplitReservationOptions: SearchableSelectOption<string>[] = [];
   contacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
   splitAccountOptions: SearchableSelectOption<number>[] = [];
+  splitPropertyOptions: SearchableSelectOption<string>[] = [];
+  splitContactOptions: SearchableSelectOption<string>[] = [];
   splitTotalValidationError = false;
   focusedSplitAmountIndex: number | null = null;
   splitAmountEditValue = '';
@@ -116,15 +123,13 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.applyShellReferenceData();
     this.loadOffices();
     this.loadPropertyCodes();
-    this.loadReservationCodes();
-    this.loadContacts();
     this.loadAccountingOffices();
     this.loadChartOfAccounts();
     if (this.isAddMode) {
       this.isDepositContentReady = true;
       this.clearDepositLoading();
       this.applyShellOfficeToDeposit();
-    } else if (this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
+    } else if (this.prefetchedDeposit && this.depositIdsMatch(this.prefetchedDeposit.depositId, this.depositId)) {
       this.applyLoadedDeposit(this.prefetchedDeposit);
     } else {
       this.isDepositContentReady = false;
@@ -145,7 +150,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
         this.resetForm();
       } else {
         this.isDepositContentReady = false;
-        if (this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
+        if (this.prefetchedDeposit && this.depositIdsMatch(this.prefetchedDeposit.depositId, this.depositId)) {
           this.applyLoadedDeposit(this.prefetchedDeposit);
         } else {
           this.loadDeposit();
@@ -153,10 +158,11 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       }
     }
     if (changes['prefetchedDeposit'] && !changes['prefetchedDeposit'].firstChange
-      && this.prefetchedDeposit && this.prefetchedDeposit.depositId === this.depositId) {
+      && this.prefetchedDeposit && this.depositIdsMatch(this.prefetchedDeposit.depositId, this.depositId)) {
       this.applyLoadedDeposit(this.prefetchedDeposit);
     }
-    if (changes['shellChartOfAccounts'] || changes['shellPropertyCodes']) {
+    if ((changes['shellChartOfAccounts'] && !changes['shellChartOfAccounts'].firstChange)
+      || (changes['shellPropertyCodes'] && !changes['shellPropertyCodes'].firstChange)) {
       this.applyShellReferenceData();
     }
     if (changes['officeId'] && !changes['officeId'].firstChange) {
@@ -328,18 +334,42 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   //#endregion
 
   //#region Data Load Methods
-  loadDeposit(): void {
+  loadDeposit(refreshOnly = false): void {
     if (this.isAddMode || !this.depositId) {
       this.clearDepositLoading();
       return;
     }
 
-    this.isDepositContentReady = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'deposit');
-    this.depositService.getDepositById(this.depositId).pipe(take(1), finalize(() => this.clearDepositLoading())).subscribe({
-      next: (deposit: DepositResponse) => this.applyLoadedDeposit(deposit),
+    const loadId = ++this.depositLoadSeq;
+    const depositId = this.depositId;
+    if (!refreshOnly) {
+      this.isDepositContentReady = false;
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'deposit');
+    }
+
+    this.depositService.getDepositById(depositId).pipe(take(1), finalize(() => {
+      if (loadId !== this.depositLoadSeq) {
+        return;
+      }
+      if (!refreshOnly) {
+        this.clearDepositLoading();
+      }
+    })).subscribe({
+      next: (deposit: DepositResponse) => {
+        if (loadId !== this.depositLoadSeq || depositId !== this.depositId) {
+          return;
+        }
+        this.applyLoadedDeposit(deposit);
+      },
       error: (_err: HttpErrorResponse) => {
-        this.toastr.error('Unable to load deposit.', 'Error');
+        if (loadId !== this.depositLoadSeq) {
+          return;
+        }
+        if (!refreshOnly) {
+          this.toastr.error('Unable to load deposit.', 'Error');
+          this.isDepositContentReady = true;
+        }
+        this.cdr.markForCheck();
       }
     });
   }
@@ -347,9 +377,11 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   applyLoadedDeposit(deposit: DepositResponse): void {
     this.deposit = deposit;
     this.populateForm(deposit);
+    this.rebuildSplitPropertyOptions();
     this.applyChartOfAccountsForOffice();
     this.clearDepositLoading();
     this.isDepositContentReady = true;
+    this.ensureSplitReferenceDataForCurrentSplits();
     this.cdr.markForCheck();
   }
 
@@ -359,6 +391,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
     if (this.shellPropertyCodes?.length) {
       this.propertyOptions = this.shellPropertyCodes;
+      this.rebuildSplitPropertyOptions();
     }
     if (this.chartOfAccounts.length > 0) {
       this.applyChartOfAccountsForOffice();
@@ -369,6 +402,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.propertyService.ensurePropertyCodesLoaded().pipe(take(1)).subscribe(() => {
       this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe(properties => {
         this.propertyOptions = properties || [];
+        this.rebuildSplitPropertyOptions();
         this.cdr.markForCheck();
       });
     });
@@ -397,19 +431,84 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
         this.accountingOffices = accountingOffices || [];
         this.applyChartOfAccountsForOffice();
-        this.applyAllSplitContextVisibilityRules();
+        queueMicrotask(() => this.ensureSplitReferenceDataForCurrentSplits());
         this.cdr.markForCheck();
       });
     });
   }
 
-  loadReservationCodes(): void {
+  ensureSplitReferenceDataForCurrentSplits(): void {
+    if (this.accountingOffices.length === 0) {
+      return;
+    }
+
+    let needsContacts = false;
+    let needsReservations = false;
+    const reservationPropertyIds = new Set<string>();
+
+    for (const control of this.splitsFormArray.controls) {
+      const mode = this.getSplitContextMode(control);
+      if (mode === 'accountsPayable') {
+        needsContacts = true;
+      }
+      if (mode === 'accountsReceivable') {
+        needsReservations = true;
+        const propertyId = this.normalizeSplitPropertyId((control as FormGroup).get('propertyId')?.value ?? null);
+        if (propertyId) {
+          reservationPropertyIds.add(propertyId);
+        }
+      }
+    }
+
+    if (needsContacts) {
+      this.ensureSplitContactsLoaded();
+    }
+    if (needsReservations) {
+      this.ensureSplitReservationsLoaded(reservationPropertyIds);
+    }
+  }
+
+  ensureSplitContactsLoaded(): void {
+    if (this.splitContactsLoadStarted) {
+      return;
+    }
+    this.splitContactsLoadStarted = true;
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe({
+          next: contacts => {
+            this.contacts = contacts || [];
+            this.rebuildSplitContactOptions();
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.contacts = [];
+            this.rebuildSplitContactOptions();
+            this.cdr.markForCheck();
+          }
+        });
+      },
+      error: () => {
+        this.contacts = [];
+        this.rebuildSplitContactOptions();
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  ensureSplitReservationsLoaded(propertyIds: Set<string>): void {
+    const mergeForProperties = () => this.mergeSplitReservationOptionsForPropertyIds(propertyIds);
+    if (this.splitReservationsLoadStarted) {
+      mergeForProperties();
+      return;
+    }
+    this.splitReservationsLoadStarted = true;
     this.reservationService.ensureReservationCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.reservationService.getAllReservationCodes().pipe(takeUntil(this.destroy$)).subscribe({
           next: reservations => {
             this.reservationOptions = reservations || [];
-            this.applyAllSplitContextVisibilityRules();
+            mergeForProperties();
             this.cdr.markForCheck();
           },
           error: () => {
@@ -421,25 +520,32 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
   }
 
-  loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe({
-          next: contacts => {
-            this.contacts = contacts || [];
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            this.contacts = [];
-            this.cdr.markForCheck();
-          }
-        });
-      },
-      error: () => {
-        this.contacts = [];
-        this.cdr.markForCheck();
+  mergeSplitReservationOptionsForPropertyIds(propertyIds: Set<string>): void {
+    if (propertyIds.size === 0) {
+      return;
+    }
+    const officeId = this.getDepositOfficeId();
+    for (const reservation of this.reservationOptions) {
+      if (officeId != null && reservation.officeId !== officeId) {
+        continue;
       }
-    });
+      const propertyId = (reservation.propertyId || '').trim();
+      const reservationId = (reservation.reservationId || '').trim();
+      if (!propertyId || !reservationId || !propertyIds.has(propertyId)) {
+        continue;
+      }
+      const options = this.splitReservationOptionsByPropertyId.get(propertyId) ?? [];
+      if (!this.splitReservationOptionsByPropertyId.has(propertyId)) {
+        this.splitReservationOptionsByPropertyId.set(propertyId, options);
+      }
+      if (options.some(option => String(option.value) === reservationId)) {
+        continue;
+      }
+      options.push({
+        value: reservationId,
+        label: this.utilityService.getReservationDropdownLabel(reservation, null)
+      });
+    }
   }
 
   applyChartOfAccountsForOffice(): void {
@@ -513,7 +619,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
     const rows = splits.length > 0 ? splits : [undefined];
     rows.forEach(split => this.splitsFormArray.push(this.createSplitGroup(split)));
-    this.applyAllSplitContextVisibilityRules();
     this.cdr.markForCheck();
   }
 
@@ -657,6 +762,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     splitGroup.get('chartOfAccountId')?.markAsTouched();
     splitGroup.get('chartOfAccountId')?.updateValueAndValidity({ emitEvent: false });
     this.applySplitContextVisibilityRules(splitGroup);
+    queueMicrotask(() => this.ensureSplitReferenceDataForCurrentSplits());
     this.cdr.markForCheck();
   }
 
@@ -766,13 +872,13 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     return 'Select Vendor';
   }
 
-  getSplitPropertyOptions(_splitGroup?: AbstractControl): SearchableSelectOption<string>[] {
+  rebuildSplitPropertyOptions(): void {
     const officeId = this.getDepositOfficeId();
     const properties = officeId == null
       ? (this.propertyOptions || [])
       : (this.propertyOptions || []).filter(property => property.officeId === officeId);
 
-    return properties
+    this.splitPropertyOptions = properties
       .map(property => ({
         value: (property.propertyId || '').trim(),
         label: (property.propertyCode || '').trim()
@@ -780,28 +886,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       .filter(option => option.value.length > 0);
   }
 
-  getSplitReservationOptions(splitGroup: AbstractControl): SearchableSelectOption<string>[] {
-    return this.buildSplitReservationOptions(splitGroup);
-  }
-
-  buildSplitReservationOptions(splitGroup: AbstractControl): SearchableSelectOption<string>[] {
-    const officeId = this.getDepositOfficeId();
-    const officeFiltered = officeId == null
-      ? this.reservationOptions
-      : this.reservationOptions.filter(reservation => reservation.officeId === officeId);
-    const propertyId = this.normalizeSplitPropertyId(splitGroup.get('propertyId')?.value ?? null);
-    const requireProperty = this.shouldShowSplitReservation(splitGroup);
-    const filtered = !propertyId
-      ? (requireProperty ? [] : officeFiltered)
-      : officeFiltered.filter(reservation => reservation.propertyId === propertyId);
-
-    return filtered.map(reservation => ({
-      value: reservation.reservationId,
-      label: this.utilityService.getReservationDropdownLabel(reservation, null)
-    }));
-  }
-
-  getSplitContactOptions(_splitGroup?: AbstractControl): SearchableSelectOption<string>[] {
+  rebuildSplitContactOptions(): void {
     const officeId = this.getDepositOfficeId();
     const filteredContacts = officeId == null
       ? this.contacts.filter(contact => contact.entityTypeId === EntityType.Vendor)
@@ -809,10 +894,27 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
         contact.entityTypeId === EntityType.Vendor
         && this.utilityService.contactHasOfficeAccess(contact, officeId));
 
-    return filteredContacts.map(contact => ({
+    this.splitContactOptions = filteredContacts.map(contact => ({
       value: String(contact.contactId || '').trim(),
       label: this.utilityService.getVendorDropdownLabel(contact)
     })).filter(option => option.value.length > 0);
+  }
+
+  splitReservationOptions(splitGroup: AbstractControl): SearchableSelectOption<string>[] {
+    if (!this.shouldShowSplitReservation(splitGroup)) {
+      return this.emptySplitReservationOptions;
+    }
+    const propertyId = this.normalizeSplitPropertyId(splitGroup.get('propertyId')?.value ?? null);
+    const cached = propertyId ? this.splitReservationOptionsByPropertyId.get(propertyId) : undefined;
+    if (cached) {
+      return cached;
+    }
+    const reservationId = (splitGroup.get('reservationId')?.value || '').toString().trim();
+    if (!reservationId) {
+      return this.emptySplitReservationOptions;
+    }
+    const reservationCode = (splitGroup.get('reservationCode')?.value || '').toString().trim();
+    return [{ value: reservationId, label: reservationCode || reservationId }];
   }
 
   applySplitContextVisibilityRules(splitGroup: FormGroup): void {
@@ -845,10 +947,12 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       return;
     }
 
-    const reservationIds = new Set(this.buildSplitReservationOptions(splitGroup).map(option => String(option.value)));
-    if (!reservationIds.has(reservationId)) {
-      splitGroup.patchValue({ reservationId: null }, { emitEvent: false });
+    const propertyId = this.normalizeSplitPropertyId(splitGroup.get('propertyId')?.value ?? null);
+    const options = propertyId ? this.splitReservationOptionsByPropertyId.get(propertyId) : undefined;
+    if (!options || options.some(option => String(option.value) === reservationId)) {
+      return;
     }
+    splitGroup.patchValue({ reservationId: null }, { emitEvent: false });
   }
 
   shouldShowSplitPropertyError(splitGroup: AbstractControl): boolean {
@@ -1190,6 +1294,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
     const office = this.offices.find(item => item.officeId === officeId);
     this.form.patchValue({ officeName: office?.name || '' }, { emitEvent: false });
+    this.rebuildSplitPropertyOptions();
+    this.rebuildSplitContactOptions();
     this.applyChartOfAccountsForOffice();
   }
 
@@ -1222,6 +1328,10 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   //#endregion
 
   //#region Utility Methods
+  depositIdsMatch(left: string | null | undefined, right: string | null | undefined): boolean {
+    return (left || '').trim().toLowerCase() === (right || '').trim().toLowerCase();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
