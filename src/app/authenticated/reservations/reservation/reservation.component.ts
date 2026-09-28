@@ -350,8 +350,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   async performSaveAsync(): Promise<void> {
     const formValue = this.form.getRawValue();
-    const nextIsActive = (formValue['isActive'] as boolean | null | undefined) ?? true;
-    if (!nextIsActive && !this.isAddMode && this.reservationId && this.reservationId !== 'new') {
+    const formIsActive = (formValue['isActive'] as boolean | null | undefined) ?? true;
+    if (!formIsActive && !this.isAddMode && this.reservationId && this.reservationId !== 'new') {
       try {
         const shouldBlock = await firstValueFrom(
           this.securityDepositService.shouldBlockReservationInactivation(
