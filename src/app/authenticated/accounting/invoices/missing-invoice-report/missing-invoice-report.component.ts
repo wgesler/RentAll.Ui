@@ -3,7 +3,8 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
-import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, switchMap, take, takeUntil, tap } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, of, switchMap, take, takeUntil, tap } from 'rxjs';
+import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -24,7 +25,7 @@ import { ReservationService } from '../../../reservations/services/reservation.s
 @Component({
   selector: 'app-missing-invoice-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './missing-invoice-report.component.html',
   styleUrl: './missing-invoice-report.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -57,9 +58,9 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     officeName: { displayAs: 'Office', maxWidth: '20ch', wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     monthStart: { displayAs: 'Month', maxWidth: '12ch', alignment: 'center' },
-    periodRange: { displayAs: 'Period', maxWidth: '22ch', alignment: 'center', wrap: false },
-    daysStayed: { displayAs: 'Days Stayed', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
-    daysBilled: { displayAs: 'Days Billed', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    periodRange: { displayAs: 'Period', maxWidth: '30ch', alignment: 'center', wrap: false },
+    daysStayed: { displayAs: 'Days Stayed', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
+    daysBilled: { displayAs: 'Days Billed', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     totalAmount: { displayAs: 'Preview Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
 
@@ -180,6 +181,16 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     this.isServiceError = false;
 
     this.reservationService.rebuildBilledMatchup(officeIds).pipe(
+      catchError((rebuildError: HttpErrorResponse) => {
+        const rebuildMessage = typeof rebuildError?.error === 'string'
+          ? rebuildError.error
+          : rebuildError.error?.title || rebuildError.error?.message || rebuildError.message;
+        this.toastr.warning(
+          rebuildMessage || 'Billed rebuild failed; loading missing invoices from existing billed data.',
+          'Missing Invoice Report'
+        );
+        return of([]);
+      }),
       switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds, includeIgnored: this.showIgnored })),
       take(1),
       finalize(() => {
