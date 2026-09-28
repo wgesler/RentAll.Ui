@@ -78,18 +78,18 @@
           [hasActionsSelect]="true"
           [hasButtonSelectAll]="true"
           [hasFilter]="true"
+          [hasActionsRowClick]="true"
+          [hasReservationCodeLink]="true"
+          [hasInvoiceCodeLink]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="true"
           [buttonTextTop]="'Create'"
           [buttonIconTop]="'add'"
           [buttonColorTop]="'primary'"
-          [buttonDisabledTop]="isCreateTopButtonDisabled || showIgnored"
-          [hasActionsInvoice]="!showIgnored"
-          [invoiceActionTooltip]="'Create Invoice'"
-          [hasActionsEdit]="!showIgnored"
-          [hasActionsSkip]="!showIgnored"
-          [skipActionTooltip]="'Ignore'"
-          [hasActionsRestore]="showIgnored"
+          [buttonDisabledTop]="isCreateTopButtonDisabled || !showMissing"
+          [hasActionsInvoice]="showMissing"
+          [invoiceActionTooltip]="'Bill'"
+          [hasActionsEdit]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
           [includeDetailRowHeader]="false"
@@ -102,12 +102,14 @@
           (topButtonEvent)="onCreateSelectedInvoices()"
           (invoiceEvent)="onCreateInvoice($event)"
           (editEvent)="onEditInvoice($event)"
-          (skipEvent)="onIgnoreRow($event)"
-          (restoreEvent)="onRestoreIgnoredRow($event)">
+          (rowClickEvent)="onRowOpenInvoice($event)"
+          (reservationCodeClickEvent)="goToReservation($event)"
+          (invoiceCodeClickEvent)="openInvoiceEditor($event)"
+          (checkboxChangeEvent)="onIgnoreCheckboxChange($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
-              <mat-slide-toggle id="toggle-missing-invoice-ignored" [checked]="showIgnored" color="primary" (change)="onIgnoredToggleChange($event)" class="whitespace-nowrap">
-                Ignored
+              <mat-slide-toggle id="toggle-missing-invoice-missing" [checked]="showMissing" color="primary" (change)="onMissingToggleChange($event)" class="whitespace-nowrap">
+                Missing
               </mat-slide-toggle>
             </div>
           </div>

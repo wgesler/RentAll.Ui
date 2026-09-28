@@ -356,7 +356,7 @@
                       {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('reservationCode') {
-                    @if (hasReservationCodeLink && item?.reservationId) {
+                    @if (hasReservationCodeLink && (item?.reservationId || item?.reservationCode)) {
                       <span (click)="onReservationCodeClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-reservation-code-link-{{templateTableId}}-{{i}}">
@@ -366,7 +366,7 @@
                       {{formatDisplayCode(item[column.name])}}
                     }
                   } @case ('invoiceCode') {
-                    @if (hasInvoiceCodeLink && item?.invoiceId) {
+                    @if (hasInvoiceCodeLink && (item?.invoiceId || item?.canOpenInvoice)) {
                       <span (click)="onInvoiceCodeClick($event, item)"
                         class="text-blue-700 underline cursor-pointer"
                         id="table-invoice-code-link-{{templateTableId}}-{{i}}">

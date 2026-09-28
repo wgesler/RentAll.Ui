@@ -913,8 +913,8 @@
                     <app-invoice
                       #missingInvoiceEditor
                       [shellMode]="true"
-                      [shellCreateInPlace]="true"
-                      [invoiceIdInput]="'new'"
+                      [shellCreateInPlace]="!(missingInvoiceDraft.invoiceId || '').trim()"
+                      [invoiceIdInput]="(missingInvoiceDraft.invoiceId || '').trim() || 'new'"
                       [prefetchedInvoice]="missingInvoiceDraft"
                       [officeIdInput]="missingInvoiceDraft.officeId"
                       [reservationIdInput]="missingInvoiceDraft.reservationId ?? null"
@@ -957,7 +957,8 @@
                   [officeName]="preBillingOfficeDisplayName"
                   [refreshTrigger]="preBillingRefreshTrigger"
                   (invoicesCreated)="onPreBillingInvoicesCreated()"
-                  (editInvoice)="onPreBillingEditInvoice($event)">
+                  (editInvoice)="onPreBillingEditInvoice($event)"
+                  (invoiceSelectEvent)="onInvoiceSelect($event)">
                 </app-pre-billing-report>
                 }
               } @else if (selectedInvoiceKind === 'payments') {

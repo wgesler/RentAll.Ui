@@ -25,6 +25,8 @@ export interface ColumnData {
     suppressRowClick?: boolean;
     searchableDropdown?: boolean;
     dropdownSearchPlaceholder?: string;
+    /** When false, column is omitted from the table filter box (default true). */
+    includeInFilter?: boolean;
 }
 
 export const postingStatusColumn: ColumnData = {

@@ -53,11 +53,11 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   private cdr = inject(ChangeDetectorRef);
 
   readonly invoiceReportDisplayedColumns: ColumnSet = {
-    expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+    expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    invoiceCode: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '25ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
@@ -220,9 +220,11 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
 
+      const { organizationId: _organizationId, reservationId: _reservationId, ...invoiceWithoutIds } = invoice;
+
       return {
-        ...invoice,
-        invoiceNumber: invoice.invoiceCode || '',
+        ...invoiceWithoutIds,
+        invoiceCode: (invoice.invoiceCode || '').trim() || '—',
         reservationCode: (invoice.reservationCode || this.reservationCode || '').trim() || '—',
         propertyCode: (invoice.propertyCode || this.propertyCode || '').trim() || '—',
         responsibleParty: (invoice.responsibleParty || invoice.contactName || invoice.companyName || this.recipient || '').trim(),
@@ -471,14 +473,16 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     return this.formatter.currencyUsd(value);
   }
 
-  getRowKey(invoice: Pick<InvoiceResponse, 'reservationId' | 'accountingPeriod'> | null | undefined): string {
-    const reservationId = (invoice?.reservationId || '').trim();
-    const accountingPeriod = this.invoiceService.firstDayOfMonthFromCalendarDate(invoice?.accountingPeriod || '');
-    if (!reservationId || !accountingPeriod) {
+  getRowKey(
+    invoice: Pick<InvoiceResponse, 'reservationCode' | 'accountingPeriod'> | null | undefined
+  ): string {
+    const reservationCode = (invoice?.reservationCode || this.reservationCode || '').trim();
+    const monthKey = this.invoiceService.firstDayOfMonthFromCalendarDate(invoice?.accountingPeriod || '');
+    if (!reservationCode || !monthKey) {
       return '';
     }
 
-    return `${reservationId}|${accountingPeriod}`;
+    return `${reservationCode}|${monthKey}`;
   }
 
   markViewForCheck(): void {

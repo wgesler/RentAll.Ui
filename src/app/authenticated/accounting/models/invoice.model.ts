@@ -9,8 +9,8 @@ export interface PreBillingInvoiceSearchRequest {
 /** Body for POST accounting/invoice/missing/search — matches API GetMissingInvoicesDto. */
 export interface MissingInvoiceSearchRequest {
   officeIds: number[];
-  /** When true, load only ignored billed mismatch rows. */
-  includeIgnored?: boolean;
+  /** When true (default), non-ignored mismatches; when false, full billed table for active reservations. */
+  missingOnly?: boolean;
 }
 
 /** Body for POST accounting/invoice/reservation/preview-all/search — matches API GetReservationInvoicePreviewsDto. */
@@ -18,8 +18,8 @@ export interface ReservationInvoicePreviewSearchRequest {
   reservationId: string;
 }
 
-export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'invoiceDate' | 'ledgerLines'> {
-  invoiceNumber: string;
+export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'invoiceDate' | 'ledgerLines' | 'organizationId' | 'reservationId'> {
+  invoiceCode: string;
   period: string;
   invoiceDate: string;
   totalAmount: string;
@@ -32,16 +32,19 @@ export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAm
 }
 
 /** Missing Invoice Report — one row per Accounting.Billed mismatch (DaysStayed > DaysBilled). */
-export interface MissingInvoiceReportDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'ledgerLines'> {
-  /** `'NONE'` hides ignore checkbox in the grid when not viewing ignored rows. */
-  ignore?: boolean | 'NONE';
-  invoiceNumber: string;
+export interface MissingInvoiceReportDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'ledgerLines' | 'organizationId' | 'reservationId'> {
+  ignore: boolean;
+  canOpenInvoice?: boolean;
+  invoiceDisabled?: boolean;
+  editDisabled?: boolean;
+  invoiceCode: string;
+  stayStartDate: string;
+  stayEndDate: string;
   monthStart: string;
-  periodRange: string;
+  periodStart: string;
+  periodEnd: string;
   daysStayed: string | number;
   daysBilled: string | number;
-  totalAmount: string;
-  totalAmountValue: number;
   ledgerLines?: LedgerLineListDisplay[];
   expand?: string;
   expanded?: boolean;
@@ -127,6 +130,8 @@ export interface InvoiceResponse {
   billedMonthEnd?: CalendarDateString | null;
   billedPeriodStart?: CalendarDateString | null;
   billedPeriodEnd?: CalendarDateString | null;
+  billedStartDate?: CalendarDateString | null;
+  billedEndDate?: CalendarDateString | null;
   billedRentalFeeLines?: string | null;
 }
 

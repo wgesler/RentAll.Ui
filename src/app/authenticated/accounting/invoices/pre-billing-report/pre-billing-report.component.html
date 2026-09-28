@@ -78,6 +78,8 @@
           [hasActionsSelect]="true"
           [hasButtonSelectAll]="true"
           [hasFilter]="true"
+          [hasReservationCodeLink]="true"
+          [hasInvoiceCodeLink]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="true"
           [buttonTextTop]="'Create'"
@@ -98,7 +100,9 @@
           (selectionSet)="onSelectionSet($event)"
           (topButtonEvent)="onCreateSelectedInvoices()"
           (invoiceEvent)="onCreateInvoice($event)"
-          (editEvent)="onEditInvoice($event)">
+          (editEvent)="onEditInvoice($event)"
+          (reservationCodeClickEvent)="goToReservation($event)"
+          (invoiceCodeClickEvent)="openInvoice($event)">
         </app-data-table>
       </div>
     }

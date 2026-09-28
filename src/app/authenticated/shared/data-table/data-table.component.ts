@@ -439,6 +439,7 @@ markViewForCheck(): void {
     // Use a filterPredicate to make sure the table only filters on visible columns
     this.dataSource.filterPredicate = (item: TableItem, filter: string): boolean =>
       this.displayedColumns
+        .filter(column => this.columns[column]?.includeInFilter !== false)
         .map(column => this.getFilterableColumnValue(item, column))
         .some(value => value.includes(filter));
 

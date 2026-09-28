@@ -3805,6 +3805,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       }
     }
     if (returnTo === 'invoice-list') {
+      const listReturnPath = (qp.get('listReturnPath') || urlQp.get('listReturnPath'))?.trim();
+      if (listReturnPath) {
+        this.router.navigateByUrl(listReturnPath.startsWith('/') ? listReturnPath : `/${listReturnPath}`);
+        return;
+      }
+
       const params: string[] = [];
       const officeId = qp.get('officeId') || urlQp.get('officeId');
       const reservationId = qp.get('reservationId') || urlQp.get('reservationId');

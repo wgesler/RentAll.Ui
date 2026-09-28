@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { RouterUrl } from '../../../../app.routes';
 import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, take, takeUntil, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -15,7 +17,8 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceResponse, LedgerLineListDisplay, PreBillingInvoiceDisplay } from '../../models/invoice.model';
+import { InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, PreBillingInvoiceDisplay } from '../../models/invoice.model';
+import { UserGroups } from '../../../users/models/user-enums';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
 
@@ -37,6 +40,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
 
   @Output() invoicesCreated = new EventEmitter<void>();
   @Output() editInvoice = new EventEmitter<InvoiceResponse>();
+  @Output() invoiceSelectEvent = new EventEmitter<InvoiceSelection>();
 
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate?: TemplateRef<unknown>;
 
@@ -46,16 +50,17 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private authService = inject(AuthService);
+  private router = inject(Router);
   private commonService = inject(CommonService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   readonly preBillingDisplayedColumns: ColumnSet = {
-    expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+    expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    invoiceCode: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '25ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
@@ -76,8 +81,8 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   isServiceError = false;
   invoices: InvoiceResponse[] = [];
   invoicesDisplay: PreBillingInvoiceDisplay[] = [];
-  expandedReservationIds = new Set<string>();
-  selectedReservationIds = new Set<string>();
+  expandedRowKeys = new Set<string>();
+  selectedRowKeys = new Set<string>();
   isAllExpanded = false;
   isCreatingInvoices = false;
   noDataMessage = 'No reservations need billing for the selected offices and month.';
@@ -159,8 +164,8 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     if (officeIds.length === 0) {
       this.invoices = [];
       this.isServiceError = false;
-      this.expandedReservationIds.clear();
-      this.selectedReservationIds.clear();
+      this.expandedRowKeys.clear();
+      this.selectedRowKeys.clear();
       this.isAllExpanded = false;
       this.noDataMessage = 'Select at least one office to view the pre-billing report.';
       this.buildInvoicesDisplay();
@@ -180,8 +185,8 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     ).subscribe({
       next: invoices => {
         this.invoices = invoices ?? [];
-        this.expandedReservationIds.clear();
-        this.selectedReservationIds.clear();
+        this.expandedRowKeys.clear();
+        this.selectedRowKeys.clear();
         this.isAllExpanded = false;
         this.noDataMessage = 'No reservations need billing for the selected offices and month.';
         this.buildInvoicesDisplay();
@@ -206,13 +211,13 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     this.isAllExpanded = expanded;
     if (expanded) {
       this.invoices.forEach(invoice => {
-        const reservationId = (invoice.reservationId || '').trim();
-        if (reservationId) {
-          this.expandedReservationIds.add(reservationId);
+        const rowKey = this.getRowKey(invoice);
+        if (rowKey) {
+          this.expandedRowKeys.add(rowKey);
         }
       });
     } else {
-      this.expandedReservationIds.clear();
+      this.expandedRowKeys.clear();
     }
     this.buildInvoicesDisplay();
     this.markViewForCheck();
@@ -220,14 +225,15 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
 
   buildInvoicesDisplay(): void {
     this.invoicesDisplay = this.invoices.map(invoice => {
-      const reservationId = (invoice.reservationId || '').trim();
+      const rowKey = this.getRowKey(invoice);
+      const { organizationId: _organizationId, reservationId: _reservationId, ...invoiceWithoutIds } = invoice;
       const totalAmount = Number(invoice.totalAmount) || 0;
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
 
       return {
-        ...invoice,
-        invoiceNumber: invoice.invoiceCode || '',
+        ...invoiceWithoutIds,
+        invoiceCode: (invoice.invoiceCode || '').trim() || '—',
         reservationCode: invoice.reservationCode || '—',
         propertyCode: (invoice.propertyCode || '').trim() || '—',
         responsibleParty: invoice.responsibleParty || invoice.contactName || invoice.companyName || '',
@@ -236,20 +242,20 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
         totalAmount: '$' + this.formatter.currency(totalAmount),
         totalAmountValue: totalAmount,
         ledgerLines: mappedLedgerLines,
-        expand: reservationId,
-        expanded: reservationId ? this.expandedReservationIds.has(reservationId) : false,
-        selected: reservationId ? this.selectedReservationIds.has(reservationId) : false,
+        expand: rowKey,
+        expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,
+        selected: rowKey ? this.selectedRowKeys.has(rowKey) : false,
         expandClick: (event: Event, item: PreBillingInvoiceDisplay) => {
           event.stopPropagation();
-          const key = (item.reservationId || '').trim();
+          const key = this.getRowKey(item);
           if (!key) {
             return;
           }
 
-          if (this.expandedReservationIds.has(key)) {
-            this.expandedReservationIds.delete(key);
+          if (this.expandedRowKeys.has(key)) {
+            this.expandedRowKeys.delete(key);
           } else {
-            this.expandedReservationIds.add(key);
+            this.expandedRowKeys.add(key);
           }
 
           this.buildInvoicesDisplay();
@@ -268,8 +274,8 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.isAllExpanded = this.invoicesDisplay.every(row => {
-      const reservationId = (row.reservationId || '').trim();
-      return !!reservationId && this.expandedReservationIds.has(reservationId);
+      const rowKey = this.getRowKey(row);
+      return !!rowKey && this.expandedRowKeys.has(rowKey);
     });
   }
   //#endregion
@@ -277,10 +283,10 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   //#region Selection/Create Methods
   onSelectionSet(selection: SelectionModel<unknown> | null | undefined): void {
     const selected = Array.isArray(selection?.selected) ? selection.selected : [];
-    this.selectedReservationIds = new Set(
+    this.selectedRowKeys = new Set(
       selected
-        .map(item => String((item as PreBillingInvoiceDisplay)?.reservationId ?? '').trim())
-        .filter(id => !!id)
+        .map(item => this.getRowKey(item as PreBillingInvoiceDisplay))
+        .filter(key => !!key)
     );
     this.syncSelectedRowsOnDisplay();
     this.markViewForCheck();
@@ -354,7 +360,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
             `Created ${createdCount} invoice${createdCount === 1 ? '' : 's'}.`,
             CommonMessage.Success
           );
-          this.selectedReservationIds.clear();
+          this.selectedRowKeys.clear();
           this.loadReport();
           this.invoicesCreated.emit();
         }
@@ -365,25 +371,22 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSelectedInvoicePreviews(): InvoiceResponse[] {
-    return this.invoices.filter(invoice => {
-      const reservationId = (invoice.reservationId || '').trim();
-      return !!reservationId && this.selectedReservationIds.has(reservationId);
-    });
+    return this.invoices.filter(invoice => this.selectedRowKeys.has(this.getRowKey(invoice)));
   }
 
   resolveInvoicePreview(rowDisplay: PreBillingInvoiceDisplay): InvoiceResponse | null {
-    const reservationId = (rowDisplay?.reservationId || '').trim();
-    if (!reservationId) {
+    const rowKey = this.getRowKey(rowDisplay);
+    if (!rowKey) {
       return null;
     }
 
-    return this.invoices.find(invoice => (invoice.reservationId || '').trim() === reservationId) ?? null;
+    return this.invoices.find(invoice => this.getRowKey(invoice) === rowKey) ?? null;
   }
 
   syncSelectedRowsOnDisplay(): void {
     this.invoicesDisplay.forEach(row => {
-      const reservationId = (row.reservationId || '').trim();
-      row.selected = !!reservationId && this.selectedReservationIds.has(reservationId);
+      const rowKey = this.getRowKey(row);
+      row.selected = !!rowKey && this.selectedRowKeys.has(rowKey);
     });
   }
   //#endregion
@@ -398,7 +401,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
       case 'lineNo':
         return lineIndex !== undefined ? String(lineIndex + 1) : '—';
       case 'ledgerLineDate': {
-        const rawInvoice = this.invoices.find(item => (item.reservationId || '').trim() === (invoice.reservationId || '').trim());
+        const rawInvoice = this.invoices.find(item => this.getRowKey(item) === this.getRowKey(invoice));
         return this.formatter.formatDateString(line.ledgerLineDate || rawInvoice?.invoiceDate) || '—';
       }
       case 'costCode':
@@ -503,6 +506,79 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     return this.utilityService.formatDateOnlyForApi(nextMonth) ?? '';
+  }
+
+  getRowKey(
+    invoice: Pick<InvoiceResponse, 'reservationCode' | 'accountingPeriod'> | null | undefined
+  ): string {
+    const reservationCode = (invoice?.reservationCode || '').trim();
+    const monthKey = this.invoiceService.firstDayOfMonthFromCalendarDate(invoice?.accountingPeriod || '');
+    if (!reservationCode || !monthKey) {
+      return '';
+    }
+
+    return `${reservationCode}|${monthKey}`;
+  }
+
+  openInvoice(row: PreBillingInvoiceDisplay): void {
+    const source = this.resolveInvoicePreview(row);
+    const invoiceId = (source?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return;
+    }
+
+    this.invoiceSelectEvent.emit({
+      invoiceId,
+      officeId: row.officeId ?? source?.officeId ?? this.resolveOfficeIds()[0] ?? null,
+      reservationId: source?.reservationId?.trim() || null
+    });
+  }
+
+  goToReservation(row: PreBillingInvoiceDisplay): void {
+    const source = this.resolveInvoicePreview(row);
+    const reservationId = (source?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    const officeId = row.officeId ?? source?.officeId ?? this.resolveOfficeIds()[0] ?? null;
+    const returnParams = new URLSearchParams();
+    returnParams.set('tab', '0');
+    returnParams.set('invoiceKind', 'preBillingReport');
+    if (officeId != null && officeId > 0) {
+      returnParams.set('officeId', String(officeId));
+    }
+
+    const organizationId = (source?.organizationId || this.authService.getUser()?.organizationId || '').trim();
+    if (this.authService.hasRole(UserGroups.SuperAdmin) && organizationId) {
+      returnParams.set('organizationId', organizationId);
+    }
+
+    const billingMonth = this.resolveBillingMonth();
+    if (billingMonth) {
+      returnParams.set('billingMonth', billingMonth);
+    }
+
+    const listReturnPath = `/${RouterUrl.AccountingList}?${returnParams.toString()}`;
+    const queryParams: Record<string, string> = {
+      returnTo: 'invoice-list',
+      listReturnPath,
+      reservationId
+    };
+    if (officeId != null && officeId > 0) {
+      queryParams['officeId'] = String(officeId);
+    }
+    if (row.propertyId) {
+      queryParams['propertyId'] = row.propertyId;
+    }
+    if (this.authService.hasRole(UserGroups.SuperAdmin) && organizationId) {
+      queryParams['organizationId'] = organizationId;
+    }
+
+    void this.router.navigate(
+      ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])],
+      { queryParams }
+    );
   }
   //#endregion
 
