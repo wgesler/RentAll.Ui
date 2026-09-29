@@ -1,7 +1,6 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable, NgZone, inject } from '@angular/core';
 import { NavigationError, Router } from '@angular/router';
-import { ToastrService } from 'ngx-toastr';
 import { Subscription, filter, firstValueFrom, fromEvent, interval } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -16,7 +15,6 @@ const RELOAD_ONCE_KEY = 'rentall.deployAutoReloadOnce';
 export class AppDeployVersionService {
   private readonly http = new HttpClient(inject(HttpBackend));
   private readonly router = inject(Router);
-  private readonly toastr = inject(ToastrService);
   private readonly ngZone = inject(NgZone);
 
   private readonly versionUrl = 'assets/build-version.json';
@@ -31,17 +29,17 @@ export class AppDeployVersionService {
     this.started = true;
     sessionStorage.removeItem(RELOAD_ONCE_KEY);
 
-    void this.checkForNewDeploy(false);
+    void this.checkForNewDeploy();
 
     this.subscriptions.add(
       interval(this.pollIntervalMs).subscribe(() => {
-        void this.checkForNewDeploy(false);
+        void this.checkForNewDeploy();
       })
     );
 
     this.subscriptions.add(
       fromEvent(window, 'focus').subscribe(() => {
-        void this.checkForNewDeploy(false);
+        void this.checkForNewDeploy();
       })
     );
 
@@ -49,7 +47,7 @@ export class AppDeployVersionService {
       this.router.events.pipe(filter(event => event instanceof NavigationError)).subscribe(event => {
         const navigationError = event as NavigationError;
         if (this.isChunkLoadFailure(navigationError.error)) {
-          this.reloadForDeploy('Navigation failed because the app was updated.');
+          this.reloadForDeploy();
         }
       })
     );
@@ -72,11 +70,11 @@ export class AppDeployVersionService {
     }
     event.preventDefault();
     this.ngZone.run(() => {
-      this.reloadForDeploy('The app was updated while this tab was open.');
+      this.reloadForDeploy();
     });
   };
 
-  private async checkForNewDeploy(forceReloadWhenMissingStored: boolean): Promise<void> {
+  private async checkForNewDeploy(): Promise<void> {
     try {
       const remote = await this.fetchBuildVersion();
       const remoteBuild = String(remote?.build || '').trim();
@@ -95,11 +93,9 @@ export class AppDeployVersionService {
       }
 
       sessionStorage.setItem(STORAGE_KEY, remoteBuild);
-      this.reloadForDeploy('A new version of RentAll is available.');
+      this.reloadForDeploy();
     } catch {
-      if (forceReloadWhenMissingStored) {
-        return;
-      }
+      // Ignore — next poll or focus will retry.
     }
   }
 
@@ -113,15 +109,12 @@ export class AppDeployVersionService {
     return value ?? {};
   }
 
-  private reloadForDeploy(message: string): void {
+  private reloadForDeploy(): void {
     if (sessionStorage.getItem(RELOAD_ONCE_KEY) === '1') {
       return;
     }
     sessionStorage.setItem(RELOAD_ONCE_KEY, '1');
-    this.toastr.info(`${message} Reloading…`, 'Update', { timeOut: 4000, tapToDismiss: true });
-    window.setTimeout(() => {
-      window.location.reload();
-    }, 750);
+    window.location.reload();
   }
 
   private isChunkLoadFailure(error: unknown): boolean {

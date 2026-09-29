@@ -6360,9 +6360,7 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
     const sourceAmount = group
       .map(split => Number(split.sourceJournalEntryLineAmount))
       .find(value => Number.isFinite(value) && Math.abs(value) > 0.005);
-    const escrowDepositValue = sourceAmount !== undefined
-      ? this.roundCurrency(sourceAmount)
-      : rowTotalValue;
+    const escrowDepositValue = this.resolveTransferFlatReportEscrowDepositValue(sourceAmount, rowTotalValue);
     const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
     const reservationCode = (context?.reservationCode || '').trim() || (transfer.transferCode || '').trim();
     const propertyCode = (context?.propertyCode || '').trim();
@@ -6461,7 +6459,10 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
         const secDepValue = this.roundCurrency(Number(allocation.secDep) || 0);
         const sdwValue = this.roundCurrency(Number(allocation.sdw) || 0);
         const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
-        const escrowDepositValue = this.roundCurrency(Number(allocation.escrowAmount) || rowTotalValue);
+        const rawEscrowAmount = Number(allocation.escrowAmount);
+        const escrowDepositValue = Number.isFinite(rawEscrowAmount) && Math.abs(rawEscrowAmount) > 0.005
+          ? this.resolveTransferFlatReportEscrowDepositValue(rawEscrowAmount, rowTotalValue)
+          : rowTotalValue;
         const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
         const reservationCode = (context?.reservationCode || '').trim()
           || (transfer.transferCode || '').trim();
@@ -6497,7 +6498,32 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       });
   }
 
-formatFlatReportAmount(value: number): string {
+  /**
+   * Escrow source JE net is often negative (credit on 1002) while destination splits are positive.
+   * Show |source| for that normal outflow; keep signed source for credits/reversals (e.g. both sides negative).
+   */
+  resolveTransferFlatReportEscrowDepositValue(
+    sourceAmount: number | undefined,
+    rowTotalValue: number
+  ): number {
+    const total = this.roundCurrency(rowTotalValue);
+    if (sourceAmount === undefined || !Number.isFinite(sourceAmount)) {
+      return total;
+    }
+
+    const source = this.roundCurrency(sourceAmount);
+    if (Math.abs(source) <= 0.005) {
+      return total;
+    }
+
+    if (source < 0 && total > 0.005) {
+      return this.roundCurrency(Math.abs(source));
+    }
+
+    return source;
+  }
+
+  formatFlatReportAmount(value: number): string {
     if (!Number.isFinite(value)) {
       return this.formatter.currencyUsd(0);
     }
