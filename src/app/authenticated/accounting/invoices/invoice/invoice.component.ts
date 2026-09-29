@@ -1420,7 +1420,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     
 
     this.form.get('startDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((startDateValue) => {
-      if (!startDateValue) {
+      if (!startDateValue || this.prefetchedInvoice) {
         return;
       }
 
@@ -1445,14 +1445,16 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.invoice.startDate,
         this.invoice.endDate
       );
+      const parsedStartDate = this.utilityService.parseCalendarDateInput(startDate);
+      const parsedEndDate = this.utilityService.parseCalendarDateInput(endDate);
       this.form.patchValue({
         organizationId: this.invoice.organizationId,
         officeId: this.invoice.officeId,
         officeName: this.invoice.officeName || '',
         reservationId: this.invoice.reservationId || null,
         reservationCode: this.invoice.reservationCode || '',
-        startDate: this.utilityService.parseCalendarDateInput(startDate),
-        endDate: this.utilityService.parseCalendarDateInput(endDate),
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
         accountingPeriod: this.utilityService.parseCalendarDateInput(this.invoice.accountingPeriod),
         invoiceDate: this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
         dueDate: this.utilityService.parseCalendarDateInput(this.invoice.dueDate),
@@ -1464,6 +1466,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         notes: this.invoice.notes || '',
         isActive: this.invoice.isActive
       }, { emitEvent: false });
+
+      if (this.prefetchedInvoice && parsedStartDate && parsedEndDate) {
+        this.form.get('startDate')?.setValue(parsedStartDate, { emitEvent: false });
+        this.form.get('endDate')?.setValue(parsedEndDate, { emitEvent: false });
+      }
       
       this.captureFormSnapshot();
       
@@ -1561,7 +1568,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   setupInvoiceDateSyncHandler(): void {
     this.form.get('invoiceDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(invoiceDateValue => {
-      if (!this.isAddMode || !this.form) {
+      if (!this.isAddMode || !this.form || this.prefetchedInvoice) {
         return;
       }
 

@@ -29,6 +29,27 @@ export interface PreBillingInvoiceDisplay extends Omit<InvoiceResponse, 'totalAm
   expandClick?: (event: Event, item: PreBillingInvoiceDisplay) => void;
 }
 
+/** Reservation Preview All + shared gap-style preview rows. */
+export interface ReservationInvoicePreviewDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'ledgerLines' | 'organizationId' | 'reservationId'> {
+  invoiceCode: string;
+  propertyCode: string;
+  reservationCode: string;
+  invoiceStartDate: string;
+  invoiceEndDate: string;
+  monthStart: string;
+  periodStart: string;
+  periodEnd: string;
+  daysStayed: string | number;
+  daysBilled: string | number;
+  totalAmount: string;
+  totalAmountValue: number;
+  ledgerLines: LedgerLineListDisplay[];
+  expand?: string;
+  expanded?: boolean;
+  selected?: boolean;
+  expandClick?: (event: Event, item: ReservationInvoicePreviewDisplay) => void;
+}
+
 /** Missing Invoice Report — one row per Accounting.Billed mismatch (DaysStayed > DaysBilled). */
 export interface MissingInvoiceReportDisplay extends Omit<InvoiceResponse, 'totalAmount' | 'ledgerLines' | 'organizationId' | 'reservationId'> {
   ignore: boolean;
@@ -36,14 +57,18 @@ export interface MissingInvoiceReportDisplay extends Omit<InvoiceResponse, 'tota
   invoiceDisabled?: boolean;
   editDisabled?: boolean;
   invoiceCode: string;
-  stayStartDate: string;
-  stayEndDate: string;
+  propertyCode: string;
+  reservationCode: string;
+  invoiceStartDate: string;
+  invoiceEndDate: string;
   monthStart: string;
   periodStart: string;
   periodEnd: string;
   daysStayed: string | number;
   daysBilled: string | number;
-  ledgerLines?: LedgerLineListDisplay[];
+  totalAmount: string;
+  totalAmountValue: number;
+  ledgerLines: LedgerLineListDisplay[];
   expand?: string;
   expanded?: boolean;
   selected?: boolean;

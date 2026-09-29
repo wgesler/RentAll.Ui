@@ -17,6 +17,8 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
+import { invoicePreviewListBaseColumns } from '../invoice-preview-list.columns';
+import { buildInvoicePreviewListRowDisplay } from '../invoice-preview-list-display';
 import { InvoiceResponse, LedgerLineListDisplay, MissingInvoiceReportDisplay } from '../../models/invoice.model';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
@@ -56,17 +58,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   private cdr = inject(ChangeDetectorRef);
 
   private readonly invoiceReportBaseColumns: ColumnSet = {
-    expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
-    officeName: { displayAs: 'Office', maxWidth: '20ch', wrap: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    invoiceCode: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural', wrap: false },
-    stayStartDate: { displayAs: 'Start Date', maxWidth: '14ch', alignment: 'center', wrap: false },
-    stayEndDate: { displayAs: 'End Date', maxWidth: '14ch', alignment: 'center', wrap: false },
-    monthStart: { displayAs: 'Month', maxWidth: '14ch', alignment: 'center' },
-    periodStart: { displayAs: 'Period Start', maxWidth: '14ch', alignment: 'center', wrap: false },
-    periodEnd: { displayAs: 'Period End', maxWidth: '14ch', alignment: 'center', wrap: false },
-    daysStayed: { displayAs: 'Days Stayed', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
-    daysBilled: { displayAs: 'Days Billed', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
+    ...invoicePreviewListBaseColumns,
     ignore: { displayAs: 'Ignore', maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', isCheckbox: true, checkboxEditable: true }
   };
 
@@ -237,38 +229,20 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   buildInvoicesDisplay(): void {
     this.invoicesDisplay = this.invoices.map(invoice => {
       const rowKey = this.getRowKey(invoice);
-      const { organizationId: _organizationId, reservationId: _reservationId, ...invoiceWithoutIds } = invoice;
+      const {
+        organizationId: _organizationId,
+        reservationId: _reservationId,
+        ledgerLines: _ledgerLines,
+        totalAmount: _totalAmount,
+        ...invoiceWithoutIds
+      } = invoice;
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
-
-      const monthStart = invoice.billedMonthStart || invoice.accountingPeriod;
-      const periodStart = invoice.billedPeriodStart;
-      const periodEnd = invoice.billedPeriodEnd;
-
-      return {
-        ...invoiceWithoutIds,
-        ignore: !!invoice.billedIgnore,
-        officeName: (invoice.officeName || '').trim() || '—',
-        invoiceCode: (invoice.invoiceCode || '').trim() || '—',
-        reservationCode: invoice.reservationCode || '—',
-        stayStartDate: invoice.billedStartDate
-          ? this.formatter.formatDateString(invoice.billedStartDate)
-          : '—',
-        stayEndDate: invoice.billedEndDate
-          ? this.formatter.formatDateString(invoice.billedEndDate)
-          : '—',
-        monthStart: this.formatter.formatDateString(monthStart),
-        periodStart: periodStart ? this.formatter.formatDateString(periodStart) : '—',
-        periodEnd: periodEnd ? this.formatter.formatDateString(periodEnd) : '—',
-        daysStayed: invoice.billedDaysStayed ?? '—',
-        daysBilled: invoice.billedDaysBilled ?? '—',
-        ledgerLines: mappedLedgerLines,
-        canOpenInvoice: this.canOpenInvoiceSource(invoice),
-        invoiceDisabled: false,
-        editDisabled: false,
-        expand: rowKey,
+      const previewRow = buildInvoicePreviewListRowDisplay(invoice, this.formatter, this.utilityService, {
+        rowKey,
         expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,
         selected: rowKey ? this.selectedRowKeys.has(rowKey) : false,
+        mappedLedgerLines,
         expandClick: (event: Event, item: MissingInvoiceReportDisplay) => {
           event.stopPropagation();
           const key = this.getRowKey(item);
@@ -285,7 +259,18 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
           this.buildInvoicesDisplay();
           this.markViewForCheck();
         }
-      };
+      });
+
+      return {
+        ...invoiceWithoutIds,
+        ...previewRow,
+        ledgerLines: mappedLedgerLines,
+        ignore: !!invoice.billedIgnore,
+        invoiceCode: (invoice.invoiceCode || '').trim() || '—',
+        canOpenInvoice: this.canOpenInvoiceSource(invoice),
+        invoiceDisabled: false,
+        editDisabled: false
+      } satisfies MissingInvoiceReportDisplay;
     });
 
     this.updateIsAllExpanded();
@@ -503,8 +488,10 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     }
 
     const count = this.invoicesDisplay.length;
+    const total = this.invoicesDisplay.reduce((sum, row) => sum + (row.totalAmountValue ?? 0), 0);
     return {
-      reservationCode: `Totals: (${count} row${count === 1 ? '' : 's'})`
+      reservationCode: `Totals: (${count} row${count === 1 ? '' : 's'})`,
+      totalAmount: '$' + this.formatter.currency(total)
     };
   }
 
@@ -516,17 +503,18 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   }
 
   getRowKey(
-    invoice: Pick<InvoiceResponse, 'reservationCode' | 'accountingPeriod' | 'billedMonthStart'> | null | undefined
+    invoice: Pick<InvoiceResponse, 'reservationCode' | 'accountingPeriod' | 'billedMonthStart' | 'billedPeriodStart'> | null | undefined
   ): string {
     const reservationCode = (invoice?.reservationCode || '').trim();
     const monthKey = this.invoiceService.firstDayOfMonthFromCalendarDate(
       invoice?.billedMonthStart || invoice?.accountingPeriod || ''
     );
+    const periodStartKey = (invoice?.billedPeriodStart || '').trim();
     if (!reservationCode || !monthKey) {
       return '';
     }
 
-    return `${reservationCode}|${monthKey}`;
+    return periodStartKey ? `${reservationCode}|${monthKey}|${periodStartKey}` : `${reservationCode}|${monthKey}`;
   }
 
   normalizeOfficeIds(value: number[] | null | undefined): number[] {

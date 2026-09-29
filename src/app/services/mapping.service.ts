@@ -1245,7 +1245,36 @@ resolveJournalEntryLineSourceDisplay(
       endDate,
       createdOn,
       modifiedOn,
-      ledgerLines
+      ledgerLines,
+      billedId: (raw['billedId'] ?? raw['BilledId'] ?? base.billedId) as number | null | undefined,
+      billedIgnore: (raw['billedIgnore'] ?? raw['BilledIgnore'] ?? base.billedIgnore) as boolean | null | undefined,
+      billedDaysStayed: (raw['billedDaysStayed'] ?? raw['BilledDaysStayed'] ?? base.billedDaysStayed) as number | null | undefined,
+      billedDaysBilled: (raw['billedDaysBilled'] ?? raw['BilledDaysBilled'] ?? base.billedDaysBilled) as number | null | undefined,
+      billedMonthStart:
+        this.utility.coerceCalendarDateStringFromApi(raw['billedMonthStart'] ?? raw['BilledMonthStart']) ??
+        base.billedMonthStart ??
+        null,
+      billedMonthEnd:
+        this.utility.coerceCalendarDateStringFromApi(raw['billedMonthEnd'] ?? raw['BilledMonthEnd']) ??
+        base.billedMonthEnd ??
+        null,
+      billedPeriodStart:
+        this.utility.coerceCalendarDateStringFromApi(raw['billedPeriodStart'] ?? raw['BilledPeriodStart']) ??
+        base.billedPeriodStart ??
+        null,
+      billedPeriodEnd:
+        this.utility.coerceCalendarDateStringFromApi(raw['billedPeriodEnd'] ?? raw['BilledPeriodEnd']) ??
+        base.billedPeriodEnd ??
+        null,
+      billedStartDate:
+        this.utility.coerceCalendarDateStringFromApi(raw['billedStartDate'] ?? raw['BilledStartDate']) ??
+        base.billedStartDate ??
+        null,
+      billedEndDate:
+        this.utility.coerceCalendarDateStringFromApi(raw['billedEndDate'] ?? raw['BilledEndDate']) ??
+        base.billedEndDate ??
+        null,
+      billedRentalFeeLines: (raw['billedRentalFeeLines'] ?? raw['BilledRentalFeeLines'] ?? base.billedRentalFeeLines) as string | null | undefined
     };
   }
 

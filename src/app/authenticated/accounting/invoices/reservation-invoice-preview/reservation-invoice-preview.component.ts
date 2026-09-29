@@ -15,7 +15,9 @@ import { DataTableComponent } from '../../../shared/data-table/data-table.compon
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceResponse, LedgerLineListDisplay, PreBillingInvoiceDisplay } from '../../models/invoice.model';
+import { invoicePreviewListBaseColumns } from '../invoice-preview-list.columns';
+import { buildInvoicePreviewListRowDisplay } from '../invoice-preview-list-display';
+import { InvoiceResponse, LedgerLineListDisplay, ReservationInvoicePreviewDisplay } from '../../models/invoice.model';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { InvoiceService } from '../../services/invoice.service';
 
@@ -52,16 +54,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly invoiceReportDisplayedColumns: ColumnSet = {
-    expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    invoiceCode: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '25ch' },
-    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
-    totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
-  };
+  readonly invoiceReportDisplayedColumns: ColumnSet = invoicePreviewListBaseColumns;
 
   readonly ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
@@ -77,7 +70,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
 
   isServiceError = false;
   invoices: InvoiceResponse[] = [];
-  invoicesDisplay: PreBillingInvoiceDisplay[] = [];
+  invoicesDisplay: ReservationInvoicePreviewDisplay[] = [];
   expandedRowKeys = new Set<string>();
   selectedRowKeys = new Set<string>();
   isAllExpanded = false;
@@ -216,27 +209,23 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   buildInvoicesDisplay(): void {
     this.invoicesDisplay = this.invoices.map(invoice => {
       const rowKey = this.getRowKey(invoice);
-      const totalAmount = Number(invoice.totalAmount) || 0;
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
-
-      const { organizationId: _organizationId, reservationId: _reservationId, ...invoiceWithoutIds } = invoice;
-
-      return {
-        ...invoiceWithoutIds,
-        invoiceCode: (invoice.invoiceCode || '').trim() || '—',
-        reservationCode: (invoice.reservationCode || this.reservationCode || '').trim() || '—',
-        propertyCode: (invoice.propertyCode || this.propertyCode || '').trim() || '—',
-        responsibleParty: (invoice.responsibleParty || invoice.contactName || invoice.companyName || this.recipient || '').trim(),
-        period: this.formatter.formatInvoiceListAccountingPeriod(invoice.accountingPeriod),
-        invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
-        totalAmount: '$' + this.formatter.currency(totalAmount),
-        totalAmountValue: totalAmount,
-        ledgerLines: mappedLedgerLines,
-        expand: rowKey,
+      const {
+        organizationId: _organizationId,
+        reservationId: _reservationId,
+        ledgerLines: _ledgerLines,
+        totalAmount: _totalAmount,
+        ...invoiceWithoutIds
+      } = invoice;
+      const previewRow = buildInvoicePreviewListRowDisplay(invoice, this.formatter, this.utilityService, {
+        rowKey,
         expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,
         selected: rowKey ? this.selectedRowKeys.has(rowKey) : false,
-        expandClick: (event: Event, item: PreBillingInvoiceDisplay) => {
+        mappedLedgerLines,
+        reservationCodeFallback: this.reservationCode ?? undefined,
+        propertyCodeFallback: this.propertyCode ?? undefined,
+        expandClick: (event: Event, item: ReservationInvoicePreviewDisplay) => {
           event.stopPropagation();
           const key = this.getRowKey(item);
           if (!key) {
@@ -252,7 +241,14 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
           this.buildInvoicesDisplay();
           this.markViewForCheck();
         }
-      };
+      });
+
+      return {
+        ...invoiceWithoutIds,
+        ...previewRow,
+        ledgerLines: mappedLedgerLines,
+        invoiceCode: (invoice.invoiceCode || '').trim() || '—'
+      } satisfies ReservationInvoicePreviewDisplay;
     });
 
     this.updateIsAllExpanded();
@@ -276,14 +272,14 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     const selected = Array.isArray(selection?.selected) ? selection.selected : [];
     this.selectedRowKeys = new Set(
       selected
-        .map(item => this.getRowKey(item as PreBillingInvoiceDisplay))
+        .map(item => this.getRowKey(item as ReservationInvoicePreviewDisplay))
         .filter(key => !!key)
     );
     this.syncSelectedRowsOnDisplay();
     this.markViewForCheck();
   }
 
-  onCreateInvoice(rowDisplay: PreBillingInvoiceDisplay): void {
+  onCreateInvoice(rowDisplay: ReservationInvoicePreviewDisplay): void {
     const preview = this.resolveInvoicePreview(rowDisplay);
     if (!preview) {
       return;
@@ -292,7 +288,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     this.createInvoices([preview]);
   }
 
-  onEditInvoice(rowDisplay: PreBillingInvoiceDisplay): void {
+  onEditInvoice(rowDisplay: ReservationInvoicePreviewDisplay): void {
     const preview = this.resolveInvoicePreview(rowDisplay);
     if (!preview) {
       return;
@@ -364,7 +360,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     return this.invoices.filter(invoice => this.selectedRowKeys.has(this.getRowKey(invoice)));
   }
 
-  resolveInvoicePreview(rowDisplay: PreBillingInvoiceDisplay): InvoiceResponse | null {
+  resolveInvoicePreview(rowDisplay: ReservationInvoicePreviewDisplay): InvoiceResponse | null {
     const rowKey = this.getRowKey(rowDisplay);
     if (!rowKey) {
       return null;
@@ -386,7 +382,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     return Object.keys(this.ledgerLinesDisplayedColumns);
   }
 
-  getLedgerLineColumnValue(line: LedgerLineListDisplay, columnName: string, invoice: PreBillingInvoiceDisplay, lineIndex?: number): string {
+  getLedgerLineColumnValue(line: LedgerLineListDisplay, columnName: string, invoice: ReservationInvoicePreviewDisplay, lineIndex?: number): string {
     switch (columnName) {
       case 'lineNo':
         return lineIndex !== undefined ? String(lineIndex + 1) : '—';
@@ -474,15 +470,16 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   }
 
   getRowKey(
-    invoice: Pick<InvoiceResponse, 'reservationCode' | 'accountingPeriod'> | null | undefined
+    invoice: Pick<InvoiceResponse, 'reservationCode' | 'accountingPeriod' | 'billedPeriodStart'> | null | undefined
   ): string {
     const reservationCode = (invoice?.reservationCode || this.reservationCode || '').trim();
     const monthKey = this.invoiceService.firstDayOfMonthFromCalendarDate(invoice?.accountingPeriod || '');
+    const periodStartKey = (invoice?.billedPeriodStart || '').trim();
     if (!reservationCode || !monthKey) {
       return '';
     }
 
-    return `${reservationCode}|${monthKey}`;
+    return periodStartKey ? `${reservationCode}|${monthKey}|${periodStartKey}` : `${reservationCode}|${monthKey}`;
   }
 
   markViewForCheck(): void {
