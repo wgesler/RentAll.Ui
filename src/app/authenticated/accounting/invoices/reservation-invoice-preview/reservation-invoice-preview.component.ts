@@ -35,6 +35,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   @Input() reservationCode: string | null = null;
   @Input() propertyCode: string | null = null;
   @Input() recipient: string | null = null;
+  @Input() tenantName: string | null = null;
   @Input() arrivalDate: string | null = null;
   @Input() departureDate: string | null = null;
   @Input() refreshTrigger = 0;
@@ -94,7 +95,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['reservationCode'] || changes['propertyCode'] || changes['recipient'] || changes['arrivalDate'] || changes['departureDate']) {
+    if (changes['reservationCode'] || changes['propertyCode'] || changes['recipient'] || changes['tenantName'] || changes['arrivalDate'] || changes['departureDate']) {
       this.buildInvoicesDisplay();
       this.markViewForCheck();
     }
@@ -225,6 +226,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
         mappedLedgerLines,
         reservationCodeFallback: this.reservationCode ?? undefined,
         propertyCodeFallback: this.propertyCode ?? undefined,
+        occupantFallback: this.tenantName ?? undefined,
         expandClick: (event: Event, item: ReservationInvoicePreviewDisplay) => {
           event.stopPropagation();
           const key = this.getRowKey(item);

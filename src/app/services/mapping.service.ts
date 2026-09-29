@@ -1246,6 +1246,7 @@ resolveJournalEntryLineSourceDisplay(
       createdOn,
       modifiedOn,
       ledgerLines,
+      tenantName: String(raw['tenantName'] ?? raw['TenantName'] ?? base.tenantName ?? '').trim() || null,
       billedId: (raw['billedId'] ?? raw['BilledId'] ?? base.billedId) as number | null | undefined,
       billedIgnore: (raw['billedIgnore'] ?? raw['BilledIgnore'] ?? base.billedIgnore) as boolean | null | undefined,
       billedDaysStayed: (raw['billedDaysStayed'] ?? raw['BilledDaysStayed'] ?? base.billedDaysStayed) as number | null | undefined,

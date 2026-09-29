@@ -34,6 +34,7 @@ export interface ReservationInvoicePreviewDisplay extends Omit<InvoiceResponse, 
   invoiceCode: string;
   propertyCode: string;
   reservationCode: string;
+  occupant: string;
   invoiceStartDate: string;
   invoiceEndDate: string;
   monthStart: string;
@@ -59,6 +60,7 @@ export interface MissingInvoiceReportDisplay extends Omit<InvoiceResponse, 'tota
   invoiceCode: string;
   propertyCode: string;
   reservationCode: string;
+  occupant: string;
   invoiceStartDate: string;
   invoiceEndDate: string;
   monthStart: string;
@@ -125,6 +127,7 @@ export interface InvoiceResponse {
   propertyCode?: string | null;
   contactId?: string | null;
   contactName?: string | null;
+  tenantName?: string | null;
   companyId?: string | null;
   companyName?: string | null;
   responsibleParty: string | null;

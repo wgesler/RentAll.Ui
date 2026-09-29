@@ -5,6 +5,7 @@ import { InvoiceResponse, LedgerLineListDisplay } from '../models/invoice.model'
 export interface InvoicePreviewListRowDisplay {
   propertyCode: string;
   reservationCode: string;
+  occupant: string;
   invoiceStartDate: string;
   invoiceEndDate: string;
   monthStart: string;
@@ -32,6 +33,7 @@ export function buildInvoicePreviewListRowDisplay(
     mappedLedgerLines: LedgerLineListDisplay[];
     reservationCodeFallback?: string;
     propertyCodeFallback?: string;
+    occupantFallback?: string;
     expandClick: (event: Event, item: InvoicePreviewListRowDisplay) => void;
   }
 ): InvoicePreviewListRowDisplay {
@@ -45,10 +47,13 @@ export function buildInvoicePreviewListRowDisplay(
     null;
   const monthStartRaw = invoice.billedMonthStart || invoice.accountingPeriod;
   const totalAmountValue = Number(invoice.totalAmount) || 0;
+  const occupant =
+    (invoice.tenantName || options.occupantFallback || '').trim() || '—';
 
   return {
     propertyCode: (invoice.propertyCode || options.propertyCodeFallback || '').trim() || '—',
     reservationCode: (invoice.reservationCode || options.reservationCodeFallback || '').trim() || '—',
+    occupant,
     invoiceStartDate: periodStartRaw ? formatter.formatDateString(periodStartRaw) : '—',
     invoiceEndDate: periodEndRaw ? formatter.formatDateString(periodEndRaw) : '—',
     monthStart: formatter.formatDateString(monthStartRaw),

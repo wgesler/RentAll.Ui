@@ -167,18 +167,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
     this.isServiceError = false;
 
-    this.reservationService.rebuildBilledMatchup(officeIds).pipe(
-      catchError((rebuildError: HttpErrorResponse) => {
-        const rebuildMessage = typeof rebuildError?.error === 'string'
-          ? rebuildError.error
-          : rebuildError.error?.title || rebuildError.error?.message || rebuildError.message;
-        this.toastr.warning(
-          rebuildMessage || 'Billed rebuild failed; loading missing invoices from existing billed data.',
-          'Missing Invoice Report'
-        );
-        return of([]);
-      }),
-      switchMap(() => this.invoiceService.searchMissingInvoices({ officeIds })),
+    this.invoiceService.searchMissingInvoices({ officeIds }).pipe(
       take(1),
       finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');

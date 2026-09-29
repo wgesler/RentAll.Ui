@@ -391,7 +391,7 @@ export class OwnerStatementHtmlBuilderService {
   }
 
   private getRentalFeePeriodStartSortKey(description: string, statementPeriodStart: string, fallbackSortDate: string): string {
-    const rentalPeriodMatch = (description || '').trim().match(/\((\d{1,2})\/(\d{1,2})\s*-\s*\d{1,2}\/\d{1,2}\)/);
+    const rentalPeriodMatch = (description || '').trim().match(/^Rental Fee\s*\((\d{1,2})\/(\d{1,2})\s*-\s*\d{1,2}\/\d{1,2}\)/i);
     if (!rentalPeriodMatch) {
       return (fallbackSortDate || '').trim();
     }

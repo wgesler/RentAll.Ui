@@ -495,6 +495,10 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     return (summary.companyName || summary.contactName || '').trim();
   }
 
+  get activeReservationTenantName(): string {
+    return (this.selectedReservationSummary?.tenantName || '').trim();
+  }
+
   get isInvoiceCreateActive(): boolean {
     return this.selectedTabIndex === this.getInvoicesTabIndex()
       && this.showInvoiceCreate
