@@ -57,7 +57,7 @@ interface ReservationNotificationFormValue {
 }
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
 import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
@@ -352,21 +352,25 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const formValue = this.form.getRawValue();
     const formIsActive = (formValue['isActive'] as boolean | null | undefined) ?? true;
     if (!formIsActive && !this.isAddMode && this.reservationId && this.reservationId !== 'new') {
+      const officeIdForValidation = Number(
+        formValue.officeId ?? this.selectedOffice?.officeId ?? this.selectedProperty?.officeId ?? 0
+      );
       try {
-        const shouldBlock = await firstValueFrom(
-          this.securityDepositService.shouldBlockReservationInactivation(
+        const validation = await firstValueFrom(
+          this.reservationService.validateReservationDeactivationAllowed(
             this.reservationId,
+            officeIdForValidation > 0 ? [officeIdForValidation] : [],
             Number(this.form.get('reservationTypeId')?.value ?? this.reservation?.reservationTypeId)
           )
         );
-        if (shouldBlock) {
+        if (!validation.allowed) {
           this.form.get('isActive')?.setValue(true, { emitEvent: false });
-          this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+          this.toastr.error(validation.message ?? 'Unable to update reservation.', CommonMessage.Error);
           return;
         }
       } catch {
         this.form.get('isActive')?.setValue(true, { emitEvent: false });
-        this.toastr.error('Unable to verify security deposit status.', CommonMessage.Error);
+        this.toastr.error('Unable to verify reservation deactivation rules.', CommonMessage.Error);
         return;
       }
     }
@@ -507,17 +511,29 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           ? this.reservationService.activateReservation(reservationId)
           : this.reservationService.deactivateReservation(reservationId);
         return activeState$.pipe(
-          map(() => ({ ...response, isActive: nextIsActive }))
+          map(activeStateResult => ({
+            response: { ...response, isActive: nextIsActive },
+            activeStateResult
+          }))
         );
       }),
       finalize(() => this.isSubmitting = false)
     ).subscribe({
-      next: (response: ReservationResponse) => {
+      next: (saveResult: ReservationResponse | { response: ReservationResponse; activeStateResult: { invoicesAffected?: number } }) => {
+        const response = 'response' in saveResult ? saveResult.response : saveResult;
+        const activeStateResult = 'activeStateResult' in saveResult ? saveResult.activeStateResult : null;
         if (response?.reservationId) {
           this.reservationService.notifyReservationSaved(response.reservationId);
         }
         const message = this.isAddMode ? 'Reservation created successfully' : 'Reservation updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        if (activeStateResult) {
+          const invoicesAffected = activeStateResult.invoicesAffected ?? 0;
+          if (this.invoiceService.shouldShowAssociatedInvoicesActiveChangeMessage(nextIsActive, invoicesAffected)) {
+            const invoiceMessage = this.invoiceService.formatAssociatedInvoicesActiveChangeMessage(nextIsActive, invoicesAffected);
+            this.toastr.success(invoiceMessage, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          }
+        }
         this.sendReservationChangeNotification(response, reservationNotificationContext);
         
         if (this.isAddMode && response) {
@@ -1736,21 +1752,28 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         return;
       }
 
-      this.securityDepositService.shouldBlockReservationInactivation(
+      const officeIdForValidation = Number(
+        this.form.get('officeId')?.value
+          ?? this.selectedOffice?.officeId
+          ?? this.selectedProperty?.officeId
+          ?? 0
+      );
+      this.reservationService.validateReservationDeactivationAllowed(
         this.reservationId,
+        officeIdForValidation > 0 ? [officeIdForValidation] : [],
         Number(this.form.get('reservationTypeId')?.value ?? this.reservation?.reservationTypeId)
       ).pipe(take(1)).subscribe({
-        next: shouldBlock => {
-          if (!shouldBlock) {
+        next: validation => {
+          if (validation.allowed) {
             return;
           }
 
           this.form.get('isActive')?.setValue(true, { emitEvent: false });
-          this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+          this.toastr.error(validation.message ?? 'Unable to update reservation.', CommonMessage.Error);
         },
         error: () => {
           this.form.get('isActive')?.setValue(true, { emitEvent: false });
-          this.toastr.error('Unable to verify security deposit status.', CommonMessage.Error);
+          this.toastr.error('Unable to verify reservation deactivation rules.', CommonMessage.Error);
         }
       });
     });

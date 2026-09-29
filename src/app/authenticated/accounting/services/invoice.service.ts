@@ -210,11 +210,36 @@ firstDayOfMonthFromCalendarDate(calendarDate: string): string {
     });
   }
 
+  getUnpaidInvoicesByReservationId(reservationId: string, officeIds: number[]): Observable<InvoiceResponse[]> {
+    return this.searchInvoices({
+      officeIds,
+      reservationId,
+      includeInactive: true,
+      includePaid: false
+    });
+  }
+
+  hasUnpaidInvoicesForReservation(reservationId: string, officeIds: number[]): Observable<boolean> {
+    return this.getUnpaidInvoicesByReservationId(reservationId, officeIds).pipe(
+      map(invoices => (invoices?.length ?? 0) > 0)
+    );
+  }
+
   deactivateInvoice(invoiceId: string): Observable<void> {
     return this.http.put<void>(`${this.controller}invoice/${invoiceId}/deactivate`, {});
   }
 
   activateInvoice(invoiceId: string): Observable<void> {
     return this.http.put<void>(`${this.controller}invoice/${invoiceId}/activate`, {});
+  }
+
+  formatAssociatedInvoicesActiveChangeMessage(nextIsActive: boolean, invoicesAffected: number): string {
+    const action = nextIsActive ? 'reactivated' : 'deactivated';
+    const label = invoicesAffected === 1 ? 'invoice' : 'invoices';
+    return `${invoicesAffected} ${label} ${action}.`;
+  }
+
+  shouldShowAssociatedInvoicesActiveChangeMessage(nextIsActive: boolean, invoicesAffected: number): boolean {
+    return invoicesAffected > 0 || !nextIsActive;
   }
 }

@@ -149,6 +149,9 @@ export class SecurityDepositService {
   }
 
   setSecurityDepositsOutstanding(outstanding: boolean): void {
+    if (this.securityDepositsOutstandingSubject.value === outstanding) {
+      return;
+    }
     this.securityDepositsOutstandingSubject.next(outstanding);
   }
 

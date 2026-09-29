@@ -30,10 +30,9 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { ReservationStatus, ReservationType, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE } from '../models/reservation-enum';
+import { ReservationStatus, ReservationType } from '../models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { InvoiceService } from '../../accounting/services/invoice.service';
-import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
@@ -64,7 +63,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   private dialog = inject(MatDialog);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private invoiceService = inject(InvoiceService);
-  private securityDepositService = inject(SecurityDepositService);
   private cdr = inject(ChangeDetectorRef);
   
   panelOpenState: boolean = true;
@@ -784,12 +782,16 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     reservationTypeId?: number | null
   ): Promise<void> {
     try {
-      const shouldBlock = await firstValueFrom(
-        this.securityDepositService.shouldBlockReservationInactivation(reservationId, reservationTypeId)
+      const validation = await firstValueFrom(
+        this.reservationService.validateReservationDeactivationAllowed(
+          reservationId,
+          this.resolveOfficeIdsForInvoiceCheck(),
+          reservationTypeId
+        )
       );
-      if (shouldBlock) {
+      if (!validation.allowed) {
         this.applyReservationIsActiveValue(reservationId, true);
-        this.toastr.error(UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE, CommonMessage.Error);
+        this.toastr.error(validation.message ?? 'Unable to update reservation.', CommonMessage.Error);
         this.applyFilters();
         this.markViewForCheck();
         return;
@@ -810,8 +812,13 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     const activeState$ = nextValue
       ? this.reservationService.activateReservation(reservationId)
       : this.reservationService.deactivateReservation(reservationId);
-    void firstValueFrom(activeState$).then(() => {
+    void firstValueFrom(activeState$).then(result => {
       this.toastr.success('Reservation updated.', CommonMessage.Success);
+      const invoicesAffected = result?.invoicesAffected ?? 0;
+      if (this.invoiceService.shouldShowAssociatedInvoicesActiveChangeMessage(nextValue, invoicesAffected)) {
+        const invoiceMessage = this.invoiceService.formatAssociatedInvoicesActiveChangeMessage(nextValue, invoicesAffected);
+        this.toastr.success(invoiceMessage, CommonMessage.Success);
+      }
     }).catch(() => {
       this.applyReservationIsActiveValue(reservationId, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);

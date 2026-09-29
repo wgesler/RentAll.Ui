@@ -12,7 +12,7 @@ import { getFilteredSidebarNavItems, getSidebarFilterOptions } from '../../acces
 import { TicketService } from '../../../tickets/services/ticket.service';
 import { SecurityDepositService } from '../../../accounting/services/security-deposit.service';
 import { UserReceiptDraftNoticeService } from '../../../maintenance/services/user-receipt-draft-notice.service';
-import { ReservationService } from '../../../reservations/services/reservation.service';
+import { ReservationEventsService } from '../../../reservations/services/reservation-events.service';
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
 import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
@@ -36,7 +36,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private ticketService = inject(TicketService);
   private securityDepositService = inject(SecurityDepositService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
-  private reservationService = inject(ReservationService);
+  private reservationEvents = inject(ReservationEventsService);
   private leadsService = inject(LeadsService);
   private organizationFeatureService = inject(OrganizationFeatureService);
   private sidebarAttentionService = inject(SidebarAttentionService);
@@ -123,9 +123,13 @@ markViewForCheck(): void {
       this.refreshAttentionSummary();
     });
 
-    this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.reservationEvents.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.refreshSecurityDepositsOutstandingBadge();
     });
+
+    if (this.authService.getIsLoggedIn()) {
+      this.refreshAttentionSummary();
+    }
   }
 
 

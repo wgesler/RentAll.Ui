@@ -1,12 +1,15 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, catchError, finalize, firstValueFrom, of, shareReplay, switchMap, take, tap } from 'rxjs';
+import { Injectable, Injector, inject } from '@angular/core';
+import { BehaviorSubject, Observable, catchError, finalize, firstValueFrom, forkJoin, map, of, shareReplay, switchMap, take, tap } from 'rxjs';
+import { InvoiceService } from '../../accounting/services/invoice.service';
+import { ReservationEventsService } from './reservation-events.service';
 import { AuthService } from '../../../services/auth.service';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import {
   ReservationCodeResponse,
   ReservationListResponse,
+  ReservationActiveStateResponse,
   ReservationRequest,
   ReservationResponse,
   ReservationTrackerResponse,
@@ -23,6 +26,7 @@ import {
 } from '../models/reservation-payment.model';
 import { BilledMatchupResponse } from '../models/billed-matchup.model';
 import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
+import { UNPAID_INVOICES_INACTIVATION_MESSAGE, UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE } from '../models/reservation-enum';
 
 @Injectable({
   providedIn: 'root'
@@ -33,11 +37,11 @@ export class ReservationService {
   private authService = inject(AuthService);
   private mixedMappingService = inject(MixedMappingService);
   private securityDepositService = inject(SecurityDepositService);
+  private reservationEvents = inject(ReservationEventsService);
+  private injector = inject(Injector);
 
-  
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
-  private readonly reservationSavedSubject = new Subject<{ reservationId: string }>();
-  reservationSaved$ = this.reservationSavedSubject.asObservable();
+  reservationSaved$ = this.reservationEvents.reservationSaved$;
   private allReservationCodes$ = new BehaviorSubject<ReservationCodeResponse[]>([]);
   private reservationCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private loadedOrganizationId: string | null = null;
@@ -174,12 +178,41 @@ export class ReservationService {
     return this.http.put<ReservationResponse>(this.controller, reservation);
   }
 
-  deactivateReservation(reservationId: string): Observable<void> {
-    return this.http.put<void>(`${this.controller}${reservationId}/deactivate`, {});
+  validateReservationDeactivationAllowed(
+    reservationId: string,
+    officeIds: number[],
+    reservationTypeId?: number | null
+  ): Observable<{ allowed: boolean; message?: string }> {
+    const normalizedOfficeIds = (officeIds ?? []).filter(id => id > 0);
+    if (normalizedOfficeIds.length === 0) {
+      return of({ allowed: false, message: 'Unable to verify invoices for this reservation.' });
+    }
+
+    return forkJoin({
+      securityDepositBlocked: this.securityDepositService.shouldBlockReservationInactivation(
+        reservationId,
+        reservationTypeId
+      ),
+      hasUnpaidInvoices: this.injector.get(InvoiceService).hasUnpaidInvoicesForReservation(reservationId, normalizedOfficeIds)
+    }).pipe(
+      map(({ securityDepositBlocked, hasUnpaidInvoices }) => {
+        if (securityDepositBlocked) {
+          return { allowed: false, message: UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE };
+        }
+        if (hasUnpaidInvoices) {
+          return { allowed: false, message: UNPAID_INVOICES_INACTIVATION_MESSAGE };
+        }
+        return { allowed: true };
+      })
+    );
   }
 
-  activateReservation(reservationId: string): Observable<void> {
-    return this.http.put<void>(`${this.controller}${reservationId}/activate`, {});
+  deactivateReservation(reservationId: string): Observable<ReservationActiveStateResponse> {
+    return this.http.put<ReservationActiveStateResponse>(`${this.controller}${reservationId}/deactivate`, {});
+  }
+
+  activateReservation(reservationId: string): Observable<ReservationActiveStateResponse> {
+    return this.http.put<ReservationActiveStateResponse>(`${this.controller}${reservationId}/activate`, {});
   }
 
   // Loads the reservation by id, maps every field to ReservationRequest, merges overrides, then PUTs.
@@ -200,11 +233,7 @@ export class ReservationService {
   }
 
   notifyReservationSaved(reservationId: string): void {
-    const normalizedReservationId = String(reservationId || '').trim();
-    if (!normalizedReservationId) {
-      return;
-    }
-    this.reservationSavedSubject.next({ reservationId: normalizedReservationId });
+    this.reservationEvents.notifyReservationSaved(reservationId);
     this.securityDepositService.refreshSecurityDepositsOutstanding();
     this.notifyReservationCodesChanged();
   }

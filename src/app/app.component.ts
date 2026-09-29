@@ -21,6 +21,7 @@ import { PropertyService } from './authenticated/properties/services/property.se
 import { ReservationService } from './authenticated/reservations/services/reservation.service';
 import { SecurityDepositService } from './authenticated/accounting/services/security-deposit.service';
 import { DebugLayoutBandsService } from './services/debug-layout-bands.service';
+import { AppDeployVersionService } from './services/app-deploy-version.service';
 import { UtilityService } from './services/utility.service';
 import { UserGroups } from './authenticated/users/models/user-enums';
 
@@ -54,6 +55,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private router = inject(Router);
   private toastr = inject(ToastrService);
+  private appDeployVersionService = inject(AppDeployVersionService);
 
   title = 'RentAll.Ui';
   organizationId: string = '';
@@ -74,6 +76,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.debugLayoutBandsService.setEnabled(false);
+    this.appDeployVersionService.start();
 
     // Load anonymous data on app startup
     this.loadDailyQuote();
@@ -343,6 +346,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.appDeployVersionService.stop();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

@@ -472,3 +472,8 @@ export interface UnreturnedSecurityDepositDisplay {
   securityDepositAttentionDot?: string;
 }
 
+export interface ReservationActiveStateResponse {
+  invoicesAffected: number;
+  invoiceIds: string[];
+}
+
