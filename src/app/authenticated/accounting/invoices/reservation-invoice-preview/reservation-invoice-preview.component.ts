@@ -226,7 +226,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
         mappedLedgerLines,
         reservationCodeFallback: this.reservationCode ?? undefined,
         propertyCodeFallback: this.propertyCode ?? undefined,
-        occupantFallback: this.tenantName ?? undefined,
+        recipientFallback: this.recipient ?? undefined,
         expandClick: (event: Event, item: ReservationInvoicePreviewDisplay) => {
           event.stopPropagation();
           const key = this.getRowKey(item);

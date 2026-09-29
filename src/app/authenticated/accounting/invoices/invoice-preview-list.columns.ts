@@ -5,7 +5,7 @@ export const invoicePreviewListBaseColumns: ColumnSet = {
   expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
   propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
   reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-  occupant: { displayAs: 'Occupant', maxWidth: '20ch', wrap: false },
+  recipient: { displayAs: 'Recipient', maxWidth: '20ch', wrap: false },
   invoiceStartDate: { displayAs: 'Start Date', maxWidth: '14ch', alignment: 'center', wrap: false },
   invoiceEndDate: { displayAs: 'End Date', maxWidth: '14ch', alignment: 'center', wrap: false },
   monthStart: { displayAs: 'Month', maxWidth: '14ch', alignment: 'center' },
