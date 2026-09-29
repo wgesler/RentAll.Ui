@@ -550,6 +550,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         if (this.selectedTabIndex === this.tabOwners) {
           this.refreshActiveOwnerView();
         }
+        if (this.selectedTabIndex === this.tabInvoices) {
+          this.refreshActiveInvoicesTabView();
+        }
         if (this.usesReportTitleBarFilters()) {
           if (this.usesGeneralLedgerTitleBarFilters()) {
             this.refreshPropertyOptions();
@@ -2925,6 +2928,9 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     if (this.selectedTabIndex === this.tabOwners) {
       this.refreshActiveOwnerView();
     }
+    if (this.selectedTabIndex === this.tabInvoices) {
+      this.refreshActiveInvoicesTabView();
+    }
     if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
       this.financialReportsRefreshTrigger++;
       if (this.usesFinancialReportTitleBarFilters()) {
@@ -2994,15 +3000,14 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
     if (kind === 'preBillingReport') {
       this.ensurePreBillingMonthDefault();
       this.syncPreBillingOfficeIds();
+      if (this.showPreBillingInvoiceEditor) {
+        this.closePreBillingInvoiceEditor(false);
+      }
     }
     if (kind === 'missingInvoiceReport') {
       this.syncMissingInvoiceOfficeIds();
-      if (!kindChanged) {
-        if (this.showMissingInvoiceEditor) {
-          this.closeMissingInvoiceEditor(false);
-        } else {
-          this.missingInvoiceRefreshTrigger++;
-        }
+      if (this.showMissingInvoiceEditor) {
+        this.closeMissingInvoiceEditor(false);
       }
     }
 
@@ -3010,6 +3015,8 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       this.onTabChange({ index: this.tabInvoices });
       return;
     }
+
+    this.refreshActiveInvoicesTabView();
 
     if (kindChanged) {
       this.router.navigate([], {
@@ -3310,6 +3317,36 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
   }
 
+  refreshActiveInvoicesTabView(): void {
+    if (this.selectedTabIndex !== this.tabInvoices) {
+      return;
+    }
+
+    if (this.selectedInvoiceKind === 'invoices') {
+      if (!this.activeInvoiceId && !this.showInvoiceCreate) {
+        this.invoicesRefreshTrigger++;
+      }
+      return;
+    }
+
+    if (this.selectedInvoiceKind === 'missingInvoiceReport') {
+      this.syncMissingInvoiceOfficeIds();
+      this.missingInvoiceRefreshTrigger++;
+      return;
+    }
+
+    if (this.selectedInvoiceKind === 'preBillingReport') {
+      this.ensurePreBillingMonthDefault();
+      this.syncPreBillingOfficeIds();
+      this.preBillingRefreshTrigger++;
+      return;
+    }
+
+    if (this.selectedInvoiceKind === 'payments' && this.paymentsListEngaged) {
+      this.paymentsRefreshTrigger++;
+    }
+  }
+
   refreshListsForActiveTab(): void {
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
@@ -3319,6 +3356,9 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
     }
     if (this.selectedTabIndex === this.tabOwners) {
       this.refreshActiveOwnerView();
+    }
+    if (this.selectedTabIndex === this.tabInvoices) {
+      this.refreshActiveInvoicesTabView();
     }
     if (this.usesFinancialReportTitleBarFilters() || this.isReconcileAccountReportActive()) {
       this.financialReportsRefreshTrigger++;
@@ -5615,14 +5655,7 @@ captureOwnerStatementReturnContext(): void {
       this.onGeneralLedgerBack();
       this.refreshGeneralLedgerListView();
     }
-    if (this.isPreBillingReportActive) {
-      this.syncPreBillingOfficeIds();
-      this.preBillingRefreshTrigger++;
-    }
-    if (this.isMissingInvoiceReportActive) {
-      this.syncMissingInvoiceOfficeIds();
-      this.missingInvoiceRefreshTrigger++;
-    }
+    this.refreshActiveInvoicesTabView();
   }
 
   onShellFinancialReportClassDropdownChange(value: string | number | null): void {
@@ -5981,6 +6014,7 @@ captureOwnerStatementReturnContext(): void {
     if (officeChanged) {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
+      this.refreshListsForActiveTab();
     }
   }
 
