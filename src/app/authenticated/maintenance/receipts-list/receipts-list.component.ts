@@ -170,13 +170,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
     bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter bank cards...' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     postingStatusId: postingStatusColumn,
-    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
   readonly draftReceiptDisplayedColumns: ColumnSet = {
@@ -184,12 +184,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     receiptDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center', headerAlignment: 'center' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '35ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
     bankCardDropdown: { displayAs: 'Card', wrap: true, maxWidth: '30ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter bank cards...' },
-    cardOwner: { displayAs: 'Card Owner', wrap: true, maxWidth: '30ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+    cardOwner: { displayAs: 'Card Owner', wrap: true, maxWidth: '30ch' }
   };
 
   readonly accountingReceiptDisplayedColumns: ColumnSet = {
