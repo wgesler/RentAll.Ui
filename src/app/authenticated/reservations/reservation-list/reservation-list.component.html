@@ -1,6 +1,6 @@
 <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+    <div id="reservation-list-titlebar" class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
       <div class="flex items-center flex-wrap py-4">
         <span class="flex flex-column items-center gap-3 flex-shrink-0">
           <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
@@ -22,9 +22,6 @@
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
         @if (!isCompactView) {
-          <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
-            Unfurnished
-          </mat-slide-toggle>
           <button
             mat-raised-button
             type="button"

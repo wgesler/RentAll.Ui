@@ -33,7 +33,14 @@ import { PropertySelectionFilterService } from '../services/property-selection-f
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyService } from '../services/property.service';
 import { PartnerService } from '../../partners/services/partner.service';
-import { BoardFilterIndex, FiveWayToggleValue, getBoardFilterMaxIndex, getFiveWayFilterLabel, isAllFilterIndex, isPartnersFilterIndex } from '../../reservations/models/property-filter-model';
+import {
+  PropertyListFilterIndex,
+  PropertyListFilterToggleValue,
+  getPropertyListFilterLabel,
+  getPropertyListFilterMaxIndex,
+  isPropertyListAllFilterIndex,
+  isPropertyListPartnersFilterIndex
+} from '../../reservations/models/property-filter-model';
 type PropertyListDisplayRow = PropertyListDisplay & {
   propertyStatusText: string;
   propertyLeaseType: string;
@@ -78,8 +85,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
-  furnishedPropertyToggleChecked = false;
-  furnishedSliderIndex: FiveWayToggleValue = 0;
+  propertyListFilterIndex: PropertyListFilterToggleValue = PropertyListFilterIndex.Active;
   hasPartnerIntegration = false;
   allProperties: PropertyListDisplayRow[] = [];
   partnerProperties: PropertyListDisplayRow[] | null = null;
@@ -144,7 +150,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.userId = this.user?.userId || '';
     this.organizationId = this.user?.organizationId?.trim() ?? '';
     this.hasPartnerIntegration = this.authService.hasPartnerIntegrationAccess();
-    this.furnishedSliderIndex = this.globalSelectionService.getFurnishedPropertySelection() === true ? 1 : 0;
     this.pageOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     const officeIdParam = this.route.snapshot.queryParams['officeId'];
@@ -164,17 +169,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => {
       this.propertiesFiltered = v;
-      this.markViewForCheck();
-    });
-
-    this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
-      this.furnishedPropertyToggleChecked = v === true;
-      if (this.furnishedSliderIndex <= 1) {
-        this.furnishedSliderIndex = v === true ? 1 : 0;
-      }
-      if (this.officeScopeResolved) {
-        this.applyFilters();
-      }
       this.markViewForCheck();
     });
 
@@ -461,60 +455,55 @@ showPropertyCalendarUrlDialog(
   //#endregion
 
   //#region Filter Methods
-  get furnishedToggleMaxIndex(): FiveWayToggleValue {
-    return getBoardFilterMaxIndex(this.hasPartnerIntegration);
+  get propertyListFilterMaxIndex(): PropertyListFilterToggleValue {
+    return getPropertyListFilterMaxIndex(this.hasPartnerIntegration);
   }
 
-  get furnishedFilterLabel(): string {
-    return getFiveWayFilterLabel(this.furnishedSliderIndex, this.hasPartnerIntegration);
+  get propertyListFilterLabel(): string {
+    return getPropertyListFilterLabel(this.propertyListFilterIndex, this.hasPartnerIntegration);
   }
 
   get isAllFilterSelected(): boolean {
-    return isAllFilterIndex(this.furnishedSliderIndex, this.hasPartnerIntegration);
+    return isPropertyListAllFilterIndex(this.propertyListFilterIndex, this.hasPartnerIntegration);
   }
 
-  onFurnishedToggleTrackClick(event: MouseEvent): void {
+  onPropertyListFilterTrackClick(event: MouseEvent): void {
     const track = (event.currentTarget as HTMLElement).querySelector('.five-way-toggle__track');
     if (!(track instanceof HTMLElement)) {
       return;
     }
-    this.setFurnishedSliderIndex(this.resolveFurnishedToggleIndexFromTrackClick(track, event.clientX));
+    this.setPropertyListFilterIndex(this.resolvePropertyListFilterIndexFromTrackClick(track, event.clientX));
   }
 
-  onFurnishedToggleKeydown(event: KeyboardEvent): void {
+  onPropertyListFilterKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      this.setFurnishedSliderIndex(this.clampFurnishedSliderIndex(this.furnishedSliderIndex - 1));
+      this.setPropertyListFilterIndex(this.clampPropertyListFilterIndex(this.propertyListFilterIndex - 1));
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      this.setFurnishedSliderIndex(this.clampFurnishedSliderIndex(this.furnishedSliderIndex + 1));
+      this.setPropertyListFilterIndex(this.clampPropertyListFilterIndex(this.propertyListFilterIndex + 1));
     }
   }
 
-  resolveFurnishedToggleIndexFromTrackClick(track: HTMLElement, clientX: number): FiveWayToggleValue {
+  resolvePropertyListFilterIndexFromTrackClick(track: HTMLElement, clientX: number): PropertyListFilterToggleValue {
     const rect = track.getBoundingClientRect();
-    const stepCount = this.furnishedToggleMaxIndex + 1;
+    const stepCount = this.propertyListFilterMaxIndex + 1;
     const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
     const index = Math.min(stepCount - 1, Math.max(0, Math.floor(ratio * stepCount)));
-    return this.clampFurnishedSliderIndex(index);
+    return this.clampPropertyListFilterIndex(index);
   }
 
-  clampFurnishedSliderIndex(index: number): FiveWayToggleValue {
-    return Math.max(0, Math.min(this.furnishedToggleMaxIndex, index)) as FiveWayToggleValue;
+  clampPropertyListFilterIndex(index: number): PropertyListFilterToggleValue {
+    return Math.max(0, Math.min(this.propertyListFilterMaxIndex, index)) as PropertyListFilterToggleValue;
   }
 
-  setFurnishedSliderIndex(index: FiveWayToggleValue): void {
-    const nextIndex = this.clampFurnishedSliderIndex(index);
-    if (nextIndex === this.furnishedSliderIndex) {
+  setPropertyListFilterIndex(index: PropertyListFilterToggleValue): void {
+    const nextIndex = this.clampPropertyListFilterIndex(index);
+    if (nextIndex === this.propertyListFilterIndex) {
       return;
     }
-    this.furnishedSliderIndex = nextIndex;
-    if (nextIndex === BoardFilterIndex.Furnished) {
-      this.globalSelectionService.setFurnishedPropertySelection(false);
-    } else if (nextIndex === BoardFilterIndex.Unfurnished) {
-      this.globalSelectionService.setFurnishedPropertySelection(true);
-    }
-    if (isPartnersFilterIndex(nextIndex, this.hasPartnerIntegration) || this.isAllFilterSelected) {
+    this.propertyListFilterIndex = nextIndex;
+    if (isPropertyListPartnersFilterIndex(nextIndex, this.hasPartnerIntegration) || this.isAllFilterSelected) {
       this.ensurePartnerPropertiesThen(() => this.applyFilters());
       this.markViewForCheck();
       return;
@@ -570,18 +559,13 @@ showPropertyCalendarUrlDialog(
     const standard = officeScoped(this.allProperties);
     const partners = this.partnerProperties ?? [];
     const isActive = (property: PropertyListDisplayRow) => this.mappingService.toBooleanValue(property.isActive);
-    const isUnfurnished = (property: PropertyListDisplayRow) => this.mappingService.toBooleanValue(property.unfurnished);
 
     let filtered: PropertyListDisplayRow[];
-    if (this.furnishedSliderIndex === BoardFilterIndex.Furnished) {
-      filtered = standard.filter(property => isActive(property) && !isUnfurnished(property));
-    } else if (this.furnishedSliderIndex === BoardFilterIndex.Unfurnished) {
-      filtered = standard.filter(property => isActive(property) && isUnfurnished(property));
-    } else if (this.furnishedSliderIndex === BoardFilterIndex.Both) {
+    if (this.propertyListFilterIndex === PropertyListFilterIndex.Active) {
       filtered = standard.filter(property => isActive(property));
-    } else if (this.furnishedSliderIndex === BoardFilterIndex.Inactive) {
+    } else if (this.propertyListFilterIndex === PropertyListFilterIndex.Inactive) {
       filtered = standard.filter(property => !isActive(property));
-    } else if (isPartnersFilterIndex(this.furnishedSliderIndex, this.hasPartnerIntegration)) {
+    } else if (isPropertyListPartnersFilterIndex(this.propertyListFilterIndex, this.hasPartnerIntegration)) {
       filtered = partners.filter(property => isActive(property));
     } else if (this.isAllFilterSelected) {
       const byId = new Map<string, PropertyListDisplayRow>();

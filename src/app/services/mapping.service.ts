@@ -6574,6 +6574,7 @@ roundCurrency(value: number): number {
     return {
       ...reservation,
       hasPets: this.toBooleanValue(raw.hasPets ?? raw['HasPets']),
+      isActive: this.toBooleanValue(raw.isActive ?? raw['IsActive']),
     };
   }
 

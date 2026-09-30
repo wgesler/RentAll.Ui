@@ -25,41 +25,39 @@
           <button mat-icon-button type="button" color="primary" id="property-list-ical-tester-button" class="flex-shrink-0 property-list-ical-tester-button !w-11 !h-11" (click)="goToPropertyCalendarTester()" aria-label="Open iCal tester">
             <mat-icon class="!text-[28px] !w-7 !h-7">calendar_month</mat-icon>
           </button>
-          <div class="five-way-toggle" [class.five-way-toggle--five]="!hasPartnerIntegration" aria-label="Property filter">
+          <div
+            class="five-way-toggle property-list-filter-toggle"
+            [class.property-list-filter-toggle--four]="hasPartnerIntegration"
+            [class.property-list-filter-toggle--three]="!hasPartnerIntegration"
+            aria-label="Property filter">
             <div class="five-way-toggle__control">
               <div
                 class="five-way-toggle__switch"
                 role="slider"
                 aria-valuemin="0"
-                [attr.aria-valuemax]="furnishedToggleMaxIndex"
-                [attr.aria-valuenow]="furnishedSliderIndex"
-                [attr.aria-valuetext]="furnishedFilterLabel"
+                [attr.aria-valuemax]="propertyListFilterMaxIndex"
+                [attr.aria-valuenow]="propertyListFilterIndex"
+                [attr.aria-valuetext]="propertyListFilterLabel"
                 tabindex="0"
-                (click)="onFurnishedToggleTrackClick($event)"
-                (keydown)="onFurnishedToggleKeydown($event)">
-                <span class="five-way-toggle__track" [attr.data-position]="furnishedSliderIndex">
-                  <span class="five-way-toggle__thumb" [attr.data-position]="furnishedSliderIndex">
-                    @switch (furnishedSliderIndex) {
+                (click)="onPropertyListFilterTrackClick($event)"
+                (keydown)="onPropertyListFilterKeydown($event)">
+                <span class="five-way-toggle__track" [attr.data-position]="propertyListFilterIndex">
+                  <span class="five-way-toggle__thumb" [attr.data-position]="propertyListFilterIndex">
+                    @switch (propertyListFilterIndex) {
                       @case (0) {
-                        <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
+                        <span class="five-way-toggle__check" aria-hidden="true"></span>
                       }
                       @case (1) {
-                        <span class="five-way-toggle__mark five-way-toggle__mark--dash" aria-hidden="true"></span>
-                      }
-                      @case (2) {
-                        <span class="five-way-toggle__plus" aria-hidden="true"></span>
-                      }
-                      @case (3) {
                         <span class="five-way-toggle__x" aria-hidden="true"></span>
                       }
-                      @case (4) {
+                      @case (2) {
                         @if (hasPartnerIntegration) {
                           <span class="five-way-toggle__mark five-way-toggle__mark--horizontal" aria-hidden="true"></span>
                         } @else {
                           <span class="five-way-toggle__check" aria-hidden="true"></span>
                         }
                       }
-                      @case (5) {
+                      @case (3) {
                         <span class="five-way-toggle__check" aria-hidden="true"></span>
                       }
                     }
@@ -67,7 +65,7 @@
                 </span>
               </div>
             </div>
-            <span class="five-way-toggle__label">{{ furnishedFilterLabel }}</span>
+            <span class="five-way-toggle__label">{{ propertyListFilterLabel }}</span>
           </div>
           <button
             mat-raised-button

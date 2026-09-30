@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, filter, finalize, firstValueFrom, map, skip, take, takeUntil} from 'rxjs';
@@ -68,11 +67,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
-  furnishedPropertyToggleChecked = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
   allowedPropertyIds: Set<string> | null = null;
-  unfurnishedPropertyIds: Set<string> | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
 
@@ -157,12 +154,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
     
-    this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
-      this.furnishedPropertyToggleChecked = v === true;
-      this.applyFilters();
-      this.markViewForCheck();
-    });
-
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const url = e.urlAfterRedirects.split('?')[0];
       const isReservationList = url.endsWith('/reservations');
@@ -228,7 +219,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getReservationList().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         this.isServiceError = false;
-        this.allReservations = this.mappingService.mapReservationList(reservations || []);
+        this.allReservations = this.mappingService.mapReservationList(
+          this.mappingService.normalizeReservationListResponses(reservations || [])
+        );
         this.applyFilters();
         this.markViewForCheck();
       },
@@ -459,7 +452,6 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
   loadProperties(): void {
     if (!this.userId) {
       this.allowedPropertyIds = null;
-      this.unfurnishedPropertyIds = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
       this.applyFilters();
       return;
@@ -469,14 +461,12 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       next: (props: PropertyListResponse[]) => {
         const properties = props || [];
         this.allowedPropertyIds = this.propertiesFiltered ? new Set(properties.map(p => p.propertyId)) : null;
-        this.unfurnishedPropertyIds = new Set(properties.filter(p => this.mappingService.toBooleanValue(p.unfurnished)).map(p => p.propertyId));
         this.applyFilters();
         this.markViewForCheck();
       },
       error: () => {
         this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
         this.allowedPropertyIds = null;
-        this.unfurnishedPropertyIds = null;
         this.applyFilters();
         this.markViewForCheck();
       }
@@ -515,10 +505,6 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     this.applyFilters();
   }
 
-  onUnfurnishedToggle(event: MatSlideToggleChange): void {
-    this.globalSelectionService.setFurnishedPropertySelection(event.checked);
-  }
-
   applyFilters(): void {
     if (!this.officeScopeResolved) {
       return;
@@ -528,26 +514,21 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
 
     // Filter by active/inactive
     filtered = this.showInactive
-      ? filtered.filter(reservation => reservation.isActive === false)
-      : filtered.filter(reservation => reservation.isActive === true);
+      ? filtered.filter(reservation => this.mappingService.toBooleanValue(reservation.isActive) === false)
+      : filtered.filter(reservation => this.mappingService.toBooleanValue(reservation.isActive) === true);
 
     // Filter by office
     if (this.selectedOffice) {
       filtered = filtered.filter(reservation => reservation.officeId === this.selectedOffice.officeId);
     }
 
-    // Same property set as Property Selection / reservation board
+    // Property Selection star only (furnished + unfurnished); not the board furnished toggle
     if (this.allowedPropertyIds !== null) {
       if (this.allowedPropertyIds.size === 0) {
         filtered = [];
       } else {
         filtered = filtered.filter(r => this.allowedPropertyIds!.has(r.propertyId));
       }
-    }
-
-    if (this.unfurnishedPropertyIds !== null) {
-      const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection();
-      filtered = filtered.filter(r => showUnfurnished ? this.unfurnishedPropertyIds!.has(r.propertyId) : !this.unfurnishedPropertyIds!.has(r.propertyId));
     }
 
     // Filter by date range - show reservations where EITHER arrival OR departure falls within the range

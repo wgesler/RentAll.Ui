@@ -69,3 +69,32 @@ export function isPartnersFilterIndex(index: number, hasPartnerIntegration: bool
 export function isAllFilterIndex(index: number, hasPartnerIntegration: boolean): boolean {
   return index === (hasPartnerIntegration ? BoardFilterIndex.All : 4);
 }
+
+/** Property list filter — Properties / InActive / Partners / All (no furnished split). */
+export type PropertyListFilterToggleValue = 0 | 1 | 2 | 3;
+
+export const PropertyListFilterIndex = {
+  Active: 0,
+  Inactive: 1,
+  Partners: 2,
+  All: 3
+} as const;
+
+export function getPropertyListFilterMaxIndex(hasPartnerIntegration: boolean): PropertyListFilterToggleValue {
+  return hasPartnerIntegration ? PropertyListFilterIndex.All : 2;
+}
+
+export function getPropertyListFilterLabel(index: number, hasPartnerIntegration: boolean): string {
+  const labels = hasPartnerIntegration
+    ? ['Properties', 'InActive', 'Partners', 'All']
+    : ['Properties', 'InActive', 'All'];
+  return labels[index] ?? labels[0];
+}
+
+export function isPropertyListPartnersFilterIndex(index: number, hasPartnerIntegration: boolean): boolean {
+  return hasPartnerIntegration && index === PropertyListFilterIndex.Partners;
+}
+
+export function isPropertyListAllFilterIndex(index: number, hasPartnerIntegration: boolean): boolean {
+  return index === (hasPartnerIntegration ? PropertyListFilterIndex.All : 2);
+}
