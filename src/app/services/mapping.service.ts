@@ -6834,9 +6834,7 @@ roundCurrency(value: number): number {
       const collectedAmount = Number(row.collectedAmount ?? 0);
       const owedAmount = Number(row.owedAmount ?? 0);
       const transferredAmount = Number(row.transferredAmount ?? 0);
-      const returnedBalanceAmount = this.roundFinancialReportAmount(
-        Math.max(0, Number(row.balanceAmount ?? collectedAmount - owedAmount))
-      );
+      const returnedBalanceAmount = this.roundFinancialReportAmount(Math.max(0, collectedAmount - owedAmount));
       const paidAmount = Number(row.returnedAmount ?? 0);
       const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, returnedBalanceAmount - paidAmount));
       const remainingTransferAmount = this.roundFinancialReportAmount(Math.max(0, owedAmount - transferredAmount));

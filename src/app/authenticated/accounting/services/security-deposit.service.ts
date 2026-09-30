@@ -82,10 +82,7 @@ export class SecurityDepositService {
   getTbrBalanceAmount(row: ReservationDepartureResponse): number {
     const collectedAmount = Number(row.collectedAmount ?? 0);
     const owedAmount = Number(row.owedAmount ?? 0);
-    const balanceAmount = Number.isFinite(Number(row.balanceAmount))
-      ? Number(row.balanceAmount)
-      : Math.max(0, collectedAmount - owedAmount);
-    return Math.max(0, balanceAmount);
+    return Math.max(0, collectedAmount - owedAmount);
   }
 
   /** Remaining tenant return after the Paid column. */
@@ -224,9 +221,7 @@ export class SecurityDepositService {
     const owed = Number(row.owedAmount ?? 0);
     const paid = Number(row.returnedAmount ?? 0);
     const transferred = Number(row.transferredAmount ?? 0);
-    const balance = Number.isFinite(Number(row.balanceAmount))
-      ? Number(row.balanceAmount)
-      : Math.max(0, collected - owed);
+    const balance = Math.max(0, collected - owed);
     const remainingReturn = Math.max(0, balance - paid);
     const remainingTransfer = Math.max(0, owed - transferred);
     return remainingReturn > 0.005 || remainingTransfer > 0.005;
