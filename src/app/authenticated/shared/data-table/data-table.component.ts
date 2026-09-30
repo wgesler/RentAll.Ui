@@ -1596,6 +1596,10 @@ normalizeFilterValue(value: unknown): string {
     if (this.filterSticky) {
       this.persistStickyFilterAndSort();
     }
+
+    if (this.hasDetailRow) {
+      this.refreshDisplayedData();
+    }
   }
 
   applyStickyFilterAndSortFromStorage(): boolean {
@@ -1855,27 +1859,23 @@ applyStickySortIfNeeded(): void {
     return true;
   }
 
-  isRowExpanded = (row: PurposefulAny): boolean => {
-    let actualRow: PurposefulAny;
-    
-    if (typeof row === 'number') {
-      if (!this.dataSource || !this.dataSource.data || this.dataSource.data.length === 0) {
-        return false;
-      }
-      const dataArray = this.dataSource.filteredData || this.dataSource.data;
-      if (row < 0 || row >= dataArray.length) {
-        return false;
-      }
-      actualRow = dataArray[row];
-    } else {
-      actualRow = row;
+  /** MatTable multiTemplateDataRows passes (dataIndex, row); use row — index lookup breaks after sort. */
+  isRowExpanded = (_index: number, row: PurposefulAny): boolean => {
+    if (row != null && typeof row !== 'number') {
+      return row['expanded'] === true;
     }
-    
-    if (!actualRow) {
+
+    if (!this.dataSource?.data?.length) {
       return false;
     }
-    
-    return actualRow['expanded'] === true;
+
+    const dataArray = this.dataSource.filteredData?.length ? this.dataSource.filteredData : this.dataSource.data;
+    const index = typeof _index === 'number' ? _index : -1;
+    if (index < 0 || index >= dataArray.length) {
+      return false;
+    }
+
+    return dataArray[index]?.['expanded'] === true;
   }
 
   bindViewportHScroll(): void {
