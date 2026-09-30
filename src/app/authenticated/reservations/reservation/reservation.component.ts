@@ -35,7 +35,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
+import { CheckinTimes, CheckoutTimes, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -1725,6 +1725,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       if (!id) {
         this.selectedProperty = null;
         this.form.patchValue({ propertyCode: '', propertyAddress: '' }, { emitEvent: false });
+        this.updateReferralFeeFields(false);
         return;
       }
       if (!this.isAddMode) {
@@ -2192,7 +2193,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.enableFieldWithValidation('taxes');
       this.enableFieldWithValidation('pets', [Validators.required]);      
       this.enableFieldWithValidation('maidService', [Validators.required]);      
-      this.enableFieldWithValidation('referralFee', [Validators.required]);
+      if (this.isReferralFeeAvailableForProperty) {
+        this.enableFieldWithValidation('referralFee', [Validators.required]);
+      } else {
+        this.disableFieldWithValidation('referralFee');
+      }
       this.updatePetFields(this.isAddMode);
       this.updateMaidServiceFields(this.isAddMode);
       this.updateReferralFeeFields(this.isAddMode);
@@ -2587,6 +2592,26 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
+  get isReferralFeeAvailableForProperty(): boolean {
+    const leaseTypeId = this.resolveSelectedPropertyLeaseTypeId();
+    if (leaseTypeId === null) {
+      return false;
+    }
+    return leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+  }
+
+  resolveSelectedPropertyLeaseTypeId(): number | null {
+    if (this.selectedProperty?.propertyLeaseTypeId != null) {
+      return Number(this.selectedProperty.propertyLeaseTypeId);
+    }
+    const propertyId = this.form?.get('propertyId')?.value;
+    if (!propertyId) {
+      return null;
+    }
+    const propertyCode = this.propertyCodes.find(p => p.propertyId === String(propertyId).trim());
+    return propertyCode != null ? Number(propertyCode.propertyLeaseTypeId) : null;
+  }
+
   get referralMethodOptionsForForm(): { value: number, label: string }[] {
     const hasReferralFee = this.form?.get('referralFee')?.value ?? false;
     if (!hasReferralFee) {
@@ -2616,6 +2641,16 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   resolveReferralRequestFieldsFromForm(
     formValue: Record<string, unknown> = this.form?.getRawValue() ?? {}
   ): Pick<ReservationRequest, 'referralFee' | 'referralMethodId' | 'referralPercentage' | 'referralFlatRate' | 'referralFrequencyId'> {
+    if (!this.isReferralFeeAvailableForProperty) {
+      return {
+        referralFee: false,
+        referralMethodId: ReferralMethodType.None,
+        referralPercentage: 0,
+        referralFlatRate: 0,
+        referralFrequencyId: Frequency.NA
+      };
+    }
+
     const referralFee = (formValue['referralFee'] as boolean | null | undefined) ?? false;
     if (!referralFee) {
       return {
@@ -2691,7 +2726,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   updateReferralFeeFields(applyEnabledDefaults: boolean = true): void {
-    const hasReferralFee = this.form.get('referralFee')?.value ?? false;
+    if (!this.isReferralFeeAvailableForProperty) {
+      this.form.get('referralFee')?.setValue(false, { emitEvent: false });
+      this.disableFieldWithValidation('referralFee');
+    } else if (this.form.get('reservationTypeId')?.value !== ReservationType.Owner) {
+      this.enableFieldWithValidation('referralFee', [Validators.required]);
+    }
+
+    const hasReferralFee = this.isReferralFeeAvailableForProperty
+      && (this.form.get('referralFee')?.value ?? false);
     const referralMethodControl = this.form.get('referralMethodId');
     const referralPercentageControl = this.form.get('referralPercentage');
     const referralFlatRateControl = this.form.get('referralFlatRate');

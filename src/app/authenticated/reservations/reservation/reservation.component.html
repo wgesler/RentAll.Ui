@@ -838,6 +838,7 @@
               </app-searchable-select>
               </div>
 
+              @if (isReferralFeeAvailableForProperty) {
               <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-referral-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Referral Fee</mat-label>
@@ -894,6 +895,7 @@
                 }
               </mat-form-field>
               </div>
+              }
             </div>
 
             <!-- Extra Fee Lines Section -->
