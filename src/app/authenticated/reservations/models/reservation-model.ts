@@ -46,6 +46,11 @@ export interface ReservationRequest {
   maidServiceFee: number;
   frequencyId: number;
   maidStartDate: CalendarDateString;
+  referralFee: boolean;
+  referralMethodId: number;
+  referralPercentage: number;
+  referralFlatRate: number;
+  referralFrequencyId: number;
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
@@ -115,6 +120,11 @@ export interface ReservationResponse {
   maidServiceFee: number;
   frequencyId: number;
   maidStartDate: CalendarDateString;
+  referralFee: boolean;
+  referralMethodId: number;
+  referralPercentage: number;
+  referralFlatRate: number;
+  referralFrequencyId: number;
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;

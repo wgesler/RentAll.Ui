@@ -306,6 +306,37 @@ export function getDepositTypes(): { value: number, label: string }[] {
 }
 //#endregion
 
+//#region ReferralMethodType
+export enum ReferralMethodType {
+  None = 0,
+  NetInvoice = 1,
+  SeparateInvoice = 2,
+  Bill = 3
+}
+
+export function getReferralMethodType(referralMethodTypeId: number | undefined): string {
+  if (referralMethodTypeId === undefined || referralMethodTypeId === null) return '';
+
+  const referralMethodMap: { [key: number]: string } = {
+    [ReferralMethodType.None]: 'None',
+    [ReferralMethodType.NetInvoice]: 'Net Invoice',
+    [ReferralMethodType.SeparateInvoice]: 'Separate Invoice',
+    [ReferralMethodType.Bill]: 'Bill'
+  };
+
+  return referralMethodMap[referralMethodTypeId] || '';
+}
+
+export function getReferralMethodTypes(): { value: number, label: string }[] {
+  return [
+    { value: ReferralMethodType.None, label: getReferralMethodType(ReferralMethodType.None) },
+    { value: ReferralMethodType.NetInvoice, label: getReferralMethodType(ReferralMethodType.NetInvoice) },
+    { value: ReferralMethodType.SeparateInvoice, label: getReferralMethodType(ReferralMethodType.SeparateInvoice) },
+    { value: ReferralMethodType.Bill, label: getReferralMethodType(ReferralMethodType.Bill) }
+  ];
+}
+//#endregion
+
 //#region Billing period dates
 /** Charge window start for billing/day counts — mirrors AccountingManager.ResolveBillingArrivalDate. */
 export function resolveBillingArrivalDate(

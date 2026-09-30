@@ -837,6 +837,63 @@
                 (valueChange)="onAssignedMaidDropdownChange($event)">
               </app-searchable-select>
               </div>
+
+              <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-referral-fields-row min-w-0">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Referral Fee</mat-label>
+                <mat-select formControlName="referralFee" required>
+                  <mat-option [value]="false">No</mat-option>
+                  <mat-option [value]="true">Yes</mat-option>
+                </mat-select>
+                @if (form.get('referralFee')?.invalid && form.get('referralFee')?.touched) {
+                  <mat-error>Referral Fee is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Referral Method</mat-label>
+                <mat-select formControlName="referralMethodId" [required]="form.get('referralFee')?.value === true">
+                  @for (referralMethod of referralMethodOptionsForForm; track referralMethod.value) {
+                    <mat-option [value]="referralMethod.value">{{ referralMethod.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('referralMethodId')?.hasError('referralMethodRequired') && form.get('referralMethodId')?.touched) {
+                  <mat-error>Referral Method is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Referral Percentage</mat-label>
+                <input matInput type="text" formControlName="referralPercentage" placeholder="0%" (focus)="clearReferralPercentageOnFocus($event)" (input)="onReferralPercentageInput($event)" (blur)="formatReferralPercentageOnBlur()" (keydown)="formatReferralPercentageOnEnter($event)">
+                @if (form.get('referralPercentage')?.hasError('referralAmountRequired') && form.get('referralPercentage')?.touched) {
+                  <mat-error>Referral Percentage or Flat Rate is required</mat-error>
+                } @else if (form.get('referralPercentage')?.hasError('referralAmountMutuallyExclusive') && form.get('referralPercentage')?.touched) {
+                  <mat-error>Enter Referral Percentage or Flat Rate, not both</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Referral Flat Rate</mat-label>
+                <input matInput type="text" formControlName="referralFlatRate" placeholder="0.00" (blur)="formatDecimal('referralFlatRate')" (input)="onDecimalInput($event, 'referralFlatRate')" (focus)="selectAllOnFocus($event)">
+                @if (form.get('referralFlatRate')?.hasError('referralAmountRequired') && form.get('referralFlatRate')?.touched) {
+                  <mat-error>Referral Percentage or Flat Rate is required</mat-error>
+                } @else if (form.get('referralFlatRate')?.hasError('referralAmountMutuallyExclusive') && form.get('referralFlatRate')?.touched) {
+                  <mat-error>Enter Referral Percentage or Flat Rate, not both</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Referral Frequency</mat-label>
+                <mat-select formControlName="referralFrequencyId" [required]="form.get('referralFee')?.value === true">
+                  @for (frequency of referralFrequencyOptionsForForm; track frequency.value) {
+                    <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('referralFrequencyId')?.hasError('referralFrequencyRequired') && form.get('referralFrequencyId')?.touched) {
+                  <mat-error>Referral Frequency is required</mat-error>
+                }
+              </mat-form-field>
+              </div>
             </div>
 
             <!-- Extra Fee Lines Section -->
