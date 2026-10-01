@@ -4511,7 +4511,7 @@ resolveWorkOrderTitle(
     return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
   }
 
-  /** Owner statement month label in MM.YY form, e.g. "05.26" or "05.26 - 06.26". */
+  /** Owner statement month label, e.g. "Oct 2026" or "Oct 2026 - Dec 2026". */
   formatOwnerStatementPeriodMonthLabel(startDate: string | null | undefined, endDate: string | null | undefined): string {
     return this.formatOwnerStatementPeriodDisplay(startDate, endDate);
   }
@@ -4527,9 +4527,8 @@ resolveWorkOrderTitle(
       return raw;
     }
 
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const year = `${date.getFullYear()}`.slice(-2);
-    return `${month}.${year}`;
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    return `${month} ${date.getFullYear()}`;
   }
 
   isOwnerStatementActivityLineInPeriodRange(
