@@ -28,6 +28,7 @@ import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } fr
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { PropertyResponse } from '../models/property.model';
 import { QuoteListingColumnFlags, QuotePropertyListingLink } from '../models/quote.model';
+import { PartnerService } from '../../partners/services/partner.service';
 import { PropertyService } from '../services/property.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { ToastrService } from 'ngx-toastr';
@@ -60,6 +61,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   private documentReloadService = inject(DocumentReloadService);
   private propertyService = inject(PropertyService);
   private propertyListingShareService = inject(PropertyListingShareService);
+  private partnerService = inject(PartnerService);
   private leadsService = inject(LeadsService);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
@@ -395,6 +397,18 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     });
   }
 
+  loadQuoteProperty(propertyId: string): Promise<PropertyResponse | null> {
+    return firstValueFrom(this.propertyService.getPropertyByGuid(propertyId)).catch(() => firstValueFrom(this.partnerService.getPropertyById(propertyId)));
+  }
+
+  createQuoteListingShare(property: PropertyResponse) {
+    const propertyOrganizationId = String(property.organizationId || '').trim();
+    if (propertyOrganizationId && propertyOrganizationId !== this.organizationId) {
+      return this.partnerService.createPropertyShareLink(property.propertyId);
+    }
+    return this.propertyListingShareService.createPropertyShareLink(property.propertyId);
+  }
+
   removePropertyListing(propertyId: string): void {
     const normalizedPropertyId = String(propertyId || '').trim();
     if (!normalizedPropertyId) {
@@ -429,8 +443,11 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     const requestedCount = uniquePropertyIds.length;
     Promise.all(uniquePropertyIds.map(async propertyId => {
       try {
-        const property = await firstValueFrom(this.propertyService.getPropertyByGuid(propertyId));
-        const shareResponse = await firstValueFrom(this.propertyListingShareService.createPropertyShareLink(propertyId));
+        const property = await this.loadQuoteProperty(propertyId);
+        if (!property) {
+          return null;
+        }
+        const shareResponse = await firstValueFrom(this.createQuoteListingShare(property));
         const token = shareResponse.token;
         const listingUrl = this.propertyListingShareService.getPublicListingUrl(token);
         if (!listingUrl) {
