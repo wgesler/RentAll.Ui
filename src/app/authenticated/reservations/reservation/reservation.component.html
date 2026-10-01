@@ -842,7 +842,7 @@
               <div class="col-span-4 grid grid-cols-4 form-standard-grid billing-referral-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Referral Fee</mat-label>
-                <mat-select formControlName="referralFee" required>
+                <mat-select formControlName="referralFee" required (selectionChange)="onReferralFeeSelectionChange()">
                   <mat-option [value]="false">No</mat-option>
                   <mat-option [value]="true">Yes</mat-option>
                 </mat-select>
@@ -853,7 +853,7 @@
 
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Referral Method</mat-label>
-                <mat-select formControlName="referralMethodId" [required]="form.get('referralFee')?.value === true">
+                <mat-select formControlName="referralMethodId" [required]="isReferralFeeSelected()">
                   @for (referralMethod of referralMethodOptionsForForm; track referralMethod.value) {
                     <mat-option [value]="referralMethod.value">{{ referralMethod.label }}</mat-option>
                   }

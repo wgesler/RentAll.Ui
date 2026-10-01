@@ -760,6 +760,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           next: (codes: PropertyCodeResponse[]) => {
             this.propertyCodes = codes || [];
             this.filterPropertiesByOffice();
+            if (this.form) {
+              this.updateReferralFeeFields(false);
+            }
           },
           error: () => {
             this.propertyCodes = [];
@@ -1942,10 +1945,21 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   setupReferralFeeHandler(): void {
-    this.form.get('referralFee')?.valueChanges.pipe(startWith(this.form.get('referralFee')?.value ?? false), pairwise(), takeUntil(this.destroy$)).subscribe(([previousReferralFee, currentReferralFee]) => {
-      const applyEnabledDefaults = !previousReferralFee && Boolean(currentReferralFee);
-      this.updateReferralFeeFields(applyEnabledDefaults);
+    this.form.get('referralFee')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.updateReferralFeeFields(this.isReferralFeeSelected());
     });
+  }
+
+  onReferralFeeSelectionChange(): void {
+    this.updateReferralFeeFields(this.isReferralFeeSelected());
+  }
+
+  isReferralFeeSelected(): boolean {
+    return this.isReferralFeeSelectedValue(this.form?.get('referralFee')?.value);
+  }
+
+  private isReferralFeeSelectedValue(value: unknown): boolean {
+    return value === true || value === 1 || value === '1' || value === 'true';
   }
 
   setupReferralAmountExclusivityHandlers(): void {
@@ -2649,15 +2663,18 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   resolveSelectedPropertyLeaseTypeId(): number | null {
-    if (this.selectedProperty?.propertyLeaseTypeId != null) {
+    const propertyId = this.form?.get('propertyId')?.value;
+    const normalizedPropertyId = propertyId ? String(propertyId).trim() : '';
+    if (normalizedPropertyId) {
+      const fromPropertyCodes = this.propertyCodes.find(p => p.propertyId === normalizedPropertyId);
+      if (fromPropertyCodes?.propertyLeaseTypeId != null && !Number.isNaN(Number(fromPropertyCodes.propertyLeaseTypeId))) {
+        return Number(fromPropertyCodes.propertyLeaseTypeId);
+      }
+    }
+    if (this.selectedProperty?.propertyLeaseTypeId != null && !Number.isNaN(Number(this.selectedProperty.propertyLeaseTypeId))) {
       return Number(this.selectedProperty.propertyLeaseTypeId);
     }
-    const propertyId = this.form?.get('propertyId')?.value;
-    if (!propertyId) {
-      return null;
-    }
-    const propertyCode = this.propertyCodes.find(p => p.propertyId === String(propertyId).trim());
-    return propertyCode != null ? Number(propertyCode.propertyLeaseTypeId) : null;
+    return null;
   }
 
   get referralMethodOptionsForForm(): { value: number, label: string }[] {
@@ -2735,7 +2752,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   syncReferralAmountFieldStates(): void {
-    if (!this.form?.get('referralFee')?.value) {
+    if (!this.isReferralFeeSelected()) {
       return;
     }
 
@@ -2770,13 +2787,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.enableFieldWithValidation('referralFee', [Validators.required]);
     }
 
-    const hasReferralFee = this.isReferralFeeAvailableForProperty
-      && (this.form.get('referralFee')?.value ?? false);
+    const hasReferralFee = this.isReferralFeeSelected();
     const referralMethodControl = this.form.get('referralMethodId');
     const referralPercentageControl = this.form.get('referralPercentage');
     const referralFlatRateControl = this.form.get('referralFlatRate');
 
-    if (hasReferralFee === false) {
+    if (!hasReferralFee) {
       referralMethodControl?.setValue(ReferralMethodType.None, { emitEvent: false });
       referralPercentageControl?.setValue('0%', { emitEvent: false });
       referralFlatRateControl?.setValue('0.00', { emitEvent: false });
@@ -2795,6 +2811,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
     this.syncReferralAmountFieldStates();
     referralMethodControl?.updateValueAndValidity({ emitEvent: false });
+    this.markViewForCheck();
   }
 
   filterPropertiesByOffice(): void {

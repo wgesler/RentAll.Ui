@@ -2105,36 +2105,36 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.isManualApplyMode = true;
     this.paymentAmountEditedByUser = false;
     this.paymentAmountFieldFocused = false;
-    this.seedingCheckedPayment = !isRowScopedApply && checkedIds.length > 0;
+    this.seedingCheckedPayment = false;
     this.rebuildInvoicesDisplayedColumns();
     this.paymentDate = this.paymentDate ?? new Date();
     this.refreshPaymentCostCodesForResolvedOffice();
-    this.updateRemainingAmount();
+
+    if (!isRowScopedApply) {
+      this.showPaymentForm = true;
+      this.applyCheckedInvoicesToPayment(checkedIds);
+      this.markViewForCheck();
+      return;
+    }
+
     this.showPaymentForm = true;
-    if (!isRowScopedApply && checkedIds.length > 0) {
-      this.selectedInvoiceIds = new Set(checkedIds);
-    }
     this.applyFilters();
-    if (isRowScopedApply) {
-      this.syncPaymentHeaderFromDisplayApplyAmounts();
-    } else {
-      this.seedPaymentFromCheckedInvoices(checkedIds);
-      setTimeout(() => {
-        this.seedPaymentFromCheckedInvoices(checkedIds);
-        this.seedingCheckedPayment = false;
-        this.markViewForCheck();
-      }, 0);
-    }
+    this.syncPaymentHeaderFromDisplayApplyAmounts();
     this.focusPendingApplyAmountInput();
   }
 
-  seedPaymentFromCheckedInvoices(checkedIds: string[]): void {
-    if (checkedIds.length === 0) {
-      return;
-    }
-    this.selectedInvoiceIds = new Set(checkedIds);
-    this.paymentAmountEditedByUser = false;
-    this.refreshApplyAmountsForSelection();
+  applyCheckedInvoicesToPayment(checkedIds: string[]): void {
+    const checked = new Set(checkedIds);
+    this.selectedInvoiceIds = checked;
+    this.invoicesDisplay.forEach(row => {
+      const invoiceId = String(row.invoiceId ?? '');
+      const isChecked = !!invoiceId && checked.has(invoiceId);
+      row.selected = isChecked;
+      const dueAmount = isChecked ? this.roundCurrencyValue(Number(row.dueAmountValue ?? 0)) : 0;
+      this.setInvoiceApplyAmount(row, dueAmount);
+    });
+    this.syncPaymentHeaderFromDisplayApplyAmounts();
+    this.invoiceDataTable?.refreshDisplayedData();
   }
 
   syncPaymentHeaderFromDisplayApplyAmounts(): void {

@@ -1853,10 +1853,13 @@ applyStickySortIfNeeded(): void {
 
   onPageChange(): void {
     const currentPageItems = this.getCurrentPageItems();
-    const checkEvent = new MatCheckboxChange;
     this.selection.clear();
-    this.selectAllToolTip = 'Select all visible checks';
-    currentPageItems.forEach((i) => { this.emitSelectEvent(checkEvent, i) });
+    const selectedItems = currentPageItems.filter(item => !!item?.selected);
+    if (selectedItems.length > 0) {
+      this.selection.select(...selectedItems);
+    }
+    this.isAllSelected = this.setIsAllSelected();
+    this.selectAllToolTip = this.isAllSelected ? 'Unselect all visible checks' : 'Select all visible checks';
   }
 
 
