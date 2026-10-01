@@ -88,6 +88,7 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   showInvoicePreviewAll = false;
   previewAllRefreshTrigger = 0;
   invoiceListRefreshTrigger = 0;
+  returnToInvoicesTab = false;
   showPreviewAllInvoiceEditor = false;
   previewAllInvoiceDraft: InvoiceResponse | null = null;
   previewAllInvoiceEditorInstance = 0;
@@ -160,6 +161,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       }
 
       this.selectedTabIndex = requestedTabIndex;
+      if (requestedTabIndex === this.getInvoicesTabIndex()) {
+        this.returnToInvoicesTab = false;
+      }
       if (requestedTabIndex === this.getLeaseTabIndex()) {
         this.ensureLeaseTabScopeFromRoute();
       }
@@ -917,6 +921,11 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     this.closeEmbeddedInvoiceEditor();
   }
 
+  onInvoiceListReservationOpen(): void {
+    this.returnToInvoicesTab = true;
+    void this.onTabIndexChange(0);
+  }
+
   onShellBack(): void {
     if (this.isInvoiceCreateActive) {
       this.onInvoiceCreateBack();
@@ -940,6 +949,17 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       }
 
       this.closeEmbeddedInvoiceEditor();
+      return;
+    }
+
+    if (this.selectedTabIndex === 0 && this.returnToInvoicesTab && this.reservationSection) {
+      void this.reservationSection.confirmNavigationWithUnsavedChanges().then(canLeave => {
+        if (!canLeave) {
+          return;
+        }
+        this.returnToInvoicesTab = false;
+        void this.onTabIndexChange(this.getInvoicesTabIndex());
+      });
       return;
     }
 

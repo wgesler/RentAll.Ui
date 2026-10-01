@@ -108,6 +108,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   @Output() invoiceSelect = new EventEmitter<InvoiceSelection>();
   @Output() previewAllRequested = new EventEmitter<void>();
+  @Output() reservationOpen = new EventEmitter<void>();
   accountingService = inject(InvoiceService);
   private paymentService = inject(PaymentService);
   toastr = inject(ToastrService);
@@ -179,6 +180,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   paymentDate: Date | null = new Date();
   paymentAmount: number = 0;
   paymentAmountDisplay: string = '$0.00';
+  paymentAmountEditedByUser = false;
+  paymentAmountFieldFocused = false;
+  seedingCheckedPayment = false;
   remainingAmount: number = 0;
   remainingAmountDisplay: string = '0.00';
   paymentOfficeId: number | null = null;
@@ -601,8 +605,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const reservationId = event?.reservationId || null;
+    const reservationId = event?.reservationId || this.reservationId || null;
     if (!reservationId) {
+      return;
+    }
+
+    if (this.source === 'reservation') {
+      this.reservationOpen.emit();
       return;
     }
 
@@ -892,7 +901,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         const targetInvoiceId = this.manualApplyEditableInvoiceId;
         if (targetInvoiceId) {
           applyAmountValue = invoice.invoiceId === targetInvoiceId ? dueAmountValue : 0;
-        } else if (this.showPaymentForm && this.selectedInvoiceIds.has(invoice.invoiceId)) {
+        } else if (this.showPaymentForm && this.selectedInvoiceIds.has(String(invoice.invoiceId))) {
           applyAmountValue = dueAmountValue;
         }
       }
@@ -900,7 +909,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       return {
       ...invoice,
-      selected: this.showInvoiceTableSelections && this.selectedInvoiceIds.has(invoice.invoiceId),
+      selected: this.showInvoiceTableSelections && this.selectedInvoiceIds.has(String(invoice.invoiceId)),
       invoiceNumber: invoice.invoiceCode || '',
       reservationCode: this.getCompanyCodeDisplay(invoice),
       propertyCode: (invoice.propertyCode || '').trim() || '—',
@@ -1160,6 +1169,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Selection/Export Methods
   onInvoiceSelectionSet(): void {
+    if (this.seedingCheckedPayment) {
+      return;
+    }
     this.selectedInvoiceIds = new Set(
       this.invoicesDisplay
         .filter(row => !!row.selected && row.invoiceId)
@@ -1180,7 +1192,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (!this.isManualApplyMode || !this.showPaymentForm || this.isRowScopedPaymentMode) {
       this.invoicesDisplay.forEach(row => {
-        row.selected = this.showInvoiceTableSelections && this.selectedInvoiceIds.has(row.invoiceId);
+        row.selected = this.showInvoiceTableSelections && this.selectedInvoiceIds.has(String(row.invoiceId));
       });
     }
 
@@ -1189,7 +1201,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   /** User checkbox toggle while Apply Payment is open — refresh apply boxes (not called from table data reload). */
   onInvoiceApplySelectionRowChanged(row: { invoiceId?: string; selected?: boolean }, checked: boolean): void {
-    if (!this.isManualApplyMode || !this.showPaymentForm || this.isRowScopedPaymentMode) {
+    if (this.seedingCheckedPayment || !this.isManualApplyMode || !this.showPaymentForm || this.isRowScopedPaymentMode) {
       return;
     }
 
@@ -1204,11 +1216,51 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
       this.selectedInvoiceIds.add(invoiceId);
+      if (this.paymentAmountEditedByUser) {
+        this.applyRemainingFundsToCheckedInvoice(invoiceId);
+        return;
+      }
     } else {
       this.selectedInvoiceIds.delete(invoiceId);
+      if (this.paymentAmountEditedByUser) {
+        this.clearApplyAmountOnInvoice(invoiceId);
+        return;
+      }
     }
 
     this.refreshApplyAmountsForSelection();
+  }
+
+  applyRemainingFundsToCheckedInvoice(invoiceId: string): void {
+    const row = this.invoicesDisplay.find(invoice => String(invoice.invoiceId) === invoiceId);
+    if (!row) {
+      return;
+    }
+
+    row.selected = true;
+    const dueAmount = this.roundCurrencyValue(Number(row.dueAmountValue ?? 0));
+    const appliedOnOtherRows = this.sumCurrencyValues(
+      this.invoicesDisplay
+        .filter(invoice => String(invoice.invoiceId) !== invoiceId)
+        .map(invoice => Number(invoice.applyAmountValue || 0))
+    );
+    const remainingFunds = this.roundCurrencyValue(this.paymentAmount - appliedOnOtherRows);
+    const applyAmount = remainingFunds > 0 ? Math.min(dueAmount, remainingFunds) : 0;
+    this.setInvoiceApplyAmount(row, applyAmount);
+    this.updateRemainingAmount();
+    this.invoiceDataTable?.refreshDisplayedData();
+    this.markViewForCheck();
+  }
+
+  clearApplyAmountOnInvoice(invoiceId: string): void {
+    const row = this.invoicesDisplay.find(invoice => String(invoice.invoiceId) === invoiceId);
+    if (row) {
+      row.selected = false;
+      this.setInvoiceApplyAmount(row, 0);
+    }
+    this.updateRemainingAmount();
+    this.invoiceDataTable?.refreshDisplayedData();
+    this.markViewForCheck();
   }
 
   refreshApplyAmountsForSelection(): void {
@@ -1216,7 +1268,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       if (!displayRow.invoiceId) {
         return;
       }
-      const isSelected = this.selectedInvoiceIds.has(displayRow.invoiceId);
+      const isSelected = this.selectedInvoiceIds.has(String(displayRow.invoiceId));
       displayRow.selected = isSelected;
       const dueAmount = isSelected
         ? this.roundCurrencyValue(Number(displayRow.dueAmountValue ?? 0))
@@ -1941,6 +1993,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onPaymentAmountInput(event: Event): void {
+    if (!this.isRowScopedPaymentMode && !this.paymentAmountFieldFocused) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
     let value = input.value;
     
@@ -1961,6 +2016,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isManualApplyMode || this.isRowScopedPaymentMode) {
       const parsed = parseFloat(input.value.replace(/[^0-9.-]/g, '').trim());
       this.paymentAmount = isNaN(parsed) ? 0 : this.roundCurrencyValue(parsed);
+      if (!this.isRowScopedPaymentMode) {
+        this.paymentAmountEditedByUser = true;
+      }
       if (this.isRowScopedPaymentMode) {
         this.syncRowApplyAmountFromDialog();
       }
@@ -1969,6 +2027,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onPaymentAmountBlur(event: Event): void {
+    if (!this.isRowScopedPaymentMode && !this.paymentAmountFieldFocused) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
     const rawValue = input.value.replace(/[^0-9.-]/g, '').trim();
     
@@ -1978,6 +2039,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         const finalValue = this.roundCurrencyValue(parsed);
         this.paymentAmount = finalValue;
         this.paymentAmountDisplay = this.formatApplyAmountDisplay(finalValue);
+        if (!this.isRowScopedPaymentMode && this.isManualApplyMode) {
+          this.paymentAmountEditedByUser = true;
+        }
         input.value = this.paymentAmountDisplay;
         this.syncRowApplyAmountFromDialog();
         this.updateRemainingAmount();
@@ -1998,6 +2062,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onPaymentAmountFocus(event: Event): void {
+    this.paymentAmountFieldFocused = true;
     const input = event.target as HTMLInputElement;
     input.value = this.paymentAmount.toString();
     input.select();
@@ -2010,6 +2075,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   openApplyPaymentDialog(targetInvoiceId: string | null = null): void {
     const isRowScopedApply = !!targetInvoiceId;
+    const checkedIds = isRowScopedApply
+      ? []
+      : this.invoicesDisplay
+          .filter(row => !!row.selected && !!row.invoiceId)
+          .map(row => String(row.invoiceId));
+    if (!isRowScopedApply && checkedIds.length === 0) {
+      checkedIds.push(...this.selectedInvoiceIds);
+    }
 
     if (!isRowScopedApply) {
       // Toolbar "Apply Payment" requires explicit office scope from the top bar.
@@ -2030,15 +2103,38 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.manualApplyEditableInvoiceId = targetInvoiceId ? String(targetInvoiceId) : null;
     this.restoreTopbarAfterPayment = !!targetInvoiceId;
     this.isManualApplyMode = true;
+    this.paymentAmountEditedByUser = false;
+    this.paymentAmountFieldFocused = false;
+    this.seedingCheckedPayment = !isRowScopedApply && checkedIds.length > 0;
     this.rebuildInvoicesDisplayedColumns();
     this.paymentDate = this.paymentDate ?? new Date();
     this.refreshPaymentCostCodesForResolvedOffice();
     this.updateRemainingAmount();
-    // Show payment form fields
     this.showPaymentForm = true;
+    if (!isRowScopedApply && checkedIds.length > 0) {
+      this.selectedInvoiceIds = new Set(checkedIds);
+    }
     this.applyFilters();
-    this.syncPaymentHeaderFromDisplayApplyAmounts();
+    if (isRowScopedApply) {
+      this.syncPaymentHeaderFromDisplayApplyAmounts();
+    } else {
+      this.seedPaymentFromCheckedInvoices(checkedIds);
+      setTimeout(() => {
+        this.seedPaymentFromCheckedInvoices(checkedIds);
+        this.seedingCheckedPayment = false;
+        this.markViewForCheck();
+      }, 0);
+    }
     this.focusPendingApplyAmountInput();
+  }
+
+  seedPaymentFromCheckedInvoices(checkedIds: string[]): void {
+    if (checkedIds.length === 0) {
+      return;
+    }
+    this.selectedInvoiceIds = new Set(checkedIds);
+    this.paymentAmountEditedByUser = false;
+    this.refreshApplyAmountsForSelection();
   }
 
   syncPaymentHeaderFromDisplayApplyAmounts(): void {
@@ -2264,6 +2360,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentDate = new Date();
     this.paymentAmount = 0;
     this.paymentAmountDisplay = '$' + this.formatter.currency(0);
+    this.paymentAmountEditedByUser = false;
+    this.paymentAmountFieldFocused = false;
+    this.seedingCheckedPayment = false;
     this.updateRemainingAmount();
     this.paymentOfficeId = null;
     this.paymentTargetInvoiceId = null;

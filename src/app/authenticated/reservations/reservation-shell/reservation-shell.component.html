@@ -212,7 +212,8 @@
                 [embedDocumentPreviewInShell]="true"
                 (invoiceSelect)="onInvoiceSelect($event)"
                 (previewEvent)="onInvoicePreviewOpen($event)"
-                (previewAllRequested)="onPreviewAllRequested()">
+                (previewAllRequested)="onPreviewAllRequested()"
+                (reservationOpen)="onInvoiceListReservationOpen()">
               </app-invoice-list>
             }
           }
