@@ -478,7 +478,7 @@
                 [class.reservation-dates-codes-row--direct-third-party]="showBillingPeriodFields">
                 <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
                   <mat-label>Arrival Date</mat-label>
-                  <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
+                  <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required [matDatepickerFilter]="arrivalDateCalendarFilter">
                   <mat-datepicker-toggle matIconSuffix [for]="arrivalPicker"></mat-datepicker-toggle>
                   <mat-datepicker #arrivalPicker></mat-datepicker>
                   @if (form.get('arrivalDate')?.hasError('required') && form.get('arrivalDate')?.touched) {

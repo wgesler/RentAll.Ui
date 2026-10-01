@@ -123,6 +123,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   ReferralMethodType = ReferralMethodType;
   EntityType = EntityType;
   departureDateStartAt: Date | null = null;
+  propertyReservationDateRanges: { startMs: number; endMs: number }[] = [];
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
   availableClientTypes: { value: number, label: string }[] = [];
@@ -824,6 +825,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const id = propertyId?.trim();
     if (!id) {
       this.selectedProperty = null;
+      this.loadPropertyReservationDateRanges(null);
       afterLoad?.();
       return;
     }
@@ -859,10 +861,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         this.updateMaidServiceFields(false);
         this.updateReferralFeeFields(false);
         this.updateContactFields();
+        this.loadPropertyReservationDateRanges(id);
         afterLoad?.();
       },
       error: () => {
         this.selectedProperty = null;
+        this.loadPropertyReservationDateRanges(null);
         afterLoad?.();
       }
     });
@@ -1613,18 +1617,75 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.applyDepartureFromStayDays(days);
   }
 
+  arrivalDateCalendarFilter = (date: Date | null): boolean => {
+    const day = this.parseDateOnly(date);
+    if (!day) {
+      return false;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (day.getTime() < today.getTime()) {
+      return false;
+    }
+    return !this.isDateHeldByPropertyReservation(day);
+  };
+
   departureDateCalendarFilter = (date: Date | null): boolean => {
-    if (!date) {
+    const day = this.parseDateOnly(date);
+    if (!day) {
       return false;
     }
     const min = this.getMinDepartureDate();
-    if (!min) {
-      return true;
+    if (min && day.getTime() < min.getTime()) {
+      return false;
     }
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime() >= min.getTime();
+    return !this.isDateHeldByPropertyReservation(day);
   };
+
+  loadPropertyReservationDateRanges(propertyId: string | null | undefined): void {
+    const id = propertyId?.trim() ?? '';
+    if (!id) {
+      this.propertyReservationDateRanges = [];
+      this.cdr.markForCheck();
+      return;
+    }
+    const currentReservationId = this.isAddMode ? '' : String(this.reservation?.reservationId || this.reservationId || '');
+    this.reservationService.getActiveReservationsByPropertyId(id).pipe(take(1)).subscribe({
+      next: (reservations) => {
+        const currentPropertyId = String(this.form?.get('propertyId')?.value ?? '').trim();
+        if (currentPropertyId !== id) {
+          return;
+        }
+        const ranges: { startMs: number; endMs: number }[] = [];
+        for (const reservation of reservations) {
+          if (reservation.reservationId === currentReservationId) {
+            continue;
+          }
+          const arrival = this.parseDateOnly(reservation.arrivalDate);
+          const departure = this.parseDateOnly(reservation.departureDate);
+          if (!arrival || !departure || departure.getTime() <= arrival.getTime()) {
+            continue;
+          }
+          ranges.push({ startMs: arrival.getTime(), endMs: departure.getTime() });
+        }
+        this.propertyReservationDateRanges = ranges;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        const currentPropertyId = String(this.form?.get('propertyId')?.value ?? '').trim();
+        if (currentPropertyId !== id) {
+          return;
+        }
+        this.propertyReservationDateRanges = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  isDateHeldByPropertyReservation(date: Date): boolean {
+    const ms = date.getTime();
+    return this.propertyReservationDateRanges.some(range => ms >= range.startMs && ms < range.endMs);
+  }
 
   refreshSelectedPropertyContext(
     propertyId: string | null | undefined,
@@ -1710,6 +1771,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       const id = propertyId ? String(propertyId).trim() : '';
       if (!id) {
         this.selectedProperty = null;
+        this.propertyReservationDateRanges = [];
         this.form.patchValue({ propertyCode: '', propertyAddress: '' }, { emitEvent: false });
         this.updateReferralFeeFields(false);
         return;
@@ -1731,9 +1793,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
             this.selectedProperty = null;
             this.updatePetFields(false);
             this.updateMaidServiceFields(false);
-        this.updateReferralFeeFields(false);
+            this.updateReferralFeeFields(false);
           }
         });
+        this.loadPropertyReservationDateRanges(id);
         return;
       }
       this.selectPropertyForNewReservation(id);
