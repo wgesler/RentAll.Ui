@@ -89,7 +89,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private readonly ownerStatementBaseColumns: ColumnSet = {
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '35ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '15ch', alignment: 'center' },
+    monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '20ch', alignment: 'center' },
     startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     income: { displayAs: 'Income', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
