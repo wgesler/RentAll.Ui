@@ -593,16 +593,16 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     const includeDepartureDate = this.form?.get('includeDepartureDate')?.value !== false;
 
     if (this.organization) {    
-      result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
-      result = result.replace(/\{\{companyName\}\}/g, this.organization.name);
+      result = this.mergeLiteralToken(result, 'organizationName', this.getOrganizationName());
+      result = this.mergeLiteralToken(result, 'companyName', this.organization.name);
     }
 
     if (this.selectedReservation) {
-      result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
-      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
-      result = result.replace(/\{\{departureDateLine\}\}/g, this.getDepartureDate());
-      result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
-      result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+      result = this.mergeLiteralToken(result, 'tenantName', this.selectedReservation.tenantName || '');
+      result = this.mergeLiteralToken(result, 'arrivalDate', this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
+      result = this.mergeLiteralToken(result, 'departureDateLine', this.getDepartureDate());
+      result = this.mergeLiteralToken(result, 'checkInTime', getCheckInTime(this.selectedReservation.checkInTimeId) || '');
+      result = this.mergeLiteralToken(result, 'checkOutTime', getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = this.applyOptionalCodePlaceholder(result, 'lockBoxCode', this.selectedReservation.lockBoxCode);
       result = this.applyOptionalCodePlaceholder(result, 'unitAccessCode', this.selectedReservation.unitTenantCode);
       result = this.applyOptionalCodePlaceholder(result, 'unitTenantCode', this.selectedReservation.unitTenantCode);
@@ -610,43 +610,46 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     }
 
     if (this.property) {
-      result = result.replace(/\{\{propertyCode\}\}/g, this.propertyCode || this.property?.propertyCode || '');
-      result = result.replace(/\{\{communityAddressLine\}\}/g, this.getCommunityAddress() || '');
-      result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
-      result = result.replace(/\{\{buildingCommunity\}\}/g, this.getBuildingCommunityDescription() || 'N/A');
-      result = result.replace(/\{\{bldgNo\}\}/g, this.property.bldgNo || 'N/A');
-      result = result.replace(/\{\{size\}\}/g,  `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
-      result = result.replace(/\{\{unitLevel\}\}/g, this.getUnitFloorLevel());
-      result = result.replace(/\{\{phone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
-      result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
-      result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
-      result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
-      result = result.replace(/\{\{amenities\}\}/g, this.property.amenities || '');
+      result = this.mergeLiteralToken(result, 'propertyCode', this.propertyCode || this.property?.propertyCode || '');
+      result = this.mergeLiteralToken(result, 'communityAddressLine', this.getCommunityAddress() || '');
+      result = this.mergeLiteralToken(result, 'apartmentAddress', this.getApartmentAddress() || '');
+      result = this.mergeLiteralToken(result, 'buildingCommunity', this.getBuildingCommunityDescription() || 'N/A');
+      result = this.mergeLiteralToken(result, 'bldgNo', this.property.bldgNo || 'N/A');
+      result = this.mergeLiteralToken(result, 'size', `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
+      result = this.mergeLiteralToken(result, 'unitLevel', this.getUnitFloorLevel());
+      result = this.mergeLiteralToken(result, 'phone', this.formatterService.phoneNumber(this.property.phone) || 'N/A');
+      result = this.mergeLiteralToken(result, 'trashLocation', this.getTrashLocation());
+      result = this.mergeLiteralToken(result, 'internetNetwork', this.property.internetNetwork || 'N/A');
+      result = this.mergeLiteralToken(
+        result,
+        'internetPassword',
+        this.property.internetPassword ? this.escapeHtml(this.property.internetPassword) : 'N/A'
+      );
+      result = this.mergeLiteralToken(result, 'amenities', this.property.amenities || '');
       result = this.applyOptionalCodePlaceholder(result, 'alarmCode', this.property.alarmCode);
       result = this.applyOptionalCodePlaceholder(result, 'bldgcode', this.property.bldgMstrCode);
       result = this.applyOptionalCodePlaceholder(result, 'gateCode', this.property.gateCode);
       result = this.applyOptionalCodePlaceholder(result, 'trashCode', this.property.trashCode);
       result = this.applyOptionalCodePlaceholder(result, 'mailcode', this.property.mailRoomCode);
-      result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
     }
 
     if (this.propertyInformation) {
-      result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyInformation.arrivalInstructions || '');
-      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.getMailInstructionLine() || '');
-      result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyInformation.packageInstructions || '');
-      result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyInformation.parkingInformation || '');
-      result = result.replace(/\{\{access\}\}/g, this.propertyInformation.access || '');
-      result = result.replace(/\{\{laundry\}\}/g, this.propertyInformation.laundry || '');
+      result = this.mergeLiteralToken(result, 'arrivalInstructions', this.propertyInformation.arrivalInstructions || '');
+      result = this.mergeLiteralToken(result, 'mailboxInstructions', this.getMailInstructionLine() || '');
+      result = this.mergeLiteralToken(result, 'packageInstructions', this.propertyInformation.packageInstructions || '');
+      result = this.mergeLiteralToken(result, 'parkingInformation', this.propertyInformation.parkingInformation || '');
+      result = this.mergeLiteralToken(result, 'access', this.propertyInformation.access || '');
+      result = this.mergeLiteralToken(result, 'laundry', this.propertyInformation.laundry || '');
       result = this.applyOptionalLinePlaceholder(result, 'providedFurnishingsLine', 'Provided Furnishings', this.propertyInformation.providedFurnishings);
-      result = result.replace(/\{\{housekeeping\}\}/g, this.propertyInformation.housekeeping || '');
-      result = result.replace(/\{\{televisionSource\}\}/g, this.propertyInformation.televisionSource || '');
-      result = result.replace(/\{\{internetService\}\}/g, this.propertyInformation.internetService || '');
-      result = result.replace(/\{\{keyReturn\}\}/g, this.propertyInformation.keyReturn || '');
-      result = result.replace(/\{\{departureInstructions\}\}/g, this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureInstructions || ''));
-      result = result.replace(/\{\{departureCleaning\}\}/g, this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureCleaning || ''));
-      result = result.replace(/\{\{departureMail\}\}/g, this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureMail || ''));
-      result = result.replace(/\{\{departureFees\}\}/g, this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureFees || ''));
-      result = result.replace(/\{\{concierge\}\}/g, this.propertyInformation.concierge || '');
+      result = this.mergeLiteralToken(result, 'housekeeping', this.propertyInformation.housekeeping || '');
+      result = this.mergeLiteralToken(result, 'televisionSource', this.propertyInformation.televisionSource || '');
+      result = this.mergeLiteralToken(result, 'internetService', this.propertyInformation.internetService || '');
+      result = this.mergeLiteralToken(result, 'keyReturn', this.propertyInformation.keyReturn || '');
+      result = this.mergeLiteralToken(result, 'departureInstructions', this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureInstructions || ''));
+      result = this.mergeLiteralToken(result, 'departureCleaning', this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureCleaning || ''));
+      result = this.mergeLiteralToken(result, 'departureMail', this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureMail || ''));
+      result = this.mergeLiteralToken(result, 'departureFees', this.documentHtmlService.stripEmbeddedTypography(this.propertyInformation.departureFees || ''));
+      result = this.mergeLiteralToken(result, 'concierge', this.propertyInformation.concierge || '');
       result = this.applyOptionalLinePlaceholder(result, 'additionalNotesLine', 'Additional Notes', this.propertyInformation.additionalNotes);
     }
 
@@ -673,7 +676,7 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
       }
       
       if (isBranded && officeLogoDataUrl) {
-        result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
+        result = this.mergeLiteralToken(result, 'officeLogoBase64', officeLogoDataUrl);
       }
     } else if (this.propertyInformation) {
       const maintenanceEmail = isBranded ? (this.propertyInformation.maintenanceEmail || '') : '';
@@ -685,7 +688,7 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     if (this.organization) {
       const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
       if (isBranded && orgLogoDataUrl) {
-        result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
+        result = this.mergeLiteralToken(result, 'orgLogoBase64', orgLogoDataUrl);
       }
     }
     
@@ -697,35 +700,41 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     }
 
     const smokingDisclaimerBlock = this.buildSmokingDisclaimerBlock(isBranded);
-    result = result.replace(/\{\{smokingDisclaimerBlock\}\}/g, smokingDisclaimerBlock);
+    result = this.mergeLiteralToken(result, 'smokingDisclaimerBlock', smokingDisclaimerBlock);
 
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
     return result;
   }
 
+  mergeLiteralToken(html: string, tokenName: string, rawValue: string | null | undefined): string {
+    return this.documentHtmlService.replaceMergeToken(html, tokenName, rawValue);
+  }
+
   applyOptionalCodePlaceholder(html: string, placeholder: string, value: string | null | undefined): string {
-    const normalizedValue = (value || '').trim();
+    const rawValue = value ?? '';
     const tokenRegex = new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g');
 
-    if (normalizedValue) {
-      const escapedValue = this.escapeHtml(normalizedValue);
+    if (rawValue.trim()) {
+      const escapedValue = this.escapeHtml(rawValue);
 
       // Keep span-label + value on the same visual line.
       const labeledSpanTokenRegex = new RegExp(`(<span[^>]*>[^<]*:<\\/span>)\\s*\\{\\{${placeholder}\\}\\}`, 'gi');
       let result = html.replace(
         labeledSpanTokenRegex,
-        `<span style="white-space: nowrap; display: inline-block;">$1 ${escapedValue}</span>`
+        (_match, labelPart: string) =>
+          `<span style="white-space: nowrap; display: inline-block;">${labelPart} ${escapedValue}</span>`
       );
 
       // Keep plain-text label + value together when no span label is used.
       const plainLabelTokenRegex = new RegExp(`([A-Za-z][A-Za-z\\s/]*:)\\s*\\{\\{${placeholder}\\}\\}`, 'g');
       result = result.replace(
         plainLabelTokenRegex,
-        `<span style="white-space: nowrap; display: inline-block;">$1 ${escapedValue}</span>`
+        (_match, labelPart: string) =>
+          `<span style="white-space: nowrap; display: inline-block;">${labelPart} ${escapedValue}</span>`
       );
 
-      return result.replace(tokenRegex, escapedValue);
+      return result.replace(tokenRegex, () => escapedValue);
     }
 
     // Remove a preceding label span tied to this placeholder (e.g. "<span ...>Garage:</span> {{garageCode}}").
@@ -754,8 +763,8 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     if (normalizedValue) {
       const escapedValue = this.escapeHtml(normalizedValue);
       const lineHtml = `<p><span class="label">${label}:</span> ${escapedValue}</p>`;
-      const withWrappedReplaced = html.replace(wrappedParagraphRegex, lineHtml);
-      return withWrappedReplaced.replace(tokenRegex, lineHtml);
+      const withWrappedReplaced = html.replace(wrappedParagraphRegex, () => lineHtml);
+      return withWrappedReplaced.replace(tokenRegex, () => lineHtml);
     }
 
     const withoutWrappedLine = html.replace(wrappedParagraphRegex, '');
@@ -1076,13 +1085,13 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
     const emailSubject = this.emailHtml?.departureSubject?.trim() || 'Your Upcoming Departure';
     const emailTemplateHtml = this.emailHtml?.departureLetter || '';
 
-    const emailBodyHtml = emailTemplateHtml
-      .replace(/\{\{salutationName\}\}/g, salutationName)
-      .replace(/\{\{tenantName\}\}/g, tenantName)
-      .replace(/\{\{fromName\}\}/g, fromName)
-      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
-      .replace(/\{\{agentName\}\}/g, agentName || '')
-      .replace(/\{\{agentPhone\}\}/g, agentPhone || '');
+    let emailBodyHtml = emailTemplateHtml;
+    emailBodyHtml = this.documentHtmlService.replaceMergeToken(emailBodyHtml, 'salutationName', salutationName);
+    emailBodyHtml = this.documentHtmlService.replaceMergeToken(emailBodyHtml, 'tenantName', tenantName);
+    emailBodyHtml = this.documentHtmlService.replaceMergeToken(emailBodyHtml, 'fromName', fromName);
+    emailBodyHtml = this.documentHtmlService.replaceMergeToken(emailBodyHtml, 'companyName', this.organization?.name || '');
+    emailBodyHtml = this.documentHtmlService.replaceMergeToken(emailBodyHtml, 'agentName', agentName || '');
+    emailBodyHtml = this.documentHtmlService.replaceMergeToken(emailBodyHtml, 'agentPhone', agentPhone || '');
  
     const emailConfig: EmailConfig = {
       subject: emailSubject,

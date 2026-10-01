@@ -1172,4 +1172,11 @@ export class DocumentHtmlService {
       extractedStyles: styles
     };
   }
+
+  /** Merge placeholder tokens without interpreting `$` in values (passwords, access codes). */
+  replaceMergeToken(html: string, tokenName: string, rawValue: string | null | undefined): string {
+    const tokenRegex = new RegExp(`\\{\\{${tokenName}\\}\\}`, 'g');
+    const literal = rawValue ?? '';
+    return html.replace(tokenRegex, () => literal);
+  }
 }
