@@ -5,6 +5,13 @@
   </div>
 } @else {
   <div class="mobile-inspection-page">
+    <input
+      #inspectionCameraInput
+      type="file"
+      accept="image/*"
+      capture="environment"
+      hidden
+      (change)="onMobileInspectionPhotoSelected($event)" />
     <div class="mobile-inspection-meta">
       <div class="mobile-inspection-meta-row">
         <span class="mobile-inspection-meta-label">Property Code:</span>
@@ -265,7 +272,7 @@
                               @if (item.requiresPhoto && !item.hasIssue) {
                                 @if (!getItemPhotoSrc(item)) {
                                   <button mat-icon-button type="button" class="mobile-inspection-photo-btn"
-                                    (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                    (click)="openMobileInspectionCamera(section.key, repeatIndex, item.id, inspectionCameraInput, $event)">
                                     <mat-icon>photo_camera</mat-icon>
                                   </button>
                                 } @else {
@@ -278,7 +285,7 @@
                               <div class="mobile-inspection-row-issue-line">
                                 @if (!getItemPhotoSrc(item)) {
                                   <button mat-icon-button type="button" class="mobile-inspection-photo-btn"
-                                    (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                    (click)="openMobileInspectionCamera(section.key, repeatIndex, item.id, inspectionCameraInput, $event)">
                                     <mat-icon>photo_camera</mat-icon>
                                   </button>
                                 } @else {
@@ -291,11 +298,6 @@
                                   type="text" placeholder="Describe issue" [value]="item.issue || ''"
                                   (input)="updateItemIssue(section.key, repeatIndex, item, $any($event.target).value)" />
                               </div>
-                            }
-                            @if (isPhotoRequiredForItem(item)) {
-                              <input class="hidden" type="file" accept="image/*"
-                                [id]="photoInputId(section.key, repeatIndex, item.id)"
-                                (change)="onPhotoSelected(section.key, repeatIndex, item.id, $event)" />
                             }
                           </div>
                         </td>

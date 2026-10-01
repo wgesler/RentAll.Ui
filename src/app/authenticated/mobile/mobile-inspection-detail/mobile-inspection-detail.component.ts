@@ -82,6 +82,25 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
     this.saveChecklistData(false);
   }
 
+  mobileInspectionPhotoTarget: { sectionKey: string; repeatIndex: number; itemId: string } | null = null;
+
+  openMobileInspectionCamera(sectionKey: string, repeatIndex: number, itemId: string, fileInput: HTMLInputElement, event: Event): void {
+    event.stopPropagation();
+    this.mobileInspectionPhotoTarget = { sectionKey, repeatIndex, itemId };
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  onMobileInspectionPhotoSelected(event: Event): void {
+    const target = this.mobileInspectionPhotoTarget;
+    this.mobileInspectionPhotoTarget = null;
+    if (!target) {
+      return;
+    }
+    void this.onPhotoSelected(target.sectionKey, target.repeatIndex, target.itemId, event);
+    this.mobileCdr.markForCheck();
+  }
+
   override toggleTemplateModeLock(): void {
     super.toggleTemplateModeLock();
     this.mobileCdr.markForCheck();
