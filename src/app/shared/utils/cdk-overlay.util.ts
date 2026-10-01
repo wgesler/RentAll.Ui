@@ -4,19 +4,27 @@ export function teardownCdkOverlayState(): void {
     return;
   }
 
-  document.body.classList.remove('cdk-global-scrollblock');
-  // CDK BlockScrollStrategy sets these inline; missing any leaves the login page shifted/blank.
-  document.body.style.removeProperty('overflow');
-  document.body.style.removeProperty('padding-right');
-  document.body.style.removeProperty('position');
-  document.body.style.removeProperty('width');
-  document.body.style.removeProperty('height');
-  document.body.style.removeProperty('top');
-  document.body.style.removeProperty('left');
-  document.body.style.removeProperty('right');
-  document.body.style.removeProperty('bottom');
-  document.documentElement.style.removeProperty('overflow');
-  document.documentElement.style.removeProperty('top');
+  const html = document.documentElement;
+  const body = document.body;
+
+  // BlockScrollStrategy locks documentElement (not body): fixed + negative top/left.
+  html.classList.remove('cdk-global-scrollblock');
+  body.classList.remove('cdk-global-scrollblock');
+
+  for (const el of [html, body]) {
+    el.style.removeProperty('overflow');
+    el.style.removeProperty('overflow-y');
+    el.style.removeProperty('overflow-x');
+    el.style.removeProperty('padding-right');
+    el.style.removeProperty('position');
+    el.style.removeProperty('width');
+    el.style.removeProperty('height');
+    el.style.removeProperty('top');
+    el.style.removeProperty('left');
+    el.style.removeProperty('right');
+    el.style.removeProperty('bottom');
+    el.style.removeProperty('scroll-behavior');
+  }
 
   document.querySelectorAll('.cdk-overlay-backdrop, .cdk-overlay-pane, .cdk-global-overlay-wrapper').forEach(node => {
     node.remove();
@@ -25,6 +33,8 @@ export function teardownCdkOverlayState(): void {
   document.querySelectorAll('.cdk-overlay-container').forEach(container => {
     container.replaceChildren();
   });
+
+  resetViewportScroll();
 }
 
 /** Scroll window to top so login header/backdrop logos are not left above the viewport. */
@@ -44,7 +54,6 @@ export function resetViewportScroll(): void {
 export function teardownCdkOverlayStateAfterPaint(callback?: () => void): void {
   if (typeof requestAnimationFrame === 'undefined') {
     teardownCdkOverlayState();
-    resetViewportScroll();
     callback?.();
     return;
   }
@@ -53,7 +62,6 @@ export function teardownCdkOverlayStateAfterPaint(callback?: () => void): void {
     teardownCdkOverlayState();
     requestAnimationFrame(() => {
       teardownCdkOverlayState();
-      resetViewportScroll();
       callback?.();
     });
   });

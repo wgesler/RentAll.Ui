@@ -150,11 +150,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   // Step three: No more chances, logout — close dialog first; afterClosed drives endIdle().
   userIsTimedOut(): void {
-    if (!LayoutComponent.isIdleModalOn) {
+    if (LayoutComponent.isIdleModalOn) {
+      this.dialogRef?.close(false);
       return;
     }
 
-    this.dialogRef?.close(false);
+    this.endIdle();
   }
 
   endIdle(): void {

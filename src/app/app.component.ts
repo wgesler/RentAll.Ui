@@ -1,5 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { NavigationStart, Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, NavigationStart, Router, RouterOutlet } from '@angular/router';
+import { RouterToken } from './app.routes.tokens';
+import { teardownCdkOverlayStateAfterPaint } from './shared/utils/cdk-overlay.util';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
@@ -110,6 +112,13 @@ export class AppComponent implements OnInit, OnDestroy {
         this.chartOfAccountsService.clearChartOfAccounts();
         this.costCodesService.clearCostCodes();
         this.propertySelectionFilterService.clear();
+      }
+    });
+
+    this.router.events.pipe(filter(event => event instanceof NavigationEnd), takeUntil(this.destroy$)).subscribe(event => {
+      const url = (event as NavigationEnd).urlAfterRedirects;
+      if (url === `/${RouterToken.Login}` || url.startsWith(`/${RouterToken.Login}?`)) {
+        teardownCdkOverlayStateAfterPaint();
       }
     });
 
