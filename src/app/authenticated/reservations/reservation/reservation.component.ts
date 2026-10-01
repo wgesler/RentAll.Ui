@@ -1625,6 +1625,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (!day) {
       return false;
     }
+    if (this.isPersistedReservationCalendarDate(day)) {
+      return true;
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (day.getTime() < today.getTime()) {
@@ -1637,6 +1640,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const day = this.parseDateOnly(date);
     if (!day) {
       return false;
+    }
+    if (this.isPersistedReservationCalendarDate(day)) {
+      return true;
     }
     const min = this.getMinDepartureDate();
     if (min && day.getTime() < min.getTime()) {
@@ -1672,6 +1678,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           ranges.push({ startMs: arrival.getTime(), endMs: departure.getTime() });
         }
         this.propertyReservationDateRanges = ranges;
+        this.revalidateReservationDateFields();
         this.cdr.markForCheck();
       },
       error: () => {
@@ -1680,6 +1687,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
           return;
         }
         this.propertyReservationDateRanges = [];
+        this.revalidateReservationDateFields();
         this.cdr.markForCheck();
       }
     });
@@ -1688,6 +1696,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   isDateHeldByPropertyReservation(date: Date): boolean {
     const ms = date.getTime();
     return this.propertyReservationDateRanges.some(range => ms >= range.startMs && ms < range.endMs);
+  }
+
+  /** Keeps saved arrival/departure valid for matDatepickerFilter when editing in-stay reservations (e.g. extend only). */
+  private isPersistedReservationCalendarDate(day: Date): boolean {
+    if (this.isAddMode || !this.reservation) {
+      return false;
+    }
+    return this.isSameDateOnly(this.reservation.arrivalDate, day)
+      || this.isSameDateOnly(this.reservation.departureDate, day);
   }
 
   refreshSelectedPropertyContext(
