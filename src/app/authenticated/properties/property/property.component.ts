@@ -2,10 +2,11 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, distinctUntilChanged, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -33,6 +34,8 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { NoticeStatusType, getNoticeStatusTypes, getReservationNotices } from '../../reservations/models/reservation-enum';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
@@ -91,6 +94,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() ownerShellContextChanged = new EventEmitter<void>();
   propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private router = inject(Router);
   fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
@@ -145,6 +150,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isInOwnerMode: boolean = false;
 
   propertyId: string;
+  currentReservationId: string | null = null;
   property: PropertyResponse;
   externalCalendars: { url: string }[] = [];
   selectedReservationId: string | null = null;
@@ -2051,6 +2057,73 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   //#endregion
 
   //#region Data Loading Methods
+  loadCurrentReservation(): void {
+    const propertyId = String(this.propertyId ?? '').trim();
+    if (!propertyId || propertyId === 'new') {
+      this.currentReservationId = null;
+      this.markViewForCheck();
+      return;
+    }
+    this.reservationService.getActiveReservationsByPropertyId(propertyId).pipe(take(1)).subscribe({
+      next: (reservations) => {
+        const currentPropertyId = String(this.propertyId ?? '').trim();
+        if (currentPropertyId !== propertyId) {
+          return;
+        }
+        this.currentReservationId = this.findCurrentReservationId(reservations || []);
+        this.markViewForCheck();
+      },
+      error: () => {
+        const currentPropertyId = String(this.propertyId ?? '').trim();
+        if (currentPropertyId !== propertyId) {
+          return;
+        }
+        this.currentReservationId = null;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  findCurrentReservationId(reservations: ReservationListResponse[]): string | null {
+    const todayOrdinal = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.todayAsCalendarDateString());
+    if (todayOrdinal == null) {
+      return null;
+    }
+    let selectedId: string | null = null;
+    let selectedDeparture = -1;
+    for (const reservation of reservations) {
+      if (reservation.isActive === false) {
+        continue;
+      }
+      const arrivalOrdinal = this.utilityService.parseCalendarDateToOrdinal(reservation.arrivalDate);
+      const departureOrdinal = this.utilityService.parseCalendarDateToOrdinal(reservation.departureDate);
+      if (arrivalOrdinal == null || departureOrdinal == null) {
+        continue;
+      }
+      if (todayOrdinal < arrivalOrdinal || todayOrdinal > departureOrdinal) {
+        continue;
+      }
+      if (!selectedId || departureOrdinal > selectedDeparture) {
+        selectedDeparture = departureOrdinal;
+        selectedId = reservation.reservationId;
+      }
+    }
+    return selectedId;
+  }
+
+  openCurrentReservation(): void {
+    const reservationId = this.currentReservationId;
+    if (!reservationId) {
+      return;
+    }
+    const propertyId = String(this.propertyId || '').trim();
+    const queryParams: Record<string, string> = { returnTo: 'property' };
+    if (propertyId) {
+      queryParams['propertyId'] = propertyId;
+    }
+    void this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])], { queryParams });
+  }
+
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
@@ -2498,7 +2571,9 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     if (!this.isAddMode) {
       this.appliedCopyFromPropertyId = null;
       this.getProperty();
+      this.loadCurrentReservation();
     } else {
+      this.currentReservationId = null;
       this.setAddModeDefaults();
       this.tryApplyCopyFromProperty();
     }

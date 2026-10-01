@@ -12,6 +12,24 @@
   }
 }
 
+.property-current-reservation-btn {
+  align-self: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+
+  &:not(:disabled) {
+    color: var(--mat-sys-primary, #1976d2);
+  }
+}
+
+.titlebar-field-property-lease-type {
+  flex: 0 0 calc(var(--titlebar-field-max-company) * 2 / 3);
+  width: calc(var(--titlebar-field-max-company) * 2 / 3);
+  min-width: calc(var(--titlebar-field-min-company) * 2 / 3);
+  max-width: calc(var(--titlebar-field-max-company) * 2 / 3);
+}
+
 .property-titlebar {
   min-height: var(--property-titlebar-height);
   box-sizing: border-box;

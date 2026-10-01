@@ -22,8 +22,19 @@
                 <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
                   @if (!isOwnerView) {
                     @if (!isPartnerOrganization) {
+                    <button
+                      mat-icon-button
+                      type="button"
+                      color="primary"
+                      class="property-current-reservation-btn flex-shrink-0"
+                      [disabled]="!currentReservationId"
+                      matTooltip="Current reservation"
+                      aria-label="Open current reservation"
+                      (click)="openCurrentReservation()">
+                      <mat-icon>handshake</mat-icon>
+                    </button>
                     <div class="header-title flex-shrink-0">
-                      <mat-form-field appearance="outline" class="titlebar-field-company">
+                      <mat-form-field appearance="outline" class="titlebar-field-company titlebar-field-property-lease-type">
                         <mat-label>Property Lease Type</mat-label>
                         <mat-select formControlName="propertyLeaseTypeId">
                           @for (opt of propertyLeaseTypeOptions; track opt.value) {
