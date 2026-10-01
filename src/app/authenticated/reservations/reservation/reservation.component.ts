@@ -941,7 +941,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       referralMethodId: new FormControl(ReferralMethodType.None),
       referralPercentage: new FormControl<string>('0%'),
       referralFlatRate: new FormControl<string>('0.00'),
-      referralFrequencyId: new FormControl(Frequency.NA),
       taxes: new FormControl(null),
       collapseCharges: new FormControl(false),
       invoiceMethodId: new FormControl(InvoiceMethod.Create, [Validators.required]),
@@ -1110,7 +1109,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       referralMethodId: this.reservation.referralMethodId ?? ReferralMethodType.None,
       referralPercentage: this.formatterService.formatPercentageValue(this.reservation.referralPercentage, 0),
       referralFlatRate: (this.reservation.referralFlatRate ?? 0).toFixed(2),
-      referralFrequencyId: this.reservation.referralFrequencyId ?? Frequency.NA,
       taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
       notes: this.reservation.notes || ''
     }, { emitEvent: false });
@@ -1259,7 +1257,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       referralMethodId: source.referralMethodId ?? ReferralMethodType.None,
       referralPercentage: this.formatterService.formatPercentageValue(source.referralPercentage, 0),
       referralFlatRate: (source.referralFlatRate ?? 0).toFixed(2),
-      referralFrequencyId: source.referralFrequencyId ?? Frequency.NA,
       taxes: source.taxes === 0 ? null : source.taxes,
       notes: source.notes || ''
     }, { emitEvent: false });
@@ -1376,17 +1373,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const value = control.value;
     if (value === null || value === undefined || value === ReferralMethodType.None) {
       return { referralMethodRequired: true };
-    }
-    return null;
-  };
-
-  referralFrequencyRequiredValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    if (!this.form?.get('referralFee')?.value) {
-      return null;
-    }
-    const value = control.value;
-    if (value === null || value === undefined || value === Frequency.NA) {
-      return { referralFrequencyRequired: true };
     }
     return null;
   };
@@ -2176,7 +2162,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.disableFieldWithValidation('referralMethodId');
       this.disableFieldWithValidation('referralPercentage');
       this.disableFieldWithValidation('referralFlatRate');
-      this.disableFieldWithValidation('referralFrequencyId');
       this.disableFieldWithValidation('taxes');
     } else {
       // Enable fields for non-Owner types (with appropriate validators)
@@ -2620,14 +2605,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     return this.availableReferralMethodTypes.filter(option => option.value !== ReferralMethodType.None);
   }
 
-  get referralFrequencyOptionsForForm(): { value: number, label: string }[] {
-    const hasReferralFee = this.form?.get('referralFee')?.value ?? false;
-    if (!hasReferralFee) {
-      return this.availableFrequencies;
-    }
-    return this.availableFrequencies.filter(option => option.value !== Frequency.NA);
-  }
-
   getReferralParsedPercentage(): number {
     return this.formatterService.parsePercentageValue(this.form?.get('referralPercentage')?.value, 0);
   }
@@ -2640,14 +2617,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   resolveReferralRequestFieldsFromForm(
     formValue: Record<string, unknown> = this.form?.getRawValue() ?? {}
-  ): Pick<ReservationRequest, 'referralFee' | 'referralMethodId' | 'referralPercentage' | 'referralFlatRate' | 'referralFrequencyId'> {
+  ): Pick<ReservationRequest, 'referralFee' | 'referralMethodId' | 'referralPercentage' | 'referralFlatRate'> {
     if (!this.isReferralFeeAvailableForProperty) {
       return {
         referralFee: false,
         referralMethodId: ReferralMethodType.None,
         referralPercentage: 0,
-        referralFlatRate: 0,
-        referralFrequencyId: Frequency.NA
+        referralFlatRate: 0
       };
     }
 
@@ -2657,8 +2633,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         referralFee: false,
         referralMethodId: ReferralMethodType.None,
         referralPercentage: 0,
-        referralFlatRate: 0,
-        referralFrequencyId: Frequency.NA
+        referralFlatRate: 0
       };
     }
 
@@ -2677,8 +2652,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       referralFee: true,
       referralMethodId: (formValue['referralMethodId'] as number | null | undefined) ?? ReferralMethodType.None,
       referralPercentage,
-      referralFlatRate,
-      referralFrequencyId: (formValue['referralFrequencyId'] as number | null | undefined) ?? Frequency.NA
+      referralFlatRate
     };
   }
 
@@ -2738,35 +2712,26 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const referralMethodControl = this.form.get('referralMethodId');
     const referralPercentageControl = this.form.get('referralPercentage');
     const referralFlatRateControl = this.form.get('referralFlatRate');
-    const referralFrequencyControl = this.form.get('referralFrequencyId');
 
     if (hasReferralFee === false) {
       referralMethodControl?.setValue(ReferralMethodType.None, { emitEvent: false });
       referralPercentageControl?.setValue('0%', { emitEvent: false });
       referralFlatRateControl?.setValue('0.00', { emitEvent: false });
-      referralFrequencyControl?.setValue(Frequency.NA, { emitEvent: false });
       this.disableFieldWithValidation('referralMethodId');
       this.disableFieldWithValidation('referralPercentage');
       this.disableFieldWithValidation('referralFlatRate');
-      this.disableFieldWithValidation('referralFrequencyId');
       return;
     }
 
     this.enableFieldWithValidation('referralMethodId', [this.referralMethodRequiredValidator]);
     if (applyEnabledDefaults) {
-      const currentFrequency = referralFrequencyControl?.value;
-      if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
-        referralFrequencyControl?.setValue(Frequency.OneTime, { emitEvent: false });
-      }
       const currentMethod = referralMethodControl?.value;
       if (currentMethod === null || currentMethod === undefined || currentMethod === ReferralMethodType.None) {
         referralMethodControl?.setValue(ReferralMethodType.NetInvoice, { emitEvent: false });
       }
     }
-    this.enableFieldWithValidation('referralFrequencyId', [this.referralFrequencyRequiredValidator]);
     this.syncReferralAmountFieldStates();
     referralMethodControl?.updateValueAndValidity({ emitEvent: false });
-    referralFrequencyControl?.updateValueAndValidity({ emitEvent: false });
   }
 
   filterPropertiesByOffice(): void {

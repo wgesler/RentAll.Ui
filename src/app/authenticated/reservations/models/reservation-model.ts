@@ -50,7 +50,6 @@ export interface ReservationRequest {
   referralMethodId: number;
   referralPercentage: number;
   referralFlatRate: number;
-  referralFrequencyId: number;
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
@@ -124,7 +123,6 @@ export interface ReservationResponse {
   referralMethodId: number;
   referralPercentage: number;
   referralFlatRate: number;
-  referralFrequencyId: number;
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;

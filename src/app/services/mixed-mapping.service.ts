@@ -892,7 +892,6 @@ export class MixedMappingService {
       referralMethodId: reservation.referralMethodId ?? 0,
       referralPercentage: reservation.referralPercentage ?? 0,
       referralFlatRate: reservation.referralFlatRate ?? 0,
-      referralFrequencyId: reservation.referralFrequencyId ?? 0,
       extraFeeLines: this.mappingService.mapExtraFeeLinesResponseToRequest(reservation.extraFeeLines),
       notes: reservation.notes ?? null,
       allowExtensions: reservation.allowExtensions ?? true,

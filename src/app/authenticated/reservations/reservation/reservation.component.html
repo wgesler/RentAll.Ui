@@ -839,7 +839,7 @@
               </div>
 
               @if (isReferralFeeAvailableForProperty) {
-              <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-referral-fields-row min-w-0">
+              <div class="col-span-4 grid grid-cols-4 form-standard-grid billing-referral-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Referral Fee</mat-label>
                 <mat-select formControlName="referralFee" required>
@@ -880,18 +880,6 @@
                   <mat-error>Referral Percentage or Flat Rate is required</mat-error>
                 } @else if (form.get('referralFlatRate')?.hasError('referralAmountMutuallyExclusive') && form.get('referralFlatRate')?.touched) {
                   <mat-error>Enter Referral Percentage or Flat Rate, not both</mat-error>
-                }
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
-                <mat-label>Referral Frequency</mat-label>
-                <mat-select formControlName="referralFrequencyId" [required]="form.get('referralFee')?.value === true">
-                  @for (frequency of referralFrequencyOptionsForForm; track frequency.value) {
-                    <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
-                  }
-                </mat-select>
-                @if (form.get('referralFrequencyId')?.hasError('referralFrequencyRequired') && form.get('referralFrequencyId')?.touched) {
-                  <mat-error>Referral Frequency is required</mat-error>
                 }
               </mat-form-field>
               </div>

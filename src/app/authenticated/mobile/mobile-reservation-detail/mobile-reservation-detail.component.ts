@@ -469,7 +469,6 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
       referralMethodId: 0,
       referralPercentage: 0,
       referralFlatRate: 0,
-      referralFrequencyId: Frequency.NA,
       allowExtensions: true,
       billedToEmployer: false,
       collapseCharges: false,
