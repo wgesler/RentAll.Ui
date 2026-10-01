@@ -22,6 +22,18 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { MobileInspectionIssuesDraftService } from '../mobile-inspection-issues-draft.service';
 
+type MobileAnswerSnapshotRow = {
+  sectionKey: string;
+  repeatIndex: number;
+  itemIndex: number;
+  checked: boolean;
+  photoPath: string | null;
+  documentId: string | null;
+  count: number | null;
+  issue: string | null;
+  hasIssue: boolean;
+};
+
 @Component({
   standalone: true,
   selector: 'app-mobile-inspection-detail',
@@ -76,9 +88,89 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
   }
 
   override toggleTemplateMode(): void {
-    super.toggleTemplateMode();
-    this.mobileCdr.markForCheck();
-    this.emitShellStateOutputs();
+    if (this.isReadonlyMode || !this.isAdmin) {
+      return;
+    }
+    if (this.isTemplateMode || this.isTemplateModeLocked) {
+      super.toggleTemplateMode();
+      this.mobileCdr.markForCheck();
+      this.emitShellStateOutputs();
+      return;
+    }
+    this.loadLatestTemplateThenEnterTemplateMode();
+  }
+
+  loadLatestTemplateThenEnterTemplateMode(): void {
+    const propertyId = this.property?.propertyId?.trim() ?? '';
+    if (!propertyId) {
+      super.toggleTemplateMode();
+      this.mobileCdr.markForCheck();
+      return;
+    }
+    const answerSnapshot = this.captureMobileAnswerSnapshot();
+    this.maintenanceService.getByPropertyId(propertyId).pipe(take(1), takeUntil(this.mobileDestroy$)).subscribe({
+      next: (maintenance) => {
+        if (this.isTemplateMode) {
+          return;
+        }
+        if (maintenance) {
+          this.maintenanceRecord = maintenance;
+          const templateJson = maintenance.inspectionCheckList?.trim() ?? '';
+          if (templateJson.length > 0) {
+            this.applySavedChecklistJson(templateJson);
+            this.restoreMobileAnswerSnapshot(answerSnapshot);
+          }
+        }
+        this.activeMode = 'template';
+        this.applyModeState();
+        this.captureSavedStateSignature();
+        this.mobileCdr.markForCheck();
+        this.emitShellStateOutputs();
+      },
+      error: () => {
+        super.toggleTemplateMode();
+        this.mobileCdr.markForCheck();
+      }
+    });
+  }
+
+  captureMobileAnswerSnapshot(): MobileAnswerSnapshotRow[] {
+    const rows: MobileAnswerSnapshotRow[] = [];
+    this.sections.forEach(section => {
+      this.getRepeatIndexes(section.key).forEach(repeatIndex => {
+        this.getSetItems(section.key, repeatIndex).forEach((item, itemIndex) => {
+          rows.push({
+            sectionKey: section.key,
+            repeatIndex,
+            itemIndex,
+            checked: !!this.form?.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value,
+            photoPath: item.photoPath ?? null,
+            documentId: item.documentId ?? null,
+            count: item.count ?? null,
+            issue: item.issue ?? null,
+            hasIssue: item.hasIssue === true
+          });
+        });
+      });
+    });
+    return rows;
+  }
+
+  restoreMobileAnswerSnapshot(rows: MobileAnswerSnapshotRow[]): void {
+    rows.forEach(row => {
+      const item = this.getSetItems(row.sectionKey, row.repeatIndex)[row.itemIndex];
+      if (!item) {
+        return;
+      }
+      item.photoPath = row.photoPath;
+      item.documentId = row.documentId;
+      item.count = row.count;
+      item.issue = row.issue;
+      item.hasIssue = row.hasIssue;
+      this.form?.get(this.itemControlNameById(row.sectionKey, row.repeatIndex, item.id))?.setValue(row.checked, { emitEvent: false });
+      this.form?.get(this.countControlNameById(row.sectionKey, row.repeatIndex, item.id))?.setValue(row.count, { emitEvent: false });
+      this.form?.get(this.issueControlNameById(row.sectionKey, row.repeatIndex, item.id))?.setValue(row.issue ?? '', { emitEvent: false });
+    });
   }
 
   override ngOnDestroy(): void {

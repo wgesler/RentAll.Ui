@@ -322,7 +322,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         key: savedSection.key,
         title,
         hint,
-        selectionMode: templateSection?.selectionMode ?? savedSection.selectionMode ?? 'allRequired',
+        selectionMode: savedSection.selectionMode ?? templateSection?.selectionMode ?? 'allRequired',
         items: [...baseItems]
       });
 
@@ -347,7 +347,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           {
             text: item.text,
             requiresPhoto: item.requiresPhoto,
-            requiresCount: (baseItems.find(templateItem => templateItem.text === item.text)?.requiresCount) ?? item.requiresCount ?? false
+            requiresCount: item.requiresCount ?? baseItems.find(templateItem => templateItem.text === item.text)?.requiresCount ?? false
           },
           item.isEditable === true,
           item.checked,
@@ -873,6 +873,14 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.titleBarReservationSync.emit(rid.length > 0 ? rid : null);
   }
 
+  markTemplateChanged(): void {
+    if (!this.isTemplateMode || !this.form) {
+      return;
+    }
+    this.form.markAsDirty();
+    this.emitShellStateOutputs();
+  }
+
   hasUnsavedChanges(): boolean {
     if (this.isReadonlyMode || this.isSavingInProgress || !this.form) {
       return false;
@@ -1039,6 +1047,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         return;
       }
       hasCompleted = true;
+      this.cdr.markForCheck();
       onComplete?.(saved);
     };
 
@@ -1361,10 +1370,12 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           }
         }
         this.loadChecklistAnswers(propertyId);
+        this.cdr.markForCheck();
       },
       error: () => {
         this.maintenanceRecord = null;
         this.loadChecklistAnswers(propertyId);
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1384,12 +1395,14 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         this.propertyInspectionsCache = (result || []).map(item => this.mappingService.mapInspection(item));
         this.preselectInspectionTypeFromActiveDraft();
         this.applyDraftForCurrentInspectionType();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.propertyInspectionsCache = [];
         this.activeInspection = null;
         this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
         this.captureSavedStateSignature();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1785,6 +1798,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
 
     section.selectionMode = mode;
+    this.markTemplateChanged();
     if (mode !== 'exactlyOne') {
       return;
     }
@@ -1817,6 +1831,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.addControlsForSet(section.key, newRepeatIndex);
     this.sectionSetCounts[section.key] = newRepeatIndex + 1;
     this.applyModeState();
+    this.markTemplateChanged();
   }
 
   removeSection(sectionIndex: number, event: Event): void {
@@ -1833,6 +1848,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       delete this.sectionSetCounts[section.key];
       delete this.sectionSetItems[section.key];
       this.sections.splice(sectionIndex, 1);
+      this.markTemplateChanged();
       return;
     }
 
@@ -1840,6 +1856,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.removeControlsForSet(section.key, removeRepeatIndex);
     this.sectionSetItems[section.key].pop();
     this.sectionSetCounts[section.key] = removeRepeatIndex;
+    this.markTemplateChanged();
   }
 
   getRepeatIndexes(sectionKey: string): number[] {
@@ -1971,6 +1988,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.form.addControl(this.countControlNameById(sectionKey, repeatIndex, newItem.id), new FormControl(newItem.count ?? null));
     this.form.addControl(this.issueControlNameById(sectionKey, repeatIndex, newItem.id), new FormControl(newItem.issue ?? ''));
     this.applyModeState();
+    this.markTemplateChanged();
   }
 
   removeRow(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
@@ -1985,6 +2003,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.form.removeControl(this.itemControlNameById(sectionKey, repeatIndex, itemId));
     this.form.removeControl(this.countControlNameById(sectionKey, repeatIndex, itemId));
     this.form.removeControl(this.issueControlNameById(sectionKey, repeatIndex, itemId));
+    this.markTemplateChanged();
   }
 
   onTemplateItemDrop(sectionKey: string, repeatIndex: number, event: CdkDragDrop<ChecklistItem[]>): void {
@@ -1994,6 +2013,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     const setItems = this.getSetItems(sectionKey, repeatIndex);
     moveItemInArray(setItems, event.previousIndex, event.currentIndex);
+    this.markTemplateChanged();
     this.cdr.markForCheck();
   }
 
@@ -2003,6 +2023,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
   updateEditableRowText(item: ChecklistItem, value: string): void {
     item.text = value;
+    this.markTemplateChanged();
   }
 
   onItemCheckChange(sectionKey: string, repeatIndex: number, item: ChecklistItem, event: { checked: boolean; source?: { checked: boolean } }): void {
@@ -2258,6 +2279,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     if (!item.requiresPhoto) {
       item.photoPath = null;
     }
+    this.markTemplateChanged();
   }
 
   toggleRequiresCount(item: ChecklistItem, event: Event): void {
@@ -2267,6 +2289,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     if (!item.requiresCount) {
       item.count = null;
     }
+    this.markTemplateChanged();
   }
 
   getCountValue(sectionKey: string, repeatIndex: number, itemId: string): number | null {
@@ -2332,6 +2355,9 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
             const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
             control?.setValue(!!(item.photoPath || item.displayDataUrl));
           }
+          this.form?.markAsDirty();
+          this.emitShellStateOutputs();
+          this.cdr.markForCheck();
         },
         error: () => {
           this.openUploadFailedDialog();
@@ -2476,7 +2502,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
             base64,
             fileName,
             contentType: 'image/jpeg',
-            previewDataUrl: sourceDataUrl
+            previewDataUrl: dataUrl
           };
         }
       }
@@ -2494,7 +2520,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         base64,
         fileName,
         contentType: 'image/jpeg',
-        previewDataUrl: sourceDataUrl
+        previewDataUrl: dataUrl
       };
     }
 

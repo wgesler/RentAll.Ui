@@ -44,6 +44,14 @@ export class AppDeployVersionService {
     );
 
     this.subscriptions.add(
+      fromEvent(document, 'visibilitychange').subscribe(() => {
+        if (document.visibilityState === 'visible') {
+          void this.checkForNewDeploy();
+        }
+      })
+    );
+
+    this.subscriptions.add(
       this.router.events.pipe(filter(event => event instanceof NavigationError)).subscribe(event => {
         const navigationError = event as NavigationError;
         if (this.isChunkLoadFailure(navigationError.error)) {

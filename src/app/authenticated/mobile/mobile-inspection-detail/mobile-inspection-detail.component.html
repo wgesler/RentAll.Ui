@@ -55,6 +55,7 @@
         }
         @if (isTemplateMode) {
           <button mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
+          <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">Save</button>
         } @else {
           <button mat-raised-button color="primary" type="button" (click)="clearAll()">Clear</button>
           <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">Save</button>
