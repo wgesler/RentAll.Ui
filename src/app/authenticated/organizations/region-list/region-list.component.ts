@@ -83,7 +83,7 @@ export class RegionListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getRegions(): void {
-    this.regionService.getRegions().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions'); })).subscribe({
+    this.regionService.ensureRegionsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions'); })).subscribe({
       next: (response: RegionResponse[]) => {
         this.allRegions = this.mappingService.mapRegions(response);
         this.applyFilters();

@@ -10,7 +10,10 @@ import { ContactService } from './authenticated/contacts/services/contact.servic
 import { AgentService } from './authenticated/organizations/services/agent.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
 import { GlobalSelectionService } from './authenticated/organizations/services/global-selection.service';
+import { AreaService } from './authenticated/organizations/services/area.service';
+import { BuildingService } from './authenticated/organizations/services/building.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';
+import { RegionService } from './authenticated/organizations/services/region.service';
 import { OrganizationFeatureService } from './authenticated/organizations/services/organization-feature.service';
 import { FeatureResponse } from './authenticated/organizations/models/organization-feature.model';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
@@ -44,6 +47,9 @@ export class AppComponent implements OnInit, OnDestroy {
   private organizationListService = inject(OrganizationListService);
   private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
+  private regionService = inject(RegionService);
+  private areaService = inject(AreaService);
+  private buildingService = inject(BuildingService);
   private organizationFeatureService = inject(OrganizationFeatureService);
   private globalSelectionService = inject(GlobalSelectionService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -105,6 +111,9 @@ export class AppComponent implements OnInit, OnDestroy {
         this.contactService.clearContacts();
         this.agentService.clearAgents();
         this.officeService.clearOffices();
+        this.regionService.clearRegions();
+        this.areaService.clearAreas();
+        this.buildingService.clearBuildings();
         this.propertyService.clearPropertyCodes();
         this.reservationService.clearReservationCodes();
         this.organizationFeatureService.clearFeatures();
@@ -179,6 +188,9 @@ export class AppComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     if (!this.organizationId) {
       this.officeService.clearOffices();
+      this.regionService.clearRegions();
+      this.areaService.clearAreas();
+      this.buildingService.clearBuildings();
       this.propertyService.clearPropertyCodes();
       this.reservationService.clearReservationCodes();
       this.organizationFeatureService.clearFeatures();

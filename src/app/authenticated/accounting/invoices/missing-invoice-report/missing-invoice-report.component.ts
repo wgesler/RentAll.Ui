@@ -357,12 +357,18 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
 
     this.isCreatingInvoices = true;
     let createdCount = 0;
+    let billCount = 0;
 
     from(previews).pipe(
       concatMap(preview => {
         const request = this.mappingService.mapPreBillingInvoiceToCreateRequest(preview, organizationId);
         return this.invoiceService.createInvoice(request).pipe(
-          tap(() => createdCount++),
+          tap(created => {
+            createdCount++;
+            if (created.referralBillCreated) {
+              billCount++;
+            }
+          }),
           catchError((error: HttpErrorResponse) => {
             const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
             const message = closedPeriodMessage
@@ -377,7 +383,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
         this.isCreatingInvoices = false;
         if (createdCount > 0) {
           this.toastr.success(
-            `Created ${createdCount} invoice${createdCount === 1 ? '' : 's'}.`,
+            this.invoiceService.formatCreatedDocumentsMessage(createdCount, billCount),
             CommonMessage.Success
           );
           this.selectedRowKeys.clear();

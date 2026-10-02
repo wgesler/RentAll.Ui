@@ -1323,17 +1323,18 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const selectedVendorLabel = this.normalizeVendorDisplayText((event.vendorDisplay as { value?: string } | undefined)?.value || '');
-    if (!selectedVendorLabel) {
+    const selectedVendorValue = this.normalizeVendorDisplayText((event.vendorDisplay as { value?: string } | undefined)?.value || '');
+    if (!selectedVendorValue) {
       return;
     }
-    if (this.newContactDialogService.isNewContactLabel(selectedVendorLabel, EntityType.Vendor)) {
+    if (this.newContactDialogService.isNewContactOptionValue(selectedVendorValue, EntityType.Vendor)
+      || this.newContactDialogService.isNewContactLabel(selectedVendorValue, EntityType.Vendor)) {
       this.applyVendorCellsToDisplays();
       this.markViewForCheck();
       this.openNewVendorForReceiptRow(event);
       return;
     }
-    const selectedVendorId = this.resolveVendorIdFromLabel(event.officeId, selectedVendorLabel);
+    const selectedVendorId = this.resolveVendorIdFromLabel(event.officeId, selectedVendorValue);
     if (this.newContactDialogService.isNewContactOptionValue(selectedVendorId, EntityType.Vendor)) {
       return;
     }
@@ -2329,17 +2330,23 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
 
       if (isBill) {
-        const vendorLabels = vendorOptionsForOffice.map(option => option.label);
-        const preferredLabel = this.normalizeVendorDisplayText(matchedVendorOption?.label || receipt.vendorName);
-        const selectedVendorLabel = this.resolveDropdownLabelFromOptions(vendorLabels, preferredLabel);
-        const displayOptions = this.ensureDropdownOptionLabels(vendorLabels, selectedVendorLabel);
+        const selectedContactId = String(matchedVendorOption?.contactId || receipt.vendorId || '').trim();
+        const selectedLabel = this.normalizeVendorDisplayText(matchedVendorOption?.label || receipt.vendorName);
+        const displayOptions = vendorOptionsForOffice.map(option => ({
+          label: option.label,
+          value: option.contactId
+        }));
+        const selectedValue = selectedContactId || selectedLabel;
+        if (selectedValue && !displayOptions.some(option => option.value === selectedValue)) {
+          displayOptions.push({ label: selectedLabel || selectedValue, value: selectedValue });
+        }
         return {
           ...receipt,
           vendorDisplay: {
-            value: selectedVendorLabel,
+            value: selectedValue,
             isOverridable: this.isAdmin,
             options: displayOptions,
-            toString: () => selectedVendorLabel
+            toString: () => selectedLabel
           },
           vendorDisplayReadOnly: true
         };
@@ -2496,6 +2503,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   resolveVendorIdFromLabel(officeId: number | null | undefined, label: string): string | null {
     const normalizedLabel = this.normalizeVendorDisplayText(label).toLowerCase();
     const options = this.getVendorOptionsForReceiptScope(Number(officeId ?? 0));
+    const matchingById = options.find(option => option.contactId.trim().toLowerCase() === normalizedLabel);
+    if (matchingById) {
+      return matchingById.contactId;
+    }
     const matchingOption = options.find(option => this.normalizeVendorDisplayText(option.label).toLowerCase() === normalizedLabel);
     return matchingOption ? matchingOption.contactId : null;
   }
@@ -3262,7 +3273,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     const body = rows.map(row => {
       const vendor = typeof row.vendorDisplay === 'string'
         ? row.vendorDisplay
-        : (row.vendorDisplay && typeof row.vendorDisplay === 'object' ? row.vendorDisplay.value : '') || row.vendorName || '';
+        : (row.vendorDisplay && typeof row.vendorDisplay === 'object' ? row.vendorDisplay.toString() : '') || row.vendorName || '';
       const card = row.bankCardDropdown?.value || row.bankCardDisplayName || '';
       const cells = [
         row.receiptCode,

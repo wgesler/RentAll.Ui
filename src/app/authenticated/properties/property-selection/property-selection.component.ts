@@ -208,9 +208,9 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
     forkJoin({
       offices: this.officeService.ensureOfficesLoaded(orgId).pipe(take(1)),
-      regions: this.regionService.getRegions().pipe(take(1)),
-      areas: this.areaService.getAreas().pipe(take(1)),
-      buildings: this.buildingService.getBuildings().pipe(take(1)),
+      regions: this.regionService.ensureRegionsLoaded().pipe(take(1)),
+      areas: this.areaService.ensureAreasLoaded().pipe(take(1)),
+      buildings: this.buildingService.ensureBuildingsLoaded().pipe(take(1)),
     }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);

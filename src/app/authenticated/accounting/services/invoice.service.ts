@@ -50,6 +50,21 @@ export class InvoiceService {
     );
   }
 
+  formatDeletedInvoiceMessage(referralBillDeleted: boolean): string {
+    return referralBillDeleted
+      ? 'Invoice and referral bill deleted successfully.'
+      : 'Invoice deleted successfully.';
+  }
+
+  formatCreatedDocumentsMessage(invoiceCount: number, billCount: number): string {
+    const invoices = `${invoiceCount} invoice${invoiceCount === 1 ? '' : 's'}`;
+    if (billCount <= 0) {
+      return `Created ${invoices}.`;
+    }
+    const bills = `${billCount} bill${billCount === 1 ? '' : 's'}`;
+    return `Created ${invoices} and ${bills}.`;
+  }
+
   // POST: Create a new invoice
   createInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
     const normalized = this.normalizeInvoiceRequest(invoice);
@@ -69,8 +84,12 @@ export class InvoiceService {
 
 
   // DELETE: Delete invoice
-  deleteInvoice(invoiceId: string): Observable<void> {
-    return this.http.delete<void>(this.controller  + 'invoice/' +  invoiceId);
+  deleteInvoice(invoiceId: string): Observable<{ referralBillDeleted: boolean }> {
+    return this.http.delete<Record<string, unknown>>(this.controller + 'invoice/' + invoiceId).pipe(
+      map(body => ({
+        referralBillDeleted: body?.['referralBillDeleted'] === true || body?.['ReferralBillDeleted'] === true
+      }))
+    );
   }
 
   // POST: Get monthly ledger lines for a reservation

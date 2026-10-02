@@ -177,7 +177,7 @@ export interface ReceiptDisplayList {
     options: string[];
     toString: () => string;
   };
-  vendorDisplay?: string | { value: string; isOverridable: boolean; options: string[]; toString: () => string; };
+  vendorDisplay?: string | { value: string; isOverridable: boolean; options: Array<string | { label: string; value: string }>; toString: () => string; };
   vendorDisplayReadOnly?: boolean;
   vendorDisplayClickToEdit?: boolean;
   vendorDisplayEditing?: boolean;

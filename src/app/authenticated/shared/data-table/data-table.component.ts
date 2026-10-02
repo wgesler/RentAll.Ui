@@ -1014,7 +1014,21 @@ markViewForCheck(): void {
     }
   }
 
-  getFilteredDropdownOptions(rowItem: PurposefulAny, column: ColumnData): string[] {
+  dropdownOptionLabel(option: unknown): string {
+    if (option && typeof option === 'object' && 'label' in option) {
+      return String((option as { label?: unknown }).label ?? '');
+    }
+    return String(option ?? '');
+  }
+
+  dropdownOptionValue(option: unknown): string {
+    if (option && typeof option === 'object' && 'value' in option) {
+      return String((option as { value?: unknown }).value ?? '');
+    }
+    return String(option ?? '');
+  }
+
+  getFilteredDropdownOptions(rowItem: PurposefulAny, column: ColumnData): unknown[] {
     const columnName = column?.name || '';
     const options = rowItem?.[columnName]?.options ?? column.options ?? [];
     if (!Array.isArray(options)) {
@@ -1027,7 +1041,7 @@ markViewForCheck(): void {
     if (!query) {
       return options;
     }
-    return options.filter(option => String(option ?? '').toLowerCase().includes(query));
+    return options.filter(option => this.dropdownOptionLabel(option).toLowerCase().includes(query));
   }
 
   onDatatableSelectKeydown(

@@ -603,9 +603,9 @@
                             </mat-select-trigger>
                           }
 
-                          @for (option of getFilteredDropdownOptions(item, column); track option) {
-                            <mat-option [value]="option" id="option-{{column}}-{{$index}}">
-                              {{option}}
+                          @for (option of getFilteredDropdownOptions(item, column); track dropdownOptionValue(option)) {
+                            <mat-option [value]="dropdownOptionValue(option)" id="option-{{column}}-{{$index}}">
+                              {{dropdownOptionLabel(option)}}
                             </mat-option>
                           }
                         </mat-select>

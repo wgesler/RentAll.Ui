@@ -83,7 +83,7 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getBuildings(): void {
-    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+    this.buildingService.ensureBuildingsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
       next: (response: BuildingResponse[]) => {
         this.allBuildings = this.mappingService.mapBuildings(response);
         this.applyFilters();

@@ -4702,37 +4702,21 @@ persistPinnedTopBarIfActive(): void {
   }
 
   getAccountingCompanyOptions(contacts: ContactResponse[] | null | undefined, selectedOfficeId: number | null | undefined): { value: string, label: string }[] {
-    const dedupedByCompanyLabel = new Map<string, { value: string, label: string }>();
-    const normalizeCompanyKey = (label: string): string => label.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const byContactId = new Map<string, { value: string, label: string }>();
 
     (contacts || [])
       .filter(contact => !!contact?.isActive)
       .filter(contact => selectedOfficeId == null || contact.officeId === selectedOfficeId || (contact.officeAccess || []).some(id => Number(id) === selectedOfficeId))
       .forEach(contact => {
+        const contactId = String(contact.contactId || '').trim();
         const label = this.getAccountingCompanyLabel(contact);
-        if (!label) {
+        if (!contactId || !label || byContactId.has(contactId)) {
           return;
         }
-        const dedupeKey = normalizeCompanyKey(label);
-
-        if (!dedupedByCompanyLabel.has(dedupeKey)) {
-          dedupedByCompanyLabel.set(dedupeKey, {
-            value: contact.contactId,
-            label
-          });
-          return;
-        }
-
-        const existing = dedupedByCompanyLabel.get(dedupeKey)!;
-        if (label.length > existing.label.length) {
-          dedupedByCompanyLabel.set(dedupeKey, {
-            value: contact.contactId,
-            label
-          });
-        }
+        byContactId.set(contactId, { value: contactId, label });
       });
 
-    return Array.from(dedupedByCompanyLabel.values())
+    return Array.from(byContactId.values())
       .sort((a, b) =>
         a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
         || a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })

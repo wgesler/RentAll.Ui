@@ -331,7 +331,7 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
       return;
     }
 
-    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+    this.buildingService.ensureBuildingsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
       next: (buildings: BuildingResponse[]) => {
         this.buildings = (buildings || []).filter(b => b.isActive);
         if (this.selectedOffice && this.selectedReservation) {

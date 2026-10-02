@@ -172,6 +172,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
+  syncingReferralAmountFields = false;
   arrivalChangeOverrideConfirmed = false;
   billingStartAfterArrivalOverrideConfirmed = false;
   dateOverrideDialogOpen = false;
@@ -2769,31 +2770,36 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   syncReferralAmountFieldStates(): void {
-    if (!this.isReferralFeeSelected()) {
+    if (this.syncingReferralAmountFields || !this.isReferralFeeSelected()) {
       return;
     }
 
-    const percentage = this.getReferralParsedPercentage();
-    const flatRate = this.getReferralParsedFlatRate();
-    const amountValidators = [this.referralPercentageAmountValidator];
-    const percentageControl = this.form.get('referralPercentage');
-    const flatRateControl = this.form.get('referralFlatRate');
+    this.syncingReferralAmountFields = true;
+    try {
+      const percentage = this.getReferralParsedPercentage();
+      const flatRate = this.getReferralParsedFlatRate();
+      const amountValidators = [this.referralPercentageAmountValidator];
+      const percentageControl = this.form.get('referralPercentage');
+      const flatRateControl = this.form.get('referralFlatRate');
 
-    if (percentage > 0) {
-      flatRateControl?.setValue('0.00', { emitEvent: false });
-      this.disableFieldWithValidation('referralFlatRate');
-      this.enableFieldWithValidation('referralPercentage', amountValidators);
-    } else if (flatRate > 0) {
-      percentageControl?.setValue('0%', { emitEvent: false });
-      this.disableFieldWithValidation('referralPercentage');
-      this.enableFieldWithValidation('referralFlatRate', amountValidators);
-    } else {
-      this.enableFieldWithValidation('referralPercentage', amountValidators);
-      this.enableFieldWithValidation('referralFlatRate', amountValidators);
+      if (percentage > 0) {
+        flatRateControl?.setValue('0.00', { emitEvent: false });
+        this.disableFieldWithValidation('referralFlatRate');
+        this.enableFieldWithValidation('referralPercentage', amountValidators);
+      } else if (flatRate > 0) {
+        percentageControl?.setValue('0%', { emitEvent: false });
+        this.disableFieldWithValidation('referralPercentage');
+        this.enableFieldWithValidation('referralFlatRate', amountValidators);
+      } else {
+        this.enableFieldWithValidation('referralPercentage', amountValidators);
+        this.enableFieldWithValidation('referralFlatRate', amountValidators);
+      }
+
+      percentageControl?.updateValueAndValidity({ emitEvent: false });
+      flatRateControl?.updateValueAndValidity({ emitEvent: false });
+    } finally {
+      this.syncingReferralAmountFields = false;
     }
-
-    percentageControl?.updateValueAndValidity({ emitEvent: false });
-    flatRateControl?.updateValueAndValidity({ emitEvent: false });
   }
 
   updateReferralFeeFields(applyEnabledDefaults: boolean = true): void {
@@ -2982,7 +2988,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (control) {
       // Clear validators when disabling
       control.clearValidators();
-      control.disable();
+      control.disable({ emitEvent: false });
       control.updateValueAndValidity({ emitEvent: false });
     }
   }

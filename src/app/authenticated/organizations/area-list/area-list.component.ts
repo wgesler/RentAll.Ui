@@ -83,7 +83,7 @@ export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getAreas(): void {
-    this.areaService.getAreas().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas'); })).subscribe({
+    this.areaService.ensureAreasLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas'); })).subscribe({
       next: (response: AreaResponse[]) => {
         this.allAreas = this.mappingService.mapAreas(response);
         this.applyFilters();

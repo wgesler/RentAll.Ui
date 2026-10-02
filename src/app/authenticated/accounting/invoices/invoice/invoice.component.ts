@@ -568,32 +568,22 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get companyTitleBarOptions(): { value: string, label: string }[] {
-    const dedupedByCompanyLabel = new Map<string, { value: string, label: string }>();
-    const normalizeCompanyKey = (label: string): string => label.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const byContactId = new Map<string, { value: string, label: string }>();
     const officeId = this.selectedOffice?.officeId ?? this.form?.get('officeId')?.value ?? null;
 
     this.companyContacts
       .filter(contact => !!contact?.isActive)
       .filter(contact => this.contactHasOfficeAccess(contact, officeId))
       .forEach(contact => {
+        const contactId = String(contact.contactId || '').trim();
         const label = this.utilityService.getCompanyDropdownLabel(contact);
-        if (!label) {
+        if (!contactId || !label || byContactId.has(contactId)) {
           return;
         }
-
-        const dedupeKey = normalizeCompanyKey(label);
-        if (!dedupedByCompanyLabel.has(dedupeKey)) {
-          dedupedByCompanyLabel.set(dedupeKey, { value: contact.contactId, label });
-          return;
-        }
-
-        const existing = dedupedByCompanyLabel.get(dedupeKey)!;
-        if (label.length > existing.label.length) {
-          dedupedByCompanyLabel.set(dedupeKey, { value: contact.contactId, label });
-        }
+        byContactId.set(contactId, { value: contactId, label });
       });
 
-    return Array.from(dedupedByCompanyLabel.values())
+    return Array.from(byContactId.values())
       .sort((a, b) =>
         a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
         || a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })

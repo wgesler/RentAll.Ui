@@ -21,7 +21,10 @@ import { LoginRequest } from '../public/login/models/login-request';
 import { RefreshTokenRequest } from '../public/login/models/refresh-token-request';
 import { UserGroups } from '../authenticated/users/models/user-enums';
 import { GlobalSelectionService } from '../authenticated/organizations/services/global-selection.service';
+import { AreaService } from '../authenticated/organizations/services/area.service';
+import { BuildingService } from '../authenticated/organizations/services/building.service';
 import { OfficeService } from '../authenticated/organizations/services/office.service';
+import { RegionService } from '../authenticated/organizations/services/region.service';
 import { OrganizationFeatureService } from '../authenticated/organizations/services/organization-feature.service';
 import { AccountingOfficeService } from '../authenticated/organizations/services/accounting-office.service';
 import { PropertyService } from '../authenticated/properties/services/property.service';
@@ -443,6 +446,9 @@ export class AuthService {
     clearBootstrapCaches(): void {
         try {
             this.injector.get(OfficeService).clearOffices();
+            this.injector.get(RegionService).clearRegions();
+            this.injector.get(AreaService).clearAreas();
+            this.injector.get(BuildingService).clearBuildings();
             this.injector.get(PropertyService).clearPropertyCodes();
             this.injector.get(ReservationService).clearReservationCodes();
             this.injector.get(OrganizationFeatureService).clearFeatures();

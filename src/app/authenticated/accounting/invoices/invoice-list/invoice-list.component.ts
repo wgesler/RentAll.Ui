@@ -448,8 +448,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         return this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1));
       })
     ).subscribe({
-      next: () => {
-        this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
+      next: (result) => {
+        this.toastr.success(this.accountingService.formatDeletedInvoiceMessage(result?.referralBillDeleted === true), CommonMessage.Success);
         this.loadInvoicesForCurrentSearchCriteria(true);
       },
       error: (err: HttpErrorResponse) => {

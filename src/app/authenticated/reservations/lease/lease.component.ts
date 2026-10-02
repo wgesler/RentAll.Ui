@@ -840,7 +840,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       return;
     }
 
-    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+    this.buildingService.ensureBuildingsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
       next: (buildings: BuildingResponse[]) => {
         this.buildings = (buildings || []).filter(building => building.isActive);
       },

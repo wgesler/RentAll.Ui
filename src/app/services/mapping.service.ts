@@ -1275,7 +1275,8 @@ resolveJournalEntryLineSourceDisplay(
         this.utility.coerceCalendarDateStringFromApi(raw['billedEndDate'] ?? raw['BilledEndDate']) ??
         base.billedEndDate ??
         null,
-      billedRentalFeeLines: (raw['billedRentalFeeLines'] ?? raw['BilledRentalFeeLines'] ?? base.billedRentalFeeLines) as string | null | undefined
+      billedRentalFeeLines: (raw['billedRentalFeeLines'] ?? raw['BilledRentalFeeLines'] ?? base.billedRentalFeeLines) as string | null | undefined,
+      referralBillCreated: raw['referralBillCreated'] === true || raw['ReferralBillCreated'] === true
     };
   }
 

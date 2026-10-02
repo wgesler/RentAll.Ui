@@ -2145,10 +2145,12 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
-    this.regionService.getRegions().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions'); })).subscribe({
-      next: (regions) => {
-        this.allRegionsByOrg = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
-        this.filterLocationLookupsByOffice();
+    this.regionService.ensureRegionsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions'); })).subscribe({
+      next: () => {
+        this.regionService.getAllRegions().pipe(takeUntil(this.destroy$)).subscribe(regions => {
+          this.allRegionsByOrg = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
+          this.filterLocationLookupsByOffice();
+        });
       },
       error: () => {
         this.allRegionsByOrg = [];
@@ -2166,10 +2168,12 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
-    this.areaService.getAreas().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas'); })).subscribe({
-      next: (areas) => {
-        this.allAreasByOrg = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
-        this.filterLocationLookupsByOffice();
+    this.areaService.ensureAreasLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas'); })).subscribe({
+      next: () => {
+        this.areaService.getAllAreas().pipe(takeUntil(this.destroy$)).subscribe(areas => {
+          this.allAreasByOrg = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
+          this.filterLocationLookupsByOffice();
+        });
       },
       error: () => {
         this.allAreasByOrg = [];
@@ -2187,10 +2191,12 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       return;
     }
 
-    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
-      next: (buildings) => {
-        this.allBuildingsByOrg = (buildings || []).filter(b => b.isActive);
-        this.filterLocationLookupsByOffice();
+    this.buildingService.ensureBuildingsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+      next: () => {
+        this.buildingService.getAllBuildings().pipe(takeUntil(this.destroy$)).subscribe(buildings => {
+          this.allBuildingsByOrg = (buildings || []).filter(b => b.isActive);
+          this.filterLocationLookupsByOffice();
+        });
       },
       error: () => {
         this.allBuildingsByOrg = [];
