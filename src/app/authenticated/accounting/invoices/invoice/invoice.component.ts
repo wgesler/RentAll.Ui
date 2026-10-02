@@ -1108,6 +1108,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       next: (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        if (isCreating && savedInvoice?.referralVendorCreated) {
+          this.invoiceService.promptReferralVendorCreated();
+        }
 
         if (isCreating) {
           if (this.shellMode && this.shellCreateInPlace) {

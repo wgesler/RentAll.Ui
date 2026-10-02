@@ -327,6 +327,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     this.isCreatingInvoices = true;
     let createdCount = 0;
     let billCount = 0;
+    let vendorCreated = false;
 
     from(previews).pipe(
       concatMap(preview => {
@@ -336,6 +337,9 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
             createdCount++;
             if (created.referralBillCreated) {
               billCount++;
+            }
+            if (created.referralVendorCreated) {
+              vendorCreated = true;
             }
           }),
           catchError((error: HttpErrorResponse) => {
@@ -355,6 +359,9 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
             this.invoiceService.formatCreatedDocumentsMessage(createdCount, billCount),
             CommonMessage.Success
           );
+          if (vendorCreated) {
+            this.invoiceService.promptReferralVendorCreated();
+          }
           this.selectedRowKeys.clear();
           this.loadReport({ afterCreate: true });
         }

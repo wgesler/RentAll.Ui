@@ -358,6 +358,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     this.isCreatingInvoices = true;
     let createdCount = 0;
     let billCount = 0;
+    let vendorCreated = false;
 
     from(previews).pipe(
       concatMap(preview => {
@@ -367,6 +368,9 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
             createdCount++;
             if (created.referralBillCreated) {
               billCount++;
+            }
+            if (created.referralVendorCreated) {
+              vendorCreated = true;
             }
           }),
           catchError((error: HttpErrorResponse) => {
@@ -386,6 +390,9 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
             this.invoiceService.formatCreatedDocumentsMessage(createdCount, billCount),
             CommonMessage.Success
           );
+          if (vendorCreated) {
+            this.invoiceService.promptReferralVendorCreated();
+          }
           this.selectedRowKeys.clear();
           this.loadReport();
           this.invoicesCreated.emit();

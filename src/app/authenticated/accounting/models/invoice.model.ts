@@ -160,6 +160,7 @@ export interface InvoiceResponse {
   billedEndDate?: CalendarDateString | null;
   billedRentalFeeLines?: string | null;
   referralBillCreated?: boolean;
+  referralVendorCreated?: boolean;
 }
 
 export interface InvoiceSelection {

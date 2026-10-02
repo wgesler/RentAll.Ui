@@ -1276,7 +1276,8 @@ resolveJournalEntryLineSourceDisplay(
         base.billedEndDate ??
         null,
       billedRentalFeeLines: (raw['billedRentalFeeLines'] ?? raw['BilledRentalFeeLines'] ?? base.billedRentalFeeLines) as string | null | undefined,
-      referralBillCreated: raw['referralBillCreated'] === true || raw['ReferralBillCreated'] === true
+      referralBillCreated: raw['referralBillCreated'] === true || raw['ReferralBillCreated'] === true,
+      referralVendorCreated: raw['referralVendorCreated'] === true || raw['ReferralVendorCreated'] === true
     };
   }
 

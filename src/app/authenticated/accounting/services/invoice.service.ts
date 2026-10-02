@@ -1,12 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, Injector, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, take, tap } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, MissingInvoiceSearchRequest, PreBillingInvoiceSearchRequest, ReservationInvoicePreviewSearchRequest } from '../models/invoice.model';
+import { ContactService } from '../../contacts/services/contact.service';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { InvoiceDocumentService } from './invoice-document.service';
 
 @Injectable({
@@ -19,6 +23,7 @@ export class InvoiceService {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private injector = inject(Injector);
 
   
@@ -63,6 +68,21 @@ export class InvoiceService {
     }
     const bills = `${billCount} bill${billCount === 1 ? '' : 's'}`;
     return `Created ${invoices} and ${bills}.`;
+  }
+
+  promptReferralVendorCreated(): void {
+    this.injector.get(ContactService).refreshContacts().pipe(take(1)).subscribe({ error: () => undefined });
+    const dialogData: GenericModalData = {
+      title: 'Vendor Not Found',
+      message: 'A corresponding vendor for this bill was not found. One was created automatically and should be confirmed for accuracy.',
+      icon: 'warning',
+      iconColor: 'warn',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef) => dialogRef.close(),
+      useHTML: false
+    };
+    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' });
   }
 
   // POST: Create a new invoice
