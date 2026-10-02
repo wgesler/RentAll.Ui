@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -69,7 +69,8 @@ import {
         ContactComponent
     ],
     templateUrl: './property.component.html',
-    styleUrls: ['./property.component.scss']
+    styleUrls: ['./property.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
@@ -269,6 +270,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
       this.applyOwnerModeDefaults();
+      this.markViewForCheck();
     });
     
     this.isAdmin = this.authService.isAdmin();
@@ -320,11 +322,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     } else {
       this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
         this.applyPropertyIdContext(id);
+        this.markViewForCheck();
       });
     }
 
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       this.externalPartnerPropertyFromRoute = queryParams.get('externalPartnerProperty') === '1';
+      this.markViewForCheck();
     });
 
     this.route.queryParamMap.pipe(
@@ -338,6 +342,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.clearCopiedPropertyContactContext();
       }
       this.tryApplyCopyFromProperty();
+      this.markViewForCheck();
     });
     
     // Check query params for tab selection
@@ -989,6 +994,8 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       isActive: new FormControl(true),
       propertyLeaseTypeId: new FormControl<number>(this.defaultPropertyLeaseTypeId, [Validators.required])
     }, { validators: [this.bedSelectionValidator] });
+    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.markViewForCheck());
+    this.form.statusChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.markViewForCheck());
   }
 
   populateForm(): void {
@@ -1122,6 +1129,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       this.form.markAsPristine();
       this.captureSavedStateSignature();
       this.emitTitleBarContextToShell();
+      this.markViewForCheck();
     }
   }
 
@@ -1370,6 +1378,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     this.form.patchValue({ propertyLeaseTypeId: PropertyLeaseType.PropertyManagement }, { emitEvent: false });
     this.syncOwnerPrimaryContactSelection();
     this.applyOwnerVendorLeaseValidators();
+    this.markViewForCheck();
   }
 
   syncOwnerPrimaryContactSelection(): void {
@@ -2092,6 +2101,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       error: () => {
         this.contacts = [];
         this.vendorContacts = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -2124,6 +2134,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
 
           this.filterLocationLookupsByOffice();
           this.emitTitleBarContextToShell();
+          this.markViewForCheck();
         });
       },
       error: () => {
@@ -2132,6 +2143,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
         this.showOfficeDropdown = false;
         this.form?.patchValue({ officeId: null }, { emitEvent: false });
         this.emitTitleBarContextToShell();
+        this.markViewForCheck();
       }
     });
   }
@@ -2155,6 +2167,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       error: () => {
         this.allRegionsByOrg = [];
         this.regions = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -2178,6 +2191,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       error: () => {
         this.allAreasByOrg = [];
         this.areas = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -2201,6 +2215,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       error: () => {
         this.allBuildingsByOrg = [];
         this.buildings = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -2215,6 +2230,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     this.commonService.getStates().pipe(filter(states => states && states.length > 0),take(1)).subscribe({
       next: (states) => {
         this.states = [...states];
+        this.markViewForCheck();
       },
       error: () => {
         // States are handled globally, ignore
@@ -2289,6 +2305,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
 
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.markViewForCheck();
   }
 
   formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {
@@ -2318,7 +2335,10 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     this.areas = officeNum != null ? this.allAreasByOrg.filter(a => Number(a.officeId) === officeNum) : [];
     this.buildings = officeNum != null ? this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeNum) : [];
 
-    if (!this.form) return;
+    if (!this.form) {
+      this.markViewForCheck();
+      return;
+    }
     const regionId = this.form.get('regionId')?.value;
     const areaId = this.form.get('areaId')?.value;
     const buildingId = this.form.get('buildingId')?.value;
@@ -2335,6 +2355,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     if (Object.keys(updates).length > 0) {
       this.form.patchValue(updates, { emitEvent: false });
     }
+    this.markViewForCheck();
   }
 
     onDescriptionInput(event: Event): void {

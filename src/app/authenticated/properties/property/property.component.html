@@ -94,14 +94,14 @@
                         mat-icon-button
                         matSuffix
                         type="button"
-                        [class.date-picker-icon-button-error]="form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched"
+                        [class.date-picker-icon-button-error]="form.controls['availableUntil']?.hasError('required') && form.controls['availableUntil']?.touched"
                         [disabled]="isExternalPartnerPropertyView"
                         (click)="availableUntilPicker.open()"
                         aria-label="Open calendar">
-                        <mat-icon [class.date-picker-icon-error]="form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched">calendar_today</mat-icon>
+                        <mat-icon [class.date-picker-icon-error]="form.controls['availableUntil']?.hasError('required') && form.controls['availableUntil']?.touched">calendar_today</mat-icon>
                       </button>
                       <mat-datepicker #availableUntilPicker></mat-datepicker>
-                      @if (form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched) {
+                      @if (form.controls['availableUntil']?.hasError('required') && form.controls['availableUntil']?.touched) {
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
@@ -111,7 +111,7 @@
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Check-In'"
                       [required]="true"
-                      [value]="form.get('checkInTimeId')?.value ?? null"
+                      [value]="form.controls['checkInTimeId']?.value ?? null"
                       [options]="checkInTimes"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -119,7 +119,7 @@
                       [searchPlaceholder]="'Type to filter check-in times...'"
                       [nullOptionLabel]="''"
                       [noResultsText]="'No check-in times match your search'"
-                      [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
+                      [showError]="!!(form.controls['checkInTimeId']?.hasError('required') && form.controls['checkInTimeId']?.touched)"
                       [errorText]="'Required'"
                       (valueChange)="onNumericDropdownChange('checkInTimeId', $event)">
                     </app-searchable-select>
@@ -129,7 +129,7 @@
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Check-Out'"
                       [required]="true"
-                      [value]="form.get('checkOutTimeId')?.value ?? null"
+                      [value]="form.controls['checkOutTimeId']?.value ?? null"
                       [options]="checkOutTimes"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -137,7 +137,7 @@
                       [searchPlaceholder]="'Type to filter check-out times...'"
                       [nullOptionLabel]="''"
                       [noResultsText]="'No check-out times match your search'"
-                      [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
+                      [showError]="!!(form.controls['checkOutTimeId']?.hasError('required') && form.controls['checkOutTimeId']?.touched)"
                       [errorText]="'Required'"
                       (valueChange)="onNumericDropdownChange('checkOutTimeId', $event)">
                     </app-searchable-select>
@@ -157,7 +157,7 @@
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Style'"
                       [required]="true"
-                      [value]="form.get('propertyStyle')?.value ?? null"
+                      [value]="form.controls['propertyStyle']?.value ?? null"
                       [options]="propertyStyles"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -165,7 +165,7 @@
                       [searchPlaceholder]="'Type to filter styles...'"
                       [nullOptionLabel]="''"
                       [noResultsText]="'No styles match your search'"
-                      [showError]="!!(form.get('propertyStyle')?.hasError('required') && form.get('propertyStyle')?.touched)"
+                      [showError]="!!(form.controls['propertyStyle']?.hasError('required') && form.controls['propertyStyle']?.touched)"
                       [errorText]="'Required'"
                       (valueChange)="onNumericDropdownChange('propertyStyle', $event)">
                     </app-searchable-select>
@@ -176,7 +176,7 @@
                     [formFieldClass]="'basic-compact min-w-0'"
                     [formFieldLabel]="'Type'"
                     [required]="true"
-                    [value]="form.get('propertyType')?.value ?? null"
+                    [value]="form.controls['propertyType']?.value ?? null"
                     [options]="propertyTypes"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
@@ -184,7 +184,7 @@
                     [searchPlaceholder]="'Type to filter property types...'"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No property types match your search'"
-                    [showError]="!!(form.get('propertyType')?.hasError('required') && form.get('propertyType')?.touched)"
+                    [showError]="!!(form.controls['propertyType']?.hasError('required') && form.controls['propertyType']?.touched)"
                     [errorText]="'Required'"
                     (valueChange)="onPropertyTypeDropdownChange($event)">
                   </app-searchable-select>
@@ -195,7 +195,7 @@
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Property Status'"
                       [required]="true"
-                      [value]="form.get('propertyStatus')?.value ?? null"
+                      [value]="form.controls['propertyStatus']?.value ?? null"
                       [options]="propertyStatuses"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -203,7 +203,7 @@
                       [searchPlaceholder]="'Type to filter statuses...'"
                       [nullOptionLabel]="''"
                       [noResultsText]="'No statuses match your search'"
-                      [showError]="!!(form.get('propertyStatus')?.hasError('required') && form.get('propertyStatus')?.touched)"
+                      [showError]="!!(form.controls['propertyStatus']?.hasError('required') && form.controls['propertyStatus']?.touched)"
                       [errorText]="'Required'"
                       (valueChange)="onNumericDropdownChange('propertyStatus', $event)">
                     </app-searchable-select>
@@ -230,7 +230,7 @@
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Type'"
                       [required]="true"
-                      [value]="form.get('propertyType')?.value ?? null"
+                      [value]="form.controls['propertyType']?.value ?? null"
                       [options]="propertyTypes"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -238,7 +238,7 @@
                       [searchPlaceholder]="'Type to filter property types...'"
                       [nullOptionLabel]="''"
                       [noResultsText]="'No property types match your search'"
-                      [showError]="!!(form.get('propertyType')?.hasError('required') && form.get('propertyType')?.touched)"
+                      [showError]="!!(form.controls['propertyType']?.hasError('required') && form.controls['propertyType']?.touched)"
                       [errorText]="'Required'"
                       (valueChange)="onPropertyTypeDropdownChange($event)">
                     </app-searchable-select>
@@ -253,10 +253,10 @@
                         step="1"
                         formControlName="unitLevel"
                         required>
-                      @if (form.get('unitLevel')?.hasError('required') && form.get('unitLevel')?.touched) {
+                      @if (form.controls['unitLevel']?.hasError('required') && form.controls['unitLevel']?.touched) {
                         <mat-error>Required</mat-error>
                       }
-                      @if (form.get('unitLevel')?.hasError('min') && form.get('unitLevel')?.touched) {
+                      @if (form.controls['unitLevel']?.hasError('min') && form.controls['unitLevel']?.touched) {
                         <mat-error>Must be 0 or greater</mat-error>
                       }
                     </mat-form-field>
@@ -276,7 +276,7 @@
                           <mat-option [value]="day.value">{{ day.label }}</mat-option>
                         }
                       </mat-select>
-                      @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                      @if (form.controls['trashPickupId']?.hasError('required') && form.controls['trashPickupId']?.touched) {
                         <mat-error>Trash pickup is required</mat-error>
                       }
                     </mat-form-field>
@@ -291,7 +291,7 @@
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-6">
                     <mat-label>Address 1</mat-label>
                     <input matInput formControlName="address1" required>
-                    @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                    @if (form.controls['address1']?.hasError('required') && form.controls['address1']?.touched) {
                       <mat-error>Required</mat-error>
                     }
                   </mat-form-field>
@@ -306,7 +306,7 @@
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-5">
                     <mat-label>City</mat-label>
                     <input matInput formControlName="city" required>
-                    @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                    @if (form.controls['city']?.hasError('required') && form.controls['city']?.touched) {
                       <mat-error>Required</mat-error>
                     }
                   </mat-form-field>
@@ -318,14 +318,14 @@
                         <mat-option [value]="state">{{ state }}</mat-option>
                       }
                     </mat-select>
-                    @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                    @if (form.controls['state']?.hasError('required') && form.controls['state']?.touched) {
                       <mat-error>Required</mat-error>
                     }
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-3 address-zip-field">
                     <mat-label>Zip</mat-label>
                     <input matInput formControlName="zip" required maxlength="10" placeholder="12345-6789" inputmode="numeric" autocomplete="postal-code">
-                    @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                    @if (form.controls['zip']?.hasError('required') && form.controls['zip']?.touched) {
                       <mat-error>Required</mat-error>
                     }
                   </mat-form-field>
@@ -354,10 +354,10 @@
                       step="1"
                       formControlName="unitLevel"
                       required>
-                    @if (form.get('unitLevel')?.hasError('required') && form.get('unitLevel')?.touched) {
+                    @if (form.controls['unitLevel']?.hasError('required') && form.controls['unitLevel']?.touched) {
                       <mat-error>Required</mat-error>
                     }
-                    @if (form.get('unitLevel')?.hasError('min') && form.get('unitLevel')?.touched) {
+                    @if (form.controls['unitLevel']?.hasError('min') && form.controls['unitLevel']?.touched) {
                       <mat-error>Must be 0 or greater</mat-error>
                     }
                   </mat-form-field>
@@ -397,7 +397,7 @@
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Notice To Vacate'"
-                      [value]="form.get('noticeToVacateId')?.value ?? null"
+                      [value]="form.controls['noticeToVacateId']?.value ?? null"
                       [options]="reservationNoticeOptions"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -412,7 +412,7 @@
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Notification Status'"
-                      [value]="form.get('noticeStatusId')?.value ?? 0"
+                      [value]="form.controls['noticeStatusId']?.value ?? 0"
                       [options]="noticeStatusOptions"
                       [showSearchInput]="true"
                       [hideSearchHint]="true"
@@ -434,7 +434,7 @@
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Region'"
-                      [value]="form.get('regionId')?.value ?? null"
+                      [value]="form.controls['regionId']?.value ?? null"
                       [options]="regionOptions"
                       [showSearchInput]="true"
                       [searchPlaceholder]="'Type to filter regions...'"
@@ -447,7 +447,7 @@
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Area'"
-                      [value]="form.get('areaId')?.value ?? null"
+                      [value]="form.controls['areaId']?.value ?? null"
                       [options]="areaOptions"
                       [showSearchInput]="true"
                       [searchPlaceholder]="'Type to filter areas...'"
@@ -460,7 +460,7 @@
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Building'"
-                      [value]="form.get('buildingId')?.value ?? null"
+                      [value]="form.controls['buildingId']?.value ?? null"
                       [options]="buildingOptions"
                       [showSearchInput]="true"
                       [searchPlaceholder]="'Type to filter buildings...'"
@@ -471,14 +471,14 @@
                     <mat-form-field appearance="outline" class="basic-compact min-w-0">
                       <mat-label>Latitude</mat-label>
                       <input matInput type="text" inputmode="decimal" formControlName="latitude" maxlength="32" placeholder="0.00000000" (focus)="selectAllOnFocus($event)">
-                      @if (form.get('latitude')?.hasError('pattern') && form.get('latitude')?.touched) {
+                      @if (form.controls['latitude']?.hasError('pattern') && form.controls['latitude']?.touched) {
                         <mat-error>Invalid</mat-error>
                       }
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="basic-compact min-w-0">
                       <mat-label>Longitude</mat-label>
                       <input matInput type="text" inputmode="decimal" formControlName="longitude" maxlength="32" placeholder="-0.00000000" (focus)="selectAllOnFocus($event)">
-                      @if (form.get('longitude')?.hasError('pattern') && form.get('longitude')?.touched) {
+                      @if (form.controls['longitude']?.hasError('pattern') && form.controls['longitude']?.touched) {
                         <mat-error>Invalid</mat-error>
                       }
                     </mat-form-field>
@@ -489,38 +489,38 @@
                   <mat-form-field
                     appearance="outline"
                     class="basic-compact"
-                    [class.mat-mdc-form-field-invalid]="!!(form.get('bedrooms')?.invalid && form.get('bedrooms')?.touched)"
-                    [class.mat-form-field-invalid]="!!(form.get('bedrooms')?.invalid && form.get('bedrooms')?.touched)">
+                    [class.mat-mdc-form-field-invalid]="!!(form.controls['bedrooms']?.invalid && form.controls['bedrooms']?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.controls['bedrooms']?.invalid && form.controls['bedrooms']?.touched)">
                     <mat-label>Beds</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="bedrooms" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
                   <mat-form-field
                     appearance="outline"
                     class="basic-compact min-w-0"
-                    [class.mat-mdc-form-field-invalid]="!!(form.get('bathrooms')?.invalid && form.get('bathrooms')?.touched)"
-                    [class.mat-form-field-invalid]="!!(form.get('bathrooms')?.invalid && form.get('bathrooms')?.touched)">
+                    [class.mat-mdc-form-field-invalid]="!!(form.controls['bathrooms']?.invalid && form.controls['bathrooms']?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.controls['bathrooms']?.invalid && form.controls['bathrooms']?.touched)">
                     <mat-label>Baths</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="bathrooms" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
                   <mat-form-field
                     appearance="outline"
                     class="basic-compact"
-                    [class.mat-mdc-form-field-invalid]="!!(form.get('accommodates')?.invalid && form.get('accommodates')?.touched)"
-                    [class.mat-form-field-invalid]="!!(form.get('accommodates')?.invalid && form.get('accommodates')?.touched)">
+                    [class.mat-mdc-form-field-invalid]="!!(form.controls['accommodates']?.invalid && form.controls['accommodates']?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.controls['accommodates']?.invalid && form.controls['accommodates']?.touched)">
                     <mat-label>Accom</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" formControlName="accommodates" placeholder="0" (focus)="selectAllOnFocus($event)" required>
-                    @if (form.get('accommodates')?.hasError('required') && form.get('accommodates')?.touched) {
+                    @if (form.controls['accommodates']?.hasError('required') && form.controls['accommodates']?.touched) {
                       <mat-error>Required</mat-error>
                     }
-                    @if (form.get('accommodates')?.hasError('min') && form.get('accommodates')?.touched) {
+                    @if (form.controls['accommodates']?.hasError('min') && form.controls['accommodates']?.touched) {
                       <mat-error>Min 1</mat-error>
                     }
                   </mat-form-field>
                   <mat-form-field
                     appearance="outline"
                     class="basic-compact"
-                    [class.mat-mdc-form-field-invalid]="!!(form.get('squareFeet')?.invalid && form.get('squareFeet')?.touched)"
-                    [class.mat-form-field-invalid]="!!(form.get('squareFeet')?.invalid && form.get('squareFeet')?.touched)">
+                    [class.mat-mdc-form-field-invalid]="!!(form.controls['squareFeet']?.invalid && form.controls['squareFeet']?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.controls['squareFeet']?.invalid && form.controls['squareFeet']?.touched)">
                     <mat-label>Sq Ft</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="squareFeet" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
@@ -529,7 +529,7 @@
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
                     [formFieldLabel]="'Bed 1'"
-                    [value]="form.get('bedroomId1')?.value ?? 0"
+                    [value]="form.controls['bedroomId1']?.value ?? 0"
                     [options]="bedSizeOptionsWithNone"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
@@ -545,7 +545,7 @@
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
                     [formFieldLabel]="'Bed 2'"
-                    [value]="form.get('bedroomId2')?.value ?? 0"
+                    [value]="form.controls['bedroomId2']?.value ?? 0"
                     [options]="bedSizeOptionsWithNone"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
@@ -561,7 +561,7 @@
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
                     [formFieldLabel]="'Bed 3'"
-                    [value]="form.get('bedroomId3')?.value ?? 0"
+                    [value]="form.controls['bedroomId3']?.value ?? 0"
                     [options]="bedSizeOptionsWithNone"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
@@ -577,7 +577,7 @@
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
                     [formFieldLabel]="'Bed 4'"
-                    [value]="form.get('bedroomId4')?.value ?? 0"
+                    [value]="form.controls['bedroomId4']?.value ?? 0"
                     [options]="bedSizeOptionsWithNone"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
@@ -593,7 +593,7 @@
                     [renderInFormField]="true"
                     [formFieldClass]="'basic-compact'"
                     [formFieldLabel]="'Sofabed'"
-                    [value]="form.get('sofabed')?.value ?? 0"
+                    [value]="form.controls['sofabed']?.value ?? 0"
                     [options]="bedSizeOptionsWithNone"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
@@ -630,7 +630,7 @@
                           <mat-option [value]="day.value">{{ day.label }}</mat-option>
                         }
                       </mat-select>
-                      @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                      @if (form.controls['trashPickupId']?.hasError('required') && form.controls['trashPickupId']?.touched) {
                         <mat-error>Trash pickup is required</mat-error>
                       }
                     </mat-form-field>
@@ -645,35 +645,35 @@
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Monthly Rate</mat-label>
                       <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')" (focus)="selectAllOnFocus($event)" required>
-                      @if (form.get('monthlyRate')?.hasError('required') && form.get('monthlyRate')?.touched) {
+                      @if (form.controls['monthlyRate']?.hasError('required') && form.controls['monthlyRate']?.touched) {
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Daily Rate</mat-label>
                       <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')" (focus)="selectAllOnFocus($event)" required>
-                      @if (form.get('dailyRate')?.hasError('required') && form.get('dailyRate')?.touched) {
+                      @if (form.controls['dailyRate']?.hasError('required') && form.controls['dailyRate']?.touched) {
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Departure Fee</mat-label>
                       <input matInput type="text" formControlName="departureFee" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
-                      @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
+                      @if (form.controls['departureFee']?.hasError('required') && form.controls['departureFee']?.touched) {
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Maid Fee</mat-label>
                       <input matInput type="text" formControlName="maidServiceFee" (blur)="formatDecimal('maidServiceFee')" (input)="onDecimalInput($event, 'maidServiceFee')" (focus)="selectAllOnFocus($event)" required>
-                      @if (form.get('maidServiceFee')?.hasError('required') && form.get('maidServiceFee')?.touched) {
+                      @if (form.controls['maidServiceFee']?.hasError('required') && form.controls['maidServiceFee']?.touched) {
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Pet Fee</mat-label>
                       <input matInput type="text" formControlName="petFee" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)" required>
-                      @if (form.get('petFee')?.hasError('required') && form.get('petFee')?.touched) {
+                      @if (form.controls['petFee']?.hasError('required') && form.controls['petFee']?.touched) {
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
@@ -686,14 +686,14 @@
                         [renderInFormField]="true"
                         [formFieldLabel]="'Owner'"
                         [required]="true"
-                        [value]="form.get('owner1Id')?.value || ''"
+                        [value]="form.controls['owner1Id']?.value || ''"
                         [options]="ownerOptions"
                         [triggerValueClickable]="hasOwnerSelected('owner1Id')"
                         [showSearchInput]="true"
                         [searchPlaceholder]="'Type to filter owners...'"
                         [nullOptionLabel]="''"
                         [noResultsText]="'No owners match your search'"
-                        [showError]="!!(form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
+                        [showError]="!!(form.controls['owner1Id']?.hasError('required') && form.controls['owner1Id']?.touched)"
                         [errorText]="'Owner is required'"
                         (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
                         (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
@@ -702,7 +702,7 @@
                         class="owner-select-field owner-select-field-secondary"
                         [renderInFormField]="true"
                         [formFieldLabel]="'Owner 2 (Optional)'"
-                        [value]="form.get('owner2Id')?.value ?? null"
+                        [value]="form.controls['owner2Id']?.value ?? null"
                         [options]="ownerOptions"
                         [triggerValueClickable]="hasOwnerSelected('owner2Id')"
                         [showSearchInput]="true"
@@ -716,7 +716,7 @@
                         class="owner-select-field owner-select-field-secondary"
                         [renderInFormField]="true"
                         [formFieldLabel]="'Owner 3 (Optional)'"
-                        [value]="form.get('owner3Id')?.value ?? null"
+                        [value]="form.controls['owner3Id']?.value ?? null"
                         [options]="ownerOptions"
                         [triggerValueClickable]="hasOwnerSelected('owner3Id')"
                         [showSearchInput]="true"
@@ -735,13 +735,13 @@
                         [formFieldLabel]="'Vendor'"
                         [required]="true"
                         [disabled]="isPartnerOrganization"
-                        [value]="form.get('vendorId')?.value ?? null"
+                        [value]="form.controls['vendorId']?.value ?? null"
                         [options]="vendorOptions"
                         [showSearchInput]="!isPartnerOrganization"
                         [searchPlaceholder]="'Type to filter vendors...'"
                         [nullOptionLabel]="''"
                         [noResultsText]="'No vendors match your search'"
-                        [showError]="!!(form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched)"
+                        [showError]="!!(form.controls['vendorId']?.hasError('required') && form.controls['vendorId']?.touched)"
                         [errorText]="'Vendor is required'"
                         (valueChange)="onVendorDropdownChange($event)">
                       </app-searchable-select>
