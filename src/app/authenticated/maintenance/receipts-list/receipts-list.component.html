@@ -97,18 +97,20 @@
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
-            @if (embeddedInMaintenance) {
-              <div class="flex items-center gap-3 flex-nowrap whitespace-nowrap flex-shrink-0">
-                <mat-select
-                  class="table-filter-inline-select"
-                  [value]="selectedCardOwner"
-                  (valueChange)="onCardOwnerFilterChange($event)"
-                  panelClass="datatable-dropdown-panel">
-                  <mat-option [value]="''">All Card Owners</mat-option>
-                  @for (owner of cardOwnerOptions; track owner) {
-                    <mat-option [value]="owner">{{ owner }}</mat-option>
-                  }
-                </mat-select>
+            @if (showCardOwnerFilter) {
+              <mat-select
+                class="table-filter-inline-select"
+                [value]="selectedCardOwner"
+                (valueChange)="onCardOwnerFilterChange($event)"
+                panelClass="datatable-dropdown-panel">
+                <mat-option [value]="''">All Card Owners</mat-option>
+                @for (owner of cardOwnerOptions; track owner) {
+                  <mat-option [value]="owner">{{ owner }}</mat-option>
+                }
+              </mat-select>
+            }
+            <div class="receipt-list-toggles">
+              @if (embeddedInMaintenance) {
                 <mat-slide-toggle
                   id="toggle-receipts-show-drafts"
                   [checked]="showDrafts"
@@ -117,28 +119,29 @@
                   class="whitespace-nowrap">
                   Drafts
                 </mat-slide-toggle>
-              </div>
-            }
-            <app-three-way-toggle
-              [labels]="activeFilterLabels"
-              [value]="activeFilterIndex"
-              ariaLabel="Receipt active filter"
-              (valueChange)="onActiveFilterChange($event)" />
-            @if (embeddedInAccounting && accountingListMode === 'bills') {
-              <mat-slide-toggle id="toggle-bills-show-paid" [checked]="showPaid" color="primary" (change)="onShowPaidToggleChange($event.checked)" class="whitespace-nowrap">
-                ShowPaid
-              </mat-slide-toggle>
-            }
-            @if (embeddedInAccounting && accountingListMode !== 'receipts') {
+              }
+              <app-three-way-toggle
+                [labels]="activeFilterLabels"
+                [value]="activeFilterIndex"
+                ariaLabel="Receipt active filter"
+                (valueChange)="onActiveFilterChange($event)" />
+              @if (embeddedInAccounting && accountingListMode === 'bills') {
+                <mat-slide-toggle id="toggle-bills-show-paid" [checked]="showPaid" color="primary" (change)="onShowPaidToggleChange($event.checked)" class="whitespace-nowrap">
+                  ShowPaid
+                </mat-slide-toggle>
+              }
+            </div>
+            @if (embeddedInAccounting) {
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+                <img class="double-dollar-icon" src="assets/images/icons/double-dollar.png" alt="" />
                 Apply Payments
               </button>
             }
             @if (showCreditReportButton) {
               <input #creditReportFileInput type="file" hidden accept=".pdf,.csv,.xlsx,.xls,image/*" (change)="onCreditReportFileSelected($event)" />
               <button mat-raised-button type="button" color="accent" id="credit-report-button" class="whitespace-nowrap items-center flex gap-1 flex-shrink-0" (click)="openCreditReport()">
-                <mat-icon>upload</mat-icon>
-                Credit Report
+                <mat-icon>checklist</mat-icon>
+                Match Receipts
               </button>
             }
             @if (isShowingDrafts && selectedCardOwner) {
@@ -149,6 +152,7 @@
             }
             @if (embeddedInAccounting && accountingListMode === 'bills') {
               <button mat-raised-button type="button" color="accent" id="create-bill-report-button" class="whitespace-nowrap items-center flex gap-1" (click)="createBillReport()">
+                <mat-icon>assessment</mat-icon>
                 Bill Report
               </button>
             }

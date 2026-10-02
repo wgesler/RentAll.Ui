@@ -319,14 +319,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get showCreditReportButton(): boolean {
-    if ((this.selectedCardOwner || '').trim()) {
-      return false;
-    }
+    return this.embeddedInAccounting && this.accountingListMode === 'receipts';
+  }
 
-    if (this.embeddedInMaintenance) {
+  get showCardOwnerFilter(): boolean {
+    if (this.shellContext === 'maintenance') {
       return true;
     }
-
     return this.embeddedInAccounting && this.accountingListMode === 'receipts';
   }
 

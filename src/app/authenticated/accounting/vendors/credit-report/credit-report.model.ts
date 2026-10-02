@@ -51,6 +51,7 @@ export interface CreditReportLineDisplay {
   cardOwner: string;
   documentCode: string;
   description: string;
+  receiptMatchDropdown?: { value: string; isOverridable: boolean; options: string[]; toString: () => string };
   isComplete: boolean;
   isDraft: boolean;
   isMissing: boolean;

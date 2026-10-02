@@ -460,8 +460,31 @@
   }
 }
 
+.double-dollar-icon {
+  display: inline-block;
+  width: 1.125rem;
+  height: 1rem;
+  margin-left: -4px;
+  object-fit: fill;
+  vertical-align: middle;
+}
+
+.receipt-list-toggles {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
 .payment-actions-anchor {
   position: relative;
+
+  mat-slide-toggle,
+  app-three-way-toggle {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    vertical-align: middle;
+  }
 }
 
 .payment-dialog-overlay {

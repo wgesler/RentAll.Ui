@@ -54,13 +54,14 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     cardOwner: { displayAs: 'Card Owner', maxWidth: '22ch', wrap: true },
     documentCode: { displayAs: 'Ref', maxWidth: '20ch', sortType: 'natural' },
     description: { displayAs: 'Description', maxWidth: '28ch', wrap: true },
+    receiptMatchDropdown: { displayAs: 'Receipt', wrap: true, maxWidth: '32ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter receipts...' },
     isComplete: { displayAs: 'Complete', maxWidth: '10ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     isDraft: { displayAs: 'Draft', maxWidth: '8ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
-    isMissing: { displayAs: 'Missing', maxWidth: '9ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
-    isUnknown: { displayAs: 'Unknown', maxWidth: '10ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' }
+    isMissing: { displayAs: 'Missing', maxWidth: '9ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' }
   };
 
   reportLines: CreditReportLineDisplay[] = [];
+  openReceipts: CreditReportLineDisplay[] = [];
   proposedDraftLines: CreditReportLineResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   bankCardOptions: Array<{ bankCardId: number; label: string; cardName: string }> = [];
@@ -115,6 +116,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     this.draftsCreated = false;
     this.proposedDraftLines = [];
     this.reportLines = [];
+    this.openReceipts = [];
     this.fileName = fileDetails.fileName || '';
     this.emitCreateDisabled();
     this.receiptService.processCreditReport(organizationId, fileDetails, this.officeId).pipe(take(1)).subscribe({
@@ -136,7 +138,9 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
 
   applyResponse(response: CreditReportResponse): void {
     this.proposedDraftLines = (response.createdDrafts || []).filter(line => !line.receiptDraftId && !line.draftCode);
-    this.reportLines = this.mappingService.mapCreditReportReportLines(response);
+    const lines = this.mappingService.mapCreditReportReportLines(response);
+    this.openReceipts = lines.filter(line => line.isUnknown && !!String(line.receiptId || '').trim());
+    this.reportLines = lines.filter(line => !line.isUnknown);
     this.applyBankCardDropdowns();
     this.warnings = response.warnings || [];
     this.fileName = response.fileName || this.fileName;
@@ -225,10 +229,39 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
         }
       };
     });
+    this.applyReceiptMatchDropdowns();
     this.markViewForCheck();
   }
 
+  applyReceiptMatchDropdowns(): void {
+    const options = this.openReceipts.map(line => this.unknownReceiptLabel(line));
+    this.reportLines = this.reportLines.map(line => {
+      const canMatch = !line.isComplete && !String(line.receiptId || '').trim() && options.length > 0;
+      if (!canMatch) {
+        return { ...line, receiptMatchDropdown: undefined };
+      }
+      return {
+        ...line,
+        receiptMatchDropdown: {
+          value: '',
+          isOverridable: true,
+          options,
+          toString: () => ''
+        }
+      };
+    });
+  }
+
+  unknownReceiptLabel(line: CreditReportLineDisplay): string {
+    const parts = [line.documentCode, line.chargeDate, line.vendor, line.amount].filter(part => !!part && part !== '—');
+    return parts.join(' · ') || String(line.receiptId || '');
+  }
+
   onCardDropdownChange(event: CreditReportLineDisplay & { __changedDropdownColumn?: string }): void {
+    if (event.__changedDropdownColumn === 'receiptMatchDropdown') {
+      this.matchUnknownReceipt(event);
+      return;
+    }
     if (event.__changedDropdownColumn !== 'bankCardDropdown') {
       return;
     }
@@ -256,6 +289,51 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     if (receiptId) {
       this.persistReceiptCard(receiptId, selected.bankCardId);
     }
+  }
+
+  matchUnknownReceipt(line: CreditReportLineDisplay): void {
+    const selectedLabel = String(line.receiptMatchDropdown?.value || '').trim();
+    if (!selectedLabel) {
+      return;
+    }
+
+    const unknownLine = this.openReceipts.find(item => this.unknownReceiptLabel(item) === selectedLabel);
+    if (!unknownLine) {
+      return;
+    }
+
+    const receiptId = String(unknownLine.receiptId || '').trim();
+    const receiptCode = (unknownLine.sourceLine?.receiptCode || '').trim() || (unknownLine.documentCode !== '—' ? unknownLine.documentCode : '');
+    const sourceLine = line.sourceLine;
+    if (sourceLine) {
+      sourceLine.receiptId = receiptId;
+      sourceLine.receiptCode = receiptCode || sourceLine.receiptCode;
+      if (unknownLine.description) {
+        sourceLine.description = unknownLine.description;
+      }
+    }
+    this.proposedDraftLines = this.proposedDraftLines.filter(item => item !== sourceLine);
+    this.openReceipts = this.openReceipts.filter(item => item.lineKey !== unknownLine.lineKey);
+    this.reportLines = this.reportLines.map(item => {
+        if (item.lineKey !== line.lineKey) {
+          return item;
+        }
+        return {
+          ...item,
+          receiptId,
+          documentCode: receiptCode || item.documentCode,
+          workOrderDisplay: unknownLine.workOrderDisplay && unknownLine.workOrderDisplay !== '—' ? unknownLine.workOrderDisplay : item.workOrderDisplay,
+          description: unknownLine.description || item.description,
+          isComplete: true,
+          isDraft: false,
+          isMissing: false,
+          receiptMatchDropdown: undefined
+        };
+      });
+    this.applyBankCardDropdowns();
+    this.emitCreateDisabled();
+    this.toastr.success('Receipt matched.', CommonMessage.Success);
+    this.markViewForCheck();
   }
 
   persistDraftCard(receiptDraftId: string, bankCardId: number): void {
@@ -408,6 +486,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   removeLineFromReport(line: CreditReportLineDisplay): void {
     this.reportLines = this.reportLines.filter(item => item.lineKey !== line.lineKey);
     this.proposedDraftLines = this.proposedDraftLines.filter(item => item !== line.sourceLine);
+    this.applyReceiptMatchDropdowns();
     this.emitCreateDisabled();
     this.markViewForCheck();
   }
@@ -439,8 +518,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     const completeCount = this.reportLines.filter(line => line.isComplete).length;
     const draftCount = this.reportLines.filter(line => line.isDraft).length;
     const missingCount = this.reportLines.filter(line => line.isMissing).length;
-    const unknownCount = this.reportLines.filter(line => line.isUnknown).length;
-    return `${completeCount} complete · ${draftCount} draft · ${missingCount} missing · ${unknownCount} unknown`;
+    return `${completeCount} complete · ${draftCount} draft · ${missingCount} missing`;
   }
 
   get isCreateDraftsDisabled(): boolean {
