@@ -67,6 +67,17 @@
             <div class="property-tab-actions-band" [class.reservation-inline-actions]="!shellMode">
               <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
                 <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    color="primary"
+                    class="reservation-property-btn flex-shrink-0"
+                    [disabled]="!sharedPropertyId"
+                    matTooltip="Property"
+                    aria-label="Open property"
+                    (click)="openProperty()">
+                    <mat-icon>home</mat-icon>
+                  </button>
                   @if (!isAddMode) {
                     <button mat-raised-button type="button" color="accent" id="delete-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting" (click)="deleteReservation()">
                       <mat-icon>delete</mat-icon>

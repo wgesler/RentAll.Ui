@@ -502,6 +502,15 @@ applyOfficeFromGlobal(officeId: number | null): void {
       this.router.navigateByUrl(RouterUrl.ReservationBoard);
       return;
     }
+    if (returnTo === 'reservation') {
+      const reservationId = this.route.snapshot.queryParamMap.get('reservationId')?.trim();
+      if (reservationId) {
+        void this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])]);
+        return;
+      }
+      this.router.navigateByUrl(RouterUrl.ReservationList);
+      return;
+    }
     if (returnTo === 'maintenance-list') {
       this.router.navigateByUrl(RouterUrl.MaintenanceList);
       return;

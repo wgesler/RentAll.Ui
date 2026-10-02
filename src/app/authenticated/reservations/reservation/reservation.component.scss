@@ -1,3 +1,14 @@
+.reservation-property-btn {
+  align-self: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+
+  &:not(:disabled) {
+    color: var(--mat-sys-primary, #1976d2);
+  }
+}
+
 // Reservation styles
 .shell-tabs {
   ::ng-deep {

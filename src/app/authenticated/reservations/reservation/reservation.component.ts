@@ -4282,6 +4282,20 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     });
   }
 
+  openProperty(): void {
+    const propertyId = String(this.sharedPropertyId ?? '').trim();
+    if (!propertyId) {
+      return;
+    }
+    const queryParams: Record<string, string> = {};
+    const reservationId = String(this.reservationId ?? '').trim();
+    if (!this.isAddMode && reservationId && reservationId !== 'new') {
+      queryParams['returnTo'] = 'reservation';
+      queryParams['reservationId'] = reservationId;
+    }
+    void this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])], { queryParams });
+  }
+
   openAddAlertDialog(): void {
     const dialogData: AddAlertDialogData = {
       officeId: this.sharedOfficeId,
