@@ -74,6 +74,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() creditReportClick = new EventEmitter<FileDetails>();
+  @Output() createReport = new EventEmitter<string[]>();
   private receiptService = inject(ReceiptService);
   private receiptDraftService = inject(ReceiptDraftService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
@@ -3136,6 +3137,20 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   onApplyAmountEnter(_receipt: ReceiptDisplayList, event: Event): void {
     const input = event.target as HTMLInputElement;
     input.blur();
+  }
+
+  createBillReport(): void {
+    const selectedIds = Array.from(this.selectedBillReceiptIds);
+    const receiptIds = selectedIds.length > 0
+      ? selectedIds
+      : this.receiptsDisplay
+        .map(row => String(row.receiptId || '').trim())
+        .filter(receiptId => receiptId.length > 0);
+    if (receiptIds.length === 0) {
+      this.toastr.warning('There are no bills to include.', CommonMessage.Error);
+      return;
+    }
+    this.createReport.emit(receiptIds);
   }
 
   onBillSelectionSet(selection: SelectionModel<unknown>): void {

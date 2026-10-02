@@ -76,6 +76,7 @@ import { RentRollComponent } from '../vendors/rent-roll/rent-roll.component';
 import { OwnerReportComponent, clearOwnerReportKindCache } from '../owners/owner-report/owner-report.component';
 import { OwnerStatementCreateComponent } from '../owners/owner-statement-create/owner-statement-create.component';
 import { OwnerStatementListComponent } from '../owners/owner-statement-list/owner-statement-list.component';
+import { BillReportComponent } from '../vendors/bill-report/bill-report.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellInvoiceKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../general-ledger/journal-entry-recap/journal-entry-recap.component';
 import { ReconcileComponent } from '../bank/reconcile/reconcile.component';
@@ -187,6 +188,7 @@ interface AccountingShellNavigationState {
     OwnerReportComponent,
     OwnerStatementCreateComponent,
     OwnerStatementListComponent,
+    BillReportComponent,
     OwnerReportDetailsComponent,
     TitleBarSelectComponent
 ],
@@ -338,6 +340,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   receiptsRefreshTrigger = 0;
   rentRollRefreshTrigger = 0;
   showBillsReceiptDetail = false;
+  showBillsReport = false;
+  billsReportReceiptIds: string[] = [];
   selectedBillsReceiptId: string | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
   billsReceiptPrefill: ReceiptPrefill | null = null;
@@ -1343,6 +1347,8 @@ hydrateSelectedInvoiceForActiveId(): void {
       this.clearRentRollCreateQueue();
     }
     this.showBillsReceiptDetail = false;
+    this.showBillsReport = false;
+    this.billsReportReceiptIds = [];
     this.selectedBillsReceiptId = null;
     this.billsReceiptProperty = null;
     this.billsReceiptPrefill = null;
@@ -1356,6 +1362,23 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.clearBillsReceiptsWorkOrderReturnContext();
     this.syncBillsSearchRequest();
     this.refreshActiveBillsReceiptList();
+  }
+
+  onBillsReportCreate(receiptIds: string[]): void {
+    const ids = (receiptIds || []).map(id => String(id || '').trim()).filter(id => id.length > 0);
+    if (ids.length === 0) {
+      return;
+    }
+    this.showBillsReceiptDetail = false;
+    this.billsReportReceiptIds = ids;
+    this.showBillsReport = true;
+    this.cdr.markForCheck();
+  }
+
+  onBillsReportBack(): void {
+    this.showBillsReport = false;
+    this.billsReportReceiptIds = [];
+    this.cdr.markForCheck();
   }
 
   onBillsReceiptSaved(): void {

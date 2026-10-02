@@ -10,6 +10,7 @@ export interface EmailHtmlResponse {
   ownerStatement: string;
   schedules: string;
   missingReceipts: string;
+  billReport: string;
   letterSubject: string;
   departureSubject: string;
   leaseSubject: string;
@@ -17,6 +18,7 @@ export interface EmailHtmlResponse {
   ownerStatementSubject: string;
   scheduleSubject: string;
   missingReceiptsSubject: string;
+  billReportSubject: string;
   createdOn: string;
   modifiedOn?: string;
 }

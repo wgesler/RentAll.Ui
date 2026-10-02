@@ -1436,6 +1436,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       ownerStatement: emailHtml?.ownerStatement ?? '',
       schedules: emailHtml?.schedules ?? '',
       missingReceipts: emailHtml?.missingReceipts ?? '',
+      billReport: emailHtml?.billReport ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
       departureSubject: emailHtml?.departureSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
@@ -1443,6 +1444,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       ownerStatementSubject: emailHtml?.ownerStatementSubject ?? '',
       scheduleSubject: emailHtml?.scheduleSubject ?? '',
       missingReceiptsSubject: emailHtml?.missingReceiptsSubject ?? '',
+      billReportSubject: emailHtml?.billReportSubject ?? '',
       createdOn: emailHtml?.createdOn ?? '',
       modifiedOn: emailHtml?.modifiedOn
     };

@@ -147,6 +147,11 @@
                 Email
               </button>
             }
+            @if (embeddedInAccounting && accountingListMode === 'bills') {
+              <button mat-raised-button type="button" color="accent" id="create-bill-report-button" class="whitespace-nowrap items-center flex gap-1" (click)="createBillReport()">
+                Bill Report
+              </button>
+            }
             <button mat-raised-button type="button" color="primary" id="add-receipt-button" class="text-nowrap flex-shrink-0" (click)="addReceipt()">
               <mat-icon>add</mat-icon>
               Add
