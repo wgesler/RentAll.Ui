@@ -253,8 +253,9 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   unknownReceiptLabel(line: CreditReportLineDisplay): string {
-    const parts = [line.documentCode, line.chargeDate, line.vendor, line.amount].filter(part => !!part && part !== '—');
-    return parts.join(' · ') || String(line.receiptId || '');
+    const date = (line.chargeDate || '').trim().replace(/\/\d{4}$/, '');
+    const parts = [date, line.vendor, line.amount].filter(part => !!part && part !== '—');
+    return parts.join(' · ');
   }
 
   onCardDropdownChange(event: CreditReportLineDisplay & { __changedDropdownColumn?: string }): void {
