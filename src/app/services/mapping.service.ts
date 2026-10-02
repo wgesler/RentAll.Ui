@@ -11159,6 +11159,7 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
       title: String(line?.title || '').trim(),
       vendorId: String(line?.vendorId || '').trim() || null,
       vendorName: String(line?.vendorName || '').trim(),
+      bankCardId: Number(line?.bankCardId) > 0 ? Number(line.bankCardId) : null,
       terms: String(line?.terms || '').trim(),
       chartOfAccountId: Number.isFinite(Number(line?.chartOfAccountId)) && Number(line?.chartOfAccountId) > 0
         ? Number(line?.chartOfAccountId)

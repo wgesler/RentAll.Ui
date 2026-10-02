@@ -21,11 +21,15 @@
 }
 
 .rent-roll-edit-line-row--meta {
-  grid-template-columns: 1fr 0.85fr 0.95fr 1.6fr 1.6fr;
+  grid-template-columns: 0.85fr 0.8fr 1.7fr 1.7fr;
 }
 
 .rent-roll-edit-line-row--values {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: 0.9fr 1.8fr 1fr 1fr;
+}
+
+.rent-roll-edit-line-row--amounts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .rent-roll-edit-line-row--extra {

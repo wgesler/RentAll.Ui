@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { take } from 'rxjs';
@@ -12,6 +12,10 @@ import { EntityType, TermType, getTermType } from '../../../contacts/models/cont
 import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
+import { BankCardResponse } from '../../../organizations/models/bank.model';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { MappingService } from '../../../../services/mapping.service';
 import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyCodeResponse } from '../../../properties/models/property.model';
 import { NewContactDialogService } from '../../../shared/contacts/new-contact-dialog.service';
@@ -24,6 +28,7 @@ export interface RentRollEditLineDialogData {
   officeId: number | null;
   vendorId: string | null;
   vendorName: string;
+  bankCardId: number | null;
   terms: string;
   chartOfAccountId: number | null;
   startDate: string | null;
@@ -41,6 +46,7 @@ export interface RentRollEditLineDialogResult {
   propertyId: string | null;
   vendorId: string | null;
   vendorName: string;
+  bankCardId: number | null;
   terms: string;
   chartOfAccountId: number | null;
   startDate: string | null;
@@ -69,18 +75,23 @@ export class RentRollEditLineDialogComponent {
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
   private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private mappingService = inject(MappingService);
+  private cdr = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
   private newContactDialogService = inject(NewContactDialogService);
 
   form: FormGroup;
   officeOptions: SearchableSelectOption<number>[] = [];
   vendorOptions: SearchableSelectOption<string>[] = [];
+  bankCardOptions: SearchableSelectOption<number>[] = [{ value: 0, label: 'Bill' }];
   propertyOptions: SearchableSelectOption<string>[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
   readonly defaultTerms = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
   private vendorById = new Map<string, ContactResponse>();
   private propertyOfficeById = new Map<string, number>();
   private allPropertyCodes: PropertyCodeResponse[] = [];
+  private bankCardLoadId = 0;
 
   constructor() {
     const data = this.data;
@@ -90,6 +101,7 @@ export class RentRollEditLineDialogComponent {
       propertyId: [this.normalizeOptionalText(data.propertyId)],
       vendorId: [(data.vendorId || '').trim()],
       vendorName: [data.vendorName || ''],
+      bankCardId: [Number(data.bankCardId) > 0 ? Number(data.bankCardId) : 0],
       terms: [{ value: data.terms || this.defaultTerms, disabled: true }],
       chartOfAccountId: [data.chartOfAccountId ?? null],
       startDate: [this.toDateControlValue(data.startDate)],
@@ -105,10 +117,16 @@ export class RentRollEditLineDialogComponent {
       this.form.get('propertyId')?.setValidators([Validators.required]);
       this.form.get('propertyId')?.updateValueAndValidity({ emitEvent: false });
     }
+    this.updateVendorValidators();
     this.loadOfficeOptions();
     this.loadPropertyOptions();
     this.loadVendorOptions();
+    this.loadBankCardOptions();
     this.loadChartOfAccountOptions();
+  }
+
+  get showVendorNameField(): boolean {
+    return Number(this.form.get('bankCardId')?.value ?? 0) > 0;
   }
 
   onCancel(): void {
@@ -125,8 +143,9 @@ export class RentRollEditLineDialogComponent {
     this.dialogRef.close({
       officeId: this.parseNullablePositiveInteger(value.officeId),
       propertyId: this.normalizeOptionalText(value.propertyId),
-      vendorId: this.normalizeOptionalText(value.vendorId),
+      vendorId: this.showVendorNameField ? null : this.normalizeOptionalText(value.vendorId),
       vendorName: (value.vendorName || '').toString().trim(),
+      bankCardId: this.showVendorNameField ? Number(value.bankCardId) : null,
       terms: (this.form.get('terms')?.value || '').toString().trim(),
       chartOfAccountId: this.parseNullablePositiveInteger(value.chartOfAccountId),
       startDate: this.toDateOnlyString(value.startDate),
@@ -231,13 +250,112 @@ export class RentRollEditLineDialogComponent {
           : this.form.get('propertyId')?.value,
         vendorId: null,
         vendorName: '',
+        bankCardId: 0,
         chartOfAccountId: null
       }, { emitEvent: false });
       this.form.get('terms')?.setValue(this.defaultTerms, { emitEvent: false });
     }
     this.applyPropertyOptions();
     this.loadVendorOptions();
+    this.loadBankCardOptions();
     this.loadChartOfAccountOptions();
+    this.updateVendorValidators();
+  }
+
+  onBankCardChange(value: string | number | null): void {
+    const bankCardId = Number(value ?? 0);
+    const isCard = Number.isFinite(bankCardId) && bankCardId > 0;
+    this.form.patchValue({
+      bankCardId: isCard ? Math.trunc(bankCardId) : 0,
+      vendorId: null,
+      vendorName: isCard ? (this.form.get('vendorName')?.value || '') : ''
+    }, { emitEvent: false });
+    if (!isCard) {
+      this.form.get('terms')?.setValue(this.defaultTerms, { emitEvent: false });
+    }
+    this.updateVendorValidators();
+  }
+
+  updateVendorValidators(): void {
+    const vendorName = this.form.get('vendorName');
+    if (this.showVendorNameField) {
+      vendorName?.setValidators([Validators.required]);
+    } else {
+      vendorName?.clearValidators();
+    }
+    vendorName?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  loadBankCardOptions(): void {
+    const officeId = this.selectedOfficeId();
+    const loadId = ++this.bankCardLoadId;
+    if (!officeId) {
+      this.setBankCardOptions([]);
+      return;
+    }
+
+    const cached = this.accountingOfficeService.getAllAccountingOfficesValue();
+    if (cached.length > 0) {
+      this.applyBankCardOptions(cached, officeId);
+    }
+
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe(offices => {
+      if (loadId !== this.bankCardLoadId) {
+        return;
+      }
+      const list = offices || [];
+      this.applyBankCardOptions(list, officeId);
+      if (this.bankCardOptions.length > 1) {
+        return;
+      }
+      this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1)).subscribe({
+        next: office => {
+          if (loadId !== this.bankCardLoadId) {
+            return;
+          }
+          const detailCards = this.toBankCardSelectOptions(office?.bankCards);
+          if (detailCards.length > 0) {
+            this.setBankCardOptions(detailCards);
+          }
+        }
+      });
+    });
+  }
+
+  applyBankCardOptions(offices: AccountingOfficeResponse[], officeId: number): void {
+    const office = offices.find(item => Number(item.officeId) === officeId) ?? null;
+    const officeCards = this.toBankCardSelectOptions(office?.bankCards);
+    const cards = officeCards.length > 0
+      ? officeCards
+      : this.toBankCardSelectOptions(offices.flatMap(item => item.bankCards || []));
+    this.setBankCardOptions(cards);
+  }
+
+  toBankCardSelectOptions(cards: BankCardResponse[] | null | undefined): SearchableSelectOption<number>[] {
+    const seen = new Set<number>();
+    return this.mappingService.mapBankCardsFromResponse(cards)
+      .filter(card => Number(card.bankCardId) > 0)
+      .map(card => ({
+        value: Number(card.bankCardId),
+        label: (card.displayName || '').trim() || (card.cardName || '').trim()
+      }))
+      .filter(option => {
+        if (!option.label || seen.has(option.value)) {
+          return false;
+        }
+        seen.add(option.value);
+        return true;
+      })
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }
+
+  setBankCardOptions(cards: SearchableSelectOption<number>[]): void {
+    this.bankCardOptions = [{ value: 0, label: 'Bill' }, ...cards];
+    const current = Number(this.form.get('bankCardId')?.value ?? 0);
+    if (current > 0 && !this.bankCardOptions.some(option => option.value === current)) {
+      this.onBankCardChange(0);
+    }
+    this.cdr.markForCheck();
   }
 
   applyOfficeFromSelectedProperty(): void {
@@ -259,6 +377,7 @@ export class RentRollEditLineDialogComponent {
     this.form.patchValue({ officeId: propertyOfficeId }, { emitEvent: false });
     this.applyPropertyOptions();
     this.loadVendorOptions();
+    this.loadBankCardOptions();
     this.loadChartOfAccountOptions();
   }
 

@@ -9,6 +9,7 @@ export interface RentRollRow {
   title: string;
   vendorId: string | null;
   vendorName: string;
+  bankCardId: number | null;
   terms: string;
   chartOfAccountId: number | null;
   startDate: string | null;

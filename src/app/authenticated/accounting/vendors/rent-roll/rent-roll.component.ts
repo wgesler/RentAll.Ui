@@ -375,6 +375,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
         officeId: row.officeId,
         vendorId: row.vendorId,
         vendorName: row.vendorName,
+        bankCardId: row.bankCardId,
         terms: row.terms,
         chartOfAccountId: row.chartOfAccountId,
         startDate: row.startDate,
@@ -394,6 +395,8 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       }
       this.updateAgreementLine(row, {
         vendorId: result.vendorId,
+        vendorName: result.vendorName,
+        bankCardId: result.bankCardId,
         chartOfAccountId: result.chartOfAccountId,
         startDate: result.startDate,
         endDate: result.endDate,
@@ -502,6 +505,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
         officeId: row?.officeId ?? this.officeId ?? null,
         vendorId: null,
         vendorName: '',
+        bankCardId: null,
         terms: 'Due on receipt',
         chartOfAccountId: null,
         startDate: null,
@@ -540,6 +544,8 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       officeId: result.officeId ?? null,
       title: null,
       vendorId: result.vendorId ?? null,
+      vendorName: result.vendorName || null,
+      bankCardId: result.bankCardId ?? null,
       chartOfAccountId: result.chartOfAccountId ?? null,
       startDate: result.startDate ?? null,
       endDate: result.endDate ?? null,

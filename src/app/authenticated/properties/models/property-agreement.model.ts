@@ -7,6 +7,8 @@ export interface PropertyAgreementLineRequest {
   officeId?: number | null;
   title?: string | null;
   vendorId?: string | null;
+  vendorName?: string | null;
+  bankCardId?: number | null;
   chartOfAccountId?: number | null;
   startDate?: CalendarDateString | null;
   endDate?: CalendarDateString | null;
@@ -24,6 +26,7 @@ export interface PropertyAgreementLineResponse {
   title?: string | null;
   vendorId?: string | null;
   vendorName?: string | null;
+  bankCardId?: number | null;
   termsId?: number | null;
   terms?: string | null;
   chartOfAccountId?: number | null;
@@ -42,6 +45,7 @@ export interface AgreementLineDisplay {
   title: string | null;
   vendorId: string | null;
   vendorName: string;
+  bankCardId: number | null;
   terms: string;
   chartOfAccountId: number | null;
   startDate: Date | null;
