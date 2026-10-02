@@ -1118,10 +1118,10 @@
                         [officeId]="selectedOfficeId"
                         [shellContext]="'accounting'"
                         [preferReceiptModeOnAdd]="true"
-                        [autoSaveAttemptToken]="0"
                         (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                         (backEvent)="onCreditReportEditorBack()"
-                        (savedEvent)="onCreditReportEditorBack()" />
+                        (savedEvent)="onCreditReportEditorBack()"
+                        (savedAndNewEvent)="onCreditReportReceiptSavedAndNew()" />
                     }
                   } @else if (creditReportDraftId || creditReportDraftPrefill) {
                     @for (instance of [creditReportEditorInstance]; track instance) {
@@ -1130,6 +1130,8 @@
                         [receiptDraftId]="creditReportDraftId"
                         [officeId]="selectedOfficeId"
                         [prefill]="creditReportDraftPrefill"
+                        [shellContext]="'accounting'"
+                        [preferReceiptModeOnAdd]="true"
                         (backEvent)="onCreditReportEditorBack()"
                         (draftSavedEvent)="onCreditReportDraftSaved($event)" />
                     }

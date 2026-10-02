@@ -99,7 +99,9 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
 
   override ngOnInit(): void {
     this.receiptId = 'new';
-    this.shellContext = 'maintenance';
+    if (this.shellContext !== 'accounting') {
+      this.shellContext = 'maintenance';
+    }
     this.autoBackOnSave = false;
     this.showInlineSaveButtons = true;
     this.openedExistingReceiptDraft = this.isEditDraftMode;

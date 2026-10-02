@@ -57,7 +57,8 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     receiptMatchDropdown: { displayAs: 'Receipt', wrap: true, maxWidth: '32ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter receipts...' },
     isComplete: { displayAs: 'Complete', maxWidth: '10ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
     isDraft: { displayAs: 'Draft', maxWidth: '8ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
-    isMissing: { displayAs: 'Missing', maxWidth: '9ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' }
+    isMissing: { displayAs: 'Missing', maxWidth: '9ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
+    isUnknown: { displayAs: 'Unknown', maxWidth: '10ch', isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' }
   };
 
   reportLines: CreditReportLineDisplay[] = [];
@@ -140,7 +141,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     this.proposedDraftLines = (response.createdDrafts || []).filter(line => !line.receiptDraftId && !line.draftCode);
     const lines = this.mappingService.mapCreditReportReportLines(response);
     this.openReceipts = lines.filter(line => line.isUnknown && !!String(line.receiptId || '').trim());
-    this.reportLines = lines.filter(line => !line.isUnknown);
+    this.reportLines = lines;
     this.applyBankCardDropdowns();
     this.warnings = response.warnings || [];
     this.fileName = response.fileName || this.fileName;
@@ -165,9 +166,11 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     this.receiptService.createCreditReportDrafts(organizationId, this.proposedDraftLines, this.officeId).pipe(take(1)).subscribe({
       next: (response) => {
         this.proposedDraftLines = response.createdDrafts || [];
+        const unknownLines = this.reportLines.filter(line => line.isUnknown);
         this.reportLines = [
-          ...this.reportLines.filter(line => !line.isMissing),
-          ...this.mappingService.mapCreditReportLines(this.proposedDraftLines, 'draft')
+          ...this.reportLines.filter(line => !line.isMissing && !line.isUnknown),
+          ...this.mappingService.mapCreditReportLines(this.proposedDraftLines, 'draft'),
+          ...unknownLines
         ];
         this.applyBankCardDropdowns();
         this.draftsCreated = true;
@@ -315,7 +318,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.proposedDraftLines = this.proposedDraftLines.filter(item => item !== sourceLine);
     this.openReceipts = this.openReceipts.filter(item => item.lineKey !== unknownLine.lineKey);
-    this.reportLines = this.reportLines.map(item => {
+    this.reportLines = this.reportLines.filter(item => item.lineKey !== unknownLine.lineKey).map(item => {
         if (item.lineKey !== line.lineKey) {
           return item;
         }
@@ -519,7 +522,8 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     const completeCount = this.reportLines.filter(line => line.isComplete).length;
     const draftCount = this.reportLines.filter(line => line.isDraft).length;
     const missingCount = this.reportLines.filter(line => line.isMissing).length;
-    return `${completeCount} complete · ${draftCount} draft · ${missingCount} missing`;
+    const unknownCount = this.reportLines.filter(line => line.isUnknown).length;
+    return `${completeCount} complete · ${draftCount} draft · ${missingCount} missing · ${unknownCount} unknown`;
   }
 
   get isCreateDraftsDisabled(): boolean {

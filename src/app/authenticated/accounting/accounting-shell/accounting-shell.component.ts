@@ -1934,6 +1934,13 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.creditReportEditingLineKey = null;
   }
 
+  onCreditReportReceiptSavedAndNew(): void {
+    this.creditReportDraftId = null;
+    this.creditReportDraftPrefill = null;
+    this.creditReportReceiptId = 'new';
+    this.creditReportEditorInstance++;
+  }
+
   onCreditReportDraftSaved(draftId: string): void {
     const lineKey = this.creditReportEditingLineKey;
     const savedDraftId = String(draftId || '').trim();
