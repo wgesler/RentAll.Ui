@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
@@ -33,6 +34,8 @@ import { BankCardResponse } from '../../organizations/models/bank.model';
 import { WorkOrderService } from '../services/work-order.service';
 import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { MappingService } from '../../../services/mapping.service';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-overlay/receipt-reading-overlay.component';
 
@@ -78,6 +81,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
   private router = inject(Router);
+  dialog = inject(MatDialog);
   private journalEntryService = inject(JournalEntryService);
 
   fb: FormBuilder;
@@ -857,6 +861,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.applyAgreementLineOverrides();
     this.receiptOfficeInitialized = true;
     this.populateForm(receipt);
+    this.promptMissingReferralVendor(receipt);
     this.syncSelectedPropertyIdFromForm();
     this.syncBankCardOptionsForCurrentContext();
     this.loadSplitAccountsForCurrentOffice();
@@ -2745,6 +2750,52 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Vendor Methods
+  promptMissingReferralVendor(receipt: ReceiptResponse): void {
+    const bankCardId = Number(receipt.bankCardId ?? 0);
+    if (bankCardId > 0) {
+      return;
+    }
+    const description = (receipt.description || '').trim();
+    if (!description.startsWith('Referral Fee')) {
+      return;
+    }
+    const vendorId = (receipt.vendorId || '').trim().toLowerCase();
+    if (!vendorId) {
+      return;
+    }
+    const cachedVendor = this.contactService.getAllContactsValue().find(contact => String(contact.contactId || '').trim().toLowerCase() === vendorId);
+    if (cachedVendor) {
+      if (this.isAutoCreatedReferralVendor(cachedVendor)) {
+        this.showAutoCreatedReferralVendorDialog();
+      }
+      return;
+    }
+    this.contactService.refreshContacts().pipe(take(1)).subscribe(contacts => {
+      const vendor = (contacts || []).find(contact => String(contact.contactId || '').trim().toLowerCase() === vendorId);
+      if (vendor && this.isAutoCreatedReferralVendor(vendor)) {
+        this.showAutoCreatedReferralVendorDialog();
+      }
+    });
+  }
+
+  isAutoCreatedReferralVendor(vendor: ContactResponse): boolean {
+    return (vendor.notes || '').includes('Created automatically from the company contact for referral billing.');
+  }
+
+  showAutoCreatedReferralVendorDialog(): void {
+    const dialogData: GenericModalData = {
+      title: 'Vendor Not Found',
+      message: 'A corresponding vendor for this bill was not found. One was created automatically and should be confirmed for accuracy.',
+      icon: 'warning',
+      iconColor: 'warn',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef) => dialogRef.close(),
+      useHTML: false
+    };
+    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' });
+  }
+
   get vendorContactsForOffice(): ContactResponse[] {
     if (this.isAllOfficesShellScope()) {
       return this.contactService

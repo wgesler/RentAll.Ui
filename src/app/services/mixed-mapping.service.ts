@@ -806,6 +806,7 @@ export class MixedMappingService {
       createdBy: _createdBy,
       modifiedOn: _modifiedOn,
       modifiedBy: _modifiedBy,
+      currentReservationId: _currentReservationId,
       ...requestBase
     } = property as PropertyResponse & {
       createdOn?: unknown;
@@ -818,6 +819,7 @@ export class MixedMappingService {
     void _createdBy;
     void _modifiedOn;
     void _modifiedBy;
+    void _currentReservationId;
     const base = {
       ...requestBase,
       parkingNotes: parkingNotes ?? null,

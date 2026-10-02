@@ -34,8 +34,6 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { NoticeStatusType, getNoticeStatusTypes, getReservationNotices } from '../../reservations/models/reservation-enum';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
-import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
@@ -94,7 +92,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() ownerShellContextChanged = new EventEmitter<void>();
   propertyService = inject(PropertyService);
-  private reservationService = inject(ReservationService);
   private router = inject(Router);
   fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
@@ -392,6 +389,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         }
         this.isServiceError = false;
         this.property = response;
+        this.applyCurrentReservationId(response.currentReservationId);
         this.populateForm();
         this.applyExternalPartnerPropertyReadOnlyState();
         this.filterLocationLookupsByOffice();
@@ -560,6 +558,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
             }
             this.toastr.success('Property saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
             this.property = response;
+            this.applyCurrentReservationId(response.currentReservationId);
             this.propertyId = response.propertyId;
             this.isAddMode = false;
             this.populateForm();
@@ -591,6 +590,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         next: ({ response, ok }) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
+          this.applyCurrentReservationId(response.currentReservationId);
           this.populateForm();
           this.captureSavedStateSignature();
           this.welcomeLetterReloadService.triggerReload();
@@ -622,6 +622,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           }
           this.toastr.success('Property saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
+          this.applyCurrentReservationId(response.currentReservationId);
           this.propertyId = response.propertyId;
           this.isAddMode = false;
           this.populateForm();
@@ -662,6 +663,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         next: (response) => {
           this.toastr.success('Property created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
+          this.applyCurrentReservationId(response.currentReservationId);
           this.propertyId = response.propertyId;
           this.isAddMode = false;
           this.populateForm();
@@ -1007,6 +1009,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       formData.monthlyRate = this.property.monthlyRate !== null && this.property.monthlyRate !== undefined ? this.property.monthlyRate.toFixed(2) : '0.00';
       delete formData.externalCalendars;
       delete formData.externalCalendar;
+      delete formData.currentReservationId;
       this.externalCalendars = this.mappingService.mapPropertyICalsFromResponse(this.property.externalCalendars).map(url => ({ url }));
       formData.departureFee = this.property.departureFee !== null && this.property.departureFee !== undefined ? this.property.departureFee.toFixed(2) : '0.00';
       formData.maidServiceFee = this.property.maidServiceFee !== null && this.property.maidServiceFee !== undefined ? this.property.maidServiceFee.toFixed(2) : '0.00';
@@ -2057,58 +2060,10 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
   //#endregion
 
   //#region Data Loading Methods
-  loadCurrentReservation(): void {
-    const propertyId = String(this.propertyId ?? '').trim();
-    if (!propertyId || propertyId === 'new') {
-      this.currentReservationId = null;
-      this.markViewForCheck();
-      return;
-    }
-    this.reservationService.getActiveReservationsByPropertyId(propertyId).pipe(take(1)).subscribe({
-      next: (reservations) => {
-        const currentPropertyId = String(this.propertyId ?? '').trim();
-        if (currentPropertyId !== propertyId) {
-          return;
-        }
-        this.currentReservationId = this.findCurrentReservationId(reservations || []);
-        this.markViewForCheck();
-      },
-      error: () => {
-        const currentPropertyId = String(this.propertyId ?? '').trim();
-        if (currentPropertyId !== propertyId) {
-          return;
-        }
-        this.currentReservationId = null;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  findCurrentReservationId(reservations: ReservationListResponse[]): string | null {
-    const todayOrdinal = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.todayAsCalendarDateString());
-    if (todayOrdinal == null) {
-      return null;
-    }
-    let selectedId: string | null = null;
-    let selectedDeparture = -1;
-    for (const reservation of reservations) {
-      if (reservation.isActive === false) {
-        continue;
-      }
-      const arrivalOrdinal = this.utilityService.parseCalendarDateToOrdinal(reservation.arrivalDate);
-      const departureOrdinal = this.utilityService.parseCalendarDateToOrdinal(reservation.departureDate);
-      if (arrivalOrdinal == null || departureOrdinal == null) {
-        continue;
-      }
-      if (todayOrdinal < arrivalOrdinal || todayOrdinal > departureOrdinal) {
-        continue;
-      }
-      if (!selectedId || departureOrdinal > selectedDeparture) {
-        selectedDeparture = departureOrdinal;
-        selectedId = reservation.reservationId;
-      }
-    }
-    return selectedId;
+  applyCurrentReservationId(reservationId: string | null | undefined): void {
+    const id = String(reservationId ?? '').trim();
+    this.currentReservationId = !id || id === '00000000-0000-0000-0000-000000000000' ? null : id;
+    this.markViewForCheck();
   }
 
   openCurrentReservation(): void {
@@ -2568,12 +2523,11 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     this.applyPartnerVendorControlState();
     this.applyAddModeOfficeValidators();
 
+    this.currentReservationId = null;
     if (!this.isAddMode) {
       this.appliedCopyFromPropertyId = null;
       this.getProperty();
-      this.loadCurrentReservation();
     } else {
-      this.currentReservationId = null;
       this.setAddModeDefaults();
       this.tryApplyCopyFromProperty();
     }

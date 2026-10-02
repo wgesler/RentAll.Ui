@@ -157,6 +157,7 @@ export interface PropertyResponse {
   owner2Id?: string | null;
   owner3Id?: string | null;
   vendorId?: string| null;
+  currentReservationId?: string | null;
   isActive: boolean;
    
   // Availability section

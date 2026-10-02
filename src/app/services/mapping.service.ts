@@ -3156,8 +3156,12 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     const notes = raw['notes'] ?? raw['Notes'];
     const externalCalendars = raw['externalCalendars'] ?? raw['ExternalCalendars'] ?? raw['externalCalendar'] ?? raw['ExternalCalendar'];
     const confirmationNo = raw['confirmationNo'] ?? raw['ConfirmationNo'];
+    const currentReservationRaw = raw['currentReservationId'] ?? raw['CurrentReservationId'];
+    const currentReservationId = String(currentReservationRaw ?? '').trim();
+    const resolvedCurrentReservationId = !currentReservationId || currentReservationId === '00000000-0000-0000-0000-000000000000' ? null : currentReservationId;
     return {
       ...rest,
+      currentReservationId: resolvedCurrentReservationId,
       propertyLeaseTypeId: Number(leaseTypeId ?? 0),
       noticeStatusId: Number(noticeStatusId ?? 0),
       noticeToVacateId: Number(noticeToVacateId ?? 0),
