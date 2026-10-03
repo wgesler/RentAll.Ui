@@ -10,6 +10,9 @@ export interface CreditReportLineResponse {
   chargeDate?: string | null;
   amount: number;
   vendorName?: string | null;
+  statementVendorName?: string | null;
+  statementChargeDate?: string | null;
+  statementAmount?: number | null;
   vendorId?: string | null;
   cardLastFour?: string | null;
   bankCardId?: number | null;
@@ -49,9 +52,8 @@ export interface CreditReportLineDisplay {
   bankCardId?: number | null;
   bankCardDropdown?: { value: string; isOverridable: boolean; options: string[]; toString: () => string };
   cardOwner: string;
-  documentCode: string;
+  documentCode: string | { value: string; isOverridable: boolean; options: string[]; panelClass?: string; toString: () => string };
   description: string;
-  receiptMatchDropdown?: { value: string; isOverridable: boolean; options: string[]; toString: () => string };
   isComplete: boolean;
   isDraft: boolean;
   isMissing: boolean;

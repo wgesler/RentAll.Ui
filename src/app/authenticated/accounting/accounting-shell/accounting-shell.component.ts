@@ -28,7 +28,7 @@ import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-par
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
 import { ReceiptType } from '../../maintenance/models/maintenance-enums';
-import { ReceiptPrefill, ReceiptRequest, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../../maintenance/models/receipt.model';
+import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/work-order-create.component';
@@ -1927,6 +1927,14 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.creditReportEditorInstance++;
   }
 
+  onCreditReportReceiptSaved(receipt: ReceiptResponse): void {
+    const lineKey = this.creditReportEditingLineKey;
+    if (lineKey && receipt?.receiptId) {
+      this.creditReport?.applySavedReceipt(lineKey, receipt);
+    }
+    this.onCreditReportEditorBack();
+  }
+
   onCreditReportEditorBack(): void {
     this.creditReportReceiptId = null;
     this.creditReportDraftId = null;
@@ -1934,7 +1942,11 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.creditReportEditingLineKey = null;
   }
 
-  onCreditReportReceiptSavedAndNew(): void {
+  onCreditReportReceiptSavedAndNew(receipt: ReceiptResponse): void {
+    const lineKey = this.creditReportEditingLineKey;
+    if (lineKey && receipt?.receiptId) {
+      this.creditReport?.applySavedReceipt(lineKey, receipt);
+    }
     this.creditReportDraftId = null;
     this.creditReportDraftPrefill = null;
     this.creditReportReceiptId = 'new';

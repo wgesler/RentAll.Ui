@@ -1107,7 +1107,6 @@
                       [organizationId]="organizationId"
                       [officeId]="selectedOfficeId"
                       [fileDetails]="creditReportFileDetails"
-                      (closed)="onCreditReportBack()"
                       (lineEdit)="onCreditReportLineEdit($event)" />
                   </div>
                   @if (creditReportReceiptId) {
@@ -1120,8 +1119,8 @@
                         [preferReceiptModeOnAdd]="true"
                         (workOrderSelect)="onBillsReceiptsWorkOrderSelect($event)"
                         (backEvent)="onCreditReportEditorBack()"
-                        (savedEvent)="onCreditReportEditorBack()"
-                        (savedAndNewEvent)="onCreditReportReceiptSavedAndNew()" />
+                        (savedEvent)="onCreditReportReceiptSaved($event)"
+                        (savedAndNewEvent)="onCreditReportReceiptSavedAndNew($event)" />
                     }
                   } @else if (creditReportDraftId || creditReportDraftPrefill) {
                     @for (instance of [creditReportEditorInstance]; track instance) {

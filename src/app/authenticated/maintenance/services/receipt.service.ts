@@ -109,6 +109,10 @@ export class ReceiptService {
     });
   }
 
+  saveCreditReportMatches(organizationId: string, matches: Array<{ sourceName: string; matchedId: string | null; matchedName: string | null }>): Observable<void> {
+    return this.http.post<void>(`${this.controller}credit-report/matches`, { organizationId, matches });
+  }
+
   createReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
     return this.http.post<ReceiptResponse>(this.controller, this.normalizeReceiptRequest(request))
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));

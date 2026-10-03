@@ -18,7 +18,7 @@
         </div>
         <div class="financial-report-actions-wrap table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
           <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isCreateDraftsDisabled" (click)="createProposedDrafts()">Create Drafts</button>
-          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="cancel()">Cancel</button>
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isSavingMatches" (click)="saveMatches()">Save Matches</button>
         </div>
       </div>
     </div>
@@ -33,7 +33,7 @@
       </div>
     } @else {
       <div class="tableDiv dbg-band-main">
-        <app-data-table tableName="credit-report" [data]="reportLines" [columns]="lineColumns" [noDataMessage]="'No credit card charges were found.'" [hasColumnIndex]="true" [hasFilter]="true" [hasToggleTop]="false" [hasButtonTop]="false" [hasActionsEdit]="true" [hasActionsDelete]="true" [hasWorkOrderCodeLink]="true" [itemsPerPage]="10" (dropdownChangeEvent)="onCardDropdownChange($event)" (editEvent)="editLine($event)" (rowClickEvent)="editLine($event)" (deleteEvent)="deleteLine($event)"></app-data-table>
+        <app-data-table tableName="credit-report" [data]="reportLines" [columns]="lineColumns" [noDataMessage]="'No credit card charges were found.'" [hasColumnIndex]="true" [hasFilter]="true" [hasToggleTop]="false" [hasButtonTop]="false" [hasActionsEdit]="true" [hasActionsDelete]="true" [hasActionsRowClick]="true" [hasWorkOrderCodeLink]="true" [itemsPerPage]="10" (dropdownChangeEvent)="onCardDropdownChange($event)" (editEvent)="editLine($event)" (rowClickEvent)="editLine($event)" (deleteEvent)="deleteLine($event)"></app-data-table>
       </div>
     }
   </div>

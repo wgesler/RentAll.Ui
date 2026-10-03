@@ -18,7 +18,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptPrefill, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { ReceiptPrefill, ReceiptResponse, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { CreditReportComponent } from '../../accounting/vendors/credit-report/credit-report.component';
 import { CreditReportLineEdit } from '../../accounting/vendors/credit-report/credit-report.model';
 import { FileDetails } from '../../documents/models/document.model';
@@ -1045,6 +1045,14 @@ applyPageOfficeChangeEffects(): void {
     this.creditReportEditingLineKey = String(event?.lineKey || '').trim() || null;
     this.creditReportEditorInstance++;
     this.cdr.markForCheck();
+  }
+
+  onCreditReportReceiptSaved(receipt: ReceiptResponse): void {
+    const lineKey = this.creditReportEditingLineKey;
+    if (lineKey && receipt?.receiptId) {
+      this.creditReport?.applySavedReceipt(lineKey, receipt);
+    }
+    this.onCreditReportEditorBack();
   }
 
   onCreditReportEditorBack(): void {

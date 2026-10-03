@@ -407,6 +407,12 @@ tr.mat-mdc-row.mat-no-data-row,
     max-width: min(520px, 90vw) !important;
 }
 
+::ng-deep .datatable-dropdown-panel.credit-report-receipt-match-panel {
+    min-width: max-content !important;
+    width: max-content !important;
+    max-width: 90vw !important;
+}
+
 ::ng-deep .datatable-bed-dropdown-panel {
     min-width: 130px !important;
     width: 130px !important;

@@ -5303,9 +5303,130 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
             bankCardDisplayName: (draft.bankCardDisplayName || '').trim() || null,
             description: (draft.description || '').trim() || null,
             receiptDraftId: draft.receiptDraftId,
-            draftCode: draftCode || null
+            draftCode: draftCode || null,
+            statementVendorName: line.sourceLine.statementVendorName,
+            statementChargeDate: line.sourceLine.statementChargeDate || line.sourceLine.chargeDate,
+            statementAmount: line.sourceLine.statementAmount ?? line.sourceLine.amount
           }
         : line.sourceLine
+    };
+  }
+
+  mapCreditReportLineFromReceipt(line: CreditReportLineDisplay, receipt: ReceiptResponse, stillMatches: boolean): CreditReportLineDisplay {
+    const source = line.sourceLine;
+    const statementDate = source?.statementChargeDate || source?.chargeDate || null;
+    const statementAmount = source?.statementAmount ?? source?.amount ?? 0;
+    const statementVendor = (source?.statementVendorName || '').trim();
+    if (!stillMatches) {
+      const restored: CreditReportLineResponse = {
+        ...(source || { amount: Number(statementAmount) || 0 }),
+        chargeDate: statementDate,
+        amount: Number(statementAmount) || 0,
+        vendorName: statementVendor || source?.vendorName || null,
+        vendorId: null,
+        statementVendorName: statementVendor || source?.statementVendorName || null,
+        statementChargeDate: statementDate,
+        statementAmount: Number(statementAmount) || 0,
+        description: null,
+        receiptId: null,
+        receiptCode: null,
+        receiptDraftId: null,
+        draftCode: null
+      };
+      return {
+        ...line,
+        chargeDate: this.formatter.formatDateString(statementDate) || line.chargeDate,
+        vendor: statementVendor || line.vendor,
+        amount: this.formatter.currencyUsd(Number(statementAmount) || 0),
+        documentCode: '—',
+        description: '',
+        workOrderDisplay: '—',
+        isComplete: false,
+        isDraft: false,
+        isMissing: true,
+        isUnknown: false,
+        receiptId: null,
+        receiptDraftId: null,
+        sourceLine: restored
+      };
+    }
+
+    const vendorName = (receipt.vendorName || '').trim();
+    const receiptCode = (receipt.receiptCode || '').trim();
+    const nextSource: CreditReportLineResponse = {
+      ...(source || { amount: Number(receipt.amount) || 0 }),
+      chargeDate: receipt.receiptDate,
+      amount: Number(receipt.amount) || 0,
+      vendorName: vendorName || null,
+      vendorId: receipt.vendorId ?? null,
+      statementVendorName: statementVendor || source?.statementVendorName || null,
+      statementChargeDate: statementDate,
+      statementAmount: Number(statementAmount) || 0,
+      bankCardId: receipt.bankCardId ?? null,
+      bankCardDisplayName: (receipt.bankCardDisplayName || '').trim() || null,
+      description: (receipt.description || '').trim() || null,
+      receiptId: receipt.receiptId,
+      receiptCode: receiptCode || null,
+      receiptDraftId: null,
+      draftCode: null,
+      isUtility: receipt.isUtility ?? false,
+      splits: (receipt.splits || []).map(split => ({
+        workOrderId: split.workOrderId ?? null,
+        workOrderCode: split.workOrderCode ?? null,
+        receiptTypeId: Number(split.receiptTypeId ?? 0)
+      }))
+    };
+    return {
+      ...line,
+      chargeDate: this.formatter.formatDateString(receipt.receiptDate) || line.chargeDate,
+      vendor: vendorName || '—',
+      amount: this.formatter.currencyUsd(Number(receipt.amount) || 0),
+      bankCardId: receipt.bankCardId ?? null,
+      documentCode: receiptCode || line.documentCode,
+      description: (receipt.description || '').trim(),
+      workOrderDisplay: this.resolveCreditReportWorkOrderDisplay(nextSource),
+      isComplete: true,
+      isDraft: false,
+      isMissing: false,
+      isUnknown: false,
+      receiptId: receipt.receiptId,
+      receiptDraftId: null,
+      sourceLine: nextSource
+    };
+  }
+
+  mapCreditReportUnknownReceipt(receipt: ReceiptResponse, lineKey?: string | null): CreditReportLineDisplay {
+    const vendorName = (receipt.vendorName || '').trim();
+    const receiptCode = (receipt.receiptCode || '').trim();
+    const source: CreditReportLineResponse = {
+      chargeDate: receipt.receiptDate,
+      amount: Number(receipt.amount) || 0,
+      vendorName: vendorName || null,
+      vendorId: receipt.vendorId ?? null,
+      statementVendorName: vendorName || null,
+      bankCardId: receipt.bankCardId ?? null,
+      bankCardDisplayName: (receipt.bankCardDisplayName || '').trim() || null,
+      description: (receipt.description || '').trim() || null,
+      receiptId: receipt.receiptId,
+      receiptCode: receiptCode || null
+    };
+    return {
+      lineKey: (lineKey || '').trim() || `unknown-${receipt.receiptId}`,
+      chargeDate: this.formatter.formatDateString(receipt.receiptDate) || '—',
+      vendor: vendorName || '—',
+      workOrderDisplay: this.resolveCreditReportWorkOrderDisplay(source),
+      amount: this.formatter.currencyUsd(Number(receipt.amount) || 0),
+      bankCardId: receipt.bankCardId ?? null,
+      cardOwner: '—',
+      documentCode: receiptCode || '—',
+      description: (receipt.description || '').trim(),
+      isComplete: false,
+      isDraft: false,
+      isMissing: false,
+      isUnknown: true,
+      receiptId: receipt.receiptId,
+      receiptDraftId: null,
+      sourceLine: source
     };
   }
 
