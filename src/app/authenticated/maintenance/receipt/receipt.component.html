@@ -616,7 +616,7 @@
 
           <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
             <div class="col-span-4 receipt-image-section" [class.receipt-image-section--invalid]="receiptFileValidationError">
-              <span class="text-lg font-medium block mb-2" [class.receipt-field-invalid-label]="receiptFileValidationError">Receipt *</span>
+              <span class="text-lg font-medium block mb-2" [class.receipt-field-invalid-label]="receiptFileValidationError">Receipt{{ showNoReceiptAvailable && noReceiptAvailable ? '' : ' *' }}</span>
               <div class="flex items-center gap-3">
                 @if (receiptPreviewDataUrl) {
                   @if (isReceiptPreviewPdf()) {
@@ -640,21 +640,34 @@
                   <mat-icon>description</mat-icon>
                   <span class="text-sm">{{ receiptFileName || form.get('receiptPath')?.value }}</span>
                 }
-                <div class="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    color="primary"
-                    mat-raised-button
-                    [disabled]="!canChooseReceiptFile()"
-                    (click)="openReceiptPicker(receiptUploadInput)">
-                    <span class="flex items-center gap-2">
-                      <mat-icon>attach_file</mat-icon>
-                      Choose Receipt
-                    </span>
-                  </button>
-                  @if (form.get('receiptPath')?.value || receiptPreviewDataUrl) {
-                    <button type="button" color="accent" mat-raised-button (click)="removeReceipt()">Delete Receipt</button>
+                <div class="receipt-file-actions">
+                  @if (showNoReceiptAvailable) {
+                    <mat-checkbox color="accent" [checked]="noReceiptAvailable" (change)="onNoReceiptAvailableChange($event.checked)">
+                      No Receipt Available
+                    </mat-checkbox>
                   }
+                  <div class="receipt-file-action-buttons">
+                    <button
+                      type="button"
+                      color="primary"
+                      mat-raised-button
+                      class="receipt-file-action"
+                      [disabled]="!canChooseReceiptFile()"
+                      (click)="openReceiptPicker(receiptUploadInput)">
+                      <span class="flex items-center gap-2">
+                        <mat-icon>attach_file</mat-icon>
+                        Choose Receipt
+                      </span>
+                    </button>
+                    @if (form.get('receiptPath')?.value || receiptPreviewDataUrl) {
+                      <button type="button" color="accent" mat-raised-button class="receipt-file-action" (click)="removeReceipt()">
+                        <span class="flex items-center gap-2">
+                          <mat-icon>delete</mat-icon>
+                          Delete Receipt
+                        </span>
+                      </button>
+                    }
+                  </div>
                 </div>
               </div>
               <input

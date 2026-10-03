@@ -85,6 +85,14 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
     return (this.receiptDraft?.promotedReceiptCode || '').trim();
   }
 
+  override removeReceipt(): void {
+    super.removeReceipt();
+    if (this.receiptDraft) {
+      this.receiptDraft.receiptPath = null;
+      this.receiptDraft.fileDetails = null;
+    }
+  }
+
   override get isPromotingReceiptDraft(): boolean {
     return this.isPromotingDraft;
   }
@@ -346,6 +354,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
       (draft.fileDetails as FileDetails | null | undefined) ?? null,
       draft.receiptPath || ''
     );
+    this.syncNoReceiptAvailableFromLoadedFile();
     this.markViewForCheck();
   }
   //#endregion

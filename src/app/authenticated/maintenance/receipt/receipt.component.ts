@@ -109,6 +109,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   splitTotalValidationError = false;
   saveValidationHighlightActive = false;
   receiptFileValidationError = false;
+  noReceiptAvailable = false;
   headerPropertyExplicitlySelected = false;
   splitPropertyExplicitlySelected = new Set<number>();
   isSyncingInitialSplit = false;
@@ -311,8 +312,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     };
 
     if (this.receipt?.receiptId) {
+      const savedReceiptPath = (this.originalReceiptPath || '').trim() || null;
       const hasReceiptChange = this.hasNewReceiptUpload ||
-        (payload.receiptPath !== (this.receipt.receiptPath ?? null)) ||
+        (payload.receiptPath !== savedReceiptPath) ||
         (!!payload.fileDetails !== !!(this.receipt.fileDetails?.file));
       const hasReceiptUpdates = this.receipt
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
@@ -466,10 +468,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   validateBeforeReceiptSubmit(options?: { forPromote?: boolean }): string[] {
     this.syncSplitPropertiesToPrefilledCompanySelection();
-    this.prepareReceiptSaveValidation(true);
+    const requireReceiptFile = this.isReceiptFileRequiredForSave();
+    this.prepareReceiptSaveValidation(requireReceiptFile);
 
     const validationErrors = this.collectReceiptSaveValidationErrors({
-      requireReceiptFile: true,
+      requireReceiptFile,
       requirePromoteFields: true,
       requireExplicitPropertySelection: options?.forPromote
         ? this.shouldRequireExplicitPropertySelectionForPromote()
@@ -664,6 +667,25 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       || !!(this.receipt?.receiptPath);
   }
 
+  isReceiptFileRequiredForSave(): boolean {
+    return !(this.showNoReceiptAvailable && this.noReceiptAvailable);
+  }
+
+  syncNoReceiptAvailableFromLoadedFile(): void {
+    this.noReceiptAvailable = this.showNoReceiptAvailable && !this.hasReceiptFileForSave();
+  }
+
+  onNoReceiptAvailableChange(checked: boolean): void {
+    this.noReceiptAvailable = checked;
+    if (checked) {
+      this.receiptFileValidationError = false;
+      if (this.hasReceiptFileForSave()) {
+        this.removeReceipt();
+      }
+    }
+    this.markViewForCheck();
+  }
+
   canChooseReceiptFile(): boolean {
     return true;
   }
@@ -742,6 +764,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
     this.applyReceiptFilePreview(receipt.fileDetails || null, receipt.receiptPath || '');
+    this.syncNoReceiptAvailableFromLoadedFile();
     this.syncSplitPropertiesToPrefilledCompanySelection();
     if (this.tracksExplicitPropertySelection) {
       this.resetExplicitPropertySelection();
@@ -785,6 +808,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.appliedPrefillKey = null;
     this.saveValidationHighlightActive = false;
     this.receiptFileValidationError = false;
+    this.noReceiptAvailable = false;
     this.splitTotalValidationError = false;
     this.pendingAutoSaveAttempt = false;
     this.receiptPreviewDataUrl = null;
@@ -1197,6 +1221,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.setReceiptPdfThumbnail(payload.fileDetails.dataUrl, payload.fileDetails.contentType || file.type || '');
       this.receiptFileName = payload.fileDetails.fileName;
       this.hasNewReceiptUpload = true;
+      this.noReceiptAvailable = false;
       this.receiptFileValidationError = false;
       this.form.patchValue({ receiptPath: '' });
       this.cdr.detectChanges();
@@ -3289,6 +3314,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   get isEmbeddedInShell(): boolean {
     return this.shellContext === 'maintenance' || this.shellContext === 'accounting';
+  }
+
+  get showNoReceiptAvailable(): boolean {
+    return this.isEmbeddedInShell && this.authService.isAdmin();
   }
 
   get isReceiptDraftMode(): boolean {
