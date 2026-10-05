@@ -147,6 +147,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   lastLoadedOfficeId: number | null | undefined = undefined;
   officeUseDailyOnBoardById = new Map<number, boolean>();
   externalCalendarLoadSequence = 0;
+  externalCalendarLoadPending = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'officeScope']));
   destroy$ = new Subject<void>();
@@ -464,10 +465,13 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
         this.apiReservations = this.partnersBoardToggleChecked
           ? normalizedReservations
           : normalizedReservations.filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
-        this.loadExternalCalendarReservations();
+        this.combineBoardReservations();
         this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
         this.isLoadingReservations = false;
+        if (this.externalCalendarLoadPending) {
+          this.loadExternalCalendarReservations();
+        }
         this.markViewForCheck();
       },
       error: () => {
@@ -476,6 +480,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
         this.combineBoardReservations();
         this.lastLoadedOfficeId = currentOfficeId;
         this.isLoadingReservations = false;
+        if (this.externalCalendarLoadPending) {
+          this.loadExternalCalendarReservations();
+        }
         this.markViewForCheck();
       }
     });
@@ -509,39 +516,59 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   }
 
   loadExternalCalendarReservations(): void {
+    if (this.isLoadingReservations) {
+      this.externalCalendarLoadPending = true;
+      return;
+    }
+    this.externalCalendarLoadPending = false;
     const currentSequence = ++this.externalCalendarLoadSequence;
     const propertiesWithExternalCalendar = (this.propertyRows || []).filter(property => this.mappingService.getPropertyICalUrls(property).length > 0);
+    const visiblePropertyIds = new Set(propertiesWithExternalCalendar.map(property => property.propertyId));
+    this.externalCalendarReservations = this.externalCalendarReservations.filter(reservation => visiblePropertyIds.has(reservation.propertyId));
+    this.combineBoardReservations();
     if (propertiesWithExternalCalendar.length === 0) {
-      this.externalCalendarReservations = [];
-      this.combineBoardReservations();
       return;
     }
 
-    const requests = propertiesWithExternalCalendar.flatMap(property => {
-      return this.mappingService.getPropertyICalUrls(property).map((externalCalendarUrl, calendarIndex) => {
-        return this.commonService.importExternalCalendar(externalCalendarUrl, property.propertyCode).pipe(
-          map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [], String(calendarIndex))),
-          catchError(() => of([] as ReservationListResponse[]))
-        );
-      });
+    this.fetchNextExternalCalendarProperty(propertiesWithExternalCalendar, currentSequence);
+  }
+
+  fetchNextExternalCalendarProperty(queue: PropertyListResponse[], sequence: number): void {
+    if (sequence !== this.externalCalendarLoadSequence) {
+      return;
+    }
+    const property = queue.shift();
+    if (!property) {
+      return;
+    }
+
+    const requests = this.mappingService.getPropertyICalUrls(property).map((externalCalendarUrl, calendarIndex) => {
+      return this.commonService.importExternalCalendar(externalCalendarUrl, property.propertyCode).pipe(
+        map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [], String(calendarIndex))),
+        catchError(() => of([] as ReservationListResponse[]))
+      );
     });
 
-    forkJoin(requests).pipe(take(1)).subscribe({
+    forkJoin(requests).pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: (reservationLists: ReservationListResponse[][]) => {
-        if (currentSequence !== this.externalCalendarLoadSequence) {
+        if (sequence !== this.externalCalendarLoadSequence) {
           return;
         }
-        this.externalCalendarReservations = reservationLists.flat();
-        this.combineBoardReservations();
+        this.applyExternalCalendarReservationsForProperty(property.propertyId, reservationLists.flat());
+        this.fetchNextExternalCalendarProperty(queue, sequence);
       },
       error: () => {
-        if (currentSequence !== this.externalCalendarLoadSequence) {
+        if (sequence !== this.externalCalendarLoadSequence) {
           return;
         }
-        this.externalCalendarReservations = [];
-        this.combineBoardReservations();
+        this.fetchNextExternalCalendarProperty(queue, sequence);
       }
     });
+  }
+
+  applyExternalCalendarReservationsForProperty(propertyId: string, reservations: ReservationListResponse[]): void {
+    this.externalCalendarReservations = this.externalCalendarReservations.filter(reservation => reservation.propertyId !== propertyId).concat(reservations);
+    this.combineBoardReservations();
   }
   //#endregion
 
