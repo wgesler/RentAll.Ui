@@ -1350,15 +1350,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               const reservation = reservationsById.get(invoice.reservationId || '');
               const property = reservation?.propertyId ? propertyById.get(reservation.propertyId) : undefined;
               const office = officesById.get(invoice.officeId);
+              const contacts = this.contactService.getAllContactsValue();
               const contact = reservation?.contactId
-                ? this.contactService.getAllContactsValue().find(c => c.contactId === reservation.contactId) ?? null
+                ? contacts.find(c => c.contactId === reservation.contactId) ?? null
+                : null;
+              const companyContact = reservation?.companyId
+                ? contacts.find(c => c.contactId === reservation.companyId) ?? null
                 : null;
               const exportContext = {
                 recipient: String(this.getRecipientDisplay(invoice) || '').trim(),
                 reservationCode: this.invoiceIifExportService.formatExportCode(
                   reservation?.reservationCode || invoice.reservationCode
                 ).replace(/^R-/i, ''),
-                reservationBoardLabel: reservation ? this.utilityService.getReservationBoardLabel(reservation, contact).trim().replace(':', ' /') : '',
+                reservationBoardLabel: reservation ? this.utilityService.getReservationBoardLabel(reservation, contact, false, companyContact).trim().replace(':', ' /') : '',
                 occupantName: String(reservation?.tenantName || '').trim(),
                 city: String(property?.city || '').trim(),
                 propertyCode: String(property?.propertyCode || reservation?.propertyCode || '').trim(),

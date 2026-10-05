@@ -703,17 +703,24 @@ export class UtilityService {
     return `${code}: ${contactName}`;
   }
 
-  getReservationBoardLabel(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null, hideName = false) {
+  getReservationBoardLabel(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null, hideName = false, companyContact: ContactResponse | null = null) {
     if (!reservation || hideName) 
       return '';
     
-    const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
     const tenantName = reservation.tenantName;
     const reservationTypeId = Number(reservation.reservationTypeId);
     switch (reservationTypeId) {
       case ReservationType.Corporate:
-      case ReservationType.Platform:
-        return shortCompanyName ? `${shortCompanyName}: ${tenantName}` : tenantName;
+      case ReservationType.Platform: {
+        const company = companyContact?.entityTypeId === EntityType.Company
+          ? companyContact
+          : (contact?.entityTypeId === EntityType.Company ? contact : null);
+        const companyLabel = (company?.displayName || '').trim() || this.getCompanyDisplayToken(company?.companyName || reservation.companyName);
+        const occupantLabel = contact?.entityTypeId === EntityType.Company
+          ? tenantName
+          : ((contact?.displayName || '').trim() || tenantName);
+        return companyLabel ? `${companyLabel}: ${occupantLabel}` : occupantLabel;
+      }
       default:
         return `${tenantName}`;
     }
