@@ -92,6 +92,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   isPageReady: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice', 'logo', 'previewHtml']));
   logoSourcesLoaded = { organizations: false, accountingOffice: false };
+  accountingOfficeWatchStarted = false;
+  recipientInvoiceSearchKey: string | null = null;
 
 
   constructor() {
@@ -285,7 +287,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadInvoicesForRecipientOrganization(): void {
-    if (!this.billingOrganization?.organizationId || !this.recipientOrganization?.organizationId) {
+    const recipientId = this.recipientOrganization?.organizationId ?? null;
+    if (!recipientId) {
       this.invoices = [];
       this.availableInvoices = [];
       this.form.get('selectedInvoiceId')?.disable();
@@ -294,23 +297,28 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     const officeIds = (this.accountingOffices || []).map(o => o.officeId).filter(id => id > 0);
     if (officeIds.length === 0) {
-      if (this.invoiceId) {
+      if (this.invoiceId && this.selectedInvoice?.invoiceId !== this.invoiceId) {
         this.selectInvoiceAfterDataLoad(this.invoiceId);
       }
       return;
     }
 
+    if (this.recipientInvoiceSearchKey === recipientId) {
+      return;
+    }
+    this.recipientInvoiceSearchKey = recipientId;
+
     this.accountingService.searchInvoices({
       officeIds,
-      reservationId: this.recipientOrganization?.organizationId ?? null,
+      reservationId: recipientId,
       includeInactive: true,
       includePaid: true
     }).pipe(take(1)).subscribe({
       next: (invoices: InvoiceResponse[]) => {
-        this.invoices = (invoices || []).filter(inv =>
-          inv.organizationId === this.billingOrganization?.organizationId
-        );
-
+        if (this.recipientOrganization?.organizationId !== recipientId) {
+          return;
+        }
+        this.invoices = (invoices || []).filter(inv => inv.reservationId === recipientId);
         this.availableInvoices = this.invoices.map(inv => ({
           value: inv,
           label: inv.invoiceCode || `Invoice ${inv.invoiceId}`
@@ -322,13 +330,17 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
           this.form.get('selectedInvoiceId')?.disable();
         }
 
-        if (this.invoiceId && this.invoices.some(i => i.invoiceId === this.invoiceId)) {
-          this.onInvoiceSelected(this.invoiceId);
-        } else if (this.invoices.length > 0) {
-          this.onInvoiceSelected(this.invoices[0].invoiceId);
+        const invoiceIdToOpen = this.invoiceId && this.invoices.some(i => i.invoiceId === this.invoiceId)
+          ? this.invoiceId
+          : (this.invoices[0]?.invoiceId ?? null);
+        if (invoiceIdToOpen && this.selectedInvoice?.invoiceId !== invoiceIdToOpen) {
+          this.onInvoiceSelected(invoiceIdToOpen);
         }
       },
       error: () => {
+        if (this.recipientInvoiceSearchKey === recipientId) {
+          this.recipientInvoiceSearchKey = null;
+        }
         this.invoices = [];
         this.availableInvoices = [];
         this.form.get('selectedInvoiceId')?.disable();
@@ -436,6 +448,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadAccountingOffice(): void {
+    if (this.accountingOfficeWatchStarted) {
+      return;
+    }
+    this.accountingOfficeWatchStarted = true;
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
@@ -448,6 +464,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         });
       },
       error: () => {
+        this.accountingOfficeWatchStarted = false;
         this.selectedAccountingOffice = null;
         this.accountingOfficeLogo = '';
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
@@ -501,6 +518,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       this.invoiceId = null;
       this.selectedInvoice = null;
       this.availableInvoices = [];
+      this.recipientInvoiceSearchKey = null;
       this.form.patchValue({ selectedInvoiceId: null }, { emitEvent: false });
       this.form.get('selectedInvoiceId')?.disable();
       this.clearPreview();
@@ -531,6 +549,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
+    const alreadyLoaded = this.invoiceId === invoiceId && this.selectedInvoice?.invoiceId === invoiceId;
     this.invoiceId = invoiceId;
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
     if (!this.selectedInvoice) {
@@ -540,6 +559,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     this.form.patchValue({ selectedInvoiceId: invoiceId }, { emitEvent: false });
     this.form.get('selectedInvoiceId')?.enable();
+    if (alreadyLoaded) {
+      return;
+    }
     this.loadAccountingOffice();
     this.loadInvoice();
   }
