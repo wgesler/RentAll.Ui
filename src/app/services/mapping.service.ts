@@ -5257,14 +5257,14 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
 
   mapCreditReportLines(lines: CreditReportLineResponse[], section: 'complete' | 'draft' | 'missing' | 'unknown'): CreditReportLineDisplay[] {
     return (lines || []).map((line, index) => ({
-      lineKey: `${section}-${line.receiptId || line.receiptDraftId || index}-${line.chargeDate || ''}-${line.amount}`,
+      lineKey: `${section}-${line.receiptId || line.receiptDraftId || line.paymentId || index}-${line.chargeDate || ''}-${line.amount}`,
       chargeDate: this.formatter.formatDateString(line.chargeDate) || '—',
       vendor: (line.vendorName || '').trim() || '—',
       workOrderDisplay: this.resolveCreditReportWorkOrderDisplay(line),
       amount: this.formatter.currencyUsd(Number(line.amount) || 0),
       bankCardId: line.bankCardId ?? null,
       cardOwner: '—',
-      documentCode: (line.receiptCode || line.draftCode || '').trim() || '—',
+      documentCode: (line.billCodes || line.receiptCode || line.draftCode || line.paymentCode || '').trim() || '—',
       description: (line.description || '').trim(),
       isComplete: section === 'complete',
       isDraft: section === 'draft',

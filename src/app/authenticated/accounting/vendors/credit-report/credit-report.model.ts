@@ -23,6 +23,9 @@ export interface CreditReportLineResponse {
   receiptCode?: string | null;
   receiptDraftId?: string | null;
   draftCode?: string | null;
+  paymentId?: string | null;
+  paymentCode?: string | null;
+  billCodes?: string | null;
   isUtility?: boolean;
   splits?: CreditReportSplitResponse[];
 }

@@ -303,7 +303,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
         return code;
       }
     }
-    return (line.sourceLine?.receiptCode || line.sourceLine?.draftCode || '').trim();
+    return (line.sourceLine?.billCodes || line.sourceLine?.receiptCode || line.sourceLine?.draftCode || line.sourceLine?.paymentCode || '').trim();
   }
 
   unknownReceiptLabel(line: CreditReportLineDisplay): string {
@@ -444,6 +444,9 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   editLine(line: CreditReportLineDisplay): void {
+    if (String(line.sourceLine?.paymentId || '').trim()) {
+      return;
+    }
     const receiptId = String(line.receiptId || '').trim();
     const receiptDraftId = String(line.receiptDraftId || '').trim();
     if (receiptId) {
@@ -463,6 +466,9 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   deleteLine(line: CreditReportLineDisplay): void {
+    if (String(line.sourceLine?.paymentId || '').trim()) {
+      return;
+    }
     const receiptId = String(line.receiptId || '').trim();
     const receiptDraftId = String(line.receiptDraftId || '').trim();
     if (receiptDraftId) {
