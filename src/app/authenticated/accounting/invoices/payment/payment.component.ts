@@ -16,8 +16,9 @@ import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { OwnerCashReportRowResponse } from '../../models/owner-report.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, OwnerOwedAllocationOption, UpdatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithOwnerAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse } from '../../models/payment.model';
-import { ReceiptResponse, buildBillSplitLineDescription } from '../../../maintenance/models/receipt.model';
+import { ReceiptResponse, buildBillSplitLineDescription, isReceiptCompanyPropertyId } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
+import { PropertyService } from '../../../properties/services/property.service';
 import { CostCodesService } from '../../services/cost-codes.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { InvoiceService } from '../../services/invoice.service';
@@ -56,6 +57,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   private journalEntryService = inject(JournalEntryService);
   private costCodesService = inject(CostCodesService);
   private contactService = inject(ContactService);
+  private propertyService = inject(PropertyService);
   private utilityService = inject(UtilityService);
   private mappingService = inject(MappingService);
   formatter = inject(FormatterService);
@@ -71,6 +73,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   payment: PaymentResponse | null = null;
   invoices: InvoiceResponse[] = [];
   bills: ReceiptResponse[] = [];
+  propertyCodeLookup = new Map<string, string>();
   owedOwners: OwnerOwedAllocationOption[] = [];
   costCodeOptions: SearchableSelectOption<number>[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
@@ -116,6 +119,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   get isOutbound(): boolean {
     return this.paymentKind === PaymentKind.Bill || this.isOwnerPayment;
+  }
+
+  get showSplitProperty(): boolean {
+    return this.paymentKind === PaymentKind.Bill;
   }
 
   get allocationColumnLabel(): string {
@@ -167,6 +174,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.isAddMode = this.paymentId === 'new';
     this.loadCostCodesForOffice();
     this.loadBankAccountsForOffice();
+    this.loadPropertyCodes();
     if (this.isAddMode) {
       this.loadAllocationsForOffice();
       this.ensureAtLeastOneSplit();
@@ -1359,6 +1367,55 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  loadPropertyCodes(): void {
+    if (!this.showSplitProperty) {
+      return;
+    }
+    this.propertyService.ensurePropertyCodesLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.propertyService.getAllPropertyCodes().pipe(takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            this.propertyCodeLookup = new Map((properties || []).map(property => [this.utilityService.normalizeId(property.propertyId), (property.propertyCode || '').trim()]));
+            this.cdr.markForCheck();
+          }
+        });
+      }
+    });
+  }
+
+  getSplitPropertyLabel(splitIndex: number): string {
+    const receiptId = (this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.value || '').toString().trim();
+    const bill = receiptId ? this.bills.find(item => item.receiptId === receiptId) : undefined;
+    if (!bill) {
+      return '';
+    }
+    const propertyIds = new Set<string>();
+    (bill.propertyIds || []).forEach(propertyId => {
+      const normalized = (propertyId || '').trim();
+      if (normalized) {
+        propertyIds.add(normalized);
+      }
+    });
+    (bill.splits || []).forEach(split => {
+      const normalized = (split.propertyId || '').trim();
+      if (normalized) {
+        propertyIds.add(normalized);
+      }
+    });
+    return Array.from(propertyIds).map(propertyId => this.resolvePropertyCode(propertyId)).filter(code => code.length > 0).join(', ');
+  }
+
+  resolvePropertyCode(propertyId: string | null | undefined): string {
+    if (isReceiptCompanyPropertyId(propertyId)) {
+      return 'Company';
+    }
+    const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
+    if (!normalizedPropertyId) {
+      return '';
+    }
+    return (this.propertyCodeLookup.get(normalizedPropertyId) || '').trim();
+  }
+
   loadBillsForOffice(): void {
     const officeId = this.getPaymentOfficeId();
     if (!officeId) {
@@ -1380,9 +1437,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       take(1)
     ).subscribe({
       next: (receipts: ReceiptResponse[]) => {
-        this.bills = (receipts || [])
-          .filter(receipt => (receipt.bankCardId ?? 0) === 0)
-          .filter(receipt => this.isBillUnpaid(receipt));
+        this.bills = (receipts || []).filter(receipt => (receipt.bankCardId ?? 0) === 0);
         this.allocationOptions = this.buildBillOptions(this.bills);
         this.cdr.markForCheck();
       },

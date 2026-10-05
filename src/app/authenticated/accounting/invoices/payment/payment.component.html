@@ -188,6 +188,9 @@
                       <tr>
                         <th class="split-col-no">No</th>
                         <th class="split-col-invoice">{{ allocationColumnLabel }}</th>
+                        @if (showSplitProperty) {
+                          <th class="split-col-property">Property</th>
+                        }
                         <th class="split-col-amount">Amount</th>
                         <th class="split-col-description">Description</th>
                         <th class="split-col-actions"></th>
@@ -217,6 +220,11 @@
                               [errorText]="allocationErrorText"
                               (valueChange)="onSplitAllocationSelectionChange(splitIndex, $event)" />
                           </td>
+                          @if (showSplitProperty) {
+                            <td class="split-col-property">
+                              <input type="text" class="split-editable-input" [value]="getSplitPropertyLabel(splitIndex)" readonly>
+                            </td>
+                          }
                           <td class="split-col-amount">
                             <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
                               (focus)="onSplitAmountFocus($event, splitIndex)"
