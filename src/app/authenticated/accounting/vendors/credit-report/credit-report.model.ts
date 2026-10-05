@@ -61,6 +61,8 @@ export interface CreditReportLineDisplay {
   isDraft: boolean;
   isMissing: boolean;
   isUnknown: boolean;
+  selected?: boolean;
+  disabled?: boolean;
   receiptId?: string | null;
   receiptDraftId?: string | null;
   sourceLine?: CreditReportLineResponse;

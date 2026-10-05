@@ -183,6 +183,8 @@
                 } @case ('select') {
                 <div class="datatable-select-cell" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                   <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"
+                    [class.datatable-select-checkbox--disabled]="!!item?.disabled"
+                    [class.datatable-select-checkbox--enabled]="!item?.disabled"
                     (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()"
                     [matTooltip]="actionTooltipSelect"/>
                   @if (item?.updating) {

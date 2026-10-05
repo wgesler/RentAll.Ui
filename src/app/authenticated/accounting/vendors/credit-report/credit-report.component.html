@@ -33,7 +33,7 @@
       </div>
     } @else {
       <div class="tableDiv dbg-band-main">
-        <app-data-table tableName="credit-report" [data]="reportLines" [columns]="lineColumns" [noDataMessage]="'No credit card charges were found.'" [hasColumnIndex]="true" [hasFilter]="true" [hasToggleTop]="false" [hasButtonTop]="false" [hasActionsEdit]="true" [hasActionsDelete]="true" [hasActionsRowClick]="true" [hasWorkOrderCodeLink]="true" [itemsPerPage]="10" (dropdownChangeEvent)="onCardDropdownChange($event)" (editEvent)="editLine($event)" (rowClickEvent)="editLine($event)" (deleteEvent)="deleteLine($event)"></app-data-table>
+        <app-data-table tableName="credit-report" [data]="reportLines" [columns]="lineColumns" [noDataMessage]="'No credit card charges were found.'" [hasColumnIndex]="true" [hasActionsSelect]="true" [hasButtonSelectAll]="true" [hasFilter]="true" [hasToggleTop]="false" [hasButtonTop]="false" [hasActionsEdit]="true" [hasActionsDelete]="true" [hasActionsRowClick]="true" [hasWorkOrderCodeLink]="true" [itemsPerPage]="10" (selectionSet)="onDraftSelectionChange()" (dropdownChangeEvent)="onCardDropdownChange($event)" (editEvent)="editLine($event)" (rowClickEvent)="editLine($event)" (deleteEvent)="deleteLine($event)"></app-data-table>
       </div>
     }
   </div>

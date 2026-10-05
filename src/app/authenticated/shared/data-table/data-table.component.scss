@@ -1057,6 +1057,20 @@ td.mat-mdc-cell.datatable-date-column {
   line-height: 14px;
 }
 
+:host ::ng-deep .datatable-select-cell .datatable-select-checkbox--enabled .mdc-checkbox__background {
+  border-color: #000000;
+  border-width: 2px;
+}
+
+:host ::ng-deep .datatable-select-cell .datatable-select-checkbox--disabled {
+  opacity: 0.72;
+}
+
+:host ::ng-deep .datatable-select-cell .datatable-select-checkbox--disabled .mdc-checkbox__background {
+  border-color: #9e9e9e !important;
+  background-color: #e4e4e4 !important;
+}
+
 .datatable-checkbox-cell {
   display: flex !important;
   align-items: center !important;

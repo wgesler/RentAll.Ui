@@ -5270,6 +5270,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       isDraft: section === 'draft',
       isMissing: section === 'missing',
       isUnknown: section === 'unknown',
+      selected: false,
+      disabled: section !== 'missing',
       receiptId: line.receiptId ?? null,
       receiptDraftId: line.receiptDraftId ?? null,
       sourceLine: line
@@ -5291,6 +5293,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       isDraft: true,
       isMissing: false,
       isUnknown: false,
+      selected: false,
+      disabled: true,
       receiptDraftId: draft.receiptDraftId,
       sourceLine: line.sourceLine
         ? {
@@ -5345,6 +5349,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         isDraft: false,
         isMissing: true,
         isUnknown: false,
+        selected: false,
+        disabled: false,
         receiptId: null,
         receiptDraftId: null,
         sourceLine: restored
@@ -5389,6 +5395,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       isDraft: false,
       isMissing: false,
       isUnknown: false,
+      selected: false,
+      disabled: true,
       receiptId: receipt.receiptId,
       receiptDraftId: null,
       sourceLine: nextSource
@@ -5424,6 +5432,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       isDraft: false,
       isMissing: false,
       isUnknown: true,
+      selected: false,
+      disabled: true,
       receiptId: receipt.receiptId,
       receiptDraftId: null,
       sourceLine: source

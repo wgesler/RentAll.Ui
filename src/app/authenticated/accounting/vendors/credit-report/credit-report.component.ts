@@ -151,25 +151,39 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  onDraftSelectionChange(): void {
+    this.emitCreateDisabled();
+    this.markViewForCheck();
+  }
+
   createProposedDrafts(): void {
     const organizationId = (this.organizationId || this.authService.getUser()?.organizationId || '').trim();
-    if (!organizationId || this.proposedDraftLines.length === 0 || this.draftsCreated || this.isCreatingDrafts) {
+    const selected = this.reportLines.filter(line => line.isMissing && line.selected && line.sourceLine);
+    if (!organizationId || selected.length === 0 || this.isCreatingDrafts) {
       return;
     }
 
     this.isCreatingDrafts = true;
     this.emitCreateDisabled();
-    this.receiptService.createCreditReportDrafts(organizationId, this.proposedDraftLines, this.officeId).pipe(take(1)).subscribe({
+    this.receiptService.createCreditReportDrafts(organizationId, selected.map(line => line.sourceLine!), this.officeId).pipe(take(1)).subscribe({
       next: (response) => {
-        this.proposedDraftLines = response.createdDrafts || [];
-        const unknownLines = this.reportLines.filter(line => line.isUnknown);
-        this.reportLines = [
-          ...this.reportLines.filter(line => !line.isMissing && !line.isUnknown),
-          ...this.mappingService.mapCreditReportLines(this.proposedDraftLines, 'draft'),
-          ...unknownLines
-        ];
+        const created = response.createdDrafts || [];
+        const createdByKey = new Map<string, CreditReportLineDisplay>();
+        selected.forEach((line, index) => {
+          const createdLine = created[index];
+          if (!createdLine) {
+            return;
+          }
+          const mapped = this.mappingService.mapCreditReportLines([createdLine], 'draft')[0];
+          if (mapped) {
+            mapped.lineKey = line.lineKey;
+            createdByKey.set(line.lineKey, mapped);
+          }
+        });
+        const sent = new Set(selected.map(line => line.sourceLine));
+        this.proposedDraftLines = this.proposedDraftLines.filter(item => !sent.has(item));
+        this.reportLines = this.reportLines.map(line => createdByKey.get(line.lineKey) || line);
         this.applyBankCardDropdowns();
-        this.draftsCreated = true;
         this.isCreatingDrafts = false;
         this.toastr.success('Draft receipts created.', CommonMessage.Success);
         this.emitCreateDisabled();
@@ -384,7 +398,9 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
           description: unknownLine.description || item.description,
           isComplete: true,
           isDraft: false,
-          isMissing: false
+          isMissing: false,
+          selected: false,
+          disabled: true
         };
       });
     this.applyBankCardDropdowns();
@@ -530,6 +546,8 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
         isUnknown: false,
         isDraft: true,
         isComplete: false,
+        selected: false,
+        disabled: true,
         receiptDraftId,
         documentCode: draftCode || line.documentCode
       };
@@ -656,7 +674,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get isCreateDraftsDisabled(): boolean {
-    return this.draftsCreated || this.isCreatingDrafts || this.proposedDraftLines.length === 0;
+    return this.isCreatingDrafts || !this.reportLines.some(line => line.isMissing && line.selected);
   }
 
   //#endregion
