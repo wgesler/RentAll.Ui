@@ -716,10 +716,8 @@ export class UtilityService {
           ? companyContact
           : (contact?.entityTypeId === EntityType.Company ? contact : null);
         const companyLabel = (company?.displayName || '').trim() || this.getCompanyDisplayToken(company?.companyName || reservation.companyName);
-        const occupantLabel = contact?.entityTypeId === EntityType.Company
-          ? tenantName
-          : ((contact?.displayName || '').trim() || tenantName);
-        return companyLabel ? `${companyLabel}: ${occupantLabel}` : occupantLabel;
+        const contactName = `${contact?.firstName || ''} ${contact?.lastName || ''}`.replace(/\s+/g, ' ').trim();
+        return companyLabel && contactName ? `${companyLabel}: ${contactName}` : (companyLabel || contactName);
       }
       default:
         return `${tenantName}`;
