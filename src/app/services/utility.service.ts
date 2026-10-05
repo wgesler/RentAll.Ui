@@ -709,13 +709,14 @@ export class UtilityService {
     
     const tenantName = reservation.tenantName;
     const reservationTypeId = Number(reservation.reservationTypeId);
+    const company = companyContact?.entityTypeId === EntityType.Company
+      ? companyContact
+      : (contact?.entityTypeId === EntityType.Company ? contact : null);
+    const companyLabel = (company?.displayName || '').trim() || this.getCompanyDisplayToken(company?.companyName || reservation.companyName);
     switch (reservationTypeId) {
       case ReservationType.Corporate:
+        return companyLabel && tenantName ? `${companyLabel}: ${tenantName}` : (companyLabel || tenantName);
       case ReservationType.Platform: {
-        const company = companyContact?.entityTypeId === EntityType.Company
-          ? companyContact
-          : (contact?.entityTypeId === EntityType.Company ? contact : null);
-        const companyLabel = (company?.displayName || '').trim() || this.getCompanyDisplayToken(company?.companyName || reservation.companyName);
         const contactName = `${contact?.firstName || ''} ${contact?.lastName || ''}`.replace(/\s+/g, ' ').trim();
         return companyLabel && contactName ? `${companyLabel}: ${contactName}` : (companyLabel || contactName);
       }
