@@ -198,7 +198,10 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
           this.profilePath = response.profilePath;
           this.originalprofilePath = response.profilePath; 
         }
-        this.isDefaultOrgAdminReadOnly = this.isDefaultOrgAdminUser(response) && !this.isCurrentUserSuperAdmin;
+        const currentUserId = (this.authService.getUser()?.userId || '').trim().toLowerCase();
+        const editedUserId = (response.userId || '').trim().toLowerCase();
+        const isEditingSelf = !!currentUserId && currentUserId === editedUserId;
+        this.isDefaultOrgAdminReadOnly = this.isDefaultOrgAdminUser(response) && !this.isCurrentUserSuperAdmin && !isEditingSelf;
         this.buildForm();
         this.setupPasswordValidation();
         this.loadUserFeatureAccess();
