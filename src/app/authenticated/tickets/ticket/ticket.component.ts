@@ -1,19 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, defer, finalize, take, takeUntil, tap } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, defer, finalize, firstValueFrom, take, takeUntil, tap } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { UtilityService } from '../../../services/utility.service';
+import { ImageOptimizationFailedError, UtilityService } from '../../../services/utility.service';
 import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -42,7 +44,7 @@ import { TicketWorkOrderDialogComponent } from './ticket-work-order-dialog.compo
   templateUrl: './ticket.component.html',
   styleUrl: './ticket.component.scss'
 })
-export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
+export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
 
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
@@ -71,6 +73,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   private formatterService = inject(FormatterService);
   private ticketPrintService = inject(TicketPrintService);
   private cdr = inject(ChangeDetectorRef);
+  private host = inject(ElementRef<HTMLElement>);
+  private sanitizer = inject(DomSanitizer);
 
   isServiceError: boolean = false;
   isSubmitting: boolean = false;
@@ -88,6 +92,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.syncStepsToReproduceEditorFromForm();
   }
   stepsToReproduceEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('noteEditor') set noteEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.noteEditor = value;
+    this.syncNoteEditorFromForm();
+  }
+  noteEditor?: ElementRef<HTMLDivElement>;
+  imageDragTarget: 'description' | 'note' | null = null;
+  private ticketImageObjectUrls = new Map<string, string>();
 
   organizationId = '';
   ticket: TicketResponse | null = null;
@@ -273,7 +284,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
     const ticketStateTypeId = ticketStateDecision.ticketStateTypeId;
     const assigneeIdForSave = ticketStateTypeId === TicketStateType.caseCreated ? null : selectedAssigneeId;
-    const newNoteText = String(formValue.newNote || '').trim();
+    const newNoteText = this.stripTicketImageSources(String(formValue.newNote || '')).trim();
     const existingNotes: TicketNoteRequest[] = (existing?.notes || []).map(note => ({
       ticketNoteId: note.ticketNoteId,
       ticketId: note.ticketId,
@@ -289,7 +300,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       ticketId: existing?.ticketId ?? undefined,
       note
     }));
-    const canAppendNewNote = !this.isAddMode && !!existing?.ticketId && newNoteText.length > 0;
+    const canAppendNewNote = !this.isAddMode && !!existing?.ticketId && this.editorHasContent(newNoteText);
     const appendedNotes = canAppendNewNote
       ? [...existingNotes, {
           ticketId: existing!.ticketId,
@@ -307,7 +318,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       reservationId: selectedReservationId,
       ticketCode: existing?.ticketCode ?? null,
       title: String(formValue.title || '').trim(),
-      description: String(formValue.description || '').trim(),
+      description: this.stripTicketImageSources(String(formValue.description || '')).trim(),
       stepsToReproduce: isForRentAll ? (String(formValue.stepsToReproduce || '').trim() || null) : null,
       ticketStateTypeId,
       needPermissionToEnter: isForRentAll ? false : !!formValue.needPermissionToEnter,
@@ -352,7 +363,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       assigneeId: new FormControl<string | null>(null),
       reservationAgentId: new FormControl<string | null>(null),
       title: new FormControl('', [Validators.required]),
-      description: new FormControl('', [control => this.htmlToPlainText(String(control.value || '')).trim() ? null : { required: true }]),
+      description: new FormControl('', [control => this.editorHasContent(String(control.value || '')) ? null : { required: true }]),
       stepsToReproduce: new FormControl(''),
       newNote: new FormControl(''),
       ticketStateTypeId: new FormControl(0, [Validators.required]),
@@ -471,6 +482,97 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.onRichEditorInput(event, 'description');
   }
 
+  onNoteInput(event: Event): void {
+    this.onRichEditorInput(event, 'newNote');
+  }
+
+  onEditorDragEnter(event: DragEvent, target: 'description' | 'note'): void {
+    if (!this.dragHasFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.imageDragTarget = target;
+  }
+
+  onEditorDragOver(event: DragEvent): void {
+    if (!this.dragHasFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  onEditorDragLeave(event: DragEvent, target: 'description' | 'note'): void {
+    if (this.imageDragTarget === target) {
+      this.imageDragTarget = null;
+    }
+  }
+
+  async onEditorDrop(event: DragEvent, editor: HTMLDivElement | undefined, controlName: string): Promise<void> {
+    this.imageDragTarget = null;
+    if (!this.dragHasFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    const files = Array.from(event.dataTransfer?.files || []).filter(file => this.isTicketImageFile(file));
+    if (!files.length) {
+      this.toastr.warning('Drop a picture or screenshot.');
+      return;
+    }
+    if (editor) {
+      this.placeCaretAtPoint(editor, event.clientX, event.clientY);
+    }
+    for (const file of files) {
+      await this.insertTicketImage(editor, controlName, file);
+    }
+  }
+
+  async onEditorPaste(event: ClipboardEvent, editor: HTMLDivElement | undefined, controlName: string): Promise<void> {
+    const files = Array.from(event.clipboardData?.items || [])
+      .filter(item => item.kind === 'file')
+      .map(item => item.getAsFile())
+      .filter((file): file is File => !!file && this.isTicketImageFile(file));
+    if (!files.length) {
+      return;
+    }
+    event.preventDefault();
+    for (const file of files) {
+      await this.insertTicketImage(editor, controlName, file);
+    }
+  }
+
+  onTicketImageClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target || target.tagName !== 'IMG' || !target.classList.contains('ticket-inline-thumb')) {
+      return;
+    }
+    const source = (target as HTMLImageElement).currentSrc || (target as HTMLImageElement).src;
+    if (!source) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.dialog.open(ImageViewDialogComponent, {
+      data: { imageSrc: source, title: 'Image' },
+      width: '640px',
+      maxWidth: '90vw',
+      height: '70vh',
+      maxHeight: '640px',
+      autoFocus: false,
+      panelClass: 'ticket-image-dialog-panel'
+    });
+  }
+
+  noteHtml(note: string): SafeHtml {
+    const value = String(note || '');
+    if (value.includes('data-ticket-image-path')) {
+      return this.sanitizer.bypassSecurityTrustHtml(value);
+    }
+    return this.sanitizer.bypassSecurityTrustHtml(this.escapeEditorHtml(value).replace(/\n/g, '<br>'));
+  }
+
   onStepsToReproduceInput(event: Event): void {
     this.onRichEditorInput(event, 'stepsToReproduce');
   }
@@ -546,6 +648,130 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
 
     document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+  }
+
+  editorHasContent(html: string): boolean {
+    if (this.htmlToPlainText(html).trim()) {
+      return true;
+    }
+    return /data-ticket-image-path=/i.test(html) || /<img\b/i.test(html);
+  }
+
+  dragHasFiles(event: DragEvent): boolean {
+    return Array.from(event.dataTransfer?.types || []).includes('Files');
+  }
+
+  isTicketImageFile(file: File): boolean {
+    return (file.type || '').startsWith('image/') || this.utilityService.isHeicLikeFile(file);
+  }
+
+  getTicketImageOfficeId(): number | null {
+    const officeId = Number(this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId ?? 0);
+    return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+  }
+
+  placeCaretAtPoint(editor: HTMLElement, clientX: number, clientY: number): void {
+    editor.focus();
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+    const rangeFromPoint = (document as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null }).caretRangeFromPoint?.(clientX, clientY);
+    if (rangeFromPoint && editor.contains(rangeFromPoint.startContainer)) {
+      selection.removeAllRanges();
+      selection.addRange(rangeFromPoint);
+      return;
+    }
+    const position = document.caretPositionFromPoint?.(clientX, clientY);
+    const range = document.createRange();
+    if (position && editor.contains(position.offsetNode)) {
+      range.setStart(position.offsetNode, position.offset);
+      range.collapse(true);
+    } else {
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  async insertTicketImage(editor: HTMLDivElement | undefined, controlName: string, file: File): Promise<void> {
+    const officeId = this.getTicketImageOfficeId();
+    if (!officeId) {
+      this.toastr.warning('Choose an office before adding a picture.');
+      return;
+    }
+    if (!editor) {
+      return;
+    }
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      const response = await firstValueFrom(this.ticketService.uploadTicketImage(officeId, payload.fileDetails));
+      const imagePath = String(response?.imagePath || '').trim();
+      if (!imagePath) {
+        this.toastr.error('Unable to save the picture.', CommonMessage.Error);
+        return;
+      }
+      const preview = payload.fileDetails.dataUrl || '';
+      const imageHtml = `<img class="ticket-inline-thumb" data-ticket-image-path="${this.escapeEditorHtml(imagePath)}" src="${preview}" alt="Ticket image">`;
+      editor.focus();
+      document.execCommand('insertHTML', false, imageHtml);
+      this.form.get(controlName)?.setValue(editor.innerHTML);
+      this.form.get(controlName)?.markAsDirty();
+      this.markViewForCheck();
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+        return;
+      }
+      this.toastr.error('Unable to add the picture.', CommonMessage.Error);
+    }
+  }
+
+  stripTicketImageSources(html: string): string {
+    const value = String(html || '');
+    if (!value.includes('data-ticket-image-path')) {
+      return value;
+    }
+    const doc = new DOMParser().parseFromString(value, 'text/html');
+    doc.querySelectorAll('img[data-ticket-image-path]').forEach(image => image.setAttribute('src', ''));
+    return doc.body.innerHTML;
+  }
+
+  ngAfterViewChecked(): void {
+    void this.hydrateVisibleTicketImages();
+  }
+
+  async hydrateVisibleTicketImages(): Promise<void> {
+    const officeId = this.getTicketImageOfficeId();
+    if (!officeId) {
+      return;
+    }
+    const images = (this.host.nativeElement as HTMLElement).querySelectorAll<HTMLImageElement>('img[data-ticket-image-path]');
+    for (const image of Array.from(images)) {
+      const path = image.getAttribute('data-ticket-image-path') || '';
+      const currentSrc = image.getAttribute('src') || '';
+      if (!path || currentSrc.startsWith('data:') || currentSrc.startsWith('blob:')) {
+        continue;
+      }
+      const cached = this.ticketImageObjectUrls.get(path);
+      if (cached) {
+        image.src = cached;
+        continue;
+      }
+      if (image.dataset['ticketImageLoading'] === '1') {
+        continue;
+      }
+      image.dataset['ticketImageLoading'] = '1';
+      try {
+        const blob = await firstValueFrom(this.ticketService.getTicketImage(path, officeId));
+        const url = URL.createObjectURL(blob);
+        this.ticketImageObjectUrls.set(path, url);
+        image.src = url;
+      } catch {
+        image.dataset['ticketImageLoading'] = '';
+      }
+    }
   }
 
   escapeEditorHtml(value: string): string {
@@ -794,6 +1020,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const currentComment = String(this.form.get('newNote')?.value || '');
     const separator = currentComment.trim().length > 0 ? '\n' : '';
     this.form.get('newNote')?.setValue(`${currentComment}${separator}${autoComment}`);
+    this.syncNoteEditorFromForm();
   }
 
   buildAuditChangeNotes(
@@ -1508,6 +1735,10 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.syncRichEditorFromForm(this.descriptionEditor, 'description');
   }
 
+  syncNoteEditorFromForm(): void {
+    this.syncRichEditorFromForm(this.noteEditor, 'newNote');
+  }
+
   syncStepsToReproduceEditorFromForm(): void {
     this.syncRichEditorFromForm(this.stepsToReproduceEditor, 'stepsToReproduce');
   }
@@ -1554,6 +1785,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
   
   ngOnDestroy(): void {
+    this.ticketImageObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    this.ticketImageObjectUrls.clear();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

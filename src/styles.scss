@@ -2310,6 +2310,30 @@ mat-form-field input,
   background: #fff;
 }
 
+.cdk-overlay-pane.ticket-image-dialog-panel {
+  width: min(640px, 90vw) !important;
+  height: min(640px, 70vh) !important;
+  max-width: min(640px, 90vw) !important;
+  max-height: min(640px, 70vh) !important;
+}
+
+.ticket-image-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
+  padding: 0 !important;
+  border: 2px solid #1e293b !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: #fff !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.ticket-image-dialog-panel .image-view-img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
 /* Keep floating receipt/image viewer above other overlays/dialogs. */
 .cdk-overlay-pane.image-view-dialog-topmost {
   z-index: 5000 !important;

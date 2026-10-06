@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { FileDetails } from '../../../shared/models/fileDetails';
 import { TicketRequest, TicketResponse } from '../models/ticket-models';
 
 @Injectable({
@@ -38,6 +39,17 @@ export class TicketService {
   // DELETE: Delete ticket
   deleteTicket(ticketId: string): Observable<void> {
     return this.http.delete<void>(this.controller + ticketId);
+  }
+
+  uploadTicketImage(officeId: number, fileDetails: FileDetails): Observable<{ imagePath: string }> {
+    return this.http.post<{ imagePath: string }>(this.controller + 'image', { officeId, fileDetails });
+  }
+
+  getTicketImage(path: string, officeId: number): Observable<Blob> {
+    return this.http.get(this.controller + 'image', {
+      params: { path, officeId: String(officeId) },
+      responseType: 'blob'
+    });
   }
 
   notifyTicketStateChanged(): void {

@@ -142,6 +142,30 @@
   border-color: var(--global-primary, #1976d2);
 }
 
+.description-editor-input.is-dragover {
+  border-color: var(--global-primary, #1976d2);
+  background: rgba(25, 118, 210, 0.06);
+}
+
+.ticket-note-editor {
+  min-height: 72px;
+}
+
+:host ::ng-deep .ticket-inline-thumb {
+  display: inline-block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 160px !important;
+  max-height: 120px !important;
+  object-fit: contain;
+  cursor: zoom-in;
+  vertical-align: middle;
+  margin: 4px 6px 4px 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff !important;
+}
+
 .description-editor-wrap.is-invalid {
   border-color: var(--mat-form-field-error-text-color, #f44336);
 }

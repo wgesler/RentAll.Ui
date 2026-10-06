@@ -8,7 +8,8 @@ export enum ImageType {
   ApplianceDecal = 6,
   StateForm = 7,
   CheckStocks = 8,
-  UserGuide = 9
+  UserGuide = 9,
+  TicketImage = 10
 }
 
 export function getImageTypeFolder(imageType: ImageType): string {
@@ -22,7 +23,8 @@ export function getImageTypeFolder(imageType: ImageType): string {
     [ImageType.ApplianceDecal]: 'appliancedecal',
     [ImageType.StateForm]: 'stateform',
     [ImageType.CheckStocks]: 'checkstocks',
-    [ImageType.UserGuide]: 'userguide'
+    [ImageType.UserGuide]: 'userguide',
+    [ImageType.TicketImage]: 'ticketimage'
   };
 
   return folderMap[imageType] || 'images';

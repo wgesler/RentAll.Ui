@@ -159,8 +159,15 @@
               <div
                 #descriptionEditor
                 class="description-editor-input description-editor-input--with-markers"
+                [class.is-dragover]="imageDragTarget === 'description'"
                 contenteditable="true"
-                (input)="onDescriptionInput($event)">
+                (input)="onDescriptionInput($event)"
+                (click)="onTicketImageClick($event)"
+                (paste)="onEditorPaste($event, descriptionEditor, 'description')"
+                (dragenter)="onEditorDragEnter($event, 'description')"
+                (dragover)="onEditorDragOver($event)"
+                (dragleave)="onEditorDragLeave($event, 'description')"
+                (drop)="onEditorDrop($event, descriptionEditor, 'description')">
               </div>
             </div>
 
@@ -209,10 +216,22 @@
                 }
               </div>
 
-              <mat-form-field appearance="outline" class="ticket-comments-editor">
-                <mat-label>Add a Note</mat-label>
-                <textarea matInput rows="2" formControlName="newNote"></textarea>
-              </mat-form-field>
+              <div class="description-editor-wrap ticket-note-editor-wrap">
+                <div class="description-editor-label">Add a Note</div>
+                <div
+                  #noteEditor
+                  class="description-editor-input ticket-note-editor"
+                  [class.is-dragover]="imageDragTarget === 'note'"
+                  contenteditable="true"
+                  (input)="onNoteInput($event)"
+                  (click)="onTicketImageClick($event)"
+                  (paste)="onEditorPaste($event, noteEditor, 'newNote')"
+                  (dragenter)="onEditorDragEnter($event, 'note')"
+                  (dragover)="onEditorDragOver($event)"
+                  (dragleave)="onEditorDragLeave($event, 'note')"
+                  (drop)="onEditorDrop($event, noteEditor, 'newNote')">
+                </div>
+              </div>
 
               @if (ticketNotesDisplay.length > 0) {
                 <div class="ticket-comments-history">
@@ -237,7 +256,7 @@
                             {{ noteItem.linkedCode }}
                           </a>
                         } @else {
-                          {{ noteItem.note }}
+                          <span [innerHTML]="noteHtml(noteItem.note)" (click)="onTicketImageClick($event)"></span>
                         }
                       </div>
                     </div>
@@ -252,3 +271,4 @@
     </section>
   </div>
 }
+
