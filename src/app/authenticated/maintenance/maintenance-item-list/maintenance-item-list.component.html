@@ -21,22 +21,23 @@
     <table class="line-items-table maintenance-item-lines-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Last Serviced</th>
-          <th>Months</th>
-          <th>Notes</th>
+          <th class="name-column">Name</th>
+          <th class="date-column">Last Serviced</th>
+          <th class="months-column">Months</th>
+          <th class="status-column">Status</th>
+          <th class="notes-column">Notes</th>
           <th class="actions-column"></th>
         </tr>
       </thead>
       <tbody>
         @if (!rows || rows.length === 0) {
           <tr>
-            <td class="maintenance-item-empty" colspan="5">No maintenance items found for this property.</td>
+            <td class="maintenance-item-empty" colspan="6">No maintenance items found for this property.</td>
           </tr>
         } @else {
           @for (row of rows; track trackByRowId($index, row)) {
             <tr>
-              <td>
+              <td class="name-column">
                 <input
                   type="text"
                   class="editable-input name-input"
@@ -45,7 +46,7 @@
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'maintenance-item-name-' + row.rowId" />
               </td>
-              <td>
+              <td class="date-column">
                 <div class="maintenance-item-date-field" [class.input-invalid]="!row.lastServicedOn">
                   <input
                     [matDatepicker]="lastServicedPicker"
@@ -62,7 +63,7 @@
                   <mat-datepicker #lastServicedPicker></mat-datepicker>
                 </div>
               </td>
-              <td>
+              <td class="months-column">
                 <input
                   type="text"
                   inputmode="numeric"
@@ -74,7 +75,21 @@
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'maintenance-item-months-' + row.rowId" />
               </td>
-              <td>
+              <td class="status-column">
+                @if (getServiceStatus(row); as status) {
+                  <mat-checkbox
+                    class="maintenance-status-checkbox"
+                    [class.maintenance-status-checkbox--red]="status === 'red'"
+                    [class.maintenance-status-checkbox--yellow]="status === 'yellow'"
+                    [class.maintenance-status-checkbox--green]="status === 'green'"
+                    [checked]="true"
+                    [disabled]="true"
+                    [disableRipple]="true"
+                    [attr.aria-label]="getServiceStatusLabel(status)">
+                  </mat-checkbox>
+                }
+              </td>
+              <td class="notes-column">
                 <textarea
                   class="editable-input notes-input"
                   [(ngModel)]="row.notes"

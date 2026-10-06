@@ -95,6 +95,33 @@ export class MaintenanceItemListComponent implements OnChanges {
   onLastServicedOnDateChange(row: MaintenanceItemEditRow, value: Date | null): void {
     row.lastServicedOn = this.parseDateValue(value);
   }
+
+  getServiceStatus(row: MaintenanceItemEditRow): 'red' | 'yellow' | 'green' | null {
+    const lastServiced = this.parseDateValue(row.lastServicedOn);
+    const months = Number(row.monthsBetweenService);
+    if (!lastServiced || !Number.isFinite(months) || months <= 0) {
+      return null;
+    }
+    const due = this.startOfDay(this.addMonths(lastServiced, months));
+    const today = this.startOfDay(new Date());
+    if (due < today) {
+      return 'red';
+    }
+    if (due <= this.startOfDay(this.addMonths(today, 1))) {
+      return 'yellow';
+    }
+    return 'green';
+  }
+
+  getServiceStatusLabel(status: 'red' | 'yellow' | 'green'): string {
+    if (status === 'red') {
+      return 'Past due';
+    }
+    if (status === 'yellow') {
+      return 'Due within one month';
+    }
+    return 'More than one month until due';
+  }
   //#endregion
 
   //#region Utility Methods
@@ -113,6 +140,17 @@ export class MaintenanceItemListComponent implements OnChanges {
       this.originalRowsById.set(item.maintenanceItemId, this.normalizeComparable(row));
       return row;
     });
+  }
+
+  addMonths(date: Date, months: number): Date {
+    const result = new Date(date.getFullYear(), date.getMonth() + months, 1);
+    const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+    result.setDate(Math.min(date.getDate(), lastDay));
+    return result;
+  }
+
+  startOfDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
 
   normalizeText(value: string | null | undefined): string {
