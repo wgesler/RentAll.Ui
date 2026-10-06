@@ -63,7 +63,7 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Schedules
   ngOnInit(): void {
-    this.dashboardNavigation.setTabIndex(7);
+    this.dashboardNavigation.setTabIndex(8);
     this.loadEmailHtml();
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;

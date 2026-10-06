@@ -17,3 +17,14 @@ export interface MaintenanceItemResponse {
   monthsBetweenService: number;
   notes?: string | null;
 }
+
+export interface MaintenanceItemListResponse {
+  maintenanceItemId: number;
+  propertyId: string;
+  propertyCode: string;
+  officeId: number;
+  name: string;
+  lastServicedOn: CalendarDateString;
+  monthsBetweenService: number;
+  notes?: string | null;
+}

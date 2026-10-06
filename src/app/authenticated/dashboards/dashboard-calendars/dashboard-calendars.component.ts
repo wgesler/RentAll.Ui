@@ -71,7 +71,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   //#region Dashboard-Calendars
   ngOnInit(): void {
     if (this.showMaidServiceTable && !this.showCalendarsSection) {
-      this.dashboardNavigation.setTabIndex(6);
+      this.dashboardNavigation.setTabIndex(7);
     }
     // Calendars render immediately; markers fill in when company snapshot becomes ready.
     this.refreshScheduleCalendars();
@@ -87,7 +87,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
     this.companyDataService.calendarFocus$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncMaidDisplayRows();
       this.markViewForCheck();
-      if (this.showMaidServiceTable && this.companyDataService.calendarFocus?.tabIndex === 6) {
+      if (this.showMaidServiceTable && this.companyDataService.calendarFocus?.tabIndex === 7) {
         this.companyDataService.scrollDashboardActiveRowIntoView();
       }
     });
@@ -411,7 +411,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
       { rows: this.snapshot.offlineStatusMaintenanceDisplay || [], tabIndex: 3 },
       { rows: this.snapshot.occupiedMaintenanceDisplay || [], tabIndex: 4 },
       { rows: this.snapshot.vacantMaintenanceDisplay || [], tabIndex: 5 },
-      { rows: this.snapshot.maidMaintenanceDisplay || [], tabIndex: 6 }
+      { rows: this.snapshot.maidMaintenanceDisplay || [], tabIndex: 7 }
     ];
 
     for (const source of maintenanceSources) {
@@ -432,7 +432,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
             contactName,
             eventLabel: isMaid ? 'Maid Service' : 'Cleaning',
             eventKind: isMaid ? 'maid' : 'cleaning',
-            targetTabIndex: isMaid ? 6 : source.tabIndex,
+            targetTabIndex: isMaid ? 7 : source.tabIndex,
             propertyId,
             reservationId,
             maintenanceId,
@@ -508,7 +508,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
     const source = this.snapshot.maidMaintenanceDisplay || [];
     this.maidDisplayRows = source.map(row => {
       const rowDateKey = this.toDayKey(row.eventDate) || this.toDayKey(row.cleaningDate);
-      const focusActive = focus?.tabIndex === 6
+      const focusActive = focus?.tabIndex === 7
         && this.companyDataService.matchesCalendarFocus(row, focus, rowDateKey);
       const dayActive = !focus && !!selectedDate && rowDateKey === selectedDate;
       return {

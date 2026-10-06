@@ -144,7 +144,8 @@
     margin-bottom: 0;
   }
 
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--props .dashboard-titlebar-stat-heading-single {
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--props .dashboard-titlebar-stat-heading-single,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--maintenance .dashboard-titlebar-stat-heading-single {
     margin-bottom: 0.35rem;
   }
 
@@ -312,6 +313,11 @@
     border: 1px solid #ce93d8;
   }
 
+  .dashboard-titlebar-stat--maintenance {
+    background-color: #e0f2f1;
+    border: 1px solid #80cbc4;
+  }
+
   .dashboard-titlebar-stat--commissions {
     position: relative;
     background-color: #fff3e0;
@@ -386,7 +392,8 @@
     min-height: 28px;
   }
 
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--props .dashboard-titlebar-spinner {
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--props .dashboard-titlebar-spinner,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--maintenance .dashboard-titlebar-spinner {
     min-height: 18px;
   }
 
@@ -511,6 +518,17 @@
     color: #111;
   }
 
+  .dashboard-titlebar-stat--maintenance .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--maintenance .dashboard-titlebar-prop-label,
+  .dashboard-titlebar-maintenance-red,
+  .dashboard-titlebar-maintenance-yellow {
+    color: #00695c;
+  }
+
+  .dashboard-titlebar-stat--maintenance .dashboard-titlebar-prop-value {
+    color: #111;
+  }
+
   .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-line,
   .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-sub {
     color: #e65100;
@@ -525,6 +543,7 @@
   .dashboard-titlebar-stat--green .dashboard-titlebar-stat-line,
   .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-line,
   .dashboard-titlebar-stat--props .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--maintenance .dashboard-titlebar-stat-line,
   .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-line {
     font-size: calc(11px + 0.5pt);
   }

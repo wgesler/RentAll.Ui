@@ -33,6 +33,7 @@ import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { DashboardNavigationService } from '../../dashboards/services/dashboard-navigation.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
@@ -68,6 +69,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
+  private dashboardNavigation = inject(DashboardNavigationService);
 
   property: PropertyResponse | null = null;
   routePropertyId: string | null = null;
@@ -1451,6 +1453,13 @@ applyPageOfficeChangeEffects(): void {
   async back(): Promise<void> {
     const canLeave = await this.confirmChecklistNavigation();
     if (!canLeave) {
+      return;
+    }
+    const dashboardReturnUrl = this.dashboardNavigation.resolveDashboardReturnUrl(
+      this.route.snapshot.queryParamMap.get('returnUrl')
+    );
+    if (dashboardReturnUrl) {
+      void this.router.navigateByUrl(dashboardReturnUrl);
       return;
     }
     this.router.navigateByUrl(RouterUrl.MaintenanceList);

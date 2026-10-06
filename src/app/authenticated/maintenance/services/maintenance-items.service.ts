@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
+import { MaintenanceItemListResponse, MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
 
 @Injectable({
   providedIn: 'root'
@@ -20,6 +20,10 @@ export class MaintenanceItemsService {
     this.http = http;
     this.configService = configService;
     this.controller = this.configService.config().apiUrl + 'maintenance/maintenance-item/';
+  }
+
+  getMaintenanceItems(): Observable<MaintenanceItemListResponse[]> {
+    return this.http.get<MaintenanceItemListResponse[]>(this.controller + 'list');
   }
 
   getMaintenanceItemsByPropertyId(propertyId: string): Observable<MaintenanceItemResponse[]> {

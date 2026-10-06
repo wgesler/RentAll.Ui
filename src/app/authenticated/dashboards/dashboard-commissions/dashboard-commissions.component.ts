@@ -30,7 +30,7 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
 
   //#region Dashboard-Commissions
   ngOnInit(): void {
-    this.dashboardNavigation.setTabIndex(8);
+    this.dashboardNavigation.setTabIndex(9);
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
       this.commissionRows = snapshot.monthlyCommissionRows || [];

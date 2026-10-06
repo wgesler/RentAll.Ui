@@ -123,6 +123,30 @@
             </div>
           </div>
 
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--maintenance">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
+                <span class="dashboard-titlebar-stat-line">Maintenance</span>
+              </h4>
+              @if (!maintenanceCountsReady) {
+                <div class="dashboard-titlebar-spinner">
+                  <mat-spinner [diameter]="16"></mat-spinner>
+                </div>
+              } @else {
+                <div class="dashboard-titlebar-prop-stats dashboard-titlebar-prop-stats--stacked">
+                  <div class="dashboard-titlebar-prop-row">
+                    <span class="dashboard-titlebar-prop-label dashboard-titlebar-maintenance-red">Red</span>
+                    <span class="dashboard-titlebar-prop-value">{{ maintenanceRedCount }}</span>
+                  </div>
+                  <div class="dashboard-titlebar-prop-row">
+                    <span class="dashboard-titlebar-prop-label dashboard-titlebar-maintenance-yellow">Yellow</span>
+                    <span class="dashboard-titlebar-prop-value">{{ maintenanceYellowCount }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
           @if (showCommissionsUi) {
             <div
               class="dashboard-titlebar-stat dashboard-titlebar-stat--commissions"
@@ -203,19 +227,24 @@
             <app-dashboard-vacant />
           }
         </mat-tab>
-        <mat-tab label="Maid Service">
+        <mat-tab label="Maintenance">
           @if (selectedTabIndex === 6) {
+            <app-dashboard-maintenance />
+          }
+        </mat-tab>
+        <mat-tab label="Maid Service">
+          @if (selectedTabIndex === 7) {
             <app-dashboard-calendars [showCalendarsSection]="false" />
           }
         </mat-tab>
         <mat-tab label="Schedules">
-          @if (selectedTabIndex === 7) {
+          @if (selectedTabIndex === 8) {
             <app-dashboard-schedules />
           }
         </mat-tab>
         @if (canViewCommissions) {
           <mat-tab label="Commissions">
-            @if (selectedTabIndex === 8) {
+            @if (selectedTabIndex === 9) {
               <app-dashboard-commissions />
             }
           </mat-tab>

@@ -4,6 +4,9 @@ import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
+import { MaintenanceItemListResponse } from '../../maintenance/models/maintenance-item.model';
+import { MaintenanceItemsService } from '../../maintenance/services/maintenance-items.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { UserResponse } from '../../users/models/user.model';
@@ -20,6 +23,7 @@ import { DashboardDeparturesComponent } from '../dashboard-departures/dashboard-
 import { DashboardInProcessComponent } from '../dashboard-in-process/dashboard-in-process.component';
 import { DashboardOfflineComponent } from '../dashboard-offline/dashboard-offline.component';
 import { DashboardOnlineComponent } from '../dashboard-online/dashboard-online.component';
+import { DashboardMaintenanceComponent } from '../dashboard-maintenance/dashboard-maintenance.component';
 import { DashboardVacantComponent } from '../dashboard-vacant/dashboard-vacant.component';
 
 @Component({
@@ -39,6 +43,7 @@ import { DashboardVacantComponent } from '../dashboard-vacant/dashboard-vacant.c
     DashboardCalendarsComponent,
     DashboardInProcessComponent,
     DashboardVacantComponent,
+    DashboardMaintenanceComponent,
     DashboardSchedulesComponent,
     DashboardCommissionsComponent
   ]
@@ -47,6 +52,8 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private userService = inject(UserService);
   private formatterService = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private maintenanceItemsService = inject(MaintenanceItemsService);
   private companyDataService = inject(DashboardCompanyDataService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private route = inject(ActivatedRoute);
@@ -71,6 +78,10 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   onlineOfflineTomorrowCount = 0;
   rentedCount = 0;
   vacantCount = 0;
+  maintenanceRedCount = 0;
+  maintenanceYellowCount = 0;
+  maintenanceCountsReady = false;
+  maintenanceItems: MaintenanceItemListResponse[] = [];
   currentUserAgentCode: string | null = null;
   monthlyCommissions: MonthlyCommissionDisplay[] = [];
   showMonthlyCommissionAmount = false;
@@ -83,6 +94,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
     this.canViewCommissions = this.authService.canViewCommissions();
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.user?.userId ?? '');
+    this.loadMaintenanceCounts();
 
     const tabParam = Number(this.route.snapshot.queryParamMap.get('tab'));
     if (Number.isFinite(tabParam)) {
@@ -107,6 +119,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
       this.currentUserAgentCode = snapshot.currentUserAgentCode;
       this.monthlyCommissions = snapshot.monthlyCommissionRows || [];
       this.isPageReady = snapshot.isReady;
+      this.rebuildMaintenanceCounts();
       this.markViewForCheck();
     });
 
@@ -122,7 +135,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   }
 
   clampTabIndex(tabIndex: number): number {
-    const maxTabIndex = this.canViewCommissions ? 8 : 7;
+    const maxTabIndex = this.canViewCommissions ? 9 : 8;
     return Math.max(0, Math.min(maxTabIndex, Math.floor(tabIndex)));
   }
 
@@ -168,6 +181,70 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
 
   getOnlineOfflineTomorrowCount(): number {
     return this.onlineOfflineTomorrowCount;
+  }
+
+  loadMaintenanceCounts(): void {
+    this.maintenanceItemsService.getMaintenanceItems().pipe(takeUntil(this.destroy$)).subscribe({
+      next: items => {
+        this.maintenanceItems = items || [];
+        this.maintenanceCountsReady = true;
+        this.rebuildMaintenanceCounts();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.maintenanceItems = [];
+        this.maintenanceCountsReady = true;
+        this.rebuildMaintenanceCounts();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  rebuildMaintenanceCounts(): void {
+    let red = 0;
+    let yellow = 0;
+    const officeId = this.titleBarSelectedOfficeId;
+    for (const item of this.maintenanceItems) {
+      if (officeId != null && item.officeId !== officeId) {
+        continue;
+      }
+      const status = this.getMaintenanceServiceStatus(item);
+      if (status === 'red') {
+        red += 1;
+      } else if (status === 'yellow') {
+        yellow += 1;
+      }
+    }
+    this.maintenanceRedCount = red;
+    this.maintenanceYellowCount = yellow;
+  }
+
+  getMaintenanceServiceStatus(item: MaintenanceItemListResponse): 'red' | 'yellow' | 'green' | null {
+    const lastServiced = this.utilityService.parseDateOnlyStringToDate(item.lastServicedOn);
+    const months = Number(item.monthsBetweenService);
+    if (!lastServiced || !Number.isFinite(months) || months <= 0) {
+      return null;
+    }
+    const due = this.startOfDay(this.addMonths(lastServiced, months));
+    const today = this.startOfDay(new Date());
+    if (due < today) {
+      return 'red';
+    }
+    if (due <= this.startOfDay(this.addMonths(today, 1))) {
+      return 'yellow';
+    }
+    return 'green';
+  }
+
+  addMonths(date: Date, months: number): Date {
+    const result = new Date(date.getFullYear(), date.getMonth() + months, 1);
+    const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+    result.setDate(Math.min(date.getDate(), lastDay));
+    return result;
+  }
+
+  startOfDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
   //#endregion
 
