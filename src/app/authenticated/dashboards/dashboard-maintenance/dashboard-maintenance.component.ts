@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -46,6 +46,7 @@ export class DashboardMaintenanceComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private toastr = inject(ToastrService);
   private destroy$ = new Subject<void>();
+  private pendingMonthsById = new Map<number, number>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   items: MaintenanceItemListResponse[] = [];
@@ -173,14 +174,28 @@ export class DashboardMaintenanceComponent implements OnInit, OnDestroy {
       monthsBetweenService: months,
       lastServicedOn
     };
-    this.maintenanceItemsService.updateMaintenanceItem(request).pipe(takeUntil(this.destroy$)).subscribe({
+    this.pendingMonthsById.set(source.maintenanceItemId, months);
+    this.maintenanceItemsService.updateMaintenanceItem(request).pipe(take(1)).subscribe({
       next: () => {
+        if (this.pendingMonthsById.get(source.maintenanceItemId) !== months) {
+          return;
+        }
+        this.pendingMonthsById.delete(source.maintenanceItemId);
         source.monthsBetweenService = months;
         this.maintenanceItemsService.notifyItemUpdated(source);
+        if (this.destroy$.closed) {
+          return;
+        }
         this.rebuildRows();
         this.markViewForCheck();
       },
       error: () => {
+        if (this.pendingMonthsById.get(source.maintenanceItemId) === months) {
+          this.pendingMonthsById.delete(source.maintenanceItemId);
+        }
+        if (this.destroy$.closed) {
+          return;
+        }
         row.months = String(source.monthsBetweenService ?? '');
         this.toastr.error('Maintenance item could not be saved.');
         this.markViewForCheck();

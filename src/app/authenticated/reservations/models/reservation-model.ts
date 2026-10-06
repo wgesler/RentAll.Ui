@@ -421,6 +421,8 @@ export interface ReservationDepartureResponse {
   journalEntryCode?: string | null;
   paidJournalEntryId?: string | null;
   paidJournalEntryCode?: string | null;
+  returnJournalEntryId?: string | null;
+  returnJournalEntryCode?: string | null;
   invoiceId?: string | null;
   invoiceCode?: string | null;
 }
@@ -471,6 +473,8 @@ export interface UnreturnedSecurityDepositDisplay {
   journalEntryCode: string;
   paidJournalEntryId: string;
   paidJournalEntryCode: string;
+  returnJournalEntryId: string;
+  returnJournalEntryCode: string;
   depositReturned: boolean;
   depositComplete: boolean;
   payableDisabled?: boolean;

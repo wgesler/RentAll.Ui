@@ -109,6 +109,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() invoiceActionColor: string = '#2E7D32';
   @Input() payableActionColor: string = '#4CAF50';
   @Input() payableActionTooltip: string = 'Create Bill & Pay';
+  @Input() transferActionTooltip: string = 'Transfer To Business Bank';
   @Input() infoActionColor: string = '#1E88E5';
   @Input() copyActionColor: string = '#2196F3';
   @Input() infoTooltipClass: string = 'invoice-reservation-info-tooltip';
@@ -1564,7 +1565,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsOwner)    this.buttons.push({name: 'owner', callback: (event, rowItem) => this.emitOwnerEvent(event, rowItem), color: '#7B1FA2', tooltip: 'Convert Lead to Owner', tooltipPosition: 'before', icon: 'person', suspendOnUpdate: false});
     if (this.hasActionsPartner)  this.buttons.push({name: 'partner', callback: (event, rowItem) => this.emitPartnerEvent(event, rowItem), color: '#00897B', tooltip: 'Convert Lead to Partner', tooltipPosition: 'before', icon: 'handshake', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: this.payableActionColor, tooltip: this.payableActionTooltip, tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
-    if (this.hasActionsTransfer) this.buttons.push({name: 'transfer', callback: (event, rowItem) => this.emitTransferEvent(event, rowItem), color: '#1565C0', tooltip: 'Transfer To Business Bank', tooltipPosition: 'before', icon: 'sync_alt', suspendOnUpdate: false});
+    if (this.hasActionsTransfer) this.buttons.push({name: 'transfer', callback: (event, rowItem) => this.emitTransferEvent(event, rowItem), color: '#1565C0', tooltip: this.transferActionTooltip, tooltipPosition: 'before', icon: 'sync_alt', suspendOnUpdate: false});
     if (this.hasActionsUndo)    this.buttons.push({name: 'undo', callback: (event, rowItem) => this.emitUndoEvent(event, rowItem), color: '#E65100', tooltip: 'Undo', tooltipPosition: 'before', icon: 'replay_circle_filled', suspendOnUpdate: false});
     if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: this.invoiceActionColor, tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsInfo && !placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});

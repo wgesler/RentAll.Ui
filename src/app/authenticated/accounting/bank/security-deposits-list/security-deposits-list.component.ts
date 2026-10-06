@@ -35,6 +35,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   @Input() refreshTrigger = 0;
   @Output() invoiceSelectEvent = new EventEmitter<InvoiceSelection>();
   @Output() securityDepositReportEvent = new EventEmitter<SecurityDepositReportSelection>();
+  @Output() transferJournalEntryEvent = new EventEmitter<string>();
 
   @ViewChild('tableWrap') tableWrapRef?: ElementRef<HTMLElement>;
   @ViewChild('summaryFooter') summaryFooterRef?: ElementRef<HTMLElement>;
@@ -265,7 +266,44 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   }
 
   onTransfer(row: UnreturnedSecurityDepositDisplay): void {
-    this.openApplyPaymentDialog(row, 'transfer');
+    if (!row?.depositReturned) {
+      this.toastr.warning('Refund the security deposit before transferring funds.');
+      return;
+    }
+
+    const journalEntryId = String(row.returnJournalEntryId || '').trim();
+    if (journalEntryId) {
+      this.transferJournalEntryEvent.emit(journalEntryId);
+      return;
+    }
+
+    const reservationId = String(row.reservationId || '').trim();
+    if (!reservationId) {
+      this.toastr.warning('No refund journal entry is available for this security deposit.');
+      return;
+    }
+
+    this.securityDepositService.getSecurityDepositDetail(reservationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: raw => {
+        const detail = this.mappingService.mapSecurityDepositDetailResponse(raw);
+        const returnEntry = (detail.returnPayments || [])
+          .filter(line => String(line.journalEntryId || '').trim())
+          .sort((left, right) => String(right.transactionDate || '').localeCompare(String(left.transactionDate || '')))[0];
+        const id = String(returnEntry?.journalEntryId || '').trim();
+        if (!id) {
+          this.toastr.warning('No refund journal entry is available for this security deposit.');
+          this.markViewForCheck();
+          return;
+        }
+        row.returnJournalEntryId = id;
+        this.transferJournalEntryEvent.emit(id);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.warning('No refund journal entry is available for this security deposit.');
+        this.markViewForCheck();
+      }
+    });
   }
 
   onUndo(row: UnreturnedSecurityDepositDisplay): void {

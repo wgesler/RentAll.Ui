@@ -6976,7 +6976,6 @@ roundCurrency(value: number): number {
       const returnedBalanceAmount = this.roundFinancialReportAmount(Math.max(0, collectedAmount - owedAmount));
       const paidAmount = Number(row.returnedAmount ?? 0);
       const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, returnedBalanceAmount - paidAmount));
-      const remainingTransferAmount = this.roundFinancialReportAmount(Math.max(0, owedAmount - transferredAmount));
       const depositReturned = !!row.depositReturned;
       const depositComplete = Number(row.deposit ?? 0) > 0
         && collectedAmount > 0
@@ -7011,10 +7010,12 @@ roundCurrency(value: number): number {
         journalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
         paidJournalEntryId: this.utility.normalizeId(row.paidJournalEntryId ?? ''),
         paidJournalEntryCode: String(row.paidJournalEntryCode ?? '').trim(),
+        returnJournalEntryId: this.utility.normalizeId(row.returnJournalEntryId ?? ''),
+        returnJournalEntryCode: String(row.returnJournalEntryCode ?? '').trim(),
         depositReturned,
         depositComplete,
         payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0,
-        transferDisabled: collectedAmount <= 0 || collectedAmount <= returnedBalanceAmount || remainingTransferAmount <= 0,
+        transferDisabled: !depositReturned,
         undoDisabled: !depositReturned && !depositComplete
       };
     });

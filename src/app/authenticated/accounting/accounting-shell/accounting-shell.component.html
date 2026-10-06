@@ -1426,7 +1426,8 @@
                     [officeId]="selectedOfficeId"
                     [refreshTrigger]="securityDepositsRefreshTrigger"
                     (invoiceSelectEvent)="onSecurityDepositInvoiceSelect($event)"
-                    (securityDepositReportEvent)="onSecurityDepositReportOpen($event)">
+                    (securityDepositReportEvent)="onSecurityDepositReportOpen($event)"
+                    (transferJournalEntryEvent)="onSecurityDepositTransferJournalEntry($event)">
                   </app-security-deposits-list>
                 }
               } @else if (selectedBankActivityKind === 'reconcile' && reconcileSetup) {

@@ -739,6 +739,22 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.onInvoiceSelect(selection);
   }
 
+  onSecurityDepositTransferJournalEntry(journalEntryId: string): void {
+    const id = (journalEntryId || '').trim();
+    if (!id) {
+      return;
+    }
+
+    this.showSecurityDepositReport = false;
+    this.securityDepositReportContext = null;
+    this.showGeneralLedgerOfficeValidationError = false;
+    this.copyFromJournalEntry = null;
+    this.selectedJournalEntryLineId = null;
+    this.activeJournalEntryId = id;
+    this.showGeneralLedgerDetail = true;
+    this.cdr.markForCheck();
+  }
+
   onSecurityDepositReportOpen(selection: SecurityDepositReportSelection): void {
     const reservationId = (selection?.reservationId || '').trim();
     if (!reservationId) {

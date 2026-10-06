@@ -155,6 +155,11 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  get isSecurityDepositReturnEntry(): boolean {
+    return Number(this.journalEntry?.sourceTypeId) === SourceType.SecurityDeposit
+      && Number(this.journalEntry?.journalEntryKindId) === JournalEntryKind.SecurityDepositReturn;
+  }
+
   get canEdit(): boolean {
     if (this.isAddMode) {
       return true;
@@ -162,6 +167,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
     if (!this.journalEntry) {
       return false;
+    }
+
+    if (this.isSecurityDepositReturnEntry) {
+      return this.journalEntryService.canUpdateJournalEntry(this.journalEntry.postingStatusId);
     }
 
     if (!isUserEditableJournalEntry(this.journalEntry.sourceTypeId, this.journalEntry.journalEntryKindId)) {
@@ -177,6 +186,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get canEditJournalEntryKind(): boolean {
+    if (this.isSecurityDepositReturnEntry) {
+      return false;
+    }
+
     return this.isAddMode || this.canEditLines;
   }
 
@@ -1003,7 +1016,9 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       sourceTypeId: this.journalEntry.sourceTypeId ?? null,
       sourceId: this.journalEntry.sourceId ?? null,
       memo: this.form.getRawValue().memo?.trim() || null,
-      journalEntryKindId: Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual),
+      journalEntryKindId: this.isSecurityDepositReturnEntry
+        ? JournalEntryKind.SecurityDepositReturn
+        : Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual),
       postingStatusId: this.resolvePostingStatusIdFromForm(),
       isCashOnly: this.journalEntry.isCashOnly,
       journalEntryLines
