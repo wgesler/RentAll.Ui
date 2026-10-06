@@ -1178,16 +1178,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         .map(row => String(row.invoiceId))
     );
 
-    for (const invoiceId of [...this.selectedInvoiceIds]) {
-      if (this.getInvoiceDueAmountValue(invoiceId) <= 0) {
-        this.selectedInvoiceIds.delete(invoiceId);
-        const row = this.invoicesDisplay.find(invoice => invoice.invoiceId === invoiceId);
-        if (row) {
-          row.selected = false;
-        }
-      }
-    }
-
     this.selectedInvoices = this.allInvoices.filter(inv => this.selectedInvoiceIds.has(inv.invoiceId));
 
     if (!this.isManualApplyMode || !this.showPaymentForm || this.isRowScopedPaymentMode) {
