@@ -5,6 +5,35 @@ import { RouterUrl } from '../../../app.routes';
 @Injectable({ providedIn: 'root' })
 export class DashboardNavigationService {
   private tabIndex = 0;
+  private maintenanceIncludeGreen = false;
+  private maintenanceIncludeGreenMarkedForReturn = false;
+
+  setMaintenanceIncludeGreen(includeGreen: boolean): void {
+    this.maintenanceIncludeGreen = includeGreen;
+  }
+
+  getMaintenanceIncludeGreen(): boolean {
+    return this.maintenanceIncludeGreen;
+  }
+
+  resetMaintenanceIncludeGreen(): void {
+    this.maintenanceIncludeGreen = false;
+    this.maintenanceIncludeGreenMarkedForReturn = false;
+  }
+
+  markMaintenanceIncludeGreenForReturn(): void {
+    this.maintenanceIncludeGreenMarkedForReturn = true;
+  }
+
+  isMaintenanceIncludeGreenMarkedForReturn(): boolean {
+    return this.maintenanceIncludeGreenMarkedForReturn;
+  }
+
+  consumeMaintenanceIncludeGreenForReturn(): boolean {
+    const marked = this.maintenanceIncludeGreenMarkedForReturn;
+    this.maintenanceIncludeGreenMarkedForReturn = false;
+    return marked;
+  }
 
   setTabIndex(tabIndex: number): void {
     this.tabIndex = Number.isFinite(tabIndex) ? Math.max(0, Math.floor(tabIndex)) : 0;

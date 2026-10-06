@@ -12,3 +12,9 @@
   white-space: nowrap;
   line-height: 1.2;
 }
+
+.maintenance-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

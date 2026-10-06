@@ -495,7 +495,14 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       || this.isReceiptDetailActive
       || this.isReceiptDraftDetailActive
       || this.isWorkOrderDetailActive
-      || this.isWorkOrderCreateActive;
+      || this.isWorkOrderCreateActive
+      || this.hasDashboardReturn;
+  }
+
+  get hasDashboardReturn(): boolean {
+    return this.dashboardNavigation.resolveDashboardReturnUrl(
+      this.route.snapshot.queryParamMap.get('returnUrl')
+    ) != null;
   }
 
   get isReceiptAddMode(): boolean {

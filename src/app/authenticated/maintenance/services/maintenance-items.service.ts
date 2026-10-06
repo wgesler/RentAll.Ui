@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MaintenanceItemListResponse, MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
 
@@ -10,6 +10,8 @@ import { MaintenanceItemListResponse, MaintenanceItemRequest, MaintenanceItemRes
 export class MaintenanceItemsService {
   readonly controller: string;
   readonly maintenanceController: string;
+  private readonly itemUpdatedSubject = new Subject<MaintenanceItemListResponse>();
+  readonly itemUpdated$ = this.itemUpdatedSubject.asObservable();
   http: HttpClient;
   configService: ConfigService;
 
@@ -36,6 +38,10 @@ export class MaintenanceItemsService {
 
   updateMaintenanceItem(request: MaintenanceItemRequest): Observable<MaintenanceItemResponse> {
     return this.http.put<MaintenanceItemResponse>(this.controller, request);
+  }
+
+  notifyItemUpdated(item: MaintenanceItemListResponse): void {
+    this.itemUpdatedSubject.next(item);
   }
 
   deleteMaintenanceItem(maintenanceItemId: number): Observable<void> {

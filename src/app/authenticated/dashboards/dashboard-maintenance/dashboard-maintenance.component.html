@@ -12,8 +12,6 @@
       <div class="tableDiv">
         @if (loadFailed) {
           <p class="dashboard-tab-empty">Maintenance items could not be loaded.</p>
-        } @else if (rows.length === 0) {
-          <p class="dashboard-tab-empty">No properties have maintenance due.</p>
         } @else {
           <app-data-table
             [data]="rows"
@@ -30,8 +28,16 @@
             [itemsPerPage]="50"
             (editEvent)="goToProperty($event)"
             (rowClickEvent)="goToProperty($event)"
-            (propertyCodeClickEvent)="goToProperty($event)">
-            <div dataTableFilterActions>
+            (propertyCodeClickEvent)="goToProperty($event)"
+            (inlineEditChangeEvent)="onMonthsInlineChange($event)">
+            <div dataTableFilterActions class="maintenance-filter-actions">
+              <mat-slide-toggle
+                class="whitespace-nowrap"
+                color="primary"
+                [checked]="includeGreen"
+                (change)="onIncludeGreenChange($event.checked)">
+                Include Green
+              </mat-slide-toggle>
               <span class="filter-row-title">Maintenance Due</span>
             </div>
           </app-data-table>

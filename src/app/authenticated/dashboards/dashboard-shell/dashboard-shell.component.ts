@@ -95,6 +95,15 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.user?.userId ?? '');
     this.loadMaintenanceCounts();
+    this.maintenanceItemsService.itemUpdated$.pipe(takeUntil(this.destroy$)).subscribe(updated => {
+      const match = this.maintenanceItems.find(item => item.maintenanceItemId === updated.maintenanceItemId);
+      if (!match) {
+        return;
+      }
+      match.monthsBetweenService = updated.monthsBetweenService;
+      this.rebuildMaintenanceCounts();
+      this.markViewForCheck();
+    });
 
     const tabParam = Number(this.route.snapshot.queryParamMap.get('tab'));
     if (Number.isFinite(tabParam)) {
@@ -102,6 +111,12 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
       this.dashboardNavigation.setTabIndex(this.selectedTabIndex);
     } else {
       this.dashboardNavigation.setTabIndex(this.selectedTabIndex);
+    }
+
+    const keepIncludeGreen = this.dashboardNavigation.consumeMaintenanceIncludeGreenForReturn()
+      && this.selectedTabIndex === 6;
+    if (!keepIncludeGreen) {
+      this.dashboardNavigation.resetMaintenanceIncludeGreen();
     }
 
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
@@ -141,6 +156,9 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
 
   syncDashboardTabToUrl(tabIndex: number): void {
     const clamped = this.clampTabIndex(tabIndex);
+    if (clamped !== 6) {
+      this.dashboardNavigation.resetMaintenanceIncludeGreen();
+    }
     this.selectedTabIndex = clamped;
     this.dashboardNavigation.setTabIndex(clamped);
     void this.router.navigate([], {
@@ -387,6 +405,9 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (!this.dashboardNavigation.isMaintenanceIncludeGreenMarkedForReturn()) {
+      this.dashboardNavigation.resetMaintenanceIncludeGreen();
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }

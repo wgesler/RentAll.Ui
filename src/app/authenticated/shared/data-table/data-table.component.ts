@@ -461,6 +461,12 @@ markViewForCheck(): void {
           return sortKey.trim();
         }
       }
+      if (column === 'dateDue') {
+        const sortKey = item['dateDueSortKey'];
+        if (typeof sortKey === 'string' && sortKey.trim()) {
+          return sortKey.trim();
+        }
+      }
 
       if (column === 'workOrderDisplay') {
         return this.workOrderDisplaySortKey(value);
