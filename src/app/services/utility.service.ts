@@ -797,6 +797,31 @@ export class UtilityService {
     return (contact.companyName || '').trim();
   }
 
+  getDistinctCompanyNameOptions(
+    contacts: ContactResponse[] | null | undefined,
+    selectedCompanyId?: string | null
+  ): { value: string, label: string }[] {
+    const selectedId = String(selectedCompanyId || '').trim();
+    const byName = new Map<string, { value: string, label: string }>();
+
+    for (const contact of contacts || []) {
+      const label = (contact?.companyName || '').trim();
+      const contactId = String(contact?.contactId || '').trim();
+      if (!label || !contactId) {
+        continue;
+      }
+      const key = label.toLowerCase();
+      const existing = byName.get(key);
+      if (!existing || contactId === selectedId) {
+        byName.set(key, { value: contactId, label: existing?.label || label });
+      }
+    }
+
+    return Array.from(byName.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+    );
+  }
+
   getContactLegalName(contact: Pick<ContactResponse, 'legalName' | 'firstName' | 'lastName'> | null | undefined): string {
     return String(contact?.legalName || `${contact?.firstName || ''} ${contact?.lastName || ''}`).trim();
   }

@@ -4760,30 +4760,10 @@ persistPinnedTopBarIfActive(): void {
   }
 
   getAccountingCompanyOptions(contacts: ContactResponse[] | null | undefined, selectedOfficeId: number | null | undefined): { value: string, label: string }[] {
-    const byContactId = new Map<string, { value: string, label: string }>();
-
-    (contacts || [])
+    const scoped = (contacts || [])
       .filter(contact => !!contact?.isActive)
-      .filter(contact => selectedOfficeId == null || contact.officeId === selectedOfficeId || (contact.officeAccess || []).some(id => Number(id) === selectedOfficeId))
-      .forEach(contact => {
-        const contactId = String(contact.contactId || '').trim();
-        const label = this.getAccountingCompanyLabel(contact);
-        if (!contactId || !label || byContactId.has(contactId)) {
-          return;
-        }
-        byContactId.set(contactId, { value: contactId, label });
-      });
-
-    return Array.from(byContactId.values())
-      .sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
-        || a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })
-      )
-      .map(({ value, label }) => ({ value, label }));
-  }
-
-  getAccountingCompanyLabel(contact: ContactResponse | null | undefined): string {
-    return this.utilityService.getCompanyDropdownLabel(contact);
+      .filter(contact => selectedOfficeId == null || contact.officeId === selectedOfficeId || (contact.officeAccess || []).some(id => Number(id) === selectedOfficeId));
+    return this.utilityService.getDistinctCompanyNameOptions(scoped, this.selectedCompanyId);
   }
 
   getReservationOptions(reservations: { value: { reservationId: string }, label: string }[] | null | undefined): { value: string, label: string }[] {

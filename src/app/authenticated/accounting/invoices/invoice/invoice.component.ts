@@ -568,26 +568,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get companyTitleBarOptions(): { value: string, label: string }[] {
-    const byContactId = new Map<string, { value: string, label: string }>();
     const officeId = this.selectedOffice?.officeId ?? this.form?.get('officeId')?.value ?? null;
-
-    this.companyContacts
+    const scoped = this.companyContacts
       .filter(contact => !!contact?.isActive)
-      .filter(contact => this.contactHasOfficeAccess(contact, officeId))
-      .forEach(contact => {
-        const contactId = String(contact.contactId || '').trim();
-        const label = this.utilityService.getCompanyDropdownLabel(contact);
-        if (!contactId || !label || byContactId.has(contactId)) {
-          return;
-        }
-        byContactId.set(contactId, { value: contactId, label });
-      });
-
-    return Array.from(byContactId.values())
-      .sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
-        || a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })
-      );
+      .filter(contact => this.contactHasOfficeAccess(contact, officeId));
+    return this.utilityService.getDistinctCompanyNameOptions(scoped, this.companyId);
   }
 
   get propertyTitleBarOptions(): { value: string, label: string }[] {
