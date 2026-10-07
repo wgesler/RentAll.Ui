@@ -2509,7 +2509,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
           workItems.push({
             contextLine: line,
-            allocationJournalEntryLineId: String(split.journalEntryLineId || '').trim(),
+            allocationJournalEntryLineId: String(line.journalEntryLineId || '').trim(),
             escrowAmount,
             depositSplit: split
           });
@@ -2529,8 +2529,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
       workItems.push({
         contextLine: line,
-        allocationJournalEntryLineId: String(matchingSplit?.journalEntryLineId || allocationJournalEntryLineId).trim(),
-        escrowAmount: matchingSplit ? this.roundCurrencyValue(Number(matchingSplit.amount || 0)) : escrowAmount,
+        allocationJournalEntryLineId,
+        escrowAmount,
         depositSplit: matchingSplit
       });
     }
@@ -2586,9 +2586,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const reservationId = (depositSplit?.reservationId || allocation.reservationId || '').trim() || null;
     const contactId = (depositSplit?.contactId || allocation.contactId || '').trim() || null;
     const journalEntryLineId = (
-      depositSplit?.journalEntryLineId
+      contextLine.journalEntryLineId
       || allocation.journalEntryLineId
-      || contextLine.journalEntryLineId
       || ''
     ).trim() || null;
     const source = (allocation.description || this.extractTransferSourceLabel(depositSplit?.description) || contextLine.source || contextLine.description || '').trim();
