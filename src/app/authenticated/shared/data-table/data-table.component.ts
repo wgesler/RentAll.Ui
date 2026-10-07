@@ -275,6 +275,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   isDataLoaded: boolean = false;
   filterVal: string = null;
   filterSticky = false;
+  droppingHiddenSelections = false;
   effectiveItemsPerPage: number = 10;
   effectivePageSizeOptions: number[] = [10, 20, 50, 100];
 
@@ -527,8 +528,12 @@ markViewForCheck(): void {
   };
 
   ngAfterViewInit(): void {
+    this.sort?.sortChange.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.dropSelectionsOutsideVisiblePage();
+    });
     this.zone.onStable.pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
       this.attachTableSortAndPaginator();
+      this.dropSelectionsOutsideVisiblePage();
       this.bindViewportHScroll();
     });
   }
@@ -570,6 +575,7 @@ markViewForCheck(): void {
     this.dataSource.filter = this.filterVal;
     this.filterValChangeEvent.emit(this.filterVal);
     if (resetPage) this.dataSource?.paginator.firstPage();
+    this.dropSelectionsOutsideVisiblePage();
     if (this.filterSticky && persistSticky) {
       this.persistStickyFilterAndSort();
     }
@@ -582,6 +588,7 @@ markViewForCheck(): void {
     this.filterValChangeEvent.emit('');
 
     this.dataSource?.paginator.firstPage();
+    this.dropSelectionsOutsideVisiblePage();
     if (this.filterSticky) {
       this.persistStickyFilterAndSort();
     }
@@ -1816,8 +1823,9 @@ applyStickySortIfNeeded(): void {
   setData(): void {
     this.dataSource.data = this.data;
     this.attachTableSortAndPaginator();
+    this.dropSelectionsOutsideVisiblePage();
     this.selection.clear();
-    const selectedItems = (this.data ?? []).filter(item => !!item?.selected);
+    const selectedItems = this.getCurrentPageItems().filter(item => !!item?.selected);
     if (selectedItems.length > 0) {
       this.selection.select(...selectedItems);
     }
@@ -1855,6 +1863,7 @@ applyStickySortIfNeeded(): void {
       return;
     }
 
+    this.dropSelectionsOutsideVisiblePage();
     const selectableItems = currentPageItems.filter(item => !item?.disabled && !item?.updating);
     this.selection.clear();
     this.selection.select(...selectableItems);
@@ -1866,13 +1875,48 @@ applyStickySortIfNeeded(): void {
   }
 
   getCurrentPageItems(): PurposefulAny[] {
+    const rows = this.getRowsMatchingSortAndFilter();
+    if (!this.paginator) {
+      return rows;
+    }
     const start = this.paginator.pageSize * this.paginator.pageIndex;
     const end = start + this.paginator.pageSize;
-    const currentPageItems = this.dataSource.data.slice(start, end);
-    return currentPageItems;
+    return rows.slice(start, end);
+  }
+
+  getRowsMatchingSortAndFilter(): PurposefulAny[] {
+    const filter = (this.dataSource?.filter || '').trim();
+    const filtered = this.dataSource?.filteredData ?? [];
+    const rows = !filter && filtered.length === 0 && (this.dataSource?.data?.length ?? 0) > 0
+      ? this.dataSource.data
+      : filtered;
+    if (!this.sort?.active || (this.sort.direction !== 'asc' && this.sort.direction !== 'desc')) {
+      return rows;
+    }
+    return this.dataSource.sortData(rows.slice(), this.sort);
+  }
+
+  dropSelectionsOutsideVisiblePage(): void {
+    if (!this.hasButtonSelectAll || !this.paginator || this.droppingHiddenSelections) {
+      return;
+    }
+    const visible = new Set(this.getCurrentPageItems());
+    const hiddenSelected = (this.dataSource?.data ?? []).filter(row => !!row?.['selected'] && !visible.has(row));
+    if (hiddenSelected.length === 0) {
+      return;
+    }
+    this.droppingHiddenSelections = true;
+    try {
+      for (const row of hiddenSelected) {
+        this.emitSelectEvent({ checked: false } as MatCheckboxChange, row);
+      }
+    } finally {
+      this.droppingHiddenSelections = false;
+    }
   }
 
   onPageChange(): void {
+    this.dropSelectionsOutsideVisiblePage();
     const currentPageItems = this.getCurrentPageItems();
     this.selection.clear();
     const selectedItems = currentPageItems.filter(item => !!item?.selected);
