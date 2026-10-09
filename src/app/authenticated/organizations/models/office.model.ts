@@ -66,6 +66,8 @@ export interface OfficeRequest {
   parkingExpenseCcId?: number | null;
   departureFeeCcId?: number | null;
   petFeeCcId?: number | null;
+  applicationFeeCcId?: number | null;
+  administrativeFeeCcId?: number | null;
   securityDepositCcId?: number | null;
   securityDepositWaiverCcId?: number | null;
   quotePreface?: string | null;
@@ -147,6 +149,8 @@ export interface OfficeResponse {
   parkingExpenseCcId?: number | null;
   departureFeeCcId?: number | null;
   petFeeCcId?: number | null;
+  applicationFeeCcId?: number | null;
+  administrativeFeeCcId?: number | null;
   securityDepositCcId?: number | null;
   securityDepositWaiverCcId?: number | null;
   quotePreface?: string | null;

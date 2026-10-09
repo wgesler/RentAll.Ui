@@ -667,6 +667,24 @@
                       </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Application Fee</mat-label>
+                      <mat-select formControlName="applicationFeeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Administrative Fee</mat-label>
+                      <mat-select formControlName="administrativeFeeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Security Deposit</mat-label>
                       <mat-select formControlName="securityDepositCcId">
                         <mat-option [value]="null">None</mat-option>

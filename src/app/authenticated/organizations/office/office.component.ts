@@ -498,6 +498,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       parkingExpenseCcId: new FormControl<number | null>(null),
       departureFeeCcId: new FormControl<number | null>(null),
       petFeeCcId: new FormControl<number | null>(null),
+      applicationFeeCcId: new FormControl<number | null>(null),
+      administrativeFeeCcId: new FormControl<number | null>(null),
       securityDepositCcId: new FormControl<number | null>(null),
       securityDepositWaiverCcId: new FormControl<number | null>(null),
       quotePreface: new FormControl<string>(''),
@@ -585,6 +587,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           parkingExpenseCcId: this.office.parkingExpenseCcId ?? null,
           departureFeeCcId: this.office.departureFeeCcId ?? null,
           petFeeCcId: this.office.petFeeCcId ?? null,
+          applicationFeeCcId: this.office.applicationFeeCcId ?? null,
+          administrativeFeeCcId: this.office.administrativeFeeCcId ?? null,
           securityDepositCcId: this.office.securityDepositCcId ?? null,
           securityDepositWaiverCcId: this.office.securityDepositWaiverCcId ?? null,
           quotePreface: this.office.quotePreface || '',
@@ -669,6 +673,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       parkingExpenseCcId: o.parkingExpenseCcId ?? null,
       departureFeeCcId: o.departureFeeCcId ?? null,
       petFeeCcId: o.petFeeCcId ?? null,
+      applicationFeeCcId: o.applicationFeeCcId ?? null,
+      administrativeFeeCcId: o.administrativeFeeCcId ?? null,
       securityDepositCcId: o.securityDepositCcId ?? null,
       securityDepositWaiverCcId: o.securityDepositWaiverCcId ?? null,
       quotePreface: o.quotePreface || '',
@@ -1125,6 +1131,8 @@ quotePastePlainToHtml(plain: string): string {
       | 'parkingExpenseCcId'
       | 'departureFeeCcId'
       | 'petFeeCcId'
+      | 'applicationFeeCcId'
+      | 'administrativeFeeCcId'
       | 'securityDepositCcId'
       | 'securityDepositWaiverCcId';
 
@@ -1139,6 +1147,8 @@ quotePastePlainToHtml(plain: string): string {
       'parkingExpenseCcId',
       'departureFeeCcId',
       'petFeeCcId',
+      'applicationFeeCcId',
+      'administrativeFeeCcId',
       'securityDepositCcId',
       'securityDepositWaiverCcId'
     ];
