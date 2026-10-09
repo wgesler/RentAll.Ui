@@ -37,9 +37,13 @@ export interface ReservationRequest {
   depositTypeId: number;
   depositReturned: boolean;
   departureFee: number;
+  propertyProtectionFee: number;
+  administrativeFee: number;
+  applicationFee: number;
   taxes: number;
   hasPets: boolean;
   petFee: number;
+  petSecurityDeposit: number;
   numberOfPets: number;
   petDescription?: string | null;
   maidService: boolean;
@@ -110,9 +114,13 @@ export interface ReservationResponse {
   depositTypeId?: number | null;
   depositReturned?: boolean | null;
   departureFee: number;
+  propertyProtectionFee: number;
+  administrativeFee: number;
+  applicationFee: number;
   taxes: number;
   hasPets: boolean;
   petFee: number;
+  petSecurityDeposit: number;
   numberOfPets: number;
   petDescription?: string | null;
   maidService: boolean;

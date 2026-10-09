@@ -933,6 +933,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       numberOfPeople: new FormControl(1, [Validators.required]),
       pets: new FormControl(false, [Validators.required]),
       petFee: new FormControl<string>('0.00'),
+      petSecurityDeposit: new FormControl<string>('0.00'),
       numberOfPets: new FormControl(0),
       petDescription: new FormControl(''),
       maidService: new FormControl(false, [Validators.required]),
@@ -941,8 +942,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       phone: new FormControl({ value: '', disabled: true }),
       email: new FormControl({ value: '', disabled: true }),
       depositType: new FormControl(DepositType.Deposit, [Validators.required]),
+      propertyProtectionFee: new FormControl<string>('0.00'),
       deposit: new FormControl<string>('0.00'),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
+      administrativeFee: new FormControl<string>('0.00'),
+      applicationFee: new FormControl<string>('0.00'),
       maidServiceFee: new FormControl<string>('0.00'),
       frequencyId: new FormControl(Frequency.NA),
       referralFee: new FormControl(false, [Validators.required]),
@@ -1017,6 +1021,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         ? Number(formValue['depositType'])
         : DepositType.Deposit,
       departureFee: formValue['departureFee'] ? parseFloat(String(formValue['departureFee'])) : 0,
+      propertyProtectionFee: formValue['propertyProtectionFee'] ? parseFloat(String(formValue['propertyProtectionFee'])) : 0,
+      administrativeFee: formValue['administrativeFee'] ? parseFloat(String(formValue['administrativeFee'])) : 0,
+      applicationFee: formValue['applicationFee'] ? parseFloat(String(formValue['applicationFee'])) : 0,
       maidService: (formValue['maidService'] as boolean | null | undefined) ?? false,
       maidServiceFee: formValue['maidServiceFee'] ? parseFloat(String(formValue['maidServiceFee'])) : 0,
       frequencyId: (formValue['frequencyId'] as number | null | undefined) ?? Frequency.NA,
@@ -1026,6 +1033,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         this.utilityService.todayAsCalendarDateString(),
       maidUserId,
       petFee: formValue['petFee'] ? parseFloat(String(formValue['petFee'])) : 0,
+      petSecurityDeposit: formValue['petSecurityDeposit'] ? parseFloat(String(formValue['petSecurityDeposit'])) : 0,
       numberOfPets: formValue['numberOfPets'] ? Number(formValue['numberOfPets']) : 0,
       petDescription: (formValue['petDescription'] as string | null | undefined) || undefined,
       taxes: formValue['taxes'] ? parseFloat(String(formValue['taxes'])) : 0,
@@ -1102,8 +1110,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       depositType: this.reservation.depositTypeId ?? DepositType.Deposit,
       deposit: this.reservation.deposit !== null && this.reservation.deposit !== undefined ? this.reservation.deposit.toFixed(2) : '0.00',
       departureFee: (this.reservation.departureFee ?? 0).toFixed(2),
+      administrativeFee: (this.reservation.administrativeFee ?? 0).toFixed(2),
+      applicationFee: (this.reservation.applicationFee ?? 0).toFixed(2),
+      propertyProtectionFee: (this.reservation.propertyProtectionFee ?? 0).toFixed(2),
       pets: this.reservation.hasPets ?? false,
       petFee: (this.reservation.petFee ?? 0).toFixed(2),
+      petSecurityDeposit: (this.reservation.petSecurityDeposit ?? 0).toFixed(2),
       numberOfPets: this.reservation.numberOfPets ?? 0,
       petDescription: this.reservation.petDescription || '',
       maidService: this.reservation.maidService ?? false,
@@ -1246,8 +1258,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       depositType: source.depositTypeId ?? DepositType.Deposit,
       deposit: source.deposit !== null && source.deposit !== undefined ? source.deposit.toFixed(2) : '0.00',
       departureFee: (source.departureFee ?? 0).toFixed(2),
+      administrativeFee: (source.administrativeFee ?? 0).toFixed(2),
+      applicationFee: (source.applicationFee ?? 0).toFixed(2),
+      propertyProtectionFee: (source.propertyProtectionFee ?? 0).toFixed(2),
       pets: source.hasPets ?? false,
       petFee: (source.petFee ?? 0).toFixed(2),
+      petSecurityDeposit: (source.petSecurityDeposit ?? 0).toFixed(2),
       numberOfPets: source.numberOfPets ?? 0,
       petDescription: source.petDescription || '',
       maidService: source.maidService ?? false,
@@ -2245,9 +2261,13 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.disableFieldWithValidation('billingEndDate');
       this.disableFieldWithValidation('depositType');      
       this.disableFieldWithValidation('deposit');
+      this.disableFieldWithValidation('propertyProtectionFee');
       this.disableFieldWithValidation('departureFee');
+      this.disableFieldWithValidation('administrativeFee');
+      this.disableFieldWithValidation('applicationFee');
       this.disableFieldWithValidation('pets');
       this.disableFieldWithValidation('petFee');
+      this.disableFieldWithValidation('petSecurityDeposit');
       this.disableFieldWithValidation('numberOfPets');
       this.disableFieldWithValidation('petDescription');
       this.disableFieldWithValidation('maidService');
@@ -2269,7 +2289,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.enableFieldWithValidation('billingEndDate', [this.billingEndAfterDepartureValidator, this.billingEndAfterBillingStartValidator]);
       this.enableFieldWithValidation('depositType', [Validators.required]);
       this.enableFieldWithValidation('deposit', [Validators.required]);
+      this.enableFieldWithValidation('propertyProtectionFee');
       this.enableFieldWithValidation('departureFee', [Validators.required]);
+      this.enableFieldWithValidation('administrativeFee');
+      this.enableFieldWithValidation('applicationFee');
       this.enableFieldWithValidation('taxes');
       this.enableFieldWithValidation('pets', [Validators.required]);      
       this.enableFieldWithValidation('maidService', [Validators.required]);      
@@ -2610,12 +2633,16 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   updatePetFields(applyEnabledDefaults: boolean = true): void {
     const hasPets = this.form.get('pets')?.value ?? false;
     const petFeeControl = this.form.get('petFee');
+    const petSecurityDepositControl = this.form.get('petSecurityDeposit');
     const numberOfPetsControl = this.form.get('numberOfPets');
     const petDescriptionControl = this.form.get('petDescription');
     
     if (hasPets === false) {
       petFeeControl.setValue('0.00', { emitEvent: false });
       this.disableFieldWithValidation('petFee');
+
+      petSecurityDepositControl.setValue('0.00', { emitEvent: false });
+      this.disableFieldWithValidation('petSecurityDeposit');
 
       numberOfPetsControl.setValue(0, { emitEvent: false });
       this.disableFieldWithValidation('numberOfPets');
@@ -2632,6 +2659,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         numberOfPetsControl.setValue(1, { emitEvent: false });
       }
       this.enableFieldWithValidation('petFee', [Validators.required]);
+      this.enableFieldWithValidation('petSecurityDeposit');
       this.enableFieldWithValidation('numberOfPets', [Validators.required]);
       this.enableFieldWithValidation('petDescription', [Validators.required]);
     }

@@ -666,6 +666,7 @@
                 </div>
               </div>
 
+              <div class="col-span-4 grid grid-cols-5 form-standard-grid min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Billing Type</mat-label>
                 <mat-select formControlName="billingTypeId" required>
@@ -710,6 +711,13 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Property Protection Fee</mat-label>
+                <input matInput type="text" formControlName="propertyProtectionFee" placeholder="0.00" (blur)="formatDecimal('propertyProtectionFee')" (input)="onDecimalInput($event, 'propertyProtectionFee')" (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              </div>
+
+              <div class="col-span-4 grid grid-cols-6 form-standard-grid min-w-0">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Client Billing Method</mat-label>
                 <mat-select formControlName="billingMethodId" required>
                   @for (billingMethod of availableBillingMethods; track billingMethod.value) {
@@ -742,11 +750,22 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Administrative Fee</mat-label>
+                <input matInput type="text" formControlName="administrativeFee" placeholder="0.00" (blur)="formatDecimal('administrativeFee')" (input)="onDecimalInput($event, 'administrativeFee')" (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Application Fee</mat-label>
+                <input matInput type="text" formControlName="applicationFee" placeholder="0.00" (blur)="formatDecimal('applicationFee')" (input)="onDecimalInput($event, 'applicationFee')" (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Taxes</mat-label>
                 <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
+              </div>
 
-              <div class="col-span-4 grid grid-cols-4 form-standard-grid billing-pet-fields-row min-w-0">
+              <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-pet-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Pets</mat-label>
                 <mat-select formControlName="pets" required>
@@ -764,6 +783,11 @@
                 @if (form.get('petFee')?.invalid && form.get('petFee')?.touched) {
                   <mat-error>Pet Fee is required</mat-error>
                 }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                <mat-label>Pet Security Deposit</mat-label>
+                <input matInput type="text" formControlName="petSecurityDeposit" placeholder="0.00" (blur)="formatDecimal('petSecurityDeposit')" (input)="onDecimalInput($event, 'petSecurityDeposit')" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
