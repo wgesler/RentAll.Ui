@@ -95,13 +95,21 @@
             </button>
           }
           @if (!isTemplateMode) {
-            <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="clearAll()">Clear</button>
+            <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="clearAll()">
+              <mat-icon>clear_all</mat-icon>
+              Clear
+            </button>
           }
           @if (isTemplateMode) {
             <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="resetChecklist()">Reset</button>
           }
           <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(false)">
+            <mat-icon>save</mat-icon>
             Save
+          </button>
+          <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="emailInspection()">
+            <mat-icon>email</mat-icon>
+            Email
           </button>
           @if (!isTemplateMode && canSubmitInspection) {
             <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(true)">

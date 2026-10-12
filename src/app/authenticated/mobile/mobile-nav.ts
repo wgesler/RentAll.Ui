@@ -119,6 +119,7 @@ const DESKTOP_NAV_URL_TO_MOBILE_PATH: Record<string, string> = {
   [RouterToken.PropertyList]: 'properties',
   [RouterToken.TicketList]: 'tickets',
   [RouterToken.MaintenanceList]: 'maintenance',
+  [RouterToken.DocumentList]: 'documents',
   [RouterToken.Contacts]: 'contacts'
 };
 
@@ -128,6 +129,7 @@ const MOBILE_PATH_TO_AUTH_SEGMENT: Record<string, string> = {
   leads: RouterToken.Leads,
   tickets: RouterToken.TicketList,
   maintenance: RouterToken.MaintenanceList,
+  documents: RouterToken.DocumentList,
   reservations: RouterToken.ReservationList,
   properties: RouterToken.PropertyList,
   contacts: RouterToken.Contacts
@@ -197,6 +199,7 @@ export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
     { label: 'Receipts', path: 'receipts' },
     { label: 'Work Orders', path: 'work-orders' }
   ] },
+  { icon: 'description', label: 'Documents', path: 'documents', tabs: [] },
   { icon: 'handshake', label: 'Reservations', path: 'reservations', tabs: [] },
   { icon: 'home', label: 'Properties', path: 'properties', tabs: [] },
   { icon: 'contacts', label: 'Contacts', path: 'contacts', tabs: [
@@ -227,18 +230,24 @@ export function getMobileNavItems(
   return orderMobileNavItemsForSidebar(buildMobileNavItemsFromDesktop(visibleDesktopItems));
 }
 
-/** Maintenance + Contacts adjacent, ahead of receipt capture shortcuts in the mobile sidebar. */
+/** Documents follows Maintenance. Contacts follows Documents when both are shown. */
 export function orderMobileNavItemsForSidebar(items: MobileNavItem[]): MobileNavItem[] {
-  const maintenanceIndex = items.findIndex(item => item.path === 'maintenance');
-  const contactsIndex = items.findIndex(item => item.path === 'contacts');
-  if (maintenanceIndex === -1 || contactsIndex === -1 || contactsIndex === maintenanceIndex + 1) {
+  const withDocuments = placeMobileNavItemAfter(items, 'documents', 'maintenance');
+  const contactsAnchor = withDocuments.some(item => item.path === 'documents') ? 'documents' : 'maintenance';
+  return placeMobileNavItemAfter(withDocuments, 'contacts', contactsAnchor);
+}
+
+function placeMobileNavItemAfter(items: MobileNavItem[], path: string, afterPath: string): MobileNavItem[] {
+  const index = items.findIndex(item => item.path === path);
+  const afterIndex = items.findIndex(item => item.path === afterPath);
+  if (index === -1 || afterIndex === -1 || index === afterIndex + 1) {
     return items;
   }
 
   const reordered = [...items];
-  const [contactsItem] = reordered.splice(contactsIndex, 1);
-  const insertIndex = reordered.findIndex(item => item.path === 'maintenance') + 1;
-  reordered.splice(insertIndex, 0, contactsItem);
+  const [item] = reordered.splice(index, 1);
+  const insertIndex = reordered.findIndex(row => row.path === afterPath) + 1;
+  reordered.splice(insertIndex, 0, item);
   return reordered;
 }
 

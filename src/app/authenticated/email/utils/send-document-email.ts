@@ -31,27 +31,32 @@ export async function sendDocumentEmail(
   documentConfig: DocumentConfig,
   emailConfig: EmailConfig
 ): Promise<void> {
-  const htmlWithStyles = deps.documentHtmlService.getPdfHtmlWithStyles(
-    documentConfig.previewIframeHtml,
-    documentConfig.previewIframeStyles,
-    documentConfig.printStyleOptions
-  );
-
   const attachmentFileName = emailConfig.fileDetails?.fileName || 'document.pdf';
-  const generateDto: GenerateDocumentFromHtmlDto = {
-    htmlContent: htmlWithStyles,
-    organizationId: documentConfig.organizationId!,
-    officeId: documentConfig.selectedOfficeId!,
-    officeName: documentConfig.selectedOfficeName || '',
-    propertyId: documentConfig.propertyId || null,
-    reservationId: documentConfig.selectedReservationId || null,
-    documentTypeId: Number(emailConfig.documentType),
-    fileName: attachmentFileName,
-    landscape: documentConfig.printStyleOptions?.landscape === true
-  };
+  const preparedFile = (emailConfig.fileDetails?.file || '').trim();
+  let pdfBase64 = preparedFile;
+  let pdfContentType = (emailConfig.fileDetails?.contentType || '').trim() || 'application/pdf';
 
-  const pdfBlob = await firstValueFrom(deps.documentService.generateDownload(generateDto));
-  const pdfBase64 = await blobToBase64(pdfBlob);
+  if (!pdfBase64) {
+    const htmlWithStyles = deps.documentHtmlService.getPdfHtmlWithStyles(
+      documentConfig.previewIframeHtml,
+      documentConfig.previewIframeStyles,
+      documentConfig.printStyleOptions
+    );
+    const generateDto: GenerateDocumentFromHtmlDto = {
+      htmlContent: htmlWithStyles,
+      organizationId: documentConfig.organizationId!,
+      officeId: documentConfig.selectedOfficeId!,
+      officeName: documentConfig.selectedOfficeName || '',
+      propertyId: documentConfig.propertyId || null,
+      reservationId: documentConfig.selectedReservationId || null,
+      documentTypeId: Number(emailConfig.documentType),
+      fileName: attachmentFileName,
+      landscape: documentConfig.printStyleOptions?.landscape === true
+    };
+    const pdfBlob = await firstValueFrom(deps.documentService.generateDownload(generateDto));
+    pdfBase64 = await blobToBase64(pdfBlob);
+    pdfContentType = pdfBlob.type || 'application/pdf';
+  }
 
   const toRecipient: EmailAddress = {
     email: emailConfig.toEmail,
@@ -83,7 +88,7 @@ export async function sendDocumentEmail(
     documentTypeId: Number(emailConfig.documentType),
     fileDetails: {
       fileName: attachmentFileName,
-      contentType: pdfBlob.type || 'application/pdf',
+      contentType: pdfContentType,
       file: pdfBase64
     },
     additionalFileDetails

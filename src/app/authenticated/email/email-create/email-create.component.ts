@@ -174,13 +174,24 @@ export class EmailCreateComponent implements OnInit {
       return;
     }
 
+    const toEmailValue = (this.form.get('toEmail')?.value || '').trim();
+    const toNameControl = this.form.get('toName');
+    if (toNameControl && !(toNameControl.value || '').trim() && toEmailValue) {
+      toNameControl.setValue(toEmailValue);
+    }
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.toastr.warning(
+        this.form.get('toEmail')?.invalid ? 'Enter a recipient email address.' : 'Complete the required email fields.',
+        CommonMessage.Error
+      );
       return;
     }
 
     const formValue = this.form.getRawValue();
-    const plainTextBody = formValue.plainTextContent || '';
+    const plainTextBody = (formValue.plainTextContent || '').trim()
+      || ((this.draft.emailConfig.htmlContent || '').trim() ? '' : 'Please see the attached document.');
     const isBodyModified = this.isBodyChanged(plainTextBody);
     const emailConfig: EmailConfig = {
       ...this.draft.emailConfig,
@@ -246,7 +257,7 @@ export class EmailCreateComponent implements OnInit {
     return this.fb.group({
       subject: new FormControl('', [Validators.required]),
       toEmail: new FormControl('', [Validators.required, Validators.email]),
-      toName: new FormControl('', [Validators.required]),
+      toName: new FormControl(''),
       fromEmail: new FormControl('', [Validators.required, Validators.email]),
       fromName: new FormControl('', [Validators.required]),
       ccEmails: new FormControl(''),

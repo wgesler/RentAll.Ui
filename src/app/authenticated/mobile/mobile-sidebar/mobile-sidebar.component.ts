@@ -209,7 +209,21 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
   }
 
   filterNavItems(): void {
-    this.navItems = getMobileNavItems(this.authService, this.commonService.getOrganizationTypeId());
+    const items = getMobileNavItems(this.authService, this.commonService.getOrganizationTypeId());
+    this.navItems = this.placeDocumentsAfterMaintenance(items);
+  }
+
+  placeDocumentsAfterMaintenance(items: MobileNavItem[]): MobileNavItem[] {
+    const documentsIndex = items.findIndex(item => item.path === 'documents');
+    const maintenanceIndex = items.findIndex(item => item.path === 'maintenance');
+    if (documentsIndex === -1 || maintenanceIndex === -1 || documentsIndex === maintenanceIndex + 1) {
+      return items;
+    }
+    const reordered = [...items];
+    const [documentsItem] = reordered.splice(documentsIndex, 1);
+    const insertIndex = reordered.findIndex(item => item.path === 'maintenance') + 1;
+    reordered.splice(insertIndex, 0, documentsItem);
+    return reordered;
   }
 
   markViewForCheck(): void {

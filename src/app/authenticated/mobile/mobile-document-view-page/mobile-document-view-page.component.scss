@@ -1,0 +1,30 @@
+@use '../mobile-sub-titlebar.scss';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--mobile-header-height, 64px));
+}
+
+.mobile-document-status {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  color: #475569;
+}
+
+.mobile-document-email-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem 1rem;
+}
+
+.mobile-document-frame,
+.mobile-document-image {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: calc(100dvh - var(--mobile-header-height, 64px) - var(--mobile-sub-titlebar-height, 52px) - 3rem);
+  border: 0;
+  background: #fff;
+  object-fit: contain;
+}

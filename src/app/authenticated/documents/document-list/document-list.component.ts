@@ -21,7 +21,9 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { getDocumentTypes } from '../models/document.enum';
+import { DocumentType, getDocumentTypes } from '../models/document.enum';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { DocumentGetRequest, DocumentListDisplay, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 import { ContactResponse } from "../../contacts/models/contact.model";
@@ -68,6 +70,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   private route = inject(ActivatedRoute);
   private propertyService = inject(PropertyService);
   private contactService = inject(ContactService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
   private cdr = inject(ChangeDetectorRef);
   
   isServiceError: boolean = false;
@@ -677,6 +680,62 @@ resolveOfficeIdsForRequest(): number[] {
     
     this.router.navigate([RouterUrl.replaceTokens(RouterUrl.DocumentView, [event.documentId])],{ queryParams });
   }
+
+  emailDocument(doc: DocumentListDisplay): void {
+    const user = this.authService.getUser();
+    const fromEmail = (user?.email || '').trim();
+    const fromName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+    if (!fromEmail || !fromName) {
+      this.toastr.warning('Current user email sender information is not available.', CommonMessage.Error);
+      return;
+    }
+
+    this.documentService.getDocumentByGuid(doc.documentId).pipe(take(1)).subscribe({
+      next: (documentResponse: DocumentResponse) => {
+        const file = this.attachmentFileContent(documentResponse);
+        if (!file) {
+          this.toastr.error('This document has no file to attach.', CommonMessage.Error);
+          return;
+        }
+        const fileName = this.attachmentFileName(doc);
+        this.emailCreateDraftService.setDraft({
+          returnUrl: this.router.url,
+          attachmentDocumentId: doc.documentId,
+          emailConfig: {
+            subject: fileName,
+            toEmail: '',
+            toName: '',
+            fromEmail,
+            fromName,
+            documentType: documentResponse.documentTypeId as DocumentType,
+            emailType: EmailType.Other,
+            plainTextContent: 'Please see the attached document.',
+            htmlContent: '',
+            fileDetails: {
+              fileName,
+              contentType: documentResponse.contentType || documentResponse.fileDetails?.contentType || doc.contentType || 'application/pdf',
+              file
+            },
+            errorMessage: 'Error sending email. Please try again.'
+          },
+          documentConfig: {
+            previewIframeHtml: ' ',
+            previewIframeStyles: '',
+            organizationId: documentResponse.organizationId,
+            selectedOfficeId: documentResponse.officeId,
+            selectedOfficeName: documentResponse.officeName || doc.officeName || '',
+            propertyId: documentResponse.propertyId || null,
+            selectedReservationId: documentResponse.reservationId || null,
+            isDownloading: false
+          }
+        });
+        void this.router.navigateByUrl(RouterUrl.EmailCreate);
+      },
+      error: () => {
+        this.toastr.error('Unable to open this document for email.', CommonMessage.Error);
+      }
+    });
+  }
   
   downloadDocument(doc: DocumentListDisplay): void {
     this.documentService.getDocumentByGuid(doc.documentId).pipe(take(1)).subscribe({
@@ -1173,6 +1232,27 @@ usesShellTitleBarScope(): boolean {
   //#endregion
 
   //#region Utility Methods
+  private attachmentFileName(doc: DocumentListDisplay): string {
+    const name = (doc.fileName || '').trim() || 'Document';
+    const extension = (doc.fileExtension || '').trim();
+    if (extension && !name.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
+      return `${name}.${extension}`;
+    }
+    return name;
+  }
+
+  private attachmentFileContent(document: DocumentResponse): string {
+    const raw = (document.fileDetails?.file || document.fileDetails?.dataUrl || '').trim();
+    if (!raw) {
+      return '';
+    }
+    if (raw.toLowerCase().startsWith('data:')) {
+      const commaIndex = raw.indexOf(',');
+      return commaIndex >= 0 ? raw.slice(commaIndex + 1) : '';
+    }
+    return raw;
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

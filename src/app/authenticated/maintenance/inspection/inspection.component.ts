@@ -4,6 +4,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { RouterUrl } from '../../../app.routes';
 import { Subject, catchError, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -13,6 +15,8 @@ import { MappingService } from '../../../services/mapping.service';
 import { ConfigService } from '../../../services/config.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DocumentType } from '../../documents/models/document.enum';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
@@ -80,6 +84,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   private configService = inject(ConfigService);
   private cdr = inject(ChangeDetectorRef);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
+  private emailCreateDraftService = inject(EmailCreateDraftService);
+  private router = inject(Router);
 
   readonly inspectionTypeOptions = getInspectionTypes();
   inspectionTypeIdControl = new FormControl<number>(InspectionType.MoveOut, { nonNullable: true });
@@ -792,12 +798,24 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   validateShellReservationForSubmit(): boolean {
-    if (!this.shellReservationRequired || this.hasShellReservationSelected) {
+    return this.validateReservationForMoveInspection();
+  }
+
+  validateReservationForMoveInspection(): boolean {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return true;
+    }
+    const inspectionType = this.inspectionTypeIdControl.value;
+    if (inspectionType !== InspectionType.MoveIn && inspectionType !== InspectionType.MoveOut) {
+      return true;
+    }
+    if (this.hasShellReservationSelected) {
       return true;
     }
     this.shellReservationFieldTouched = true;
+    this.emitShellStateOutputs();
     this.cdr.markForCheck();
-    this.toastr.error('Reservation is required to submit Move-In and Move-Out inspections.', CommonMessage.Error);
+    this.toastr.error('Reservation is required for Move-In and Move-Out inspections.', CommonMessage.Error);
     return false;
   }
 
@@ -955,6 +973,11 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     if (this.isTemplateMode) {
       this.saveTemplate(onComplete);
+      return;
+    }
+
+    if (!this.validateReservationForMoveInspection()) {
+      onComplete?.(false);
       return;
     }
 
@@ -2181,6 +2204,71 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     });
   }
 
+  emailInspection(): void {
+    if (!this.property || !this.validateReservationForMoveInspection()) {
+      return;
+    }
+    const fromEmail = (this.user?.email || '').trim();
+    const fromName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim();
+    if (!fromEmail || !fromName) {
+      this.toastr.warning('Current user email sender information is not available.', CommonMessage.Error);
+      return;
+    }
+    const organizationId = this.property.organizationId || this.user?.organizationId || '';
+    const officeId = this.property.officeId;
+    if (!organizationId || !officeId) {
+      this.toastr.warning('Organization or Office not available', CommonMessage.Error);
+      return;
+    }
+    const html = this.buildChecklistPdfHtml('', 'Inspection Checklist');
+    if (!html) {
+      this.toastr.error('Unable to prepare this inspection for email.', CommonMessage.Error);
+      return;
+    }
+    const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/i);
+    const fileName = this.utilityService.generateDocumentFileName(
+      'inspection',
+      this.property.propertyCode,
+      this.reservationDisplayTextForSubmittedPdf() || undefined,
+      getInspectionType(this.inspectionTypeIdControl.value) || undefined
+    );
+    this.emailCreateDraftService.setDraft({
+      returnUrl: this.router.url,
+      emailConfig: {
+        subject: `Inspection - ${this.property.propertyCode || 'Property'}`,
+        toEmail: '',
+        toName: '',
+        fromEmail,
+        fromName,
+        documentType: DocumentType.Inspection,
+        emailType: EmailType.Inspection,
+        plainTextContent: 'Please see the attached inspection.',
+        htmlContent: '',
+        fileDetails: {
+          fileName,
+          contentType: 'application/pdf',
+          file: ''
+        },
+        errorMessage: 'Error sending email. Please try again.'
+      },
+      documentConfig: {
+        previewIframeHtml: html,
+        previewIframeStyles: styleMatch?.[1] || '',
+        organizationId,
+        selectedOfficeId: officeId,
+        selectedOfficeName: this.property.officeName || '',
+        propertyId: this.property.propertyId,
+        selectedReservationId: this.reservationIdForInspectionPayload(this.activeInspection?.reservationId),
+        isDownloading: false
+      }
+    });
+    void this.router.navigateByUrl(this.emailCreateUrl());
+  }
+
+  protected emailCreateUrl(): string {
+    return RouterUrl.EmailCreate;
+  }
+
   openIssuesDialog(): void {
     const fromName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'RentAll User';
     const fromEmail = this.user?.email || '';
@@ -2730,7 +2818,12 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   get showTitleBarReservationError(): boolean {
-    return this.shellReservationRequired && !this.hasShellReservationSelected && this.shellReservationFieldTouched;
+    if (this.isReadonlyMode || this.isTemplateMode || this.hasShellReservationSelected) {
+      return false;
+    }
+    const inspectionType = this.inspectionTypeIdControl.value;
+    const moveInspection = inspectionType === InspectionType.MoveIn || inspectionType === InspectionType.MoveOut;
+    return moveInspection && this.shellReservationFieldTouched;
   }
 
   get titleBarReservationRequired(): boolean {

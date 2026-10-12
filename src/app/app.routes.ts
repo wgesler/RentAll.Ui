@@ -83,6 +83,8 @@ const mobileRoutes: Routes = [
   { path: 'maintenance/inspection/:id/issues', loadComponent: () => import('./authenticated/mobile/mobile-inspection-issues-page/mobile-inspection-issues-page.component').then(m => m.MobileInspectionIssuesPageComponent) },
   { path: 'maintenance/:tab', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
   { path: 'maintenance/:tab/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
+  { path: 'documents', loadComponent: () => import('./authenticated/mobile/mobile-documents-page/mobile-documents-page.component').then(m => m.MobileDocumentsPageComponent) },
+  { path: 'documents/:id', loadComponent: () => import('./authenticated/mobile/mobile-document-view-page/mobile-document-view-page.component').then(m => m.MobileDocumentViewPageComponent) },
   { path: 'reservations', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
   { path: 'reservations/:id', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },
   { path: 'properties', loadComponent: () => import('./authenticated/mobile/mobile-section-page/mobile-section-page.component').then(m => m.MobileSectionPageComponent) },

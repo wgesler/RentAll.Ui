@@ -1,0 +1,14 @@
+<div class="flex items-center gap-3 mobile-sub-titlebar">
+  <div class="mobile-sub-titlebar-static">
+    <mat-icon class="mobile-sub-titlebar-icon flex-shrink-0">description</mat-icon>
+    <span class="mobile-sub-titlebar-label">Documents</span>
+  </div>
+</div>
+<app-mobile-list-table
+  [rows]="rows"
+  [columns]="columns"
+  [isPageReady]="isPageReady"
+  [showFilter]="true"
+  [rowsClickable]="true"
+  rowNumberLabel="No"
+  (rowClick)="openDocument($event)" />

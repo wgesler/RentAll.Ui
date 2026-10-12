@@ -91,7 +91,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() deleteConfirmTitle: string = 'Delete?';
   @Input() deleteConfirmMessage: string = 'Are you sure you want to delete this item?';
   @Input() hasActionsDownload: boolean = false;
-  @Input() downloadActionTooltip: string = 'View / Download';
+  @Input() downloadActionTooltip: string = 'Download';
   @Input() downloadActionColor: string = '#7E69B4';
   @Input() hasActionsEdit: boolean = false;
   @Input() hasActionsLock: boolean = false;
@@ -126,6 +126,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsSelect: boolean = false;
   @Input() hasActionsInspect: boolean = false;
   @Input() hasActionsView: boolean = false;
+  @Input() hasActionsEmail: boolean = false;
 
   @Input() isColumnFirstActions: boolean = false;
   @Input() areColumnsUniform: boolean = false;
@@ -230,6 +231,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
   @Output() inspectEvent = new EventEmitter<PurposefulAny>();
   @Output() viewEvent = new EventEmitter<PurposefulAny>();
+  @Output() emailEvent = new EventEmitter<PurposefulAny>();
   @Output() attachmentClickEvent = new EventEmitter<PurposefulAny>();
   @Output() quotePathClickEvent = new EventEmitter<PurposefulAny>();
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
@@ -784,6 +786,11 @@ markViewForCheck(): void {
   emitViewEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.viewEvent.emit(rowItem);
+  }
+
+  emitEmailEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.emailEvent.emit(rowItem);
   }
 
   emitInspectEvent(event: Event, rowItem: PurposefulAny): void {
@@ -1529,7 +1536,7 @@ normalizeFilterValue(value: unknown): string {
     }
     columns = { ...columns, ...rest };
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsFix || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsUndo || this.hasActionsInvoice || this.hasActionsSkip || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsPartner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsPrint || this.hasActionsCancel || this.hasActionsLock || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsFix || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsEmail || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsTransfer || this.hasActionsUndo || this.hasActionsInvoice || this.hasActionsSkip || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsPartner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsPrint || this.hasActionsCancel || this.hasActionsLock || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -1577,6 +1584,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: this.invoiceActionColor, tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsInfo && !placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
+    if (this.hasActionsEmail)    this.buttons.push({name: 'email', callback: (event, rowItem) => this.emitEmailEvent(event, rowItem), color: '#4CAF50', tooltip: 'Email', tooltipPosition: 'before', icon: 'mail', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
     if (this.hasActionsCheckAll) this.buttons.push({name: 'checkAll', callback: (event, rowItem) => this.emitCheckAllEvent(event, rowItem), color: '#2E7D32', tooltip: 'Check All', tooltipPosition: 'before', icon: 'done', suspendOnUpdate: false});

@@ -14,12 +14,15 @@ import {
 } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { RouterUrl } from '../../../app.routes';
 import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { ChecklistIssuesDialogData } from '../../maintenance/inspection/dialog-checklist-issues.component';
 import { InspectionComponent } from '../../maintenance/inspection/inspection.component';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
 import { MobileInspectionIssuesDraftService } from '../mobile-inspection-issues-draft.service';
 
 type MobileAnswerSnapshotRow = {
@@ -47,17 +50,24 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
   @Output() propertyCodeChange = new EventEmitter<string>();
   @Output() dirtyChange = new EventEmitter<boolean>();
   private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
   private mobileInspectionIssuesDraftService = inject(MobileInspectionIssuesDraftService);
   private mobileRouter = inject(Router);
   private mobileCdr = inject(ChangeDetectorRef);
   private mobileDestroy$ = new Subject<void>();
   isMobilePageReady = false;
+  mobilePropertyReservations: ReservationListResponse[] = [];
 
   //#region Mobile-Inspection-Detail
   override ngOnInit(): void {
     this.mode = 'answer';
     this.checklistType = 'inspection';
     this.shellTabActive = true;
+    this.titleBarReservationSync.pipe(takeUntil(this.mobileDestroy$)).subscribe(reservationId => {
+      this.titleBarReservationId = reservationId;
+      this.syncMobileReservationDisplayText();
+      this.mobileCdr.markForCheck();
+    });
     super.ngOnInit();
   }
 
@@ -74,12 +84,37 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
     this.dirtyChange.emit(this.hasUnsavedChanges());
   }
 
+  protected override emailCreateUrl(): string {
+    return RouterUrl.MobileEmailCreate;
+  }
+
   override openIssuesDialog(): void {
     this.navigateToMobileIssues();
   }
 
   saveInspection(): void {
     this.saveChecklistData(false);
+  }
+
+  get mobileReservationOptions(): { value: string; label: string }[] {
+    const officeId = this.property?.officeId ?? null;
+    return (this.mobilePropertyReservations || [])
+      .filter(reservation => officeId == null || reservation.officeId === officeId)
+      .map(reservation => ({
+        value: reservation.reservationId,
+        label: this.utilityService.getReservationDropdownLabel(reservation, null)
+      }));
+  }
+
+  onMobileReservationChange(value: string | null): void {
+    const reservationId = value == null || value === '' ? null : String(value);
+    this.titleBarReservationId = reservationId;
+    this.syncMobileReservationDisplayText();
+    if (reservationId) {
+      this.shellReservationFieldTouched = false;
+    }
+    this.emitShellStateOutputs();
+    this.mobileCdr.markForCheck();
   }
 
   mobileInspectionPhotoTarget: { sectionKey: string; repeatIndex: number; itemId: string } | null = null;
@@ -204,6 +239,9 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
     const propertyId = this.propertyId.trim();
     this.isMobilePageReady = false;
     this.property = null;
+    this.mobilePropertyReservations = [];
+    this.titleBarReservationId = null;
+    this.titleBarReservationDisplayText = null;
     this.mobileCdr.markForCheck();
     if (!propertyId) {
       this.isMobilePageReady = true;
@@ -221,6 +259,7 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
       next: property => {
         this.property = property;
         this.propertyCodeChange.emit(property?.propertyCode || '');
+        this.loadMobileReservations(propertyId);
         if (this.hasInitialized) {
           this.initializeChecklistState();
           this.syncPropertyDrivenSections();
@@ -231,10 +270,37 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
       },
       error: () => {
         this.property = null;
+        this.mobilePropertyReservations = [];
         this.propertyCodeChange.emit('');
         this.mobileCdr.markForCheck();
       }
     });
+  }
+
+  private loadMobileReservations(propertyId: string): void {
+    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1), takeUntil(this.mobileDestroy$)).subscribe({
+      next: reservations => {
+        this.mobilePropertyReservations = reservations || [];
+        this.syncMobileReservationDisplayText();
+        this.mobileCdr.markForCheck();
+      },
+      error: () => {
+        this.mobilePropertyReservations = [];
+        this.mobileCdr.markForCheck();
+      }
+    });
+  }
+
+  private syncMobileReservationDisplayText(): void {
+    const reservationId = (this.titleBarReservationId || '').trim();
+    if (!reservationId) {
+      this.titleBarReservationDisplayText = null;
+      return;
+    }
+    const reservation = this.mobilePropertyReservations.find(row => String(row.reservationId ?? '').trim() === reservationId);
+    if (reservation) {
+      this.titleBarReservationDisplayText = this.utilityService.getReservationDropdownLabel(reservation, null).trim();
+    }
   }
 
   private navigateToMobileIssues(): void {

@@ -1,0 +1,29 @@
+<div class="flex items-center gap-3 mobile-sub-titlebar">
+  <button mat-icon-button type="button" (click)="back()" aria-label="Back to documents">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <div class="mobile-sub-titlebar-static">
+    <span class="mobile-sub-titlebar-label">{{ title }}</span>
+  </div>
+</div>
+<div class="mobile-document-email-row">
+  <button mat-raised-button color="accent" type="button" [disabled]="!canEmailDocument" (click)="emailDocument()">
+    Email
+  </button>
+</div>
+
+@if (!isPageReady) {
+  <div class="mobile-document-status">
+    <mat-spinner [diameter]="36"></mat-spinner>
+  </div>
+} @else if (isServiceError) {
+  <p class="mobile-document-status">Unable to load this document.</p>
+} @else if (canViewInBrowser && imageSrc) {
+  <img class="mobile-document-image" [src]="imageSrc" [alt]="title" />
+} @else if (canViewInBrowser && iframeSrc) {
+  <iframe class="mobile-document-frame" [src]="iframeSrc" [title]="title"></iframe>
+} @else if (!canViewInBrowser) {
+  <p class="mobile-document-status">This document type cannot be previewed in the browser.</p>
+} @else {
+  <p class="mobile-document-status">Unable to load document content.</p>
+}

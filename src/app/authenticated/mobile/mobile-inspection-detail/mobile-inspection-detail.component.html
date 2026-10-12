@@ -54,6 +54,15 @@
             <mat-radio-button [value]="opt.value">{{ opt.label }}</mat-radio-button>
           }
         </mat-radio-group>
+        <mat-form-field appearance="outline" class="mobile-inspection-reservation" subscriptSizing="dynamic" [class.mobile-inspection-reservation--error]="showTitleBarReservationError">
+          <mat-label>Reservation</mat-label>
+          <mat-select [value]="titleBarReservationId" [canSelectNullableOptions]="true" (selectionChange)="onMobileReservationChange($event.value)">
+            <mat-option [value]="null">None</mat-option>
+            @for (option of mobileReservationOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       }
 
       <div class="mobile-inspection-action-buttons">
@@ -62,10 +71,27 @@
         }
         @if (isTemplateMode) {
           <button mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
-          <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">Save</button>
+          <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+          <button mat-raised-button color="accent" type="button" (click)="emailInspection()">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
         } @else {
-          <button mat-raised-button color="primary" type="button" (click)="clearAll()">Clear</button>
-          <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">Save</button>
+          <button mat-raised-button color="primary" type="button" (click)="clearAll()">
+            <mat-icon>clear_all</mat-icon>
+            Clear
+          </button>
+          <button mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveInspection()">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+          <button mat-raised-button color="accent" type="button" (click)="emailInspection()">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
           @if (canSubmitInspection) {
             <button mat-raised-button color="accent" type="button" [disabled]="isSavingInProgress" (click)="saveChecklistData(true)">Submit</button>
           }

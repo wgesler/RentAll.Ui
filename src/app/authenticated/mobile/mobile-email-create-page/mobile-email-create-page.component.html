@@ -17,14 +17,18 @@
 
     <div class="mobile-email-card">
       <form [formGroup]="form" class="email-container">
-        @if (!isViewOnly) {
-          <div class="mobile-email-actions">
+        <div class="mobile-email-actions">
+          <button mat-raised-button type="button" color="accent" (click)="cancel()">
+            <mat-icon>{{ isViewOnly ? 'arrow_back' : 'close' }}</mat-icon>
+            {{ isViewOnly ? 'Back' : 'Cancel' }}
+          </button>
+          @if (!isViewOnly) {
             <button mat-raised-button color="primary" type="button" (click)="send()" [disabled]="isSending">
               <mat-icon>send</mat-icon>
               {{ isSending ? 'Sending...' : 'Send' }}
             </button>
-          </div>
-        }
+          }
+        </div>
 
         <div class="email-address-line email-address-grid">
           <span class="line-label">To:</span>
