@@ -1,10 +1,11 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, isDevMode } from '@angular/core';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialogConfig } from '@angular/material/dialog';
 import { MAT_TABS_CONFIG } from '@angular/material/tabs';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withRouterConfig } from '@angular/router';
+import { provideServiceWorker } from '@angular/service-worker';
 import { Idle } from '@ng-idle/core';
 import { Keepalive } from '@ng-idle/keepalive';
 import { provideEnvironmentNgxMask } from 'ngx-mask';
@@ -36,6 +37,10 @@ export const appConfig: ApplicationConfig = {
         width: '35rem'
       }
     },
-    { provide: MAT_TABS_CONFIG, useValue: { animationDuration: '0ms' } }
+    { provide: MAT_TABS_CONFIG, useValue: { animationDuration: '0ms' } },
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000'
+    })
   ]
 };

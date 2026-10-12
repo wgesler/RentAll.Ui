@@ -22,6 +22,7 @@
     "@angular/platform-browser": "^21.1.4",
     "@angular/platform-browser-dynamic": "^21.1.4",
     "@angular/router": "^21.1.4",
+    "@angular/service-worker": "^21.1.4",
     "@auth0/angular-jwt": "^5.2.0",
     "@material/dialog": "^15.0.0-canary.7f224ddd4.0",
     "@ng-idle/core": "^16.0.0",
