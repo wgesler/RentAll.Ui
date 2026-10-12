@@ -493,15 +493,15 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       linenAndTowelFee: this.compactDialogMode && this.contact
         ? (this.contact.linenAndTowelFee ?? this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee))
         : this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
-      bankName: this.compactDialogMode && this.contact
-        ? (this.contact.bankName ?? null)
-        : ((formValue.bankName || '').trim() || null),
-      routingNumber: this.compactDialogMode && this.contact
-        ? (this.contact.routingNumber ?? null)
-        : ((formValue.routingNumber || '').trim() || null),
-      accountNumber: this.compactDialogMode && this.contact
-        ? (this.contact.accountNumber ?? null)
-        : ((formValue.accountNumber || '').trim() || null),
+      bankName: this.canViewBankInformation
+        ? ((formValue.bankName || '').trim() || null)
+        : (this.contact?.bankName ?? null),
+      routingNumber: this.canViewBankInformation
+        ? ((formValue.routingNumber || '').trim() || null)
+        : (this.contact?.routingNumber ?? null),
+      accountNumber: this.canViewBankInformation
+        ? ((formValue.accountNumber || '').trim() || null)
+        : (this.contact?.accountNumber ?? null),
       contactCardId: this.contact?.contactCardId ?? this.contactCard?.contactCardId ?? null,
       paymentTermsId: this.compactDialogMode && this.contact
         ? (this.contact.paymentTermsId ?? null)
@@ -1912,6 +1912,14 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       || this.authService.hasRole(UserGroups.OfficeAdmin)
       || this.authService.hasRole(UserGroups.Accounting)
       || this.authService.hasRole(UserGroups.AccountingAdmin);
+  }
+
+  get canViewBankInformation(): boolean {
+    const entityTypeId = Number(this.form?.getRawValue()?.entityTypeId ?? this.contact?.entityTypeId);
+    const isBankContact = entityTypeId === EntityType.Owner
+      || entityTypeId === EntityType.Company
+      || entityTypeId === EntityType.Vendor;
+    return isBankContact && this.canViewContactCardOnFile;
   }
 
   applyContactCardFromContact(contact: ContactResponse | null): void {
