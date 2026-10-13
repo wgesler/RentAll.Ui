@@ -282,11 +282,16 @@
                           [class.split-input-invalid]="shouldShowLineDebitError(line)"
                           [ngModel]="line.debitInput"
                           [ngModelOptions]="{ standalone: true }"
+                          draggable="false"
                           (ngModelChange)="onLineAmountInputChange(line, 'debit', $event)"
                           (mousedown)="onLineAmountMouseDown($event)"
                           (focus)="onLineAmountFocus($event)"
                           (blur)="onLineAmountBlur(line, 'debit')"
-                          (keydown.enter)="onLineAmountKeydown($event, line, 'debit')">
+                          (dragstart)="preventLineAmountDrag($event)"
+                          (drop)="preventLineAmountDrag($event)"
+                          [attr.data-line-index]="lineIndex"
+                          data-amount-field="debit"
+                          (keydown)="onLineAmountKeydown($event, line, 'debit', lineIndex)">
                       </td>
                       <td class="split-col-amount split-col-amount--right">
                         <input
@@ -296,13 +301,36 @@
                           [class.split-input-invalid]="shouldShowLineCreditError(line)"
                           [ngModel]="line.creditInput"
                           [ngModelOptions]="{ standalone: true }"
+                          draggable="false"
                           (ngModelChange)="onLineAmountInputChange(line, 'credit', $event)"
                           (mousedown)="onLineAmountMouseDown($event)"
                           (focus)="onLineAmountFocus($event)"
                           (blur)="onLineAmountBlur(line, 'credit')"
-                          (keydown.enter)="onLineAmountKeydown($event, line, 'credit')">
+                          (dragstart)="preventLineAmountDrag($event)"
+                          (drop)="preventLineAmountDrag($event)"
+                          [attr.data-line-index]="lineIndex"
+                          data-amount-field="credit"
+                          (keydown)="onLineAmountKeydown($event, line, 'credit', lineIndex)">
                       </td>
                       <td class="split-col-actions">
+                        <button
+                          type="button"
+                          mat-icon-button
+                          color="primary"
+                          [disabled]="lineIndex === 0"
+                          (click)="moveEditableLine(line.lineKey, -1)"
+                          matTooltip="Move up">
+                          <mat-icon>arrow_upward</mat-icon>
+                        </button>
+                        <button
+                          type="button"
+                          mat-icon-button
+                          color="primary"
+                          [disabled]="lineIndex === editableLines.length - 1"
+                          (click)="moveEditableLine(line.lineKey, 1)"
+                          matTooltip="Move down">
+                          <mat-icon>arrow_downward</mat-icon>
+                        </button>
                         <button
                           type="button"
                           mat-icon-button

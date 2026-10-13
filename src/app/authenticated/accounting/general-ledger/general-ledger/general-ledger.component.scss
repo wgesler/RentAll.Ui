@@ -255,7 +255,7 @@
     }
 
     col.gl-split-col-actions {
-      width: 4%;
+      width: 132px;
     }
 
     .split-col-no {
@@ -278,9 +278,10 @@
     }
 
     .split-col-actions {
-      width: 4%;
-      min-width: 44px;
-      padding-right: 12px !important;
+      width: 132px;
+      min-width: 132px;
+      padding-right: 4px !important;
+      white-space: nowrap;
     }
 
     .split-col-contact {
@@ -415,5 +416,8 @@
 }
 
 .split-col-actions .mat-mdc-icon-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
   margin-right: 0 !important;
 }

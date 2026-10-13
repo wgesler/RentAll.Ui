@@ -1250,6 +1250,20 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.markViewForCheck();
   }
 
+  moveEditableLine(lineKey: string, direction: -1 | 1): void {
+    const index = this.editableLines.findIndex(line => line.lineKey === lineKey);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= this.editableLines.length) {
+      return;
+    }
+
+    const next = [...this.editableLines];
+    const [line] = next.splice(index, 1);
+    next.splice(target, 0, line);
+    this.editableLines = next;
+    this.markViewForCheck();
+  }
+
   onAccountSelectionChange(lineKey: string, value: string | number | null | undefined): void {
     const line = this.editableLines.find(item => item.lineKey === lineKey);
     if (!line) {
@@ -1278,6 +1292,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  preventLineAmountDrag(event: DragEvent): void {
+    event.preventDefault();
+  }
+
   onLineAmountFocus(event: FocusEvent): void {
     if (this.skipAmountSelectAll) {
       this.skipAmountSelectAll = false;
@@ -1301,19 +1319,11 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     if (field === 'debit') {
       line.debit = this.parseLineAmountInput(line.debitInput);
       line.debitInput = this.formatLineAmountInput(line.debit);
-      if (line.debit > 0) {
-        line.credit = 0;
-        line.creditInput = '';
-      }
       return;
     }
 
     line.credit = this.parseLineAmountInput(line.creditInput);
     line.creditInput = this.formatLineAmountInput(line.credit);
-    if (line.credit > 0) {
-      line.debit = 0;
-      line.debitInput = '';
-    }
   }
 
   commitAllLineAmountInputs(): void {
@@ -1328,8 +1338,13 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.markViewForCheck();
   }
 
-  onLineAmountKeydown(event: Event, line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
+  onLineAmountKeydown(event: Event, line: EditableJournalEntryLine, field: 'debit' | 'credit', lineIndex: number): void {
     const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key === 'Tab') {
+      this.moveAmountFocus(keyboardEvent, field, lineIndex);
+      return;
+    }
+
     if (keyboardEvent.key !== 'Enter') {
       return;
     }
@@ -1338,6 +1353,35 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.commitLineAmountInput(line, field);
     this.markViewForCheck();
     (event.target as HTMLInputElement)?.blur();
+  }
+
+  moveAmountFocus(event: KeyboardEvent, field: 'debit' | 'credit', lineIndex: number): void {
+    const backwards = event.shiftKey;
+    let nextField: 'debit' | 'credit' | null = null;
+    let nextIndex = lineIndex;
+
+    if (!backwards && field === 'debit') {
+      nextField = 'credit';
+    } else if (!backwards && lineIndex < this.editableLines.length - 1) {
+      nextField = 'debit';
+      nextIndex = lineIndex + 1;
+    } else if (backwards && field === 'credit') {
+      nextField = 'debit';
+    } else if (backwards && lineIndex > 0) {
+      nextField = 'credit';
+      nextIndex = lineIndex - 1;
+    }
+
+    event.preventDefault();
+    if (!nextField) {
+      return;
+    }
+
+    const table = (event.currentTarget as HTMLElement | null)?.closest('table');
+    const input = table?.querySelector<HTMLInputElement>(
+      `input[data-line-index="${nextIndex}"][data-amount-field="${nextField}"]`
+    );
+    input?.focus();
   }
 
   sanitizeDecimalInput(value: string): string {
