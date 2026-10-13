@@ -92,6 +92,14 @@ function suppressOrLogout(req: HttpRequest<PurposefulAny>, authService: AuthServ
   return logoutAndSuppress(authService);
 }
 
+function rejectDeniedRequest(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  if (!shouldSuppressGlobalErrorToast(req)) {
+    showErrorToast(error, toastrService, CommonMessage.Error, false);
+  }
+
+  return throwError(() => error);
+}
+
 function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, title: string = CommonMessage.Error, appendTryAgain: boolean = false): void {
   const apiMessage = extractApiErrorMessage(error);
   if (apiMessage) {
@@ -138,16 +146,16 @@ function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorRespons
 }
 
 // 401 Unauthorized
-function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn, loadingBarService: LoadingBarService, authService: AuthService): Observable<HttpEvent<PurposefulAny>> {
+function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn, loadingBarService: LoadingBarService, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
   // If user is logging out, do not attempt refresh/retry.
   if (authService.isLoggingOut()) {
     return EMPTY;
   }
 
-  // If we just refreshed and still get 401, it's an unauthorized action
+  // A 401 after a successful refresh is a denied action, not an expired session.
   if (justRefreshed) {
     justRefreshed = false;
-    return suppressOrLogout(req, authService, err);
+    return rejectDeniedRequest(req, err, toastrService);
   }
   
   if (!isRefreshingToken) {
@@ -162,11 +170,10 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
           justRefreshed = true;
           return next(addToken(req, authService)).pipe(
             catchError(retryError => {
-              // If retry after refresh still gets 401, it's unauthorized action
+              // Refresh succeeded, so this 401 is a denied action. Do not sign the user out.
               if (retryError instanceof HttpErrorResponse && retryError.status === 401) {
-                tokenSubject$.next(refreshFailedToken);
                 justRefreshed = false;
-                return suppressOrLogout(req, authService, retryError);
+                return rejectDeniedRequest(req, retryError, toastrService);
               }
               return throwError(() => retryError);
             })
@@ -284,7 +291,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           case 400:
             return handle400Error(req, error, toastrService);
           case 401:
-            return handle401Error(req, error, next, loadingBarService, authService);
+            return handle401Error(req, error, next, loadingBarService, authService, toastrService);
           case 404:
             return handle404Error(error);
           case 409:
