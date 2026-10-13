@@ -88,6 +88,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   lineRows: JournalEntryLineDetailDisplay[] = [];
   editableLines: EditableJournalEntryLine[] = [];
   skipAmountSelectAll = false;
+  private amountSelectTimer: ReturnType<typeof setTimeout> | null = null;
   saveValidationHighlightActive = false;
   linesBalanceValidationError = false;
   organizationId = '';
@@ -1297,13 +1298,26 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onLineAmountFocus(event: FocusEvent): void {
+    this.clearAmountSelectTimer();
     if (this.skipAmountSelectAll) {
       this.skipAmountSelectAll = false;
       return;
     }
 
     const input = event.target as HTMLInputElement;
-    setTimeout(() => input.select(), 0);
+    this.amountSelectTimer = setTimeout(() => {
+      this.amountSelectTimer = null;
+      if (document.activeElement === input) {
+        input.select();
+      }
+    }, 0);
+  }
+
+  clearAmountSelectTimer(): void {
+    if (this.amountSelectTimer != null) {
+      clearTimeout(this.amountSelectTimer);
+      this.amountSelectTimer = null;
+    }
   }
 
   onLineAmountInputChange(line: EditableJournalEntryLine, field: 'debit' | 'credit', value: string): void {
@@ -1334,6 +1348,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onLineAmountBlur(line: EditableJournalEntryLine, field: 'debit' | 'credit'): void {
+    this.clearAmountSelectTimer();
     this.commitLineAmountInput(line, field);
     this.markViewForCheck();
   }
