@@ -31,7 +31,9 @@ export class AdminTasksComponent {
 
   progressLines: string[] = [];
   tasks: AdminTask[] = [
-    { key: 'office-logos', label: 'Office logos', detail: 'Move each office logo under that office.', running: false, result: '' },
+    { key: 'listing-photos', label: 'Listing photos', detail: 'Move each listing photo under the office and property code.', running: false, result: '' },
+    { key: 'inspection-photos', label: 'Inspection photos', detail: 'Move each inspection photo under the office and property code.', running: false, result: '' },
+    { key: 'office-logos', label: 'Office logos', detail: 'Move each office logo and accounting-office logo under that office.', running: false, result: '' },
     { key: 'organization-logos', label: 'Organization logos', detail: 'Move organization logos under global.', running: false, result: '' },
     { key: 'profiles', label: 'Profile pictures', detail: 'Move profile pictures under the user office, or global when there is no office.', running: false, result: '' },
     { key: 'state-forms', label: 'State forms', detail: 'Move state forms under global.', running: false, result: '' },
