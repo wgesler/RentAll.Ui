@@ -36,11 +36,11 @@ export class AdminTasksComponent {
     { key: 'profiles', label: 'Profile pictures', detail: 'Move profile pictures under the user office, or global when there is no office.', running: false, result: '' },
     { key: 'state-forms', label: 'State forms', detail: 'Move state forms under global.', running: false, result: '' },
     { key: 'user-guide', label: 'User guide images', detail: 'Move user guide images under global.', running: false, result: '' },
-    { key: 'receipts', label: 'Receipt images', detail: 'Move receipt images under the receipt office.', running: false, result: '' },
+    { key: 'receipts', label: 'Receipt images', detail: 'Move each receipt image under its office and receipt number.', running: false, result: '' },
     { key: 'appliance-decals', label: 'Appliance decals', detail: 'Move appliance decals under the office and property code.', running: false, result: '' },
     { key: 'listing-photos', label: 'Listing photos', detail: 'Move each listing photo under the office and property code.', running: false, result: '' },
     { key: 'inspection-photos', label: 'Inspection photos', detail: 'Move each inspection photo under the office and property code.', running: false, result: '' },
-    { key: 'denver-documents', label: 'Office folder paths', detail: 'For each saved link, keep the newest file in the spaced office folder, delete the other copy, and save the link.', running: false, result: '' }
+    { key: 'denver-documents', label: 'Office paths', detail: 'For each saved link, keep the newest file in the spaced office folder, delete the other copy, and save the link.', running: false, result: '' }
   ];
 
   get busy(): boolean {
