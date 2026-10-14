@@ -7,12 +7,20 @@
     & .login-stage {
         position: relative;
         z-index: 1;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    & #header {
+        overflow: hidden;
     }
 
     & .login-header-logo {
         height: 92px;
         width: auto;
-        max-width: min(640px, 78vw);
+        min-width: 0;
+        flex: 0 1 auto;
+        max-width: min(640px, 78%);
         object-fit: contain;
         filter: brightness(1.26) saturate(1.16) drop-shadow(0 0 6px rgba(255, 255, 255, 0.32));
         margin-left: -7px;
@@ -21,14 +29,19 @@
 
     & .login-stage {
         min-height: calc(100vh - 64px);
+        width: 100%;
         display: flex;
         justify-content: center;
         padding: 1.5rem 2rem 1.5rem;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
     & .login-composition {
         position: relative;
-        width: min(1240px, calc(100vw - 4rem));
+        width: min(1240px, 100%);
+        max-width: 100%;
+        min-width: 0;
         min-height: 620px;
         // CSS background survives overlay teardown better than a lone <img> under scroll lock.
         background-image: url('/assets/images/login-backdrop-rentall-exchange.png');
@@ -42,7 +55,10 @@
         top: 18px;
         left: 0;
         z-index: 0;
+        display: block;
         width: min(860px, 72%);
+        max-width: 100%;
+        min-width: 0;
         height: auto;
         opacity: 1;
         pointer-events: none;
@@ -134,7 +150,11 @@
     @media screen and (max-width: 959px) {
         & .login-header-logo {
             height: 62px;
-            max-width: 86vw;
+            max-width: 86%;
+        }
+
+        & ::ng-deep mat-form-field.admin-login-field .mat-mdc-form-field-input-control input.mat-mdc-input-element {
+            font-size: 16px !important;
         }
 
         & .login-stage {
@@ -143,7 +163,7 @@
         }
 
         & .login-composition {
-            width: calc(100vw - 2rem);
+            width: 100%;
             min-height: auto;
             background-position: center top;
             background-size: 100% auto;
@@ -155,6 +175,7 @@
             left: 0;
             width: 100%;
             max-width: 100%;
+            min-width: 0;
             opacity: 1;
         }
 
