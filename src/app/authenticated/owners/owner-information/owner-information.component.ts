@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -35,6 +35,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() selectedOfficeId: number | null = null;
   @Output() ownerContextChanged = new EventEmitter<void>();
   @Output() ownerLeadCreated = new EventEmitter<number>();
+  extraAccordionsTemplate: TemplateRef<unknown> | null = null;
   private fb = inject(FormBuilder);
   private formatterService = inject(FormatterService);
   private contactService = inject(ContactService);
@@ -343,6 +344,11 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Save Methods
+  onExtraAccordionsReady(template: TemplateRef<unknown>): void {
+    this.extraAccordionsTemplate = template;
+    this.cdr.markForCheck();
+  }
+
   onPrimaryOwnerSaved(event: { saved?: boolean; contactId?: string; entityTypeId?: number }): void {
     if (!event?.saved) {
       return;

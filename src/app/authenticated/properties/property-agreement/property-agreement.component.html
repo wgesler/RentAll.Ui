@@ -214,175 +214,107 @@
       </div>
     }
     <div class="property-agreement-uploads-layout mb-4">
-      @if (isPropertyManagementLease) {
-      <div class="property-agreement-upload-section" [class.property-agreement-upload-section--lease-compact]="!isPropertyManagementLease">
-        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
-          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">W9 Form</h4>
-        </div>
-        <div class="property-agreement-upload-col min-w-0">
-          <div class="property-agreement-col-body">
-            <div class="property-agreement-upload-row">
-              <div class="property-agreement-col-actions">
-                <div class="property-agreement-actions-box">
-                  @if (isPropertyManagementLease) {
-                    @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                    } @else if (agreementW9FileName && agreementW9FileDataUrl) {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                    } @else if (agreementW9FileName) {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                    } @else {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
-                    }
-                  } @else {
-                    <span class="property-agreement-vendor-note">From Vendor Contact</span>
-                  }
-                </div>
-                @if (isPropertyManagementLease) {
-                  <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
+      <div class="property-agreement-document-row">
+        <div class="property-agreement-document-box">
+          <h4 class="property-agreement-document-title text-sm text-slate-600">W9 Form</h4>
+          <div class="flex image-input items-center">
+            @if (displayW9FileDataUrl && displayW9FileContentType?.startsWith('image/')) {
+              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer" alt="W9 Form" [src]="displayW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
+            } @else if (displayW9FileName && displayW9FileDataUrl) {
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer" (click)="openAgreementW9Preview($event)">
+                @if (displayW9PdfThumbnailUrl) {
+                  <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="displayW9PdfThumbnailUrl" alt="W9 PDF" />
+                } @else {
+                  <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
                 }
               </div>
-              <div class="property-agreement-col-preview">
-                <div class="property-agreement-preview-box">
-                  @if (displayW9FileDataUrl && displayW9FileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="W9" [src]="displayW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
-                  } @else if (displayW9FileName && displayW9FileDataUrl) {
-                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementW9Preview($event)">
-                      @if (displayW9PdfThumbnailUrl) {
-                        <img class="object-contain max-h-28 w-full" [src]="displayW9PdfThumbnailUrl" alt="W9 PDF" />
-                      } @else {
-                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                      }
-                    </div>
-                  } @else if (displayW9FileName) {
-                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
-                      <mat-icon class="text-4xl text-slate-400">description</mat-icon>
-                    </div>
-                  } @else {
-                    <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
-                  }
-                </div>
-              </div>
+            } @else if (displayW9FileName) {
+              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+            }
+            <div class="property-agreement-document-actions">
+              @if (isPropertyManagementLease) {
+                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
+                @if (agreementW9FileName || agreementW9Path) {
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                }
+              } @else {
+                <span class="property-agreement-vendor-note">From Vendor Contact</span>
+              }
             </div>
           </div>
-        </div>
-      </div>
-      <div class="property-agreement-upload-section">
-        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 shrink-0">Insurance</h4>
           @if (isPropertyManagementLease) {
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="property-agreement-expiration-field">
-              <mat-label>Expiration</mat-label>
-              <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
-              <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
-              <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
-            </mat-form-field>
-          } @else {
-            <span class="property-agreement-vendor-expiration">Expiration: {{ vendorInsuranceExpirationDisplay }}</span>
+            <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
           }
         </div>
-        <div class="property-agreement-upload-col min-w-0">
-          <div class="property-agreement-col-body">
-            <div class="property-agreement-upload-row">
-              <div class="property-agreement-col-actions">
-                <div class="property-agreement-actions-box">
-                  @if (isPropertyManagementLease) {
-                    @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                    } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                    } @else if (agreementInsuranceFileName) {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                    } @else {
-                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
-                    }
-                  } @else {
-                    <span class="property-agreement-vendor-note">From Vendor Contact</span>
-                  }
-                </div>
-                @if (isPropertyManagementLease) {
-                  <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
+        <div class="property-agreement-document-box">
+          <div class="property-agreement-document-title-row">
+            <h4 class="property-agreement-document-title text-sm text-slate-600">Insurance</h4>
+            <div class="property-agreement-expiration-slot">
+              @if (isPropertyManagementLease) {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="property-agreement-expiration-field">
+                  <mat-label>Expiration</mat-label>
+                  <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
+                  <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
+                </mat-form-field>
+              } @else {
+                <span class="property-agreement-vendor-expiration">Expiration: {{ vendorInsuranceExpirationDisplay }}</span>
+              }
+            </div>
+          </div>
+          <div class="property-agreement-insurance-body image-input items-center">
+            @if (displayInsuranceFileDataUrl && displayInsuranceFileContentType?.startsWith('image/')) {
+              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer" alt="Insurance" [src]="displayInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
+            } @else if (displayInsuranceFileName && displayInsuranceFileDataUrl) {
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer" (click)="openAgreementInsurancePreview($event)">
+                @if (displayInsurancePdfThumbnailUrl) {
+                  <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="displayInsurancePdfThumbnailUrl" alt="Insurance PDF" />
+                } @else {
+                  <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
                 }
               </div>
-              <div class="property-agreement-col-preview">
-                <div class="property-agreement-preview-box">
-                  @if (displayInsuranceFileDataUrl && displayInsuranceFileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="Insurance" [src]="displayInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
-                  } @else if (displayInsuranceFileName && displayInsuranceFileDataUrl) {
-                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementInsurancePreview($event)">
-                      @if (displayInsurancePdfThumbnailUrl) {
-                        <img class="object-contain max-h-28 w-full" [src]="displayInsurancePdfThumbnailUrl" alt="Insurance PDF" />
-                      } @else {
-                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                      }
-                    </div>
-                  } @else if (displayInsuranceFileName) {
-                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
-                      <mat-icon class="text-4xl text-slate-400">description</mat-icon>
-                    </div>
-                  } @else {
-                    <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
-                  }
-                </div>
-              </div>
+            } @else if (displayInsuranceFileName) {
+              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+            }
+            <div class="property-agreement-document-actions">
+              @if (isPropertyManagementLease) {
+                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
+                @if (agreementInsuranceFileName || agreementInsurancePath) {
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                }
+              } @else {
+                <span class="property-agreement-vendor-note">From Vendor Contact</span>
+              }
             </div>
           </div>
+          @if (isPropertyManagementLease) {
+            <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
+          }
         </div>
-      </div>
-      }
-      <div class="property-agreement-upload-section">
-        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
-          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Owner Agreement</h4>
-        </div>
-        <div class="property-agreement-upload-col min-w-0">
-          <div class="property-agreement-col-body">
-            <div class="property-agreement-upload-row">
-              <div class="property-agreement-col-actions">
-                <div class="property-agreement-actions-box">
-                  @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
-                  } @else if (agreementDocFileName && agreementDocFileDataUrl) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
-                  } @else if (agreementDocFileName) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
-                  } @else {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                  }
-                </div>
-                <input #agreementDocFileInput type="file" (change)="onAgreementDocFileSelected($event)" class="file-input-hidden" />
+        <div class="property-agreement-document-box">
+          <h4 class="property-agreement-document-title text-sm text-slate-600">Owner Agreement</h4>
+          <div class="flex image-input items-center">
+            @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
+              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer" alt="Owner Agreement" [src]="agreementDocFileDataUrl" (click)="openAgreementDocPreview($event)" />
+            } @else if (agreementDocFileName && agreementDocFileDataUrl) {
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer" (click)="openAgreementDocPreview($event)">
+                @if (agreementDocPdfThumbnailUrl) {
+                  <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="agreementDocPdfThumbnailUrl" alt="Agreement PDF" />
+                } @else {
+                  <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
+                }
               </div>
-              <div class="property-agreement-col-preview">
-                <div class="property-agreement-preview-box">
-                  @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="Agreement" [src]="agreementDocFileDataUrl" (click)="openAgreementDocPreview($event)" />
-                  } @else if (agreementDocFileName && agreementDocFileDataUrl) {
-                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementDocPreview($event)">
-                      @if (agreementDocPdfThumbnailUrl) {
-                        <img class="object-contain max-h-28 w-full" [src]="agreementDocPdfThumbnailUrl" alt="Agreement PDF" />
-                      } @else {
-                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                      }
-                    </div>
-                  } @else if (agreementDocFileName) {
-                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
-                      <mat-icon class="text-4xl text-slate-400">description</mat-icon>
-                    </div>
-                  } @else {
-                    <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
-                  }
-                </div>
-              </div>
+            } @else if (agreementDocFileName) {
+              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+            }
+            <div class="property-agreement-document-actions">
+              <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+              @if (agreementDocFileName || agreementDocPath) {
+                <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+              }
             </div>
           </div>
+          <input #agreementDocFileInput type="file" (change)="onAgreementDocFileSelected($event)" class="file-input-hidden" />
         </div>
       </div>
       @if (!isPropertyManagementLease) {

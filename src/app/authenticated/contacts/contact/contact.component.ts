@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, OnChanges, OnDestroy, OnInit, Input, Output, EventEmitter, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnChanges, OnDestroy, OnInit, AfterViewChecked, Input, Output, EventEmitter, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -43,7 +43,7 @@ import { PublicOwnerContactUpsertRequest } from '../../leads/models/owner-form-s
     styleUrl: './contact.component.scss'
 })
 
-export class ContactComponent implements OnInit, OnChanges, OnDestroy {
+export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, OnDestroy {
 
   @Input() id: string = 'new';
   /** When embedded with prefill, update this existing contact on save without loading by id. */
@@ -56,6 +56,11 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @Input() preselectPropertyOfficeId: number | null = null;
   @Input() ownerLeadId: number | null = null;
   @Input() compactDialogMode: boolean = false;
+  /** Owner tab renders W9, bank, and card as sibling accordions outside Basic Information. */
+  @Input() placeExtraAccordionsOutside = false;
+  @Output() extraAccordionsReady = new EventEmitter<TemplateRef<unknown>>();
+  @ViewChild('extraAccordions') extraAccordions?: TemplateRef<unknown>;
+  private extraAccordionsEmitted = false;
   @Input() showDialogCancelButton: boolean = false;
   @Input() prefillContact: Record<string, unknown> | null = null;
   @Input() publicOwnerToken: string | null = null;
@@ -162,6 +167,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   isContactCardSaving = false;
   isContactCardPanDecrypting = false;
+  skipContactCardPersist = false;
   isEditingContactCardNumber = false;
   revealedContactCardPan = '';
   identificationNumberVisible = false;
@@ -173,7 +179,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   accountNumberLastFour = '';
   revealedAccountNumber = '';
   isSavingBankInformation = false;
-  isEncryptingAccountNumber = false;
   isAccountNumberDecrypting = false;
   cardNumberVisible = false;
   cardNumberFocused = false;
@@ -185,6 +190,15 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
 
   //#region Contacts
+  ngAfterViewChecked(): void {
+    if (!this.placeExtraAccordionsOutside || this.extraAccordionsEmitted || !this.extraAccordions) {
+      return;
+    }
+    this.extraAccordionsEmitted = true;
+    const template = this.extraAccordions;
+    queueMicrotask(() => this.extraAccordionsReady.emit(template));
+  }
+
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -2139,51 +2153,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     return this.accountNumberLastFour ? `${'*'.repeat(8)}${this.accountNumberLastFour}` : '';
   }
 
-  get canEncryptAccountNumber(): boolean {
-    return !this.isAddMode && this.canViewBankInformation;
-  }
-
-  encryptStoredAccountNumber(): void {
-    if (!this.canEncryptAccountNumber || this.isEncryptingAccountNumber) {
-      return;
-    }
-    const organizationId = String(this.contact?.organizationId || this.selectedOrganizationId || '').trim();
-    if (!organizationId) {
-      this.toastr.error('Organization is required.', CommonMessage.Error);
-      return;
-    }
-    const currentAccountNumber = String(this.form?.get('accountNumber')?.value || '');
-    const currentDigits = currentAccountNumber.replace(/[\s-]/g, '');
-    const currentWasClear = currentDigits.length >= 4 && /^[0-9]+$/.test(currentDigits);
-    this.isEncryptingAccountNumber = true;
-    this.contactService.encryptStoredAccountNumbers(organizationId).pipe(take(1), finalize(() => {
-      this.isEncryptingAccountNumber = false;
-      this.markViewForCheck();
-    })).subscribe({
-      next: (result) => {
-        const converted = result.converted || 0;
-        if (currentWasClear) {
-          this.accountNumberLastFour = currentDigits.slice(-4);
-          this.accountNumberVisible = false;
-          this.accountNumberFocused = false;
-          this.form?.get('accountNumber')?.setValue('', { emitEvent: false });
-          if (this.contact) {
-            this.contact.accountNumber = null;
-            this.contact.accountNumberLastFour = this.accountNumberLastFour;
-          }
-          this.syncAccountNumberInput();
-        }
-        const message = converted === 0
-          ? 'No clear account numbers were found'
-          : `Encrypted ${converted} stored account number${converted === 1 ? '' : 's'}`;
-        this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-      },
-      error: () => {
-        this.toastr.error('Failed to encrypt stored account numbers.', CommonMessage.Error);
-      }
-    });
-  }
-
   clearBankInformation(): void {
     const previous = {
       bankName: this.form?.get('bankName')?.value ?? '',
@@ -2449,34 +2418,61 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
+  prepareClearContactCard(): void {
+    this.skipContactCardPersist = true;
+    this.cardNumberDecryptToken++;
+  }
+
   removeContactCard(): void {
     if (!this.canViewContactCardOnFile || !this.contactCard) {
       return;
     }
 
-    if ((this.contactCard.contactCardId || 0) <= 0) {
-      this.contactCard = this.createBlankContactCard();
-      this.cardNumberVisible = false;
+    const previous = this.contactCard;
+    const previousVisible = this.cardNumberVisible;
+    const previousRevealed = this.revealedContactCardPan;
+    this.skipContactCardPersist = false;
+    this.cardNumberDecryptToken++;
+    this.cardNumberVisible = false;
+    this.cardNumberFocused = false;
+    this.cardNumberTyped = false;
+    this.isEditingContactCardNumber = false;
+    this.isContactCardPanDecrypting = false;
+    this.revealedContactCardPan = '';
+    this.contactCard = this.createBlankContactCard();
+    if (this.contact) {
+      this.contact.contactCardId = null;
+      this.contact.contactCard = null;
+    }
+    this.syncCardNumberInput();
+    this.markViewForCheck();
+
+    if ((previous.contactCardId || 0) <= 0 || this.isAddMode || !this.contactId || this.contactId === 'new') {
       return;
     }
 
-    this.contactCardService.deleteContactCard(this.contactId, this.contactCard.contactCardId).pipe(take(1)).subscribe({
-      next: () => {
-        this.contactCard = this.createBlankContactCard();
-        this.cardNumberVisible = false;
-        if (this.contact) {
-          this.contact.contactCardId = null;
-          this.contact.contactCard = null;
-        }
-        this.markViewForCheck();
-      },
+    this.contactCardService.deleteContactCard(this.contactId, previous.contactCardId).pipe(take(1)).subscribe({
       error: () => {
+        this.contactCard = previous;
+        this.cardNumberVisible = previousVisible;
+        this.revealedContactCardPan = previousRevealed;
+        if (this.contact) {
+          this.contact.contactCardId = previous.contactCardId;
+          this.contact.contactCard = previous;
+        }
+        this.syncCardNumberInput();
         this.toastr.error('Failed to delete contact card.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
 
   onContactCardFieldChange(): void {
+    if (this.skipContactCardPersist) {
+      this.skipContactCardPersist = false;
+      return;
+    }
+
     if (!this.contactCard || this.isAddMode || this.isContactCardSaving) {
       return;
     }
@@ -2584,6 +2580,9 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.isContactCardSaving = true;
     this.contactCardService.updateContactCard(this.contactId, this.contactCard.contactCardId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
       next: (response) => {
+        if (this.skipContactCardPersist || (this.contactCard?.contactCardId || 0) <= 0) {
+          return;
+        }
         const digits = this.getContactCardNumberDigits();
         this.contactCard = this.mappingService.mapContactCardFromResponse(response);
         if (this.contact) {

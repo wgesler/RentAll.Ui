@@ -36,10 +36,110 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
 
-  @media (min-width: 1024px) {
-    flex-direction: row;
-    gap: 1rem;
+.property-agreement-document-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.property-agreement-document-box {
+  min-width: 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e4edf6;
+
+  h4,
+  .property-agreement-document-title {
+    font-weight: 700;
+    text-align: left;
+    margin: 0 0 0.75rem;
+    padding-left: 0;
+  }
+
+  > .property-agreement-document-title {
+    box-sizing: border-box;
+    min-height: 4rem;
+  }
+
+  .property-agreement-document-title-row {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    min-height: 4rem;
+    margin-bottom: 0.75rem;
+
+    .property-agreement-document-title {
+      margin-bottom: 0.75rem;
+    }
+  }
+
+  .property-agreement-expiration-slot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    justify-content: center;
+    width: 11.5rem;
+  }
+
+  .property-agreement-insurance-body {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .property-agreement-document-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0;
+    transform: translateY(-36px);
+  }
+
+  .property-agreement-insurance-body .property-agreement-document-actions {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, calc(-50% - 36px));
+  }
+
+  .property-agreement-expiration-field {
+    width: 11.5rem;
+    max-width: 100%;
+    margin-bottom: 0;
+  }
+
+  .image-input,
+  .property-agreement-insurance-body {
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0;
+    height: 8rem;
+    min-height: 8rem;
+    max-height: 8rem;
+  }
+
+  img,
+  .image-input > div.border,
+  .property-agreement-insurance-body > div.border {
+    height: 6rem;
+    max-height: 6rem;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+@media (max-width: 959px) {
+  .property-agreement-document-row {
+    grid-template-columns: 1fr;
   }
 }
 
