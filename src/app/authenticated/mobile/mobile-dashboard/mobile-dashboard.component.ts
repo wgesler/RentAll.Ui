@@ -808,7 +808,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
   goToProperty(event: { propertyId: string }): void {
     if (event?.propertyId) {
       this.router.navigate(
-        [RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId])],
+        ['/mobile/properties', event.propertyId],
         { queryParams: { returnUrl: this.router.url } }
       );
     }
@@ -824,7 +824,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
     if (propertyId) {
       queryParams['propertyId'] = propertyId;
     }
-    void this.router.navigate([RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])], { queryParams });
+    void this.router.navigate(['/mobile/reservations', reservationId], { queryParams });
   }
 
   markViewForCheck(): void {

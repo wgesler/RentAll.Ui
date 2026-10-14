@@ -1,7 +1,9 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { RouterToken } from '../app.routes';
-import { canUserAccessMobileUrl, getMobileFallbackUrl, getMobileSidebarFilterOptions } from '../authenticated/mobile/mobile-nav';
+import { canUserAccessMobileUrl, getMobileFallbackUrl, getMobileSidebarFilterOptions, toMobileUrlForDesktopPath } from '../authenticated/mobile/mobile-nav';
+import { isUsingMobileDevice } from '../authenticated/mobile/mobile-preference';
+import { StorageService } from '../services/storage.service';
 import {
   canPartnerAccessUrl,
   canUserAccessUrl,
@@ -29,6 +31,15 @@ export const authRouteGuard: CanActivateFn = (_route, state) => {
     const firstSegment = path.split('/').filter(Boolean)[0];
     const userGroups = authService.getUser()?.userGroups as Array<string | number> | undefined;
     const mobileFilterOptions = getMobileSidebarFilterOptions(authService, commonService.getOrganizationTypeId());
+    const storageService = inject(StorageService);
+
+    if (isUsingMobileDevice(storageService) && firstSegment !== RouterToken.Mobile) {
+      const mobileUrl = toMobileUrlForDesktopPath(state.url, getMobileFallbackUrl(userGroups, mobileFilterOptions));
+      const mobilePath = mobileUrl.split('?')[0].split('#')[0];
+      if (path !== mobilePath) {
+        return router.parseUrl(mobileUrl);
+      }
+    }
 
     if (firstSegment === RouterToken.Mobile) {
         if (!canUserAccessMobileUrl(userGroups, state.url, mobileFilterOptions)) {

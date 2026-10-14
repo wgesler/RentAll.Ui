@@ -317,6 +317,32 @@ export function getMobileFallbackUrl(
   return firstMobileItem ? getMobilePrimaryLink(firstMobileItem) : '/mobile/home';
 }
 
+/** Keeps a phone that checked Using mobile device off the desktop shell. */
+export function toMobileUrlForDesktopPath(url: string, fallback: string): string {
+  const queryIndex = url.indexOf('?');
+  const path = (queryIndex >= 0 ? url.slice(0, queryIndex) : url).split('#')[0];
+  const query = queryIndex >= 0 ? url.slice(queryIndex).split('#')[0] : '';
+  const parts = path.split('/').filter(Boolean);
+  if (parts[0] === RouterToken.Mobile) {
+    return url;
+  }
+
+  const segment = parts[0] === RouterToken.Auth ? parts[1] : parts[0];
+  const id = parts[0] === RouterToken.Auth ? parts[2] : parts[1];
+  if (segment === RouterToken.PropertyList && id) {
+    return `/${RouterToken.Mobile}/properties/${id}${query}`;
+  }
+  if (segment === RouterToken.ReservationList && id) {
+    return `/${RouterToken.Mobile}/reservations/${id}${query}`;
+  }
+  if (segment === RouterToken.DocumentList && id) {
+    return `/${RouterToken.Mobile}/documents/${id}${query}`;
+  }
+
+  const mapped = segment ? DESKTOP_NAV_URL_TO_MOBILE_PATH[segment] : undefined;
+  return mapped ? `/${RouterToken.Mobile}/${mapped}` : fallback;
+}
+
 function mapAuthStartupUrlToMobile(authStartupUrl: string): string | null {
   const parts = (authStartupUrl || '').split('?')[0].split('/').filter(Boolean);
   const segment = parts[0] === RouterToken.Auth ? parts[1] : parts[0];
