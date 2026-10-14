@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject } from '@angular/core';
+import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, HostListener, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -45,6 +45,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   disabled = false;
   hide = true;
   isSubmitting = false;
+  private lastUserPointerAt = 0;
   username: string = '';
   password: string = '';
   rememberMe: boolean = false;
@@ -82,7 +83,16 @@ export class LoginComponent implements OnInit, AfterViewInit {
     teardownCdkOverlayStateAfterPaint(() => {
       teardownCdkOverlayState();
       resetViewportScroll();
+      this.blurAutofillFocus();
     });
+    if (this.isPhone()) {
+      setTimeout(() => this.blurAutofillFocus(), 400);
+    }
+  }
+
+  @HostListener('pointerdown')
+  noteUserPointer(): void {
+    this.lastUserPointerAt = Date.now();
   }
 
   //#region Login
@@ -172,7 +182,29 @@ export class LoginComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    if (this.isPhone()) {
+      if (Date.now() - this.lastUserPointerAt > 700) {
+        setTimeout(() => input.blur(), 0);
+      }
+      return;
+    }
+
     setTimeout(() => input.select(), 0);
+  }
+
+  private blurAutofillFocus(): void {
+    if (!this.isPhone() || Date.now() - this.lastUserPointerAt < 700) {
+      return;
+    }
+
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement && (active.id === 'username' || active.id === 'password')) {
+      active.blur();
+    }
+  }
+
+  private isPhone(): boolean {
+    return window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 959px)').matches;
   }
 
   getLoginRequest(): LoginRequest {

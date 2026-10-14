@@ -153,13 +153,26 @@
             max-width: 86%;
         }
 
-        & ::ng-deep mat-form-field.admin-login-field .mat-mdc-form-field-input-control input.mat-mdc-input-element {
-            font-size: 16px !important;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+
+        & ::ng-deep mat-form-field.admin-login-field {
+            input.mat-mdc-input-element,
+            .mat-mdc-form-field-icon-prefix,
+            .mat-mdc-form-field-icon-suffix {
+                transform: none;
+            }
+
+            .mat-mdc-form-field-input-control input.mat-mdc-input-element {
+                font-size: 16px !important;
+            }
         }
 
         & .login-stage {
-            min-height: calc(100vh - 56px);
+            min-height: auto;
             padding: 1rem;
+            overflow: visible;
         }
 
         & .login-composition {
@@ -192,7 +205,8 @@
         }
 
         & .loginContainer {
-            width: min(360px, 92vw);
+            width: min(360px, 100%);
+            backdrop-filter: none;
         }
     }
 
