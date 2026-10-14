@@ -17,7 +17,8 @@ export enum DocumentType {
   ApAging = 15,
   SecurityDepositReport = 16,
   Escrow = 17,
-  OwnerApAging = 18
+  OwnerApAging = 18,
+  OwnerDocument = 19
 }
 
 export function getDocumentType(documentTypeId: number | undefined): string {
@@ -42,7 +43,8 @@ export function getDocumentType(documentTypeId: number | undefined): string {
     [DocumentType.ApAging]: 'AP Aging',
     [DocumentType.SecurityDepositReport]: 'Security Deposit Report',
     [DocumentType.Escrow]: 'Escrow',
-    [DocumentType.OwnerApAging]: 'Owner AP Aging'
+    [DocumentType.OwnerApAging]: 'Owner AP Aging',
+    [DocumentType.OwnerDocument]: 'Owner Document'
   };
   
   return typeMap[documentTypeId] || '';
@@ -72,6 +74,7 @@ export function getDocumentTypes(): { value: DocumentType, label: string }[] {
     { value: DocumentType.ApAging, label: getDocumentType(DocumentType.ApAging) },
     { value: DocumentType.SecurityDepositReport, label: getDocumentType(DocumentType.SecurityDepositReport) },
     { value: DocumentType.Escrow, label: getDocumentType(DocumentType.Escrow) },
-    { value: DocumentType.OwnerApAging, label: getDocumentType(DocumentType.OwnerApAging) }
+    { value: DocumentType.OwnerApAging, label: getDocumentType(DocumentType.OwnerApAging) },
+    { value: DocumentType.OwnerDocument, label: getDocumentType(DocumentType.OwnerDocument) }
   ];
 }

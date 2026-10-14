@@ -620,12 +620,21 @@
               }
 
               @if (form.get('entityTypeId')?.value === EntityType.Owner && !isInOwnerMode) {
-                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-owner-email">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                     <mat-label>Email</mat-label>
                     <input matInput type="email" formControlName="email" required>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-4">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                    <mat-label>Managed By</mat-label>
+                    <mat-select formControlName="propertyManagedBy">
+                      <mat-option [value]="null">Select</mat-option>
+                      @for (item of availablePropertyManagerTypes; track item.value) {
+                        <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                     <mat-label>Properties</mat-label>
                     <mat-select formControlName="propertyCodes" multiple>
                       @for (prop of availablePropertyCodes; track prop.value) {
@@ -643,6 +652,13 @@
                 </div>
               }
 
+              @if (form.get('entityTypeId')?.value === EntityType.Owner && !compactDialogMode) {
+                <mat-form-field appearance="outline" class="col-span-4">
+                  <mat-label>Notes</mat-label>
+                  <textarea matInput formControlName="notes" rows="3"></textarea>
+                </mat-form-field>
+              }
+
               @if (form.get('entityTypeId')?.value === EntityType.Owner && ownerCompanyNameVisible()) {
                 <mat-form-field appearance="outline" class="col-span-4 field-min-0">
                   <mat-label>Company Name</mat-label>
@@ -650,18 +666,138 @@
                 </mat-form-field>
               }
 
-              @if (!compactDialogMode || form.get('entityTypeId')?.value === EntityType.Property) {
+              @if (form.get('entityTypeId')?.value !== EntityType.Owner && (!compactDialogMode || form.get('entityTypeId')?.value === EntityType.Property)) {
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Notes</mat-label>
                   <textarea matInput formControlName="notes" rows="3"></textarea>
                 </mat-form-field>
               }
 
-              @if (form.get('entityTypeId')?.value === EntityType.Vendor || canViewContactCardOnFile) {
-              <div class="col-span-4">
-                <mat-accordion multi="true">
+              @if (form.get('entityTypeId')?.value === EntityType.Owner || form.get('entityTypeId')?.value === EntityType.Vendor || canViewContactCardOnFile) {
+                <div class="col-span-4">
+                  <mat-accordion multi="true">
+                    @if (form.get('entityTypeId')?.value === EntityType.Owner) {
+                    <mat-expansion-panel [expanded]="false">
+                      <mat-expansion-panel-header>
+                        <mat-panel-title class="contact-form-title">W9 Information</mat-panel-title>
+                      </mat-expansion-panel-header>
+                      <div class="grid gap-x-1.5 gap-y-1 form-grid-fifths">
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Date of Birth</mat-label>
+                          <input matInput [matDatepicker]="dateOfBirthPicker" formControlName="dateOfBirth" />
+                          <mat-datepicker-toggle matIconSuffix [for]="dateOfBirthPicker"></mat-datepicker-toggle>
+                          <mat-datepicker #dateOfBirthPicker></mat-datepicker>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Federal Tax Classification</mat-label>
+                          <mat-select formControlName="federalTaxClassificationId">
+                            <mat-option [value]="null">Select</mat-option>
+                            @for (item of availableFederalTaxTypes; track item.value) {
+                              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>ID Type</mat-label>
+                          <mat-select formControlName="ownerIdTypeId">
+                            <mat-option [value]="null">Select</mat-option>
+                            @for (item of availableOwnerIdTypes; track item.value) {
+                              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Identification Number</mat-label>
+                          <input #identificationNumberInput matInput maxlength="9" autocomplete="off" (focus)="onIdentificationNumberFocus($event)" (blur)="onIdentificationNumberBlur($event)" (input)="onIdentificationNumberInput($event)">
+                          <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleIdentificationNumberVisibility()" [attr.aria-label]="identificationNumberVisible ? 'Hide identification number' : 'Show identification number'">
+                            <mat-icon>{{ identificationNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+                          </button>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Document Type</mat-label>
+                          <mat-select formControlName="ownerDocumentId">
+                            <mat-option [value]="null">Select</mat-option>
+                            @for (item of availableOwnerDocumentTypes; track item.value) {
+                              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                      </div>
+                      <div class="owner-document-row">
+                        <div class="owner-document-box">
+                          <h4 class="text-sm font-medium text-slate-600 mb-3">Document Front</h4>
+                          <div class="flex image-input items-center">
+                            @if (isContactImagePreview(documentFrontFileContentType, documentFrontFileDataUrl)) {
+                              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="Document front" [src]="documentFrontFileDataUrl" />
+                            } @else if (documentFrontFileName || documentFrontPath) {
+                              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+                            }
+                            <div class="flex flex-col gap-2 ml-4">
+                              <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="documentFrontFileInput.click()">Upload</button>
+                              @if (documentFrontFileName || documentFrontPath) {
+                                <button type="button" color="accent" mat-raised-button (click)="removeOwnerDocument('front')">Delete</button>
+                              }
+                            </div>
+                          </div>
+                          <input #documentFrontFileInput type="file" accept="image/*" (change)="onOwnerDocumentSelected('front', $event)" class="file-input-hidden" />
+                        </div>
+                        <div class="owner-document-box">
+                          <h4 class="text-sm font-medium text-slate-600 mb-3">Document Back</h4>
+                          <div class="flex image-input items-center">
+                            @if (isContactImagePreview(documentBackFileContentType, documentBackFileDataUrl)) {
+                              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="Document back" [src]="documentBackFileDataUrl" />
+                            } @else if (documentBackFileName || documentBackPath) {
+                              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+                            }
+                            <div class="flex flex-col gap-2 ml-4">
+                              <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="documentBackFileInput.click()">Upload</button>
+                              @if (documentBackFileName || documentBackPath) {
+                                <button type="button" color="accent" mat-raised-button (click)="removeOwnerDocument('back')">Delete</button>
+                              }
+                            </div>
+                          </div>
+                          <input #documentBackFileInput type="file" accept="image/*" (change)="onOwnerDocumentSelected('back', $event)" class="file-input-hidden" />
+                        </div>
+                        <div class="owner-document-box">
+                          <h4 class="text-sm font-medium text-slate-600 mb-3">W9 Form</h4>
+                          <div class="flex image-input items-center">
+                            @if (isContactImagePreview(w9FileContentType, w9FileDataUrl)) {
+                              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer hover:opacity-90" alt="W9 Form" [src]="w9FileDataUrl" (click)="openW9Preview($event)" />
+                              <div class="flex flex-col gap-2 ml-4">
+                                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">Upload</button>
+                                <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" class="btn-full-width">Delete</button>
+                              </div>
+                            } @else if (w9FileName && w9FileDataUrl) {
+                              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer hover:bg-slate-200 transition-colors" title="Enlarge preview" (click)="openW9Preview($event)">
+                                @if (w9PdfThumbnailUrl) {
+                                  <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="w9PdfThumbnailUrl" alt="W9 PDF" />
+                                } @else {
+                                  <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
+                                }
+                              </div>
+                              <div class="flex flex-col gap-2 ml-4">
+                                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">Upload</button>
+                                <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" class="btn-full-width">Delete</button>
+                              </div>
+                            } @else if (w9FileName) {
+                              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                                <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+                              </div>
+                              <div class="flex flex-col gap-2 ml-4">
+                                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">Upload</button>
+                                <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" class="btn-full-width">Delete</button>
+                              </div>
+                            } @else {
+                              <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">Upload</button>
+                            }
+                            <input #w9FileInput type="file" (change)="onW9FileSelected($event)" class="file-input-hidden" />
+                          </div>
+                        </div>
+                      </div>
+                    </mat-expansion-panel>
+                    }
                     @if (form.get('entityTypeId')?.value === EntityType.Vendor) {
-                    <mat-expansion-panel [expanded]="true" class="mb-4">
+                    <mat-expansion-panel [expanded]="false">
                       <mat-expansion-panel-header>
                         <mat-panel-title class="contact-form-title">W9 &amp; Insurance</mat-panel-title>
                       </mat-expansion-panel-header>
@@ -670,7 +806,7 @@
                           <div class="min-w-0">
                             <h4 class="text-sm font-medium text-slate-600 mb-3">W9 Form</h4>
                             <div class="flex justify-start image-input items-center mb-4">
-                              @if (w9FileDataUrl && w9FileContentType?.startsWith('image/')) {
+                              @if (isContactImagePreview(w9FileContentType, w9FileDataUrl)) {
                                 <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer hover:opacity-90" alt="W9 Form" [src]="w9FileDataUrl" (click)="openW9Preview($event)" />
                                 <div class="flex flex-col gap-2 ml-4">
                                   <div class="flex flex-col gap-2">
@@ -788,37 +924,49 @@
                     </mat-expansion-panel>
                     }
                     @if (canViewBankInformation) {
-                    <mat-expansion-panel [expanded]="true" class="mb-4">
+                    <mat-expansion-panel [expanded]="false">
                       <mat-expansion-panel-header>
                         <mat-panel-title class="contact-form-title">Bank Information</mat-panel-title>
                       </mat-expansion-panel-header>
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <mat-form-field appearance="outline">
-                          <mat-label>Bank Name</mat-label>
-                          <input matInput formControlName="bankName" maxlength="250" />
-                        </mat-form-field>
-                        <mat-form-field appearance="outline">
-                          <mat-label>Routing Number</mat-label>
-                          <input matInput formControlName="routingNumber" maxlength="250" />
-                        </mat-form-field>
-                        <mat-form-field appearance="outline">
-                          <mat-label>Account Number</mat-label>
-                          <input matInput formControlName="accountNumber" maxlength="250" />
-                        </mat-form-field>
+                      <div class="flex items-center gap-1">
+                        <div class="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
+                          <mat-form-field appearance="outline">
+                            <mat-label>Bank Name</mat-label>
+                            <input matInput formControlName="bankName" maxlength="250" (blur)="onBankInformationBlur()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Routing Number</mat-label>
+                            <input matInput formControlName="routingNumber" maxlength="250" (blur)="onBankInformationBlur()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Account Number</mat-label>
+                            <input #accountNumberInput matInput maxlength="250" autocomplete="off" (focus)="onAccountNumberFocus($event)" (blur)="onAccountNumberBlur($event)" (input)="onAccountNumberInput($event)" />
+                            <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleAccountNumberVisibility()" [attr.aria-label]="accountNumberVisible ? 'Hide account number' : 'Show account number'">
+                              <mat-icon>{{ accountNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+                            </button>
+                          </mat-form-field>
+                        </div>
+                        <button mat-icon-button type="button" color="accent" (click)="clearBankInformation()" aria-label="Clear bank information">
+                          <mat-icon>close</mat-icon>
+                        </button>
                       </div>
+                      @if (canEncryptAccountNumber) {
+                        <div class="mt-2">
+                          <button mat-raised-button type="button" color="primary" [disabled]="isEncryptingAccountNumber" (click)="encryptStoredAccountNumber()">
+                            Encrypt stored account numbers
+                          </button>
+                        </div>
+                      }
                     </mat-expansion-panel>
                     }
                     @if (canViewContactCardOnFile) {
-                    <mat-expansion-panel [expanded]="true" class="mb-4">
+                    <mat-expansion-panel [expanded]="false">
                       <mat-expansion-panel-header>
                         <mat-panel-title class="contact-form-title">Card On File</mat-panel-title>
                       </mat-expansion-panel-header>
-                      @if (!contactCard) {
-                        <button mat-raised-button type="button" color="primary" (click)="onAddContactCardClick()">
-                          Add Card
-                        </button>
-                      } @else {
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      @if (contactCard) {
+                        <div class="flex items-center gap-1">
+                          <div class="grid flex-1 grid-cols-1 md:grid-cols-4 gap-4">
                           <mat-form-field appearance="outline">
                             <mat-label>Type</mat-label>
                             <mat-select [(ngModel)]="contactCard.cardTypeId" [ngModelOptions]="{standalone: true}" (ngModelChange)="onContactCardFieldChange()">
@@ -841,19 +989,25 @@
                             <input
                               #contactCardPanInput
                               matInput
-                              [value]="getContactCardPanDisplay()"
                               inputmode="numeric"
-                              (focus)="onContactCardPanFocus()"
-                              (blur)="onContactCardPanBlur()"
+                              autocomplete="off"
+                              (focus)="onCardNumberFocus($event)"
+                              (blur)="onCardNumberBlur($event)"
                               (input)="onContactCardNumberInput($event)" />
+                            <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleCardNumberVisibility()" [attr.aria-label]="cardNumberVisible ? 'Hide card number' : 'Show card number'">
+                              <mat-icon>{{ cardNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+                            </button>
                             @if (isContactCardPanDecrypting) {
                               <mat-hint>Decrypting</mat-hint>
                             }
                           </mat-form-field>
                         </div>
-                        <div class="mt-2">
-                          <button mat-raised-button type="button" color="accent" (click)="removeContactCard()">Remove Card</button>
-                        </div>
+                        @if ((contactCard.contactCardId || 0) > 0) {
+                          <button mat-icon-button type="button" color="accent" (click)="removeContactCard()" aria-label="Remove card">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        }
+                      </div>
                       }
                     </mat-expansion-panel>
                     }

@@ -15,6 +15,7 @@ import { EmailCreateDraft } from '../models/email-create.model';
 import { EmailService } from '../services/email.service';
 import { EmailCreateDraftService } from '../services/email-create-draft.service';
 import { sendDocumentEmail, splitEmailList } from '../utils/send-document-email';
+import { applySystemUserOutboundSender, isSystemUserAccountSender } from '../utils/system-user-outbound-sender';
 
 @Component({
   standalone: true,
@@ -40,6 +41,7 @@ export class EmailCreateComponent implements OnInit {
   isMissingDraft = false;
   isViewOnly = false;
   additionalAttachments: FileDetails[] = [];
+  usesFixedSystemSender = false;
   private readonly maxAdditionalAttachments = 5;
   private readonly maxAdditionalAttachmentBytes = 10 * 1024 * 1024;
   private initialPlainTextContent = '';
@@ -51,17 +53,19 @@ export class EmailCreateComponent implements OnInit {
       return;
     }
 
-    this.draft = draft;
     this.isViewOnly = draft.viewOnly === true;
-    const initialPlainTextContent = draft.emailConfig.plainTextContent || this.htmlToPlainText(draft.emailConfig.htmlContent || '');
+    const emailConfig = this.isViewOnly ? draft.emailConfig : applySystemUserOutboundSender(draft.emailConfig);
+    this.usesFixedSystemSender = !this.isViewOnly && isSystemUserAccountSender(draft.emailConfig.fromEmail, draft.emailConfig.fromName);
+    this.draft = { ...draft, emailConfig };
+    const initialPlainTextContent = emailConfig.plainTextContent || this.htmlToPlainText(emailConfig.htmlContent || '');
     this.initialPlainTextContent = initialPlainTextContent;
 
     this.form.patchValue({
-      subject: draft.emailConfig.subject || '',
+      subject: emailConfig.subject || '',
       toEmail: draft.emailConfig.toEmail || '',
       toName: draft.emailConfig.toName || '',
-      fromEmail: draft.emailConfig.fromEmail || '',
-      fromName: draft.emailConfig.fromName || '',
+      fromEmail: emailConfig.fromEmail || '',
+      fromName: emailConfig.fromName || '',
       ccEmails: (draft.emailConfig.ccEmails || []).join(', '),
       bccEmails: (draft.emailConfig.bccEmails || []).join(', '),
       plainTextContent: initialPlainTextContent

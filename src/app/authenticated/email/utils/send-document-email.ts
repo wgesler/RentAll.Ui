@@ -5,6 +5,7 @@ import { DocumentConfig, EmailConfig } from '../../shared/base-document.componen
 import { EmailAddress, EmailRequest } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
+import { applySystemUserOutboundSender } from './system-user-outbound-sender';
 
 export interface SendDocumentEmailDependencies {
   documentService: DocumentService;
@@ -31,6 +32,7 @@ export async function sendDocumentEmail(
   documentConfig: DocumentConfig,
   emailConfig: EmailConfig
 ): Promise<void> {
+  emailConfig = applySystemUserOutboundSender(emailConfig);
   const attachmentFileName = emailConfig.fileDetails?.fileName || 'document.pdf';
   const preparedFile = (emailConfig.fileDetails?.file || '').trim();
   let pdfBase64 = preparedFile;

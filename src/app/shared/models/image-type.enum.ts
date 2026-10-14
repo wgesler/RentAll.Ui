@@ -9,7 +9,8 @@ export enum ImageType {
   StateForm = 7,
   CheckStocks = 8,
   UserGuide = 9,
-  TicketImage = 10
+  TicketImage = 10,
+  OwnerDocuments = 11
 }
 
 export function getImageTypeFolder(imageType: ImageType): string {
@@ -24,7 +25,8 @@ export function getImageTypeFolder(imageType: ImageType): string {
     [ImageType.StateForm]: 'stateform',
     [ImageType.CheckStocks]: 'checkstocks',
     [ImageType.UserGuide]: 'userguide',
-    [ImageType.TicketImage]: 'ticketimage'
+    [ImageType.TicketImage]: 'ticketimage',
+    [ImageType.OwnerDocuments]: 'ownerdocuments'
   };
 
   return folderMap[imageType] || 'images';

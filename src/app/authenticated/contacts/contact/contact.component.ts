@@ -13,14 +13,14 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
-import { UtilityService } from '../../../services/utility.service';
+import { ImageOptimizationFailedError, UtilityService } from '../../../services/utility.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
-import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes } from '../models/contact-enum';
+import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes, getFederalTaxTypes, getOwnerDocumentTypes, getOwnerIdTypes, getPropertyManagerTypes } from '../models/contact-enum';
 import { getInvoiceMethods } from '../../accounting/models/accounting-enum';
 import { getProrateTypes } from '../../reservations/models/reservation-enum';
 import { ContactCardRequest, ContactCardResponse, ContactRequest, ContactResponse } from '../models/contact.model';
@@ -111,6 +111,10 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   availablePaymentTerms: { value: number; label: string }[] = [];
   availableProrateTypes: { value: number; label: string }[] = [];
   availableInvoiceMethods: { value: number; label: string }[] = [];
+  availableFederalTaxTypes: { value: number; label: string }[] = [];
+  availableOwnerIdTypes: { value: number; label: string }[] = [];
+  availableOwnerDocumentTypes: { value: number; label: string }[] = [];
+  availablePropertyManagerTypes: { value: number; label: string }[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -131,12 +135,28 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   insuranceFileDetails: FileDetails | null = null;
   insurancePath: string | null = null;
   hasNewInsuranceUpload = false;
+  documentFrontFileName: string | null = null;
+  documentFrontFileDataUrl: string | null = null;
+  documentFrontFileContentType: string | null = null;
+  documentFrontFileDetails: FileDetails | null = null;
+  documentFrontPath: string | null = null;
+  hasNewDocumentFrontUpload = false;
+  documentBackFileName: string | null = null;
+  documentBackFileDataUrl: string | null = null;
+  documentBackFileContentType: string | null = null;
+  documentBackFileDetails: FileDetails | null = null;
+  documentBackPath: string | null = null;
+  hasNewDocumentBackUpload = false;
 
   w9PdfThumbnailUrl: string | null = null;
   insurancePdfThumbnailUrl: string | null = null;
 
   @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('documentFrontFileInput') documentFrontFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('documentBackFileInput') documentBackFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('identificationNumberInput') identificationNumberInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('accountNumberInput') accountNumberInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('contactCardPanInput') contactCardPanInputRef: ElementRef<HTMLInputElement> | null = null;
   contactCard: ContactCardResponse | null = null;
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
@@ -144,6 +164,21 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   isContactCardPanDecrypting = false;
   isEditingContactCardNumber = false;
   revealedContactCardPan = '';
+  identificationNumberVisible = false;
+  identificationNumberFocused = false;
+  accountNumberVisible = false;
+  accountNumberFocused = false;
+  accountNumberTyped = false;
+  accountNumberDecryptToken = 0;
+  accountNumberLastFour = '';
+  revealedAccountNumber = '';
+  isSavingBankInformation = false;
+  isEncryptingAccountNumber = false;
+  isAccountNumberDecrypting = false;
+  cardNumberVisible = false;
+  cardNumberFocused = false;
+  cardNumberTyped = false;
+  cardNumberDecryptToken = 0;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isPageReady = false;
@@ -166,6 +201,10 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.availablePaymentTerms = getTermTypes();
     this.availableProrateTypes = getProrateTypes();
     this.availableInvoiceMethods = getInvoiceMethods();
+    this.availableFederalTaxTypes = getFederalTaxTypes();
+    this.availableOwnerIdTypes = getOwnerIdTypes();
+    this.availableOwnerDocumentTypes = getOwnerDocumentTypes();
+    this.availablePropertyManagerTypes = getPropertyManagerTypes();
     this.loadStates();
     this.loadOffices();
     this.loadAllProperties();
@@ -481,6 +520,16 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       insurancePath: this.compactDialogMode && this.contact ? (this.insurancePath ?? this.contact.insurancePath ?? null) : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
       insuranceFileDetails: this.compactDialogMode && this.contact ? (this.insuranceFileDetails ?? this.contact.insuranceFileDetails ?? null) : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
       insuranceExpiration: this.compactDialogMode && this.contact ? (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration)),
+      dateOfBirth: this.utilityService.formatDateOnlyForApi(formValue.dateOfBirth),
+      federalTaxClassificationId: formValue.federalTaxClassificationId ?? null,
+      ownerIdTypeId: formValue.ownerIdTypeId ?? null,
+      identificationNumber: (String(formValue.identificationNumber || '').trim().slice(0, 9) || null),
+      ownerDocumentId: formValue.ownerDocumentId ?? null,
+      propertyManagedBy: formValue.propertyManagedBy ?? null,
+      documentFront: this.hasNewDocumentFrontUpload ? undefined : this.documentFrontPath,
+      documentFrontFileDetails: this.hasNewDocumentFrontUpload ? (this.documentFrontFileDetails ?? null) : undefined,
+      documentBack: this.hasNewDocumentBackUpload ? undefined : this.documentBackPath,
+      documentBackFileDetails: this.hasNewDocumentBackUpload ? (this.documentBackFileDetails ?? null) : undefined,
       revenueSplitOwner: this.compactDialogMode && this.contact
         ? (this.contact.revenueSplitOwner ?? this.parseAgreementPercentFromForm(formValue.revenueSplitOwner))
         : this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
@@ -662,6 +711,12 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       isOwnerReady: new FormControl(false),
       isActive: new FormControl(true),
       insuranceExpiration: new FormControl<Date | null>(null),
+      dateOfBirth: new FormControl<Date | null>(null),
+      federalTaxClassificationId: new FormControl<number | null>(null),
+      ownerIdTypeId: new FormControl<number | null>(null),
+      identificationNumber: new FormControl('', [Validators.maxLength(9)]),
+      ownerDocumentId: new FormControl<number | null>(null),
+      propertyManagedBy: new FormControl<number | null>(null),
       paymentTermsId: new FormControl<number | null>(null),
       prorateTypeId: new FormControl<number | null>(null),
       invoiceMethodTypeId: new FormControl<number | null>(null),
@@ -682,6 +737,16 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       }
       if (entityTypeId !== EntityType.Owner) {
         this.form.get('ownerTypeId')?.setValue(OwnerType.Individual, { emitEvent: false });
+        this.form.patchValue({
+          dateOfBirth: null,
+          federalTaxClassificationId: null,
+          ownerIdTypeId: null,
+          identificationNumber: '',
+          ownerDocumentId: null,
+          propertyManagedBy: null
+        }, { emitEvent: false });
+        this.removeOwnerDocument('front');
+        this.removeOwnerDocument('back');
       }
     });
 
@@ -717,9 +782,15 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(selectedOfficeId => {
       this.syncOfficeAccessFromDefaultOffice(selectedOfficeId);
     });
+
+    if (!this.contactCard) {
+      this.contactCard = this.createBlankContactCard();
+    }
   }
 
   populateForm(): void {
+    this.identificationNumberVisible = false;
+    this.accountNumberVisible = false;
     if (this.contact && this.form) {
       const isActiveValue = typeof this.contact.isActive === 'number' ? this.contact.isActive === 1 : Boolean(this.contact.isActive);
       const entityTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
@@ -732,6 +803,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       const patchOfficeId = Number.isFinite(rawContactOfficeId) && rawContactOfficeId > 0
         ? rawContactOfficeId
         : (normalizedOfficeAccess[0] ?? null);
+      this.accountNumberLastFour = this.contact.accountNumberLastFour || '';
       const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
@@ -755,6 +827,12 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         city: this.contact.city || '',
         state: this.contact.state || '',
         zip: this.contact.zip || '',
+        dateOfBirth: this.utilityService.parseDateOnlyStringToDate(this.contact.dateOfBirth ?? null),
+        federalTaxClassificationId: this.contact.federalTaxClassificationId ?? null,
+        ownerIdTypeId: this.contact.ownerIdTypeId ?? null,
+        identificationNumber: this.contact.identificationNumber || '',
+        ownerDocumentId: this.contact.ownerDocumentId ?? null,
+        propertyManagedBy: this.contact.propertyManagedBy ?? null,
         phone: this.formatterService.phoneNumber(this.contact.phone),
         extension: this.contact.extension || '',
         email: this.utilityService.getDisplayContactEmail(this.contact.email),
@@ -788,7 +866,13 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.applyEntityTypeContactValidators(entityTypeId);
 
       this.populateW9FromContact();
+      this.populateOwnerDocumentsFromContact();
       this.populateInsuranceFromContact();
+      setTimeout(() => {
+        this.syncIdentificationNumberInput();
+        this.syncAccountNumberInput();
+        this.syncCardNumberInput();
+      });
     }
   }
 
@@ -1434,34 +1518,127 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region W9 and Insurance Methods
-  onW9FileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files?.length) {
-      this.w9FileName = null;
-      this.w9FileDataUrl = null;
-      this.w9FileContentType = null;
-      this.w9FileDetails = null;
-      this.w9PdfThumbnailUrl = null;
+  async onW9FileSelected(event: Event): Promise<void> {
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      this.removeW9Form();
       return;
     }
-    const file = input.files[0];
-    this.w9FileName = file.name;
-    this.w9FileContentType = file.type;
-    this.w9Path = null;
-    this.hasNewW9Upload = true;
-    this.w9FileDetails = { contentType: file.type, fileName: file.name, file: '', dataUrl: '' };
-    const reader = new FileReader();
-    reader.onload = (): void => {
-      const dataUrl = reader.result as string;
-      this.w9FileDataUrl = dataUrl;
-      if (this.w9FileDetails) {
-        this.w9FileDetails.dataUrl = dataUrl;
-        const base64String = dataUrl.split(',')[1];
-        this.w9FileDetails.file = base64String ?? '';
+    await this.applyOptimizedContactFile(file, details => {
+      this.w9FileName = details.fileName;
+      this.w9FileContentType = details.contentType;
+      this.w9Path = null;
+      this.hasNewW9Upload = true;
+      this.w9FileDetails = details;
+      this.w9FileDataUrl = details.dataUrl;
+      this.setPdfThumbnail(details.dataUrl, details.contentType, url => this.w9PdfThumbnailUrl = url);
+    });
+    this.clearFileInput(event);
+  }
+
+  populateOwnerDocumentsFromContact(): void {
+    this.applyOwnerDocumentFromContact('front');
+    this.applyOwnerDocumentFromContact('back');
+  }
+
+  async onOwnerDocumentSelected(side: 'front' | 'back', event: Event): Promise<void> {
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      this.removeOwnerDocument(side);
+      return;
+    }
+    await this.applyOptimizedContactFile(file, details => {
+      if (side === 'front') {
+        this.documentFrontFileName = details.fileName;
+        this.documentFrontFileContentType = details.contentType;
+        this.documentFrontPath = null;
+        this.hasNewDocumentFrontUpload = true;
+        this.documentFrontFileDetails = details;
+        this.documentFrontFileDataUrl = details.dataUrl;
+        return;
       }
-      this.setPdfThumbnail(dataUrl, file.type, u => this.w9PdfThumbnailUrl = u);
-    };
-    reader.readAsDataURL(file);
+      this.documentBackFileName = details.fileName;
+      this.documentBackFileContentType = details.contentType;
+      this.documentBackPath = null;
+      this.hasNewDocumentBackUpload = true;
+      this.documentBackFileDetails = details;
+      this.documentBackFileDataUrl = details.dataUrl;
+    });
+    this.clearFileInput(event);
+  }
+
+  isContactImagePreview(contentType: string | null, dataUrl: string | null): boolean {
+    return !!contentType?.startsWith('image/') || !!dataUrl?.startsWith('data:image/');
+  }
+
+  private async applyOptimizedContactFile(file: File, apply: (details: FileDetails) => void): Promise<void> {
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      apply(payload.fileDetails);
+      this.markViewForCheck();
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      } else {
+        this.toastr.error(`Unable to prepare ${file.name}.`, CommonMessage.Error);
+      }
+    }
+  }
+
+  private clearFileInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (input) {
+      input.value = '';
+    }
+  }
+
+  removeOwnerDocument(side: 'front' | 'back'): void {
+    if (side === 'front') {
+      this.documentFrontPath = null;
+      this.documentFrontFileName = null;
+      this.documentFrontFileDataUrl = null;
+      this.documentFrontFileContentType = null;
+      this.documentFrontFileDetails = null;
+      this.hasNewDocumentFrontUpload = false;
+      if (this.documentFrontFileInputRef?.nativeElement) {
+        this.documentFrontFileInputRef.nativeElement.value = '';
+      }
+      return;
+    }
+    this.documentBackPath = null;
+    this.documentBackFileName = null;
+    this.documentBackFileDataUrl = null;
+    this.documentBackFileContentType = null;
+    this.documentBackFileDetails = null;
+    this.hasNewDocumentBackUpload = false;
+    if (this.documentBackFileInputRef?.nativeElement) {
+      this.documentBackFileInputRef.nativeElement.value = '';
+    }
+  }
+
+  private applyOwnerDocumentFromContact(side: 'front' | 'back'): void {
+    if (!this.contact) {
+      return;
+    }
+    const fd = side === 'front' ? this.contact.documentFrontFileDetails : this.contact.documentBackFileDetails;
+    const path = side === 'front' ? this.contact.documentFront : this.contact.documentBack;
+    const resolvedDataUrl = this.utilityService.resolveFileDetailsDataUrl(fd, path);
+    const resolvedContentType = (this.utilityService.getContentTypeFromDataUrl(resolvedDataUrl) || fd?.contentType || this.utilityService.getContentTypeFromPath(path) || '').trim() || null;
+    if (side === 'front') {
+      this.hasNewDocumentFrontUpload = false;
+      this.documentFrontFileDetails = fd ?? null;
+      this.documentFrontPath = path ?? null;
+      this.documentFrontFileDataUrl = resolvedDataUrl;
+      this.documentFrontFileContentType = resolvedContentType;
+      this.documentFrontFileName = fd?.fileName || (path ? path.split('/').pop() || null : null);
+      return;
+    }
+    this.hasNewDocumentBackUpload = false;
+    this.documentBackFileDetails = fd ?? null;
+    this.documentBackPath = path ?? null;
+    this.documentBackFileDataUrl = resolvedDataUrl;
+    this.documentBackFileContentType = resolvedContentType;
+    this.documentBackFileName = fd?.fileName || (path ? path.split('/').pop() || null : null);
   }
 
   removeW9Form(): void {
@@ -1855,6 +2032,16 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       insurancePath: savedContact.insurancePath ?? originalRequest.insurancePath,
       insuranceFileDetails: savedContact.insuranceFileDetails ?? originalRequest.insuranceFileDetails,
       insuranceExpiration: savedContact.insuranceExpiration ?? originalRequest.insuranceExpiration,
+      dateOfBirth: savedContact.dateOfBirth ?? originalRequest.dateOfBirth ?? null,
+      federalTaxClassificationId: savedContact.federalTaxClassificationId ?? originalRequest.federalTaxClassificationId ?? null,
+      ownerIdTypeId: savedContact.ownerIdTypeId ?? originalRequest.ownerIdTypeId ?? null,
+      identificationNumber: savedContact.identificationNumber ?? originalRequest.identificationNumber ?? null,
+      ownerDocumentId: savedContact.ownerDocumentId ?? originalRequest.ownerDocumentId ?? null,
+      propertyManagedBy: savedContact.propertyManagedBy ?? originalRequest.propertyManagedBy ?? null,
+      documentFront: savedContact.documentFront ?? originalRequest.documentFront ?? null,
+      documentFrontFileDetails: savedContact.documentFrontFileDetails ?? originalRequest.documentFrontFileDetails ?? null,
+      documentBack: savedContact.documentBack ?? originalRequest.documentBack ?? null,
+      documentBackFileDetails: savedContact.documentBackFileDetails ?? originalRequest.documentBackFileDetails ?? null,
       markup: savedContact.markup ?? originalRequest.markup,
       revenueSplitOwner: savedContact.revenueSplitOwner ?? originalRequest.revenueSplitOwner,
       revenueSplitOffice: savedContact.revenueSplitOffice ?? originalRequest.revenueSplitOffice,
@@ -1905,6 +2092,321 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion 
 
+  get maskedIdentificationNumber(): string {
+    const value = String(this.form?.get('identificationNumber')?.value || '');
+    if (value.length <= 4) {
+      return value;
+    }
+    return `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
+  }
+
+  toggleIdentificationNumberVisibility(): void {
+    this.identificationNumberVisible = !this.identificationNumberVisible;
+    this.syncIdentificationNumberInput();
+  }
+
+  onIdentificationNumberFocus(event: FocusEvent): void {
+    this.identificationNumberFocused = true;
+    (event.target as HTMLInputElement).value = String(this.form?.get('identificationNumber')?.value || '');
+  }
+
+  onIdentificationNumberInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value.slice(0, 9);
+    this.form?.get('identificationNumber')?.setValue(value, { emitEvent: false });
+    this.form?.get('identificationNumber')?.markAsDirty();
+  }
+
+  onIdentificationNumberBlur(event: FocusEvent): void {
+    this.identificationNumberFocused = false;
+    if (!this.identificationNumberVisible) {
+      (event.target as HTMLInputElement).value = this.maskedIdentificationNumber;
+    }
+  }
+
+  syncIdentificationNumberInput(): void {
+    const real = String(this.form?.get('identificationNumber')?.value || '');
+    this.writeSecretInput(this.identificationNumberInputRef?.nativeElement, this.identificationNumberVisible || this.identificationNumberFocused, real, this.maskedIdentificationNumber);
+  }
+
+  get maskedAccountNumber(): string {
+    const value = String(this.form?.get('accountNumber')?.value || '');
+    if (value.length > 4) {
+      return `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
+    }
+    if (value.length > 0) {
+      return value;
+    }
+    return this.accountNumberLastFour ? `${'*'.repeat(8)}${this.accountNumberLastFour}` : '';
+  }
+
+  get canEncryptAccountNumber(): boolean {
+    return !this.isAddMode && this.canViewBankInformation;
+  }
+
+  encryptStoredAccountNumber(): void {
+    if (!this.canEncryptAccountNumber || this.isEncryptingAccountNumber) {
+      return;
+    }
+    const organizationId = String(this.contact?.organizationId || this.selectedOrganizationId || '').trim();
+    if (!organizationId) {
+      this.toastr.error('Organization is required.', CommonMessage.Error);
+      return;
+    }
+    const currentAccountNumber = String(this.form?.get('accountNumber')?.value || '');
+    const currentDigits = currentAccountNumber.replace(/[\s-]/g, '');
+    const currentWasClear = currentDigits.length >= 4 && /^[0-9]+$/.test(currentDigits);
+    this.isEncryptingAccountNumber = true;
+    this.contactService.encryptStoredAccountNumbers(organizationId).pipe(take(1), finalize(() => {
+      this.isEncryptingAccountNumber = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: (result) => {
+        const converted = result.converted || 0;
+        if (currentWasClear) {
+          this.accountNumberLastFour = currentDigits.slice(-4);
+          this.accountNumberVisible = false;
+          this.accountNumberFocused = false;
+          this.form?.get('accountNumber')?.setValue('', { emitEvent: false });
+          if (this.contact) {
+            this.contact.accountNumber = null;
+            this.contact.accountNumberLastFour = this.accountNumberLastFour;
+          }
+          this.syncAccountNumberInput();
+        }
+        const message = converted === 0
+          ? 'No clear account numbers were found'
+          : `Encrypted ${converted} stored account number${converted === 1 ? '' : 's'}`;
+        this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+      },
+      error: () => {
+        this.toastr.error('Failed to encrypt stored account numbers.', CommonMessage.Error);
+      }
+    });
+  }
+
+  clearBankInformation(): void {
+    const previous = {
+      bankName: this.form?.get('bankName')?.value ?? '',
+      routingNumber: this.form?.get('routingNumber')?.value ?? '',
+      accountNumber: this.form?.get('accountNumber')?.value ?? '',
+      accountNumberLastFour: this.accountNumberLastFour,
+      revealedAccountNumber: this.revealedAccountNumber
+    };
+    this.form?.patchValue({
+      bankName: '',
+      routingNumber: '',
+      accountNumber: ''
+    }, { emitEvent: false });
+    this.accountNumberVisible = false;
+    this.accountNumberFocused = false;
+    this.accountNumberLastFour = '';
+    this.revealedAccountNumber = '';
+    if (this.contact) {
+      this.contact.bankName = null;
+      this.contact.routingNumber = null;
+      this.contact.accountNumber = null;
+      this.contact.accountNumberLastFour = null;
+    }
+    this.markViewForCheck();
+    this.syncAccountNumberInput();
+
+    if (this.isAddMode || !this.contactId || this.contactId === 'new') {
+      return;
+    }
+
+    this.contactService.clearBankInformation(this.contactId).pipe(take(1)).subscribe({
+      error: () => {
+        this.form?.patchValue({
+          bankName: previous.bankName,
+          routingNumber: previous.routingNumber,
+          accountNumber: previous.accountNumber
+        }, { emitEvent: false });
+        this.accountNumberLastFour = previous.accountNumberLastFour;
+        this.revealedAccountNumber = previous.revealedAccountNumber;
+        if (this.contact) {
+          this.contact.bankName = previous.bankName || null;
+          this.contact.routingNumber = previous.routingNumber || null;
+          this.contact.accountNumber = previous.accountNumber || null;
+          this.contact.accountNumberLastFour = previous.accountNumberLastFour || null;
+        }
+        this.toastr.error('Failed to clear bank information.', CommonMessage.Error);
+        this.syncAccountNumberInput();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  onAccountNumberFocus(event: FocusEvent): void {
+    this.accountNumberFocused = true;
+    this.accountNumberTyped = false;
+    const input = event.target as HTMLInputElement;
+    const current = String(this.form?.get('accountNumber')?.value || '');
+    if (current || !this.accountNumberLastFour || this.isAddMode) {
+      this.revealedAccountNumber = current;
+      input.value = current;
+      return;
+    }
+
+    const token = ++this.accountNumberDecryptToken;
+    this.isAccountNumberDecrypting = true;
+    input.value = '';
+    this.contactService.getAccountNumber(this.contactId).pipe(take(1), finalize(() => {
+      this.isAccountNumberDecrypting = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: (result) => {
+        if (token !== this.accountNumberDecryptToken || this.accountNumberTyped) {
+          return;
+        }
+        this.revealedAccountNumber = result.accountNumber || '';
+        this.form?.get('accountNumber')?.setValue(this.revealedAccountNumber, { emitEvent: false });
+        if (this.accountNumberFocused) {
+          input.value = this.revealedAccountNumber;
+        }
+      },
+      error: () => {
+        this.toastr.error('Unable to load account number', CommonMessage.Error);
+      }
+    });
+  }
+
+  onAccountNumberInput(event: Event): void {
+    this.accountNumberTyped = true;
+    this.accountNumberDecryptToken++;
+    const value = (event.target as HTMLInputElement).value;
+    this.form?.get('accountNumber')?.setValue(value, { emitEvent: false });
+    this.form?.get('accountNumber')?.markAsDirty();
+  }
+
+  onAccountNumberBlur(event: FocusEvent): void {
+    const accountWasTyped = this.accountNumberTyped;
+    this.accountNumberFocused = false;
+    this.accountNumberTyped = false;
+    if (!this.accountNumberVisible) {
+      (event.target as HTMLInputElement).value = this.maskedAccountNumber;
+    }
+    this.saveBankInformationIfComplete(accountWasTyped);
+  }
+
+  onBankInformationBlur(): void {
+    this.saveBankInformationIfComplete(false);
+  }
+
+  saveBankInformationIfComplete(accountWasTyped: boolean): void {
+    if (this.isAddMode || this.isPublicOwnerTokenMode() || this.isSavingBankInformation || !this.contact || !this.form) {
+      return;
+    }
+
+    const bankName = String(this.form.get('bankName')?.value || '').trim();
+    const routingNumber = String(this.form.get('routingNumber')?.value || '').trim();
+    const accountNumber = String(this.form.get('accountNumber')?.value || '').trim();
+    const accountDigits = accountNumber.replace(/[\s-]/g, '');
+    const hasClearAccount = accountDigits.length >= 4 && /^[0-9]+$/.test(accountDigits);
+    const hasStoredAccount = !!this.accountNumberLastFour;
+    if (!bankName || !routingNumber || (!hasClearAccount && !hasStoredAccount)) {
+      return;
+    }
+
+    const bankChanged = bankName !== (this.contact.bankName || '').trim()
+      || routingNumber !== (this.contact.routingNumber || '').trim();
+    const accountChanged = hasClearAccount && (
+      !hasStoredAccount
+      || !accountDigits.endsWith(this.accountNumberLastFour)
+      || accountWasTyped
+    );
+    if (!bankChanged && !accountChanged) {
+      return;
+    }
+
+    this.isSavingBankInformation = true;
+    const request = this.mappingService.mapContactResponseToUpdateRequest(this.contact, {
+      bankName,
+      routingNumber,
+      accountNumber: hasClearAccount ? accountNumber : null
+    });
+    this.contactService.updateContact(request).pipe(take(1), finalize(() => {
+      this.isSavingBankInformation = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: (savedContact) => {
+        this.contact = { ...this.contact!, ...savedContact };
+        if (hasClearAccount) {
+          this.accountNumberLastFour = savedContact.accountNumberLastFour || accountDigits.slice(-4);
+          this.accountNumberVisible = false;
+          this.accountNumberFocused = false;
+          this.form?.get('accountNumber')?.setValue('', { emitEvent: false });
+          this.contact.accountNumber = null;
+          this.contact.accountNumberLastFour = this.accountNumberLastFour;
+          this.syncAccountNumberInput();
+        } else if (savedContact.accountNumberLastFour) {
+          this.accountNumberLastFour = savedContact.accountNumberLastFour;
+        }
+        this.contact.bankName = bankName;
+        this.contact.routingNumber = routingNumber;
+        this.toastr.success('Bank information updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+      },
+      error: () => {
+        this.toastr.error('Failed to update bank information.', CommonMessage.Error);
+      }
+    });
+  }
+
+  syncAccountNumberInput(): void {
+    const real = String(this.form?.get('accountNumber')?.value || '');
+    this.writeSecretInput(this.accountNumberInputRef?.nativeElement, this.accountNumberVisible || this.accountNumberFocused, real, this.maskedAccountNumber);
+  }
+
+  writeSecretInput(input: HTMLInputElement | null | undefined, showReal: boolean, real: string, masked: string): void {
+    if (!input) {
+      return;
+    }
+    const next = showReal ? real : masked;
+    if (input.value !== next) {
+      input.value = next;
+    }
+  }
+
+  toggleAccountNumberVisibility(): void {
+    if (this.accountNumberVisible) {
+      const current = String(this.form?.get('accountNumber')?.value || '');
+      if (this.accountNumberLastFour && current === this.revealedAccountNumber) {
+        this.form?.get('accountNumber')?.setValue('', { emitEvent: false });
+      }
+      this.accountNumberVisible = false;
+      this.accountNumberFocused = false;
+      this.revealedAccountNumber = '';
+      this.syncAccountNumberInput();
+      this.markViewForCheck();
+      return;
+    }
+
+    const current = String(this.form?.get('accountNumber')?.value || '').trim();
+    if (current || !this.accountNumberLastFour || this.isAddMode) {
+      this.revealedAccountNumber = current;
+      this.accountNumberVisible = true;
+      this.syncAccountNumberInput();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.isAccountNumberDecrypting = true;
+    this.contactService.getAccountNumber(this.contactId).pipe(take(1), finalize(() => {
+      this.isAccountNumberDecrypting = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: (result) => {
+        this.revealedAccountNumber = result.accountNumber || '';
+        this.form?.get('accountNumber')?.setValue(this.revealedAccountNumber, { emitEvent: false });
+        this.accountNumberVisible = true;
+        this.syncAccountNumberInput();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Unable to load account number', CommonMessage.Error);
+      }
+    });
+  }
+
   //#region Card On File
   get canViewContactCardOnFile(): boolean {
     return this.authService.hasRole(UserGroups.SuperAdmin)
@@ -1923,16 +2425,18 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyContactCardFromContact(contact: ContactResponse | null): void {
-    this.contactCard = contact?.contactCard ? this.mappingService.mapContactCardFromResponse(contact.contactCard) : null;
+    this.contactCard = contact?.contactCard
+      ? this.mappingService.mapContactCardFromResponse(contact.contactCard)
+      : this.createBlankContactCard();
     this.isEditingContactCardNumber = false;
     this.revealedContactCardPan = '';
+    this.cardNumberVisible = false;
+    this.cardNumberFocused = false;
+    setTimeout(() => this.syncCardNumberInput());
   }
 
-  onAddContactCardClick(): void {
-    if (!this.canViewContactCardOnFile) {
-      return;
-    }
-    this.contactCard = {
+  createBlankContactCard(): ContactCardResponse {
+    return {
       contactCardId: 0,
       organizationId: this.contact?.organizationId || this.selectedOrganizationId || '',
       officeId: Number(this.contact?.officeId || this.form?.get('officeId')?.value || 0),
@@ -1951,13 +2455,15 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if ((this.contactCard.contactCardId || 0) <= 0) {
-      this.contactCard = null;
+      this.contactCard = this.createBlankContactCard();
+      this.cardNumberVisible = false;
       return;
     }
 
     this.contactCardService.deleteContactCard(this.contactId, this.contactCard.contactCardId).pipe(take(1)).subscribe({
       next: () => {
-        this.contactCard = null;
+        this.contactCard = this.createBlankContactCard();
+        this.cardNumberVisible = false;
         if (this.contact) {
           this.contact.contactCardId = null;
           this.contact.contactCard = null;
@@ -2048,13 +2554,13 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const request = this.buildContactCardRequest();
     this.contactCardService.createContactCard(targetContactId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
       next: (response) => {
+        const digits = this.getContactCardNumberDigits();
         this.contactCard = this.mappingService.mapContactCardFromResponse(response);
         if (this.contact && this.contactCard) {
           this.contact.contactCardId = this.contactCard.contactCardId;
           this.contact.contactCard = this.contactCard;
         }
-        this.revealedContactCardPan = '';
-        this.isEditingContactCardNumber = false;
+        this.restoreRevealedCardNumber(digits);
         this.markViewForCheck();
         then?.();
       },
@@ -2078,13 +2584,13 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.isContactCardSaving = true;
     this.contactCardService.updateContactCard(this.contactId, this.contactCard.contactCardId, request).pipe(take(1), finalize(() => { this.isContactCardSaving = false; })).subscribe({
       next: (response) => {
+        const digits = this.getContactCardNumberDigits();
         this.contactCard = this.mappingService.mapContactCardFromResponse(response);
         if (this.contact) {
           this.contact.contactCardId = this.contactCard?.contactCardId ?? this.contact.contactCardId;
           this.contact.contactCard = this.contactCard;
         }
-        this.revealedContactCardPan = '';
-        this.isEditingContactCardNumber = false;
+        this.restoreRevealedCardNumber(digits);
         this.toastr.success('Card on file updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.markViewForCheck();
       },
@@ -2095,6 +2601,8 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onContactCardNumberInput(event: Event): void {
+    this.cardNumberTyped = true;
+    this.cardNumberDecryptToken++;
     this.formatterService.formatCreditCardInput(event, null);
     if (!this.contactCard) {
       return;
@@ -2107,24 +2615,112 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.contactCard.lastFour = this.mappingService.normalizeBankCardLastFour(null, this.contactCard.rawCardNumber);
   }
 
-  onContactCardPanFocus(): void {
-    if (!this.canViewContactCardOnFile) {
+  onContactCardPanBlur(): void {
+    if (this.isContactCardPanDecrypting) {
       return;
     }
-    this.isEditingContactCardNumber = true;
+
+    this.onContactCardFieldChange();
+  }
+
+  get maskedContactCardNumber(): string {
+    const digits = this.formatterService.stripCreditCardFormatting(this.contactCard?.rawCardNumber || this.revealedContactCardPan || '');
+    const isPersisted = (this.contactCard?.contactCardId || 0) > 0;
+    if (!isPersisted) {
+      if (digits.length <= 4) {
+        return digits;
+      }
+      return `${'*'.repeat(digits.length - 4)}${digits.slice(-4)}`;
+    }
+
+    if (digits.length > 4) {
+      return `${'*'.repeat(digits.length - 4)}${digits.slice(-4)}`;
+    }
+
+    const lastFour = String(this.contactCard?.lastFour || '').replace(/\D/g, '').slice(-4);
+    if (!lastFour) {
+      return '';
+    }
+    return `${'*'.repeat(12)}${lastFour}`;
+  }
+
+  toggleCardNumberVisibility(): void {
+    if (!this.canViewContactCardOnFile || !this.contactCard || this.isContactCardPanDecrypting) {
+      return;
+    }
+
+    if (this.cardNumberVisible) {
+      this.cardNumberVisible = false;
+      this.isEditingContactCardNumber = false;
+      this.syncCardNumberInput();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.revealContactCardNumber(true);
+  }
+
+  onCardNumberFocus(event: FocusEvent): void {
+    this.cardNumberFocused = true;
+    this.cardNumberTyped = false;
+    const input = event.target as HTMLInputElement;
+    const digits = this.getContactCardNumberDigits();
+    const isDraft = !this.contactCard || (this.contactCard.contactCardId || 0) <= 0;
+    if (isDraft || digits.length >= 13) {
+      input.value = isDraft ? (this.contactCard?.cardNumber || '') : digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      return;
+    }
+
+    const token = ++this.cardNumberDecryptToken;
+    input.value = '';
+    this.isContactCardPanDecrypting = true;
+    this.contactCardService.getContactCardPan(this.contactId, this.contactCard.contactCardId).pipe(take(1), finalize(() => {
+      this.isContactCardPanDecrypting = false;
+      this.markViewForCheck();
+    })).subscribe({
+      next: (response) => {
+        if (token !== this.cardNumberDecryptToken || this.cardNumberTyped) {
+          return;
+        }
+        const loaded = this.formatterService.stripCreditCardFormatting(response?.cardNumber || '');
+        this.revealedContactCardPan = loaded;
+        this.applyContactCardDigits(loaded);
+        if (this.cardNumberFocused) {
+          input.value = this.contactCard?.cardNumber || loaded;
+        }
+      },
+      error: () => {
+        this.toastr.error('Unable to load card number');
+      }
+    });
+  }
+
+  onCardNumberBlur(event: FocusEvent): void {
+    this.cardNumberFocused = false;
+    this.cardNumberTyped = false;
+    this.onContactCardPanBlur();
+    if (!this.cardNumberVisible) {
+      (event.target as HTMLInputElement).value = this.maskedContactCardNumber;
+    }
+  }
+
+  syncCardNumberInput(): void {
+    const real = this.contactCard?.cardNumber || '';
+    this.writeSecretInput(this.contactCardPanInputRef?.nativeElement, this.cardNumberVisible || this.cardNumberFocused, real, this.maskedContactCardNumber);
+  }
+
+  revealContactCardNumber(pinVisible = true): void {
     if (!this.contactCard) {
       return;
     }
 
     if ((this.contactCard.contactCardId || 0) <= 0) {
-      const sourceDigits = this.contactCard.rawCardNumber || this.formatterService.stripCreditCardFormatting(this.contactCard.cardNumber || '');
-      this.contactCard.cardNumber = sourceDigits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      this.showContactCardNumber(this.contactCard.rawCardNumber || this.formatterService.stripCreditCardFormatting(this.contactCard.cardNumber || ''), pinVisible);
       return;
     }
 
     if (this.revealedContactCardPan) {
-      this.contactCard.rawCardNumber = this.revealedContactCardPan;
-      this.contactCard.cardNumber = this.revealedContactCardPan.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      this.showContactCardNumber(this.revealedContactCardPan, pinVisible);
       return;
     }
 
@@ -2133,58 +2729,53 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       next: (response) => {
         const digits = this.formatterService.stripCreditCardFormatting(response?.cardNumber || '');
         this.revealedContactCardPan = digits;
-        if (this.contactCard) {
-          this.contactCard.rawCardNumber = digits;
-          this.contactCard.cardNumber = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-        }
-        this.isEditingContactCardNumber = true;
-        this.markViewForCheck();
-        setTimeout(() => {
-          if (this.contactCardPanInputRef?.nativeElement && this.contactCard) {
-            this.contactCardPanInputRef.nativeElement.value = this.contactCard.cardNumber;
-            this.contactCardPanInputRef.nativeElement.focus();
-          }
-        });
+        this.showContactCardNumber(digits, pinVisible);
       },
       error: () => {
-        this.toastr.error('Unable to load card number');
+        this.cardNumberVisible = false;
         this.isEditingContactCardNumber = false;
+        this.toastr.error('Unable to load card number');
       }
     });
   }
 
-  onContactCardPanBlur(): void {
-    if (this.isContactCardPanDecrypting) {
+  applyContactCardDigits(digits: string): void {
+    if (!this.contactCard) {
+      return;
+    }
+    this.contactCard.rawCardNumber = digits;
+    this.contactCard.cardNumber = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  }
+
+  showContactCardNumber(digits: string, pinVisible = true): void {
+    if (!this.contactCard) {
       return;
     }
 
+    this.applyContactCardDigits(digits);
+    if (pinVisible) {
+      this.cardNumberVisible = true;
+    }
+    this.isEditingContactCardNumber = true;
+    this.syncCardNumberInput();
+    this.markViewForCheck();
+  }
+
+  restoreRevealedCardNumber(digits: string): void {
+    if (this.cardNumberVisible && digits.length >= 13) {
+      this.revealedContactCardPan = digits;
+      this.showContactCardNumber(digits);
+      return;
+    }
+
+    this.revealedContactCardPan = '';
     this.isEditingContactCardNumber = false;
-    this.onContactCardFieldChange();
-    if (!this.contactCard || (this.contactCard.contactCardId || 0) <= 0) {
-      return;
-    }
-
-    if (this.getContactCardNumberDigits().length < 13) {
-      this.contactCard.rawCardNumber = '';
-      this.contactCard.cardNumber = this.mappingService.formatBankCardMaskedPan(this.contactCard.lastFour);
-      this.revealedContactCardPan = '';
-    }
+    this.cardNumberVisible = false;
+    this.syncCardNumberInput();
   }
 
   getContactCardDisplayLabel(): string {
     return (this.contactCard?.displayName || '').trim() || this.mappingService.formatBankCardMaskedPan(this.contactCard?.lastFour);
-  }
-
-  getContactCardPanDisplay(): string {
-    if (!this.contactCard) {
-      return '';
-    }
-
-    if ((this.contactCard.contactCardId || 0) <= 0 || this.isEditingContactCardNumber) {
-      return this.contactCard.cardNumber || '';
-    }
-
-    return this.mappingService.formatBankCardMaskedPan(this.contactCard.lastFour);
   }
 
   buildContactCardRequest(): ContactCardRequest {

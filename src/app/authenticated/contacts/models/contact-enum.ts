@@ -80,6 +80,122 @@ export function getOwnerTypes(): { value: number; label: string }[] {
 }
 //#endregion
 
+//#region OwnerDocumentType
+export enum OwnerDocumentType {
+  DriversLicense = 0,
+  Passport = 1,
+  IdCard = 2
+}
+
+export function getOwnerDocumentType(ownerDocumentTypeId: number | undefined): string {
+  if (ownerDocumentTypeId === undefined || ownerDocumentTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [OwnerDocumentType.DriversLicense]: 'Drivers License',
+    [OwnerDocumentType.Passport]: 'Passport',
+    [OwnerDocumentType.IdCard]: 'ID Card'
+  };
+
+  return typeMap[ownerDocumentTypeId] || '';
+}
+
+export function getOwnerDocumentTypes(): { value: number; label: string }[] {
+  return Object.keys(OwnerDocumentType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: OwnerDocumentType[key as keyof typeof OwnerDocumentType],
+      label: getOwnerDocumentType(OwnerDocumentType[key as keyof typeof OwnerDocumentType])
+    }));
+}
+//#endregion
+
+//#region PropertyManagerType
+export enum PropertyManagerType {
+  Owner = 0,
+  PropertyManagementCompany = 1
+}
+
+export function getPropertyManagerType(propertyManagerTypeId: number | undefined): string {
+  if (propertyManagerTypeId === undefined || propertyManagerTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [PropertyManagerType.Owner]: 'Owner',
+    [PropertyManagerType.PropertyManagementCompany]: 'Property Management Company'
+  };
+
+  return typeMap[propertyManagerTypeId] || '';
+}
+
+export function getPropertyManagerTypes(): { value: number; label: string }[] {
+  return Object.keys(PropertyManagerType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: PropertyManagerType[key as keyof typeof PropertyManagerType],
+      label: getPropertyManagerType(PropertyManagerType[key as keyof typeof PropertyManagerType])
+    }));
+}
+//#endregion
+
+//#region FederalTaxType
+export enum FederalTaxType {
+  IndividualProprietor = 0,
+  CCorporation = 1,
+  SCorporation = 2,
+  Partnership = 3,
+  TrustEstate = 4
+}
+
+export function getFederalTaxType(federalTaxTypeId: number | undefined): string {
+  if (federalTaxTypeId === undefined || federalTaxTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [FederalTaxType.IndividualProprietor]: 'Individual Proprietor',
+    [FederalTaxType.CCorporation]: 'C Corporation',
+    [FederalTaxType.SCorporation]: 'S Corporation',
+    [FederalTaxType.Partnership]: 'Partnership',
+    [FederalTaxType.TrustEstate]: 'Trust Estate'
+  };
+
+  return typeMap[federalTaxTypeId] || '';
+}
+
+export function getFederalTaxTypes(): { value: number; label: string }[] {
+  return Object.keys(FederalTaxType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: FederalTaxType[key as keyof typeof FederalTaxType],
+      label: getFederalTaxType(FederalTaxType[key as keyof typeof FederalTaxType])
+    }));
+}
+//#endregion
+
+//#region OwnerIdType
+export enum OwnerIdType {
+  SocialSecurity = 0,
+  EmployerIdentification = 1
+}
+
+export function getOwnerIdType(ownerIdTypeId: number | undefined): string {
+  if (ownerIdTypeId === undefined || ownerIdTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [OwnerIdType.SocialSecurity]: 'Social Security',
+    [OwnerIdType.EmployerIdentification]: 'Employer Identification'
+  };
+
+  return typeMap[ownerIdTypeId] || '';
+}
+
+export function getOwnerIdTypes(): { value: number; label: string }[] {
+  return Object.keys(OwnerIdType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: OwnerIdType[key as keyof typeof OwnerIdType],
+      label: getOwnerIdType(OwnerIdType[key as keyof typeof OwnerIdType])
+    }));
+}
+//#endregion
+
 //#region VendorType
 export enum VendorType {
   Individual = 0,

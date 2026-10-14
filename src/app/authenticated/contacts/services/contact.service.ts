@@ -140,6 +140,26 @@ export class ContactService {
     );
   }
 
+  encryptStoredAccountNumbers(organizationId: string): Observable<{ converted: number }> {
+    return this.http.post<{ converted: number }>(`${this.controller}account-numbers/encrypt-stored`, {
+      organizationId
+    });
+  }
+
+  encryptAccountNumber(contactId: string, accountNumber?: string | null): Observable<{ converted: boolean; accountNumberLastFour?: string | null }> {
+    return this.http.post<{ converted: boolean; accountNumberLastFour?: string | null }>(`${this.controller}${contactId}/account-number/encrypt`, {
+      accountNumber: accountNumber ?? null
+    });
+  }
+
+  clearBankInformation(contactId: string): Observable<void> {
+    return this.http.delete<void>(`${this.controller}${contactId}/bank-information`);
+  }
+
+  getAccountNumber(contactId: string): Observable<{ accountNumber: string }> {
+    return this.http.get<{ accountNumber: string }>(`${this.controller}${contactId}/account-number`);
+  }
+
   retriggerOwnerLogin(contactId: string): Observable<ContactResponse> {
     return this.refreshCacheAfterMutation(
       this.http.post<ContactResponse>(`${this.controller}${contactId}/retrigger-owner-login`, {}).pipe(

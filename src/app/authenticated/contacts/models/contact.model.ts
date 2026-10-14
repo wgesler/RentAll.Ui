@@ -24,6 +24,7 @@ export interface ContactRequest {
   city?: string;
   state?: string;
   zip?: string;
+  dateOfBirth?: CalendarDateString | null;
   phone?: string | null;
   extension?: string | null;
   email: string;
@@ -32,6 +33,15 @@ export interface ContactRequest {
   isInternational: boolean;
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
+  federalTaxClassificationId?: number | null;
+  ownerIdTypeId?: number | null;
+  identificationNumber?: string | null;
+  ownerDocumentId?: number | null;
+  documentFront?: string | null;
+  documentFrontFileDetails?: FileDetails | null;
+  documentBack?: string | null;
+  documentBackFileDetails?: FileDetails | null;
+  propertyManagedBy?: number | null;
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: CalendarDateString | null;
@@ -78,6 +88,7 @@ export interface ContactResponse {
   city?: string;
   state?: string;
   zip?: string;
+  dateOfBirth?: CalendarDateString | null;
   phone?: string | null;
   extension?: string | null;
   email: string;
@@ -86,6 +97,15 @@ export interface ContactResponse {
   isInternational: boolean;
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
+  federalTaxClassificationId?: number | null;
+  ownerIdTypeId?: number | null;
+  identificationNumber?: string | null;
+  ownerDocumentId?: number | null;
+  documentFront?: string | null;
+  documentFrontFileDetails?: FileDetails | null;
+  documentBack?: string | null;
+  documentBackFileDetails?: FileDetails | null;
+  propertyManagedBy?: number | null;
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: CalendarDateString | null;
@@ -97,6 +117,7 @@ export interface ContactResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  accountNumberLastFour?: string | null;
   contactCardId?: number | null;
   contactCard?: ContactCardResponse | null;
   paymentTermsId?: number | null;
