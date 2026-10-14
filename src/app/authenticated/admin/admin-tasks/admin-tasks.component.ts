@@ -39,7 +39,8 @@ export class AdminTasksComponent {
     { key: 'receipts', label: 'Receipt images', detail: 'Move receipt images under the receipt office.', running: false, result: '' },
     { key: 'appliance-decals', label: 'Appliance decals', detail: 'Move appliance decals under the office and property code.', running: false, result: '' },
     { key: 'listing-photos', label: 'Listing photos', detail: 'Move each listing photo under the office and property code.', running: false, result: '' },
-    { key: 'inspection-photos', label: 'Inspection photos', detail: 'Move each inspection photo under the office and property code.', running: false, result: '' }
+    { key: 'inspection-photos', label: 'Inspection photos', detail: 'Move each inspection photo under the office and property code.', running: false, result: '' },
+    { key: 'denver-documents', label: 'Denver documents', detail: 'Move documents out of denver dba avenuewest colorado into denver and delete the old file.', running: false, result: '' }
   ];
 
   get busy(): boolean {
