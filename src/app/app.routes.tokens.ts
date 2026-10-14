@@ -59,6 +59,7 @@ export enum RouterToken {
   Leads = 'leads',
   OwnerShell = 'owner',
   Logs = 'logs',
+  Admin = 'admin',
   UserGuide = 'user-guide',
   Mobile = 'mobile',
   Default = RouterToken.ReservationBoard
@@ -123,6 +124,7 @@ export enum RouterUrl {
   Leads                     = `${RouterToken.Auth}/${RouterToken.Leads}`,
   OwnerShell                = `${RouterToken.Auth}/${RouterToken.OwnerShell}`,
   Logs                      = `${RouterToken.Auth}/${RouterToken.Logs}`,
+  Admin                     = `${RouterToken.Auth}/${RouterToken.Admin}`,
   UserGuide                 = `/${RouterToken.UserGuide}`,
   Mobile                    = `${RouterToken.Mobile}`,
   MobileHome                = `${RouterToken.Mobile}/home`,

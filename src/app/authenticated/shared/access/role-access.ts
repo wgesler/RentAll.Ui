@@ -182,6 +182,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'contacts', displayName: 'Contacts', url: RouterToken.Contacts, ...openToAll },
   { icon: 'people', displayName: 'Users', url: RouterToken.UserList, ...usersAccess },
   { icon: 'settings', displayName: 'Settings', url: RouterToken.OrganizationConfiguration, ...settingsAccess },
+  { icon: 'admin_panel_settings', displayName: 'Admin', url: RouterToken.Admin, ...superAdminOnly },
   { icon: 'article', displayName: 'Logs', url: RouterToken.Logs, ...logsAccess }
 ];
 
@@ -314,6 +315,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [RouterToken.ColorList]: orgAdminOnly,
   [RouterToken.UserList]: usersAccess,
   [RouterToken.Logs]: logsAccess,
+  [RouterToken.Admin]: superAdminOnly,
 
   [RouterToken.OrganizationList]: superAdminOnly,
 

@@ -66,6 +66,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Leads, loadComponent: () => import('./authenticated/leads/leads-shell/leads-shell.component').then(m => m.LeadsShellComponent), canActivate: [authRouteGuard] },
   { path: RouterToken.OwnerShell, loadComponent: () => import('./authenticated/owners/owner-shell/owner-shell.component').then(m => m.OwnerShellComponent), canActivate: [authRouteGuard] },
   { path: RouterToken.Logs, loadComponent: () => import('./authenticated/logs/logs-shell/logs-shell.component').then(m => m.LogsShellComponent), canActivate: [authRouteGuard] },
+  { path: RouterToken.Admin, loadComponent: () => import('./authenticated/admin/admin-shell/admin-shell.component').then(m => m.AdminShellComponent), canActivate: [authRouteGuard] },
+
   { path: `${RouterToken.OwnerShell}/:token`, loadComponent: () => import('./authenticated/owners/owner-shell/owner-shell.component').then(m => m.OwnerShellComponent), canActivate: [authRouteGuard] },
 ]
 

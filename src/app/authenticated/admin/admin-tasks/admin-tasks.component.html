@@ -1,0 +1,27 @@
+<div class="p-4 flex flex-col gap-4">
+  <div class="flex flex-col gap-4 max-w-3xl">
+    <p class="m-0">
+      Each button reads the file, deletes the old copy, then saves it in the correct folder and updates the database.
+      If the new save or the database update fails, the original file is put back.
+    </p>
+    @for (task of tasks; track task.key) {
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-3">
+          <button mat-raised-button type="button" color="primary" class="text-nowrap" [disabled]="busy" (click)="run(task)">
+            {{ task.running ? 'Working...' : task.label }}
+          </button>
+          <span>{{ task.detail }}</span>
+        </div>
+        @if (task.result) {
+          <span>{{ task.result }}</span>
+        }
+      </div>
+    }
+  </div>
+  <mat-divider></mat-divider>
+  <div #progressLog class="task-progress">
+    @for (line of progressLines; track $index) {
+      <div>{{ line }}</div>
+    }
+  </div>
+</div>
