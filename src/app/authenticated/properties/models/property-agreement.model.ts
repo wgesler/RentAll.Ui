@@ -106,6 +106,7 @@ export interface PropertyAgreementResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  accountNumberLastFour?: string | null;
   ownerPaymentTypeId: number;
   agreementLines?: PropertyAgreementLineResponse[] | null;
   notes?: string | null;

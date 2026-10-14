@@ -14,6 +14,10 @@ export class PropertyAgreementService {
 
   private readonly agreementUrl = this.configService.config().apiUrl + 'property/property-agreement';
 
+  getAgreementAccountNumber(propertyId: string): Observable<{ accountNumber: string }> {
+    return this.http.get<{ accountNumber: string }>(`${this.agreementUrl}/${propertyId}/account-number`);
+  }
+
   getPropertyAgreement(propertyId: string): Observable<PropertyAgreementResponse | null> {
     return this.http.get<PropertyAgreementResponse | null>(`${this.agreementUrl}/${propertyId}`);
   }

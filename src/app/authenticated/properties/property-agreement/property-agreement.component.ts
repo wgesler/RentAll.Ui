@@ -63,6 +63,13 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   readonly ManagementFeeType = ManagementFeeType;
   readonly OwnerPaymentType = OwnerPaymentType;
   readonly ownerPaymentTypeOptions = getOwnerPaymentTypes();
+  @ViewChild('agreementAccountNumberInput') agreementAccountNumberInputRef: ElementRef<HTMLInputElement> | null = null;
+  agreementAccountNumberVisible = false;
+  agreementAccountNumberFocused = false;
+  agreementAccountNumberTyped = false;
+  agreementAccountNumberDecryptToken = 0;
+  agreementAccountNumberLastFour = '';
+  revealedAgreementAccountNumber = '';
   agreementForm: FormGroup | null = null;
   agreementExists = false;
   isAgreementSaving = false;
@@ -321,6 +328,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       managementFeeMode: ManagementFeeType.FlatRate,
       managementFlatRateAmount: '$0.00'
     }, { emitEvent: false });
+    this.agreementAccountNumberVisible = false;
+    this.agreementAccountNumberFocused = false;
+    this.agreementAccountNumberLastFour = '';
+    this.revealedAgreementAccountNumber = '';
+    this.syncAgreementAccountNumberInput();
     this.syncManagementAgreementFieldState();
     this.clearAgreementW9Ui();
     this.clearAgreementInsuranceUi();
@@ -355,8 +367,13 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.populateAgreementW9(data);
     this.populateAgreementInsurance(data);
     this.populateAgreementDoc(data);
+    this.agreementAccountNumberLastFour = data.accountNumberLastFour || '';
+    this.agreementAccountNumberVisible = false;
+    this.agreementAccountNumberFocused = false;
+    this.revealedAgreementAccountNumber = '';
     this.populateAgreementLines(data);
     this.applyChartOfAccountOptions();
+    setTimeout(() => this.syncAgreementAccountNumberInput());
   }
   //#endregion
 
@@ -709,7 +726,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       hourlyLaborCost: this.parseAgreementDecimalFromForm(v?.hourlyLaborCost),
       bankName: (v?.bankName || '').trim() || null,
       routingNumber: (v?.routingNumber || '').trim() || null,
-      accountNumber: (v?.accountNumber || '').trim() || null,
+      accountNumber: this.agreementAccountNumberForSave(),
       ownerPaymentTypeId: normalizeOwnerPaymentTypeId(v?.ownerPaymentTypeId),
       agreementLines: this.mapAgreementLinesToRequest(),
       notes: (v?.notes || '').trim() || null,
@@ -1472,6 +1489,124 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const pattern = allowDecimal ? /[0-9.]/ : /[0-9]/;
     if (!pattern.test(key)) {
       event.preventDefault();
+    }
+  }
+
+  get maskedAgreementAccountNumber(): string {
+    const value = String(this.agreementForm?.get('accountNumber')?.value || '');
+    if (value.length > 4) {
+      return `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
+    }
+    if (value.length > 0) {
+      return value;
+    }
+    return this.agreementAccountNumberLastFour ? `${'*'.repeat(8)}${this.agreementAccountNumberLastFour}` : '';
+  }
+
+  agreementAccountNumberForSave(): string | null {
+    const value = String(this.agreementForm?.get('accountNumber')?.value || '').trim();
+    if (!value || value.includes('*')) {
+      return null;
+    }
+    return value;
+  }
+
+  onAgreementAccountNumberFocus(event: FocusEvent): void {
+    this.agreementAccountNumberFocused = true;
+    this.agreementAccountNumberTyped = false;
+    const input = event.target as HTMLInputElement;
+    const current = String(this.agreementForm?.get('accountNumber')?.value || '');
+    if (current || !this.agreementAccountNumberLastFour || !this.propertyId || this.propertyId === 'new') {
+      this.revealedAgreementAccountNumber = current;
+      input.value = current;
+      return;
+    }
+
+    const token = ++this.agreementAccountNumberDecryptToken;
+    input.value = '';
+    this.propertyAgreementService.getAgreementAccountNumber(this.propertyId).pipe(take(1)).subscribe({
+      next: (result) => {
+        if (token !== this.agreementAccountNumberDecryptToken || this.agreementAccountNumberTyped) {
+          return;
+        }
+        this.revealedAgreementAccountNumber = result.accountNumber || '';
+        this.agreementForm?.get('accountNumber')?.setValue(this.revealedAgreementAccountNumber, { emitEvent: false });
+        if (this.agreementAccountNumberFocused) {
+          input.value = this.revealedAgreementAccountNumber;
+        }
+      },
+      error: () => {
+        this.toastr.error('Unable to load account number', CommonMessage.Error);
+      }
+    });
+  }
+
+  onAgreementAccountNumberInput(event: Event): void {
+    this.agreementAccountNumberTyped = true;
+    this.agreementAccountNumberDecryptToken++;
+    const value = (event.target as HTMLInputElement).value;
+    this.agreementForm?.get('accountNumber')?.setValue(value, { emitEvent: false });
+    this.agreementForm?.get('accountNumber')?.markAsDirty();
+  }
+
+  onAgreementAccountNumberBlur(event: FocusEvent): void {
+    const accountWasTyped = this.agreementAccountNumberTyped;
+    this.agreementAccountNumberFocused = false;
+    this.agreementAccountNumberTyped = false;
+    if (!accountWasTyped && this.agreementAccountNumberLastFour) {
+      this.agreementForm?.get('accountNumber')?.setValue('', { emitEvent: false });
+    }
+    if (!this.agreementAccountNumberVisible) {
+      (event.target as HTMLInputElement).value = this.maskedAgreementAccountNumber;
+    }
+  }
+
+  toggleAgreementAccountNumberVisibility(): void {
+    if (this.agreementAccountNumberVisible) {
+      const current = String(this.agreementForm?.get('accountNumber')?.value || '');
+      if (this.agreementAccountNumberLastFour && current === this.revealedAgreementAccountNumber) {
+        this.agreementForm?.get('accountNumber')?.setValue('', { emitEvent: false });
+      }
+      this.agreementAccountNumberVisible = false;
+      this.agreementAccountNumberFocused = false;
+      this.revealedAgreementAccountNumber = '';
+      this.syncAgreementAccountNumberInput();
+      this.markViewForCheck();
+      return;
+    }
+
+    const current = String(this.agreementForm?.get('accountNumber')?.value || '').trim();
+    if (current || !this.agreementAccountNumberLastFour || !this.propertyId || this.propertyId === 'new') {
+      this.revealedAgreementAccountNumber = current;
+      this.agreementAccountNumberVisible = true;
+      this.syncAgreementAccountNumberInput();
+      this.markViewForCheck();
+      return;
+    }
+
+    this.propertyAgreementService.getAgreementAccountNumber(this.propertyId).pipe(take(1)).subscribe({
+      next: (result) => {
+        this.revealedAgreementAccountNumber = result.accountNumber || '';
+        this.agreementForm?.get('accountNumber')?.setValue(this.revealedAgreementAccountNumber, { emitEvent: false });
+        this.agreementAccountNumberVisible = true;
+        this.syncAgreementAccountNumberInput();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.toastr.error('Unable to load account number', CommonMessage.Error);
+      }
+    });
+  }
+
+  syncAgreementAccountNumberInput(): void {
+    const real = String(this.agreementForm?.get('accountNumber')?.value || '');
+    const input = this.agreementAccountNumberInputRef?.nativeElement;
+    if (!input) {
+      return;
+    }
+    const next = this.agreementAccountNumberVisible || this.agreementAccountNumberFocused ? real : this.maskedAgreementAccountNumber;
+    if (input.value !== next) {
+      input.value = next;
     }
   }
 

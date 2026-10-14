@@ -206,7 +206,10 @@
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Account Number</mat-label>
-          <input matInput formControlName="accountNumber" />
+          <input #agreementAccountNumberInput matInput maxlength="250" autocomplete="off" (focus)="onAgreementAccountNumberFocus($event)" (blur)="onAgreementAccountNumberBlur($event)" (input)="onAgreementAccountNumberInput($event)" />
+          <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleAgreementAccountNumberVisibility()" [attr.aria-label]="agreementAccountNumberVisible ? 'Hide account number' : 'Show account number'">
+            <mat-icon>{{ agreementAccountNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+          </button>
         </mat-form-field>
       </div>
     }
