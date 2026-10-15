@@ -20,6 +20,7 @@ import { DocumentService } from '../../documents/services/document.service';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
+import { buildInvoiceEmailSubject } from '../../email/utils/invoice-email-subject';
 import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -203,7 +204,7 @@ export class InvoiceDocumentService {
         const invoiceCode = data.invoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || data.invoice.invoiceId || 'Invoice';
         const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
         const emailTemplateHtml = isCompany ? (emailHtml?.corporateInvoice || '') : (emailHtml?.invoice || '');
-        const emailSubject = (emailHtml?.invoiceSubject || '').trim().replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
+        const emailSubject = buildInvoiceEmailSubject(data.organization?.name, data.invoice.accountingPeriod || data.invoice.invoiceDate);
         const emailBodyHtml = emailTemplateHtml
           .replace(/\{\{salutationName\}\}/g, salutationName)
           .replace(/\{\{tenantName\}\}/g, tenantName)

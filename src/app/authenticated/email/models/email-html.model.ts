@@ -11,6 +11,7 @@ export interface EmailHtmlResponse {
   schedules: string;
   missingReceipts: string;
   billReport: string;
+  billing: string;
   letterSubject: string;
   departureSubject: string;
   leaseSubject: string;

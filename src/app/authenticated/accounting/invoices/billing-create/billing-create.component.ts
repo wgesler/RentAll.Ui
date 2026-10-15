@@ -31,6 +31,7 @@ import { InvoiceResponse } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
 import { EmailHtmlResponse } from '../../../email/models/email-html.model';
 import { EmailHtmlService } from '../../../email/services/email-html.service';
+import { buildInvoiceEmailSubject } from '../../../email/utils/invoice-email-subject';
 import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
@@ -886,8 +887,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
-    const emailSubject = (this.emailHtml?.invoiceSubject || 'Invoice {{invoiceCode}}').trim().replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
-    const emailTemplateHtml = this.emailHtml?.invoice || '';
+    const emailSubject = buildInvoiceEmailSubject(this.billingOrganization?.name, this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate);
+    const emailTemplateHtml = this.emailHtml?.billing || '';
     const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{toName\}\}/g, salutationName)
       .replace(/\{\{fromName\}\}/g, fromName)

@@ -25,6 +25,7 @@ import { EmailHtmlResponse } from '../../../email/models/email-html.model';
 import { EmailType } from '../../../email/models/email.enum';
 import { EmailHtmlService } from '../../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../../email/services/email-create-draft.service';
+import { buildInvoiceEmailSubject } from '../../../email/utils/invoice-email-subject';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
 import { DocumentService } from '../../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
@@ -887,8 +888,7 @@ initializeInvoicePreview(): void {
     const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
     const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateInvoice || '') : (this.emailHtml?.invoice || '');
 
-    const emailSubject = this.emailHtml?.invoiceSubject?.trim()
-      .replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
+    const emailSubject = buildInvoiceEmailSubject(this.organization?.name, this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate);
     const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{salutationName\}\}/g, salutationName)
       .replace(/\{\{tenantName\}\}/g, tenantName)
