@@ -1,7 +1,7 @@
 export const systemUserAccountEmail = 'system@rentall.com';
 export const systemUserAccountName = 'System User';
 export const systemUserOutboundEmail = 'wendy.gesler@rentallexchange.com';
-export const systemUserOutboundName = 'Wendy Gelser';
+export const systemUserOutboundName = 'Wendy Gesler';
 
 export interface OutboundSenderFields {
   fromEmail?: string | null;
