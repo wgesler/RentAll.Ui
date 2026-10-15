@@ -403,10 +403,6 @@ export class MappingService {
       accountNumber: contact.accountNumber ?? null,
       contactCardId: contact.contactCardId ?? null,
       markup: contact.markup ?? null,
-      revenueSplitOwner: contact.revenueSplitOwner ?? null,
-      revenueSplitOffice: contact.revenueSplitOffice ?? null,
-      workingCapitalBalance: contact.workingCapitalBalance ?? null,
-      linenAndTowelFee: contact.linenAndTowelFee ?? null,
       isActive,
       ...overrides
     };

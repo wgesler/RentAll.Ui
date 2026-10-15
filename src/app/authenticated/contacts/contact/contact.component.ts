@@ -544,18 +544,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       documentFrontFileDetails: this.hasNewDocumentFrontUpload ? (this.documentFrontFileDetails ?? null) : undefined,
       documentBack: this.hasNewDocumentBackUpload ? undefined : this.documentBackPath,
       documentBackFileDetails: this.hasNewDocumentBackUpload ? (this.documentBackFileDetails ?? null) : undefined,
-      revenueSplitOwner: this.compactDialogMode && this.contact
-        ? (this.contact.revenueSplitOwner ?? this.parseAgreementPercentFromForm(formValue.revenueSplitOwner))
-        : this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
-      revenueSplitOffice: this.compactDialogMode && this.contact
-        ? (this.contact.revenueSplitOffice ?? this.parseAgreementPercentFromForm(formValue.revenueSplitOffice))
-        : this.parseAgreementPercentFromForm(formValue.revenueSplitOffice),
-      workingCapitalBalance: this.compactDialogMode && this.contact
-        ? (this.contact.workingCapitalBalance ?? this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance))
-        : this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance),
-      linenAndTowelFee: this.compactDialogMode && this.contact
-        ? (this.contact.linenAndTowelFee ?? this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee))
-        : this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
       bankName: this.canViewBankInformation
         ? ((formValue.bankName || '').trim() || null)
         : (this.contact?.bankName ?? null),
@@ -715,10 +703,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       zip: new FormControl(''),
       notes: new FormControl(''),
       markup: new FormControl('0%'),
-      revenueSplitOwner: new FormControl<string>('0%'),
-      revenueSplitOffice: new FormControl<string>('0%'),
-      workingCapitalBalance: new FormControl<string>('$0.00'),
-      linenAndTowelFee: new FormControl<string>('$0.00'),
       bankName: new FormControl(''),
       routingNumber: new FormControl(''),
       accountNumber: new FormControl(''),
@@ -854,10 +838,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
         email: this.utilityService.getDisplayContactEmail(this.contact.email),
         notes: this.contact.notes || '',
         markup: this.formatterService.formatPercentageValue(this.contact.markup, 0),
-        revenueSplitOwner: this.formatAgreementPercentForDisplay(this.contact.revenueSplitOwner),
-        revenueSplitOffice: this.formatAgreementPercentForDisplay(this.contact.revenueSplitOffice),
-        workingCapitalBalance: this.formatAgreementDecimalForDisplay(this.contact.workingCapitalBalance),
-        linenAndTowelFee: this.formatAgreementDecimalForDisplay(this.contact.linenAndTowelFee),
         bankName: this.contact.bankName ?? '',
         routingNumber: this.contact.routingNumber ?? '',
         accountNumber: this.contact.accountNumber ?? '',
@@ -1799,35 +1779,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     this.formatterService.formatPercentageOnEnter(event, this.form.get('markup'), 0);
   }
 
-  formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
-    if (value == null || value === '') return '0%';
-    const n = Number(String(value).replace(/%\s*$/, ''));
-    return isNaN(n) ? '0%' : `${n}%`;
-  }
-
-  formatAgreementDecimalForDisplay(value: number | string | null | undefined): string {
-    if (value == null || value === '') return '$0.00';
-    const n = Number(String(value).replace(/[$,]/g, ''));
-    return isNaN(n) ? '$0.00' : this.formatAgreementCurrency(n);
-  }
-
-  formatAgreementCurrency(n: number): string {
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  parseAgreementPercentFromForm(value: string | number | null | undefined): number | null {
-    if (value == null || value === '') return 0;
-    const s = String(value).replace(/%\s*$/, '').trim();
-    const n = Number(s);
-    return isNaN(n) ? 0 : n;
-  }
-
-  parseAgreementDecimalFromForm(value: string | number | null | undefined): number | null {
-    if (value == null || value === '') return 0;
-    const s = String(value).replace(/[$,\s]/g, '');
-    const n = parseFloat(s);
-    return isNaN(n) ? 0 : n;
-  }
   //#endregion
 
   //#region Phone Helpers
@@ -2059,10 +2010,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       documentBack: savedContact.documentBack ?? originalRequest.documentBack ?? null,
       documentBackFileDetails: savedContact.documentBackFileDetails ?? originalRequest.documentBackFileDetails ?? null,
       markup: savedContact.markup ?? originalRequest.markup,
-      revenueSplitOwner: savedContact.revenueSplitOwner ?? originalRequest.revenueSplitOwner,
-      revenueSplitOffice: savedContact.revenueSplitOffice ?? originalRequest.revenueSplitOffice,
-      workingCapitalBalance: savedContact.workingCapitalBalance ?? originalRequest.workingCapitalBalance,
-      linenAndTowelFee: savedContact.linenAndTowelFee ?? originalRequest.linenAndTowelFee,
       bankName: savedContact.bankName ?? originalRequest.bankName,
       routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
       accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
