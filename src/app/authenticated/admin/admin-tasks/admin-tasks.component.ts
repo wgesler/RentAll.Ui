@@ -37,7 +37,7 @@ export class AdminTasksComponent {
     { key: 'state-forms', label: 'State forms', detail: 'Move state forms under global.', running: false, result: '' },
     { key: 'user-guide', label: 'User guide images', detail: 'Move user guide images under global.', running: false, result: '' },
     { key: 'receipts', label: 'Receipt images', detail: 'Move each receipt image under its office and receipt number.', running: false, result: '' },
-    { key: 'match-receipts', label: 'Match hyphen receipts', detail: 'Match leftover hyphen receipt files by date and amount. Save the link when one receipt fits. Leave every other file in that office receipts folder unmatched.', running: false, result: '' },
+    { key: 'match-receipts', label: 'Match hyphen receipts', detail: 'Match leftover hyphen receipt files by date and amount, and move Denver DBA files into Denver. Save the link when one receipt fits. Leave every other file in that office receipts folder unmatched.', running: false, result: '' },
     { key: 'appliance-decals', label: 'Appliance decals', detail: 'Move appliance decals under the office and property code.', running: false, result: '' },
     { key: 'listing-photos', label: 'Listing photos', detail: 'Move each listing photo under the office and property code.', running: false, result: '' },
     { key: 'inspection-photos', label: 'Inspection photos', detail: 'Move each inspection photo under the office and property code.', running: false, result: '' },
