@@ -877,8 +877,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     const toEmail = this.recipientOrganization?.contactEmail || '';
-    const toName = this.recipientOrganization?.contactName || this.recipientOrganization?.name || '';
-    const salutationName = toName.trim().split(/\s+/)[0] ?? "";
+    const toName = (this.recipientOrganization?.contactName || '').trim();
+    const salutationName = toName.split(/\s+/)[0] || '';
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
@@ -890,7 +890,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const emailSubject = buildInvoiceEmailSubject(this.billingOrganization?.name, this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate);
     const emailTemplateHtml = this.emailHtml?.billing || '';
     const emailBodyHtml = emailTemplateHtml
+      .replace(/\{\{salutationName\}\}/g, salutationName)
       .replace(/\{\{toName\}\}/g, salutationName)
+      .replace(/\{\{contactName\}\}/g, salutationName)
       .replace(/\{\{fromName\}\}/g, fromName)
       .replace(/\{\{companyName\}\}/g, this.billingOrganization?.name || '')
       .replace(/\{\{accountingName\}\}/g, accountingName || '')
