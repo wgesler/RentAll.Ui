@@ -8,6 +8,7 @@ export interface ContactRequest {
   officeId: number;
   officeAccess: number[];
   contactCode?: string;
+  externalRefNo?: string | null;
   userId?: string | null;
   entityTypeId: number;
   ownerTypeId: number;
@@ -70,6 +71,7 @@ export interface ContactResponse {
   officeName: string;
   officeAccess?: number[];
   contactCode: string;
+  externalRefNo?: string | null;
   userId?: string | null;
   entityTypeId: number;
   ownerTypeId: number;

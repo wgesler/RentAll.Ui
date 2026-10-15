@@ -343,7 +343,8 @@ export class MappingService {
       prorateTypeId,
       invoiceMethodTypeId,
       contactCardId: Number.isFinite(Number(raw['contactCardId'])) && Number(raw['contactCardId']) > 0 ? Number(raw['contactCardId']) : (base.contactCardId ?? null),
-      contactCard: this.mapContactCardFromResponse(raw['contactCard'] ?? base.contactCard)
+      contactCard: this.mapContactCardFromResponse(raw['contactCard'] ?? base.contactCard),
+      externalRefNo: String(raw['externalRefNo'] ?? raw['ExternalRefNo'] ?? base.externalRefNo ?? '').trim() || null
     };
   }
 

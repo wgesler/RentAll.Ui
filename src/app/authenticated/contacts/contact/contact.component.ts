@@ -596,6 +596,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
       contactRequest.contactCode = this.contact?.contactCode;
+      contactRequest.externalRefNo = this.contact?.externalRefNo ?? null;
       contactRequest.organizationId = String(this.contact?.organizationId || this.selectedOrganizationId || '').trim();
       contactRequest.userId = this.contact?.userId;
       if (!contactRequest.organizationId) {
@@ -605,6 +606,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     } else if (linkedContactId) {
       contactRequest.contactId = linkedContactId;
       contactRequest.contactCode = String(this.prefillContact?.['contactCode'] ?? contactRequest.contactCode ?? '').trim() || contactRequest.contactCode;
+      contactRequest.externalRefNo = this.contact?.externalRefNo ?? (typeof this.prefillContact?.['externalRefNo'] === 'string' ? this.prefillContact['externalRefNo'] : null);
       contactRequest.organizationId = String(this.selectedOrganizationId || user?.organizationId || '').trim();
     } else {
       contactRequest.organizationId = String(this.selectedOrganizationId || user?.organizationId || '').trim();
