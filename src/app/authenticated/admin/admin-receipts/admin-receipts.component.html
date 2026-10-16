@@ -1,0 +1,85 @@
+<div class="admin-receipt-toolbar">
+  <button mat-raised-button type="button" color="primary" [disabled]="!selectedReceiptId || !selectedPath || isMatching" (click)="match()">
+    {{ isMatching ? 'Switching...' : 'Switch' }}
+  </button>
+</div>
+
+@if (!organizationId) {
+  <p class="admin-receipt-empty">Set the filters, then press Go.</p>
+} @else {
+  <div class="admin-receipt-match">
+    <section class="admin-receipt-panel">
+      <h3>Receipts</h3>
+      @if (isLoading) {
+        <p class="admin-receipt-empty">Loading receipts...</p>
+      } @else if (receipts.length === 0) {
+        <p class="admin-receipt-empty">No receipts are in this date range.</p>
+      } @else {
+        <div class="admin-receipt-list">
+          @for (receipt of receipts; track receipt.receiptId) {
+            <button type="button" class="admin-receipt-row" [class.selected]="selectedReceiptId === receipt.receiptId" (click)="selectReceipt(receipt)">
+              <strong>{{ receipt.receiptCode }}</strong>
+              <span> {{ receipt.vendorName || 'No vendor' }} · {{ receipt.amount | currency }}</span>
+              <small class="block">{{ receipt.receiptDate }} · {{ receipt.officeName }}</small>
+            </button>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="admin-receipt-panel">
+      <h3>Current receipt</h3>
+      @if (!selectedReceipt) {
+        <p class="admin-receipt-empty">Select a receipt to see its file.</p>
+      } @else if (!selectedReceipt.receiptPath) {
+        <p class="admin-receipt-empty">This receipt has no file.</p>
+      } @else if (currentImageUrl) {
+        <div class="admin-receipt-current">
+          <img [src]="currentImageUrl" alt="Current receipt" />
+        </div>
+      } @else {
+        <div class="admin-receipt-current">
+          <mat-icon>description</mat-icon>
+          <span>{{ currentFileName }}</span>
+        </div>
+      }
+      <h3>Replacement</h3>
+      @if (!selectedPath) {
+        <p class="admin-receipt-empty">Click a replacement file to see it here.</p>
+      } @else if (replacementImageUrl) {
+        <div class="admin-receipt-current">
+          <img [src]="replacementImageUrl" alt="Replacement receipt" />
+        </div>
+      } @else {
+        <div class="admin-receipt-current">
+          <mat-icon>description</mat-icon>
+          <span>{{ replacementFileName }}</span>
+        </div>
+      }
+    </section>
+
+    <section class="admin-receipt-panel">
+      <h3>Replacement files</h3>
+      @if (filesLoading && images.length === 0) {
+        <p class="admin-receipt-empty">Loading files...</p>
+      } @else if (images.length === 0) {
+        <p class="admin-receipt-empty">No unassigned files are in the receipts folder.</p>
+      } @else {
+        <div class="admin-receipt-thumbs">
+          @for (image of images; track image.path) {
+            <button type="button" class="admin-receipt-thumb" [class.selected]="selectedPath === image.path" (click)="selectReplacement(image)">
+              @if (image.dataUrl) {
+                <img [src]="image.dataUrl" [alt]="image.fileName" />
+              } @else {
+                <div class="admin-receipt-file">
+                  <mat-icon>description</mat-icon>
+                </div>
+              }
+              <span>{{ image.fileName || 'Receipt file' }}</span>
+            </button>
+          }
+        </div>
+      }
+    </section>
+  </div>
+}

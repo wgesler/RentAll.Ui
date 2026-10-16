@@ -1,0 +1,113 @@
+:host {
+  display: block;
+  padding: 1rem;
+}
+
+.admin-receipt-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.admin-receipt-match {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1.1fr) minmax(14rem, 0.9fr) minmax(0, 1.2fr);
+  gap: 1rem;
+}
+
+.admin-receipt-panel {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-receipt-panel h3 {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.admin-receipt-list {
+  max-height: 36rem;
+  overflow: auto;
+}
+
+.admin-receipt-row,
+.admin-receipt-thumb {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+}
+
+.admin-receipt-row {
+  padding: 0.65rem 1rem;
+}
+
+.admin-receipt-row.selected,
+.admin-receipt-thumb.selected {
+  background: #e4edf6;
+}
+
+.admin-receipt-row small,
+.admin-receipt-empty {
+  color: #64748b;
+}
+
+.admin-receipt-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+}
+
+.admin-receipt-thumb {
+  width: 8.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.4rem;
+}
+
+.admin-receipt-thumb img,
+.admin-receipt-file {
+  width: 100%;
+  height: 6rem;
+  object-fit: contain;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+}
+
+.admin-receipt-thumb span {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-receipt-empty {
+  padding: 0 1rem 1rem;
+}
+
+.admin-receipt-current {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+  color: #64748b;
+}
+
+.admin-receipt-current img {
+  width: 100%;
+  max-height: 18rem;
+  object-fit: contain;
+  background: #f8fafc;
+}

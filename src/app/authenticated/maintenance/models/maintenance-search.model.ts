@@ -14,4 +14,6 @@ export interface MaintenanceListSearchRequest {
   receiptKind?: 1 | 2 | null;
   /** Receipt search only: filter by vendor contact id. */
   vendorId?: string | null;
+  /** SuperAdmin receipt search: organization to search. Omitted uses the signed-in organization. */
+  organizationId?: string | null;
 }

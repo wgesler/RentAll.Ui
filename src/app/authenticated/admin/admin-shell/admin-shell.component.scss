@@ -1,3 +1,48 @@
 mat-card {
   overflow: hidden;
 }
+
+:host ::ng-deep .admin-organization-select .titlebar-field-office.mat-mdc-form-field {
+  flex: 0 0 360px;
+  width: 360px;
+  min-width: 360px;
+  max-width: 360px;
+}
+
+.admin-shell-titlebar-dates {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.admin-shell-go-btn {
+  margin-top: -4px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+}
+
+.admin-shell-go-content {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transform: translateY(-4px);
+}
+
+.admin-shell-go-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-shell-go-arrow {
+  width: 0.95rem;
+  height: 0.95rem;
+  font-size: 0.95rem;
+  margin-top: -1px;
+}

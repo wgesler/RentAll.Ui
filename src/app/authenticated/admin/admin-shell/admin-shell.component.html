@@ -7,24 +7,79 @@
           <span class="flex-shrink-0 text-xl font-medium">Admin</span>
         </span>
         <div class="header-title form-titlebar-fields-wrap">
-          @if (selectedTabIndex === 1 && showOfficeDropdown) {
-            <app-title-bar-select
-              [label]="selectedOfficeId ? 'Office' : 'All Offices'"
-              [formFieldClass]="'titlebar-field-office'"
-              [value]="selectedOfficeId"
-              [options]="officeOptions"
-              [nullOptionLabel]="'All Offices'"
-              [noResultsText]="'No offices match your search'"
-              (valueChange)="onOfficeDropdownChange($event)">
-            </app-title-bar-select>
-          }
+          <app-title-bar-select
+            class="admin-organization-select"
+            [label]="'Organization'"
+            [formFieldClass]="'titlebar-field-office'"
+            [value]="organizationId"
+            [options]="organizationOptions"
+            [noResultsText]="'No organizations match your search'"
+            (valueChange)="onOrganizationDropdownChange($event)">
+          </app-title-bar-select>
+          <app-title-bar-select
+            [label]="selectedOfficeId ? 'Office' : 'All Offices'"
+            [formFieldClass]="'titlebar-field-office'"
+            [value]="selectedOfficeId"
+            [options]="officeOptions"
+            [nullOptionLabel]="'All Offices'"
+            [noResultsText]="'No offices match your search'"
+            (valueChange)="onOfficeDropdownChange($event)">
+          </app-title-bar-select>
+          <div class="admin-shell-titlebar-dates">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Start Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="adminStartPicker"
+                [(ngModel)]="startDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [max]="endDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="adminStartPicker"></mat-datepicker-toggle>
+              <mat-datepicker #adminStartPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>End Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="adminEndPicker"
+                [(ngModel)]="endDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [min]="startDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="adminEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker #adminEndPicker></mat-datepicker>
+            </mat-form-field>
+            <button
+              mat-mini-fab
+              type="button"
+              color="primary"
+              class="admin-shell-go-btn"
+              (click)="runSearch()"
+              aria-label="Search receipts"
+              matTooltip="Search receipts">
+              <span class="admin-shell-go-content">
+                <span class="admin-shell-go-label">Go</span>
+                <mat-icon class="admin-shell-go-arrow">arrow_forward</mat-icon>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" preserveContent class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
-        <mat-tab label="Tasks">
+        <mat-tab label="Receipts">
+          <app-admin-receipts
+            [organizationId]="appliedOrganizationId"
+            [officeId]="appliedOfficeId"
+            [officeIds]="appliedOfficeIds"
+            [startDate]="appliedStartDate"
+            [endDate]="appliedEndDate"
+            [searchNonce]="searchNonce" />
+        </mat-tab>
+        <mat-tab label="Azure Storage">
           <app-admin-tasks />
         </mat-tab>
         <mat-tab label="Health">
