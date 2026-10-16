@@ -181,3 +181,10 @@ export interface AppendPropertyCodeToContactsResponse {
   skippedCount: number;
 }
 
+export interface W9ExtractResponse {
+  federalTaxClassificationId?: number | null;
+  ownerIdTypeId?: number | null;
+  identificationNumber?: string | null;
+  warnings?: string[] | null;
+}
+

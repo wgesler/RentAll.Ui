@@ -23,7 +23,7 @@ import { PropertyListResponse } from '../../properties/models/property.model';
 import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes, getFederalTaxTypes, getOwnerDocumentTypes, getOwnerIdTypes, getPropertyManagerTypes } from '../models/contact-enum';
 import { getInvoiceMethods } from '../../accounting/models/accounting-enum';
 import { getProrateTypes } from '../../reservations/models/reservation-enum';
-import { ContactCardRequest, ContactCardResponse, ContactRequest, ContactResponse } from '../models/contact.model';
+import { ContactCardRequest, ContactCardResponse, ContactRequest, ContactResponse, W9ExtractResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
 import { ContactCardService } from '../services/contact-card.service';
@@ -134,6 +134,8 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   w9FileDetails: FileDetails | null = null;
   w9Path: string | null = null;
   hasNewW9Upload = false;
+  isExtractingW9 = false;
+  private w9ExtractToken = 0;
   insuranceFileName: string | null = null;
   insuranceFileDataUrl: string | null = null;
   insuranceFileContentType: string | null = null;
@@ -553,7 +555,9 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       accountNumber: this.canViewBankInformation
         ? ((formValue.accountNumber || '').trim() || null)
         : (this.contact?.accountNumber ?? null),
-      contactCardId: this.contact?.contactCardId ?? this.contactCard?.contactCardId ?? null,
+      contactCardId: (this.contact?.contactCardId || 0) > 0
+        ? this.contact?.contactCardId
+        : ((this.contactCard?.contactCardId || 0) > 0 ? this.contactCard?.contactCardId : null),
       paymentTermsId: this.compactDialogMode && this.contact
         ? (this.contact.paymentTermsId ?? null)
         : (formValue.paymentTermsId ?? null),
@@ -1530,6 +1534,58 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       this.setPdfThumbnail(details.dataUrl, details.contentType, url => this.w9PdfThumbnailUrl = url);
     });
     this.clearFileInput(event);
+    if (this.hasNewW9Upload && this.w9FileDetails) {
+      await this.extractW9FromUpload();
+    }
+  }
+
+  async extractW9FromUpload(): Promise<void> {
+    const fileDetails = this.w9FileDetails;
+    const organizationId = (this.organizationId || '').trim();
+    if (!fileDetails || !organizationId) {
+      return;
+    }
+
+    const token = ++this.w9ExtractToken;
+    this.isExtractingW9 = true;
+    try {
+      const extraction = await this.contactService.extractW9(organizationId, fileDetails).pipe(take(1)).toPromise();
+      if (!extraction || token !== this.w9ExtractToken || !this.hasNewW9Upload) {
+        return;
+      }
+
+      this.applyW9Extract(extraction);
+    } catch {
+      return;
+    } finally {
+      if (token === this.w9ExtractToken) {
+        this.isExtractingW9 = false;
+        this.markViewForCheck();
+      }
+    }
+  }
+
+  applyW9Extract(extraction: W9ExtractResponse): void {
+    if (!this.form) {
+      return;
+    }
+
+    const patch: Record<string, string | number | null> = {};
+    if (extraction.federalTaxClassificationId !== null && extraction.federalTaxClassificationId !== undefined) {
+      patch['federalTaxClassificationId'] = extraction.federalTaxClassificationId;
+    }
+    if (extraction.ownerIdTypeId !== null && extraction.ownerIdTypeId !== undefined) {
+      patch['ownerIdTypeId'] = extraction.ownerIdTypeId;
+    }
+    if (extraction.identificationNumber) {
+      patch['identificationNumber'] = extraction.identificationNumber.slice(0, 9);
+    }
+
+    this.form.patchValue(patch);
+    this.form.markAsDirty();
+    this.cdr.detectChanges();
+    this.syncIdentificationNumberInput();
+    setTimeout(() => this.syncIdentificationNumberInput());
   }
 
   populateOwnerDocumentsFromContact(): void {
@@ -1638,6 +1694,8 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   }
 
   removeW9Form(): void {
+    this.w9ExtractToken++;
+    this.isExtractingW9 = false;
     this.w9Path = null;
     this.w9FileName = null;
     this.w9FileDataUrl = null;

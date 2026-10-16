@@ -219,9 +219,9 @@
           <h4 class="property-agreement-document-title text-sm text-slate-600">W9 Form</h4>
           <div class="flex image-input items-center">
             @if (displayW9FileDataUrl && displayW9FileContentType?.startsWith('image/')) {
-              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer" alt="W9 Form" [src]="displayW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
+              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer hover:opacity-90" alt="W9 Form" [src]="displayW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
             } @else if (displayW9FileName && displayW9FileDataUrl) {
-              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer" (click)="openAgreementW9Preview($event)">
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer hover:bg-slate-200 transition-colors" title="Enlarge preview" (click)="openAgreementW9Preview($event)">
                 @if (displayW9PdfThumbnailUrl) {
                   <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="displayW9PdfThumbnailUrl" alt="W9 PDF" />
                 } @else {
@@ -229,7 +229,9 @@
                 }
               </div>
             } @else if (displayW9FileName) {
-              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+              </div>
             }
             <div class="property-agreement-document-actions">
               @if (isPropertyManagementLease) {
@@ -262,11 +264,11 @@
               }
             </div>
           </div>
-          <div class="property-agreement-insurance-body image-input items-center">
+          <div class="flex image-input items-center">
             @if (displayInsuranceFileDataUrl && displayInsuranceFileContentType?.startsWith('image/')) {
-              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer" alt="Insurance" [src]="displayInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
+              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer hover:opacity-90" alt="Insurance" [src]="displayInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
             } @else if (displayInsuranceFileName && displayInsuranceFileDataUrl) {
-              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer" (click)="openAgreementInsurancePreview($event)">
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer hover:bg-slate-200 transition-colors" title="Enlarge preview" (click)="openAgreementInsurancePreview($event)">
                 @if (displayInsurancePdfThumbnailUrl) {
                   <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="displayInsurancePdfThumbnailUrl" alt="Insurance PDF" />
                 } @else {
@@ -274,7 +276,9 @@
                 }
               </div>
             } @else if (displayInsuranceFileName) {
-              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+              </div>
             }
             <div class="property-agreement-document-actions">
               @if (isPropertyManagementLease) {
@@ -295,9 +299,9 @@
           <h4 class="property-agreement-document-title text-sm text-slate-600">Owner Agreement</h4>
           <div class="flex image-input items-center">
             @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
-              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer" alt="Owner Agreement" [src]="agreementDocFileDataUrl" (click)="openAgreementDocPreview($event)" />
+              <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded cursor-pointer hover:opacity-90" alt="Owner Agreement" [src]="agreementDocFileDataUrl" (click)="openAgreementDocPreview($event)" />
             } @else if (agreementDocFileName && agreementDocFileDataUrl) {
-              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer" (click)="openAgreementDocPreview($event)">
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4 cursor-pointer hover:bg-slate-200 transition-colors" title="Enlarge preview" (click)="openAgreementDocPreview($event)">
                 @if (agreementDocPdfThumbnailUrl) {
                   <img class="object-contain max-w-xs max-h-44 w-full h-full" [src]="agreementDocPdfThumbnailUrl" alt="Agreement PDF" />
                 } @else {
@@ -305,7 +309,9 @@
                 }
               </div>
             } @else if (agreementDocFileName) {
-              <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+              <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+              </div>
             }
             <div class="property-agreement-document-actions">
               <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>

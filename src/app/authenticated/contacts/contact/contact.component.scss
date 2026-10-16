@@ -160,7 +160,7 @@
 
 .owner-document-box {
   min-width: 0;
-  padding: 1rem 1.25rem;
+  padding: 1rem 1.25rem 2.5rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
@@ -170,24 +170,24 @@
   .owner-document-title {
     font-weight: 700;
     text-align: left;
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.35rem;
     padding-left: 0;
   }
 
   > .owner-document-title {
     box-sizing: border-box;
-    min-height: 4rem;
+    min-height: 3.25rem;
   }
 
   .owner-document-title-row {
     position: relative;
     display: flex;
     align-items: flex-start;
-    min-height: 4rem;
-    margin-bottom: 0.75rem;
+    min-height: 3.25rem;
+    margin-bottom: 0.35rem;
 
     .owner-document-title {
-      margin-bottom: 0.75rem;
+      margin-bottom: 0;
     }
   }
 
@@ -213,25 +213,29 @@
     align-items: center;
     gap: 0.5rem;
     margin-left: 0;
-    transform: translateY(-36px);
+    flex: 0 0 auto;
   }
 
   .image-input {
+    display: flex;
     justify-content: center;
     align-items: center;
+    gap: 0.75rem;
     margin-bottom: 0;
     height: 8rem;
     min-height: 8rem;
     max-height: 8rem;
   }
 
-  img,
-  .image-input > div.border {
+  .image-input > img,
+  .image-input > mat-icon,
+  .image-input > div:not(.owner-document-actions) {
     height: 6rem;
     max-height: 6rem;
     width: auto;
-    max-width: 100%;
+    max-width: calc(100% - 7.5rem);
     object-fit: contain;
+    flex: 0 1 auto;
   }
 }
 

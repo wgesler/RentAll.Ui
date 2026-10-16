@@ -31,6 +31,7 @@ export class AdminTasksComponent {
 
   progressLines: string[] = [];
   tasks: AdminTask[] = [
+    { key: 'office-folders', label: 'Office folders', detail: 'Move a file from a hyphenated office folder into the spaced folder, then delete the old file.', running: false, result: '' },
     { key: 'office-logos', label: 'Office logos', detail: 'Move each office logo and accounting-office logo under that office.', running: false, result: '' },
     { key: 'organization-logos', label: 'Organization logos', detail: 'Move organization logos under global.', running: false, result: '' },
     { key: 'profiles', label: 'Profile pictures', detail: 'Move profile pictures under the user office, or global when there is no office.', running: false, result: '' },

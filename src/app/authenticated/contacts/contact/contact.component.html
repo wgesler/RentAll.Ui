@@ -791,6 +791,48 @@
                       <mat-expansion-panel-header>
                         <mat-panel-title class="contact-form-title">W9 &amp; Insurance</mat-panel-title>
                       </mat-expansion-panel-header>
+                      <div class="grid gap-x-1.5 gap-y-1 form-grid-fifths" [formGroup]="form">
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Date of Birth</mat-label>
+                          <input matInput [matDatepicker]="vendorDateOfBirthPicker" formControlName="dateOfBirth" />
+                          <mat-datepicker-toggle matIconSuffix [for]="vendorDateOfBirthPicker"></mat-datepicker-toggle>
+                          <mat-datepicker #vendorDateOfBirthPicker></mat-datepicker>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Federal Tax Classification</mat-label>
+                          <mat-select formControlName="federalTaxClassificationId">
+                            <mat-option [value]="null">Select</mat-option>
+                            @for (item of availableFederalTaxTypes; track item.value) {
+                              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>ID Type</mat-label>
+                          <mat-select formControlName="ownerIdTypeId">
+                            <mat-option [value]="null">Select</mat-option>
+                            @for (item of availableOwnerIdTypes; track item.value) {
+                              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Identification Number</mat-label>
+                          <input #identificationNumberInput matInput maxlength="9" autocomplete="off" (focus)="onIdentificationNumberFocus($event)" (blur)="onIdentificationNumberBlur($event)" (input)="onIdentificationNumberInput($event)">
+                          <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleIdentificationNumberVisibility()" [attr.aria-label]="identificationNumberVisible ? 'Hide identification number' : 'Show identification number'">
+                            <mat-icon>{{ identificationNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+                          </button>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Document Type</mat-label>
+                          <mat-select formControlName="ownerDocumentId">
+                            <mat-option [value]="null">Select</mat-option>
+                            @for (item of availableOwnerDocumentTypes; track item.value) {
+                              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                      </div>
                       <div class="owner-document-row owner-document-row--two" [formGroup]="form">
                           <div class="owner-document-box">
                             <h4 class="owner-document-title text-sm text-slate-600">W9 Form</h4>
