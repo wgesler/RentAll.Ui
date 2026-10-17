@@ -123,6 +123,7 @@
             </div>
           </div>
 
+          @if (showMaintenanceDashboard) {
           <div class="dashboard-titlebar-stat dashboard-titlebar-stat--maintenance">
             <div class="dashboard-titlebar-stat-body">
               <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
@@ -146,6 +147,7 @@
               }
             </div>
           </div>
+          }
 
           @if (showCommissionsUi) {
             <div
@@ -193,7 +195,7 @@
       </div>
 
       <mat-tab-group
-        [selectedIndex]="selectedTabIndex"
+        [selectedIndex]="visibleTabIndex"
         [animationDuration]="'0ms'"
         class="shell-tabs dbg-band-tabs"
         (selectedIndexChange)="onTabIndexChange($event)">
@@ -227,22 +229,24 @@
             <app-dashboard-vacant />
           }
         </mat-tab>
-        <mat-tab label="Maintenance">
-          @if (selectedTabIndex === 6) {
-            <app-dashboard-maintenance />
-          }
-        </mat-tab>
-        <mat-tab label="Maid Service">
-          @if (selectedTabIndex === 7) {
-            <app-dashboard-calendars [showCalendarsSection]="false" />
-          }
-        </mat-tab>
-        <mat-tab label="Schedules">
-          @if (selectedTabIndex === 8) {
-            <app-dashboard-schedules />
-          }
-        </mat-tab>
-        @if (canViewCommissions) {
+        @if (showMaintenanceDashboard) {
+          <mat-tab label="Maintenance">
+            @if (selectedTabIndex === 6) {
+              <app-dashboard-maintenance />
+            }
+          </mat-tab>
+          <mat-tab label="Maid Service">
+            @if (selectedTabIndex === 7) {
+              <app-dashboard-calendars [showCalendarsSection]="false" />
+            }
+          </mat-tab>
+          <mat-tab label="Schedules">
+            @if (selectedTabIndex === 8) {
+              <app-dashboard-schedules />
+            }
+          </mat-tab>
+        }
+        @if (showCommissionsUi) {
           <mat-tab label="Commissions">
             @if (selectedTabIndex === 9) {
               <app-dashboard-commissions />

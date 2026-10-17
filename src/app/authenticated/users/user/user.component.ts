@@ -18,7 +18,7 @@ import { fileValidator } from '../../../validators/file-validator';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AgentResponse } from '../../organizations/models/agent.model';
-import { FeatureType } from '../../organizations/models/organization-enum';
+import { FeatureType, OrganizationType } from '../../organizations/models/organization-enum';
 import { FeatureResponse } from '../../organizations/models/organization-feature.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -148,6 +148,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
     this.loadAgents();
     this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(features => {
       this.allFeatures = features ?? [];
+      this.initializeUserGroups();
       this.applyUserFeatureAccess(features);
       this.syncStartupPages();
     });
@@ -482,6 +483,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
         next: (organizations) => {
           this.organizations = organizations || [];
           this.applyOrganizationFieldMode();
+          this.initializeUserGroups();
           this.syncStartupPages();
           this.markViewForCheck();
         },
@@ -496,6 +498,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       next: (organizations) => {
         this.organizations = organizations || [];
         this.applyOrganizationFieldMode();
+        this.initializeUserGroups();
         this.syncStartupPages();
         this.markViewForCheck();
       },
@@ -853,6 +856,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
         this.filterOfficesByOrganization();
       }
       this.loadUserFeatureAccess();
+      this.initializeUserGroups();
       this.syncStartupPages();
       // Clear office access only for user-initiated organization changes.
       // Do not clear during initial populate from the loaded user record.
@@ -885,6 +889,8 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
   populateForm(): void {
     if (this.user && this.form) {
       this.isPopulatingUserForm = true;
+      this.form.get('organizationId')?.setValue(this.user.organizationId, { emitEvent: false });
+      this.initializeUserGroups();
       // Normalize userGroups - convert numeric values or enum names to match our dropdown values
       const normalizeGroup = (group: string | number): string | null => {
         const groupStr = String(group).trim();
@@ -916,7 +922,8 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       
       const validUserGroups = (this.user.userGroups || [])
         .map(normalizeGroup)
-        .filter((group): group is string => group !== null);
+        .filter((group): group is string => group !== null)
+        .filter(group => this.isUserGroupSelectable(group));
       
       // Use setValue for the userGroups array to ensure it's properly set
       this.form.patchValue({
@@ -1020,9 +1027,88 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
 
   initializeUserGroups(): void {
     const options = getUserGroupOptions();
-    this.availableUserGroups = this.isCurrentUserSuperAdmin
-      ? options
-      : options.filter(group => group.value !== UserGroups[UserGroups.SuperAdmin]);
+    if (this.usesPartnerUserGroups()) {
+      const partnerRoles = new Set<string>([UserGroups[UserGroups.Admin], UserGroups[UserGroups.PartnerAdmin]]);
+      this.availableUserGroups = options.filter(group => partnerRoles.has(group.value));
+      this.retainAllowedUserGroups();
+      return;
+    }
+
+    const hiddenRoles = new Set<string>();
+    if (!this.isCurrentUserSuperAdmin) {
+      hiddenRoles.add(UserGroups[UserGroups.SuperAdmin]);
+    }
+    if (this.isSelectedOrganizationType(OrganizationType.PropertyManagement)) {
+      hiddenRoles.add(UserGroups[UserGroups.PartnerAdmin]);
+    }
+    if (this.isManagementFeatureDisabled()) {
+      hiddenRoles.add(UserGroups[UserGroups.Facilities]);
+      hiddenRoles.add(UserGroups[UserGroups.Housekeeping]);
+      hiddenRoles.add(UserGroups[UserGroups.Inspector]);
+      hiddenRoles.add(UserGroups[UserGroups.Realtor]);
+      hiddenRoles.add(UserGroups[UserGroups.Tenant]);
+      hiddenRoles.add(UserGroups[UserGroups.Vendor]);
+      hiddenRoles.add(UserGroups[UserGroups.Company]);
+    }
+
+    this.availableUserGroups = options.filter(group => !hiddenRoles.has(group.value));
+    this.retainAllowedUserGroups();
+  }
+
+  usesPartnerUserGroups(): boolean {
+    return this.isSelectedOrganizationType(OrganizationType.Partner)
+      || this.isSelectedOrganizationType(OrganizationType.PropertyProvider);
+  }
+
+  isSelectedOrganizationType(organizationType: OrganizationType): boolean {
+    const organizationId = this.resolveUserOrganizationId();
+    if (!organizationId) {
+      return false;
+    }
+
+    const organizationTypeId = this.resolveOrganizationTypeId(organizationId);
+    if (organizationTypeId === organizationType) {
+      return true;
+    }
+    if (organizationTypeId !== null) {
+      return false;
+    }
+
+    const cachedOrganization = this.commonService.getOrganizationValue();
+    return cachedOrganization?.organizationId === organizationId
+      && Number(cachedOrganization.organizationTypeId) === organizationType;
+  }
+
+  isManagementFeatureDisabled(): boolean {
+    const organizationId = this.resolveUserOrganizationId();
+    if (!organizationId || !this.organizationFeatureService.isFeaturesLoadedForOrganization(organizationId)) {
+      return false;
+    }
+
+    return !this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Management, this.allFeatures);
+  }
+
+  isUserGroupSelectable(group: string): boolean {
+    if (this.availableUserGroups.some(option => option.value === group)) {
+      return true;
+    }
+
+    return !this.usesPartnerUserGroups()
+      && !this.isCurrentUserSuperAdmin
+      && group === UserGroups[UserGroups.SuperAdmin];
+  }
+
+  retainAllowedUserGroups(): void {
+    const userGroupsControl = this.form?.get('userGroups');
+    const selectedGroups = userGroupsControl?.value as string[] | undefined;
+    if (!userGroupsControl || !Array.isArray(selectedGroups)) {
+      return;
+    }
+
+    const nextGroups = selectedGroups.filter(group => this.isUserGroupSelectable(group));
+    if (nextGroups.length !== selectedGroups.length) {
+      userGroupsControl.setValue(nextGroups, { emitEvent: false });
+    }
   }
 
   isSuperAdminAssignmentAttempt(userGroups: Array<string | number> | null | undefined): boolean {

@@ -9,6 +9,7 @@ import { MaintenanceItemListResponse } from '../../maintenance/models/maintenanc
 import { MaintenanceItemsService } from '../../maintenance/services/maintenance-items.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { MonthlyCommissionDisplay, MonthlyCommissionTileRow } from '../models/dashboard-model';
@@ -94,7 +95,11 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
     this.canViewCommissions = this.authService.canViewCommissions();
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.user?.userId ?? '');
-    this.loadMaintenanceCounts();
+    if (this.showMaintenanceDashboard) {
+      this.loadMaintenanceCounts();
+    } else {
+      this.maintenanceCountsReady = true;
+    }
     this.maintenanceItemsService.itemUpdated$.pipe(takeUntil(this.destroy$)).subscribe(updated => {
       const match = this.maintenanceItems.find(item => item.maintenanceItemId === updated.maintenanceItemId);
       if (!match) {
@@ -150,8 +155,40 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   }
 
   clampTabIndex(tabIndex: number): number {
-    const maxTabIndex = this.canViewCommissions ? 9 : 8;
-    return Math.max(0, Math.min(maxTabIndex, Math.floor(tabIndex)));
+    const visibleTabIds = this.getVisibleTabIds();
+    const floored = Math.floor(tabIndex);
+    if (visibleTabIds.includes(floored)) {
+      return floored;
+    }
+    return visibleTabIds[0] ?? 0;
+  }
+
+  get visibleTabIndex(): number {
+    const index = this.getVisibleTabIds().indexOf(this.selectedTabIndex);
+    return index >= 0 ? index : 0;
+  }
+
+  getVisibleTabIds(): number[] {
+    const tabIds = [0, 1, 2, 3, 4, 5];
+    if (this.showMaintenanceDashboard) {
+      tabIds.push(6, 7, 8);
+    }
+    if (this.showCommissionsUi) {
+      tabIds.push(9);
+    }
+    return tabIds;
+  }
+
+  get isAgentRole(): boolean {
+    return this.authService.hasRole(UserGroups.Agent) || this.authService.hasRole(UserGroups.AgentAdmin);
+  }
+
+  get isPropertyManagerRole(): boolean {
+    return this.authService.hasRole(UserGroups.PropertyManager) || this.authService.hasRole(UserGroups.PropertyManagerAdmin);
+  }
+
+  get showMaintenanceDashboard(): boolean {
+    return !(this.isAgentRole && !this.isPropertyManagerRole);
   }
 
   syncDashboardTabToUrl(tabIndex: number): void {
@@ -169,8 +206,9 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  onTabIndexChange(tabIndex: number): void {
-    this.syncDashboardTabToUrl(tabIndex);
+  onTabIndexChange(visibleIndex: number): void {
+    const logicalIndex = this.getVisibleTabIds()[visibleIndex] ?? 0;
+    this.syncDashboardTabToUrl(logicalIndex);
   }
 
   get titleBarOfficeOptions(): { value: number; label: string }[] {
@@ -190,6 +228,9 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   }
 
   get showCommissionsUi(): boolean {
+    if (this.isPropertyManagerRole && !this.isAgentRole) {
+      return false;
+    }
     return this.canViewCommissions;
   }
 

@@ -216,7 +216,8 @@ export class AuthService {
     canViewCommissions(): boolean {
         return this.hasRole(UserGroups.SuperAdmin)
             || this.hasRole(UserGroups.Admin)
-            || this.hasRole(UserGroups.Agent);
+            || this.hasRole(UserGroups.Agent)
+            || this.hasRole(UserGroups.AgentAdmin);
     }
 
     //#region Organization feature access
