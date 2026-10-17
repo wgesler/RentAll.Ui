@@ -595,6 +595,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.filterOfficesByOrganization();
+        this.initializeUserGroups();
       });
     });
   }
@@ -618,6 +619,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
 
         this.offices = scopedOffices;
         this.availableOffices = this.mappingService.mapOfficesToDropdown(scopedOffices);
+        this.initializeUserGroups();
 
         // Ensure selected user's office access remains checked after the office options refresh.
         if (this.form) {
@@ -1045,10 +1047,19 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       hiddenRoles.add(UserGroups[UserGroups.Facilities]);
       hiddenRoles.add(UserGroups[UserGroups.Housekeeping]);
       hiddenRoles.add(UserGroups[UserGroups.Inspector]);
+      hiddenRoles.add(UserGroups[UserGroups.PropertyManagerAdmin]);
+      hiddenRoles.add(UserGroups[UserGroups.AgentAdmin]);
       hiddenRoles.add(UserGroups[UserGroups.Realtor]);
       hiddenRoles.add(UserGroups[UserGroups.Tenant]);
       hiddenRoles.add(UserGroups[UserGroups.Vendor]);
       hiddenRoles.add(UserGroups[UserGroups.Company]);
+    }
+    if (this.isOwnersFeatureDisabled()) {
+      hiddenRoles.add(UserGroups[UserGroups.Owner]);
+      hiddenRoles.add(UserGroups[UserGroups.OwnerAdmin]);
+    }
+    if (this.isSingleOfficeOrganization()) {
+      hiddenRoles.add(UserGroups[UserGroups.OfficeAdmin]);
     }
 
     this.availableUserGroups = options.filter(group => !hiddenRoles.has(group.value));
@@ -1080,12 +1091,30 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
   }
 
   isManagementFeatureDisabled(): boolean {
+    return this.isOrganizationFeatureDisabled(FeatureType.Management);
+  }
+
+  isOwnersFeatureDisabled(): boolean {
+    return this.isOrganizationFeatureDisabled(FeatureType.Owners);
+  }
+
+  isOrganizationFeatureDisabled(featureType: FeatureType): boolean {
     const organizationId = this.resolveUserOrganizationId();
     if (!organizationId || !this.organizationFeatureService.isFeaturesLoadedForOrganization(organizationId)) {
       return false;
     }
 
-    return !this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Management, this.allFeatures);
+    return !this.organizationFeatureService.hasFeatureAccess(organizationId, featureType, this.allFeatures);
+  }
+
+  isSingleOfficeOrganization(): boolean {
+    const organizationId = this.resolveUserOrganizationId();
+    if (!organizationId) {
+      return false;
+    }
+
+    const activeOfficeCount = this.offices.filter(office => office.organizationId === organizationId && office.isActive).length;
+    return activeOfficeCount === 1;
   }
 
   isUserGroupSelectable(group: string): boolean {
