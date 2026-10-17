@@ -123,7 +123,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
-    this.isAdmin = this.authService.isAdmin();
+    this.isAdmin = this.authService.isOrgAdmin();
     this.loadOffices();
     this.loadUsers();
     this.getTickets();

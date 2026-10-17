@@ -93,10 +93,10 @@ export class MobileNavAttentionService {
   private executeRefresh(): void {
     const loadId = ++this.refreshLoadId;
     const isOwnerAdmin = this.authService.isOwnerAdmin();
-    const isAdmin = this.authService.isAdmin();
+    const isAdmin = this.authService.isOrgAdmin();
 
     forkJoin({
-      tickets: this.authService.hasTicketingAccess() ? this.ticketService.getTickets().pipe(take(1)) : of([] as TicketResponse[]),
+      tickets: this.authService.hasTicketingAccess() || isAdmin ? this.ticketService.getTickets().pipe(take(1)) : of([] as TicketResponse[]),
       rentals: this.authService.hasAccessToLeads() ? this.leadsService.getRentalLeads().pipe(take(1)) : of([]),
       owners: this.authService.hasAccessToLeads() && isOwnerAdmin ? this.leadsService.getOwnerLeads().pipe(take(1)) : of([]),
       generals: this.authService.hasAccessToLeads() ? this.leadsService.getGeneralLeads().pipe(take(1)) : of([]),

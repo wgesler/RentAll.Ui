@@ -742,9 +742,9 @@ export function canShowOwnersNav(authService: {
 
 export function canShowTicketsNav(authService: {
   hasTicketingAccess: () => boolean;
-  isAdmin: () => boolean;
+  isOrgAdmin: () => boolean;
 }): boolean {
-  return authService.hasTicketingAccess() || authService.isAdmin();
+  return authService.hasTicketingAccess() || authService.isOrgAdmin();
 }
 
 export function canShowMaintenanceNav(authService: {
@@ -767,7 +767,7 @@ export function getSidebarFilterOptions(
     isOwnerAdmin: () => boolean;
     hasAccessToOwners: () => boolean;
     hasTicketingAccess: () => boolean;
-    isAdmin: () => boolean;
+    isOrgAdmin: () => boolean;
     hasAccessToManagement: () => boolean;
     hasAccountingNavAccess: () => boolean;
     hasAccountingAccess: () => boolean;
@@ -827,9 +827,7 @@ export function getSidebarFilterOptionsForUser(
 
 function hasAdminTicketAccess(userGroups: UserGroupInput): boolean {
   const groups = getUserGroupNumbers(userGroups);
-  return groups.includes(UserGroups.SuperAdmin)
-    || groups.includes(UserGroups.Admin)
-    || groups.includes(UserGroups.OfficeAdmin);
+  return groups.includes(UserGroups.Admin);
 }
 
 function isStartupPageAllowed(

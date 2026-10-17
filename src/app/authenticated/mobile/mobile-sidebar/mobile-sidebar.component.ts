@@ -193,7 +193,7 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
 
   getMenuTabs(): MobileNavTab[] {
     if (this.menuNavItem?.path === 'tickets') {
-      return getMobileTicketTabs(this.isAdmin, this.authService.hasTicketingAccess());
+      return getMobileTicketTabs(this.authService.isOrgAdmin(), this.authService.hasTicketingAccess());
     }
     if (this.menuNavItem?.path === 'leads') {
       return getMobileLeadsTabs(this.isOwnerAdmin);

@@ -89,9 +89,9 @@ describe('role-access owner and realtor behavior', () => {
   });
 
   it('keeps tickets available to admins when the ticketing feature is off', () => {
-    expect(canShowTicketsNav({ hasTicketingAccess: () => false, isAdmin: () => true })).toBeTrue();
-    expect(canShowTicketsNav({ hasTicketingAccess: () => false, isAdmin: () => false })).toBeFalse();
-    expect(canShowTicketsNav({ hasTicketingAccess: () => true, isAdmin: () => false })).toBeTrue();
+    expect(canShowTicketsNav({ hasTicketingAccess: () => false, isOrgAdmin: () => true })).toBeTrue();
+    expect(canShowTicketsNav({ hasTicketingAccess: () => false, isOrgAdmin: () => false })).toBeFalse();
+    expect(canShowTicketsNav({ hasTicketingAccess: () => true, isOrgAdmin: () => false })).toBeTrue();
   });
 
   it('hides tickets and maintenance when feature flags are off', () => {

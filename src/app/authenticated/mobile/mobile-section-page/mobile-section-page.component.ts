@@ -259,8 +259,9 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
     this.section = getMobileNavItem(parts.sectionPath);
     this.detailId = parts.id;
     const hasTicketingAccess = this.authService.hasTicketingAccess();
-    const ticketTabs = getMobileTicketTabs(this.isAdmin, hasTicketingAccess);
-    if (this.section?.path === 'tickets' && parts.tabPath && !getMobileTicketTab(parts.tabPath, this.isAdmin, hasTicketingAccess)) {
+    const canViewRentAllTickets = this.authService.isOrgAdmin();
+    const ticketTabs = getMobileTicketTabs(canViewRentAllTickets, hasTicketingAccess);
+    if (this.section?.path === 'tickets' && parts.tabPath && !getMobileTicketTab(parts.tabPath, canViewRentAllTickets, hasTicketingAccess)) {
       void this.router.navigate(['/mobile', 'tickets', ticketTabs[0]?.path || 'my-tickets']);
       return;
     }
@@ -272,7 +273,7 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
     this.tab = this.section?.path === 'properties' && this.detailId
       ? (MOBILE_PROPERTY_DETAIL_TABS.find(tab => tab.path === parts.tabPath) ?? MOBILE_PROPERTY_DETAIL_TABS[0])
       : this.section?.path === 'tickets'
-        ? getMobileTicketTab(parts.tabPath, this.isAdmin, hasTicketingAccess)
+        ? getMobileTicketTab(parts.tabPath, canViewRentAllTickets, hasTicketingAccess)
         : (this.section ? getMobileTab(this.section, parts.tabPath) : null);
     this.contactDirty = false;
     this.reservationDirty = false;

@@ -131,7 +131,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   //#region Ticket-Shell
   ngOnInit(): void {
-    this.isAdmin = this.authService.isAdmin();
+    this.isAdmin = this.authService.isOrgAdmin();
     this.showStandardTicketTabs = this.authService.hasTicketingAccess();
     this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.showStandardTicketTabs = this.authService.hasTicketingAccess();
