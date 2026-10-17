@@ -141,12 +141,10 @@ const USER_GUIDE_SHELL_CHILDREN: Record<string, UserGuideTocDefinition[]> = {
     ], ctx => ctx.hasAccountingFullAccess)
   ],
   users: [
-    topic('users/employees', 'Employees'),
-    topic('users/owners', 'Owners'),
-    topic('users/cleaners', 'Cleaners'),
-    topic('users/inspectors', 'Inspectors'),
-    topic('users/vendors', 'Vendors'),
-    topic('users/other', 'Other')
+    topic('users/user-management', 'User Management'),
+    topic('users/features-permissions', 'Features & Permissions'),
+    topic('users/user-roles', 'User Roles'),
+    topic('users/special-user-types', 'Special User Types')
   ],
   leads: [
     topic('leads/rental', 'Rental'),
