@@ -606,7 +606,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       ? this.allProperties
       : this.allProperties.filter(property => Number(property.officeId) === Number(this.selectedOfficeId));
     this.properties = scopedByOffice.slice().sort((a, b) =>
-      String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+      String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' })
     );
     const isSelectedPropertyInScope = !!this.selectedPropertyId
       && this.properties.some(property => property.propertyId === this.selectedPropertyId);

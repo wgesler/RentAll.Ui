@@ -1176,7 +1176,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     this.propertyService.getPropertyList().pipe(take(1)).subscribe({
       next: properties => {
         this.properties = (properties || []).slice().sort((a, b) =>
-          String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+          String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' })
         );
         const selectedPropertyId = this.form?.get('propertyId')?.value == null ? this.selectedPropertyIdFromShell : String(this.form.get('propertyId')?.value);
         this.applyPropertySelection(selectedPropertyId);

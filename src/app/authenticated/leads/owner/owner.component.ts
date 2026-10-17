@@ -556,7 +556,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
         })).subscribe({
           next: codes => {
             this.allPropertyCodes = (codes || []).slice().sort((a, b) =>
-              String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+              String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' })
             );
           },
           error: () => {

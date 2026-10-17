@@ -52,7 +52,7 @@ import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, T
 import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
 import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatus, getPropertyStatusLetter, getPropertyStatuses, getPropertyStyles, getPropertyType, getPropertyTypes, getTrashPickupDay } from '../authenticated/properties/models/property-enums';
 import { PropertyAgreementLineResponse } from '../authenticated/properties/models/property-agreement.model';
-import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
+import { comparePropertyCodes, PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty, CalendarDay, PropertyHoverField, PropertyHoverFieldGroups } from '../authenticated/reservations/models/reservation-board-model';
 import { getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getFrequency, getNoticeStatusTypes, getProrateType, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, NoticeStatusType, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
@@ -3282,7 +3282,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
           toString: () => propertyStatusText
         }
       };
-    });
+    }).sort((left, right) => comparePropertyCodes(left.propertyCode, right.propertyCode));
   }
 
   mapManagementFeeTypeIdFromApi(raw: number | string | null | undefined): ManagementFeeType {
@@ -4213,7 +4213,7 @@ resolveWorkOrderTitle(
     });
 
     const officeGroups = Array.from(officeMap.values()).map(office => {
-      const properties = [...office.properties].sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || ''));
+      const properties = [...office.properties].sort((a, b) => comparePropertyCodes(a.propertyCode, b.propertyCode));
       const resolvedOfficeName = office.officeName || `Office ${office.officeId}`;
       return {
         rowId: `office:${office.officeId}`,

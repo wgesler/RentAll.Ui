@@ -547,7 +547,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
           .map(ticket => [String(ticket.propertyId || '').trim(), String(ticket.propertyCode || ticket.propertyId || '').trim()])
       ).entries()
     ).map(([propertyId, propertyCode]) => ({ propertyId, propertyCode }))
-      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { sensitivity: 'base' }));
+      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { numeric: true, sensitivity: 'base' }));
 
     this.reservationFilterOptions = Array.from(
       new Map(
@@ -596,7 +596,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.propertyFilterOptions = Array.from(propertyMap.entries())
       .map(([propertyId, propertyCode]) => ({ propertyId, propertyCode }))
-      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { sensitivity: 'base' }));
+      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { numeric: true, sensitivity: 'base' }));
 
     this.reservationFilterOptions = Array.from(reservationMap.entries())
       .map(([reservationId, reservationCode]) => ({ reservationId, reservationCode }))

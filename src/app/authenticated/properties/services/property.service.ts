@@ -9,6 +9,7 @@ import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import {
+  comparePropertyCodes,
   PropertyCodeResponse,
   PropertyListResponse,
   PropertyRequest,
@@ -63,7 +64,7 @@ getOrganizationId(): string {
     }
     return this.getPropertyCodes().pipe(
       tap((codes) => {
-        this.allPropertyCodes$.next(codes || []);
+        this.allPropertyCodes$.next(this.sortPropertyCodes(codes));
         this.propertyCodesLoaded$.next(true);
         this.loadedOrganizationId = id;
       }),
@@ -215,7 +216,13 @@ refreshCachedPropertyCodesAfterMutation(): void {
   }
 
   mapPropertyListResponses(list: PropertyListResponse[] | null | undefined): PropertyListResponse[] {
-    return (list || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>));
+    return (list || [])
+      .map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>))
+      .sort((left, right) => comparePropertyCodes(left.propertyCode, right.propertyCode));
+  }
+
+  sortPropertyCodes(codes: PropertyCodeResponse[] | null | undefined): PropertyCodeResponse[] {
+    return [...(codes || [])].sort((left, right) => comparePropertyCodes(left.propertyCode, right.propertyCode));
   }
 
   // GET: Get calendar URL/tokenized calendar response for a property

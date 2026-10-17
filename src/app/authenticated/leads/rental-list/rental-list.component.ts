@@ -168,7 +168,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
             propertyCode: String(property.propertyCode || '').trim()
           }))
           .filter(property => property.propertyId !== '' && property.propertyCode !== '')
-          .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { sensitivity: 'base' }));
+          .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { numeric: true, sensitivity: 'base' }));
         if (options.length === 0) {
           this.toastr.warning('No active properties are available to generate a quote.', 'Warning');
           this.markViewForCheck();

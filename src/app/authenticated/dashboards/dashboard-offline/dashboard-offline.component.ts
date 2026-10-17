@@ -143,7 +143,7 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
       if (byDate !== 0) {
         return byDate;
       }
-      return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' });
+      return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 

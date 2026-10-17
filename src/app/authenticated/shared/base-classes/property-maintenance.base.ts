@@ -662,12 +662,12 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.propertiesOccupied = officeScopedProperties
       .filter(property => property.propertyStatusId === PropertyStatus.Occupied)
       .map(property => withBeds(property))
-      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }));
+      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' }));
 
     this.propertiesOfflineStatus = officeScopedProperties
       .filter(property => property.propertyStatusId === PropertyStatus.Offline)
       .map(property => withBeds(property))
-      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }));
+      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' }));
 
     this.propertiesByVacancy = officeScopedProperties
       .filter(property => vacantStatusIds.has(Number(property.propertyStatusId)))
@@ -691,7 +691,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
         if (aOrder !== bOrder) {
           return aOrder - bOrder;
         }
-        return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' });
+        return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' });
       });
 
     this.propertiesInProcess = this.propertiesOccupied;

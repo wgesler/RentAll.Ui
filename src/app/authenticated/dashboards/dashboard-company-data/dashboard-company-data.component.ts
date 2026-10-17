@@ -1443,7 +1443,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       if (aOrdinal !== bOrdinal) {
         return aOrdinal - bOrdinal;
       }
-      return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' });
+      return (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 
@@ -1537,7 +1537,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     const mapStatusInventoryRows = (statusPredicate: (statusId: number) => boolean): MaintenanceListDisplay[] =>
       this.filteredPropertyMaintenanceList
         .filter(pm => !!pm.propertyId && statusPredicate(Number(pm.propertyStatusId)))
-        .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }))
+        .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' }))
         .map(pm => {
           const snap = this.mixedMappingService.getMaintenanceListCurrentReservationFields(pm.propertyId, currentReservationByPropertyId);
           const reservationLookupId = this.utilityService.normalizeId(snap.reservationId ?? '');

@@ -353,6 +353,10 @@ export interface PropertyCodeResponse {
   officeName: string;
 }
 
+export function comparePropertyCodes(left: string | null | undefined, right: string | null | undefined): number {
+  return String(left || '').localeCompare(String(right || ''), undefined, { numeric: true, sensitivity: 'base' });
+}
+
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;

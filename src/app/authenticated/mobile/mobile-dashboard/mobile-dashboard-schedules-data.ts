@@ -490,7 +490,7 @@ export function buildMobileScheduleCleaningRows(
     if (aOrdinal !== bOrdinal) {
       return aOrdinal - bOrdinal;
     }
-    return String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' });
+    return String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' });
   });
 }
 

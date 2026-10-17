@@ -848,7 +848,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
       : this.allProperties.filter(property => Number(property.officeId) === Number(officeId)))
       .filter(property => !isReceiptCompanyPropertyId(property.propertyId));
     return scoped.slice().sort((left, right) =>
-      String(left.propertyCode || '').localeCompare(String(right.propertyCode || ''), undefined, { sensitivity: 'base' })
+      String(left.propertyCode || '').localeCompare(String(right.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' })
     );
   }
 

@@ -130,7 +130,7 @@ export function buildMobileMaintenanceSlices(
   const mapStatusInventoryRows = (statusPredicate: (statusId: number) => boolean): MaintenanceListDisplay[] =>
     context.filteredPropertyMaintenanceList
       .filter(pm => !!pm.propertyId && statusPredicate(Number(pm.propertyStatusId)))
-      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }))
+      .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' }))
       .map(pm => {
         const snap = context.mixedMappingService.getMaintenanceListCurrentReservationFields(
           pm.propertyId,

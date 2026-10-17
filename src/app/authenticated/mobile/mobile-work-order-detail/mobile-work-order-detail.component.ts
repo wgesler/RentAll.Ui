@@ -330,7 +330,7 @@ export class MobileWorkOrderDetailComponent extends WorkOrderComponent implement
       .filter(option => !!option.propertyId
         && !isReceiptCompanyPropertyId(option.propertyId)
         && Number(option.officeId) === Number(this.mobileSelectedOfficeId))
-      .sort((left, right) => (left.propertyCode || '').localeCompare(right.propertyCode || '', undefined, { sensitivity: 'base' }));
+      .sort((left, right) => (left.propertyCode || '').localeCompare(right.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' }));
   }
 
   private syncSelectedPropertyToOfficeScope(): void {

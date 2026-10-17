@@ -727,7 +727,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
     this.availableProperties = scopedProperties
       .map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }))
-      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
+      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { numeric: true, sensitivity: 'base' }));
 
     if (this.selectedPropertyId && !this.isSelectedPropertyInAvailableScope()) {
       const keepRouteProperty = this.isPropertyLoading && this.routePropertyId === this.selectedPropertyId;

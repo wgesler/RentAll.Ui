@@ -142,7 +142,7 @@ export class DashboardScheduleSnapshotService {
       if (aOrdinal !== bOrdinal) {
         return aOrdinal - bOrdinal;
       }
-      return String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' });
+      return String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 
@@ -235,7 +235,7 @@ export class DashboardScheduleSnapshotService {
     const mapStatusInventoryRows = (statusPredicate: (statusId: number) => boolean): MaintenanceListDisplay[] =>
       context.filteredPropertyMaintenanceList
         .filter(pm => !!pm.propertyId && statusPredicate(Number(pm.propertyStatusId)))
-        .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { sensitivity: 'base' }))
+        .sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || '', undefined, { numeric: true, sensitivity: 'base' }))
         .map(pm => {
           const snap = context.mixedMappingService.getMaintenanceListCurrentReservationFields(
             pm.propertyId,
@@ -386,7 +386,7 @@ export class DashboardScheduleSnapshotService {
       if (aOrdinal !== bOrdinal) {
         return aOrdinal - bOrdinal;
       }
-      return String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' });
+      return String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 
