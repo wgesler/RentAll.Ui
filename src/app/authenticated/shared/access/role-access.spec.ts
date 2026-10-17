@@ -4,6 +4,7 @@ import { OrganizationType } from '../../organizations/models/organization-enum';
 import { StartupPage } from '../../users/models/user-enums';
 import {
   canPartnerAccessUrl,
+  canShowTicketsNav,
   canUserAccessUrl,
   filterNavItemsForPartner,
   filterSidebarNavItems,
@@ -85,6 +86,12 @@ describe('role-access owner and realtor behavior', () => {
     expect(urls).toContain('users');
     expect(urls).toContain('logs');
     expect(canPartnerAccessUrl('/auth/logs', partnerAdminOnly)).toBeTrue();
+  });
+
+  it('keeps tickets available to admins when the ticketing feature is off', () => {
+    expect(canShowTicketsNav({ hasTicketingAccess: () => false, isAdmin: () => true })).toBeTrue();
+    expect(canShowTicketsNav({ hasTicketingAccess: () => false, isAdmin: () => false })).toBeFalse();
+    expect(canShowTicketsNav({ hasTicketingAccess: () => true, isAdmin: () => false })).toBeTrue();
   });
 
   it('hides tickets and maintenance when feature flags are off', () => {

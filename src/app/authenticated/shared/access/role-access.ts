@@ -180,6 +180,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'hub', displayName: 'Leads', url: RouterToken.Leads, ...leadsAdminAndAgent },
   { icon: 'person', displayName: 'Owners', url: RouterToken.OwnerShell, ...openToAll },
   { icon: 'contacts', displayName: 'Contacts', url: RouterToken.Contacts, ...openToAll },
+  { icon: 'confirmation_number', displayName: 'Tickets', url: RouterToken.TicketList, ...ticketAccess },
   { icon: 'people', displayName: 'Users', url: RouterToken.UserList, ...usersAccess },
   { icon: 'settings', displayName: 'Settings', url: RouterToken.OrganizationConfiguration, ...settingsAccess },
   { icon: 'admin_panel_settings', displayName: 'Admin', url: RouterToken.Admin, ...superAdminOnly },
@@ -741,8 +742,9 @@ export function canShowOwnersNav(authService: {
 
 export function canShowTicketsNav(authService: {
   hasTicketingAccess: () => boolean;
+  isAdmin: () => boolean;
 }): boolean {
-  return authService.hasTicketingAccess();
+  return authService.hasTicketingAccess() || authService.isAdmin();
 }
 
 export function canShowMaintenanceNav(authService: {
@@ -765,6 +767,7 @@ export function getSidebarFilterOptions(
     isOwnerAdmin: () => boolean;
     hasAccessToOwners: () => boolean;
     hasTicketingAccess: () => boolean;
+    isAdmin: () => boolean;
     hasAccessToManagement: () => boolean;
     hasAccountingNavAccess: () => boolean;
     hasAccountingAccess: () => boolean;
@@ -815,11 +818,18 @@ export function getSidebarFilterOptionsForUser(
   return {
     canShowLeads: hasLeadsRole && featureAccess.hasAccessToLeads,
     canShowOwners: groups.includes(UserGroups.OwnerAdmin) && featureAccess.hasAccessToOwners,
-    canShowTickets: featureAccess.hasTicketingAccess,
+    canShowTickets: featureAccess.hasTicketingAccess || hasAdminTicketAccess(userGroups),
     canShowMaintenance: featureAccess.hasAccessToManagement,
     canShowAccounting: hasAccountingNavAccess(userGroups) && featureAccess.hasAccountingAccess,
     isPartnerOrg: isPartnerOrganizationContext(organizationTypeId, isSuperAdmin)
   };
+}
+
+function hasAdminTicketAccess(userGroups: UserGroupInput): boolean {
+  const groups = getUserGroupNumbers(userGroups);
+  return groups.includes(UserGroups.SuperAdmin)
+    || groups.includes(UserGroups.Admin)
+    || groups.includes(UserGroups.OfficeAdmin);
 }
 
 function isStartupPageAllowed(

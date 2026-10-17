@@ -73,12 +73,15 @@ export function getMobileLeadsQueryTab(tabPath: string | null | undefined): stri
 
 export type MobileTicketFilterMode = 'assignedToMe' | 'allOthers' | 'closed' | 'rentAll' | 'review' | 'complete';
 
-export function getMobileTicketTabs(isAdmin: boolean): MobileNavTab[] {
+export function getMobileTicketTabs(isAdmin: boolean, hasTicketingAccess = true): MobileNavTab[] {
+  if (isAdmin && !hasTicketingAccess) {
+    return MOBILE_TICKET_ADMIN_TABS;
+  }
   return isAdmin ? [...MOBILE_TICKET_BASE_TABS, ...MOBILE_TICKET_ADMIN_TABS] : MOBILE_TICKET_BASE_TABS;
 }
 
-export function getMobileTicketTab(tabPath: string | null | undefined, isAdmin: boolean): MobileNavTab | null {
-  const tabs = getMobileTicketTabs(isAdmin);
+export function getMobileTicketTab(tabPath: string | null | undefined, isAdmin: boolean, hasTicketingAccess = true): MobileNavTab | null {
+  const tabs = getMobileTicketTabs(isAdmin, hasTicketingAccess);
   if (!tabPath) {
     return tabs[0] ?? null;
   }

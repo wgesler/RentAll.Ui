@@ -12,6 +12,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyCodeResponse } from '../../properties/models/property.model';
@@ -47,6 +48,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   private globalSelectionService = inject(GlobalSelectionService);
   private userService = inject(UserService);
   private ticketService = inject(TicketService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -96,6 +98,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   showTicketForm = false;
   isAdmin = false;
+  showStandardTicketTabs = true;
   selectedTabIndex = 0;
   lastListTabIndex = 0;
   currentTicketId: string | number | null = null;
@@ -129,6 +132,13 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   //#region Ticket-Shell
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    this.showStandardTicketTabs = this.authService.hasTicketingAccess();
+    this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.showStandardTicketTabs = this.authService.hasTicketingAccess();
+      this.selectedTabIndex = this.clampTabIndex(this.selectedTabIndex);
+      this.lastListTabIndex = this.clampTabIndex(this.lastListTabIndex);
+      this.markViewForCheck();
+    });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
@@ -251,15 +261,32 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   getRentAllTabIndex(): number {
-    return this.isAdmin ? 3 : -1;
+    if (!this.isAdmin) {
+      return -1;
+    }
+    return this.showStandardTicketTabs ? 3 : 0;
   }
 
   getReviewTabIndex(): number {
-    return this.isAdmin ? 4 : -1;
+    if (!this.isAdmin) {
+      return -1;
+    }
+    return this.showStandardTicketTabs ? 4 : 1;
   }
 
   getCompleteTabIndex(): number {
-    return this.isAdmin ? 5 : -1;
+    if (!this.isAdmin) {
+      return -1;
+    }
+    return this.showStandardTicketTabs ? 5 : 2;
+  }
+
+  clampTabIndex(index: number): number {
+    const lastIndex = this.getListTabCount() - 1;
+    if (lastIndex < 0) {
+      return 0;
+    }
+    return Math.max(0, Math.min(lastIndex, index));
   }
 
   get defaultTicketIsForRentAll(): boolean {
@@ -268,6 +295,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   getListTabCount(): number {
+    if (!this.showStandardTicketTabs) {
+      return this.isAdmin ? 3 : 0;
+    }
     return this.isAdmin ? 6 : 3;
   }
 

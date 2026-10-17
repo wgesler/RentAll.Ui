@@ -258,19 +258,21 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
     const parts = getMobileRouteParts(this.router.url);
     this.section = getMobileNavItem(parts.sectionPath);
     this.detailId = parts.id;
-    if (this.section?.path === 'tickets' && parts.tabPath && !getMobileTicketTab(parts.tabPath, this.isAdmin)) {
-      void this.router.navigate(['/mobile', 'tickets', 'my-tickets']);
+    const hasTicketingAccess = this.authService.hasTicketingAccess();
+    const ticketTabs = getMobileTicketTabs(this.isAdmin, hasTicketingAccess);
+    if (this.section?.path === 'tickets' && parts.tabPath && !getMobileTicketTab(parts.tabPath, this.isAdmin, hasTicketingAccess)) {
+      void this.router.navigate(['/mobile', 'tickets', ticketTabs[0]?.path || 'my-tickets']);
       return;
     }
     this.titleTabs = this.section?.path === 'properties' && this.detailId
       ? MOBILE_PROPERTY_DETAIL_TABS
       : this.section?.path === 'tickets'
-        ? getMobileTicketTabs(this.isAdmin)
+        ? ticketTabs
         : (this.section?.tabs ?? []);
     this.tab = this.section?.path === 'properties' && this.detailId
       ? (MOBILE_PROPERTY_DETAIL_TABS.find(tab => tab.path === parts.tabPath) ?? MOBILE_PROPERTY_DETAIL_TABS[0])
       : this.section?.path === 'tickets'
-        ? getMobileTicketTab(parts.tabPath, this.isAdmin)
+        ? getMobileTicketTab(parts.tabPath, this.isAdmin, hasTicketingAccess)
         : (this.section ? getMobileTab(this.section, parts.tabPath) : null);
     this.contactDirty = false;
     this.reservationDirty = false;

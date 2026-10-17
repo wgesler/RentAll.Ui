@@ -92,6 +92,7 @@
           </app-ticket>
         </ng-template>
         <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)" class="shell-tabs dbg-band-tabs">
+          @if (showStandardTicketTabs) {
           <mat-tab>
             <ng-template mat-tab-label>
               <span class="ticket-shell-tab-label">
@@ -151,6 +152,7 @@
               <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
             }
           </mat-tab>
+          }
           @if (isAdmin) {
             <mat-tab labelClass="ticket-shell-rentall-tab">
               <ng-template mat-tab-label>
