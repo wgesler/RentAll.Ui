@@ -1702,6 +1702,7 @@ hydrateSelectedInvoiceForActiveId(): void {
         vendorName: receipt.vendorName ?? null,
         splits: [...(receipt.splits || [])],
         receiptPath: receipt.receiptPath ?? null,
+        noReceiptAvailable: receipt.noReceiptAvailable === true,
         fileDetails: null,
         paymentTypeId: Number(receipt.paymentTypeId || 0),
         checkPrinted: !!receipt.checkPrinted,

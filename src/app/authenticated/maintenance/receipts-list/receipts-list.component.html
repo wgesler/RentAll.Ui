@@ -72,6 +72,8 @@
         [hasWorkOrderCodeLink]="true"
         [deleteConfirmTitle]="deleteConfirmTitle"
         [deleteConfirmMessage]="deleteConfirmMessage"
+        [initialSortColumn]="accountingListMode === 'bills' ? 'receiptCode' : ''"
+        [initialSortDirection]="'asc'"
         [itemsPerPage]="10"
         [hasDetailRow]="showBillsDetailRows"
         [detailRowTemplate]="receiptSplitsTemplate"

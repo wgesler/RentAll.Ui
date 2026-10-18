@@ -21,6 +21,7 @@ export interface UnassignedReceiptImage {
   fileName: string;
   contentType: string;
   dataUrl: string | null;
+  thumbnailUrl?: string | null;
 }
 
 export interface UnmatchedReceipts {

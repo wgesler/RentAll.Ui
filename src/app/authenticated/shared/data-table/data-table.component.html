@@ -323,6 +323,8 @@
                       id="table-receipt-link-{{templateTableId}}-{{i}}">
                       <mat-icon>receipt</mat-icon>
                     </button>
+                  } @else if (item.noReceiptAvailable) {
+                    <mat-icon class="datatable-receipt-check" [matTooltip]="'No receipt available'">check</mat-icon>
                   }
                   } @case ('website') {
                   @if (item[column.name]) {

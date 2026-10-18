@@ -95,6 +95,7 @@ export interface ReceiptRequest {
   splits: Split[];
   agreementLineId?: number | null;
   receiptPath?: string | null;
+  noReceiptAvailable?: boolean;
   fileDetails?: FileDetails | null;
   paymentTypeId?: number;
   checkPrinted?: boolean;
@@ -193,6 +194,7 @@ export interface ReceiptDisplayList {
   isActive: boolean;
   payableDisabled?: boolean;
   receiptPath?: string | null;
+  noReceiptAvailable?: boolean;
   description: string;
   billNumber?: string | null;
   dueDate: string;

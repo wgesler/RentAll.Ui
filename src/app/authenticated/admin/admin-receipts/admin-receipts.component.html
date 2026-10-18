@@ -81,8 +81,8 @@
         <div class="admin-receipt-thumbs">
           @for (image of images; track image.path) {
             <button type="button" class="admin-receipt-thumb" [class.selected]="selectedPath === image.path" (click)="selectReplacement(image)">
-              @if (image.dataUrl) {
-                <img [src]="image.dataUrl" [alt]="image.fileName" />
+              @if (image.thumbnailUrl || (image.contentType?.startsWith('image/') && image.dataUrl)) {
+                <img [src]="image.thumbnailUrl || image.dataUrl" [alt]="image.fileName" />
               } @else {
                 <div class="admin-receipt-file">
                   <mat-icon>description</mat-icon>

@@ -306,6 +306,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       splits: payloadSplits,
       agreementLineId: this.activeAgreementLineId,
       receiptPath: sendNewReceipt ? null : receiptPathValue,
+      noReceiptAvailable: this.noReceiptAvailable === true,
       fileDetails: sendNewReceipt ? (this.receiptFileDetails ?? null) : null,
       isUtility: !!this.form.get('isUtility')?.value,
       businessPrivate: this.resolveBusinessPrivateForSave(),
@@ -332,6 +333,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           payload.isUtility !== (this.receipt.isUtility ?? false) ||
           payload.businessPrivate !== (this.receipt.businessPrivate ?? false) ||
           payload.isActive !== this.receipt.isActive ||
+          (payload.noReceiptAvailable === true) !== (this.receipt.noReceiptAvailable === true) ||
           hasReceiptChange
         : true;
       if (!hasReceiptUpdates) {
@@ -396,6 +398,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           this.applyReceiptFilePreview(saved.fileDetails || null, saved.receiptPath || '');
           this.hasNewReceiptUpload = false;
           this.originalReceiptPath = saved.receiptPath ?? null;
+          this.syncNoReceiptAvailableFromLoadedFile();
           this.splitTotalValidationError = false;
           this.saveValidationHighlightActive = false;
           this.receiptFileValidationError = false;
@@ -673,7 +676,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   syncNoReceiptAvailableFromLoadedFile(): void {
-    this.noReceiptAvailable = this.showNoReceiptAvailable && !this.hasReceiptFileForSave();
+    if (this.isReceiptDraftMode) {
+      this.noReceiptAvailable = this.showNoReceiptAvailable && !this.hasReceiptFileForSave();
+      return;
+    }
+    this.noReceiptAvailable = this.receipt?.noReceiptAvailable === true;
   }
 
   onNoReceiptAvailableChange(checked: boolean): void {

@@ -1875,12 +1875,25 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     filtered = this.filterRowsByCardOwner(filtered);
+    if (this.accountingListMode === 'bills') {
+      filtered = this.sortBillsByCode(filtered);
+    }
     this.receiptsDisplay = filtered;
     if (this.showBillsDetailRows) {
       this.updateIsAllExpanded();
     }
     this.focusPendingApplyAmountInput();
     this.markViewForCheck();
+  }
+
+  sortBillsByCode(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
+    return receipts.slice().sort((left, right) => {
+      const byCode = String(left.receiptCode ?? '').localeCompare(String(right.receiptCode ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+      if (byCode !== 0) {
+        return byCode;
+      }
+      return String(left.receiptId ?? '').localeCompare(String(right.receiptId ?? ''));
+    });
   }
 
   toggleExpandAll(expanded: boolean): void {

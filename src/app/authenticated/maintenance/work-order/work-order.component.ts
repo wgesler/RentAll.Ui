@@ -2144,6 +2144,7 @@ syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
         vendorName: receipt.vendorName ?? null,
         splits: nextSplits,
         receiptPath: receipt.receiptPath ?? undefined,
+        noReceiptAvailable: receipt.noReceiptAvailable === true,
         fileDetails: receipt.fileDetails ?? undefined,
         isUtility: receipt.isUtility ?? false,
         businessPrivate: receipt.businessPrivate ?? false,

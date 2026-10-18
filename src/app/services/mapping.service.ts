@@ -5045,6 +5045,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       splits: this.mapReceiptSplitsForRequest(receipt.splits),
       agreementLineId: receipt.agreementLineId ?? null,
       receiptPath: receipt.receiptPath ?? null,
+      noReceiptAvailable: receipt.noReceiptAvailable === true,
       isUtility: hasIsUtility ? (updates.isUtility ?? receipt.isUtility ?? false) : (receipt.isUtility ?? false),
       businessPrivate: hasBusinessPrivate ? (updates.businessPrivate ?? receipt.businessPrivate ?? false) : (receipt.businessPrivate ?? false),
       isActive: hasIsActive ? (updates.isActive ?? receipt.isActive) : receipt.isActive
@@ -5125,6 +5126,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
         receiptTypeDisplay,
         receiptTypeTooltip,
         receiptPath: receipt.receiptPath ?? null,
+        noReceiptAvailable: receipt.noReceiptAvailable === true,
         isUtility: receipt.isUtility ?? false,
         businessPrivate: receipt.businessPrivate ?? false,
         postingStatusId: receipt.postingStatusId ?? null,

@@ -4,7 +4,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
+import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { MaterialModule } from '../../../material.module';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { TicketReceiptDialogComponent } from '../../tickets/ticket/ticket-receipt-dialog.component';
 import { AdminReceiptService, MissingReceipt, UnassignedReceiptImage } from '../services/admin-receipt.service';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
@@ -27,6 +29,7 @@ export class AdminReceiptsComponent implements OnChanges {
   private adminReceiptService = inject(AdminReceiptService);
   private receiptService = inject(ReceiptService);
   private dialog = inject(MatDialog);
+  private pdfThumbnailService = inject(PdfThumbnailService);
   private toastr = inject(ToastrService);
 
   receipts: MissingReceipt[] = [];
@@ -125,7 +128,8 @@ export class AdminReceiptsComponent implements OnChanges {
           }
         };
         for (const file of list) {
-          if (!file.contentType?.startsWith('image/')) {
+          const pdf = this.isPdfFile(file.contentType, file.fileName);
+          if (!file.contentType?.startsWith('image/') && !pdf) {
             this.images = [...this.images, file];
             finish();
             continue;
@@ -135,13 +139,26 @@ export class AdminReceiptsComponent implements OnChanges {
               if (version !== this.loadVersion) {
                 return;
               }
-              this.images = [...this.images, {
-                ...file,
-                fileName: details?.fileName || file.fileName,
-                contentType: details?.contentType || file.contentType,
-                dataUrl: details?.dataUrl ?? null
-              }];
-              finish();
+              const contentType = details?.contentType || file.contentType;
+              const dataUrl = details?.dataUrl ?? null;
+              const addFile = (thumbnailUrl: string | null) => {
+                if (version !== this.loadVersion) {
+                  return;
+                }
+                this.images = [...this.images, {
+                  ...file,
+                  fileName: details?.fileName || file.fileName,
+                  contentType,
+                  dataUrl,
+                  thumbnailUrl
+                }];
+                finish();
+              };
+              if (pdf || this.isPdfFile(contentType, details?.fileName)) {
+                void this.pdfThumbnailService.getFirstPageDataUrl(dataUrl, 240).then(addFile);
+                return;
+              }
+              addFile(dataUrl);
             },
             error: () => finish()
           });
@@ -156,6 +173,10 @@ export class AdminReceiptsComponent implements OnChanges {
         this.toastr.error('The unassigned files could not be loaded.', CommonMessage.Error);
       }
     });
+  }
+
+  isPdfFile(contentType: string | null | undefined, fileName: string | null | undefined): boolean {
+    return (contentType || '').toLowerCase().includes('pdf') || (fileName || '').toLowerCase().endsWith('.pdf');
   }
 
   openReceipt(receipt: MissingReceipt): void {
@@ -202,8 +223,9 @@ export class AdminReceiptsComponent implements OnChanges {
   selectReplacement(image: UnassignedReceiptImage): void {
     this.selectedPath = image.path;
     this.replacementFileName = image.fileName || 'Receipt file';
-    this.replacementImageUrl = image.dataUrl;
-    if (this.replacementImageUrl || !image.contentType?.startsWith('image/')) {
+    this.replacementImageUrl = image.contentType?.startsWith('image/') ? image.dataUrl : null;
+    if (image.dataUrl) {
+      this.openReplacementDialog(image.dataUrl, this.replacementFileName);
       return;
     }
 
@@ -213,8 +235,26 @@ export class AdminReceiptsComponent implements OnChanges {
           return;
         }
         this.replacementFileName = details?.fileName || this.replacementFileName;
-        this.replacementImageUrl = details?.contentType?.startsWith('image/') ? details.dataUrl : null;
+        const dataUrl = details?.dataUrl ?? null;
+        if (details?.contentType?.startsWith('image/')) {
+          this.replacementImageUrl = dataUrl;
+        }
+        if (dataUrl) {
+          this.openReplacementDialog(dataUrl, this.replacementFileName);
+        }
       }
+    });
+  }
+
+  openReplacementDialog(imageSrc: string, title: string): void {
+    this.dialog.open(ImageViewDialogComponent, {
+      data: { imageSrc, title: title || 'Receipt' },
+      width: '60vw',
+      height: '88vh',
+      minWidth: '320px',
+      minHeight: '320px',
+      maxWidth: '95vw',
+      panelClass: 'image-view-dialog-panel'
     });
   }
 
