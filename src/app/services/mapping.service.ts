@@ -4810,6 +4810,8 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
     const isUtility = isUtilityRaw === true || isUtilityRaw === 'true' || isUtilityRaw === 1;
     const businessPrivateRaw = rawRecord['businessPrivate'] ?? rawRecord['BusinessPrivate'] ?? base.businessPrivate;
     const businessPrivate = businessPrivateRaw === true || businessPrivateRaw === 'true' || businessPrivateRaw === 1;
+    const noReceiptAvailableRaw = rawRecord['noReceiptAvailable'] ?? rawRecord['NoReceiptAvailable'] ?? base.noReceiptAvailable;
+    const noReceiptAvailable = noReceiptAvailableRaw === true || noReceiptAvailableRaw === 'true' || noReceiptAvailableRaw === 1;
     const agreementLineIdRaw = rawRecord['agreementLineId'] ?? rawRecord['AgreementLineId'] ?? base.agreementLineId;
     const parsedAgreementLineId = Number(agreementLineIdRaw);
     const agreementLineId = Number.isFinite(parsedAgreementLineId) && parsedAgreementLineId > 0
@@ -4834,6 +4836,7 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       checkPrinted,
       isUtility,
       businessPrivate,
+      noReceiptAvailable,
       agreementLineId,
       agreementLineNotes,
       journalEntryId: this.mapOptionalJournalEntryId(rawRecord, base.journalEntryId),

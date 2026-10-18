@@ -7,9 +7,10 @@ import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { PropertyResponse } from '../../properties/models/property.model';
 
 export interface TicketReceiptDialogData {
-  property: PropertyResponse;
+  property: PropertyResponse | null;
   ticketId: string | null;
   receiptId?: string | null;
+  organizationId?: string | null;
   onCreated?: (receipt: ReceiptResponse) => void;
 }
 

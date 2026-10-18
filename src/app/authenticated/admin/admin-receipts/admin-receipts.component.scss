@@ -34,6 +34,21 @@
   overflow: auto;
 }
 
+.admin-receipt-head,
+.admin-receipt-row {
+  display: grid;
+  grid-template-columns: 4.5rem 6.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.35rem;
+}
+
+.admin-receipt-head {
+  padding: 0 1rem 0.35rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .admin-receipt-row,
 .admin-receipt-thumb {
   width: 100%;
@@ -45,7 +60,19 @@
 }
 
 .admin-receipt-row {
-  padding: 0.65rem 1rem;
+  padding: 0.45rem 1rem;
+}
+
+.admin-receipt-icon {
+  display: flex;
+  justify-content: center;
+  color: #334155;
+}
+
+.admin-receipt-available {
+  pointer-events: none;
+  justify-self: center;
+  opacity: 1;
 }
 
 .admin-receipt-row.selected,

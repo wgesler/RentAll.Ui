@@ -51,6 +51,17 @@
               <mat-datepicker #adminEndPicker></mat-datepicker>
             </mat-form-field>
             <button
+              mat-icon-button
+              type="button"
+              class="admin-shell-date-pin-btn"
+              [class.admin-shell-date-pin-btn--active]="dateRangePinned"
+              [attr.aria-pressed]="dateRangePinned"
+              [attr.aria-label]="dateRangePinned ? 'Unpin top bar' : 'Pin top bar'"
+              [matTooltip]="dateRangePinned ? 'Unpin top bar' : 'Keep top bar selections fixed'"
+              (click)="toggleDateRangePin()">
+              <mat-icon>push_pin</mat-icon>
+            </button>
+            <button
               mat-mini-fab
               type="button"
               color="primary"

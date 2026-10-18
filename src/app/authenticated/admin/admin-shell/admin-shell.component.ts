@@ -30,6 +30,8 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   private globalSelectionService = inject(GlobalSelectionService);
   private utilityService = inject(UtilityService);
   private destroy$ = new Subject<void>();
+  private readonly clearPinsEventName = 'rentall-clear-pins';
+  private readonly pinnedTopBarStorageKeyPrefix = 'rentall-admin-shell-pinned-dates';
 
   organizations: OrganizationResponse[] = [];
   organizationId = '';
@@ -38,6 +40,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   selectedTabIndex = 0;
   startDate: Date | null = null;
   endDate: Date | null = null;
+  dateRangePinned = false;
   appliedOrganizationId = '';
   appliedOfficeId: number | null = null;
   appliedOfficeIds: number[] = [];
@@ -60,12 +63,11 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    this.endDate = today;
-    this.startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
+    this.applyPinnedTopBarFromStorage();
+    if (!this.dateRangePinned) {
+      this.setDefaultTopBar();
+    }
     this.loadOrganizations();
     this.loadOffices();
   }
@@ -106,7 +108,9 @@ export class AdminShellComponent implements OnInit, OnDestroy {
         this.offices = offices || [];
         if (this.selectedOfficeId != null && !this.offices.some(office => office.officeId === this.selectedOfficeId)) {
           this.selectedOfficeId = null;
+          this.persistPinnedTopBarIfActive();
         }
+        this.runSearch();
       },
       error: () => {
         if (this.organizationId !== organizationId) {
@@ -126,14 +130,21 @@ export class AdminShellComponent implements OnInit, OnDestroy {
 
     this.organizationId = organizationId;
     this.selectedOfficeId = null;
+    this.persistPinnedTopBarIfActive();
     this.loadOffices();
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
+    this.runSearch();
   }
 
   onDateRangeChange(): void {
+    this.normalizeDateRange();
+    this.runSearch();
+  }
+
+  normalizeDateRange(): void {
     if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
       const swapped = this.startDate;
       this.startDate = this.endDate;
@@ -142,7 +153,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   runSearch(): void {
-    this.onDateRangeChange();
+    this.normalizeDateRange();
     this.appliedOrganizationId = this.organizationId;
     this.appliedOfficeId = this.selectedOfficeId;
     this.appliedOfficeIds = this.selectedOfficeId != null
@@ -151,9 +162,123 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.appliedStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
     this.appliedEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
     this.searchNonce += 1;
+    this.persistPinnedTopBarIfActive();
   }
 
+  setDefaultTopBar(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    this.endDate = today;
+    this.startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+  }
+
+  toggleDateRangePin(): void {
+    this.dateRangePinned = !this.dateRangePinned;
+    if (this.dateRangePinned) {
+      this.persistPinnedTopBar();
+      return;
+    }
+    this.clearPinnedTopBarStorage();
+    this.setDefaultTopBar();
+    this.loadOffices();
+  }
+
+  persistPinnedTopBarIfActive(): void {
+    if (this.dateRangePinned) {
+      this.persistPinnedTopBar();
+    }
+  }
+
+  persistPinnedTopBar(): void {
+    if (!this.dateRangePinned || !this.organizationId || !this.startDate || !this.endDate) {
+      return;
+    }
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    if (!startDate || !endDate) {
+      return;
+    }
+    localStorage.setItem(this.getPinnedTopBarStorageKey(), JSON.stringify({
+      enabled: true,
+      organizationId: this.organizationId,
+      officeId: this.selectedOfficeId,
+      startDate,
+      endDate
+    }));
+  }
+
+  applyPinnedTopBarFromStorage(): void {
+    const stored = this.readPinnedTopBarFromStorage();
+    if (!stored) {
+      this.dateRangePinned = false;
+      return;
+    }
+    stored.startDate.setHours(0, 0, 0, 0);
+    stored.endDate.setHours(0, 0, 0, 0);
+    this.dateRangePinned = true;
+    this.organizationId = stored.organizationId;
+    this.selectedOfficeId = stored.officeId;
+    this.startDate = stored.startDate;
+    this.endDate = stored.endDate;
+  }
+
+  readPinnedTopBarFromStorage(): { organizationId: string; officeId: number | null; startDate: Date; endDate: Date } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+    const rawValue = localStorage.getItem(this.getPinnedTopBarStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; organizationId?: string; officeId?: number | null; startDate?: string; endDate?: string };
+      const organizationId = String(parsed?.organizationId ?? '').trim();
+      if (parsed?.enabled !== true || !organizationId || !parsed.startDate || !parsed.endDate) {
+        return null;
+      }
+      const startDate = this.utilityService.parseCalendarDateInput(parsed.startDate);
+      const endDate = this.utilityService.parseCalendarDateInput(parsed.endDate);
+      if (!startDate || !endDate) {
+        return null;
+      }
+      const officeId = parsed.officeId == null ? null : Number(parsed.officeId);
+      return {
+        organizationId,
+        officeId: Number.isFinite(officeId) && (officeId ?? 0) > 0 ? officeId : null,
+        startDate,
+        endDate
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearPinnedTopBarStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.removeItem(this.getPinnedTopBarStorageKey());
+  }
+
+  getPinnedTopBarStorageKey(): string {
+    const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
+    return `${this.pinnedTopBarStorageKeyPrefix}-${userKey}`;
+  }
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedTopBarStorage();
+    this.setDefaultTopBar();
+    this.loadOffices();
+  };
+
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
   }

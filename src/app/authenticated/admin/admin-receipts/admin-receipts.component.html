@@ -5,7 +5,7 @@
 </div>
 
 @if (!organizationId) {
-  <p class="admin-receipt-empty">Set the filters, then press Go.</p>
+  <p class="admin-receipt-empty">Loading receipts...</p>
 } @else {
   <div class="admin-receipt-match">
     <section class="admin-receipt-panel">
@@ -16,12 +16,25 @@
         <p class="admin-receipt-empty">No receipts are in this date range.</p>
       } @else {
         <div class="admin-receipt-list">
+          <div class="admin-receipt-head">
+            <span>Receipt</span>
+            <span>No Receipt</span>
+            <span></span>
+          </div>
           @for (receipt of receipts; track receipt.receiptId) {
-            <button type="button" class="admin-receipt-row" [class.selected]="selectedReceiptId === receipt.receiptId" (click)="selectReceipt(receipt)">
-              <strong>{{ receipt.receiptCode }}</strong>
-              <span> {{ receipt.vendorName || 'No vendor' }} · {{ receipt.amount | currency }}</span>
-              <small class="block">{{ receipt.receiptDate }} · {{ receipt.officeName }}</small>
-            </button>
+            <div class="admin-receipt-row" role="button" tabindex="0" [class.selected]="selectedReceiptId === receipt.receiptId" (click)="openReceipt(receipt)" (keydown.enter)="openReceipt(receipt)">
+              <span class="admin-receipt-icon">
+                @if (receipt.receiptPath) {
+                  <mat-icon>receipt</mat-icon>
+                }
+              </span>
+              <mat-checkbox class="admin-receipt-available" color="accent" [checked]="receipt.noReceiptAvailable" [disabled]="true"></mat-checkbox>
+              <span class="admin-receipt-summary">
+                <strong>{{ receipt.receiptCode }}</strong>
+                <span> {{ receipt.vendorName || 'No vendor' }} · {{ receipt.amount | currency }}</span>
+                <small class="block">{{ receipt.receiptDate }} · {{ receipt.officeName }}</small>
+              </span>
+            </div>
           }
         </div>
       }

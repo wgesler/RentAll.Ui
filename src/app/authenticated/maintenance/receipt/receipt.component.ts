@@ -57,6 +57,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() autoBackOnSave = true;
   @Input() showInlineSaveButtons = true;
   @Input() autoSaveAttemptToken = 0;
+  @Input() organizationIdOverride = '';
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
   @Output() savedAndNewEvent = new EventEmitter<ReceiptResponse>();
@@ -152,7 +153,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Receipt
   ngOnInit(): void {
-    this.organizationId = this.authService.getUser()?.organizationId || '';
+    this.organizationId = (this.organizationIdOverride || '').trim() || this.authService.getUser()?.organizationId || '';
     this.buildForm();
     this.setupAccountingBillDateHandlers();
     this.setupHeaderToInitialSplitSyncHandlers();

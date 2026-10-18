@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { TicketReceiptDialogComponent } from '../../tickets/ticket/ticket-receipt-dialog.component';
 import { AdminReceiptService, MissingReceipt, UnassignedReceiptImage } from '../services/admin-receipt.service';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 
@@ -24,6 +26,7 @@ export class AdminReceiptsComponent implements OnChanges {
 
   private adminReceiptService = inject(AdminReceiptService);
   private receiptService = inject(ReceiptService);
+  private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
 
   receipts: MissingReceipt[] = [];
@@ -66,7 +69,6 @@ export class AdminReceiptsComponent implements OnChanges {
       officeIds: this.officeIds,
       isActive: null,
       includeInactive: true,
-      receiptKind: 2,
       startDate: this.startDate,
       endDate: this.endDate,
       organizationId: this.organizationId
@@ -84,7 +86,8 @@ export class AdminReceiptsComponent implements OnChanges {
           amount: receipt.amount,
           vendorName: receipt.vendorName ?? null,
           description: receipt.description,
-          receiptPath: receipt.receiptPath ?? null
+          receiptPath: receipt.receiptPath ?? null,
+          noReceiptAvailable: receipt.noReceiptAvailable === true
         }));
         this.isLoading = false;
       },
@@ -151,6 +154,27 @@ export class AdminReceiptsComponent implements OnChanges {
         this.images = [];
         this.filesLoading = false;
         this.toastr.error('The unassigned files could not be loaded.', CommonMessage.Error);
+      }
+    });
+  }
+
+  openReceipt(receipt: MissingReceipt): void {
+    this.selectReceipt(receipt);
+    this.dialog.open(TicketReceiptDialogComponent, {
+      width: '95vw',
+      maxWidth: '1300px',
+      maxHeight: '95vh',
+      disableClose: true,
+      autoFocus: false,
+      data: {
+        property: null,
+        ticketId: null,
+        receiptId: receipt.receiptId,
+        organizationId: this.organizationId
+      }
+    }).afterClosed().pipe(take(1)).subscribe(result => {
+      if (result?.saved) {
+        this.load();
       }
     });
   }

@@ -13,6 +13,7 @@ export interface MissingReceipt {
   vendorName: string | null;
   description: string;
   receiptPath: string | null;
+  noReceiptAvailable: boolean;
 }
 
 export interface UnassignedReceiptImage {

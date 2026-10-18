@@ -128,6 +128,7 @@ export interface ReceiptResponse {
   agreementLineId?: number | null;
   agreementLineNotes?: string | null;
   receiptPath?: string | null;
+  noReceiptAvailable?: boolean;
   fileDetails?: FileDetails | null;
   paymentTypeId?: number;
   checkPrinted?: boolean;
