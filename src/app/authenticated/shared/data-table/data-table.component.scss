@@ -766,9 +766,38 @@ td.mat-mdc-cell .mat-mdc-icon-button {
   padding: 4px !important;
 }
 
-.datatable-receipt-check {
-  color: #15803d;
-  vertical-align: middle;
+:host ::ng-deep mat-checkbox.datatable-status-checkbox.mat-mdc-checkbox-disabled {
+  opacity: 1;
+}
+
+:host ::ng-deep mat-checkbox.datatable-status-checkbox--green .mdc-checkbox__native-control:checked ~ .mdc-checkbox__background {
+  background-color: #16a34a !important;
+  border-color: #16a34a !important;
+}
+
+:host ::ng-deep mat-checkbox.datatable-status-checkbox--blue .mdc-checkbox__native-control:checked ~ .mdc-checkbox__background {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+:host ::ng-deep mat-checkbox.datatable-status-checkbox .mdc-checkbox__checkmark {
+  color: #fff !important;
+}
+
+:host ::ng-deep .datatable-checkbox-cell .datatable-status-checkbox .mdc-checkbox {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 18px;
+}
+
+:host ::ng-deep .datatable-checkbox-cell .datatable-status-checkbox .mdc-checkbox__background {
+  width: 18px;
+  height: 18px;
+  top: 0;
+  left: 0;
+  border-radius: 2px;
 }
 
 .datatable-receipt-icon-btn {

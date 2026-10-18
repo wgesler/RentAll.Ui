@@ -314,7 +314,14 @@
                     </button>
                   }
                   } @case ('receipt') {
-                  @if (item.receiptPath) {
+                  @if (item.noReceiptAvailable) {
+                    <div class="datatable-checkbox-cell">
+                      <mat-checkbox class="datatable-status-checkbox datatable-status-checkbox--blue"
+                        [checked]="true"
+                        [disabled]="true"
+                        [matTooltip]="'No receipt available'" />
+                    </div>
+                  } @else if (item.receiptPath) {
                     <button mat-icon-button
                       type="button"
                       class="datatable-receipt-icon-btn"
@@ -323,8 +330,6 @@
                       id="table-receipt-link-{{templateTableId}}-{{i}}">
                       <mat-icon>receipt</mat-icon>
                     </button>
-                  } @else if (item.noReceiptAvailable) {
-                    <mat-icon class="datatable-receipt-check" [matTooltip]="'No receipt available'">check</mat-icon>
                   }
                   } @case ('website') {
                   @if (item[column.name]) {
@@ -538,21 +543,15 @@
                     </div>
                   } @else if (column.isPostingStatus) {
                     @let postingVisual = getPostingStatusVisual(item, column.name || '');
-                    <div class="datatable-posting-status-cell"
-                      [class.datatable-posting-status--open]="postingVisual === 'open'"
-                      [class.datatable-posting-status--posted]="postingVisual === 'posted'"
-                      [class.datatable-posting-status--soft-closed]="postingVisual === 'softClosed'"
-                      [class.datatable-posting-status--hard-closed]="postingVisual === 'hardClosed'"
+                    <div class="datatable-checkbox-cell"
                       [attr.aria-label]="getPostingStatusAriaLabel(item, column.name || '')"
                       [attr.title]="getPostingStatusAriaLabel(item, column.name || '')"
                       (click)="$event.stopPropagation()"
                       (mousedown)="$event.stopPropagation()">
-                      @if (postingVisual === 'posted') {
-                        <mat-icon class="datatable-posting-status-icon datatable-posting-status-icon--posted" aria-hidden="true">check</mat-icon>
-                      } @else if (postingVisual === 'softClosed' || postingVisual === 'hardClosed') {
-                        <span class="datatable-posting-status-box" aria-hidden="true">
-                          <mat-icon class="datatable-posting-status-icon datatable-posting-status-icon--boxed" aria-hidden="true">check</mat-icon>
-                        </span>
+                      @if (postingVisual !== 'open') {
+                        <mat-checkbox class="datatable-status-checkbox datatable-status-checkbox--green"
+                          [checked]="true"
+                          [disabled]="true" />
                       }
                     </div>
                   } @else if (column.isCheckbox) {
