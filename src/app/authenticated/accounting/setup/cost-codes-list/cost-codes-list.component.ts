@@ -84,7 +84,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   costCodesDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
-    transactionType: { displayAs: 'Type', maxWidth: '15ch' },
+    transactionType: { displayAs: 'Type', maxWidth: '25ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
     chartOfAccountDisplay: { displayAs: 'Chart Of Account', maxWidth: '30ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
