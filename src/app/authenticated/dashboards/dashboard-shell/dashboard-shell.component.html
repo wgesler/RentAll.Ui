@@ -123,7 +123,7 @@
             </div>
           </div>
 
-          @if (showMaintenanceDashboard) {
+          @if (showMaintenanceDashboard && hasManagementAccess) {
           <div class="dashboard-titlebar-stat dashboard-titlebar-stat--maintenance">
             <div class="dashboard-titlebar-stat-body">
               <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
@@ -209,6 +209,7 @@
             <app-dashboard-departures />
           }
         </mat-tab>
+        @if (hasManagementAccess) {
         <mat-tab label="Online">
           @if (selectedTabIndex === 2) {
             <app-dashboard-online />
@@ -219,6 +220,7 @@
             <app-dashboard-offline />
           }
         </mat-tab>
+        }
         <mat-tab label="Occupied">
           @if (selectedTabIndex === 4) {
             <app-dashboard-in-process />
@@ -229,7 +231,7 @@
             <app-dashboard-vacant />
           }
         </mat-tab>
-        @if (showMaintenanceDashboard) {
+        @if (showMaintenanceDashboard && hasManagementAccess) {
           <mat-tab label="Maintenance">
             @if (selectedTabIndex === 6) {
               <app-dashboard-maintenance />

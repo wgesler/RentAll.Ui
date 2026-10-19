@@ -65,6 +65,7 @@
               <span class="calendar-shade-key shade-departure" aria-hidden="true"></span>
               <span>Departure</span>
             </span>
+            @if (hasManagementAccess) {
             <span class="calendar-dot-key-item">
               <span class="dashboard-staff-schedule-calendar-dot dot-blue" aria-hidden="true"></span>
               <span>Cleaning</span>
@@ -81,6 +82,7 @@
               <span class="dashboard-staff-schedule-calendar-dot dot-pink" aria-hidden="true"></span>
               <span>Maid Service</span>
             </span>
+            }
           </div>
         </div>
 

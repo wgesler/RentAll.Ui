@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -48,6 +49,7 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   @Input() showMaidServiceTable = true;
 
   private companyDataService = inject(DashboardCompanyDataService);
+  private authService = inject(AuthService);
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
@@ -67,9 +69,11 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   selectedDayEvents: CalendarDayEvent[] = [];
   selectedDayLabel = '';
   dayEventsPerPage = 4;
+  hasManagementAccess = false;
 
   //#region Dashboard-Calendars
   ngOnInit(): void {
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     if (this.showMaidServiceTable && !this.showCalendarsSection) {
       this.dashboardNavigation.setTabIndex(7);
     }

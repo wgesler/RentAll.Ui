@@ -16,7 +16,8 @@ import { UtilityService, ImageOptimizationFailedError } from '../../../services/
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { AccountingOfficeRequest, AccountingOfficeResponse, ReopenHardClosedPostingStatusRequest, ResyncAccountingOfficePostingStatusRequest } from '../models/accounting-office.model';
-import { OrganizationType } from '../models/organization-enum';
+import { FeatureType, OrganizationType } from '../models/organization-enum';
+import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OrganizationService } from '../services/organization.service';
 import { BankCardRequest, BankCardResponse } from '../models/bank.model';
 import { getCardTypes } from '../models/card-type-enum';
@@ -69,6 +70,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private formatterService = inject(FormatterService);
   private commonService = inject(CommonService);
   private organizationService = inject(OrganizationService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
   private officeService = inject(OfficeService);
   private costCodesService = inject(CostCodesService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -106,6 +108,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private closedPeriodValidationPending = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
+  hasManagementAccess = false;
   states: string[] = [];
   accountingOffice: AccountingOfficeResponse;
   yearEndMonthOptions: { value: number; label: string }[] = Array.from({ length: 12 }, (_, index) => {
@@ -151,7 +154,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     { controlName: 'defaultDepartureExpAccountId', label: 'Departure Expense' }
   ];
   defaultAccountFieldsRow2: { controlName: string; label: string }[] = [
-    { controlName: 'defaultBankAccountId', label: 'Bank' },
+    { controlName: 'defaultBankAccountId', label: 'Operating Bank Account' },
     { controlName: 'defaultActRcvableAccountId', label: 'A/R' },
     { controlName: 'defaultActPayableAccountId', label: 'A/P' },
     { controlName: 'defaultUndepFundsAccountId', label: 'Undeposited' }
@@ -189,6 +192,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.loadStates();
     this.loadOffices();
     this.loadAccountingOfficeOrganizationType();
+    this.loadManagementFeatureAccess();
     this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.allChartOfAccounts = accounts || [];
@@ -230,6 +234,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['organizationId'] && !changes['organizationId'].firstChange) {
       this.loadOffices();
       this.loadAccountingOfficeOrganizationType();
+      this.loadManagementFeatureAccess();
     }
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
@@ -402,6 +407,25 @@ parseOfficeId(id: string | number | null): number | null {
   //#region Data Loading Methods
   resolveOrganizationId(): string {
     return (this.organizationId || this.accountingOffice?.organizationId || this.authService.getUser()?.organizationId || '').trim();
+  }
+
+  loadManagementFeatureAccess(): void {
+    const organizationId = this.resolveOrganizationId();
+    if (!organizationId) {
+      this.hasManagementAccess = false;
+      this.markViewForCheck();
+      return;
+    }
+    this.organizationFeatureService.getFeaturesByOrganization(organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: (features) => {
+        this.hasManagementAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Management, features);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.hasManagementAccess = false;
+        this.markViewForCheck();
+      }
+    });
   }
 
   loadAccountingOfficeOrganizationType(): void {

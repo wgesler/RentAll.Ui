@@ -131,7 +131,7 @@
             </mat-expansion-panel>
           }
 
-          @if (!isPartnerLimitedSettings) {
+          @if (!isPartnerLimitedSettings && hasManagementFeature) {
           <!-- Trackers Section -->
           <mat-expansion-panel [expanded]="expandedSections.trackers"
             (opened)="onPanelOpened('trackers')"
@@ -151,7 +151,7 @@
           </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
+          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings && hasOwnersFeature) {
             <!-- State Forms Section -->
             <mat-expansion-panel [expanded]="expandedSections.stateForms"
               (opened)="onPanelOpened('stateForms')"

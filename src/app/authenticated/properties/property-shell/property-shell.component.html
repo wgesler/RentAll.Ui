@@ -126,7 +126,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" [class.partner-limited-tabs]="isPartnerLimitedPropertyTabs" [class.external-partner-property-tabs]="isExternalPartnerPropertyView" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" [class.partner-limited-tabs]="isPartnerLimitedPropertyTabs" [class.external-partner-property-tabs]="isExternalPartnerPropertyView" [class.management-tabs-hidden]="!hasManagementAccess" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
           @if (selectedTabIndex === 0) {
             <app-property
@@ -138,8 +138,9 @@
           }
         </mat-tab>
 
+        @if (hasManagementAccess) {
         <mat-tab label="Information">
-          @if (selectedTabIndex === 1) {
+          @if (selectedTabIndex === informationTabIndex) {
             <app-property-information
               [propertyId]="shellPropertyId"
               [copiedPropertyInformation]="propertySection?.copiedPropertyInformation ?? null"
@@ -179,6 +180,7 @@
             </app-property-departure-letter>
           }
         </mat-tab>
+        }
 
         <mat-tab label="Listing">
           @if (selectedTabIndex === listingTabIndex) {

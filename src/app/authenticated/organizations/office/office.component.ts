@@ -81,6 +81,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   qbClassTypeOptions: { value: number; label: string }[] = getQbClassTypes();
   hasQuickBooksAccess = false;
   hasDocuSignAccess = false;
+  hasLeasingAccess = false;
+  hasManagementAccess = false;
   isPartnerOrganization = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
@@ -743,12 +745,21 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       { name: 'parkingHighEnd', validators: [Validators.required] }
     ];
 
+    const managementControls = new Set(['maintenanceEmail', 'afterHoursPhone']);
+    const leasingControls = new Set([
+      'utilityOneBed', 'utilityTwoBed', 'utilityThreeBed', 'utilityFourBed', 'utilityHouse',
+      'maidOneBed', 'maidTwoBed', 'maidThreeBed', 'maidFourBed', 'maidHouse',
+      'parkingLowEnd', 'parkingHighEnd'
+    ]);
+
     billingControls.forEach(item => {
       const control = this.form.get(item.name);
       if (!control) {
         return;
       }
-      if (this.isPartnerOrganization) {
+      const hiddenByFeature = (managementControls.has(item.name) && !this.hasManagementAccess)
+        || (leasingControls.has(item.name) && !this.hasLeasingAccess);
+      if (this.isPartnerOrganization || hiddenByFeature) {
         control.clearValidators();
       } else {
         control.setValidators(item.validators);
@@ -1238,6 +1249,9 @@ quotePastePlainToHtml(plain: string): string {
     if (!organizationId) {
       this.hasQuickBooksAccess = false;
       this.hasDocuSignAccess = false;
+      this.hasLeasingAccess = false;
+      this.hasManagementAccess = false;
+      this.applyPartnerFieldValidators();
       this.markViewForCheck();
       return;
     }
@@ -1249,11 +1263,17 @@ quotePastePlainToHtml(plain: string): string {
     if (!organizationId) {
       this.hasQuickBooksAccess = false;
       this.hasDocuSignAccess = false;
+      this.hasLeasingAccess = false;
+      this.hasManagementAccess = false;
+      this.applyPartnerFieldValidators();
       this.markViewForCheck();
       return;
     }
     this.hasQuickBooksAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.QuickBooks, features);
     this.hasDocuSignAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.DocuSign, features);
+    this.hasLeasingAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Leasing, features);
+    this.hasManagementAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Management, features);
+    this.applyPartnerFieldValidators();
     this.markViewForCheck();
   }
  //#endregion

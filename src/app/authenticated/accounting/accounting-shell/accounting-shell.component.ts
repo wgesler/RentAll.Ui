@@ -299,6 +299,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
   selectedGeneralLedgerKind: AccountingShellGeneralLedgerKind = 'ledger';
+  hasManagementAccess = false;
 
   selectedTabIndex = 0;
   isSuperAdmin: boolean = false;
@@ -523,6 +524,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Accounting
   ngOnInit(): void {
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.userId = this.authService.getUser()?.userId || '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -577,6 +579,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       });
     }
     this.applyQueryParamState(this.route.snapshot.queryParams);
+    this.hideManagementAccountingOptions();
     if (!this.dateRangePinned) {
       if (
         this.selectedTabIndex === this.tabReports
@@ -597,7 +600,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.syncArAgingReportFilters();
 
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => this.applyQueryParamState(params));
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      this.applyQueryParamState(params);
+      this.hideManagementAccountingOptions();
+    });
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const invoiceId = paramMap.get('id');
@@ -5071,6 +5077,32 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return 'Vendors';
   }
 
+  get visibleBillsReceiptMenuOptions(): { kind: AccountingShellBillsReceiptKind; label: string }[] {
+    if (this.hasManagementAccess) {
+      return this.shellBillsReceiptMenuOptions;
+    }
+    return this.shellBillsReceiptMenuOptions.filter(option => option.kind !== 'workOrders');
+  }
+
+  get visibleOwnerMenuOptions(): { kind: AccountingShellOwnerKind; label: string }[] {
+    if (this.hasManagementAccess) {
+      return this.shellOwnerMenuOptions;
+    }
+    return this.shellOwnerMenuOptions.filter(option => option.kind !== 'workOrders' && option.kind !== 'utilities');
+  }
+
+  hideManagementAccountingOptions(): void {
+    if (this.hasManagementAccess) {
+      return;
+    }
+    if (this.selectedBillsReceiptKind === 'workOrders') {
+      this.selectedBillsReceiptKind = 'bills';
+    }
+    if (this.selectedOwnerKind === 'workOrders' || this.selectedOwnerKind === 'utilities') {
+      this.selectedOwnerKind = 'statements';
+    }
+  }
+
   clearInactiveDropdownSelections(activeTabIndex: number): void {
     if (activeTabIndex !== this.tabInvoices) {
       this.selectedInvoiceKind = 'invoices';
@@ -5082,7 +5114,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       this.selectedBankActivityKind = 'undepositedFunds';
     }
     if (activeTabIndex !== this.tabOwners) {
-      this.selectedOwnerKind = 'utilities';
+      this.selectedOwnerKind = this.hasManagementAccess ? 'utilities' : 'statements';
     }
     if (activeTabIndex !== this.tabReports) {
       this.selectedReportKind = 'profitLoss';

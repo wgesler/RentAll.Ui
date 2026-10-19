@@ -1013,7 +1013,7 @@
                 </span>
               </button>
               <mat-menu #billsReceiptsMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
-                @for (option of shellBillsReceiptMenuOptions; track option.kind) {
+                @for (option of visibleBillsReceiptMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBillsReceipt(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
                     @if (selectedTabIndex === tabBillsReceipts && selectedBillsReceiptKind === option.kind) {
@@ -1467,7 +1467,7 @@
                 </span>
               </button>
               <mat-menu #ownersMenu="matMenu" xPosition="before" panelClass="accounting-reports-tab-menu">
-                @for (option of shellOwnerMenuOptions; track option.kind) {
+                @for (option of visibleOwnerMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectOwnerKind(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
                     @if (selectedTabIndex === tabOwners && selectedOwnerKind === option.kind) {

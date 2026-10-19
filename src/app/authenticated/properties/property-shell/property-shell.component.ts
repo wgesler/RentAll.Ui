@@ -66,10 +66,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
   @ViewChild(PropertyDepartureLetterComponent) propertyDepartureLetter?: PropertyDepartureLetterComponent;
 
-  readonly welcomeLetterTabIndex = 2;
-  readonly departureLetterTabIndex = 3;
-  readonly listingTabIndex = 4;
-  readonly historyTabIndex = 5;
+  hasManagementAccess = false;
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
@@ -93,6 +90,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
 
   //#region Property-Shell
   ngOnInit(): void {
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     this.isAdminUser = this.authService.isAdmin();
     this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -132,10 +130,10 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
       } else if (queryParams['tab'] === 'listing') {
         this.selectedTabIndex = this.listingTabIndex;
       } else if (queryParams['tab'] === 'departure-letter') {
-        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.departureLetterTabIndex;
+        this.selectedTabIndex = !this.hasManagementAccess || this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.departureLetterTabIndex;
       } else if (queryParams['tab'] === 'welcome-letter') {
-        this.selectedTabIndex = this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.welcomeLetterTabIndex;
-      } else if (this.isExternalPartnerPropertyView && (queryParams['tab'] === 'information' || queryParams['tab'] === 'property-information')) {
+        this.selectedTabIndex = !this.hasManagementAccess || this.isPartnerLimitedPropertyTabs || this.isExternalPartnerPropertyView ? 0 : this.welcomeLetterTabIndex;
+      } else if ((queryParams['tab'] === 'information' || queryParams['tab'] === 'property-information') && (!this.hasManagementAccess || this.isExternalPartnerPropertyView)) {
         this.selectedTabIndex = 0;
       }
     });
@@ -154,6 +152,26 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   //#endregion
 
   //#region Getter Methods
+  get informationTabIndex(): number {
+    return this.hasManagementAccess ? 1 : -1;
+  }
+
+  get welcomeLetterTabIndex(): number {
+    return this.hasManagementAccess ? 2 : -1;
+  }
+
+  get departureLetterTabIndex(): number {
+    return this.hasManagementAccess ? 3 : -1;
+  }
+
+  get listingTabIndex(): number {
+    return this.hasManagementAccess ? 4 : 1;
+  }
+
+  get historyTabIndex(): number {
+    return this.hasManagementAccess ? 5 : 2;
+  }
+
   get isPartnerLimitedPropertyTabs(): boolean {
     return this.isPartnerAdmin || this.isPartnerOrganization;
   }

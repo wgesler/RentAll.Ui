@@ -87,15 +87,17 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   monthlyCommissions: MonthlyCommissionDisplay[] = [];
   showMonthlyCommissionAmount = false;
   showCommissionBreakdown = false;
+  hasManagementAccess = false;
 
   //#region Dashboard-Shell
   ngOnInit(): void {
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     this.setTodayDate();
     this.user = this.authService.getUser();
     this.canViewCommissions = this.authService.canViewCommissions();
     this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.user?.userId ?? '');
-    if (this.showMaintenanceDashboard) {
+    if (this.showMaintenanceDashboard && this.hasManagementAccess) {
       this.loadMaintenanceCounts();
     } else {
       this.maintenanceCountsReady = true;
@@ -169,8 +171,12 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   }
 
   getVisibleTabIds(): number[] {
-    const tabIds = [0, 1, 2, 3, 4, 5];
-    if (this.showMaintenanceDashboard) {
+    const tabIds = [0, 1];
+    if (this.hasManagementAccess) {
+      tabIds.push(2, 3);
+    }
+    tabIds.push(4, 5);
+    if (this.showMaintenanceDashboard && this.hasManagementAccess) {
       tabIds.push(6, 7, 8);
     }
     if (this.showCommissionsUi) {

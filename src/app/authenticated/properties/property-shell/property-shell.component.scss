@@ -20,15 +20,17 @@
   color: red;
 }
 
-:host ::ng-deep .partner-limited-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(3),
-:host ::ng-deep .partner-limited-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(4),
-:host ::ng-deep .partner-limited-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(6) {
+:host ::ng-deep .partner-limited-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(3),
+:host ::ng-deep .partner-limited-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(4),
+:host ::ng-deep .partner-limited-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(6),
+:host ::ng-deep .partner-limited-tabs.management-tabs-hidden .mat-mdc-tab-labels .mdc-tab:nth-child(3) {
   display: none;
 }
 
-:host ::ng-deep .external-partner-property-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(2),
-:host ::ng-deep .external-partner-property-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(3),
-:host ::ng-deep .external-partner-property-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(4),
-:host ::ng-deep .external-partner-property-tabs .mat-mdc-tab-labels .mdc-tab:nth-child(6) {
+:host ::ng-deep .external-partner-property-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(2),
+:host ::ng-deep .external-partner-property-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(3),
+:host ::ng-deep .external-partner-property-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(4),
+:host ::ng-deep .external-partner-property-tabs:not(.management-tabs-hidden) .mat-mdc-tab-labels .mdc-tab:nth-child(6),
+:host ::ng-deep .external-partner-property-tabs.management-tabs-hidden .mat-mdc-tab-labels .mdc-tab:nth-child(3) {
   display: none;
 }

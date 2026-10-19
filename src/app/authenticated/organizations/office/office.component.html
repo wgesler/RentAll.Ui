@@ -215,8 +215,8 @@
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
 
-                <!-- First Row: Default Rental Deposit, Security Deposit Waiver, Default Key Fee -->
-                <div class="grid grid-cols-5 form-standard-grid mb-4">
+                <!-- Management off: checkbox plus the six remaining fees on one line. Management on: five, then four. -->
+                <div class="grid form-standard-grid mb-4" [class.grid-cols-7]="!hasManagementAccess" [class.grid-cols-5]="hasManagementAccess">
                   <div class="col-span-1 flex items-center justify-center">
                     <mat-checkbox formControlName="useDailyOnResBoard" color="primary">
                       <span class="inline-block text-left leading-tight">
@@ -272,10 +272,7 @@
                       <mat-error>Default Key Fee is required</mat-error>
                     }
                   </mat-form-field>
-                </div>
 
-                <!-- Second Row: Undisclosed Pet Fee, Minimum Smoking Fee, Maintenance Email, After Hours Phone -->
-                <div class="grid grid-cols-4 form-standard-grid mb-4">
                   <!-- Undisclosed Pet Fee -->
                   <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Undisclosed Pet Fee</mat-label>
@@ -300,6 +297,7 @@
                     }
                   </mat-form-field>
 
+                  @if (hasManagementAccess) {
                   <!-- Maintenance Email -->
                   <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Maintenance Email</mat-label>
@@ -324,8 +322,10 @@
                       <mat-error>Invalid phone format</mat-error>
                     }
                   </mat-form-field>
+                  }
                 </div>
 
+                @if (hasManagementAccess) {
                 <!-- After Hours Instructions -->
                 <div class="mb-4">
                   <mat-form-field appearance="outline" style="width: 100%;">
@@ -333,7 +333,9 @@
                     <textarea matInput formControlName="afterHoursInstructions" rows="3" placeholder="Instructions..."></textarea>
                   </mat-form-field>
                 </div>
+                }
 
+                @if (hasLeasingAccess) {
                 <!-- Utility Charges Subsection -->
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Ceilings</h3>
@@ -570,6 +572,7 @@
                     </mat-form-field>
                   </div>
                 </div>
+                }
 
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Default Cost Codes</h3>

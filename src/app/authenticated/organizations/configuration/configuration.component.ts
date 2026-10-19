@@ -131,6 +131,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   currentUserOrganizationId: string | null = null;
   settingsOfficesInitialized = false;
   hasPartnerIntegrationFeature = false;
+  hasOwnersFeature = false;
+  hasManagementFeature = false;
   partnerOrganizations: OrganizationPartnerOptionResponse[] = [];
   partnersIn: string[] = [];
   partnersOut: string[] = [];
@@ -517,6 +519,8 @@ refreshSettingsOfficeScopedLists(): void {
     const organizationId = this.effectiveOrganizationId;
     if (!organizationId || !this.isAdminLikeSettingsUser) {
       this.hasPartnerIntegrationFeature = false;
+      this.hasOwnersFeature = false;
+      this.hasManagementFeature = !!organizationId && this.authService.hasAccessToManagement();
       this.partnerOrganizations = [];
       this.partnersIn = [];
       this.partnersOut = [];
@@ -525,6 +529,10 @@ refreshSettingsOfficeScopedLists(): void {
 
     this.organizationFeatureService.getFeaturesByOrganization(organizationId).pipe(take(1)).subscribe({
       next: (features) => {
+        this.hasOwnersFeature = (features || []).some(feature =>
+          Number(feature.featureTypeId) === FeatureType.Owners && !!feature.hasAccess);
+        this.hasManagementFeature = (features || []).some(feature =>
+          Number(feature.featureTypeId) === FeatureType.Management && !!feature.hasAccess);
         this.hasPartnerIntegrationFeature = (features || []).some(feature =>
           Number(feature.featureTypeId) === FeatureType.PartnerIntegration && !!feature.hasAccess);
         if (!this.hasPartnerIntegrationFeature) {

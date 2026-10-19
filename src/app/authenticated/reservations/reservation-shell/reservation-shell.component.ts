@@ -77,6 +77,7 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   organizationId: string = '';
   isAddMode: boolean = false;
   isAdmin: boolean = false;
+  hasLeasingAccess: boolean = false;
   isHandlingTabGuard: boolean = false;
   activeInvoiceId: string | null = null;
   selectedInvoice: InvoiceResponse | null = null;
@@ -102,6 +103,7 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isAdmin = this.authService.isAdmin();
+    this.hasLeasingAccess = this.authService.hasLeasingAccess();
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -194,9 +196,9 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     }
     switch (tabParam) {
       case 'information':
-        return this.isAdmin ? 1 : this.getLeaseTabIndex();
+        return this.getInformationTabIndex() >= 0 ? this.getInformationTabIndex() : 0;
       case 'lease':
-        return this.getLeaseTabIndex();
+        return this.getLeaseTabIndex() >= 0 ? this.getLeaseTabIndex() : 0;
       case 'invoices':
         return this.getInvoicesTabIndex();
       case 'emails':
@@ -651,23 +653,29 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   getInformationTabIndex(): number {
-    return this.isAdmin ? 1 : -1;
+    return this.isAdmin && this.hasLeasingAccess ? 1 : -1;
   }
 
   getLeaseTabIndex(): number {
+    if (!this.hasLeasingAccess) {
+      return -1;
+    }
     return this.isAdmin ? 2 : 1;
   }
 
   getInvoicesTabIndex(): number {
+    if (!this.hasLeasingAccess) {
+      return 1;
+    }
     return this.isAdmin ? 3 : 2;
   }
 
   getEmailsTabIndex(): number {
-    return this.isAdmin ? 4 : 3;
+    return this.getInvoicesTabIndex() + 1;
   }
 
   getDocumentsTabIndex(): number {
-    return this.isAdmin ? 5 : 4;
+    return this.getEmailsTabIndex() + 1;
   }
   //#endregion
 

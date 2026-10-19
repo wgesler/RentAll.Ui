@@ -43,11 +43,13 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedOrganizationId: string | null = null;
   isSuperAdminUser = false;
   employeesOnlyPartnerAdmin = false;
+  hasManagementAccess = false;
   organizationOptions: { value: string; label: string }[] = [];
   destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.isSuperAdminUser = this.authService.hasRole(UserGroups.SuperAdmin);
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     this.employeesOnlyPartnerAdmin = isPartnerAdminEmployeesOnlyContext(
       this.commonService.getOrganizationTypeId(),
       this.authService.getUser()?.userGroups as Array<string | number> | undefined
@@ -57,11 +59,10 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const tabIndex = getNumberQueryParam(this.route.snapshot.queryParams, 'tab', 0, 5);
     if (tabIndex !== null) {
-      this.selectedTabIndex = this.employeesOnlyPartnerAdmin ? 0 : tabIndex;
-    }
-    if (this.employeesOnlyPartnerAdmin && this.selectedTabIndex !== 0) {
-      this.selectedTabIndex = 0;
-      this.updateUrlWithCurrentState();
+      this.selectedTabIndex = this.clampTabIndex(tabIndex);
+      if (this.selectedTabIndex !== tabIndex) {
+        this.updateUrlWithCurrentState();
+      }
     }
     this.selectedOfficeId = this.globalSelectionService.resolvePageOfficeId({
       topBarPinned: false,
@@ -82,10 +83,8 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  onTabIndexChange(tabIndex: number): void {
-    if (this.employeesOnlyPartnerAdmin) {
-      tabIndex = 0;
-    }
+  onTabIndexChange(visibleIndex: number): void {
+    const tabIndex = this.employeesOnlyPartnerAdmin ? 0 : (this.getVisibleTabIds()[visibleIndex] ?? 0);
     this.selectedTabIndex = tabIndex;
     this.showUserForm = false;
     this.formUserId = null;
@@ -153,6 +152,27 @@ applyOfficeFromGlobal(officeId: number | null): void {
         }
       });
     });
+  }
+
+  get visibleTabIndex(): number {
+    const index = this.getVisibleTabIds().indexOf(this.selectedTabIndex);
+    return index >= 0 ? index : 0;
+  }
+
+  getVisibleTabIds(): number[] {
+    const tabIds = [0, 1];
+    if (this.hasManagementAccess) {
+      tabIds.push(2, 3);
+    }
+    tabIds.push(4, 5);
+    return tabIds;
+  }
+
+  clampTabIndex(tabIndex: number): number {
+    if (this.employeesOnlyPartnerAdmin) {
+      return 0;
+    }
+    return this.getVisibleTabIds().includes(tabIndex) ? tabIndex : 0;
   }
 
   getActiveSection(): UserListComponent | undefined {

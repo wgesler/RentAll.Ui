@@ -48,7 +48,7 @@
           <app-user-list [tabIndex]="0" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
         }
       } @else {
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="visibleTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Employees">
           @if (showUserForm && formTabIndex === 0) {
             <app-user [id]="formUserId ?? 'new'" [selectedOrganizationId]="selectedOrganizationId" (closed)="onUserClosed($event)" />
@@ -63,6 +63,7 @@
             <app-user-list [tabIndex]="1" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
+        @if (hasManagementAccess) {
         <mat-tab label="Cleaners">
           @if (showUserForm && formTabIndex === 2) {
             <app-user [id]="formUserId ?? 'new'" [selectedOrganizationId]="selectedOrganizationId" (closed)="onUserClosed($event)" />
@@ -77,6 +78,7 @@
             <app-user-list [tabIndex]="3" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
+        }
         <mat-tab label="Vendors">
           @if (showUserForm && formTabIndex === 4) {
             <app-user [id]="formUserId ?? 'new'" [selectedOrganizationId]="selectedOrganizationId" (closed)="onUserClosed($event)" />

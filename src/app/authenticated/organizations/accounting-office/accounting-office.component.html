@@ -521,7 +521,8 @@
                   <mat-panel-title>Default Chart of Accounts</mat-panel-title>
                 </mat-expansion-panel-header>
 
-                <h4 class="text-base font-semibold mb-3 mt-1">Tenant/Owner/Company Accounts</h4>
+                @if (hasManagementAccess) {
+                <h4 class="text-base font-semibold mb-3 mt-1">Work Orders</h4>
                 <div class="grid grid-cols-4 form-standard-grid mb-4">
                   @for (field of defaultTenantOwnerCompanyAccountFieldsRow1; track field.controlName) {
                     <app-searchable-select
@@ -562,6 +563,7 @@
                       (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
                   }
                 </div>
+                }
                 <h4 class="text-base font-semibold mb-3">Departure Accounts</h4>
                 <div class="grid grid-cols-2 form-standard-grid mb-4">
                   @for (field of defaultDepartureAccountFields; track field.controlName) {
@@ -606,6 +608,7 @@
                 </div>
                 <div class="grid grid-cols-4 form-standard-grid mb-4">
                   @for (field of defaultAccountFieldsEscrow; track field.controlName) {
+                    @if (field.controlName !== 'defaultInterOfficeAccountId' || availableOffices.length > 1) {
                     <app-searchable-select
                       class="col-span-1 w-full"
                       [renderInFormField]="true"
@@ -622,6 +625,7 @@
                       searchPlaceholder="Type to filter accounts..."
                       noResultsText="No accounts match your search"
                       (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
+                    }
                   }
                 </div>
                 <div class="grid grid-cols-4 form-standard-grid">

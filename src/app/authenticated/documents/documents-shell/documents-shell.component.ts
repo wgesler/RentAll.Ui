@@ -15,7 +15,7 @@ import { ReservationCodeResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { getDocumentTypes } from '../models/document.enum';
+import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentGetRequest } from '../models/document.model';
 import { DocumentListComponent } from '../document-list/document-list.component';
 
@@ -195,10 +195,23 @@ persistPinnedTopBarIfActive(): void {
   }
 
   get documentTypeOptions(): SearchableSelectOption[] {
-    return getDocumentTypes().map(type => ({
-      value: type.value,
-      label: type.label
-    }));
+    return getDocumentTypes()
+      .filter(type => this.isDocumentTypeAvailable(type.value))
+      .map(type => ({
+        value: type.value,
+        label: type.label
+      }));
+  }
+
+  isDocumentTypeAvailable(documentTypeId: number): boolean {
+    if (documentTypeId === DocumentType.ReservationLease && !this.authService.hasLeasingAccess()) {
+      return false;
+    }
+    const managementTypes = [DocumentType.PropertyLetter, DocumentType.Inspection, DocumentType.WorkOrder];
+    if (managementTypes.includes(documentTypeId) && !this.authService.hasAccessToManagement()) {
+      return false;
+    }
+    return true;
   }
 
   get selectedPropertyCode(): string {
@@ -399,7 +412,10 @@ resolveOfficeIdsForRequest(): number[] {
         this.selectedOfficeId = stored.officeId ?? null;
         this.selectedPropertyId = stored.propertyId ?? null;
         this.selectedReservationId = stored.reservationId ?? null;
-        this.selectedDocumentTypeId = stored.documentTypeId ?? null;
+        const storedDocumentTypeId = stored.documentTypeId ?? null;
+        this.selectedDocumentTypeId = storedDocumentTypeId != null && this.isDocumentTypeAvailable(storedDocumentTypeId)
+          ? storedDocumentTypeId
+          : null;
         return;
       }
       this.clearPinnedDateRangeStorage();

@@ -123,7 +123,7 @@
           }
         </mat-tab>
 
-        @if (isAdmin) {
+        @if (isAdmin && hasLeasingAccess) {
           <mat-tab label="Information">
             @if (selectedTabIndex === getInformationTabIndex()) {
               <app-lease-information
@@ -135,6 +135,7 @@
           </mat-tab>
         }
 
+        @if (hasLeasingAccess) {
         <mat-tab label="Lease">
           @if (selectedTabIndex === getLeaseTabIndex() && displayOfficeId !== null && selectedPropertyId && activeReservationId) {
             <app-lease
@@ -149,6 +150,7 @@
             </app-lease>
           }
         </mat-tab>
+        }
 
         <mat-tab label="Invoices">
           @if (selectedTabIndex === getInvoicesTabIndex()) {
