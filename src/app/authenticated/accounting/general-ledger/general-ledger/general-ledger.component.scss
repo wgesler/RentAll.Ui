@@ -254,6 +254,18 @@
       width: 15%;
     }
 
+    col.gl-split-col-account {
+      width: 26%;
+    }
+
+    col.gl-split-col-reservation {
+      width: 12%;
+    }
+
+    col.gl-split-col-memo {
+      width: 7%;
+    }
+
     col.gl-split-col-actions {
       width: 132px;
     }
@@ -262,11 +274,23 @@
       width: 2.5%;
     }
 
-    .split-col-account,
-    .split-col-reservation,
-    .split-col-contact,
-    .split-col-description {
+    .split-col-account {
+      width: 26%;
+      min-width: 0;
+    }
+
+    .split-col-reservation {
+      width: 12%;
+      min-width: 0;
+    }
+
+    .split-col-contact {
       width: 15%;
+      min-width: 0;
+    }
+
+    .split-col-description {
+      width: 7%;
       min-width: 0;
     }
 
