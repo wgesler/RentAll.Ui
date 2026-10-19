@@ -6,7 +6,10 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
+import { ManagementFeeType, PropertyLeaseType } from '../../properties/models/property-enums';
 import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { getBillingType, ReservationStatus } from '../../reservations/models/reservation-enum';
 import { ReservationHistoryRateRow } from '../../reservations/models/reservation-history-rate-row.model';
@@ -41,6 +44,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   private formatterService = inject(FormatterService);
   private mappingService = inject(MappingService);
   private propertyService = inject(PropertyService);
+  private propertyAgreementService = inject(PropertyAgreementService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -55,6 +59,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   ownerCurrentReservationsTableData: Array<Record<string, unknown>> = [];
   ownerHistoricalReservationsTableData: ReservationHistoryRateRow[] = [];
   paymentsByReservationId = new Map<string, ReservationPaymentResponse[]>();
+  agreementsByPropertyId = new Map<string, PropertyAgreementResponse>();
   rentedCount: number = 0;
   vacantCount: number = 0;
   currentReservationCount: number = 0;
@@ -62,7 +67,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   todayDate: string = '';
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'properties', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'properties', 'agreements', 'reservations']));
   destroy$ = new Subject<void>();
 
   ownerPropertiesDisplayedColumns: ColumnSet = {
@@ -83,7 +88,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
     billingType: { displayAs: 'Billing Type', maxWidth: '15ch', alignment: 'center' },
-    billingRate: { displayAs: 'Billing Rate', maxWidth: '15ch', alignment: 'center' }
+    billingRate: { displayAs: 'Billing Rate', maxWidth: '15ch', alignment: 'center' },
+    ownerRate: { displayAs: 'Owner Rate', maxWidth: '16ch', alignment: 'center' }
   };
 
   ownerHistoricalReservationsDisplayedColumns: ColumnSet = {
@@ -120,6 +126,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         if (!this.ownerContactId) {
           this.resetOwnerDashboardData();
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreements');
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
         } else {
           this.loadProperties();
@@ -132,6 +139,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.ownerContactId = null;
         this.resetOwnerDashboardData();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreements');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
         this.markViewForCheck();
       }
@@ -144,6 +152,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       this.allProperties = [];
       this.ownerPropertiesTableData = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreements');
       this.refreshOwnerReservationData();
       return;
     }
@@ -156,12 +165,51 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
           monthlyRate: this.formatCurrencyValue(property.monthlyRate),
           dailyRate: this.formatCurrencyValue(property.dailyRate)
         }));
+        this.loadPropertyAgreements();
         this.refreshOwnerReservationData();
         this.markViewForCheck();
       },
       error: () => {
         this.allProperties = [];
         this.ownerPropertiesTableData = [];
+        this.agreementsByPropertyId.clear();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreements');
+        this.refreshOwnerReservationData();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadPropertyAgreements(): void {
+    const propertyIds = this.allProperties
+      .map(property => String(property.propertyId || '').trim())
+      .filter(propertyId => !!propertyId);
+    if (propertyIds.length === 0) {
+      this.agreementsByPropertyId.clear();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreements');
+      this.refreshOwnerReservationData();
+      return;
+    }
+
+    forkJoin(
+      propertyIds.map(propertyId =>
+        this.propertyAgreementService.getPropertyAgreement(propertyId).pipe(
+          map(agreement => ({ propertyId, agreement })),
+          catchError(() => of({ propertyId, agreement: null as PropertyAgreementResponse | null }))
+        )
+      )
+    ).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreements'))).subscribe({
+      next: (results) => {
+        this.agreementsByPropertyId = new Map(
+          results
+            .filter((result): result is { propertyId: string; agreement: PropertyAgreementResponse } => !!result.agreement)
+            .map(result => [result.propertyId, result.agreement])
+        );
+        this.refreshOwnerReservationData();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.agreementsByPropertyId.clear();
         this.refreshOwnerReservationData();
         this.markViewForCheck();
       }
@@ -240,6 +288,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     this.ownerCurrentReservationsTableData = [];
     this.ownerHistoricalReservationsTableData = [];
     this.paymentsByReservationId.clear();
+    this.agreementsByPropertyId.clear();
     this.rentedCount = 0;
     this.vacantCount = 0;
     this.currentReservationCount = 0;
@@ -254,7 +303,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     const reservationsForDisplay = this.ownerPropertyReservations.map(reservation => ({
       ...reservation,
       billingType: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : getBillingType(reservation.billingTypeId ?? undefined),
-      billingRate: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : this.formatCurrencyValue(reservation.billingRate)
+      billingRate: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : this.formatCurrencyValue(reservation.billingRate),
+      ownerRate: this.formatOwnerRate(reservation)
     }));
     this.ownerCurrentReservationsTableData = reservationsForDisplay.filter(reservation => !this.isHistoricalReservation(reservation.departureDate));
 
@@ -322,6 +372,32 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     
   formatCurrencyValue(value: number | null | undefined): string {
     return this.formatterService.currencyUsd(Number(value) || 0);
+  }
+
+  formatOwnerRate(reservation: ReservationListDisplay): string {
+    const property = this.allProperties.find(item => item.propertyId === reservation.propertyId);
+    const agreement = this.agreementsByPropertyId.get(reservation.propertyId);
+    if (!property || property.propertyLeaseTypeId !== PropertyLeaseType.PropertyManagement || !agreement) {
+      return '';
+    }
+
+    const useReservation = !!reservation.overrideOwnerPayout && reservation.managementFeeTypeId != null;
+    const feeType = useReservation ? reservation.managementFeeTypeId : agreement.managementFeeTypeId;
+    if (feeType == null) {
+      return '';
+    }
+    const flatRate = useReservation ? Number(reservation.flatRateAmount ?? 0) : Number(agreement.flatRateAmount ?? 0);
+    const ownerSplit = useReservation ? Number(reservation.revenueSplitOwner ?? 0) : Number(agreement.revenueSplitOwner ?? 0);
+    if (Number(feeType) === ManagementFeeType.Percentage) {
+      return this.formatterService.formatPercentageValue(ownerSplit, 0);
+    }
+    if (Number(feeType) === ManagementFeeType.Minimum) {
+      return `${this.formatterService.formatPercentageValue(ownerSplit, 0)} / ${this.formatCurrencyValue(flatRate)}`;
+    }
+    if (Number(feeType) !== ManagementFeeType.FlatRate) {
+      return '';
+    }
+    return this.formatCurrencyValue(flatRate);
   }
 
   shouldMaskBillingFields(reservationStatusId: number | null | undefined): boolean {

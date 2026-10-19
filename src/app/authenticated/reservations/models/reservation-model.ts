@@ -203,6 +203,10 @@ export interface ReservationListResponse {
   maidStartDate: string | null;
   frequencyId: number;
   maidServiceFee: number;
+  overrideOwnerPayout?: boolean;
+  managementFeeTypeId?: number | null;
+  flatRateAmount?: number | null;
+  revenueSplitOwner?: number | null;
   currentInvoiceNo: number;
 
   aCleanerUserId?: string | null;
@@ -268,6 +272,10 @@ export interface ReservationListDisplay {
   maidStartDate?: string | null;
   frequencyId: number;
   maidServiceFee: number;
+  overrideOwnerPayout?: boolean;
+  managementFeeTypeId?: number | null;
+  flatRateAmount?: number | null;
+  revenueSplitOwner?: number | null;
   currentInvoiceNo: number;
 
   aCleanerUserId?: string | null;
