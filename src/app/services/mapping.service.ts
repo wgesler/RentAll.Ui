@@ -7091,7 +7091,8 @@ roundCurrency(value: number): number {
     AccountType.OtherIncome,
     AccountType.CostOfGoodsSold,
     AccountType.Expense,
-    AccountType.OtherExpense
+    AccountType.OtherExpense,
+    AccountType.Taxes
   ];
 
   /** Year-end close JEs posted the day after fiscal year-end; excluded from P&L activity. */
@@ -7137,7 +7138,8 @@ roundCurrency(value: number): number {
       AccountType.OtherIncome,
       AccountType.CostOfGoodsSold,
       AccountType.Expense,
-      AccountType.OtherExpense
+      AccountType.OtherExpense,
+      AccountType.Taxes
     ]);
     const { accounts, chartOfAccountId, accountIdRemap } = this.prepareFinancialReportScope(
       filteredAccounts,
@@ -7170,29 +7172,35 @@ roundCurrency(value: number): number {
     const cogsAccounts = accounts.filter(account => account.accountTypeId === AccountType.CostOfGoodsSold);
     const expenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.Expense);
     const otherExpenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.OtherExpense);
+    const taxAccounts = accounts.filter(account => account.accountTypeId === AccountType.Taxes);
     const incomeTree = this.buildFinancialReportAccountTree(incomeAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const otherIncomeTree = this.buildFinancialReportAccountTree(otherIncomeAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const cogsTree = this.buildFinancialReportAccountTree(cogsAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const expenseTree = this.buildFinancialReportAccountTree(expenseAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const otherExpenseTree = this.buildFinancialReportAccountTree(otherExpenseAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
+    const taxTree = this.buildFinancialReportAccountTree(taxAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const totalIncome = this.sumFinancialReportTreeAmounts(incomeTree);
     const totalOtherIncome = this.sumFinancialReportTreeAmounts(otherIncomeTree);
     const totalCogs = this.sumFinancialReportTreeAmounts(cogsTree);
     const totalExpense = this.sumFinancialReportTreeAmounts(expenseTree);
     const totalOtherExpense = this.sumFinancialReportTreeAmounts(otherExpenseTree);
+    const totalTaxes = this.sumFinancialReportTreeAmounts(taxTree);
     const grossProfit = this.roundFinancialReportAmount(totalIncome - totalCogs);
     const netOperatingIncome = this.roundFinancialReportAmount(grossProfit - totalExpense);
     const netOtherIncome = this.roundFinancialReportAmount(totalOtherIncome - totalOtherExpense);
-    const netIncome = this.roundFinancialReportAmount(netOperatingIncome + netOtherIncome);
+    const netIncomeBeforeTaxes = this.roundFinancialReportAmount(netOperatingIncome + netOtherIncome);
+    const netIncome = this.roundFinancialReportAmount(netIncomeBeforeTaxes - totalTaxes);
     const incomeColumnAmounts = this.sumFinancialReportTreeColumnAmounts(incomeTree, columnContext);
     const otherIncomeColumnAmounts = this.sumFinancialReportTreeColumnAmounts(otherIncomeTree, columnContext);
     const cogsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(cogsTree, columnContext);
     const expenseColumnAmounts = this.sumFinancialReportTreeColumnAmounts(expenseTree, columnContext);
     const otherExpenseColumnAmounts = this.sumFinancialReportTreeColumnAmounts(otherExpenseTree, columnContext);
+    const taxColumnAmounts = this.sumFinancialReportTreeColumnAmounts(taxTree, columnContext);
     const grossProfitColumnAmounts = this.subtractFinancialReportColumnAmounts(incomeColumnAmounts, cogsColumnAmounts, columnContext);
     const netOperatingIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(grossProfitColumnAmounts, expenseColumnAmounts, columnContext);
     const netOtherIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(otherIncomeColumnAmounts, otherExpenseColumnAmounts, columnContext);
-    const netIncomeColumnAmounts = this.addFinancialReportColumnAmounts(netOperatingIncomeColumnAmounts, netOtherIncomeColumnAmounts, columnContext);
+    const netIncomeBeforeTaxesColumnAmounts = this.addFinancialReportColumnAmounts(netOperatingIncomeColumnAmounts, netOtherIncomeColumnAmounts, columnContext);
+    const netIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(netIncomeBeforeTaxesColumnAmounts, taxColumnAmounts, columnContext);
     const incomeDrillDown: FinancialReportDrillDownSpec = {
       accountTypeIds: [AccountType.Income],
       mode: 'activity'
@@ -7223,6 +7231,14 @@ roundCurrency(value: number): number {
     };
     const netOtherIncomeDrillDown: FinancialReportDrillDownSpec = {
       accountTypeIds: [AccountType.OtherIncome, AccountType.OtherExpense],
+      mode: 'activity'
+    };
+    const netIncomeBeforeTaxesDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Income, AccountType.OtherIncome, AccountType.CostOfGoodsSold, AccountType.Expense, AccountType.OtherExpense],
+      mode: 'activity'
+    };
+    const taxDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Taxes],
       mode: 'activity'
     };
     const netIncomeDrillDown: FinancialReportDrillDownSpec = {
@@ -7257,7 +7273,9 @@ roundCurrency(value: number): number {
         this.buildFinancialReportSectionNode('section-other-expense', 'Other Expense', otherExpenseTree, totalOtherExpense, otherExpenseColumnAmounts, 0, otherExpenseDrillDown),
         this.buildFinancialReportTotalNode('total-other-expense', 'Total Other Expense', totalOtherExpense, otherExpenseColumnAmounts, 0, otherExpenseDrillDown),
         this.buildFinancialReportSummaryNode('summary-net-other-income', 'Net Other Income', netOtherIncome, netOtherIncomeColumnAmounts, 0, netOtherIncomeDrillDown),
-        this.buildFinancialReportSummaryNode('summary-net-income-before-taxes', 'Net Income Before Taxes', netIncome, netIncomeColumnAmounts, 0, netIncomeDrillDown),
+        this.buildFinancialReportSummaryNode('summary-net-income-before-taxes', 'Net Income Before Taxes', netIncomeBeforeTaxes, netIncomeBeforeTaxesColumnAmounts, 0, netIncomeBeforeTaxesDrillDown),
+        this.buildFinancialReportSectionNode('section-taxes', 'Taxes', taxTree, totalTaxes, taxColumnAmounts, 0, taxDrillDown),
+        this.buildFinancialReportTotalNode('total-taxes', 'Total Taxes', totalTaxes, taxColumnAmounts, 0, taxDrillDown),
         this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts, 0, netIncomeDrillDown)
       ]
     };
