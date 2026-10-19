@@ -42,7 +42,8 @@ export enum FeatureType {
   Leads = 5,
   Owners = 6,
   Management = 7,
-  PartnerIntegration = 8
+  PartnerIntegration = 8,
+  Leasing = 9
 }
 
 export function getFeatureType(featureTypeId: number | undefined | null): string {
@@ -59,7 +60,8 @@ export function getFeatureType(featureTypeId: number | undefined | null): string
     [FeatureType.Leads]: 'Leads',
     [FeatureType.Owners]: 'Owners',
     [FeatureType.Management]: 'Management',
-    [FeatureType.PartnerIntegration]: 'Partner Integration'
+    [FeatureType.PartnerIntegration]: 'Partner Integration',
+    [FeatureType.Leasing]: 'Leasing'
   };
 
   return typeMap[featureTypeId] || '';
@@ -79,7 +81,8 @@ export function getFeatureTypeCode(featureTypeId: number | undefined | null): st
     [FeatureType.Leads]: 'LEAD',
     [FeatureType.Owners]: 'OWN',
     [FeatureType.Management]: 'PM',
-    [FeatureType.PartnerIntegration]: 'PART'
+    [FeatureType.PartnerIntegration]: 'PART',
+    [FeatureType.Leasing]: 'LEASE'
   };
 
   return codeMap[featureTypeId] || '';
