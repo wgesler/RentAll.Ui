@@ -186,7 +186,8 @@ export enum AccountType {
   CostOfGoodsSold = 11,
   Expense = 12,
   OtherIncome = 13,
-  OtherExpense = 14
+  OtherExpense = 14,
+  Taxes = 15
 }
 
 export const AccountTypeLabels: { value: AccountType; label: string }[] = [
@@ -205,6 +206,7 @@ export const AccountTypeLabels: { value: AccountType; label: string }[] = [
   { value: AccountType.Expense, label: 'Expense' },
   { value: AccountType.OtherIncome, label: 'Other Income' },
   { value: AccountType.OtherExpense, label: 'Other Expense' },
+  { value: AccountType.Taxes, label: 'Taxes' },
 ];
 
 export function isCreditNormalAccountType(accountTypeId: number | undefined | null): boolean {
@@ -242,6 +244,7 @@ export function getAccountType(accountTypeId: number | undefined | null): string
     [AccountType.Expense]: 'Expense',
     [AccountType.OtherIncome]: 'Other Income',
     [AccountType.OtherExpense]: 'Other Expense',
+    [AccountType.Taxes]: 'Taxes',
   };
 
   return typeMap[accountTypeId] || '';
