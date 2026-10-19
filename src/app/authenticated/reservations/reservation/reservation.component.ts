@@ -2775,6 +2775,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
     if (this.form.get('overrideOwnerPayout')?.value !== true) {
+      this.form.get('managementFeeMode')?.setValue(ManagementFeeType.FlatRate, { emitEvent: false });
+      this.form.get('managementFlatRateAmount')?.setValue(this.formatOwnerPayoutDecimalForDisplay(0), { emitEvent: false });
+      this.form.get('revenueSplitOwner')?.setValue(this.formatOwnerPayoutPercentForDisplay(0), { emitEvent: false });
+      this.form.get('revenueSplitOffice')?.setValue(this.formatOwnerPayoutPercentForDisplay(0), { emitEvent: false });
       this.disableFieldWithValidation('managementFeeMode');
       this.disableFieldWithValidation('managementFlatRateAmount');
       this.disableFieldWithValidation('revenueSplitOwner');
