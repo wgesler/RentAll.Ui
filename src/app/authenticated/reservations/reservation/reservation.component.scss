@@ -438,3 +438,34 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
+.billing-owner-payout-row {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 0.75rem;
+
+  > mat-form-field {
+    width: auto !important;
+    flex: 1 1 0;
+    min-width: 0;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  > mat-radio-group {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.75rem;
+    margin: 0 !important;
+    white-space: nowrap;
+  }
+
+  mat-radio-button {
+    white-space: nowrap;
+  }
+}
+

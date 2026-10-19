@@ -60,6 +60,11 @@ export interface ReservationRequest {
   billedToEmployer: boolean;
   collapseCharges: boolean;
   invoiceMethodId: number;
+  overrideOwnerPayout: boolean;
+  managementFeeTypeId?: number | null;
+  flatRateAmount?: number | null;
+  revenueSplitOwner?: number | null;
+  revenueSplitOffice?: number | null;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -137,6 +142,11 @@ export interface ReservationResponse {
   billedToEmployer: boolean;
   collapseCharges: boolean;
   invoiceMethodId: number;
+  overrideOwnerPayout: boolean;
+  managementFeeTypeId?: number | null;
+  flatRateAmount?: number | null;
+  revenueSplitOwner?: number | null;
+  revenueSplitOffice?: number | null;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;

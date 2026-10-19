@@ -873,6 +873,36 @@
               </app-searchable-select>
               </div>
 
+              <div class="col-span-4 billing-owner-payout-row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Override Owner Payout</mat-label>
+                  <mat-select formControlName="overrideOwnerPayout" required>
+                    <mat-option [value]="false">No</mat-option>
+                    <mat-option [value]="true">Yes</mat-option>
+                  </mat-select>
+                  @if (form.get('overrideOwnerPayout')?.invalid && form.get('overrideOwnerPayout')?.touched) {
+                    <mat-error>Override Owner Payout is required</mat-error>
+                  }
+                </mat-form-field>
+                <mat-radio-group formControlName="managementFeeMode">
+                  <mat-radio-button [value]="ManagementFeeType.FlatRate">Flat Rate</mat-radio-button>
+                  <mat-radio-button [value]="ManagementFeeType.Percentage">Percentage</mat-radio-button>
+                  <mat-radio-button [value]="ManagementFeeType.Minimum">Minimum</mat-radio-button>
+                </mat-radio-group>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ managementFlatRateFieldLabel }}</mat-label>
+                  <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowOwnerPayoutNumericOnly($event)" (blur)="formatOwnerPayoutDecimalBlur()" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Revenue Split (Owner) %</mat-label>
+                  <input matInput type="text" formControlName="revenueSplitOwner" (focus)="clearOwnerPayoutPercentOnFocus($event, 'revenueSplitOwner')" (keypress)="allowOwnerPayoutNumericOnly($event)" (blur)="formatOwnerPayoutPercentBlur('revenueSplitOwner')" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Revenue Split (Office) %</mat-label>
+                  <input matInput type="text" formControlName="revenueSplitOffice" (focus)="clearOwnerPayoutPercentOnFocus($event, 'revenueSplitOffice')" (keypress)="allowOwnerPayoutNumericOnly($event)" (blur)="formatOwnerPayoutPercentBlur('revenueSplitOffice')" />
+                </mat-form-field>
+              </div>
+
               @if (isReferralFeeAvailableForProperty) {
               <div class="col-span-4 grid grid-cols-4 form-standard-grid billing-referral-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">

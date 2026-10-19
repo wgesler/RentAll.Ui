@@ -477,6 +477,11 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
       billedToEmployer: false,
       collapseCharges: false,
       invoiceMethodId: InvoiceMethod.Create,
+      overrideOwnerPayout: false,
+      managementFeeTypeId: null,
+      flatRateAmount: null,
+      revenueSplitOwner: null,
+      revenueSplitOffice: null,
       isActive: true,
       extraFeeLines: []
     };

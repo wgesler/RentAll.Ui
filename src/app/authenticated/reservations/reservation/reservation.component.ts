@@ -35,7 +35,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { CheckinTimes, CheckoutTimes, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
+import { CheckinTimes, CheckoutTimes, ManagementFeeType, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizeManagementFeeTypeId } from '../../properties/models/property-enums';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -76,6 +76,7 @@ import { UserService } from '../../users/services/user.service';
 })
 
 export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanComponentDeactivate {
+  readonly ManagementFeeType = ManagementFeeType;
   private cdr = inject(ChangeDetectorRef);
 
   @Input() shellMode: boolean = false;
@@ -948,6 +949,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       administrativeFee: new FormControl<string>('0.00'),
       applicationFee: new FormControl<string>('0.00'),
       maidServiceFee: new FormControl<string>('0.00'),
+      overrideOwnerPayout: new FormControl(false, [Validators.required]),
+      managementFeeMode: new FormControl<ManagementFeeType>({ value: ManagementFeeType.FlatRate, disabled: true }),
+      managementFlatRateAmount: new FormControl<string>({ value: '$0.00', disabled: true }),
+      revenueSplitOwner: new FormControl<string>({ value: '0%', disabled: true }),
+      revenueSplitOffice: new FormControl<string>({ value: '0%', disabled: true }),
       frequencyId: new FormControl(Frequency.NA),
       referralFee: new FormControl(false, [Validators.required]),
       referralMethodId: new FormControl(ReferralMethodType.None),
@@ -1026,6 +1032,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       applicationFee: formValue['applicationFee'] ? parseFloat(String(formValue['applicationFee'])) : 0,
       maidService: (formValue['maidService'] as boolean | null | undefined) ?? false,
       maidServiceFee: formValue['maidServiceFee'] ? parseFloat(String(formValue['maidServiceFee'])) : 0,
+      ...this.resolveOwnerPayoutRequestFields(formValue),
       frequencyId: (formValue['frequencyId'] as number | null | undefined) ?? Frequency.NA,
       ...this.resolveReferralRequestFieldsFromForm(formValue),
       maidStartDate:
@@ -1124,6 +1131,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         ? String(this.reservation.maidUserId).trim()
         : this.noneAssignedMaidOptionValue,
       maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
+      ...this.ownerPayoutFormValues(this.reservation),
       frequencyId: this.reservation.frequencyId ?? Frequency.NA,
       referralFee: this.reservation.referralFee ?? false,
       referralMethodId: this.reservation.referralMethodId ?? ReferralMethodType.None,
@@ -1144,6 +1152,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.updatePetFields(false);
     this.updateMaidServiceFields(false);
     this.updateReferralFeeFields(false);
+    this.updateOwnerPayoutFields();
     this.loadExtraFeeLines();
     this.savedBillingRate = Number(this.reservation.billingRate ?? 0);
     this.updateMaidStartDate();
@@ -1276,6 +1285,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         ? String(source.maidUserId).trim()
         : this.noneAssignedMaidOptionValue,
       maidServiceFee: (source.maidServiceFee ?? 0).toFixed(2),
+      ...this.ownerPayoutFormValues(source),
       frequencyId: source.frequencyId ?? Frequency.NA,
       referralFee: source.referralFee ?? false,
       referralMethodId: source.referralMethodId ?? ReferralMethodType.None,
@@ -1295,6 +1305,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.updatePetFields(false);
     this.updateMaidServiceFields(false);
     this.updateReferralFeeFields(false);
+    this.updateOwnerPayoutFields();
     this.updateMaidStartDate();
     if (source.extraFeeLines?.length) {
       this.extraFeeLines = source.extraFeeLines.map(line => ({
@@ -1792,6 +1803,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.setupBillingTypeHandler();
     this.setupPetFeeHandler();
     this.setupMaidServiceHandler();
+    this.setupOwnerPayoutHandler();
     this.setupReferralFeeHandler();
     this.setupReferralAmountExclusivityHandlers();
     this.setupMaidStartDateHandler();
@@ -1975,6 +1987,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       if (applyEnabledDefaults && currentMaidService) {
         this.updateMaidStartDate();
       }
+    });
+  }
+
+  setupOwnerPayoutHandler(): void {
+    this.form.get('overrideOwnerPayout')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.updateOwnerPayoutFields();
+    });
+    this.form.get('managementFeeMode')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncOwnerPayoutFeeFieldState();
     });
   }
 
@@ -2273,6 +2294,11 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.disableFieldWithValidation('maidService');
       this.disableFieldWithValidation('maidServiceFee');
       this.disableFieldWithValidation('frequencyId');
+      this.disableFieldWithValidation('overrideOwnerPayout');
+      this.disableFieldWithValidation('managementFeeMode');
+      this.disableFieldWithValidation('managementFlatRateAmount');
+      this.disableFieldWithValidation('revenueSplitOwner');
+      this.disableFieldWithValidation('revenueSplitOffice');
       this.disableFieldWithValidation('referralFee');
       this.disableFieldWithValidation('referralMethodId');
       this.disableFieldWithValidation('referralPercentage');
@@ -2295,7 +2321,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.enableFieldWithValidation('applicationFee');
       this.enableFieldWithValidation('taxes');
       this.enableFieldWithValidation('pets', [Validators.required]);      
-      this.enableFieldWithValidation('maidService', [Validators.required]);      
+      this.enableFieldWithValidation('maidService', [Validators.required]);
+      this.enableFieldWithValidation('overrideOwnerPayout', [Validators.required]);
       if (this.isReferralFeeAvailableForProperty) {
         this.enableFieldWithValidation('referralFee', [Validators.required]);
       } else {
@@ -2304,6 +2331,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.updatePetFields(this.isAddMode);
       this.updateMaidServiceFields(this.isAddMode);
       this.updateReferralFeeFields(this.isAddMode);
+      this.updateOwnerPayoutFields();
       
       // Set departureDateStartAt if arrival date is set and departure date is unset
       const arrivalDate = this.form.get('arrivalDate')?.value;
@@ -2698,6 +2726,148 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       this.enableFieldWithValidation('maidStartDate', [Validators.required]);
       this.enableFieldWithValidation('maidUserId');
     }
+  }
+
+  get managementFlatRateFieldLabel(): string {
+    return this.form?.get('managementFeeMode')?.value === ManagementFeeType.Minimum ? 'Minimum Amount' : 'Flat Rate Amount';
+  }
+
+  ownerPayoutFormValues(reservation: ReservationResponse): {
+    overrideOwnerPayout: boolean;
+    managementFeeMode: ManagementFeeType;
+    managementFlatRateAmount: string;
+    revenueSplitOwner: string;
+    revenueSplitOffice: string;
+  } {
+    return {
+      overrideOwnerPayout: reservation.overrideOwnerPayout === true,
+      managementFeeMode: normalizeManagementFeeTypeId(reservation.managementFeeTypeId),
+      managementFlatRateAmount: this.formatOwnerPayoutDecimalForDisplay(reservation.flatRateAmount),
+      revenueSplitOwner: this.formatOwnerPayoutPercentForDisplay(reservation.revenueSplitOwner),
+      revenueSplitOffice: this.formatOwnerPayoutPercentForDisplay(reservation.revenueSplitOffice)
+    };
+  }
+
+  resolveOwnerPayoutRequestFields(formValue: Record<string, unknown>): Pick<ReservationRequest, 'overrideOwnerPayout' | 'managementFeeTypeId' | 'flatRateAmount' | 'revenueSplitOwner' | 'revenueSplitOffice'> {
+    const override = formValue['overrideOwnerPayout'] === true;
+    const mode = normalizeManagementFeeTypeId(formValue['managementFeeMode'] as number | null | undefined);
+    if (!override) {
+      return {
+        overrideOwnerPayout: false,
+        managementFeeTypeId: null,
+        flatRateAmount: null,
+        revenueSplitOwner: null,
+        revenueSplitOffice: null
+      };
+    }
+    const percentageOrMinimum = mode === ManagementFeeType.Percentage || mode === ManagementFeeType.Minimum;
+    return {
+      overrideOwnerPayout: true,
+      managementFeeTypeId: mode,
+      flatRateAmount: mode === ManagementFeeType.Percentage ? null : this.parseOwnerPayoutDecimal(formValue['managementFlatRateAmount']),
+      revenueSplitOwner: percentageOrMinimum ? this.parseOwnerPayoutPercent(formValue['revenueSplitOwner']) : null,
+      revenueSplitOffice: percentageOrMinimum ? this.parseOwnerPayoutPercent(formValue['revenueSplitOffice']) : null
+    };
+  }
+
+  updateOwnerPayoutFields(): void {
+    if (this.form.get('reservationTypeId')?.value === ReservationType.Owner) {
+      return;
+    }
+    if (this.form.get('overrideOwnerPayout')?.value !== true) {
+      this.disableFieldWithValidation('managementFeeMode');
+      this.disableFieldWithValidation('managementFlatRateAmount');
+      this.disableFieldWithValidation('revenueSplitOwner');
+      this.disableFieldWithValidation('revenueSplitOffice');
+      return;
+    }
+    this.enableFieldWithValidation('managementFeeMode');
+    this.syncOwnerPayoutFeeFieldState();
+  }
+
+  syncOwnerPayoutFeeFieldState(): void {
+    if (this.form.get('reservationTypeId')?.value === ReservationType.Owner || this.form.get('overrideOwnerPayout')?.value !== true) {
+      return;
+    }
+    const mode = this.form.get('managementFeeMode')?.value;
+    if (mode === ManagementFeeType.Percentage) {
+      this.disableFieldWithValidation('managementFlatRateAmount');
+      this.enableFieldWithValidation('revenueSplitOwner');
+      this.enableFieldWithValidation('revenueSplitOffice');
+    } else if (mode === ManagementFeeType.Minimum) {
+      this.enableFieldWithValidation('managementFlatRateAmount');
+      this.enableFieldWithValidation('revenueSplitOwner');
+      this.enableFieldWithValidation('revenueSplitOffice');
+    } else {
+      this.enableFieldWithValidation('managementFlatRateAmount');
+      this.disableFieldWithValidation('revenueSplitOwner');
+      this.disableFieldWithValidation('revenueSplitOffice');
+    }
+  }
+
+  formatOwnerPayoutDecimalBlur(): void {
+    const control = this.form.get('managementFlatRateAmount');
+    control?.setValue(this.formatOwnerPayoutDecimalForDisplay(control.value), { emitEvent: false });
+    this.form.markAsDirty();
+  }
+
+  formatOwnerPayoutPercentBlur(controlName: 'revenueSplitOwner' | 'revenueSplitOffice'): void {
+    this.formatterService.formatPercentageOnBlur(this.form.get(controlName), 0);
+    this.form.markAsDirty();
+  }
+
+  clearOwnerPayoutPercentOnFocus(event: FocusEvent, controlName: 'revenueSplitOwner' | 'revenueSplitOffice'): void {
+    this.formatterService.clearPercentageOnFocus(event, this.form.get(controlName));
+  }
+
+  allowOwnerPayoutNumericOnly(event: KeyboardEvent): void {
+    const key = event.key;
+    if (['Backspace', 'Tab', 'End', 'Home', 'ArrowLeft', 'ArrowRight', 'Delete'].includes(key)) {
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && ['a', 'c', 'v', 'x'].includes(key.toLowerCase())) {
+      return;
+    }
+    if (!/[0-9.]/.test(key)) {
+      event.preventDefault();
+    }
+  }
+
+  formatOwnerPayoutDecimalForDisplay(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '$0.00';
+    }
+    const n = Number(String(value).replace(/[$,]/g, ''));
+    return isNaN(n) ? '$0.00' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  formatOwnerPayoutPercentForDisplay(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '0%';
+    }
+    const n = Number(String(value).replace(/%\s*$/, ''));
+    if (isNaN(n)) {
+      return '0%';
+    }
+    const rounded = Math.round(n * 100) / 100;
+    const plain = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    return `${plain}%`;
+  }
+
+  parseOwnerPayoutDecimal(value: unknown): number {
+    if (value == null || value === '') {
+      return 0;
+    }
+    const n = parseFloat(String(value).replace(/[$,\s]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+
+  parseOwnerPayoutPercent(value: unknown): number {
+    if (value == null || value === '') {
+      return 0;
+    }
+    const n = Number(String(value).replace(/%\s*$/, '').trim());
+    return isNaN(n) ? 0 : Math.round(n * 100) / 100;
   }
 
   get isReferralFeeAvailableForProperty(): boolean {
