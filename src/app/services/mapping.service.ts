@@ -7161,24 +7161,40 @@ roundCurrency(value: number): number {
       columnContext.columnIds,
       filteredAccounts
     );
-    const incomeAccounts = accounts.filter(account => account.accountTypeId === AccountType.Income || account.accountTypeId === AccountType.OtherIncome);
+    const incomeAccounts = accounts.filter(account => account.accountTypeId === AccountType.Income);
+    const otherIncomeAccounts = accounts.filter(account => account.accountTypeId === AccountType.OtherIncome);
     const cogsAccounts = accounts.filter(account => account.accountTypeId === AccountType.CostOfGoodsSold);
-    const expenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.Expense || account.accountTypeId === AccountType.OtherExpense);
+    const expenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.Expense);
+    const otherExpenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.OtherExpense);
     const incomeTree = this.buildFinancialReportAccountTree(incomeAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
+    const otherIncomeTree = this.buildFinancialReportAccountTree(otherIncomeAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const cogsTree = this.buildFinancialReportAccountTree(cogsAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const expenseTree = this.buildFinancialReportAccountTree(expenseAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
+    const otherExpenseTree = this.buildFinancialReportAccountTree(otherExpenseAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const totalIncome = this.sumFinancialReportTreeAmounts(incomeTree);
+    const totalOtherIncome = this.sumFinancialReportTreeAmounts(otherIncomeTree);
     const totalCogs = this.sumFinancialReportTreeAmounts(cogsTree);
     const totalExpense = this.sumFinancialReportTreeAmounts(expenseTree);
+    const totalOtherExpense = this.sumFinancialReportTreeAmounts(otherExpenseTree);
     const grossProfit = this.roundFinancialReportAmount(totalIncome - totalCogs);
-    const netIncome = this.roundFinancialReportAmount(grossProfit - totalExpense);
+    const netOperatingIncome = this.roundFinancialReportAmount(grossProfit - totalExpense);
+    const netOtherIncome = this.roundFinancialReportAmount(totalOtherIncome - totalOtherExpense);
+    const netIncome = this.roundFinancialReportAmount(netOperatingIncome + netOtherIncome);
     const incomeColumnAmounts = this.sumFinancialReportTreeColumnAmounts(incomeTree, columnContext);
+    const otherIncomeColumnAmounts = this.sumFinancialReportTreeColumnAmounts(otherIncomeTree, columnContext);
     const cogsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(cogsTree, columnContext);
     const expenseColumnAmounts = this.sumFinancialReportTreeColumnAmounts(expenseTree, columnContext);
+    const otherExpenseColumnAmounts = this.sumFinancialReportTreeColumnAmounts(otherExpenseTree, columnContext);
     const grossProfitColumnAmounts = this.subtractFinancialReportColumnAmounts(incomeColumnAmounts, cogsColumnAmounts, columnContext);
-    const netIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(grossProfitColumnAmounts, expenseColumnAmounts, columnContext);
+    const netOperatingIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(grossProfitColumnAmounts, expenseColumnAmounts, columnContext);
+    const netOtherIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(otherIncomeColumnAmounts, otherExpenseColumnAmounts, columnContext);
+    const netIncomeColumnAmounts = this.addFinancialReportColumnAmounts(netOperatingIncomeColumnAmounts, netOtherIncomeColumnAmounts, columnContext);
     const incomeDrillDown: FinancialReportDrillDownSpec = {
-      accountTypeIds: [AccountType.Income, AccountType.OtherIncome],
+      accountTypeIds: [AccountType.Income],
+      mode: 'activity'
+    };
+    const otherIncomeDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.OtherIncome],
       mode: 'activity'
     };
     const cogsDrillDown: FinancialReportDrillDownSpec = {
@@ -7186,11 +7202,23 @@ roundCurrency(value: number): number {
       mode: 'activity'
     };
     const expenseDrillDown: FinancialReportDrillDownSpec = {
-      accountTypeIds: [AccountType.Expense, AccountType.OtherExpense],
+      accountTypeIds: [AccountType.Expense],
+      mode: 'activity'
+    };
+    const otherExpenseDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.OtherExpense],
       mode: 'activity'
     };
     const grossProfitDrillDown: FinancialReportDrillDownSpec = {
-      accountTypeIds: [AccountType.Income, AccountType.OtherIncome, AccountType.CostOfGoodsSold],
+      accountTypeIds: [AccountType.Income, AccountType.CostOfGoodsSold],
+      mode: 'activity'
+    };
+    const netOperatingIncomeDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Income, AccountType.CostOfGoodsSold, AccountType.Expense],
+      mode: 'activity'
+    };
+    const netOtherIncomeDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.OtherIncome, AccountType.OtherExpense],
       mode: 'activity'
     };
     const netIncomeDrillDown: FinancialReportDrillDownSpec = {
@@ -7219,6 +7247,13 @@ roundCurrency(value: number): number {
         this.buildFinancialReportSummaryNode('summary-gross-profit', 'Gross Profit', grossProfit, grossProfitColumnAmounts, 0, grossProfitDrillDown),
         this.buildFinancialReportSectionNode('section-expense', 'Expense', expenseTree, totalExpense, expenseColumnAmounts, 0, expenseDrillDown),
         this.buildFinancialReportTotalNode('total-expense', 'Total Expense', totalExpense, expenseColumnAmounts, 0, expenseDrillDown),
+        this.buildFinancialReportSummaryNode('summary-net-operating-income', 'Net Operating Income', netOperatingIncome, netOperatingIncomeColumnAmounts, 0, netOperatingIncomeDrillDown),
+        this.buildFinancialReportSectionNode('section-other-income', 'Other Income', otherIncomeTree, totalOtherIncome, otherIncomeColumnAmounts, 0, otherIncomeDrillDown),
+        this.buildFinancialReportTotalNode('total-other-income', 'Total Other Income', totalOtherIncome, otherIncomeColumnAmounts, 0, otherIncomeDrillDown),
+        this.buildFinancialReportSectionNode('section-other-expense', 'Other Expense', otherExpenseTree, totalOtherExpense, otherExpenseColumnAmounts, 0, otherExpenseDrillDown),
+        this.buildFinancialReportTotalNode('total-other-expense', 'Total Other Expense', totalOtherExpense, otherExpenseColumnAmounts, 0, otherExpenseDrillDown),
+        this.buildFinancialReportSummaryNode('summary-net-other-income', 'Net Other Income', netOtherIncome, netOtherIncomeColumnAmounts, 0, netOtherIncomeDrillDown),
+        this.buildFinancialReportSummaryNode('summary-net-income-before-taxes', 'Net Income Before Taxes', netIncome, netIncomeColumnAmounts, 0, netIncomeDrillDown),
         this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts, 0, netIncomeDrillDown)
       ]
     };
