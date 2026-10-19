@@ -1656,11 +1656,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     if (this.isPersistedReservationCalendarDate(day)) {
       return true;
     }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (day.getTime() < today.getTime()) {
-      return false;
-    }
     return !this.isDateHeldByPropertyReservation(day);
   };
 
