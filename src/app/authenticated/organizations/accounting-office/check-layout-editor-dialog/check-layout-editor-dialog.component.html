@@ -27,8 +27,10 @@
         <div
           class="check-layout-page"
           [style.width.px]="pageWidthPx"
-          [style.height.px]="pageHeightPx"
-          [style.background-image]="stockImageUrl ? 'url(\'' + stockImageUrl + '\')' : 'none'">
+          [style.height.px]="pageHeightPx">
+          @if (stockImageUrl) {
+            <img class="check-layout-stock" [src]="stockImageUrl" alt="Uploaded check stock" />
+          }
           @for (field of fields; track field.className) {
             <div
               class="check-layout-field"

@@ -3,17 +3,17 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, finalize, from, of, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, finalize, from, of, switchMap, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
-import { AuthService } from '../../../../services/auth.service';
 import { PdfThumbnailService } from '../../../../services/pdf-thumbnail.service';
-import { CheckHtmlResponse } from '../../../accounting/models/check-html.model';
 import { CheckHtmlService } from '../../../accounting/services/check-html.service';
+import { BankAccountResponse } from '../../models/bank.model';
 import { FileDetails } from '../../../../shared/models/fileDetails';
 
 export interface CheckLayoutEditorDialogData {
   officeId: number;
+  bank: BankAccountResponse;
   /** Already-loaded stock from Accounting Office (same PDF shown in the Check Printing thumbnail). */
   checkStockFileDetails?: FileDetails | null;
   checkStockPreviewDataUrl?: string | null;
@@ -43,10 +43,9 @@ interface LayoutField {
 })
 export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
   data = inject<CheckLayoutEditorDialogData>(MAT_DIALOG_DATA);
-  private dialogRef = inject<MatDialogRef<CheckLayoutEditorDialogComponent, boolean>>(MatDialogRef);
+  private dialogRef = inject<MatDialogRef<CheckLayoutEditorDialogComponent, string | false>>(MatDialogRef);
   private checkHtmlService = inject(CheckHtmlService);
   private pdfThumbnailService = inject(PdfThumbnailService);
-  private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -72,7 +71,6 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
   displayScale = 0.72;
   fields: LayoutField[] = [];
   templateHtml = '';
-  existingOfficeRow: CheckHtmlResponse | null = null;
 
   get pageWidthPx(): number {
     return 8.5 * this.pxPerIn * this.displayScale;
@@ -129,74 +127,25 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const organizationId = this.authService.getUser()?.organizationId?.trim();
-    if (!organizationId) {
-      this.toastr.error('Organization is required to save check layout.', CommonMessage.Error);
-      return;
-    }
-
-    const checkHtml = this.buildUpdatedTemplateHtml();
-    this.isSaving = true;
-    this.cdr.markForCheck();
-
-    const save$ = this.existingOfficeRow
-      ? this.checkHtmlService.updateCheckHtml({
-          checkHtmlId: this.existingOfficeRow.checkHtmlId,
-          organizationId,
-          officeId: this.data.officeId,
-          check: checkHtml,
-          // Empty string keeps existing stock; null would clear it (same ResolveImagePath contract as receipts).
-          checkStockPath: this.existingOfficeRow.checkStockPath || ''
-        })
-      : this.checkHtmlService.createCheckHtml({
-          organizationId,
-          officeId: this.data.officeId,
-          check: checkHtml
-        });
-
-    save$.pipe(
-      take(1),
-      finalize(() => {
-        this.isSaving = false;
-        this.cdr.markForCheck();
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {
-        this.toastr.success('Check layout saved for this office.', CommonMessage.Success);
-        this.dialogRef.close(true);
-      },
-      error: () => {
-        this.toastr.error('Unable to save check layout.', CommonMessage.Error);
-      }
-    });
+    this.dialogRef.close(this.buildUpdatedTemplateHtml());
   }
 
 loadEditor(): void {
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    this.checkHtmlService.getCheckHtmlResponseByScope(this.data.officeId).pipe(
-      switchMap(response => {
-        const officeOwned = !!response && Number(response.officeId) === Number(this.data.officeId);
-        this.existingOfficeRow = officeOwned ? response : null;
+    const bankCheck = (this.data.bank.checkHtml || '').trim();
+    const templateSource$ = this.checkHtmlService.hasMergeTokens(bankCheck)
+      ? of(bankCheck)
+      : this.checkHtmlService.getCheckHtmlByScope(this.data.officeId);
 
-        const templateSource$ = officeOwned && this.checkHtmlService.hasMergeTokens(response!.check || '')
-          ? of((response!.check || '').trim())
-          : this.checkHtmlService.getCheckHtmlByScope(this.data.officeId);
-
-        return templateSource$.pipe(
-          switchMap(template => {
-            this.templateHtml = template;
-            this.fields = this.parseFields(template);
-            // Prefer the PDF already shown on Accounting Office; API hydrate can lag or omit bytes.
-            const stockDetails = this.data.checkStockFileDetails
-              || (officeOwned ? response?.checkStockFileDetails : null)
-              || null;
-            const stockPreviewUrl = (this.data.checkStockPreviewDataUrl || '').trim() || null;
-            return this.loadStockBackground(stockDetails, stockPreviewUrl);
-          })
-        );
+    templateSource$.pipe(
+      switchMap(template => {
+        this.templateHtml = template;
+        this.fields = this.parseFields(template);
+        const stockDetails = this.data.checkStockFileDetails || null;
+        const stockPreviewUrl = (this.data.checkStockPreviewDataUrl || '').trim() || null;
+        return this.loadStockBackground(stockDetails, stockPreviewUrl);
       }),
       finalize(() => {
         this.isLoading = false;
@@ -211,12 +160,13 @@ loadEditor(): void {
   }
 
 loadStockBackground(fileDetails?: FileDetails | null, previewDataUrl?: string | null) {
-    const pdfDataUrl = this.resolveCheckStockPdfDataUrl(fileDetails, previewDataUrl);
     const parentThumbnail = (this.data.checkStockPdfThumbnailUrl || '').trim() || null;
+    const imagePreview = this.resolveCheckStockImageDataUrl(fileDetails, previewDataUrl);
+    const pdfDataUrl = this.resolveCheckStockPdfDataUrl(fileDetails, previewDataUrl);
+    this.stockImageUrl = imagePreview || parentThumbnail;
 
     if (!pdfDataUrl) {
-      this.stockImageUrl = parentThumbnail;
-      return of(parentThumbnail);
+      return of(this.stockImageUrl);
     }
 
     return from(this.pdfThumbnailService.getFirstPageDataUrl(pdfDataUrl, 2550, 3)).pipe(
@@ -227,10 +177,9 @@ loadStockBackground(fileDetails?: FileDetails | null, previewDataUrl?: string | 
           return of(url);
         }
 
-        // High-res render can fail on large PDFs — retry smaller, then use the Accounting Office thumbnail.
         return from(this.pdfThumbnailService.getFirstPageDataUrl(pdfDataUrl, 1200, 2)).pipe(
           switchMap(fallback => {
-            this.stockImageUrl = fallback || parentThumbnail;
+            this.stockImageUrl = fallback || imagePreview || parentThumbnail;
             this.cdr.markForCheck();
             return of(this.stockImageUrl);
           })
@@ -239,29 +188,35 @@ loadStockBackground(fileDetails?: FileDetails | null, previewDataUrl?: string | 
     );
   }
 
+resolveCheckStockImageDataUrl(fileDetails?: FileDetails | null, previewDataUrl?: string | null): string | null {
+    const candidates = [previewDataUrl, fileDetails?.dataUrl, this.data.checkStockPdfThumbnailUrl];
+    for (const candidate of candidates) {
+      const value = (candidate || '').trim();
+      if (/^data:image\//i.test(value)) {
+        return value;
+      }
+    }
+    return null;
+  }
+
 resolveCheckStockPdfDataUrl(fileDetails?: FileDetails | null, previewDataUrl?: string | null): string | null {
-    const directPreview = (previewDataUrl || '').trim();
-    if (directPreview) {
-      return directPreview;
+    const candidates = [previewDataUrl, fileDetails?.dataUrl];
+    for (const candidate of candidates) {
+      const value = (candidate || '').trim();
+      if (value && this.pdfThumbnailService.decodePdfBytes(value)) {
+        return value;
+      }
     }
 
-    if (!fileDetails?.file && !fileDetails?.dataUrl) {
+    const file = (fileDetails?.file || '').trim();
+    if (!file) {
       return null;
     }
 
-    if (fileDetails.dataUrl?.trim()) {
-      return fileDetails.dataUrl;
-    }
-
-    if (!fileDetails.file) {
-      return null;
-    }
-
-    if (fileDetails.file.startsWith('data:')) {
-      return fileDetails.file;
-    }
-
-    return `data:${fileDetails.contentType || 'application/pdf'};base64,${fileDetails.file}`;
+    const dataUrl = file.startsWith('data:')
+      ? file
+      : `data:${fileDetails?.contentType || 'application/pdf'};base64,${file}`;
+    return this.pdfThumbnailService.decodePdfBytes(dataUrl) ? dataUrl : null;
   }
 
 parseFields(template: string): LayoutField[] {

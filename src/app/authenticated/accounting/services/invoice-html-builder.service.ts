@@ -118,12 +118,13 @@ export class InvoiceHtmlBuilderService {
       result = result.replace(/\{\{accountingOfficeEmail\}\}/g, ctx.selectedAccountingOffice.email || '');
       result = result.replace(/\{\{accountingOfficePhone\}\}/g, this.formatterService.phoneNumber(ctx.selectedAccountingOffice.phone) || '');
       result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, ctx.selectedAccountingOffice.website || '');
-      result = result.replace(/\{\{accountingOfficeBank\}\}/g, ctx.selectedAccountingOffice.bankName || '');
-      result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, ctx.selectedAccountingOffice.bankRouting || '');
-      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, ctx.selectedAccountingOffice.bankAccount || '');
-      result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, ctx.selectedAccountingOffice.bankSwiftCode || '');
-      result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, ctx.selectedAccountingOffice.bankAddress || '');
-      result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(ctx.selectedAccountingOffice.bankPhone) || '');
+      const invoiceBank = (ctx.selectedAccountingOffice.banks || []).find(bank => bank.useOnInvoices);
+      result = result.replace(/\{\{accountingOfficeBank\}\}/g, invoiceBank?.bankName || ctx.selectedAccountingOffice.bankName || '');
+      result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, invoiceBank?.bankRouting || ctx.selectedAccountingOffice.bankRouting || '');
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, invoiceBank?.bankAccount || ctx.selectedAccountingOffice.bankAccount || '');
+      result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, invoiceBank?.bankSwiftCode || ctx.selectedAccountingOffice.bankSwiftCode || '');
+      result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, invoiceBank?.bankAddress || ctx.selectedAccountingOffice.bankAddress || '');
+      result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(invoiceBank?.bankPhone || ctx.selectedAccountingOffice.bankPhone) || '');
     }
 
     result = this.applyInvoiceLedgerSectionPlaceholders(result, ctx);

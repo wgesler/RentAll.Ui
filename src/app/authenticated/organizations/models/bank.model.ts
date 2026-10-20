@@ -1,3 +1,5 @@
+import { FileDetails } from '../../../shared/models/fileDetails';
+
 export interface BankCardRequest {
   bankCardId?: number;
   cardTypeId: number;
@@ -21,4 +23,40 @@ export interface BankCardResponse {
 
 export interface BankCardPanResponse {
   cardNumber: string;
+}
+
+export interface BankAccountRequest {
+  bankName: string;
+  bankPhone?: string | null;
+  bankRouting?: string | null;
+  bankAccount?: string | null;
+  bankSwiftCode?: string | null;
+  bankAddress?: string | null;
+  currentCheckNumber: number;
+  checkStockPath?: string | null;
+  checkStockFileDetails?: FileDetails | null;
+  checkHtml?: string | null;
+  useOnInvoices: boolean;
+}
+
+export interface BankAccountResponse {
+  bankId: number;
+  organizationId: string;
+  officeId: number;
+  bankName: string;
+  bankPhone?: string | null;
+  bankRouting?: string | null;
+  bankAccount?: string | null;
+  bankSwiftCode?: string | null;
+  bankAddress?: string | null;
+  currentCheckNumber: number;
+  checkStockPath?: string | null;
+  checkStockFileDetails?: FileDetails | null;
+  checkStockPreviewDataUrl?: string | null;
+  checkStockPdfThumbnailUrl?: string | null;
+  checkStockFileName?: string | null;
+  hasNewCheckStockUpload?: boolean;
+  checkStockRemoved?: boolean;
+  checkHtml?: string | null;
+  useOnInvoices: boolean;
 }

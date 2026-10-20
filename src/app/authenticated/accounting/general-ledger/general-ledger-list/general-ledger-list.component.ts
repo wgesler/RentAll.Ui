@@ -2887,7 +2887,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
 
     const accountingOffice = this.accountingOffices.find(office => office.officeId === this.officeId) ?? null;
-    const startingCheckNumber = accountingOffice?.currentCheckNumber ?? 1;
+    const printingBank = this.resolvePrintingBank(accountingOffice);
+    const startingCheckNumber = printingBank?.currentCheckNumber ?? accountingOffice?.currentCheckNumber ?? 1;
     const dialogRef = this.dialog.open<ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult | undefined>(
       ConfirmCheckNumberDialogComponent,
       {
@@ -2909,6 +2910,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       this.isLoadingCheckPreview = true;
       this.checkPrintApiService.assignCheckNumbers({
         officeId: this.officeId!,
+        bankId: printingBank?.bankId || null,
         startingCheckNumber: result.startingCheckNumber,
         journalEntryIds
       }).pipe(
@@ -2917,7 +2919,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
             assignResult.assignments.map(assignment => [assignment.journalEntryId, assignment.checkNumber])
           );
           const office = this.accountingOffices.find(item => item.officeId === this.officeId);
-          if (office) {
+          const printedBank = (office?.banks || []).find(bank => bank.bankId === printingBank?.bankId);
+          if (printedBank) {
+            printedBank.currentCheckNumber = assignResult.nextCheckNumber;
+          } else if (office) {
             office.currentCheckNumber = assignResult.nextCheckNumber;
           }
 
@@ -2925,7 +2930,20 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
             template: this.checkHtmlService.getCheckHtmlByScope(this.officeId),
             accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId!).pipe(catchError(() => of(null))),
             checkNumberByJournalEntryId: of(checkNumberByJournalEntryId)
-          });
+          }).pipe(
+            switchMap(loaded => {
+              const resolvedTemplate = this.resolveCheckTemplate(loaded.template, loaded.accountingOffice);
+              const printingStock = this.resolvePrintingBank(loaded.accountingOffice)?.checkStockFileDetails || loaded.accountingOffice?.checkStockFileDetails;
+              const pdfDataUrl = this.resolveCheckStockPdfDataUrl(printingStock);
+              if (!pdfDataUrl) {
+                return of({ ...loaded, template: resolvedTemplate, stockImageUrl: null as string | null });
+              }
+              return from(this.pdfThumbnailService.getFirstPageDataUrl(pdfDataUrl, 2550, 3)).pipe(
+                map(stockImageUrl => ({ ...loaded, template: resolvedTemplate, stockImageUrl })),
+                catchError(() => of({ ...loaded, template: resolvedTemplate, stockImageUrl: null as string | null }))
+              );
+            })
+          );
         }),
         finalize(() => {
           this.isLoadingCheckPreview = false;
@@ -2933,9 +2951,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         }),
         takeUntil(this.destroy$)
       ).subscribe({
-        next: ({ template, accountingOffice, checkNumberByJournalEntryId }) => {
+        next: ({ template, accountingOffice, checkNumberByJournalEntryId, stockImageUrl }) => {
           const linesWithNumbers = this.applyCheckNumbersToLines(selectedLines, checkNumberByJournalEntryId, result.startingCheckNumber);
-          this.renderCheckPreview(template, accountingOffice, linesWithNumbers, true, null);
+          this.renderCheckPreview(template, accountingOffice, linesWithNumbers, true, stockImageUrl);
           this.clearPrintCheckLineSelection();
           this.loadJournalEntryLines();
         },
@@ -2999,8 +3017,10 @@ previewSelectedChecks(
       return;
     }
 
+    const listedOffice = this.accountingOffices.find(office => office.officeId === this.officeId) ?? null;
     const draftStartingNumber = startingCheckNumber
-      ?? this.accountingOffices.find(office => office.officeId === this.officeId)?.currentCheckNumber
+      ?? this.resolvePrintingBank(listedOffice)?.currentCheckNumber
+      ?? listedOffice?.currentCheckNumber
       ?? 1;
 
     this.isLoadingCheckPreview = true;
@@ -3010,17 +3030,17 @@ previewSelectedChecks(
       accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId!).pipe(catchError(() => of(null)))
     }).pipe(
       switchMap(({ template, checkHtml, accountingOffice }) => {
-        const officeOwnedStock = checkHtml && Number(checkHtml.officeId) === Number(this.officeId)
-          ? checkHtml.checkStockFileDetails
-          : null;
-        const pdfDataUrl = this.resolveCheckStockPdfDataUrl(officeOwnedStock);
+        const officeOwnedStock = accountingOffice?.checkStockFileDetails
+          || (checkHtml && Number(checkHtml.officeId) === Number(this.officeId) ? checkHtml.checkStockFileDetails : null);
+        const bankStock = this.resolvePrintingBank(accountingOffice)?.checkStockFileDetails;
+        const pdfDataUrl = this.resolveCheckStockPdfDataUrl(bankStock?.file || bankStock?.dataUrl ? bankStock : officeOwnedStock);
         if (!pdfDataUrl) {
-          return of({ template, accountingOffice, stockImageUrl: null as string | null });
+          return of({ template: this.resolveCheckTemplate(template, accountingOffice), accountingOffice, stockImageUrl: null as string | null });
         }
 
         return from(this.pdfThumbnailService.getFirstPageDataUrl(pdfDataUrl, 2550, 3)).pipe(
-          map(stockImageUrl => ({ template, accountingOffice, stockImageUrl })),
-          catchError(() => of({ template, accountingOffice, stockImageUrl: null as string | null }))
+          map(stockImageUrl => ({ template: this.resolveCheckTemplate(template, accountingOffice), accountingOffice, stockImageUrl })),
+          catchError(() => of({ template: this.resolveCheckTemplate(template, accountingOffice), accountingOffice, stockImageUrl: null as string | null }))
         );
       }),
       finalize(() => {
@@ -3032,6 +3052,26 @@ previewSelectedChecks(
       const linesWithNumbers = this.applyCheckNumbersToLines(selectedLines, null, draftStartingNumber);
       this.renderCheckPreview(template, accountingOffice, linesWithNumbers, false, stockImageUrl);
     });
+  }
+
+resolvePrintingBank(accountingOffice: AccountingOfficeResponse | null) {
+    const banks = accountingOffice?.banks || [];
+    const layouts = banks.filter(bank => this.checkHtmlService.hasMergeTokens(bank.checkHtml || ''));
+    if (layouts.length === 1) {
+      return layouts[0];
+    }
+    const stocked = banks.filter(bank => !!(bank.checkStockPath || '').trim() || !!bank.checkStockFileDetails?.file);
+    if (layouts.length === 0 && stocked.length === 1) {
+      return stocked[0];
+    }
+    return banks.length === 1 ? banks[0] : null;
+  }
+
+  resolveCheckTemplate(officeTemplate: string, accountingOffice: AccountingOfficeResponse | null): string {
+    const officeLayout = (accountingOffice?.checkHtml || '').trim();
+    const primaryTemplate = this.checkHtmlService.hasMergeTokens(officeLayout) ? officeLayout : officeTemplate;
+    const bankLayouts = (accountingOffice?.banks || []).filter(bank => this.checkHtmlService.hasMergeTokens(bank.checkHtml || ''));
+    return bankLayouts.length === 1 ? (bankLayouts[0].checkHtml || primaryTemplate) : primaryTemplate;
   }
 
 resolveCheckStockPdfDataUrl(fileDetails: { file?: string; dataUrl?: string; contentType?: string } | null | undefined): string | null {

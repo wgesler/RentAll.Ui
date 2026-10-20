@@ -1,5 +1,5 @@
 import { FileDetails } from "../../../shared/models/fileDetails";
-import { BankCardResponse } from "./bank.model";
+import { BankAccountResponse, BankCardResponse } from "./bank.model";
 
 export interface AccountingOfficeRequest {
   organizationId: string;
@@ -57,6 +57,7 @@ export interface AccountingOfficeRequest {
   logoPath?: string; 
   fileDetails?: FileDetails;
   currentCheckNumber: number;
+  checkHtml?: string | null;
   isActive: boolean;
 }
 
@@ -91,6 +92,7 @@ export interface AccountingOfficeResponse {
   hardClosedMonth: number;
   hardClosedYear: number;
   bankCards?: BankCardResponse[];
+  banks?: BankAccountResponse[];
   workOrderNo: number;
   defaultTenantIncAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
@@ -118,6 +120,7 @@ export interface AccountingOfficeResponse {
   fileDetails?: FileDetails;
   checkStockPath?: string | null;
   checkStockFileDetails?: FileDetails | null;
+  checkHtml?: string | null;
   currentCheckNumber: number;
   isActive: boolean;
 }
@@ -165,6 +168,7 @@ export interface AccountingOfficeCheckStockUpdateResponse {
 
 export interface AssignCheckNumbersRequest {
   officeId: number;
+  bankId?: number | null;
   startingCheckNumber: number;
   journalEntryIds: string[];
 }

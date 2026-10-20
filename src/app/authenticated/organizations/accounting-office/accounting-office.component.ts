@@ -5,7 +5,7 @@ import { MatSelect } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -19,13 +19,14 @@ import { AccountingOfficeRequest, AccountingOfficeResponse, ReopenHardClosedPost
 import { FeatureType, OrganizationType } from '../models/organization-enum';
 import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OrganizationService } from '../services/organization.service';
-import { BankCardRequest, BankCardResponse } from '../models/bank.model';
+import { BankAccountRequest, BankAccountResponse, BankCardRequest, BankCardResponse } from '../models/bank.model';
 import { getCardTypes } from '../models/card-type-enum';
 import { AccountType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from '../services/accounting-office.service';
 import { BankCardService } from '../services/bank-card.service';
+import { BankService } from '../services/bank.service';
 import { OfficeService } from '../services/office.service';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
@@ -64,6 +65,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Output() savedEvent = new EventEmitter<void>();
   accountingOfficeService = inject(AccountingOfficeService);
   private bankCardService = inject(BankCardService);
+  private bankService = inject(BankService);
   fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -100,6 +102,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   isUploadingCheckStock: boolean = false;
   isSavingCheckPrinting: boolean = false;
   officeCheckHtml: CheckHtmlResponse | null = null;
+  primaryCheckHtml: string | null = null;
+  primaryCheckLayoutChanged = false;
   isSubmitting: boolean = false;
   isResyncingPostingStatus = false;
   private suppressClosedPeriodRevert = false;
@@ -123,6 +127,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   // Bank card state
   bankCards: BankCardResponse[] = [];
+  banks: BankAccountResponse[] = [];
+  removedBankIds: number[] = [];
   showBankCardRows: boolean = false;
   bankCardValidationAttempted = false;
   bankCardActionIndexes = new Set<number>();
@@ -251,6 +257,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
         this.resetBankCards();
+        this.banks = [];
         this.buildForm();
         this.setupOfficeSelectionHandler();
         this.scheduleFocusFirstField();
@@ -298,11 +305,13 @@ parseOfficeId(id: string | number | null): number | null {
         }
         // Check stock: load like logo (AccountingOffice owns the PDF path for reopen).
         this.applyAccountingOfficeCheckStock(response);
+        this.primaryCheckHtml = this.checkHtmlService.hasMergeTokens(response.checkHtml || '') ? response.checkHtml || null : this.primaryCheckHtml;
         this.buildForm();
         this.loadAccountingOfficeOrganizationType();
         this.loadChartOfAccountsForOffice(response?.officeId, () => {
           this.populateForm();
           this.applyBankCardsFromSource(response?.bankCards);
+          this.banks = (response?.banks || []).map(bank => this.withBankStockPreview(bank));
           this.cdr.markForCheck();
         });
         this.loadOfficeCheckHtml(response?.officeId);
@@ -334,6 +343,10 @@ parseOfficeId(id: string | number | null): number | null {
     if (this.isAddMode && !formValue.officeId) {
       this.toastr.error('Please select an office', CommonMessage.Error);
       this.form.get('officeId')?.markAsTouched();
+      return;
+    }
+
+    if (!this.additionalAccountsAreValid()) {
       return;
     }
 
@@ -370,7 +383,10 @@ parseOfficeId(id: string | number | null): number | null {
         }
 
         if (this.isAddMode) {
-          return this.accountingOfficeService.createAccountingOffice(officeRequest);
+          return this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(
+            switchMap(response => this.persistAdditionalBanks(response.officeId, response)),
+            switchMap(response => this.persistPrimaryCheckPrinting(response.officeId).pipe(map(() => response)))
+          );
         }
 
         return this.accountingOfficeService.getAccountingOfficeById(officeRequest.officeId).pipe(
@@ -381,7 +397,9 @@ parseOfficeId(id: string | number | null): number | null {
             }
             this.applyAccountingOfficeCheckStock(fresh);
           }),
-          switchMap(() => this.updateAccountingOfficeFromForm())
+          switchMap(() => this.updateAccountingOfficeFromForm()),
+          switchMap(response => this.persistAdditionalBanks(response.officeId, response)),
+          switchMap(response => this.persistPrimaryCheckPrinting(response.officeId).pipe(map(() => response)))
         );
       }),
       take(1),
@@ -965,7 +983,6 @@ readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
         }
         return this.persistAccountingOfficeCheckStockIfNeeded(officeId);
       }),
-      switchMap(() => this.persistCheckPrintingIfNeeded(officeId)),
       take(1),
       finalize(() => {
         this.isSavingCheckPrinting = false;
@@ -986,23 +1003,50 @@ readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
     });
   }
 
-  openCheckLayoutEditor(): void {
+  copyPrimaryBankFields(bank: BankAccountResponse): void {
+    bank.bankName = (this.form?.get('bankName')?.value || '').trim();
+    bank.bankPhone = this.form?.get('bankPhone')?.value || null;
+    bank.bankRouting = this.form?.get('bankRouting')?.value || null;
+    bank.bankSwiftCode = this.form?.get('bankSwiftCode')?.value || null;
+    bank.bankAddress = this.form?.get('bankAddress')?.value || null;
+  }
+
+  openPrimaryCheckLayoutEditor(): void {
+    const officeId = this.parseOfficeId(this.isAddMode ? this.form?.get('officeId')?.value : this.id) || 0;
+    const bank: BankAccountResponse = {
+      bankId: 0,
+      organizationId: this.accountingOffice?.organizationId || '',
+      officeId,
+      bankName: '',
+      bankAccount: this.form?.get('bankAccount')?.value || '',
+      currentCheckNumber: Number(this.form?.get('currentCheckNumber')?.value) || 1,
+      checkHtml: this.primaryCheckHtml || this.accountingOffice?.checkHtml || this.officeCheckHtml?.check || null,
+      checkStockPath: this.checkStockPath,
+      checkStockFileDetails: this.checkStockFileDetails,
+      checkStockPreviewDataUrl: this.checkStockPreviewDataUrl,
+      checkStockPdfThumbnailUrl: this.checkStockPdfThumbnailUrl,
+      useOnInvoices: false
+    };
+    this.openCheckLayoutEditor(bank, checkHtml => {
+      this.primaryCheckHtml = checkHtml;
+      this.primaryCheckLayoutChanged = true;
+    });
+  }
+
+  openCheckLayoutEditor(bank: BankAccountResponse, onSaved?: (checkHtml: string) => void): void {
+    this.copyPrimaryBankFields(bank);
     const officeId = this.parseOfficeId(this.isAddMode ? this.form?.get('officeId')?.value : this.id);
     if (officeId == null) {
-      this.toastr.warning('Save or select an office before aligning check layout.');
-      return;
-    }
-
-    if (this.hasNewCheckStockUpload || this.checkStockRemoved) {
-      this.toastr.warning('Save check printing first to store check stock changes, then align layout.');
+      this.toastr.warning('Select an office before aligning check layout.');
       return;
     }
 
     const data: CheckLayoutEditorDialogData = {
       officeId,
-      checkStockFileDetails: this.checkStockFileDetails,
-      checkStockPreviewDataUrl: this.checkStockPreviewDataUrl,
-      checkStockPdfThumbnailUrl: this.checkStockPdfThumbnailUrl
+      bank,
+      checkStockFileDetails: bank.checkStockFileDetails,
+      checkStockPreviewDataUrl: bank.checkStockPreviewDataUrl,
+      checkStockPdfThumbnailUrl: bank.checkStockPdfThumbnailUrl
     };
     this.dialog.open(CheckLayoutEditorDialogComponent, {
       width: '960px',
@@ -1011,10 +1055,16 @@ readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
       disableClose: true,
       panelClass: 'accounting-form-dialog-panel',
       data
-    }).afterClosed().pipe(take(1)).subscribe(saved => {
-      if (saved) {
-        this.loadOfficeCheckHtml(officeId);
+    }).afterClosed().pipe(take(1)).subscribe(checkHtml => {
+      if (!checkHtml) {
+        return;
       }
+      if (onSaved) {
+        onSaved(checkHtml);
+      } else {
+        bank.checkHtml = checkHtml;
+      }
+      this.cdr.markForCheck();
     });
   }
 
@@ -1120,67 +1170,11 @@ applyCheckStockFromSaved(
     this.cdr.detectChanges();
   }
 
-persistCheckPrintingIfNeeded(officeId: number): Observable<CheckHtmlResponse | null> {
-    if (!this.hasNewCheckStockUpload && !this.checkStockRemoved) {
-      return of(null);
-    }
-
-    const organizationId = this.authService.getUser()?.organizationId?.trim() || this.accountingOffice?.organizationId;
-    if (!organizationId) {
-      this.toastr.error('Organization ID is missing', CommonMessage.Error);
-      return throwError(() => new Error('Organization ID is missing'));
-    }
-
-    const existing = this.officeCheckHtml && Number(this.officeCheckHtml.officeId) === Number(officeId)
-      ? this.officeCheckHtml
-      : null;
-    const clearStock = this.checkStockRemoved && !this.hasNewCheckStockUpload;
-    const fileDetails = this.hasNewCheckStockUpload ? this.checkStockFileDetails : null;
-
-    const templateSource$ = existing?.check && this.checkHtmlService.hasMergeTokens(existing.check)
-      ? of(existing.check)
-      : this.checkHtmlService.getCheckHtmlByScope(officeId);
-
-    return templateSource$.pipe(
-      switchMap(check => {
-        if (existing) {
-          return this.checkHtmlService.updateCheckHtml({
-            checkHtmlId: existing.checkHtmlId,
-            organizationId,
-            officeId,
-            check,
-            checkStockFileDetails: clearStock ? undefined : (fileDetails ?? undefined),
-            // Empty string = keep existing (ResolveImagePath treats null as explicit clear; omitted JSON also binds as null).
-            checkStockPath: clearStock ? null : (existing.checkStockPath || '')
-          });
-        }
-
-        if (clearStock) {
-          return of(null);
-        }
-
-        return this.checkHtmlService.createCheckHtml({
-          organizationId,
-          officeId,
-          check,
-          checkStockFileDetails: fileDetails
-        });
-      }),
-      map(response => {
-        if (response) {
-          this.officeCheckHtml = response;
-          if (clearStock) {
-            this.clearCheckStockLocal();
-          } else {
-            this.applyCheckHtmlStock(response, fileDetails);
-          }
-        } else if (clearStock) {
-          this.officeCheckHtml = existing ? { ...existing, checkStockPath: null, checkStockFileDetails: null } : null;
-          this.clearCheckStockLocal();
-        }
-        return response;
-      }),
-      catchError(err => throwError(() => err))
+  persistPrimaryCheckPrinting(officeId: number): Observable<unknown> {
+    return this.persistAccountingOfficeCheckStockIfNeeded(officeId).pipe(
+      tap(() => {
+        this.primaryCheckLayoutChanged = false;
+      })
     );
   }
 
@@ -1246,6 +1240,20 @@ clearCheckStockLocal(): void {
     input.value = value;
     this.form.get(fieldName)?.setValue(value, { emitEvent: false });
   }
+
+  onCheckNumberInput(event: Event, fieldName: string): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/\D/g, '').slice(0, 10);
+    input.value = value;
+    this.form.get(fieldName)?.setValue(value ? Number(value) : null, { emitEvent: false });
+  }
+
+  onBankCheckNumberInput(bank: BankAccountResponse, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/\D/g, '').slice(0, 10);
+    input.value = value;
+    bank.currentCheckNumber = value ? Number(value) : 1;
+  }
   //#endregion
 
   //#region Phone helpers
@@ -1271,6 +1279,176 @@ clearCheckStockLocal(): void {
 
   onBankPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('bankPhone'));
+  }
+  //#endregion
+
+  //#region Banks
+  withBankStockPreview(bank: BankAccountResponse): BankAccountResponse {
+    const details = bank.checkStockFileDetails;
+    if (details?.file && !details.dataUrl?.trim()) {
+      const contentType = details.contentType || 'application/pdf';
+      details.dataUrl = details.file.startsWith('data:') ? details.file : `data:${contentType};base64,${details.file}`;
+    }
+    bank.checkStockPreviewDataUrl = this.utilityService.resolveFileDetailsDataUrl(details, bank.checkStockPath) || details?.dataUrl || null;
+    bank.checkStockFileName = details?.fileName || this.extractCheckStockFileName(bank.checkStockPath);
+    bank.hasNewCheckStockUpload = false;
+    bank.checkStockRemoved = false;
+    this.setBankCheckStockThumbnail(bank);
+    return bank;
+  }
+
+  setBankCheckStockThumbnail(bank: BankAccountResponse): void {
+    const dataUrl = bank.checkStockPreviewDataUrl || null;
+    const contentType = bank.checkStockFileDetails?.contentType || null;
+    if (!dataUrl) {
+      bank.checkStockPdfThumbnailUrl = null;
+      return;
+    }
+    const normalizedType = (contentType || this.utilityService.getContentTypeFromDataUrl(dataUrl) || '').toLowerCase();
+    const looksLikePdf = normalizedType.includes('pdf') || dataUrl.toLowerCase().includes('application/pdf');
+    if (!looksLikePdf) {
+      bank.checkStockPdfThumbnailUrl = null;
+      return;
+    }
+    bank.checkStockPdfThumbnailUrl = null;
+    this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
+      bank.checkStockPdfThumbnailUrl = url;
+      this.cdr.detectChanges();
+    });
+  }
+
+  isBankCheckStockPdf(bank: BankAccountResponse): boolean {
+    const contentType = (bank.checkStockFileDetails?.contentType
+      || this.utilityService.getContentTypeFromDataUrl(bank.checkStockPreviewDataUrl || '')
+      || '').toLowerCase();
+    return contentType.includes('pdf');
+  }
+
+  async uploadBankCheckStock(bank: BankAccountResponse, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement | null;
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      return;
+    }
+    try {
+      const immediatePreviewDataUrl = await this.readSelectedFilePreviewDataUrl(file);
+      if (immediatePreviewDataUrl) {
+        bank.checkStockFileName = file.name;
+        bank.checkStockPreviewDataUrl = immediatePreviewDataUrl;
+        bank.checkStockFileDetails = {
+          contentType: file.type || 'application/pdf',
+          fileName: file.name,
+          file: immediatePreviewDataUrl.split(',')[1] ?? '',
+          dataUrl: immediatePreviewDataUrl
+        };
+        bank.hasNewCheckStockUpload = true;
+        bank.checkStockRemoved = false;
+        this.setBankCheckStockThumbnail(bank);
+        this.markViewForCheck();
+      }
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      bank.checkStockFileName = payload.fileDetails.fileName;
+      bank.checkStockFileDetails = payload.fileDetails;
+      bank.checkStockPreviewDataUrl = payload.fileDetails.dataUrl || bank.checkStockPreviewDataUrl;
+      bank.hasNewCheckStockUpload = true;
+      bank.checkStockRemoved = false;
+      this.setBankCheckStockThumbnail(bank);
+      this.cdr.detectChanges();
+    } catch (error) {
+      if (error instanceof ImageOptimizationFailedError) {
+        this.toastr.error(this.utilityService.getImageCompressionFailureMessage(file.name), CommonMessage.Error);
+      } else {
+        this.toastr.error('Unable to prepare check stock.', CommonMessage.Error);
+      }
+    } finally {
+      if (input) {
+        input.value = '';
+      }
+    }
+  }
+
+  removeBankCheckStock(bank: BankAccountResponse): void {
+    bank.checkStockRemoved = !!(bank.checkStockPath || bank.checkStockFileDetails);
+    bank.hasNewCheckStockUpload = false;
+    bank.checkStockPath = null;
+    bank.checkStockFileDetails = null;
+    bank.checkStockPreviewDataUrl = null;
+    bank.checkStockPdfThumbnailUrl = null;
+    bank.checkStockFileName = null;
+    this.cdr.detectChanges();
+  }
+
+  addBank(): void {
+    this.banks = [...this.banks, {
+      bankId: 0,
+      organizationId: this.accountingOffice?.organizationId || '',
+      officeId: this.accountingOffice?.officeId || 0,
+      bankName: '',
+      bankPhone: '',
+      bankRouting: '',
+      bankAccount: '',
+      bankSwiftCode: '',
+      bankAddress: '',
+      currentCheckNumber: 1,
+      checkStockPath: '',
+      useOnInvoices: false
+    }];
+  }
+
+  additionalAccountsAreValid(): boolean {
+    const missingAccount = this.banks.some(bank => !(bank.bankAccount || '').trim());
+    if (missingAccount) {
+      this.toastr.error('Account number is required', CommonMessage.Error);
+      return false;
+    }
+    return true;
+  }
+
+  buildAdditionalBankRequest(bank: BankAccountResponse): BankAccountRequest {
+    this.copyPrimaryBankFields(bank);
+    return {
+      bankName: (bank.bankName || '').trim(),
+      bankPhone: bank.bankPhone || null,
+      bankRouting: bank.bankRouting || null,
+      bankAccount: (bank.bankAccount || '').trim(),
+      bankSwiftCode: bank.bankSwiftCode || null,
+      bankAddress: bank.bankAddress || null,
+      currentCheckNumber: Number(bank.currentCheckNumber) || 1,
+      checkStockPath: bank.checkStockRemoved && !bank.hasNewCheckStockUpload ? null : (bank.hasNewCheckStockUpload ? null : (bank.checkStockPath || '')),
+      checkStockFileDetails: bank.hasNewCheckStockUpload ? bank.checkStockFileDetails : undefined,
+      checkHtml: bank.checkHtml || null,
+      useOnInvoices: !!bank.useOnInvoices
+    };
+  }
+
+  persistAdditionalBanks(officeId: number, office: AccountingOfficeResponse): Observable<AccountingOfficeResponse> {
+    const deletes = this.removedBankIds.map(bankId => this.bankService.deleteBank(officeId, bankId));
+    const saves = this.banks.map(bank => {
+      const request = this.buildAdditionalBankRequest(bank);
+      return bank.bankId > 0
+        ? this.bankService.updateBank(officeId, bank.bankId, request)
+        : this.bankService.createBank(officeId, request);
+    });
+    const delete$ = deletes.length ? forkJoin(deletes) : of([]);
+    return delete$.pipe(
+      switchMap(() => saves.length ? forkJoin(saves) : of([] as BankAccountResponse[])),
+      map(saved => {
+        this.removedBankIds = [];
+        office.banks = saved.map(bank => this.withBankStockPreview(bank));
+        return office;
+      })
+    );
+  }
+
+  removeBank(index: number): void {
+    const bank = this.banks[index];
+    if (!bank) {
+      return;
+    }
+    if (bank.bankId > 0) {
+      this.removedBankIds = [...this.removedBankIds, bank.bankId];
+    }
+    this.banks = this.banks.filter((_, bankIndex) => bankIndex !== index);
   }
   //#endregion
 
@@ -1844,6 +2022,7 @@ clearCheckStockLocal(): void {
       hardClosedYear: Number(formValue['hardClosedYear']),
       workOrderNo: Number(formValue['workOrderNo']) || 0,
       currentCheckNumber: Number(formValue['currentCheckNumber']) || 1,
+      checkHtml: this.primaryCheckHtml || this.accountingOffice?.checkHtml || '[]',
       defaultTenantIncAccountId: this.parseOptionalAccountId(formValue['defaultTenantIncAccountId']),
       defaultTenantExpAccountId: this.parseOptionalAccountId(formValue['defaultTenantExpAccountId']),
       defaultOwnerIncAccountId: this.parseOptionalAccountId(formValue['defaultOwnerIncAccountId']),
@@ -1883,10 +2062,15 @@ clearCheckStockLocal(): void {
 
   private applySavedAccountingOfficeResponse(response: AccountingOfficeResponse): void {
     this.accountingOffice = response;
+    this.banks = (response?.banks || this.banks).map(bank => this.withBankStockPreview(bank));
     if (response.logoPath && !this.hasNewFileUpload) {
       this.logoPath = response.logoPath;
     }
     this.applyAccountingOfficeCheckStock(response);
+    if (this.checkHtmlService.hasMergeTokens(response.checkHtml || '')) {
+      this.primaryCheckHtml = response.checkHtml || null;
+    }
+    this.primaryCheckLayoutChanged = false;
     this.accountingOfficeService.notifyAccountingOfficesChanged();
     this.cdr.markForCheck();
   }
@@ -1912,6 +2096,8 @@ clearCheckStockLocal(): void {
         this.applyAccountingOfficeCheckStock(fresh);
       }),
       switchMap(() => this.updateAccountingOfficeFromForm()),
+      switchMap(response => this.persistAdditionalBanks(response.officeId, response)),
+      switchMap(response => this.persistPrimaryCheckPrinting(response.officeId).pipe(map(() => response))),
       tap(response => this.applySavedAccountingOfficeResponse(response)),
       map(() => true),
       catchError(() => {

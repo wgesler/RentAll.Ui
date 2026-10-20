@@ -337,12 +337,43 @@
                 </mat-expansion-panel-header>
 
                 <div class="grid grid-cols-4 form-standard-grid">
-                  <div class="col-span-4 grid grid-cols-2 form-standard-grid">
+                  <div class="col-span-4 grid grid-cols-3 form-standard-grid">
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Bank Name</mat-label>
                       <input matInput formControlName="bankName" required>
                       @if (form.get('bankName')?.hasError('required') && form.get('bankName')?.touched) {
                         <mat-error>Bank Name is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Bank Routing</mat-label>
+                      <input matInput formControlName="bankRouting" required inputmode="numeric" (input)="onIntegerInput($event, 'bankRouting')">
+                      @if (form.get('bankRouting')?.hasError('required') && form.get('bankRouting')?.touched) {
+                        <mat-error>Bank Routing is required</mat-error>
+                      }
+                      @if (form.get('bankRouting')?.hasError('pattern') && form.get('bankRouting')?.touched && !form.get('bankRouting')?.hasError('required')) {
+                        <mat-error>Bank Routing must be numbers only</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Bank SWIFT Code</mat-label>
+                      <input matInput type="text" formControlName="bankSwiftCode" required
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('bankSwiftCode')?.hasError('required') && form.get('bankSwiftCode')?.touched) {
+                        <mat-error>Bank SWIFT Code is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+
+                  <div class="col-span-4 grid grid-cols-4 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-3 w-full">
+                      <mat-label>Bank Address</mat-label>
+                      <input matInput type="text" formControlName="bankAddress" required
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('bankAddress')?.hasError('required') && form.get('bankAddress')?.touched) {
+                        <mat-error>Bank Address is required</mat-error>
                       }
                     </mat-form-field>
 
@@ -358,47 +389,76 @@
                     </mat-form-field>
                   </div>
 
-                  <div class="col-span-4 grid grid-cols-3 form-standard-grid">
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
-                      <mat-label>Bank Routing</mat-label>
-                      <input matInput formControlName="bankRouting" required inputmode="numeric" (input)="onIntegerInput($event, 'bankRouting')">
-                      @if (form.get('bankRouting')?.hasError('required') && form.get('bankRouting')?.touched) {
-                        <mat-error>Bank Routing is required</mat-error>
+                  <div class="col-span-4 bank-card-section">
+                    <div class="bank-card-header mb-2">
+                      <h4 class="m-0">Bank Accounts</h4>
+                      <button mat-raised-button type="button" color="primary" (click)="addBank()">
+                        <mat-icon>add</mat-icon>
+                        Add Account
+                      </button>
+                    </div>
+                    <div class="bank-account-line mb-3">
+                      <mat-form-field appearance="outline" class="bank-account-number">
+                        <mat-label>Bank Account</mat-label>
+                        <input matInput formControlName="bankAccount" required maxlength="25" inputmode="numeric" (input)="onIntegerInput($event, 'bankAccount')">
+                        @if (form.get('bankAccount')?.hasError('required') && form.get('bankAccount')?.touched) {
+                          <mat-error>Bank Account is required</mat-error>
+                        }
+                        @if (form.get('bankAccount')?.hasError('pattern') && form.get('bankAccount')?.touched && !form.get('bankAccount')?.hasError('required')) {
+                          <mat-error>Bank Account must be numbers only</mat-error>
+                        }
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="bank-account-check-number">
+                        <mat-label>Check Number</mat-label>
+                        <input matInput type="text" maxlength="10" formControlName="currentCheckNumber" inputmode="numeric" (input)="onCheckNumberInput($event, 'currentCheckNumber')">
+                      </mat-form-field>
+                      @if (checkStockPdfThumbnailUrl) {
+                        <img [src]="checkStockPdfThumbnailUrl" alt="Check stock" class="bank-account-stock-thumb" />
+                      } @else if (checkStockPreviewDataUrl && !isCheckStockPreviewPdf()) {
+                        <img [src]="checkStockPreviewDataUrl" alt="Check stock" class="bank-account-stock-thumb" />
+                      } @else if (checkStockPreviewDataUrl || checkStockPath) {
+                        <mat-icon class="bank-account-stock-thumb bank-account-stock-icon">picture_as_pdf</mat-icon>
+                      } @else {
+                        <span class="bank-account-stock-thumb bank-account-stock-thumb-spacer" aria-hidden="true"></span>
                       }
-                      @if (form.get('bankRouting')?.hasError('pattern') && form.get('bankRouting')?.touched && !form.get('bankRouting')?.hasError('required')) {
-                        <mat-error>Bank Routing must be numbers only</mat-error>
+                      <button mat-raised-button type="button" color="primary" class="bank-account-action" (click)="primaryCheckStockInput.click()">Upload Check</button>
+                      @if (checkStockPreviewDataUrl || checkStockPath) {
+                        <button mat-raised-button type="button" color="accent" class="bank-account-action" (click)="removeCheckStock()">Delete Check</button>
+                        <button mat-raised-button type="button" color="primary" class="bank-account-action" (click)="openPrimaryCheckLayoutEditor()">Align Layout</button>
                       }
-                    </mat-form-field>
-
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
-                      <mat-label>Bank Account</mat-label>
-                      <input matInput formControlName="bankAccount" required inputmode="numeric" (input)="onIntegerInput($event, 'bankAccount')">
-                      @if (form.get('bankAccount')?.hasError('required') && form.get('bankAccount')?.touched) {
-                        <mat-error>Bank Account is required</mat-error>
-                      }
-                      @if (form.get('bankAccount')?.hasError('pattern') && form.get('bankAccount')?.touched && !form.get('bankAccount')?.hasError('required')) {
-                        <mat-error>Bank Account must be numbers only</mat-error>
-                      }
-                    </mat-form-field>
-
-                    <mat-form-field appearance="outline" class="col-span-1 w-full">
-                      <mat-label>Bank SWIFT Code</mat-label>
-                      <input matInput type="text" formControlName="bankSwiftCode" required
-                        (focus)="selectAllOnFocus($event)">
-                      @if (form.get('bankSwiftCode')?.hasError('required') && form.get('bankSwiftCode')?.touched) {
-                        <mat-error>Bank SWIFT Code is required</mat-error>
-                      }
-                    </mat-form-field>
-                  </div>
-
-                  <mat-form-field appearance="outline" class="col-span-4">
-                    <mat-label>Bank Address</mat-label>
-                    <input matInput type="text" formControlName="bankAddress" required
-                      (focus)="selectAllOnFocus($event)">
-                    @if (form.get('bankAddress')?.hasError('required') && form.get('bankAddress')?.touched) {
-                      <mat-error>Bank Address is required</mat-error>
+                      <input type="file" #primaryCheckStockInput accept="application/pdf,.pdf" (change)="uploadCheckStock($event)" class="file-input-hidden" />
+                    </div>
+                    @for (bank of banks; track bank.bankId || $index) {
+                      <div class="bank-account-line mb-3">
+                        <mat-form-field appearance="outline" class="bank-account-number">
+                          <mat-label>Account Number</mat-label>
+                          <input matInput [(ngModel)]="bank.bankAccount" [ngModelOptions]="{standalone: true}" maxlength="25" inputmode="numeric">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="bank-account-check-number">
+                          <mat-label>Check Number</mat-label>
+                          <input matInput type="text" maxlength="10" [ngModel]="bank.currentCheckNumber" [ngModelOptions]="{standalone: true}" inputmode="numeric" (input)="onBankCheckNumberInput(bank, $event)">
+                        </mat-form-field>
+                        @if (bank.checkStockPdfThumbnailUrl) {
+                          <img [src]="bank.checkStockPdfThumbnailUrl" alt="Check stock" class="bank-account-stock-thumb" />
+                        } @else if (bank.checkStockPreviewDataUrl && !isBankCheckStockPdf(bank)) {
+                          <img [src]="bank.checkStockPreviewDataUrl" alt="Check stock" class="bank-account-stock-thumb" />
+                        } @else if (bank.checkStockPreviewDataUrl || bank.checkStockPath) {
+                          <mat-icon class="bank-account-stock-thumb bank-account-stock-icon">picture_as_pdf</mat-icon>
+                        } @else {
+                          <span class="bank-account-stock-thumb bank-account-stock-thumb-spacer" aria-hidden="true"></span>
+                        }
+                        <button mat-raised-button type="button" color="primary" class="bank-account-action" (click)="bankStockInput.click()">Upload Check</button>
+                        @if (bank.checkStockPreviewDataUrl || bank.checkStockPath) {
+                          <button mat-raised-button type="button" color="accent" class="bank-account-action" (click)="removeBankCheckStock(bank)">Delete Check</button>
+                          <button mat-raised-button type="button" color="primary" class="bank-account-action" (click)="openCheckLayoutEditor(bank)">Align Layout</button>
+                        }
+                        <button mat-icon-button type="button" color="accent" (click)="removeBank($index)" matTooltip="Remove this account">
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <input type="file" #bankStockInput accept="application/pdf,.pdf" (change)="uploadBankCheckStock(bank, $event)" class="file-input-hidden" />
+                      </div>
                     }
-                  </mat-form-field>
+                  </div>
 
                   <div class="col-span-4 bank-card-section">
                     <div class="bank-card-header mb-2">
@@ -650,134 +710,6 @@
                 </div>
               </mat-expansion-panel>
 
-              <mat-expansion-panel [expanded]="false" class="mb-4">
-                <mat-expansion-panel-header>
-                  <mat-panel-title>Check Printing</mat-panel-title>
-                </mat-expansion-panel-header>
-
-                <div class="check-printing-panel-actions mb-4">
-                  <button
-                    type="button"
-                    color="primary"
-                    mat-raised-button
-                    class="text-nowrap flex-shrink-0"
-                    (click)="saveCheckPrinting()"
-                    [disabled]="isAddMode || isSavingCheckPrinting || isUploadingCheckStock">
-                    <mat-icon>save</mat-icon>
-                    @if (isSavingCheckPrinting) {
-                      Saving…
-                    } @else {
-                      Save
-                    }
-                  </button>
-                </div>
-
-                <p class="mb-3">Enter the next check number to be printed:</p>
-
-                <mat-form-field appearance="outline" class="check-printing-check-number mb-4">
-                  <mat-label>Current Check Number</mat-label>
-                  <input matInput type="number" min="1" formControlName="currentCheckNumber" inputmode="numeric">
-                  @if (form.get('currentCheckNumber')?.hasError('required') && form.get('currentCheckNumber')?.touched) {
-                    <mat-error>Current check number is required</mat-error>
-                  }
-                  @if (form.get('currentCheckNumber')?.hasError('min') && form.get('currentCheckNumber')?.touched) {
-                    <mat-error>Current check number must be at least 1</mat-error>
-                  }
-                </mat-form-field>
-
-                <div class="check-printing-section-rule" aria-hidden="true"></div>
-
-                <p class="mb-3">Upload a PDF of your pre-printed check stock (stored with this office’s check layout):</p>
-
-                <div class="flex items-center gap-3 image-input">
-                  @if (checkStockPreviewDataUrl) {
-                    @if (isCheckStockPreviewPdf()) {
-                      <div class="flex items-center justify-center object-contain max-w-xs h-32 border rounded bg-slate-100 p-2">
-                        @if (checkStockPdfThumbnailUrl) {
-                          <img
-                            [src]="checkStockPdfThumbnailUrl"
-                            alt="Check stock PDF preview"
-                            class="object-contain max-w-xs h-full" />
-                        } @else {
-                          <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                        }
-                      </div>
-                    } @else {
-                      <img
-                        [src]="checkStockPreviewDataUrl"
-                        alt="Check stock preview"
-                        class="object-contain max-w-xs max-h-28 border rounded p-1" />
-                    }
-                    <div class="flex flex-col gap-2">
-                      <button
-                        class="myfilebrowser"
-                        type="button"
-                        color="primary"
-                        mat-raised-button
-                        (click)="checkStockUploadInput.click()"
-                        [disabled]="isUploadingCheckStock">
-                        Upload Check
-                      </button>
-                      <button
-                        type="button"
-                        color="accent"
-                        mat-raised-button
-                        (click)="removeCheckStock()">
-                        Remove Check
-                      </button>
-                    </div>
-                  } @else if (checkStockPath) {
-                    <mat-icon>description</mat-icon>
-                    <span class="text-sm">{{ checkStockFileName || checkStockPath }}</span>
-                    <div class="flex flex-col gap-2">
-                      <button
-                        class="myfilebrowser"
-                        type="button"
-                        color="primary"
-                        mat-raised-button
-                        (click)="checkStockUploadInput.click()"
-                        [disabled]="isUploadingCheckStock">
-                        Upload Check
-                      </button>
-                      <button
-                        type="button"
-                        color="accent"
-                        mat-raised-button
-                        (click)="removeCheckStock()">
-                        Remove Check
-                      </button>
-                    </div>
-                  } @else {
-                    <button
-                      class="myfilebrowser mb-3 mr-2"
-                      type="button"
-                      color="primary"
-                      mat-raised-button
-                      (click)="checkStockUploadInput.click()"
-                      [disabled]="isUploadingCheckStock">
-                      Upload Check
-                    </button>
-                  }
-                  <input
-                    type="file"
-                    #checkStockUploadInput
-                    accept="application/pdf,.pdf"
-                    (change)="uploadCheckStock($event)"
-                    class="file-input-hidden" />
-                </div>
-
-                <div class="check-printing-section-rule mt-4 mb-3" aria-hidden="true"></div>
-
-                <p class="mb-3">Align print fields on your check stock for this office:</p>
-                <button
-                  type="button"
-                  color="primary"
-                  mat-raised-button
-                  (click)="openCheckLayoutEditor()"
-                  [disabled]="isAddMode || isSavingCheckPrinting">
-                  Align Check Layout
-                </button>
-              </mat-expansion-panel>
               }
 
 
