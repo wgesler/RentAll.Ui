@@ -48,8 +48,8 @@ export class AccountingOfficeListComponent implements OnInit, OnChanges, OnDestr
   accountingOfficesDisplay: AccountingOfficeListDisplay[] = [];
 
   accountingOfficesDisplayedColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '15ch' },
-    'name': { displayAs: 'Name', maxWidth: '15ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '25ch' },
+    'name': { displayAs: 'Name', maxWidth: '35ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch' },
     'fax': { displayAs: 'Fax', maxWidth: '20ch' },
     'bankName': { displayAs: 'Bank Name', maxWidth: '25ch' },
