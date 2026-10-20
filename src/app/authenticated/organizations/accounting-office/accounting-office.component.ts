@@ -84,6 +84,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private passwordCheckDialogService = inject(PasswordCheckDialogService);
   private cdr = inject(ChangeDetectorRef);
   @ViewChild('firstInput') firstInputRef: MatSelect;
+  @ViewChild('primaryBankAccountInput') primaryBankAccountInput?: ElementRef<HTMLInputElement>;
   @ViewChildren('bankCardPanInput') bankCardPanInputs!: QueryList<ElementRef<HTMLInputElement>>;
   
   isServiceError: boolean = false;
@@ -95,6 +96,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   checkStockFileName: string = null;
   checkStockFileDetails: FileDetails = null;
   checkStockPath: string = null;
+  primaryBankAccountLastFour = '';
+  primaryBankAccountVisible = false;
   checkStockPreviewDataUrl: string = null;
   checkStockPdfThumbnailUrl: string = null;
   hasNewCheckStockUpload: boolean = false;
@@ -623,7 +626,7 @@ parseOfficeId(id: string | number | null): number | null {
         website: this.accountingOffice.website || '',
         bankName: this.accountingOffice.bankName || '',
         bankRouting: this.accountingOffice.bankRouting || '',
-        bankAccount: this.accountingOffice.bankAccount || '',
+        bankAccount: this.accountingOffice.accountNo || '',
         bankSwiftCode: this.accountingOffice.bankSwiftCode || '',
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
@@ -684,7 +687,7 @@ parseOfficeId(id: string | number | null): number | null {
       website: o.website || '',
       bankName: o.bankName || '',
       bankRouting: o.bankRouting || '',
-      bankAccount: o.bankAccount || '',
+      bankAccount: o.accountNo || '',
       bankSwiftCode: o.bankSwiftCode || '',
       bankAddress: o.bankAddress || '',
       bankPhone: o.bankPhone ? this.formatterService.phoneNumber(o.bankPhone) : '',
@@ -1014,11 +1017,11 @@ readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
   openPrimaryCheckLayoutEditor(): void {
     const officeId = this.parseOfficeId(this.isAddMode ? this.form?.get('officeId')?.value : this.id) || 0;
     const bank: BankAccountResponse = {
-      bankId: 0,
+      bankAccountId: 0,
       organizationId: this.accountingOffice?.organizationId || '',
       officeId,
       bankName: '',
-      bankAccount: this.form?.get('bankAccount')?.value || '',
+      accountNo: this.form?.get('bankAccount')?.value || '',
       currentCheckNumber: Number(this.form?.get('currentCheckNumber')?.value) || 1,
       checkHtml: this.primaryCheckHtml || this.accountingOffice?.checkHtml || this.officeCheckHtml?.check || null,
       checkStockPath: this.checkStockPath,
@@ -1380,13 +1383,13 @@ clearCheckStockLocal(): void {
 
   addBank(): void {
     this.banks = [...this.banks, {
-      bankId: 0,
+      bankAccountId: 0,
       organizationId: this.accountingOffice?.organizationId || '',
       officeId: this.accountingOffice?.officeId || 0,
       bankName: '',
       bankPhone: '',
       bankRouting: '',
-      bankAccount: '',
+      accountNo: '',
       bankSwiftCode: '',
       bankAddress: '',
       currentCheckNumber: 1,
@@ -1396,7 +1399,7 @@ clearCheckStockLocal(): void {
   }
 
   additionalAccountsAreValid(): boolean {
-    const missingAccount = this.banks.some(bank => !(bank.bankAccount || '').trim());
+    const missingAccount = this.banks.some(bank => !(bank.accountNo || '').trim());
     if (missingAccount) {
       this.toastr.error('Account number is required', CommonMessage.Error);
       return false;
@@ -1410,7 +1413,7 @@ clearCheckStockLocal(): void {
       bankName: (bank.bankName || '').trim(),
       bankPhone: bank.bankPhone || null,
       bankRouting: bank.bankRouting || null,
-      bankAccount: (bank.bankAccount || '').trim(),
+      accountNo: (bank.accountNo || '').trim(),
       bankSwiftCode: bank.bankSwiftCode || null,
       bankAddress: bank.bankAddress || null,
       currentCheckNumber: Number(bank.currentCheckNumber) || 1,
@@ -1425,8 +1428,8 @@ clearCheckStockLocal(): void {
     const deletes = this.removedBankIds.map(bankId => this.bankService.deleteBank(officeId, bankId));
     const saves = this.banks.map(bank => {
       const request = this.buildAdditionalBankRequest(bank);
-      return bank.bankId > 0
-        ? this.bankService.updateBank(officeId, bank.bankId, request)
+      return bank.bankAccountId > 0
+        ? this.bankService.updateBank(officeId, bank.bankAccountId, request)
         : this.bankService.createBank(officeId, request);
     });
     const delete$ = deletes.length ? forkJoin(deletes) : of([]);
@@ -1445,8 +1448,8 @@ clearCheckStockLocal(): void {
     if (!bank) {
       return;
     }
-    if (bank.bankId > 0) {
-      this.removedBankIds = [...this.removedBankIds, bank.bankId];
+    if (bank.bankAccountId > 0) {
+      this.removedBankIds = [...this.removedBankIds, bank.bankAccountId];
     }
     this.banks = this.banks.filter((_, bankIndex) => bankIndex !== index);
   }
@@ -2006,7 +2009,7 @@ clearCheckStockLocal(): void {
       website: String(formValue['website'] ?? ''),
       bankName: String(formValue['bankName'] ?? ''),
       bankRouting: String(formValue['bankRouting'] ?? ''),
-      bankAccount: String(formValue['bankAccount'] ?? ''),
+      accountNo: String(formValue['bankAccount'] ?? ''),
       bankSwiftCode: String(formValue['bankSwiftCode'] ?? ''),
       bankAddress: String(formValue['bankAddress'] ?? ''),
       bankPhone: bankPhoneDigits,

@@ -2910,7 +2910,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       this.isLoadingCheckPreview = true;
       this.checkPrintApiService.assignCheckNumbers({
         officeId: this.officeId!,
-        bankId: printingBank?.bankId || null,
+        bankAccountId: printingBank?.bankAccountId || null,
         startingCheckNumber: result.startingCheckNumber,
         journalEntryIds
       }).pipe(
@@ -2919,7 +2919,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
             assignResult.assignments.map(assignment => [assignment.journalEntryId, assignment.checkNumber])
           );
           const office = this.accountingOffices.find(item => item.officeId === this.officeId);
-          const printedBank = (office?.banks || []).find(bank => bank.bankId === printingBank?.bankId);
+          const printedBank = (office?.banks || []).find(bank => bank.bankAccountId === printingBank?.bankAccountId);
           if (printedBank) {
             printedBank.currentCheckNumber = assignResult.nextCheckNumber;
           } else if (office) {

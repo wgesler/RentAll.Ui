@@ -142,7 +142,7 @@ buildBankBlock(accountingOffice: AccountingOfficeResponse | null): string {
 
 buildMicrLine(checkNumber: string, accountingOffice: AccountingOfficeResponse | null): string {
     const routing = (accountingOffice?.bankRouting || '').replace(/\D/g, '');
-    const account = (accountingOffice?.bankAccount || '').replace(/\D/g, '');
+    const account = (accountingOffice?.accountNo || '').replace(/\D/g, '');
     const checkNo = checkNumber.replace(/\D/g, '') || checkNumber;
     if (!routing && !account) {
       return `⑆${checkNo}⑆`;

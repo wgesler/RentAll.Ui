@@ -121,7 +121,7 @@ export class InvoiceHtmlBuilderService {
       const invoiceBank = (ctx.selectedAccountingOffice.banks || []).find(bank => bank.useOnInvoices);
       result = result.replace(/\{\{accountingOfficeBank\}\}/g, invoiceBank?.bankName || ctx.selectedAccountingOffice.bankName || '');
       result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, invoiceBank?.bankRouting || ctx.selectedAccountingOffice.bankRouting || '');
-      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, invoiceBank?.bankAccount || ctx.selectedAccountingOffice.bankAccount || '');
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.displayBankAccount(invoiceBank?.accountNo, invoiceBank?.accountNoLastFour, ctx.selectedAccountingOffice.accountNo, ctx.selectedAccountingOffice.accountNoLastFour));
       result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, invoiceBank?.bankSwiftCode || ctx.selectedAccountingOffice.bankSwiftCode || '');
       result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, invoiceBank?.bankAddress || ctx.selectedAccountingOffice.bankAddress || '');
       result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(invoiceBank?.bankPhone || ctx.selectedAccountingOffice.bankPhone) || '');
@@ -132,6 +132,19 @@ export class InvoiceHtmlBuilderService {
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
     return result;
+  }
+
+  displayBankAccount(account?: string | null, lastFour?: string | null, officeAccount?: string | null, officeLastFour?: string | null): string {
+    const clearAccount = (account || '').trim();
+    if (clearAccount && !clearAccount.includes('*')) {
+      return clearAccount;
+    }
+    const clearOfficeAccount = (officeAccount || '').trim();
+    if (clearOfficeAccount && !clearOfficeAccount.includes('*')) {
+      return clearOfficeAccount;
+    }
+    const suffix = (lastFour || officeLastFour || '').replace(/\D/g, '').slice(-4);
+    return suffix ? `${'*'.repeat(8)}${suffix}` : '';
   }
 
   applyInvoiceLedgerSectionPlaceholders(html: string, ctx: InvoicePrintContext): string {

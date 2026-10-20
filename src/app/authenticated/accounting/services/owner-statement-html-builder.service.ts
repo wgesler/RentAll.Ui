@@ -182,7 +182,7 @@ export class OwnerStatementHtmlBuilderService {
     const accountingOfficeWebsite = this.escapeHtml(ctx.selectedAccountingOffice?.website || '');
     const accountingOfficeBank = this.escapeHtml(ctx.selectedAccountingOffice?.bankName || '');
     const accountingOfficeBankRouting = this.escapeHtml(ctx.selectedAccountingOffice?.bankRouting || '');
-    const accountingOfficeBankAccount = this.escapeHtml(ctx.selectedAccountingOffice?.bankAccount || '');
+    const accountingOfficeBankAccount = this.escapeHtml(ctx.selectedAccountingOffice?.accountNo || '');
     const accountingOfficeSwithCode = this.escapeHtml(ctx.selectedAccountingOffice?.bankSwiftCode || '');
     const accountingOfficeBankAddress = this.escapeHtml(ctx.selectedAccountingOffice?.bankAddress || '');
     const accountingOfficeBankPhone = this.escapeHtml(this.formatterService.phoneNumber(ctx.selectedAccountingOffice?.bankPhone) || '');

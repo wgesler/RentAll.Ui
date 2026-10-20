@@ -17,10 +17,11 @@ export interface AccountingOfficeRequest {
   website: string;
   bankName: string;
   bankRouting: string;
-  bankAccount: string;
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  accountNo: string;
+  accountNoLastFour?: string | null;
   startMonth: number;
   startYear: number;
   invoiceStartMonth: number;
@@ -77,10 +78,11 @@ export interface AccountingOfficeResponse {
   website: string;
   bankName: string;
   bankRouting: string;
-  bankAccount: string;
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  accountNo: string;
+  accountNoLastFour?: string | null;
   startMonth: number;
   startYear: number;
   invoiceStartMonth: number;
@@ -168,7 +170,7 @@ export interface AccountingOfficeCheckStockUpdateResponse {
 
 export interface AssignCheckNumbersRequest {
   officeId: number;
-  bankId?: number | null;
+  bankAccountId?: number | null;
   startingCheckNumber: number;
   journalEntryIds: string[];
 }

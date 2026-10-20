@@ -29,9 +29,10 @@ export interface BankAccountRequest {
   bankName: string;
   bankPhone?: string | null;
   bankRouting?: string | null;
-  bankAccount?: string | null;
   bankSwiftCode?: string | null;
   bankAddress?: string | null;
+  accountNo?: string | null;
+  accountNoLastFour?: string | null;
   currentCheckNumber: number;
   checkStockPath?: string | null;
   checkStockFileDetails?: FileDetails | null;
@@ -40,15 +41,16 @@ export interface BankAccountRequest {
 }
 
 export interface BankAccountResponse {
-  bankId: number;
+  bankAccountId: number;
   organizationId: string;
   officeId: number;
   bankName: string;
   bankPhone?: string | null;
   bankRouting?: string | null;
-  bankAccount?: string | null;
   bankSwiftCode?: string | null;
   bankAddress?: string | null;
+  accountNo?: string | null;
+  accountNoLastFour?: string | null;
   currentCheckNumber: number;
   checkStockPath?: string | null;
   checkStockFileDetails?: FileDetails | null;
@@ -59,4 +61,6 @@ export interface BankAccountResponse {
   checkStockRemoved?: boolean;
   checkHtml?: string | null;
   useOnInvoices: boolean;
+  bankAccountVisible?: boolean;
+  bankAccountFocused?: boolean;
 }

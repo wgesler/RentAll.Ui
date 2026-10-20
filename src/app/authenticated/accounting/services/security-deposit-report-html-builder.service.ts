@@ -106,7 +106,7 @@ export class SecurityDepositReportHtmlBuilderService {
       result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, ctx.selectedAccountingOffice.website || '');
       result = result.replace(/\{\{accountingOfficeBank\}\}/g, ctx.selectedAccountingOffice.bankName || '');
       result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, ctx.selectedAccountingOffice.bankRouting || '');
-      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, ctx.selectedAccountingOffice.bankAccount || '');
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, ctx.selectedAccountingOffice.accountNo || '');
       result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, ctx.selectedAccountingOffice.bankSwiftCode || '');
       result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, ctx.selectedAccountingOffice.bankAddress || '');
       result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(ctx.selectedAccountingOffice.bankPhone) || '');

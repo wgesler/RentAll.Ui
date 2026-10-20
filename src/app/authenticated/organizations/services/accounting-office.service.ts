@@ -20,6 +20,10 @@ export class AccountingOfficeService {
   private accountingOfficesLoadOrganizationId: string | null = null;
   private readonly controller = this.configService.config().apiUrl + 'organization/accounting-office/';
 
+  getBankAccount(officeId: number): Observable<{ accountNo: string }> {
+    return this.http.get<{ accountNo: string }>(`${this.controller}${officeId}/bank-account`);
+  }
+
   /** GET api/organization/accounting-office; SuperAdmin may pass organizationId to scope the list. */
   loadAllAccountingOffices(organizationId?: string): Observable<AccountingOfficeResponse[]> {
     const id = organizationId?.trim() || '';

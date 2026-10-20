@@ -21,6 +21,10 @@ export class BankService {
     return this.http.put<BankAccountResponse>(this.accountingOfficeController + officeId + '/bank/' + bankId, bank);
   }
 
+  getBankAccountNumber(officeId: number, bankId: number): Observable<{ accountNo: string }> {
+    return this.http.get<{ accountNo: string }>(`${this.accountingOfficeController}${officeId}/bank/${bankId}/account-number`);
+  }
+
   deleteBank(officeId: number, bankId: number): Observable<void> {
     return this.http.delete<void>(this.accountingOfficeController + officeId + '/bank/' + bankId);
   }

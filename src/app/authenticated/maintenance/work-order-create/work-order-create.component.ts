@@ -613,7 +613,7 @@ initializeWorkOrderPreview(): void {
     result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, this.selectedAccountingOffice?.website || '');
     result = result.replace(/\{\{accountingOfficeBank\}\}/g, this.selectedAccountingOffice?.bankName || '');
     result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, this.selectedAccountingOffice?.bankRouting || '');
-    result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.selectedAccountingOffice?.bankAccount || '');
+    result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.selectedAccountingOffice?.accountNo || '');
     result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, this.selectedAccountingOffice?.bankSwiftCode || '');
     result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, this.selectedAccountingOffice?.bankAddress || '');
     result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatter.phoneNumber(this.selectedAccountingOffice?.bankPhone) || '');
