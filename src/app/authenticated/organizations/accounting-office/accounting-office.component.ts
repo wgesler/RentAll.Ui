@@ -98,6 +98,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   checkStockPath: string = null;
   primaryBankAccountLastFour = '';
   primaryBankAccountVisible = false;
+  primaryBankAccountFocused = false;
+  private primaryBankAccountClear = '';
+  private primaryBankAccountRevealed = '';
   checkStockPreviewDataUrl: string = null;
   checkStockPdfThumbnailUrl: string = null;
   hasNewCheckStockUpload: boolean = false;
@@ -314,7 +317,7 @@ parseOfficeId(id: string | number | null): number | null {
         this.loadChartOfAccountsForOffice(response?.officeId, () => {
           this.populateForm();
           this.applyBankCardsFromSource(response?.bankCards);
-          this.banks = (response?.banks || []).map(bank => this.withBankStockPreview(bank));
+          this.banks = (response?.banks || []).map(bank => this.maskLoadedBank(this.withBankStockPreview(bank)));
           this.cdr.markForCheck();
         });
         this.loadOfficeCheckHtml(response?.officeId);
@@ -588,7 +591,7 @@ parseOfficeId(id: string | number | null): number | null {
     const brokerOptionalControls: { name: string; validators: ValidatorFn[] }[] = [
       { name: 'bankName', validators: [Validators.required] },
       { name: 'bankRouting', validators: [Validators.required, Validators.pattern(/^[0-9]+$/)] },
-      { name: 'bankAccount', validators: [Validators.required, Validators.pattern(/^[0-9]+$/)] },
+      { name: 'bankAccount', validators: [] },
       { name: 'bankSwiftCode', validators: [Validators.required] },
       { name: 'bankAddress', validators: [Validators.required] },
       { name: 'bankPhone', validators: [Validators.required, Validators.pattern(phonePattern)] },
@@ -607,6 +610,173 @@ parseOfficeId(id: string | number | null): number | null {
       }
       control.updateValueAndValidity({ emitEvent: false });
     });
+    this.syncPrimaryBankAccountValidators();
+  }
+
+  primaryBankAccountDisplay(): string {
+    if (this.primaryBankAccountVisible || this.primaryBankAccountFocused) {
+      return this.primaryBankAccountClear;
+    }
+    return this.maskedAccount(this.primaryBankAccountLastFour);
+  }
+
+  onPrimaryBankAccountFocus(): void {
+    this.primaryBankAccountFocused = true;
+  }
+
+  onPrimaryBankAccountInput(event: Event): void {
+    const digits = this.clearAccountDigits((event.target as HTMLInputElement).value);
+    this.primaryBankAccountClear = digits;
+    this.primaryBankAccountFocused = true;
+    if (digits.length >= 4) {
+      this.primaryBankAccountLastFour = digits.slice(-4);
+    }
+    this.form?.get('bankAccount')?.setValue(digits, { emitEvent: false });
+    this.syncPrimaryBankAccountValidators();
+    (event.target as HTMLInputElement).value = digits;
+  }
+
+  onPrimaryBankAccountBlur(): void {
+    this.primaryBankAccountFocused = false;
+  }
+
+  togglePrimaryBankAccountVisibility(): void {
+    if (this.primaryBankAccountVisible) {
+      if (this.primaryBankAccountClear === this.primaryBankAccountRevealed) {
+        this.primaryBankAccountClear = '';
+        this.form?.get('bankAccount')?.setValue('', { emitEvent: false });
+      }
+      this.primaryBankAccountVisible = false;
+      this.primaryBankAccountFocused = false;
+      this.primaryBankAccountRevealed = '';
+      this.syncPrimaryBankAccountValidators();
+      return;
+    }
+
+    if (this.primaryBankAccountClear || !this.primaryBankAccountLastFour) {
+      this.primaryBankAccountRevealed = this.primaryBankAccountClear;
+      this.primaryBankAccountVisible = true;
+      return;
+    }
+
+    const officeId = this.accountingOffice?.officeId;
+    if (!officeId) {
+      return;
+    }
+
+    this.accountingOfficeService.getBankAccount(officeId).pipe(take(1)).subscribe({
+      next: (result) => {
+        this.primaryBankAccountRevealed = this.clearAccountDigits(result?.accountNo);
+        this.primaryBankAccountClear = this.primaryBankAccountRevealed;
+        this.form?.get('bankAccount')?.setValue('', { emitEvent: false });
+        this.primaryBankAccountVisible = true;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.toastr.error('Unable to load account number', CommonMessage.Error);
+      }
+    });
+  }
+
+  bankAccountDisplay(bank: BankAccountResponse): string {
+    if (bank.bankAccountVisible || bank.bankAccountFocused) {
+      return this.clearAccountDigits(bank.accountNo);
+    }
+    return this.maskedAccount(bank.accountNoLastFour);
+  }
+
+  onSecondaryBankAccountFocus(bank: BankAccountResponse): void {
+    bank.bankAccountFocused = true;
+  }
+
+  onSecondaryBankAccountInput(bank: BankAccountResponse, event: Event): void {
+    const digits = this.clearAccountDigits((event.target as HTMLInputElement).value);
+    bank.accountNo = digits;
+    bank.bankAccountFocused = true;
+    if (digits.length >= 4) {
+      bank.accountNoLastFour = digits.slice(-4);
+    }
+    (event.target as HTMLInputElement).value = digits;
+  }
+
+  onSecondaryBankAccountBlur(bank: BankAccountResponse): void {
+    bank.bankAccountFocused = false;
+  }
+
+  toggleSecondaryBankAccountVisibility(bank: BankAccountResponse): void {
+    if (bank.bankAccountVisible) {
+      if (bank.accountNo === bank.bankAccountRevealed) {
+        bank.accountNo = '';
+      }
+      bank.bankAccountVisible = false;
+      bank.bankAccountFocused = false;
+      bank.bankAccountRevealed = '';
+      return;
+    }
+
+    if (this.clearAccountDigits(bank.accountNo) || !bank.accountNoLastFour || !bank.bankAccountId) {
+      bank.bankAccountRevealed = this.clearAccountDigits(bank.accountNo);
+      bank.bankAccountVisible = true;
+      return;
+    }
+
+    this.bankService.getBankAccountNumber(bank.officeId, bank.bankAccountId).pipe(take(1)).subscribe({
+      next: (result) => {
+        bank.bankAccountRevealed = this.clearAccountDigits(result?.accountNo);
+        bank.accountNo = bank.bankAccountRevealed;
+        bank.bankAccountVisible = true;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.toastr.error('Unable to load account number', CommonMessage.Error);
+      }
+    });
+  }
+
+  private syncPrimaryBankAccountValidators(): void {
+    const control = this.form?.get('bankAccount');
+    if (!control || this.isPartnerOrganization) {
+      return;
+    }
+    const digits = this.clearAccountDigits(String(control.value ?? ''));
+    if (digits || this.primaryBankAccountLastFour) {
+      control.setValidators(digits ? [Validators.pattern(/^[0-9]+$/)] : []);
+    } else {
+      control.setValidators([Validators.required, Validators.pattern(/^[0-9]+$/)]);
+    }
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private maskLoadedBank(bank: BankAccountResponse): BankAccountResponse {
+    bank.accountNoLastFour = this.accountLastFour(bank.accountNoLastFour, bank.accountNo);
+    bank.accountNo = '';
+    bank.bankAccountVisible = false;
+    bank.bankAccountFocused = false;
+    bank.bankAccountRevealed = '';
+    return bank;
+  }
+
+  private maskedAccount(lastFour: string | null | undefined): string {
+    const suffix = this.accountLastFour(lastFour);
+    return suffix ? `********${suffix}` : '';
+  }
+
+  private accountLastFour(lastFour: string | null | undefined, accountNo?: string | null): string {
+    const stored = (lastFour || '').replace(/\D/g, '').slice(-4);
+    if (stored) {
+      return stored;
+    }
+    const digits = this.clearAccountDigits(accountNo);
+    return digits.length >= 4 ? digits.slice(-4) : '';
+  }
+
+  private clearAccountDigits(value: string | null | undefined): string {
+    const text = String(value ?? '');
+    if (!text || text.includes('*')) {
+      return '';
+    }
+    const digits = text.replace(/\D/g, '');
+    return digits.length >= 4 ? digits : '';
   }
 
   populateForm(): void {
@@ -626,7 +796,7 @@ parseOfficeId(id: string | number | null): number | null {
         website: this.accountingOffice.website || '',
         bankName: this.accountingOffice.bankName || '',
         bankRouting: this.accountingOffice.bankRouting || '',
-        bankAccount: this.accountingOffice.accountNo || '',
+        bankAccount: '',
         bankSwiftCode: this.accountingOffice.bankSwiftCode || '',
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
@@ -666,6 +836,12 @@ parseOfficeId(id: string | number | null): number | null {
         defaultInterOfficeAccountId: this.accountingOffice.defaultInterOfficeAccountId ?? null,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
+      this.primaryBankAccountLastFour = this.accountLastFour(this.accountingOffice.accountNoLastFour, this.accountingOffice.accountNo);
+      this.primaryBankAccountClear = '';
+      this.primaryBankAccountRevealed = '';
+      this.primaryBankAccountVisible = false;
+      this.primaryBankAccountFocused = false;
+      this.syncPrimaryBankAccountValidators();
     }
   }
 
@@ -2009,7 +2185,8 @@ clearCheckStockLocal(): void {
       website: String(formValue['website'] ?? ''),
       bankName: String(formValue['bankName'] ?? ''),
       bankRouting: String(formValue['bankRouting'] ?? ''),
-      accountNo: String(formValue['bankAccount'] ?? ''),
+      accountNo: this.clearAccountDigits(String(formValue['bankAccount'] ?? '')) || null,
+      accountNoLastFour: this.primaryBankAccountLastFour || null,
       bankSwiftCode: String(formValue['bankSwiftCode'] ?? ''),
       bankAddress: String(formValue['bankAddress'] ?? ''),
       bankPhone: bankPhoneDigits,
@@ -2065,7 +2242,7 @@ clearCheckStockLocal(): void {
 
   private applySavedAccountingOfficeResponse(response: AccountingOfficeResponse): void {
     this.accountingOffice = response;
-    this.banks = (response?.banks || this.banks).map(bank => this.withBankStockPreview(bank));
+    this.banks = (response?.banks || this.banks).map(bank => this.maskLoadedBank(this.withBankStockPreview(bank)));
     if (response.logoPath && !this.hasNewFileUpload) {
       this.logoPath = response.logoPath;
     }
