@@ -110,6 +110,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   isSavingAnswersInternal: boolean = false;
 
   lastPropertyIdLoaded: string | null = null;
+  draftLookupVersion = 0;
   propertyInspectionsCache: InspectionResponse[] = [];
   maintenanceRecord: MaintenanceResponse | null = null;
 
@@ -1435,10 +1436,109 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    const draft = this.getDraftInspectionForType(
-      this.propertyInspectionsCache,
-      this.inspectionTypeIdControl.value
-    );
+    const inspectionTypeId = this.inspectionTypeIdControl.value;
+    const officeId = this.maintenanceRecord?.officeId || this.property?.officeId;
+    const propertyId = this.property?.propertyId;
+    const propertyCode = this.property?.propertyCode;
+    const lookupVersion = ++this.draftLookupVersion;
+    const applyCurrent = (): void => {
+      if (lookupVersion !== this.draftLookupVersion) {
+        return;
+      }
+      this.applyMatchedInspectionDraft(this.getDraftInspectionForType(this.propertyInspectionsCache, inspectionTypeId));
+      this.cdr.markForCheck();
+    };
+    if (!officeId || !propertyId || !propertyCode) {
+      applyCurrent();
+      return;
+    }
+
+    this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1)).subscribe({
+      next: documents => {
+        if (lookupVersion !== this.draftLookupVersion || this.property?.propertyId !== propertyId || this.inspectionTypeIdControl.value !== inspectionTypeId) {
+          return;
+        }
+        const draftDocument = this.findPropertyCodeDraftDocument(
+          documents || [],
+          propertyCode,
+          getInspectionTypeFileSegment(inspectionTypeId)
+        );
+        if (!draftDocument) {
+          applyCurrent();
+          return;
+        }
+        const linked = this.getInspectionForDraftDocument(this.propertyInspectionsCache, draftDocument)
+          ?? this.getLatestInspectionForType(this.propertyInspectionsCache, inspectionTypeId);
+        this.applyMatchedInspectionDraft(linked);
+        this.cdr.markForCheck();
+      },
+      error: () => applyCurrent()
+    });
+  }
+
+  findPropertyCodeDraftDocument(documents: DocumentResponse[], propertyCode: string, typeSegment: string): DocumentResponse | null {
+    const code = this.utilityService.sanitizeFileNameSegment(propertyCode).toLowerCase();
+    if (!code) {
+      return null;
+    }
+    const pattern = new RegExp(`^${code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_.+_draft$`, 'i');
+    const expected = `${code}_${typeSegment.toLowerCase()}_draft`;
+    const matches = documents.filter(doc => pattern.test(this.normalizeDraftFileName(doc.fileName)));
+    return matches.find(doc => this.normalizeDraftFileName(doc.fileName) === expected) ?? null;
+  }
+
+  normalizeDraftFileName(fileName: string | null | undefined): string {
+    return String(fileName ?? '').trim().toLowerCase().replace(/\.pdf$/i, '');
+  }
+
+  getLatestInspectionForType(inspections: InspectionResponse[], inspectionTypeId: number): InspectionResponse | null {
+    const typed = inspections.filter(inspection => inspection.inspectionTypeId === inspectionTypeId);
+    if (typed.length === 0) {
+      return null;
+    }
+    return typed.reduce((latest, current) => {
+      const latestTimestamp = Date.parse(latest.modifiedOn || '');
+      const currentTimestamp = Date.parse(current.modifiedOn || '');
+      if (Number.isNaN(currentTimestamp)) {
+        return latest;
+      }
+      if (Number.isNaN(latestTimestamp)) {
+        return current;
+      }
+      return currentTimestamp > latestTimestamp ? current : latest;
+    });
+  }
+
+  getInspectionForDraftDocument(inspections: InspectionResponse[], document: DocumentResponse): InspectionResponse | null {
+    const path = String(document.documentPath ?? '').trim().toLowerCase();
+    const fileName = this.normalizeDraftFileName(document.fileName);
+    const matches = inspections.filter(inspection => {
+      const inspectionPath = String(inspection.documentPath ?? '').trim().toLowerCase();
+      if (!inspectionPath) {
+        return false;
+      }
+      if (path && inspectionPath === path) {
+        return true;
+      }
+      return fileName.length > 0 && inspectionPath.includes(fileName);
+    });
+    if (matches.length === 0) {
+      return null;
+    }
+    return matches.reduce((latest, current) => {
+      const latestTimestamp = Date.parse(latest.modifiedOn || '');
+      const currentTimestamp = Date.parse(current.modifiedOn || '');
+      if (Number.isNaN(currentTimestamp)) {
+        return latest;
+      }
+      if (Number.isNaN(latestTimestamp)) {
+        return current;
+      }
+      return currentTimestamp > latestTimestamp ? current : latest;
+    });
+  }
+
+  applyMatchedInspectionDraft(draft: InspectionResponse | null): void {
     this.activeInspection = draft;
     const answersJson = draft?.inspectionCheckList?.trim() ?? '';
     if (answersJson.length > 0) {

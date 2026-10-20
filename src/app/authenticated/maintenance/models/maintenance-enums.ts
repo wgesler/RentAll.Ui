@@ -95,19 +95,19 @@ export function getInspectionType(inspectionTypeId: number | undefined | null): 
   return typeMap[inspectionTypeId] || '';
 }
 
-/** Compact segment for draft document paths, e.g. MoveIn / MoveOut / Online. */
+/** Compact segment for draft document paths: MoveOut, MoveIn, MoveOnline. */
 export function getInspectionTypeFileSegment(inspectionTypeId: number | undefined | null): string {
   if (inspectionTypeId === undefined || inspectionTypeId === null) {
-    return 'Online';
+    return 'MoveOnline';
   }
 
   const typeMap: { [key: number]: string } = {
     [InspectionType.MoveOut]: 'MoveOut',
     [InspectionType.MoveIn]: 'MoveIn',
-    [InspectionType.Online]: 'Online'
+    [InspectionType.Online]: 'MoveOnline'
   };
 
-  return typeMap[inspectionTypeId] || 'Online';
+  return typeMap[inspectionTypeId] || 'MoveOnline';
 }
 
 export function getInspectionTypes(): { value: number; label: string }[] {
