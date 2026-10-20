@@ -63,4 +63,5 @@ export interface BankAccountResponse {
   useOnInvoices: boolean;
   bankAccountVisible?: boolean;
   bankAccountFocused?: boolean;
+  bankAccountRevealed?: string;
 }

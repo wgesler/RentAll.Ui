@@ -620,12 +620,13 @@ parseOfficeId(id: string | number | null): number | null {
     return this.maskedAccount(this.primaryBankAccountLastFour);
   }
 
-  onPrimaryBankAccountFocus(): void {
+  onPrimaryBankAccountFocus(event: Event): void {
     this.primaryBankAccountFocused = true;
+    (event.target as HTMLInputElement).value = this.primaryBankAccountClear;
   }
 
   onPrimaryBankAccountInput(event: Event): void {
-    const digits = this.clearAccountDigits((event.target as HTMLInputElement).value);
+    const digits = this.typedAccountDigits((event.target as HTMLInputElement).value);
     this.primaryBankAccountClear = digits;
     this.primaryBankAccountFocused = true;
     if (digits.length >= 4) {
@@ -680,17 +681,18 @@ parseOfficeId(id: string | number | null): number | null {
 
   bankAccountDisplay(bank: BankAccountResponse): string {
     if (bank.bankAccountVisible || bank.bankAccountFocused) {
-      return this.clearAccountDigits(bank.accountNo);
+      return this.typedAccountDigits(bank.accountNo);
     }
     return this.maskedAccount(bank.accountNoLastFour);
   }
 
-  onSecondaryBankAccountFocus(bank: BankAccountResponse): void {
+  onSecondaryBankAccountFocus(bank: BankAccountResponse, event: Event): void {
     bank.bankAccountFocused = true;
+    (event.target as HTMLInputElement).value = this.typedAccountDigits(bank.accountNo);
   }
 
   onSecondaryBankAccountInput(bank: BankAccountResponse, event: Event): void {
-    const digits = this.clearAccountDigits((event.target as HTMLInputElement).value);
+    const digits = this.typedAccountDigits((event.target as HTMLInputElement).value);
     bank.accountNo = digits;
     bank.bankAccountFocused = true;
     if (digits.length >= 4) {
@@ -768,6 +770,10 @@ parseOfficeId(id: string | number | null): number | null {
     }
     const digits = this.clearAccountDigits(accountNo);
     return digits.length >= 4 ? digits.slice(-4) : '';
+  }
+
+  private typedAccountDigits(value: string | null | undefined): string {
+    return String(value ?? '').replace(/\D/g, '').slice(0, 25);
   }
 
   private clearAccountDigits(value: string | null | undefined): string {
@@ -1575,7 +1581,7 @@ clearCheckStockLocal(): void {
   }
 
   additionalAccountsAreValid(): boolean {
-    const missingAccount = this.banks.some(bank => !(bank.accountNo || '').trim());
+    const missingAccount = this.banks.some(bank => !this.clearAccountDigits(bank.accountNo) && !this.accountLastFour(bank.accountNoLastFour));
     if (missingAccount) {
       this.toastr.error('Account number is required', CommonMessage.Error);
       return false;
@@ -1589,7 +1595,8 @@ clearCheckStockLocal(): void {
       bankName: (bank.bankName || '').trim(),
       bankPhone: bank.bankPhone || null,
       bankRouting: bank.bankRouting || null,
-      accountNo: (bank.accountNo || '').trim(),
+      accountNo: this.clearAccountDigits(bank.accountNo) || null,
+      accountNoLastFour: this.accountLastFour(bank.accountNoLastFour) || null,
       bankSwiftCode: bank.bankSwiftCode || null,
       bankAddress: bank.bankAddress || null,
       currentCheckNumber: Number(bank.currentCheckNumber) || 1,
@@ -2185,7 +2192,7 @@ clearCheckStockLocal(): void {
       website: String(formValue['website'] ?? ''),
       bankName: String(formValue['bankName'] ?? ''),
       bankRouting: String(formValue['bankRouting'] ?? ''),
-      accountNo: this.clearAccountDigits(String(formValue['bankAccount'] ?? '')) || null,
+      accountNo: this.clearAccountDigits(String(formValue['bankAccount'] ?? '')),
       accountNoLastFour: this.primaryBankAccountLastFour || null,
       bankSwiftCode: String(formValue['bankSwiftCode'] ?? ''),
       bankAddress: String(formValue['bankAddress'] ?? ''),

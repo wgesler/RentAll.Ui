@@ -397,10 +397,10 @@
                         Add Account
                       </button>
                     </div>
-                    <div class="bank-account-line mb-3">
+                    <div class="bank-account-line form-standard-row">
                       <mat-form-field appearance="outline" class="bank-account-number">
                         <mat-label>Bank Account</mat-label>
-                        <input #primaryBankAccountInput matInput maxlength="25" inputmode="numeric" autocomplete="off" [value]="primaryBankAccountDisplay()" (focus)="onPrimaryBankAccountFocus()" (input)="onPrimaryBankAccountInput($event)" (blur)="onPrimaryBankAccountBlur()">
+                        <input #primaryBankAccountInput matInput maxlength="25" inputmode="numeric" autocomplete="off" [value]="primaryBankAccountDisplay()" (focus)="onPrimaryBankAccountFocus($event)" (input)="onPrimaryBankAccountInput($event)" (blur)="onPrimaryBankAccountBlur()">
                         <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePrimaryBankAccountVisibility()" [attr.aria-label]="primaryBankAccountVisible ? 'Hide account number' : 'Show account number'">
                           <mat-icon>{{ primaryBankAccountVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
                         </button>
@@ -432,10 +432,10 @@
                       <input type="file" #primaryCheckStockInput accept="application/pdf,.pdf" (change)="uploadCheckStock($event)" class="file-input-hidden" />
                     </div>
                     @for (bank of banks; track bank.bankAccountId || $index) {
-                      <div class="bank-account-line mb-3">
+                      <div class="bank-account-line form-standard-row">
                         <mat-form-field appearance="outline" class="bank-account-number">
                           <mat-label>Account Number</mat-label>
-                          <input matInput maxlength="25" inputmode="numeric" autocomplete="off" [value]="bankAccountDisplay(bank)" (focus)="onSecondaryBankAccountFocus(bank)" (input)="onSecondaryBankAccountInput(bank, $event)" (blur)="onSecondaryBankAccountBlur(bank)">
+                          <input matInput maxlength="25" inputmode="numeric" autocomplete="off" [value]="bankAccountDisplay(bank)" (focus)="onSecondaryBankAccountFocus(bank, $event)" (input)="onSecondaryBankAccountInput(bank, $event)" (blur)="onSecondaryBankAccountBlur(bank)">
                           <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleSecondaryBankAccountVisibility(bank)" [attr.aria-label]="bank.bankAccountVisible ? 'Hide account number' : 'Show account number'">
                             <mat-icon>{{ bank.bankAccountVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
                           </button>

@@ -143,8 +143,37 @@ input.no-spinner[type='number'] {
 .bank-account-line {
   display: flex;
   align-items: center;
-  gap: 12px;
   flex-wrap: nowrap;
+}
+
+:host ::ng-deep mat-form-field.bank-account-number.mat-mdc-form-field {
+  width: calc(25ch + 72px) !important;
+  flex: 0 0 calc(25ch + 72px) !important;
+  max-width: none !important;
+
+  .mat-mdc-text-field-wrapper,
+  .mdc-text-field {
+    overflow: visible !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .mat-mdc-form-field-icon-suffix {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex: 0 0 40px !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-icon-button.mat-mdc-button-base {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+  }
 }
 
 .bank-account-line .bank-account-action {
@@ -159,8 +188,8 @@ input.no-spinner[type='number'] {
 }
 
 .bank-account-number {
-  flex: 0 0 auto;
-  width: calc(25ch + 68px);
+  flex: 0 0 calc(25ch + 72px);
+  width: calc(25ch + 72px);
 }
 
 .bank-account-number input {
