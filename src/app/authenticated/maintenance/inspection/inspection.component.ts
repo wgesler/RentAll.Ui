@@ -549,10 +549,11 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     try {
       let parsedRoot = JSON.parse(rawChecklistJson) as {
         sections?: Array<{
-          key: string;
+          key?: string;
+          title?: string;
           selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
           notes?: string;
-          sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean; issue?: string | null; hasIssue?: boolean } | boolean>>;
+          sets?: Array<Array<{ text?: string; checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean; issue?: string | null; hasIssue?: boolean } | boolean>>;
         }>;
         inspectionCheckList?: string;
       };
@@ -563,10 +564,11 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       if (nestedChecklistJson) {
         parsedRoot = JSON.parse(nestedChecklistJson) as {
           sections?: Array<{
-            key: string;
+            key?: string;
+            title?: string;
             selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
             notes?: string;
-            sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean; issue?: string | null; hasIssue?: boolean } | boolean>>;
+            sets?: Array<Array<{ text?: string; checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean; issue?: string | null; hasIssue?: boolean } | boolean>>;
           }>;
         };
       }
@@ -578,12 +580,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
       let hasAppliedAnswers = false;
       rawSections.forEach(sectionObject => {
-        const sectionKey = typeof sectionObject.key === 'string' ? sectionObject.key.trim() : '';
-        if (!sectionKey) {
-          return;
-        }
-
-        const section = this.sections.find(currentSection => currentSection.key === sectionKey);
+        const section = this.findSectionForSavedAnswers(sectionObject);
         if (!section) {
           return;
         }
@@ -602,41 +599,27 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         for (let repeatIndex = 0; repeatIndex < targetSetCount; repeatIndex += 1) {
           const answerSet = Array.isArray(sectionSets[repeatIndex]) ? sectionSets[repeatIndex] : [];
           const setItems = this.getSetItems(section.key, repeatIndex);
+          const unusedAnswers = answerSet.map(value => ({ value, used: false }));
           setItems.forEach((item, itemIndex) => {
             const control = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
             if (!control) {
               return;
             }
 
-            const answerValue = answerSet[itemIndex];
-            const isChecked = typeof answerValue === 'boolean'
-              ? answerValue === true
-              : answerValue?.checked === true;
-            item.photoPath = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.photoPath === 'string'
-              ? answerValue.photoPath
-              : null;
-            item.documentId = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.documentId === 'string'
-              ? answerValue.documentId
-              : null;
-            item.count = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.count === 'number'
-              ? answerValue.count
-              : null;
-            const rawIssue = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.issue === 'string'
-              ? answerValue.issue
-              : null;
-            item.issue = rawIssue;
-            item.hasIssue = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.hasIssue === 'boolean'
-              ? answerValue.hasIssue
-              : !!(rawIssue && rawIssue.trim().length > 0);
-            const countControl = this.form.get(this.countControlNameById(section.key, repeatIndex, item.id));
-            if (countControl) {
-              countControl.setValue(item.count, { emitEvent: false });
+            const itemText = item.text.trim();
+            let match = itemText
+              ? unusedAnswers.find(answer => !answer.used && this.savedAnswerText(answer.value) === itemText)
+              : undefined;
+            if (!match) {
+              const byIndex = unusedAnswers[itemIndex];
+              if (byIndex && !byIndex.used && !this.savedAnswerText(byIndex.value)) {
+                match = byIndex;
+              }
             }
-            const issueControl = this.form.get(this.issueControlNameById(section.key, repeatIndex, item.id));
-            if (issueControl) {
-              issueControl.setValue(item.issue ?? '', { emitEvent: false });
+            if (match) {
+              match.used = true;
             }
-            control.setValue(isChecked, { emitEvent: false });
+            this.applySavedAnswerToItem(section.key, repeatIndex, item, match?.value);
           });
         }
 
@@ -655,6 +638,57 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     } catch {
       return false;
     }
+  }
+
+  findSectionForSavedAnswers(sectionObject: { key?: string; title?: string }): ChecklistSection | undefined {
+    const sectionKey = typeof sectionObject.key === 'string' ? sectionObject.key.trim() : '';
+    const byKey = sectionKey ? this.sections.find(section => section.key === sectionKey) : undefined;
+    if (byKey) {
+      return byKey;
+    }
+    const title = typeof sectionObject.title === 'string' ? sectionObject.title.trim() : '';
+    if (!title) {
+      return undefined;
+    }
+    return this.sections.find(section => section.title.trim() === title);
+  }
+
+  savedAnswerText(answerValue: { text?: string } | boolean | undefined): string {
+    if (typeof answerValue !== 'object' || answerValue === null || typeof answerValue.text !== 'string') {
+      return '';
+    }
+    return answerValue.text.trim();
+  }
+
+  applySavedAnswerToItem(
+    sectionKey: string,
+    repeatIndex: number,
+    item: ChecklistItem,
+    answerValue: { checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; issue?: string | null; hasIssue?: boolean } | boolean | undefined
+  ): void {
+    const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+    if (!control) {
+      return;
+    }
+    const isChecked = typeof answerValue === 'boolean' ? answerValue === true : answerValue?.checked === true;
+    item.photoPath = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.photoPath === 'string' ? answerValue.photoPath : null;
+    item.documentId = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.documentId === 'string' ? answerValue.documentId : null;
+    item.count = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.count === 'number' ? answerValue.count : null;
+    const rawIssue = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.issue === 'string' ? answerValue.issue : null;
+    item.issue = rawIssue;
+    item.hasIssue = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.hasIssue === 'boolean'
+      ? answerValue.hasIssue
+      : !!(rawIssue && rawIssue.trim().length > 0);
+    item.checked = isChecked;
+    const countControl = this.form.get(this.countControlNameById(sectionKey, repeatIndex, item.id));
+    if (countControl) {
+      countControl.setValue(item.count, { emitEvent: false });
+    }
+    const issueControl = this.form.get(this.issueControlNameById(sectionKey, repeatIndex, item.id));
+    if (issueControl) {
+      issueControl.setValue(item.issue ?? '', { emitEvent: false });
+    }
+    control.setValue(isChecked, { emitEvent: false });
   }
 
   loadPhotoBlobUrls(): void {
@@ -1453,7 +1487,15 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1)).subscribe({
+    let documentsRequest;
+    try {
+      documentsRequest = this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1), catchError(() => of([] as DocumentResponse[])));
+    } catch {
+      applyCurrent();
+      return;
+    }
+
+    documentsRequest.subscribe({
       next: documents => {
         if (lookupVersion !== this.draftLookupVersion || this.property?.propertyId !== propertyId || this.inspectionTypeIdControl.value !== inspectionTypeId) {
           return;
@@ -1467,9 +1509,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           applyCurrent();
           return;
         }
-        const linked = this.getInspectionForDraftDocument(this.propertyInspectionsCache, draftDocument)
-          ?? this.getLatestInspectionForType(this.propertyInspectionsCache, inspectionTypeId);
-        this.applyMatchedInspectionDraft(linked);
+        const linked = this.pickInspectionForDraftDocument(this.propertyInspectionsCache, draftDocument, inspectionTypeId);
+        this.applyMatchedInspectionDraft(linked, false);
         this.cdr.markForCheck();
       },
       error: () => applyCurrent()
@@ -1538,12 +1579,33 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     });
   }
 
-  applyMatchedInspectionDraft(draft: InspectionResponse | null): void {
+  pickInspectionForDraftDocument(
+    inspections: InspectionResponse[],
+    document: DocumentResponse,
+    inspectionTypeId: number
+  ): InspectionResponse | null {
+    const pathMatch = this.getInspectionForDraftDocument(inspections, document);
+    if ((pathMatch?.inspectionCheckList ?? '').trim().length > 0) {
+      return pathMatch;
+    }
+    const withChecklist = this.getLatestInspectionForType(
+      inspections.filter(inspection => (inspection.inspectionCheckList ?? '').trim().length > 0),
+      inspectionTypeId
+    );
+    return withChecklist ?? pathMatch ?? this.getLatestInspectionForType(inspections, inspectionTypeId);
+  }
+
+  applyMatchedInspectionDraft(draft: InspectionResponse | null, blankWhenMissing = true): void {
     this.activeInspection = draft;
     const answersJson = draft?.inspectionCheckList?.trim() ?? '';
     if (answersJson.length > 0) {
-      this.applySavedAnswersJson(answersJson);
-    } else {
+      const rebuiltFromDraft = this.applySavedChecklistJson(answersJson);
+      if (rebuiltFromDraft) {
+        this.loadPhotoBlobUrls();
+      } else {
+        this.applySavedAnswersJson(answersJson);
+      }
+    } else if (blankWhenMissing) {
       this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
     }
     if (draft?.reservationId) {
