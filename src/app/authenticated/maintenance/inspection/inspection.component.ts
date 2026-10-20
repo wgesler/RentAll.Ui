@@ -1475,22 +1475,38 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     const propertyId = this.property?.propertyId;
     const propertyCode = this.property?.propertyCode;
     const lookupVersion = ++this.draftLookupVersion;
+    const expectedFileName = propertyCode
+      ? `${this.utilityService.sanitizeFileNameSegment(propertyCode)}_${getInspectionTypeFileSegment(inspectionTypeId)}_draft`
+      : '';
+    this.traceInspectionDraft('lookup', { propertyCode, inspectionTypeId, expectedFileName, officeId, propertyId });
     const applyCurrent = (): void => {
       if (lookupVersion !== this.draftLookupVersion) {
+        this.traceInspectionDraft('lookup skipped', { reason: 'stale', expectedFileName });
         return;
       }
-      this.applyMatchedInspectionDraft(this.getDraftInspectionForType(this.propertyInspectionsCache, inspectionTypeId));
+      const activeDraft = this.getDraftInspectionForType(this.propertyInspectionsCache, inspectionTypeId);
+      this.traceInspectionDraft('no draft file, using active inspection', {
+        expectedFileName,
+        inspectionId: activeDraft?.inspectionId ?? null,
+        hasChecklist: (activeDraft?.inspectionCheckList ?? '').trim().length > 0
+      });
+      this.applyMatchedInspectionDraft(activeDraft);
       this.cdr.markForCheck();
     };
     if (!officeId || !propertyId || !propertyCode) {
+      this.traceInspectionDraft('lookup failed', { reason: 'missing office, property, or property code', officeId, propertyId, propertyCode });
       applyCurrent();
       return;
     }
 
     let documentsRequest;
     try {
-      documentsRequest = this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1), catchError(() => of([] as DocumentResponse[])));
-    } catch {
+      documentsRequest = this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1), catchError(error => {
+        this.traceInspectionDraft('draft search failed', { expectedFileName, error });
+        return of([] as DocumentResponse[]);
+      }));
+    } catch (error) {
+      this.traceInspectionDraft('draft search failed', { expectedFileName, error });
       applyCurrent();
       return;
     }
@@ -1498,23 +1514,52 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     documentsRequest.subscribe({
       next: documents => {
         if (lookupVersion !== this.draftLookupVersion || this.property?.propertyId !== propertyId || this.inspectionTypeIdControl.value !== inspectionTypeId) {
+          this.traceInspectionDraft('lookup skipped', { reason: 'stale response', expectedFileName });
           return;
         }
+        const documentList = documents || [];
         const draftDocument = this.findPropertyCodeDraftDocument(
-          documents || [],
+          documentList,
           propertyCode,
           getInspectionTypeFileSegment(inspectionTypeId)
         );
         if (!draftDocument) {
+          this.traceInspectionDraft('draft file not found', {
+            expectedFileName,
+            returnedFileNames: documentList.map(document => document.fileName)
+          });
           applyCurrent();
           return;
         }
+        this.traceInspectionDraft('draft file found', {
+          fileName: draftDocument.fileName,
+          documentId: draftDocument.documentId,
+          documentPath: draftDocument.documentPath
+        });
         const linked = this.pickInspectionForDraftDocument(this.propertyInspectionsCache, draftDocument, inspectionTypeId);
+        this.traceInspectionDraft('reading draft checklist', {
+          fileName: draftDocument.fileName,
+          inspectionId: linked?.inspectionId ?? null,
+          checklistLength: (linked?.inspectionCheckList ?? '').trim().length
+        });
+        if (!linked || !(linked.inspectionCheckList ?? '').trim()) {
+          this.traceInspectionDraft('draft read failed', {
+            fileName: draftDocument.fileName,
+            reason: linked ? 'inspection checklist is empty' : 'no inspection row for this draft'
+          });
+        }
         this.applyMatchedInspectionDraft(linked, false);
         this.cdr.markForCheck();
       },
-      error: () => applyCurrent()
+      error: error => {
+        this.traceInspectionDraft('draft search failed', { expectedFileName, error });
+        applyCurrent();
+      }
     });
+  }
+
+  traceInspectionDraft(step: string, detail: Record<string, unknown>): void {
+    console.log('[InspectionDraftTrace]', step, detail);
   }
 
   findPropertyCodeDraftDocument(documents: DocumentResponse[], propertyCode: string, typeSegment: string): DocumentResponse | null {
@@ -1601,9 +1646,15 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     if (answersJson.length > 0) {
       const rebuiltFromDraft = this.applySavedChecklistJson(answersJson);
       if (rebuiltFromDraft) {
+        this.traceInspectionDraft('draft checklist applied', { inspectionId: draft?.inspectionId ?? null, mode: 'saved checklist' });
         this.loadPhotoBlobUrls();
       } else {
-        this.applySavedAnswersJson(answersJson);
+        const aligned = this.applySavedAnswersJson(answersJson);
+        this.traceInspectionDraft(aligned ? 'draft checklist applied' : 'draft read failed', {
+          inspectionId: draft?.inspectionId ?? null,
+          mode: 'align to form',
+          reason: aligned ? undefined : 'checklist did not match the form'
+        });
       }
     } else if (blankWhenMissing) {
       this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
