@@ -146,6 +146,12 @@ input.no-spinner[type='number'] {
   flex-wrap: nowrap;
 }
 
+.bank-account-chart {
+  flex: 1 1 28ch;
+  min-width: 28ch;
+  max-width: 36ch;
+}
+
 :host ::ng-deep mat-form-field.bank-account-number.mat-mdc-form-field {
   width: calc(25ch + 72px) !important;
   flex: 0 0 calc(25ch + 72px) !important;

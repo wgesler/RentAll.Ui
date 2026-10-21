@@ -544,6 +544,7 @@ parseOfficeId(id: string | number | null): number | null {
       bankName: new FormControl('', [Validators.required]),
       bankRouting: new FormControl('', [Validators.required, Validators.pattern(/^[0-9]+$/)]),
       bankAccount: new FormControl('', [Validators.required, Validators.pattern(/^[0-9]+$/)]),
+      accountChartOfAccountId: new FormControl<number | null>(null),
       bankSwiftCode: new FormControl('', [Validators.required]),
       bankAddress: new FormControl('', [Validators.required]),
       bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
@@ -809,6 +810,7 @@ parseOfficeId(id: string | number | null): number | null {
         bankName: this.accountingOffice.bankName || '',
         bankRouting: this.accountingOffice.bankRouting || '',
         bankAccount: '',
+        accountChartOfAccountId: this.accountingOffice.accountChartOfAccountId ?? null,
         bankSwiftCode: this.accountingOffice.bankSwiftCode || '',
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
@@ -876,6 +878,7 @@ parseOfficeId(id: string | number | null): number | null {
       bankName: o.bankName || '',
       bankRouting: o.bankRouting || '',
       bankAccount: o.accountNo || '',
+      accountChartOfAccountId: o.accountChartOfAccountId ?? null,
       bankSwiftCode: o.bankSwiftCode || '',
       bankAddress: o.bankAddress || '',
       bankPhone: o.bankPhone ? this.formatterService.phoneNumber(o.bankPhone) : '',
@@ -990,6 +993,10 @@ parseOfficeId(id: string | number | null): number | null {
   parseOptionalAccountId(value: unknown): number | null {
     const parsed = this.utilityService.parseOptionalIntString(value);
     return parsed == null ? null : parsed;
+  }
+
+  onBankChartOfAccountChange(bank: BankAccountResponse, value: string | number | null): void {
+    bank.accountChartOfAccountId = this.parseOptionalAccountId(value);
   }
 
   onDefaultAccountIdChange(controlName: string, value: string | number | null): void {
@@ -1578,6 +1585,7 @@ clearCheckStockLocal(): void {
       bankPhone: '',
       bankRouting: '',
       accountNo: '',
+      accountChartOfAccountId: null,
       bankSwiftCode: '',
       bankAddress: '',
       currentCheckNumber: 1,
@@ -1603,6 +1611,7 @@ clearCheckStockLocal(): void {
       bankRouting: bank.bankRouting || null,
       accountNo: this.clearAccountDigits(bank.accountNo) || null,
       accountNoLastFour: this.accountLastFour(bank.accountNoLastFour) || null,
+      accountChartOfAccountId: bank.accountChartOfAccountId ?? null,
       bankSwiftCode: bank.bankSwiftCode || null,
       bankAddress: bank.bankAddress || null,
       currentCheckNumber: Number(bank.currentCheckNumber) || 1,
@@ -2208,6 +2217,7 @@ clearCheckStockLocal(): void {
       bankRouting: String(formValue['bankRouting'] ?? ''),
       accountNo: this.clearAccountDigits(String(formValue['bankAccount'] ?? '')),
       accountNoLastFour: this.primaryBankAccountLastFour || null,
+      accountChartOfAccountId: this.parseOptionalAccountId(formValue['accountChartOfAccountId']),
       bankSwiftCode: String(formValue['bankSwiftCode'] ?? ''),
       bankAddress: String(formValue['bankAddress'] ?? ''),
       bankPhone: bankPhoneDigits,

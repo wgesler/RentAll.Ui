@@ -398,6 +398,22 @@
                       </button>
                     </div>
                     <div class="bank-account-line form-standard-row">
+                      <app-searchable-select
+                        class="bank-account-chart"
+                        [renderInFormField]="true"
+                        [formFieldClass]="'w-full'"
+                        [formFieldLabel]="'Chart of Account'"
+                        [value]="form.get('accountChartOfAccountId')?.value ?? null"
+                        [options]="chartOfAccountOptions"
+                        [showInstructionOption]="true"
+                        [instructionOptionValue]="null"
+                        nullOptionLabel="None"
+                        [showSearchInput]="true"
+                        [hideSearchHint]="true"
+                        [hideSearchText]="false"
+                        searchPlaceholder="Type to filter accounts..."
+                        noResultsText="No accounts match your search"
+                        (valueChange)="onDefaultAccountIdChange('accountChartOfAccountId', $event)" />
                       <mat-form-field appearance="outline" class="bank-account-number">
                         <mat-label>Bank Account</mat-label>
                         <input #primaryBankAccountInput matInput maxlength="25" inputmode="numeric" autocomplete="off" [value]="primaryBankAccountDisplay()" (focus)="onPrimaryBankAccountFocus($event)" (input)="onPrimaryBankAccountInput($event)" (blur)="onPrimaryBankAccountBlur()">
@@ -433,6 +449,22 @@
                     </div>
                     @for (bank of banks; track bank.bankAccountId || $index) {
                       <div class="bank-account-line form-standard-row">
+                        <app-searchable-select
+                          class="bank-account-chart"
+                          [renderInFormField]="true"
+                          [formFieldClass]="'w-full'"
+                          [formFieldLabel]="'Chart of Account'"
+                          [value]="bank.accountChartOfAccountId ?? null"
+                          [options]="chartOfAccountOptions"
+                          [showInstructionOption]="true"
+                          [instructionOptionValue]="null"
+                          nullOptionLabel="None"
+                          [showSearchInput]="true"
+                          [hideSearchHint]="true"
+                          [hideSearchText]="false"
+                          searchPlaceholder="Type to filter accounts..."
+                          noResultsText="No accounts match your search"
+                          (valueChange)="onBankChartOfAccountChange(bank, $event)" />
                         <mat-form-field appearance="outline" class="bank-account-number">
                           <mat-label>Account Number</mat-label>
                           <input matInput maxlength="25" inputmode="numeric" autocomplete="off" [value]="bankAccountDisplay(bank)" (focus)="onSecondaryBankAccountFocus(bank, $event)" (input)="onSecondaryBankAccountInput(bank, $event)" (blur)="onSecondaryBankAccountBlur(bank)">

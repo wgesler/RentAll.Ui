@@ -33,6 +33,7 @@ export interface BankAccountRequest {
   bankAddress?: string | null;
   accountNo?: string | null;
   accountNoLastFour?: string | null;
+  accountChartOfAccountId?: number | null;
   currentCheckNumber: number;
   checkStockPath?: string | null;
   checkStockFileDetails?: FileDetails | null;
@@ -51,6 +52,7 @@ export interface BankAccountResponse {
   bankAddress?: string | null;
   accountNo?: string | null;
   accountNoLastFour?: string | null;
+  accountChartOfAccountId?: number | null;
   currentCheckNumber: number;
   checkStockPath?: string | null;
   checkStockFileDetails?: FileDetails | null;

@@ -22,6 +22,7 @@ export interface AccountingOfficeRequest {
   bankPhone: string;
   accountNo: string;
   accountNoLastFour?: string | null;
+  accountChartOfAccountId?: number | null;
   startMonth: number;
   startYear: number;
   invoiceStartMonth: number;
@@ -83,6 +84,7 @@ export interface AccountingOfficeResponse {
   bankPhone: string;
   accountNo: string;
   accountNoLastFour?: string | null;
+  accountChartOfAccountId?: number | null;
   startMonth: number;
   startYear: number;
   invoiceStartMonth: number;
