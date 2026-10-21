@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, concatMap, finalize, from, map, switchMap, take, toArray, Subject, takeUntil} from 'rxjs';
+import {BehaviorSubject, concatMap, EMPTY, finalize, from, map, switchMap, take, toArray, Subject, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -23,7 +23,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { getTicketStateType, getTicketStateTypes, TicketStateType } from '../models/ticket-enum';
-import { TicketAssigneeDropdownCell, TicketListDisplay, TicketOfficeFilterOption, TicketPropertyFilterOption, TicketReservationFilterOption } from '../models/ticket-models';
+import { TicketAssigneeDropdownCell, TicketListDisplay, TicketOfficeFilterOption, TicketPropertyFilterOption, TicketReservationFilterOption, TicketResponse } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
 import { TicketPrintService } from '../services/ticket-print.service';
 
@@ -324,31 +324,48 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
       ? this.getAssigneeCandidatesForOffice(event.officeId ?? null).find(option => option.userId === previousAssigneeId)?.displayName || 'Unassigned'
       : 'Unassigned';
     const previousStateId = event.ticketStateTypeId;
-    const sourceTicket = this.allTickets.find(ticket => ticket.ticketId === event.ticketId) || null;
-    if (!sourceTicket) {
-      return;
-    }
-    const stateDecision = this.confirmTicketState({
-      currentStateTypeId: previousStateId,
-      previousStateTypeId: previousStateId,
-      assigneeChanged: true,
-      currentAssigneeId: nextAssigneeId,
-      hasReservation: !!this.utilityService.normalizeIdOrNull(sourceTicket.reservationId ?? null),
-      useStrictOnTickets: this.resolveUseStrictOnTickets(sourceTicket.officeId),
-      areAllCommunicationCheckboxesChecked: this.areAllCommunicationCheckboxesChecked(sourceTicket)
-    });
-    const nextStateTypeId = stateDecision.ticketStateTypeId;
-    const resolvedAssigneeId = stateDecision.assigneeId;
-    const resolvedAssigneeLabel = resolvedAssigneeId
-      ? this.getAssigneeCandidatesForOffice(event.officeId ?? null).find(option => option.userId === resolvedAssigneeId)?.displayName || selectedAssigneeLabel
-      : 'Unassigned';
-    this.applyTicketAssigneeValue(event.ticketId, resolvedAssigneeId, resolvedAssigneeLabel);
-    this.applyTicketStateValue(event.ticketId, nextStateTypeId);
-    const updateRequest = this.mappingService.mapTicketUpdateRequest(sourceTicket, {
-      assigneeId: resolvedAssigneeId
-    });
-    updateRequest.ticketStateTypeId = nextStateTypeId;
-    this.ticketService.updateTicket(updateRequest).pipe(take(1)).subscribe({
+    const ticketId = String(event.ticketId);
+    this.ticketService.getTicketById(ticketId).pipe(take(1), switchMap(ticket => {
+      const officeId = ticket.officeId > 0 ? ticket.officeId : (this.shellOfficeId && this.shellOfficeId > 0 ? this.shellOfficeId : ticket.officeId);
+      const reservationId = this.utilityService.normalizeIdOrNull(ticket.reservationId);
+      const propertyId = this.utilityService.normalizeIdOrNull(ticket.propertyId);
+      const communicationComplete = !!ticket.isForRentAll || (!!ticket.needPermissionToEnter && !!ticket.permissionGranted && !!ticket.ownerContacted && !!ticket.confirmedWithTenant && !!ticket.followedUpWithOwner && !!ticket.workOrderCompleted);
+      const stateDecision = this.confirmTicketState({
+        currentStateTypeId: ticket.ticketStateTypeId,
+        previousStateTypeId: ticket.ticketStateTypeId,
+        assigneeChanged: true,
+        currentAssigneeId: nextAssigneeId,
+        hasReservation: !!reservationId,
+        useStrictOnTickets: this.resolveUseStrictOnTickets(officeId),
+        areAllCommunicationCheckboxesChecked: communicationComplete
+      });
+      if (!stateDecision.isAllowed) {
+        this.applyTicketAssigneeValue(ticketId, previousAssigneeId, previousAssigneeLabel);
+        this.applyTicketStateValue(ticketId, previousStateId);
+        this.openCannotCloseDialog();
+        this.markViewForCheck();
+        return EMPTY;
+      }
+      const assigneeIdForSave = stateDecision.ticketStateTypeId === TicketStateType.caseCreated ? null : stateDecision.assigneeId;
+      const resolvedAssigneeLabel = assigneeIdForSave
+        ? this.getAssigneeCandidatesForOffice(officeId).find(option => option.userId === assigneeIdForSave)?.displayName || selectedAssigneeLabel
+        : 'Unassigned';
+      this.applyTicketAssigneeValue(ticketId, assigneeIdForSave, resolvedAssigneeLabel);
+      this.applyTicketStateValue(ticketId, stateDecision.ticketStateTypeId);
+      const request = this.mappingService.mapTicketUpdateRequest(ticket, {
+        officeId,
+        propertyId,
+        reservationId,
+        assigneeId: assigneeIdForSave,
+        agentId: this.utilityService.normalizeIdOrNull(ticket.agentId ?? null),
+        ticketStateTypeId: stateDecision.ticketStateTypeId
+      });
+      const auditNotes = this.assigneeChangeNotes(ticket, assigneeIdForSave, resolvedAssigneeLabel, stateDecision.ticketStateTypeId);
+      if (auditNotes.length > 0) {
+        request.notes = [...(request.notes ?? []), ...auditNotes.map(note => ({ ticketId: ticket.ticketId, note }))];
+      }
+      return this.ticketService.updateTicket(request).pipe(take(1));
+    })).subscribe({
       next: () => {
         this.ticketService.notifyTicketStateChanged();
         this.getTickets();
@@ -357,12 +374,27 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       },
       error: () => {
-        this.applyTicketAssigneeValue(event.ticketId, previousAssigneeId, previousAssigneeLabel);
-        this.applyTicketStateValue(event.ticketId, previousStateId);
+        this.applyTicketAssigneeValue(ticketId, previousAssigneeId, previousAssigneeLabel);
+        this.applyTicketStateValue(ticketId, previousStateId);
         this.toastr.error('Unable to update ticket assignee.', CommonMessage.Error);
         this.markViewForCheck();
       }
     });
+  }
+
+  assigneeChangeNotes(ticket: TicketResponse, nextAssigneeId: string | null, nextAssigneeLabel: string, nextStateTypeId: number): string[] {
+    const notes: string[] = [];
+    const previousAssigneeId = this.utilityService.normalizeIdOrNull(ticket.assigneeId ?? null);
+    if (previousAssigneeId !== nextAssigneeId) {
+      const before = previousAssigneeId
+        ? this.getAssigneeCandidatesForOffice(ticket.officeId).find(option => option.userId === previousAssigneeId)?.displayName || ticket.assigneeName || ticket.assignee || 'Unassigned'
+        : 'Unassigned';
+      notes.push(`Assignee changed from ${before} to ${nextAssigneeLabel}`);
+    }
+    if (Number(ticket.ticketStateTypeId ?? 0) !== nextStateTypeId) {
+      notes.push(`Ticket Status changed from ${getTicketStateType(ticket.ticketStateTypeId)} to ${getTicketStateType(nextStateTypeId)}`);
+    }
+    return notes;
   }
 
   onTicketCheckboxChange(event: TicketListDisplay): void {
