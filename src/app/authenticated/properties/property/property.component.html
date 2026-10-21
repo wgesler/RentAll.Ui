@@ -207,6 +207,21 @@
                       [errorText]="'Required'"
                       (valueChange)="onNumericDropdownChange('propertyStatus', $event)">
                     </app-searchable-select>
+                    <app-searchable-select [disabled]="isExternalPartnerPropertyView"
+                      class="basic-compact min-w-0 col-span-4"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="agentFieldLabel"
+                      [value]="form.controls['agentId']?.value ?? null"
+                      [options]="agentOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter agents...'"
+                      [nullOptionLabel]="selectAgentLabel"
+                      [noResultsText]="'No agents match your search'"
+                      (valueChange)="onAgentDropdownChange($event)">
+                    </app-searchable-select>
                   }
                 </div>
                 }

@@ -37,7 +37,7 @@ import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRo
 import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
-import { AgentListDisplay, AgentResponse, filterAgentsByOffice, normalizeAgentOffices } from '../authenticated/organizations/models/agent.model';
+import { AgentListDisplay, AgentResponse, agentDropdownLabel, filterAgentsByOffice, normalizeAgentOffices } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
 import { BuildingListDisplay, BuildingResponse } from '../authenticated/organizations/models/building.model';
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
@@ -1937,7 +1937,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   mapMobileReservationAgentOptions(agents: { agentId?: string | null; agentCode?: string | null; name?: string | null }[]): MobileListFieldOption[] {
     return (agents || []).map(agent => ({
       value: String(agent.agentId || '').trim(),
-      label: String(agent.agentCode || agent.name || '').trim()
+      label: agentDropdownLabel(agent)
     })).filter(option => !!option.value && !!option.label);
   }
 
@@ -2992,6 +2992,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
         propertyLeaseTypeId: o.propertyLeaseTypeId,
+        agentId: o.agentId ?? null,
         shortAddress: o.shortAddress,
         officeId: o.officeId,
         officeName: o.officeName,

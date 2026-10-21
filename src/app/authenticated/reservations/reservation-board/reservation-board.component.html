@@ -51,7 +51,7 @@
                   <mat-select [(ngModel)]="selectedAgentId" (selectionChange)="onAgentDropdownChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
                     <mat-option [value]="null">All</mat-option>
                     @for (agent of agentOptions; track agent.agentId) {
-                      <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
+                      <mat-option [value]="agent.agentId">{{ agent.name || agent.agentCode }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>

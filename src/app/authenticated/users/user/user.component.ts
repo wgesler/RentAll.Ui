@@ -17,7 +17,7 @@ import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentResponse, agentDropdownLabel } from '../../organizations/models/agent.model';
 import { FeatureType, OrganizationType } from '../../organizations/models/organization-enum';
 import { FeatureResponse } from '../../organizations/models/organization-feature.model';
 import { AgentService } from '../../organizations/services/agent.service';
@@ -663,7 +663,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
         this.availableAgents = this.agents
           .map(agent => ({
             value: agent.agentId,
-            label: agent.agentCode
+            label: agentDropdownLabel(agent)
           }))
           .sort((a, b) => a.label.localeCompare(b.label));
       },

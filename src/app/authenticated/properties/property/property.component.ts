@@ -25,13 +25,16 @@ import { ContactComponent } from '../../contacts/contact/contact.component';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
+import { AgentResponse, agentDropdownLabel, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationType } from '../../organizations/models/organization-enum';
 import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaService } from '../../organizations/services/area.service';
 import { BuildingService } from '../../organizations/services/building.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { NoticeStatusType, getNoticeStatusTypes, getReservationNotices } from '../../reservations/models/reservation-enum';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
@@ -104,6 +107,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   private contactService = inject(ContactService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
+  private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private regionService = inject(RegionService);
   private areaService = inject(AreaService);
   private buildingService = inject(BuildingService);
@@ -164,6 +169,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
+  agents: AgentResponse[] = [];
+  agentFieldLabel = 'Agent';
+  selectAgentLabel = 'Select Agent';
+  readonly noneAgentOptionValue = '__none_agent__';
   vendorContacts: ContactResponse[] = [];
   trashDays: { value: number, label: string }[] = [];
   propertyStyles: { value: number, label: string }[] = [];
@@ -283,6 +292,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
     this.loadStates();
     this.loadContacts();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
+    this.loadAgents();
     this.loadOffices();
     this.loadRegions();
     this.loadAreas();
@@ -729,6 +741,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       checkInTimeId: this.parseIdValue(formValue['checkInTimeId'], 0),
       checkOutTimeId: this.parseIdValue(formValue['checkOutTimeId'], 0),
       propertyLeaseTypeId: this.isPartnerOrganization ? PropertyLeaseType.Direct : this.parseIdValue(formValue['propertyLeaseTypeId'], 0),
+      agentId: this.normalizeAgentId(formValue['agentId']),
       accommodates: formValue['accommodates'] ? Number(formValue['accommodates']) : 0,
       bedrooms: formValue['bedrooms'] ? Number(formValue['bedrooms']) : 0,
       bathrooms: formValue['bathrooms'] ? Number(formValue['bathrooms']) : 0,
@@ -992,7 +1005,8 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       longitude: new FormControl('-0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       
       isActive: new FormControl(true),
-      propertyLeaseTypeId: new FormControl<number>(this.defaultPropertyLeaseTypeId, [Validators.required])
+      propertyLeaseTypeId: new FormControl<number>(this.defaultPropertyLeaseTypeId, [Validators.required]),
+      agentId: new FormControl<string | null>(this.noneAgentOptionValue)
     }, { validators: [this.bedSelectionValidator] });
     this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.markViewForCheck());
     this.form.statusChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.markViewForCheck());
@@ -1041,6 +1055,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       formData.noticeToVacateId = this.parseIdValue(this.property.noticeToVacateId, 0);
       formData.noticeStatusId = this.parseIdValue(this.property.noticeStatusId, 0);
       formData.propertyLeaseTypeId = this.isPartnerOrganization ? PropertyLeaseType.Direct : this.parseIdValue(this.property.propertyLeaseTypeId, 0);
+      formData.agentId = this.property.agentId || this.noneAgentOptionValue;
 
       const leaseNorm = this.parseIdValue(formData.propertyLeaseTypeId, 0);
       if (leaseNorm === PropertyLeaseType.PropertyManagement) {
@@ -2272,7 +2287,76 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
     this.expandedSections[section] = false;
   }
 
+  loadAgents(): void {
+    this.agentService.getAgents().pipe(take(1)).subscribe({
+      next: (agents: AgentResponse[]) => {
+        this.agents = agents || [];
+        this.syncAgentSelectionWithOfficeScope();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.agents = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  applyAgentFieldLabel(): void {
+    const officeId = this.propertyOfficeIdForAgents();
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', officeId);
+    this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', officeId);
+    this.markViewForCheck();
+  }
+
+  get agentOptions(): SearchableSelectOption[] {
+    const scopedAgents = filterAgentsByOffice(this.agents, this.propertyOfficeIdForAgents(), { activeOnly: true });
+    return [
+      { value: this.noneAgentOptionValue, label: 'None' },
+      ...scopedAgents.map(agent => ({ value: agent.agentId, label: agentDropdownLabel(agent) }))
+    ];
+  }
+
+  onAgentDropdownChange(value: string | number | null): void {
+    const normalizedAgentId = value == null ? this.noneAgentOptionValue : String(value).trim();
+    const agentControl = this.form.get('agentId');
+    agentControl?.setValue(normalizedAgentId || this.noneAgentOptionValue);
+    agentControl?.markAsTouched();
+    agentControl?.markAsDirty();
+    this.markViewForCheck();
+  }
+
+  propertyOfficeIdForAgents(): number | null {
+    const officeRaw = this.form?.get('officeId')?.value ?? this.property?.officeId ?? this.selectedOffice?.officeId ?? null;
+    const officeId = Number(officeRaw);
+    return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+  }
+
+  normalizeAgentId(value: unknown): string | null {
+    const agentId = value == null ? '' : String(value).trim();
+    if (!agentId || agentId === this.noneAgentOptionValue) {
+      return null;
+    }
+    return agentId;
+  }
+
+  syncAgentSelectionWithOfficeScope(): void {
+    this.applyAgentFieldLabel();
+    const agentControl = this.form?.get('agentId');
+    if (!agentControl) {
+      return;
+    }
+    const currentAgentId = agentControl.value == null ? '' : String(agentControl.value).trim();
+    if (!currentAgentId || currentAgentId === this.noneAgentOptionValue || this.agents.length === 0) {
+      return;
+    }
+    const scopedAgents = filterAgentsByOffice(this.agents, this.propertyOfficeIdForAgents(), { activeOnly: true });
+    if (!scopedAgents.some(agent => String(agent.agentId) === currentAgentId)) {
+      agentControl.setValue(this.noneAgentOptionValue, { emitEvent: false });
+    }
+  }
+
   onOfficeChange(): void {
+    this.syncAgentSelectionWithOfficeScope();
     this.form.get('officeId')?.markAsDirty();
     this.filterLocationLookupsByOffice();
     this.form.get('reservationId')?.setValue(null, { emitEvent: false });

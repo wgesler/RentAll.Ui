@@ -59,6 +59,10 @@ export function agentHasOfficeAccess(
   return agentOffices.includes(parsedOfficeId);
 }
 
+export function agentDropdownLabel(agent: { name?: string | null; agentCode?: string | null } | null | undefined): string {
+  return String(agent?.name ?? '').trim() || String(agent?.agentCode ?? '').trim();
+}
+
 export function filterAgentsByOffice<T extends Pick<AgentResponse, 'officeId' | 'offices' | 'isActive'>>(
   agents: T[] | null | undefined,
   officeId: number | null | undefined,

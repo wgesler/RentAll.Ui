@@ -300,10 +300,10 @@
       margin-bottom: 0;
     }
   }
-  /* First row: 30 columns — 4+4+3+3+2+2+4+4+4 */
+  /* First row: 34 columns — 4+4+3+3+2+2+4+4+4+4 */
   .basic-row-first {
     display: grid;
-    grid-template-columns: repeat(30, minmax(0, 1fr));
+    grid-template-columns: repeat(34, minmax(0, 1fr));
     gap: 4px 6px;
     width: 100%;
 

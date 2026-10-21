@@ -29,7 +29,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { EmailRequest } from '../../email/models/email.model';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailService } from '../../email/services/email.service';
-import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
+import { AgentResponse, agentDropdownLabel, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AgentService } from '../../organizations/services/agent.service';
@@ -4057,7 +4057,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const scopedAgents = filterAgentsByOffice(this.agents, this.getReservationOfficeIdForContactFilter(), { activeOnly: true });
     return [
       { value: this.noneAgentOptionValue, label: 'None' },
-      ...scopedAgents.map(agent => ({ value: agent.agentId, label: agent.agentCode }))
+      ...scopedAgents.map(agent => ({ value: agent.agentId, label: agentDropdownLabel(agent) }))
     ];
   }
 
