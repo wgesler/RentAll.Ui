@@ -99,7 +99,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     this.syncNoteEditorFromForm();
   }
   noteEditor?: ElementRef<HTMLDivElement>;
-  imageDragTarget: 'description' | 'note' | null = null;
+  imageDragTarget: 'description' | 'steps' | 'note' | null = null;
   private ticketImageObjectUrls = new Map<string, string>();
 
   organizationId = '';
@@ -249,7 +249,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     }
     this.syncStepsToReproduceRequired();
     this.form.updateValueAndValidity({ emitEvent: false });
-    if (!this.form.valid || (this.showStepsToReproduceField && !this.htmlToPlainText(String(this.form.get('stepsToReproduce')?.value || '')).trim())) {
+    if (!this.form.valid || (this.showStepsToReproduceField && !this.editorHasContent(String(this.form.get('stepsToReproduce')?.value || '')))) {
       this.form.get('stepsToReproduce')?.setErrors(this.showStepsToReproduceField ? { required: true } : null);
       this.form.get('title')?.markAsTouched();
       this.form.get('description')?.markAsTouched();
@@ -326,7 +326,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
       ticketCode: existing?.ticketCode ?? null,
       title: String(formValue.title || '').trim(),
       description: this.stripTicketImageSources(String(formValue.description || '')).trim(),
-      stepsToReproduce: isForRentAll ? (String(formValue.stepsToReproduce || '').trim() || null) : null,
+      stepsToReproduce: isForRentAll ? (this.stripTicketImageSources(String(formValue.stepsToReproduce || '')).trim() || null) : null,
       ticketStateTypeId,
       needPermissionToEnter: isForRentAll ? false : !!formValue.needPermissionToEnter,
       permissionGranted: isForRentAll ? false : !!formValue.permissionGranted,
@@ -493,7 +493,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     this.onRichEditorInput(event, 'newNote');
   }
 
-  onEditorDragEnter(event: DragEvent, target: 'description' | 'note'): void {
+  onEditorDragEnter(event: DragEvent, target: 'description' | 'steps' | 'note'): void {
     if (!this.dragHasFiles(event)) {
       return;
     }
@@ -511,7 +511,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     }
   }
 
-  onEditorDragLeave(event: DragEvent, target: 'description' | 'note'): void {
+  onEditorDragLeave(event: DragEvent, target: 'description' | 'steps' | 'note'): void {
     if (this.imageDragTarget === target) {
       this.imageDragTarget = null;
     }
@@ -1766,7 +1766,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     }
 
     if (this.showStepsToReproduceField) {
-      control.setValidators([controlValue => this.htmlToPlainText(String(controlValue.value || '')).trim() ? null : { required: true }]);
+      control.setValidators([controlValue => this.editorHasContent(String(controlValue.value || '')) ? null : { required: true }]);
     } else {
       control.clearValidators();
     }

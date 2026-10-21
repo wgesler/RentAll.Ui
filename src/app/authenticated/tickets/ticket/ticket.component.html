@@ -194,8 +194,15 @@
               <div
                 #stepsToReproduceEditor
                 class="description-editor-input description-editor-input--with-markers"
+                [class.is-dragover]="imageDragTarget === 'steps'"
                 contenteditable="true"
-                (input)="onStepsToReproduceInput($event)">
+                (input)="onStepsToReproduceInput($event)"
+                (click)="onTicketImageClick($event)"
+                (paste)="onEditorPaste($event, stepsToReproduceEditor, 'stepsToReproduce')"
+                (dragenter)="onEditorDragEnter($event, 'steps')"
+                (dragover)="onEditorDragOver($event)"
+                (dragleave)="onEditorDragLeave($event, 'steps')"
+                (drop)="onEditorDrop($event, stepsToReproduceEditor, 'stepsToReproduce')">
               </div>
             </div>
             }
