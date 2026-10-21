@@ -9,6 +9,7 @@ import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
@@ -38,6 +39,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private terminologyService = inject(TerminologyService);
   isServiceError = false;
   rowsDisplay: TransferFlatReportRowDisplay[] = [];
   noActivityMessage = 'No transfer detail lines for the selected transfer.';
@@ -70,6 +72,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Transfer Report
   ngOnInit(): void {
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyColumnHeaders());
     this.displayedColumns = this.cloneTransferReportDisplayedColumns();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -215,7 +218,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     this.applyAccountColumnHeader(columns, 'business', accountIds.businessAccountId, 'Business');
     this.applyAccountColumnHeader(columns, 'ownerEscrow', accountIds.ownersAccountId, 'Owner Escrow');
     this.applyAccountColumnHeader(columns, 'secDep', accountIds.secDepAccountId, 'Sec Dep');
-    this.applyAccountColumnHeader(columns, 'sdw', accountIds.sdwAccountId, 'SDW Escrow');
+    this.applyAccountColumnHeader(columns, 'sdw', accountIds.sdwAccountId, this.terminologyService.applyDepositTerms('SDW Escrow', transfer?.officeId ?? this.officeId ?? null));
     this.displayedColumns = columns;
   }
 
@@ -297,9 +300,16 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   }
   
   cloneTransferReportDisplayedColumns(): ColumnSet {
-    return Object.fromEntries(
+    const columns = Object.fromEntries(
       Object.entries(this.transferReportDisplayedColumns).map(([columnName, column]) => [columnName, { ...column }])
     ) as ColumnSet;
+    if (columns['sdw']) {
+      columns['sdw'] = {
+        ...columns['sdw'],
+        displayAs: this.terminologyService.applyDepositTerms('SDW Escrow', this.officeId)
+      };
+    }
+    return columns;
   }
   //#endregion
 

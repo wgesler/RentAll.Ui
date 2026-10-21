@@ -13,6 +13,7 @@ import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { TransactionTypeLabels } from '../../models/accounting-enum';
 import { CostCodesRequest, CostCodesResponse, CostCodesListDisplay } from '../../models/cost-codes.model';
 import { CostCodesService } from '../../services/cost-codes.service';
@@ -41,6 +42,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
+  private terminologyService = inject(TerminologyService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService); // Emit when save is successful
   @ViewChild('firstInput') firstInputRef: MatSelect;
@@ -73,6 +75,8 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
     this.loadOffices();
@@ -337,6 +341,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     if (this.selectedOffice?.officeId) {
       this.saveAttempted = false;
     }
+    this.applyDepositTermLabels();
   }
 
   syncSelectedOfficeFromInput(): void {
@@ -432,6 +437,15 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     this.backEvent.emit();
   }
   
+  applyDepositTermLabels(): void {
+    const officeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
+    this.transactionTypes = TransactionTypeLabels.map(type => ({
+      ...type,
+      label: this.terminologyService.applyDepositTerms(type.label, officeId)
+    }));
+    this.markViewForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

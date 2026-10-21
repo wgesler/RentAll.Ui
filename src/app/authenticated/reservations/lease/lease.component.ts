@@ -34,6 +34,7 @@ import { AccountingOfficeService } from '../../organizations/services/accounting
 import { BuildingService } from '../../organizations/services/building.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { getCheckInTime, getCheckOutTime, PropertyType } from '../../properties/models/property-enums';
 import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -87,6 +88,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   private leaseReloadService = inject(LeaseReloadService);
   private mappingService = inject(MappingService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
   private http = inject(HttpClient);
   private dynamicFormDraftService = inject(DynamicFormDraftService);
   ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
@@ -1401,7 +1403,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (this.selectedReservation.depositTypeId === DepositType.CLR) 
       return 'Deposit';
     else if (this.selectedReservation.depositTypeId === DepositType.SDW) 
-      return 'Security Deposit Waiver';
+      return this.terminologyService.applyDepositTerms('Security Deposit Waiver', this.selectedOffice?.officeId ?? this.selectedReservation.officeId ?? null);
     else 
       return 'Deposit';
   }
@@ -1648,7 +1650,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{miscellaneous\}\}/g, this.leaseInformation.miscellaneous || '');
 
       result = result.replace(/\{\{rentalPaymentSection\}\}/g, this.buildLeaseInfoSectionHtml('Rental Payments', this.leaseInformation.rentalPayment));
-      result = result.replace(/\{\{securityDepositWaiverSection\}\}/g, this.buildLeaseInfoSectionHtml('Security Deposit Waiver', this.leaseInformation.securityDepositWaiver));
+      result = result.replace(/\{\{securityDepositWaiverSection\}\}/g, this.buildLeaseInfoSectionHtml(this.terminologyService.applyDepositTerms('Security Deposit Waiver', this.selectedOffice?.officeId ?? this.selectedReservation?.officeId ?? null), this.leaseInformation.securityDepositWaiver));
       result = result.replace(/\{\{securityDepositSection\}\}/g, this.buildLeaseInfoSectionHtml('Security Deposit/Credit Card Authorizations', this.leaseInformation.securityDeposit));
       result = result.replace(/\{\{cancellationPolicySection\}\}/g, this.buildLeaseInfoSectionHtml('Cancellation Policy', this.leaseInformation.cancellationPolicy));
       result = result.replace(/\{\{keyPickUpDropOffSection\}\}/g, this.buildLeaseInfoSectionHtml('Key Pick-up and drop-off', this.leaseInformation.keyPickUpDropOff));
@@ -2048,7 +2050,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     add('includeLease', htmlFiles.lease);
     add('includeLetterOfResponsibility', htmlFiles.letterOfResponsibility);
     add('includeNoticeToVacate', htmlFiles.noticeToVacate);
-    add('includeCreditCardAuthorization', htmlFiles.creditAuthorization);
+    add('includeCreditCardAuthorization', this.terminologyService.applyDepositTerms(htmlFiles.creditAuthorization, this.selectedOffice?.officeId ?? this.selectedReservation?.officeId ?? null));
     if (this.isCompanyRental) {
       add('includeBusinessCreditApplication', htmlFiles.creditApplication);
     } else {

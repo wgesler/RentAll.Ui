@@ -15,6 +15,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { ReservationCodeResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
 import { ReservationType } from '../../../reservations/models/reservation-enum';
 import { ReservationService } from '../../../reservations/services/reservation.service';
@@ -66,6 +67,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
   private journalEntryService = inject(JournalEntryService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -130,6 +132,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Invoice
   ngOnInit(): void {
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.isPaymentMode = false;
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.routeInvoiceId = this.route.snapshot.paramMap.get('id');
@@ -1641,6 +1645,21 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.applyDepositTermLabels();
+  }
+
+  applyDepositTermLabels(): void {
+    const officeId = this.selectedOffice?.officeId ?? this.officeIdInput ?? null;
+    this.transactionTypes = TransactionTypeLabels.map(type => ({
+      ...type,
+      label: this.terminologyService.applyDepositTerms(type.label, officeId)
+    }));
+    this.ledgerLines = (this.ledgerLines ?? []).map(line => {
+      const transactionTypeId = (line as { transactionTypeId?: number }).transactionTypeId;
+      const label = this.transactionTypes.find(type => type.value === transactionTypeId)?.label;
+      return label ? { ...line, transactionType: label } : line;
+    });
+    this.cdr.markForCheck();
   }
 
   setupReservationIdHandler(): void {

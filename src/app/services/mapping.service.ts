@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionType, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
 import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingOfficeRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingSortBy, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
@@ -635,7 +635,7 @@ groupCardNumber(value: string): string {
         officeName: officeName,
         costCode: costCode.costCode || '',
         transactionTypeId: costCode.transactionTypeId,
-        transactionType: getTransactionTypeLabel(costCode.transactionTypeId, transactionTypes),
+        transactionType: this.terminologyService.applyDepositTerms(getTransactionType(costCode.transactionTypeId), costCode.officeId ?? null),
         description: costCode.description || '',
         chartOfAccountDisplay: matchedChartOfAccount ? this.formatChartOfAccountListLabel(matchedChartOfAccount) : '',
         isActive: costCode.isActive ?? true,
@@ -1388,8 +1388,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
         }
       }
       
-      const transactionTypeLabel = transactionTypeId !== undefined && transactionTypeId !== null 
-        ? getTransactionTypeLabel(transactionTypeId, transactionTypes)
+      const transactionTypeLabel = transactionTypeId !== undefined && transactionTypeId !== null
+        ? this.terminologyService.applyDepositTerms(getTransactionType(transactionTypeId), matchingCostCode?.officeId ?? null)
         : '';
       
       const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment ? '#E8F5E9' : undefined;
@@ -1992,7 +1992,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     this.addMobileDetailField(fields, 'garageCode', 'Garage Code', reservation.garageCode);
     this.addMobileDetailField(fields, 'billingTypeId', 'Billing Type', reservation.billingTypeId == null ? '' : String(reservation.billingTypeId), this.mapNumberLabelOptions(getBillingTypes()));
     this.addMobileDetailField(fields, 'billingRate', 'Billing Rate', this.formatMobileDetailDecimal(reservation.billingRate));
-    this.addMobileDetailField(fields, 'depositTypeId', 'Deposit Type', reservation.depositTypeId == null ? '' : String(reservation.depositTypeId), this.mapNumberLabelOptions(getDepositTypes()));
+    this.addMobileDetailField(fields, 'depositTypeId', 'Deposit Type', reservation.depositTypeId == null ? '' : String(reservation.depositTypeId), this.mapNumberLabelOptions(getDepositTypes()).map(option => ({ ...option, label: this.terminologyService.applyDepositTerms(option.label, reservation.officeId ?? null) })));
     this.addMobileDetailField(fields, 'deposit', 'Deposit', this.formatMobileDetailDecimal(reservation.deposit));
     this.addMobileDetailField(fields, 'billingMethodId', 'Client Billing Method', reservation.billingMethodId == null ? '' : String(reservation.billingMethodId), this.mapNumberLabelOptions(getBillingMethods()));
     this.addMobileDetailField(fields, 'prorateTypeId', 'Client Prorate Month', reservation.prorateTypeId == null ? '' : String(reservation.prorateTypeId), this.mapNumberLabelOptions(getProrateTypes()));

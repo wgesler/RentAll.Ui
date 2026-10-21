@@ -77,6 +77,22 @@ export class TerminologyService {
     return text.replace(/\bAgent\b(?! Admin)/g, label);
   }
 
+  applyDepositTerms(text: string, officeId: number | null): string {
+    if (!text) {
+      return text;
+    }
+    const waiver = this.labelFor('Security Deposit Waiver', officeId);
+    const sdw = this.labelFor('SDW', officeId);
+    let result = text;
+    if (waiver !== 'Security Deposit Waiver') {
+      result = result.replace(/Security Deposit Waiver/g, waiver);
+    }
+    if (sdw !== 'SDW') {
+      result = result.replace(/\bSDW\b/g, sdw);
+    }
+    return result;
+  }
+
   clearTerminologies(): void {
     this.terminologiesLoad$ = null;
     this.allTerminologies$.next([]);

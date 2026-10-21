@@ -24,6 +24,7 @@ import { getQbClassTypes, getQbNameTypes } from '../models/qb-type-enum';
 import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
+import { TerminologyService } from '../services/terminology.service';
 
 @Component({
     standalone: true,
@@ -52,6 +53,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   private userService = inject(UserService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
+  private terminologyService = inject(TerminologyService);
+  securityDepositWaiverLabel = 'Security Deposit Waiver';
+  securityDepositWaiverRequiredText = 'Security Deposit Waiver is required';
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {this.quotePrefaceEditor = value; this.syncQuoteTextEditorFromForm('quotePreface'); }
   @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteSuffixEditor = value; this.syncQuoteTextEditorFromForm('quoteSuffix'); }
@@ -96,6 +100,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       this.markViewForCheck();
     });
 
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.loadStates();
     this.loadCostCodes();
     this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(features => {
@@ -168,6 +174,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     this.officeService.getOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office'); })).subscribe({
       next: (response: OfficeResponse) => {
         this.office = response;
+        this.applyDepositTermLabels();
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
@@ -1343,6 +1350,13 @@ quotePastePlainToHtml(plain: string): string {
   //#endregion
 
   //#region Utility Methods
+  applyDepositTermLabels(): void {
+    const officeId = this.office?.officeId ?? null;
+    this.securityDepositWaiverLabel = this.terminologyService.applyDepositTerms('Security Deposit Waiver', officeId);
+    this.securityDepositWaiverRequiredText = this.terminologyService.applyDepositTerms('Security Deposit Waiver is required', officeId);
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

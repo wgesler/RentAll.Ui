@@ -240,13 +240,13 @@
 
                   <!-- Security Deposit Waiver -->
                   <mat-form-field appearance="outline" class="col-span-1 w-full">
-                    <mat-label>Security Deposit Waiver</mat-label>
+                    <mat-label>{{ securityDepositWaiverLabel }}</mat-label>
                     <input matInput type="text" formControlName="defaultSdw" placeholder="0.00" required
                       (blur)="formatDecimal('defaultSdw')"
                       (input)="onDecimalInput($event, 'defaultSdw')"
                       (focus)="selectAllOnFocus($event)">
                     @if (form.get('defaultSdw')?.hasError('required') && form.get('defaultSdw')?.touched) {
-                      <mat-error>Security Deposit Waiver is required</mat-error>
+                      <mat-error>{{ securityDepositWaiverRequiredText }}</mat-error>
                     }
                   </mat-form-field>
 
@@ -697,7 +697,7 @@
                       </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
-                      <mat-label>Security Deposit Waiver</mat-label>
+                      <mat-label>{{ securityDepositWaiverLabel }}</mat-label>
                       <mat-select formControlName="securityDepositWaiverCcId">
                         <mat-option [value]="null">None</mat-option>
                         @for (costCode of sdwCostCodeOptions; track costCode.value) {

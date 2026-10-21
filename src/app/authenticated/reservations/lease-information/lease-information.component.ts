@@ -11,6 +11,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 
 type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
 
@@ -33,6 +34,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   private toastr = inject(ToastrService);
   private leaseReloadService = inject(LeaseReloadService);
   private utilityService = inject(UtilityService);
+  private terminologyService = inject(TerminologyService);
+  securityDepositWaiverLabel = 'Security Deposit Waiver';
   form: FormGroup;
   isSubmitting: boolean = false;
   leaseInformation: LeaseInformationResponse | null = null;
@@ -51,7 +54,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.getLeaseInformation(true);
   }
 
@@ -63,6 +67,9 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
       (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     
     // If scope changed, refresh from API
+    if (officeIdChanged) {
+      this.applyDepositTermLabels();
+    }
     if (propertyIdChanged || officeIdChanged) {
       // Reset loading state
       this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
@@ -277,6 +284,11 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   } //#endregion
 
   //#region Utility Methods
+  applyDepositTermLabels(): void {
+    this.securityDepositWaiverLabel = this.terminologyService.applyDepositTerms('Security Deposit Waiver', this.officeId);
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

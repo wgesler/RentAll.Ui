@@ -28,6 +28,7 @@ import { AccountingOfficeService } from '../services/accounting-office.service';
 import { BankCardService } from '../services/bank-card.service';
 import { BankService } from '../services/bank.service';
 import { OfficeService } from '../services/office.service';
+import { TerminologyService } from '../services/terminology.service';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
@@ -69,6 +70,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
+  private terminologyService = inject(TerminologyService);
   private formatterService = inject(FormatterService);
   private commonService = inject(CommonService);
   private organizationService = inject(OrganizationService);
@@ -201,6 +203,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.loadStates();
     this.loadOffices();
     this.loadAccountingOfficeOrganizationType();
@@ -288,6 +292,7 @@ parseOfficeId(id: string | number | null): number | null {
     })).subscribe({
       next: (response: AccountingOfficeResponse) => {
         this.accountingOffice = response;
+        this.applyDepositTermLabels();
         this.loadCostCodesForOffice(response?.officeId);
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
@@ -398,6 +403,7 @@ parseOfficeId(id: string | number | null): number | null {
         return this.accountingOfficeService.getAccountingOfficeById(officeRequest.officeId).pipe(
           tap(fresh => {
             this.accountingOffice = fresh;
+            this.applyDepositTermLabels();
             if (fresh.logoPath && !this.hasNewFileUpload) {
               this.logoPath = fresh.logoPath;
             }
@@ -2114,6 +2120,14 @@ clearCheckStockLocal(): void {
   //#endregion
 
   //#region Utility Methods
+  applyDepositTermLabels(): void {
+    const officeId = this.accountingOffice?.officeId ?? null;
+    this.defaultAccountFieldsEscrow = this.defaultAccountFieldsEscrow.map(field => field.controlName === 'defaultEscrowSdwAccountId'
+      ? { ...field, label: this.terminologyService.applyDepositTerms('Escrow Security Deposit Waiver', officeId) }
+      : field);
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
@@ -2249,6 +2263,7 @@ clearCheckStockLocal(): void {
 
   private applySavedAccountingOfficeResponse(response: AccountingOfficeResponse): void {
     this.accountingOffice = response;
+    this.applyDepositTermLabels();
     this.banks = (response?.banks || this.banks).map(bank => this.maskLoadedBank(this.withBankStockPreview(bank)));
     if (response.logoPath && !this.hasNewFileUpload) {
       this.logoPath = response.logoPath;
@@ -2277,6 +2292,7 @@ clearCheckStockLocal(): void {
     return this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(
       tap(fresh => {
         this.accountingOffice = fresh;
+        this.applyDepositTermLabels();
         if (fresh.logoPath && !this.hasNewFileUpload) {
           this.logoPath = fresh.logoPath;
         }

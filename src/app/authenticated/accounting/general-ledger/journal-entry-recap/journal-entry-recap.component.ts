@@ -11,6 +11,7 @@ import { MaintenanceListSearchRequest } from '../../../maintenance/models/mainte
 import { MappingService } from '../../../../services/mapping.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 
 @Component({
   selector: 'app-journal-entry-recap',
@@ -35,6 +36,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   private journalEntrySourceService = inject(JournalEntrySourceService);
   private mappingService = inject(MappingService);
   private cdr = inject(ChangeDetectorRef);
+  private terminologyService = inject(TerminologyService);
 
   isServiceError = false;
   rowsDisplay: JournalEntryRecapRowDisplay[] = [];
@@ -67,6 +69,8 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Journal Entry Recap
   ngOnInit(): void {
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.loadRecapLines();
   }
 
@@ -79,6 +83,9 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
       || (changes['officeId'] && !changes['officeId'].firstChange)
       || (changes['reservationId'] && !changes['reservationId'].firstChange)
     ) {
+      if (changes['officeId']) {
+        this.applyDepositTermLabels();
+      }
       this.loadRecapLines();
     }
   }
@@ -245,6 +252,18 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   //#endregion
 
   //#region Utility Methods
+  applyDepositTermLabels(): void {
+    const sdw = this.displayedColumns['sdw'];
+    if (!sdw) {
+      return;
+    }
+    this.displayedColumns = {
+      ...this.displayedColumns,
+      sdw: { ...sdw, displayAs: this.terminologyService.applyDepositTerms('SDW', this.officeId) }
+    };
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

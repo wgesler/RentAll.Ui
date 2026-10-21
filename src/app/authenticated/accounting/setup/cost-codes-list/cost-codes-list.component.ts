@@ -16,6 +16,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
@@ -54,6 +55,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   private utilityService = inject(UtilityService);
   private authService = inject(AuthService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
    
@@ -102,6 +104,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
@@ -428,6 +432,18 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodesDisplay = mapped;
   }
 
+  applyDepositTermLabels(): void {
+    const officeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
+    this.transactionTypes = TransactionTypeLabels.map(type => ({
+      ...type,
+      label: this.terminologyService.applyDepositTerms(type.label, officeId)
+    }));
+    if (this.officeScopeResolved) {
+      this.applyFilters();
+    }
+    this.cdr.markForCheck();
+  }
+
   filterCostCodes(): void {
     if (!this.selectedOffice) {
       this.costCodes = this.cachedCostCodes;
@@ -467,6 +483,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }
     this.filterCostCodes();
+    this.applyDepositTermLabels();
   }
   //#endregion
 

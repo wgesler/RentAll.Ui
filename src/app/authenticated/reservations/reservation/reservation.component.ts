@@ -1210,7 +1210,16 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.agentFieldLabel = this.terminologyService.labelFor('Agent', officeId);
     this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', officeId);
     this.agentRequiredText = this.terminologyService.replaceAgent('Agent is required', officeId);
+    this.applyDepositTypeLabels();
     this.markViewForCheck();
+  }
+
+  applyDepositTypeLabels(): void {
+    const officeId = this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    this.availableDepositTypes = getDepositTypes().map(type => ({
+      ...type,
+      label: this.terminologyService.applyDepositTerms(type.label, officeId)
+    }));
   }
 
   resolveOfficeScope(officeId: number | null): void {
@@ -2152,7 +2161,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.availableProrateTypes = getProrateTypes();
     this.availableFrequencies = getFrequencies();
     this.availableReservationNotices = getReservationNotices();
-    this.availableDepositTypes = getDepositTypes();
+    this.applyDepositTypeLabels();
     this.availableReferralMethodTypes = getReferralMethodTypes();
   }
 

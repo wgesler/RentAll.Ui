@@ -17,6 +17,7 @@ import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { ReservationListResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
 import { ReservationStatus, ReservationType } from '../../../reservations/models/reservation-enum';
 import { ReservationService } from '../../../reservations/services/reservation.service';
@@ -117,6 +118,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private costCodesService = inject(CostCodesService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private officeService = inject(OfficeService);
+  private terminologyService = inject(TerminologyService);
   private reservationService = inject(ReservationService);
   private propertyService = inject(PropertyService);
   private contactService = inject(ContactService);
@@ -256,6 +258,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.isSuperUser = this.authService.hasRole(UserGroups.SuperAdmin);
     this.hasQuickBooksAccess = this.authService.hasQuickBooksAccess();
     this.rebuildInvoicesDisplayedColumns();
@@ -2391,6 +2395,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const officeChanged = previousOfficeId !== nextOfficeId;
 
     this.officeScopeResolved = true;
+    this.applyDepositTermLabels();
     if (emitChange) {
       this.officeIdChange.emit(nextOfficeId);
     }
@@ -2611,6 +2616,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  applyDepositTermLabels(): void {
+    const officeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
+    this.transactionTypes = TransactionTypeLabels.map(type => ({
+      ...type,
+      label: this.terminologyService.applyDepositTerms(type.label, officeId)
+    }));
+    if (this.officeScopeResolved && this.allInvoices.length > 0) {
+      this.applyFilters();
+    }
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

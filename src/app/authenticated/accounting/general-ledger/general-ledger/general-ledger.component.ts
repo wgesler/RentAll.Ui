@@ -17,6 +17,7 @@ import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { PropertyCodeResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
@@ -81,6 +82,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   private journalEntryService = inject(JournalEntryService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+  private terminologyService = inject(TerminologyService);
 
   isServiceError = false;
   isSaving = false;
@@ -131,6 +133,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.setupFormSubscriptions();
     this.loadReferenceData();
@@ -207,6 +211,14 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
         label: this.utilityService.getChartOfAccountDropdownLabel(account)
       }))
       .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }
+
+  applyDepositTermLabels(): void {
+    this.journalEntryKindOptions = getUserEditableJournalEntryKinds().map(option => ({
+      ...option,
+      label: this.terminologyService.applyDepositTerms(option.label, this.effectiveOfficeId)
+    }));
+    this.markViewForCheck();
   }
 
   get effectiveOfficeId(): number | null {
@@ -634,7 +646,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     const kindId = this.isAddMode
       ? Number(this.form.getRawValue().journalEntryKindId ?? JournalEntryKind.Manual)
       : Number(this.journalEntry?.journalEntryKindId ?? JournalEntryKind.Manual);
-    return getJournalEntryKindLabel(kindId);
+    return this.terminologyService.applyDepositTerms(getJournalEntryKindLabel(kindId), this.effectiveOfficeId);
   }
 
   getTotalDebitDisplay(): string {
@@ -716,6 +728,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     ).subscribe({
       next: updatedEntry => {
         this.journalEntry = updatedEntry;
+        this.applyDepositTermLabels();
         this.syncFormFromJournalEntry();
         this.applyLineDisplay();
         this.toastr.success('Journal entry saved.', 'Success');
@@ -1081,6 +1094,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   applyLoadedJournalEntry(journalEntry: JournalEntryResponse): void {
     this.isServiceError = false;
     this.journalEntry = journalEntry;
+    this.applyDepositTermLabels();
     this.syncFormFromJournalEntry();
     this.populateEditableLinesFromJournalEntry(journalEntry);
     this.applyLineDisplay();

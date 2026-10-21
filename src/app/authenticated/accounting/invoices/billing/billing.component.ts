@@ -18,6 +18,8 @@ import { UserGroups } from '../../../users/models/user-enums';
 import { OrganizationResponse } from '../../../organizations/models/organization.model';
 import { OrganizationService } from '../../../organizations/services/organization.service';
 import { TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
+import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
@@ -53,6 +55,8 @@ export class BillingComponent implements OnInit, OnDestroy {
   dialog = inject(MatDialog);
   organizationService = inject(OrganizationService);
   private journalEntryService = inject(JournalEntryService);
+  private terminologyService = inject(TerminologyService);
+  private globalSelectionService = inject(GlobalSelectionService);
 
   isServiceError: boolean = false;
   invoiceId: string;
@@ -89,6 +93,8 @@ export class BillingComponent implements OnInit, OnDestroy {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyDepositTermLabels());
+    this.applyDepositTermLabels();
     this.isPaymentMode = false;
     this.loadCostCodes();
     this.loadOrganizations();
@@ -161,6 +167,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.invoiceService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
         this.invoice = response;
+        this.applyDepositTermLabels();
         this.populateForm();
         this.loadLedgerLines(false); 
         
@@ -1266,6 +1273,20 @@ recomputeLedgerLineNumbers(): void {
     }
 
     this.router.navigateByUrl(RouterUrl.AccountingList);
+  }
+
+  applyDepositTermLabels(): void {
+    const officeId = this.invoice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    this.transactionTypes = TransactionTypeLabels.map(type => ({
+      ...type,
+      label: this.terminologyService.applyDepositTerms(type.label, officeId)
+    }));
+    this.ledgerLines = (this.ledgerLines ?? []).map(line => {
+      const transactionTypeId = (line as { transactionTypeId?: number }).transactionTypeId;
+      const label = this.transactionTypes.find(type => type.value === transactionTypeId)?.label;
+      return label ? { ...line, transactionType: label } : line;
+    });
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

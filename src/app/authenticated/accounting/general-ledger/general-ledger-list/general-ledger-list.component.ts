@@ -18,6 +18,7 @@ import { DocumentHtmlService } from '../../../../services/document-html.service'
 import { PdfThumbnailService } from '../../../../services/pdf-thumbnail.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
+import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
@@ -92,6 +93,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   private toastr = inject(ToastrService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private terminologyService = inject(TerminologyService);
 
   selectedJournalEntryLineIds = new Set<string>();
   selectedJournalEntryIds = new Set<string>();
@@ -2754,7 +2756,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return 'Security deposit escrow account is not configured for this office.';
     }
     if (totals.sdw !== 0 && !accountIds.sdw) {
-      return 'SDW escrow account is not configured for this office.';
+      return this.terminologyService.applyDepositTerms('SDW escrow account is not configured for this office.', this.officeId);
     }
     if (totals.bank !== 0 && !accountIds.bank) {
       return 'Business bank account is not configured for this office.';
