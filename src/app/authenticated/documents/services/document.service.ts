@@ -61,6 +61,10 @@ toGetDocumentsApiDto(request: DocumentGetRequest, officeIds: number[]): GetDocum
     return this.http.post<DocumentResponse>(this.controller, document);
   }
 
+  upsertDocumentByName(document: { fileName: string; officeId: number; propertyId?: string | null; reservationId?: string | null; documentTypeId: number; fileDetails: { file: string; fileName: string; contentType: string } }): Observable<DocumentResponse> {
+    return this.http.post<DocumentResponse>(this.controller + 'upsert', document);
+  }
+
   updateDocument(document: DocumentRequest): Observable<DocumentResponse> {
     return this.http.put<DocumentResponse>(this.controller, document);
   }

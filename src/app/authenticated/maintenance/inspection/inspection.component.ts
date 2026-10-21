@@ -338,32 +338,39 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         const isAnswerOnlySet = setItems.every(item => !item.text);
         if (isAnswerOnlySet) {
           const templateItemsForSet = baseItems.length > 0 ? baseItems : [];
-          return templateItemsForSet.map((item, index) => this.createChecklistItem(
-            item,
-            this.getDefaultItemEditable(),
-            setItems[index]?.checked || false,
-            setItems[index]?.photoPath ?? null,
-            setItems[index]?.documentId || null,
-            setItems[index]?.count ?? item.count ?? null,
-            setItems[index]?.issue ?? null,
-            setItems[index]?.hasIssue === true
-          ));
+          return templateItemsForSet.map((item, index) => {
+            const saved = setItems[index];
+            const state = this.savedCheckboxState(saved);
+            return this.createChecklistItem(
+              item,
+              this.getDefaultItemEditable(),
+              state.on,
+              saved && typeof saved === 'object' ? saved.photoPath ?? null : null,
+              saved && typeof saved === 'object' ? saved.documentId || null : null,
+              saved && typeof saved === 'object' ? saved.count ?? item.count ?? null : item.count ?? null,
+              saved && typeof saved === 'object' ? saved.issue ?? null : null,
+              state.red
+            );
+          });
         }
 
-        return setItems.map(item => this.createChecklistItem(
-          {
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            requiresCount: item.requiresCount ?? baseItems.find(templateItem => templateItem.text === item.text)?.requiresCount ?? false
-          },
-          item.isEditable === true,
-          item.checked,
-          item.photoPath ?? null,
-          item.documentId || null,
-          item.count ?? null,
-          item.issue ?? null,
-          item.hasIssue === true
-        ));
+        return setItems.map(item => {
+          const state = this.savedCheckboxState(item);
+          return this.createChecklistItem(
+            {
+              text: item.text,
+              requiresPhoto: item.requiresPhoto,
+              requiresCount: item.requiresCount ?? baseItems.find(templateItem => templateItem.text === item.text)?.requiresCount ?? false
+            },
+            item.isEditable === true,
+            state.on,
+            item.photoPath ?? null,
+            item.documentId || null,
+            item.count ?? null,
+            item.issue ?? null,
+            state.red
+          );
+        });
       });
 
       for (let repeatIndex = 0; repeatIndex < sets.length; repeatIndex += 1) {
@@ -377,7 +384,47 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     });
 
     this.applyModeState();
+    this.setDraftCheckboxesOn();
     return true;
+  }
+
+  savedCheckboxState(item: { checked?: boolean; hasIssue?: boolean } | boolean | null | undefined): { on: boolean; red: boolean } {
+    if (item === true) {
+      return { on: true, red: false };
+    }
+    if (typeof item !== 'object' || item === null || item.checked !== true) {
+      return { on: false, red: false };
+    }
+    return { on: true, red: item.hasIssue === true };
+  }
+
+  setDraftCheckboxesOn(): { found: number; green: number; red: number; setOn: number } {
+    let found = 0;
+    let green = 0;
+    let red = 0;
+    let setOn = 0;
+    this.sections.forEach(section => {
+      this.getRepeatIndexes(section.key).forEach(repeatIndex => {
+        this.getSetItems(section.key, repeatIndex).forEach(item => {
+          if (item.checked !== true) {
+            return;
+          }
+          found += 1;
+          if (item.hasIssue === true) {
+            red += 1;
+          } else {
+            green += 1;
+          }
+          const control = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
+          if (!control) {
+            return;
+          }
+          control.setValue(true, { emitEvent: false });
+          setOn += 1;
+        });
+      });
+    });
+    return { found, green, red, setOn };
   }
 
   buildChecklistTemplateJson(): string {
@@ -861,6 +908,64 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     );
   }
 
+  inspectionDraftJsonFileName(): string {
+    return this.inspectionDraftDocumentPath().replace(/\.pdf$/i, '.json');
+  }
+
+  finishInspectionSave(submitInspection: boolean, checklistJson: string, complete: (saved: boolean) => void): void {
+    if (submitInspection) {
+      this.toastr.success('Inspection submitted successfully', CommonMessage.Success);
+      this.activeInspection = null;
+      this.handleInspectionSubmitted();
+      complete(true);
+      return;
+    }
+
+    const officeId = this.maintenanceRecord?.officeId || this.property?.officeId;
+    const propertyId = this.property?.propertyId;
+    if (!officeId || !propertyId) {
+      this.isServiceError = true;
+      this.toastr.error('Inspection was saved, but the draft file was not updated.', CommonMessage.Error);
+      complete(false);
+      return;
+    }
+
+    const jsonFileName = this.inspectionDraftJsonFileName();
+    const draftName = jsonFileName.replace(/\.json$/i, '');
+    this.documentService.upsertDocumentByName({
+      fileName: draftName,
+      officeId,
+      propertyId,
+      reservationId: this.reservationIdForInspectionPayload(this.activeInspection?.reservationId),
+      documentTypeId: DocumentType.Inspection,
+      fileDetails: {
+        file: this.draftChecklistBase64(checklistJson),
+        fileName: jsonFileName,
+        contentType: 'application/json'
+      }
+    }).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Inspection saved successfully', CommonMessage.Success);
+        complete(true);
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.toastr.error('Inspection was saved, but the draft file was not updated.', CommonMessage.Error);
+        complete(false);
+      }
+    });
+  }
+
+  draftChecklistBase64(checklistJson: string): string {
+    const bytes = new TextEncoder().encode(checklistJson);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+    }
+    return btoa(binary);
+  }
+
   deleteInspectionDraftDocument() {
     const officeId = this.maintenanceRecord?.officeId || this.property?.officeId;
     const propertyId = this.property?.propertyId;
@@ -1132,7 +1237,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     const persistInspection = (generatedDocumentPath: string | null): void => {
       const resolvedDocumentPath = generatedDocumentPath
-        ?? (shouldSubmitInspection ? null : this.inspectionDraftDocumentPath());
+        ?? (shouldSubmitInspection ? null : this.inspectionDraftJsonFileName());
       if (this.activeInspection) {
         this.inspectionService.getInspectionById(this.activeInspection.inspectionId).pipe(take(1)).subscribe({
           next: (latestInspection) => {
@@ -1159,12 +1264,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
                 this.upsertPropertyInspectionCache(savedInspection);
                 this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
-                this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-                if (shouldSubmitInspection) {
-                  this.activeInspection = null;
-                  this.handleInspectionSubmitted();
-                }
-                complete(true);
+                this.finishInspectionSave(shouldSubmitInspection, inspectionChecklistJson, complete);
               },
               error: (_err: HttpErrorResponse) => {
                 this.isServiceError = true;
@@ -1197,12 +1297,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
                 this.upsertPropertyInspectionCache(savedInspection);
                 this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
-                this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-                if (shouldSubmitInspection) {
-                  this.activeInspection = null;
-                  this.handleInspectionSubmitted();
-                }
-                complete(true);
+                this.finishInspectionSave(shouldSubmitInspection, inspectionChecklistJson, complete);
               },
               error: (_err: HttpErrorResponse) => {
                 this.isServiceError = true;
@@ -1263,12 +1358,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
                 this.upsertPropertyInspectionCache(savedInspection);
                 this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
-                this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-                if (shouldSubmitInspection) {
-                  this.activeInspection = null;
-                  this.handleInspectionSubmitted();
-                }
-                complete(true);
+                this.finishInspectionSave(shouldSubmitInspection, inspectionChecklistJson, complete);
               },
               error: (_err: HttpErrorResponse) => {
                 this.isServiceError = true;
@@ -1289,12 +1379,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               this.upsertPropertyInspectionCache(savedInspection);
               this.patchInspectionTypeFromContext();
               this.captureSavedStateSignature();
-              this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-              if (shouldSubmitInspection) {
-                this.activeInspection = null;
-                this.handleInspectionSubmitted();
-              }
-              complete(true);
+              this.finishInspectionSave(shouldSubmitInspection, inspectionChecklistJson, complete);
             },
             error: (_err: HttpErrorResponse) => {
               this.isServiceError = true;
@@ -1314,12 +1399,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
               this.upsertPropertyInspectionCache(savedInspection);
               this.patchInspectionTypeFromContext();
               this.captureSavedStateSignature();
-              this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-              if (shouldSubmitInspection) {
-                this.activeInspection = null;
-                this.handleInspectionSubmitted();
-              }
-              complete(true);
+              this.finishInspectionSave(shouldSubmitInspection, inspectionChecklistJson, complete);
             },
             error: (_err: HttpErrorResponse) => {
               this.isServiceError = true;
@@ -1330,6 +1410,11 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         }
       });
     };
+
+    if (!shouldSubmitInspection) {
+      persistInspection(null);
+      return;
+    }
 
     const organizationId =
       this.maintenanceRecord?.organizationId || this.user?.organizationId || this.property.organizationId || '';
@@ -1475,46 +1560,38 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     const propertyId = this.property?.propertyId;
     const propertyCode = this.property?.propertyCode;
     const lookupVersion = ++this.draftLookupVersion;
-    const expectedFileName = propertyCode
-      ? `${this.utilityService.sanitizeFileNameSegment(propertyCode)}_${getInspectionTypeFileSegment(inspectionTypeId)}_draft`
-      : '';
-    this.traceInspectionDraft('lookup', { propertyCode, inspectionTypeId, expectedFileName, officeId, propertyId });
-    const applyCurrent = (): void => {
+    const inspection = this.getLatestInspectionForType(this.propertyInspectionsCache, inspectionTypeId);
+    const showBlankChecklist = (): void => {
       if (lookupVersion !== this.draftLookupVersion) {
-        this.traceInspectionDraft('lookup skipped', { reason: 'stale', expectedFileName });
         return;
       }
-      const activeDraft = this.getDraftInspectionForType(this.propertyInspectionsCache, inspectionTypeId);
-      this.traceInspectionDraft('no draft file, using active inspection', {
-        expectedFileName,
-        inspectionId: activeDraft?.inspectionId ?? null,
-        hasChecklist: (activeDraft?.inspectionCheckList ?? '').trim().length > 0
-      });
-      this.applyMatchedInspectionDraft(activeDraft);
+      this.activeInspection = inspection;
+      this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
+      this.captureSavedStateSignature();
+      this.emitShellStateOutputs();
       this.cdr.markForCheck();
     };
+    if (this.checklistHasSavedValues(inspection?.inspectionCheckList ?? '')) {
+      this.applyMatchedInspectionDraft(inspection);
+      this.cdr.markForCheck();
+      return;
+    }
     if (!officeId || !propertyId || !propertyCode) {
-      this.traceInspectionDraft('lookup failed', { reason: 'missing office, property, or property code', officeId, propertyId, propertyCode });
-      applyCurrent();
+      showBlankChecklist();
       return;
     }
 
     let documentsRequest;
     try {
-      documentsRequest = this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1), catchError(error => {
-        this.traceInspectionDraft('draft search failed', { expectedFileName, error });
-        return of([] as DocumentResponse[]);
-      }));
-    } catch (error) {
-      this.traceInspectionDraft('draft search failed', { expectedFileName, error });
-      applyCurrent();
+      documentsRequest = this.documentService.getDocuments({ officeIds: [officeId], propertyId, documentTypeIds: DocumentType.Inspection }).pipe(take(1), catchError(() => of([] as DocumentResponse[])));
+    } catch {
+      showBlankChecklist();
       return;
     }
 
     documentsRequest.subscribe({
       next: documents => {
         if (lookupVersion !== this.draftLookupVersion || this.property?.propertyId !== propertyId || this.inspectionTypeIdControl.value !== inspectionTypeId) {
-          this.traceInspectionDraft('lookup skipped', { reason: 'stale response', expectedFileName });
           return;
         }
         const documentList = documents || [];
@@ -1523,43 +1600,102 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           propertyCode,
           getInspectionTypeFileSegment(inspectionTypeId)
         );
-        if (!draftDocument) {
-          this.traceInspectionDraft('draft file not found', {
-            expectedFileName,
-            returnedFileNames: documentList.map(document => document.fileName)
-          });
-          applyCurrent();
+        if (!draftDocument?.documentId) {
+          showBlankChecklist();
           return;
         }
-        this.traceInspectionDraft('draft file found', {
-          fileName: draftDocument.fileName,
-          documentId: draftDocument.documentId,
-          documentPath: draftDocument.documentPath
+        this.documentService.getDocumentByGuid(draftDocument.documentId).pipe(take(1)).subscribe({
+          next: document => {
+            if (lookupVersion !== this.draftLookupVersion || this.inspectionTypeIdControl.value !== inspectionTypeId) {
+              return;
+            }
+            const draftJson = this.draftFileText(document.fileDetails?.file);
+            if (!this.checklistHasSavedValues(draftJson)) {
+              showBlankChecklist();
+              return;
+            }
+            const hydrated = inspection ? { ...inspection, inspectionCheckList: draftJson } : null;
+            if (hydrated) {
+              this.applyMatchedInspectionDraft(hydrated, false);
+            } else {
+              this.activeInspection = null;
+              this.applySavedChecklistJson(draftJson);
+              this.setDraftCheckboxesOn();
+              this.loadPhotoBlobUrls();
+              this.captureSavedStateSignature();
+              this.emitShellStateOutputs();
+            }
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            showBlankChecklist();
+          }
         });
-        const linked = this.pickInspectionForDraftDocument(this.propertyInspectionsCache, draftDocument, inspectionTypeId);
-        this.traceInspectionDraft('reading draft checklist', {
-          fileName: draftDocument.fileName,
-          inspectionId: linked?.inspectionId ?? null,
-          checklistLength: (linked?.inspectionCheckList ?? '').trim().length
-        });
-        if (!linked || !(linked.inspectionCheckList ?? '').trim()) {
-          this.traceInspectionDraft('draft read failed', {
-            fileName: draftDocument.fileName,
-            reason: linked ? 'inspection checklist is empty' : 'no inspection row for this draft'
-          });
-        }
-        this.applyMatchedInspectionDraft(linked, false);
-        this.cdr.markForCheck();
       },
-      error: error => {
-        this.traceInspectionDraft('draft search failed', { expectedFileName, error });
-        applyCurrent();
+      error: () => {
+        showBlankChecklist();
       }
     });
   }
 
-  traceInspectionDraft(step: string, detail: Record<string, unknown>): void {
-    console.log('[InspectionDraftTrace]', step, detail);
+  checklistHasSavedValues(rawChecklistJson: string): boolean {
+    const trimmed = rawChecklistJson.trim();
+    if (!trimmed) {
+      return false;
+    }
+    try {
+      let root = JSON.parse(trimmed) as { sections?: unknown; inspectionCheckList?: string };
+      if (typeof root.inspectionCheckList === 'string') {
+        root = JSON.parse(root.inspectionCheckList) as { sections?: unknown };
+      }
+      const sections = Array.isArray(root.sections) ? root.sections : [];
+      return sections.some(section => {
+        const sectionRecord = section as { notes?: string; sets?: unknown };
+        if (typeof sectionRecord.notes === 'string' && sectionRecord.notes.trim().length > 0) {
+          return true;
+        }
+        const sets = Array.isArray(sectionRecord.sets) ? sectionRecord.sets : [];
+        return sets.some(set => Array.isArray(set) && set.some(item => {
+          if (item === true) {
+            return true;
+          }
+          if (!item || typeof item !== 'object') {
+            return false;
+          }
+          const answer = item as { checked?: boolean; documentId?: string | null; photoPath?: string | null; issue?: string | null };
+          if (answer.checked === true) {
+            return true;
+          }
+          if (typeof answer.documentId === 'string' && answer.documentId.trim().length > 0) {
+            return true;
+          }
+          if (typeof answer.photoPath === 'string' && answer.photoPath.trim().length > 0) {
+            return true;
+          }
+          return typeof answer.issue === 'string' && answer.issue.trim().length > 0;
+        }));
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  draftFileText(file: string | null | undefined): string {
+    const raw = String(file ?? '').trim();
+    if (!raw) {
+      return '';
+    }
+    if (raw.startsWith('{') || raw.startsWith('[')) {
+      return raw;
+    }
+    try {
+      const payload = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;
+      const binary = atob(payload);
+      const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    } catch {
+      return '';
+    }
   }
 
   findPropertyCodeDraftDocument(documents: DocumentResponse[], propertyCode: string, typeSegment: string): DocumentResponse | null {
@@ -1574,7 +1710,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   normalizeDraftFileName(fileName: string | null | undefined): string {
-    return String(fileName ?? '').trim().toLowerCase().replace(/\.pdf$/i, '');
+    return String(fileName ?? '').trim().toLowerCase().replace(/\.(pdf|json)$/i, '');
   }
 
   getLatestInspectionForType(inspections: InspectionResponse[], inspectionTypeId: number): InspectionResponse | null {
@@ -1646,15 +1782,10 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     if (answersJson.length > 0) {
       const rebuiltFromDraft = this.applySavedChecklistJson(answersJson);
       if (rebuiltFromDraft) {
-        this.traceInspectionDraft('draft checklist applied', { inspectionId: draft?.inspectionId ?? null, mode: 'saved checklist' });
+        this.setDraftCheckboxesOn();
         this.loadPhotoBlobUrls();
       } else {
-        const aligned = this.applySavedAnswersJson(answersJson);
-        this.traceInspectionDraft(aligned ? 'draft checklist applied' : 'draft read failed', {
-          inspectionId: draft?.inspectionId ?? null,
-          mode: 'align to form',
-          reason: aligned ? undefined : 'checklist did not match the form'
-        });
+        this.applySavedAnswersJson(answersJson);
       }
     } else if (blankWhenMissing) {
       this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
