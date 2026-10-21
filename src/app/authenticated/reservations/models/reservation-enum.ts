@@ -79,7 +79,8 @@ export function getReservationTypes(): { value: number, label: string }[] {
 //#region BillingMethod
 export enum BillingMethod {
   Invoice = 0,
-  CreditCard = 1
+  CreditCard = 1,
+  AchDebit = 2
 }
 
 export function getBillingMethod(billingMethodId: number | undefined): string {
@@ -87,7 +88,8 @@ export function getBillingMethod(billingMethodId: number | undefined): string {
   
   const billingMap: { [key: number]: string } = {
     [BillingMethod.Invoice]: 'Invoice',
-    [BillingMethod.CreditCard]: 'Credit Card'
+    [BillingMethod.CreditCard]: 'Credit Card',
+    [BillingMethod.AchDebit]: 'ACH Debit'
   };
   
   return billingMap[billingMethodId] || '';
@@ -97,7 +99,8 @@ export function getBillingMethod(billingMethodId: number | undefined): string {
 export function getBillingMethods(): { value: number, label: string }[] {
   return [
     { value: BillingMethod.Invoice, label: getBillingMethod(BillingMethod.Invoice) },
-    { value: BillingMethod.CreditCard, label: getBillingMethod(BillingMethod.CreditCard) }
+    { value: BillingMethod.CreditCard, label: getBillingMethod(BillingMethod.CreditCard) },
+    { value: BillingMethod.AchDebit, label: getBillingMethod(BillingMethod.AchDebit) }
   ];
 }
 //#endregion
