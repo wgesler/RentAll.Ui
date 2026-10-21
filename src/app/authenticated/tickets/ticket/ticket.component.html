@@ -68,17 +68,17 @@
                 </mat-select>
               </mat-form-field>
 
-              @if (showAssigneeAndAgentFields) {
-                <mat-form-field appearance="outline" class="ticket-slot-2">
-                  <mat-label>Assignee</mat-label>
-                  <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true" (selectionChange)="onAssigneeChanged()">
-                    <mat-option [value]="null">Unassigned</mat-option>
-                    @for (assignee of assigneeOptions; track assignee.userId) {
-                      <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+              <mat-form-field appearance="outline" class="ticket-slot-2">
+                <mat-label>Assignee</mat-label>
+                <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true" (selectionChange)="onAssigneeChanged()">
+                  <mat-option [value]="null">Unassigned</mat-option>
+                  @for (assignee of assigneeOptions; track assignee.userId) {
+                    <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
+              @if (showAssigneeAndAgentFields) {
                 <mat-form-field appearance="outline" class="ticket-slot-2">
                   <mat-label>Agent</mat-label>
                   <mat-select formControlName="reservationAgentId" [canSelectNullableOptions]="true">

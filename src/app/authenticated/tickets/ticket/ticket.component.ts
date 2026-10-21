@@ -259,10 +259,10 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     const selectedProperty = selectedPropertyId ? this.properties.find(property => property.propertyId === selectedPropertyId) || null : null;
     const selectedReservationId = this.normalizeId(this.selectedReservationIdFromShell) ?? this.normalizeId(existing?.reservationId);
     const selectedOfficeId = selectedProperty?.officeId ?? this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? existing?.officeId ?? 0;
-    const selectedAssigneeId = isForRentAll ? null : (formValue.assigneeId ? String(formValue.assigneeId).trim() : null);
+    const selectedAssigneeId = formValue.assigneeId ? String(formValue.assigneeId).trim() : null;
     const selectedAgentId = isForRentAll ? null : (formValue.reservationAgentId ? String(formValue.reservationAgentId).trim() : null);
     const previousAssigneeId = this.currentAssignee;
-    const assigneeChanged = !isForRentAll && selectedAssigneeId !== previousAssigneeId;
+    const assigneeChanged = selectedAssigneeId !== previousAssigneeId;
     const areAllCommunicationCheckboxesChecked = isForRentAll || (!!formValue.needPermissionToEnter
       && !!formValue.permissionGranted
       && !!formValue.ownerContacted
@@ -825,9 +825,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
   }
 
   onAssigneeChanged(): void {
-    if (this.isForRentAllMode) {
-      return;
-    }
     const assigneeControlValue = this.form.get('assigneeId')?.value;
     const currentAssigneeId = this.normalizeId(assigneeControlValue == null ? null : String(assigneeControlValue));
     const formValue = this.form.getRawValue();
@@ -914,7 +911,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     this.form.get('isForRentAll')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isForRentAll => {
       if (!!isForRentAll) {
         this.form.patchValue({
-          assigneeId: null,
           reservationAgentId: null,
           needPermissionToEnter: false,
           permissionGranted: false,
@@ -923,7 +919,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
           followedUpWithOwner: false,
           workOrderCompleted: false
         }, { emitEvent: false });
-        this.currentAssignee = null;
       } else {
         this.form.get('stepsToReproduce')?.setValue(null, { emitEvent: false });
       }

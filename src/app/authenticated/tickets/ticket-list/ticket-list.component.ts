@@ -97,6 +97,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     'created': { displayAs: 'Created', maxWidth: '18ch', alignment: 'center' },
     'modified': { displayAs: 'Modified', maxWidth: '18ch', alignment: 'center' },
     'ticketStateTypeText': { displayAs: 'State', maxWidth: '18ch' },
+    'assigneeDropdown': { displayAs: 'Assignee', maxWidth: '20ch' },
     'title': { displayAs: 'Title', maxWidth: '40ch' },
     'isForRentAll': { displayAs: 'For RentAll', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
