@@ -4,7 +4,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
-import { getBillingMethod } from '../../reservations/models/reservation-enum';
+import { BillingMethod, getBillingMethod } from '../../reservations/models/reservation-enum';
 import { TransactionType } from '../models/accounting-enum';
 import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
 import { InvoicePrintContext } from '../models/invoice-print-context.model';
@@ -70,7 +70,7 @@ export class InvoiceHtmlBuilderService {
   }
 
   replacePlaceholders(html: string, ctx: InvoicePrintContext): string {
-    let result = html;
+    let result = this.collapsePaymentRemitAddress(html);
 
     if (ctx.invoice) {
       const totals = this.getInvoiceDisplayTotals(ctx.invoice, ctx);
@@ -121,17 +121,105 @@ export class InvoiceHtmlBuilderService {
       const invoiceBank = (ctx.selectedAccountingOffice.banks || []).find(bank => bank.useOnInvoices);
       result = result.replace(/\{\{accountingOfficeBank\}\}/g, invoiceBank?.bankName || ctx.selectedAccountingOffice.bankName || '');
       result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, invoiceBank?.bankRouting || ctx.selectedAccountingOffice.bankRouting || '');
-      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.displayBankAccount(invoiceBank?.accountNo, invoiceBank?.accountNoLastFour, ctx.selectedAccountingOffice.accountNo, ctx.selectedAccountingOffice.accountNoLastFour));
+      const clearBankAccountNo = (ctx.clearBankAccountNo || '').trim();
+      const bankAccountNo = clearBankAccountNo && !clearBankAccountNo.includes('*')
+        ? clearBankAccountNo
+        : this.displayBankAccount(invoiceBank?.accountNo, invoiceBank?.accountNoLastFour, ctx.selectedAccountingOffice.accountNo, ctx.selectedAccountingOffice.accountNoLastFour);
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, bankAccountNo);
       result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, invoiceBank?.bankSwiftCode || ctx.selectedAccountingOffice.bankSwiftCode || '');
       result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, invoiceBank?.bankAddress || ctx.selectedAccountingOffice.bankAddress || '');
       result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(invoiceBank?.bankPhone || ctx.selectedAccountingOffice.bankPhone) || '');
     }
 
     result = this.applyInvoiceLedgerSectionPlaceholders(result, ctx);
+    result = this.applyAutomaticPaymentNote(result, ctx.reservation?.billingMethodId);
 
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
     return result;
+  }
+
+  collapsePaymentRemitAddress(html: string): string {
+    return html.replace(
+      /\{\{companyName\}\}(\s*)\{\{accountingOfficeName\}\}\s*<br\s*\/?>\s*(?:\{\{accountingOfficeAddressSingleLine\}\}|\{\{accountingOfficeAddress\}\}(?:\s*<br\s*\/?>\s*\{\{accountingOfficeCityStateZip\}\})?)/gi,
+      '{{companyName}}$1{{accountingOfficeName}} {{accountingOfficeAddressSingleLine}}'
+    );
+  }
+
+  applyAutomaticPaymentNote(html: string, billingMethodId: number | null | undefined): string {
+    if (billingMethodId !== BillingMethod.CreditCard && billingMethodId !== BillingMethod.AchDebit) {
+      return html;
+    }
+
+    const paymentLabel = billingMethodId === BillingMethod.AchDebit ? 'An ACH debit has' : 'A credit card payment has';
+    const note = `<div class="border" style="margin-left: 0; margin-right: 0;"><p><strong>Important:</strong><br>${paymentLabel} been automatically processed for the full amount of the invoice due. No additional payment is required at this time. The transaction will be reflected in your account once processing is complete.</p></div>`;
+    const tableBounds = this.findBankPaymentTableBounds(html);
+    if (!tableBounds) {
+      return html;
+    }
+
+    return html.substring(0, tableBounds.start) + note + html.substring(tableBounds.end);
+  }
+
+  findBankPaymentTableBounds(html: string): { start: number; end: number } | null {
+    const lower = html.toLowerCase();
+    const bankNameIndex = lower.indexOf('bank name:');
+    if (bankNameIndex < 0) {
+      return null;
+    }
+
+    let searchEnd = bankNameIndex;
+    while (searchEnd > 0) {
+      const tableStart = lower.lastIndexOf('<table', searchEnd - 1);
+      if (tableStart < 0) {
+        return null;
+      }
+
+      const tableEnd = this.findTableEnd(html, tableStart);
+      if (tableEnd !== null && tableEnd > bankNameIndex && /routing\s*(?:#|no)\s*:/i.test(html.substring(tableStart, tableEnd))) {
+        const openEnd = html.indexOf('>', tableStart);
+        const inner = openEnd >= 0 ? html.substring(openEnd + 1, tableEnd - 8) : '';
+        if (!/<table\b/i.test(inner)) {
+          return { start: tableStart, end: tableEnd };
+        }
+      }
+
+      searchEnd = tableStart;
+    }
+
+    return null;
+  }
+
+  findTableEnd(html: string, tableStart: number): number | null {
+    const lower = html.toLowerCase();
+    const openEnd = html.indexOf('>', tableStart);
+    if (openEnd < 0) {
+      return null;
+    }
+
+    let depth = 1;
+    let pos = openEnd + 1;
+    while (pos < html.length && depth > 0) {
+      const nextOpen = lower.indexOf('<table', pos);
+      const nextClose = lower.indexOf('</table>', pos);
+      if (nextClose === -1) {
+        return null;
+      }
+
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        pos = nextOpen + 6;
+        continue;
+      }
+
+      depth--;
+      if (depth === 0) {
+        return nextClose + 8;
+      }
+      pos = nextClose + 8;
+    }
+
+    return null;
   }
 
   displayBankAccount(account?: string | null, lastFour?: string | null, officeAccount?: string | null, officeLastFour?: string | null): string {

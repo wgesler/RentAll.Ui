@@ -56,6 +56,7 @@ interface InvoiceDownloadData extends InvoiceDownloadBaseData {
   property: PropertyResponse;
   propertyHtml: PropertyHtmlResponse;
   canonicalInvoiceTemplate: string;
+  clearBankAccountNo: string;
 }
 
 @Injectable({
@@ -301,7 +302,10 @@ loadInvoiceDocumentData(invoiceSummary: InvoiceResponse): Observable<InvoiceDown
           canonicalInvoiceTemplate: this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(
             take(1),
             catchError(() => of(''))
-          )
+          ),
+          clearBankAccountNo: this.accountingOfficeService.resolveClearBankAccountNo(
+            base.accountingOffices.find(item => item.officeId === office.officeId) ?? null
+          ).pipe(take(1))
         });
       }),
       switchMap((data: InvoiceDownloadData) => {
@@ -326,7 +330,8 @@ buildPrintableHtml(data: InvoiceDownloadData): { processedHtml: string; extracte
       data.accountingOffices,
       data.organization,
       data.contacts,
-      data.costCodes
+      data.costCodes,
+      data.clearBankAccountNo
     );
 
     const templateHtml = this.invoiceHtmlBuilder.resolveInvoiceTemplateHtml(
@@ -354,7 +359,8 @@ buildPrintContext(
     accountingOffices: AccountingOfficeResponse[],
     organization: OrganizationResponse | null,
     contacts: ContactResponse[],
-    costCodes: CostCodesResponse[]
+    costCodes: CostCodesResponse[],
+    clearBankAccountNo = ''
   ): InvoicePrintContext {
     const selectedAccountingOffice = accountingOffices.find(ao => ao.officeId === office.officeId) ?? null;
     const officeCostCodes = costCodes.filter(c => c.officeId === office.officeId);
@@ -381,7 +387,8 @@ buildPrintContext(
       organization,
       accountingOfficeLogo: this.resolveLogoDataUrl(selectedAccountingOffice?.fileDetails),
       orgLogo: this.resolveLogoDataUrl(organization?.fileDetails),
-      paymentCostCodeIds
+      paymentCostCodeIds,
+      clearBankAccountNo
     };
   }
 

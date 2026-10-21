@@ -18,4 +18,5 @@ export interface InvoicePrintContext {
   accountingOfficeLogo: string;
   orgLogo: string;
   paymentCostCodeIds: Set<number>;
+  clearBankAccountNo?: string;
 }

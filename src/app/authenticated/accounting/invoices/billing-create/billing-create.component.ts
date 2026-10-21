@@ -75,6 +75,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   orgLogo: string = '';
   accountingOfficeLogo: string = '';
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
+  clearBankAccountNo = '';
   accountingOffices: AccountingOfficeResponse[] = [];
 
   invoices: InvoiceResponse[] = [];
@@ -187,6 +188,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         throw new Error('Invoice HTML template is empty');
       }
 
+      this.clearBankAccountNo = await firstValueFrom(this.accountingOfficeService.resolveOfficeBankAccountNo(this.selectedAccountingOffice));
       const processedHtml = this.replacePlaceholders(invoiceHtml);
       const processed = this.documentHtmlService.processHtml(processedHtml, true);
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
@@ -377,7 +379,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.processAndSetHtml(this.replacePlaceholders(template));
+    this.accountingOfficeService.resolveOfficeBankAccountNo(this.selectedAccountingOffice).pipe(take(1), takeUntil(this.destroy$)).subscribe(accountNo => {
+      this.clearBankAccountNo = accountNo;
+      this.processAndSetHtml(this.replacePlaceholders(template));
+    });
   }
 
   loadInvoice(): void {
@@ -667,7 +672,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, this.selectedAccountingOffice.website || '');
       result = result.replace(/\{\{accountingOfficeBank\}\}/g, this.selectedAccountingOffice.bankName || '');
       result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, this.selectedAccountingOffice.bankRouting || '');
-      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.selectedAccountingOffice.accountNo || '');
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.clearBankAccountNo || this.selectedAccountingOffice.accountNo || '');
       result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, this.selectedAccountingOffice.bankSwiftCode || '');
       result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, this.selectedAccountingOffice.bankAddress || '');
       result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(this.selectedAccountingOffice.bankPhone) || '');

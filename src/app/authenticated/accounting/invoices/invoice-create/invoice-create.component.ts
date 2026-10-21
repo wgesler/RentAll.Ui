@@ -105,6 +105,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
+  clearBankAccountNo = '';
   
   accountingOfficeLogo: string = '';
   officeLogo: string = '';
@@ -273,7 +274,7 @@ initializeInvoicePreview(): void {
         throw new Error('Property does not have invoice template');
       }
 
-      // Process HTML and replace placeholders
+      this.clearBankAccountNo = await firstValueFrom(this.accountingOfficeService.resolveClearBankAccountNo(this.selectedAccountingOffice));
       const processedHtml = this.replacePlaceholders(this.propertyHtml.invoice);
       const processed = this.documentHtmlService.processHtml(processedHtml, true);
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(processed.processedHtml, processed.extractedStyles);
@@ -556,8 +557,13 @@ initializeInvoicePreview(): void {
     }
 
     this.loadContact();
+    this.accountingOfficeService.resolveClearBankAccountNo(this.selectedAccountingOffice).pipe(take(1), takeUntil(this.destroy$)).subscribe(accountNo => {
+      this.clearBankAccountNo = accountNo;
+      this.renderInvoicePreview();
+    });
+  }
 
-    // Always reload template when available so assets/DB edits and layout normalization apply.
+  renderInvoicePreview(): void {
     if (this.debuggingHtml || this.property?.propertyId) {
       this.loadInvoiceHtml();
       return;
@@ -823,7 +829,8 @@ initializeInvoicePreview(): void {
       organization: this.organization,
       accountingOfficeLogo: this.accountingOfficeLogo,
       orgLogo: this.orgLogo,
-      paymentCostCodeIds: this.paymentCostCodeIds
+      paymentCostCodeIds: this.paymentCostCodeIds,
+      clearBankAccountNo: this.clearBankAccountNo
     };
   }
   //#endregion

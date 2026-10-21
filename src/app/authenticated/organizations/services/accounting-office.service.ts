@@ -24,6 +24,41 @@ export class AccountingOfficeService {
     return this.http.get<{ accountNo: string }>(`${this.controller}${officeId}/bank-account`);
   }
 
+  resolveClearBankAccountNo(office: AccountingOfficeResponse | null): Observable<string> {
+    if (!office?.officeId) {
+      return of('');
+    }
+    const invoiceBank = (office.banks || []).find(bank => bank.useOnInvoices);
+    const stored = (invoiceBank?.accountNo || office.accountNo || '').trim();
+    if (stored && !stored.includes('*')) {
+      return of(stored);
+    }
+    if (invoiceBank?.bankAccountId) {
+      return this.http.get<{ accountNo: string }>(`${this.controller}${office.officeId}/bank/${invoiceBank.bankAccountId}/account-number`).pipe(
+        map(result => (result?.accountNo || '').trim()),
+        catchError(() => of(''))
+      );
+    }
+    return this.getBankAccount(office.officeId).pipe(
+      map(result => (result?.accountNo || '').trim()),
+      catchError(() => of(''))
+    );
+  }
+
+  resolveOfficeBankAccountNo(office: AccountingOfficeResponse | null): Observable<string> {
+    if (!office?.officeId) {
+      return of('');
+    }
+    const stored = (office.accountNo || '').trim();
+    if (stored && !stored.includes('*')) {
+      return of(stored);
+    }
+    return this.getBankAccount(office.officeId).pipe(
+      map(result => (result?.accountNo || '').trim()),
+      catchError(() => of(''))
+    );
+  }
+
   /** GET api/organization/accounting-office; SuperAdmin may pass organizationId to scope the list. */
   loadAllAccountingOffices(organizationId?: string): Observable<AccountingOfficeResponse[]> {
     const id = organizationId?.trim() || '';
