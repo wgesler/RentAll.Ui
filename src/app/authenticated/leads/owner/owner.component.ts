@@ -18,6 +18,7 @@ import { ContactRequest } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyCodeResponse } from '../../properties/models/property.model';
@@ -51,6 +52,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   private leadsService = inject(LeadsService);
   private contactService = inject(ContactService);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private utilityService = inject(UtilityService);
   private formatterService = inject(FormatterService);
   private mappingService = inject(MappingService);
@@ -72,6 +74,8 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
 
   agents: AgentResponse[] = [];
+  agentFieldLabel = 'Agent';
+  selectAgentLabel = 'Select Agent';
   states: string[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead']));
@@ -92,6 +96,8 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     this.loadPropertyCodes();
     this.loadOffices();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
     this.loadStates();
     this.getOwnerLead(this.shellLeadId);
   }
@@ -101,6 +107,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
       this.syncPropertyOfficeFromShell();
       this.syncPropertyOfficeFromSelectedCode();
       this.syncAgentSelectionWithOfficeScope();
+      this.applyAgentFieldLabel();
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
@@ -647,6 +654,12 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     }
     const officeName = this.offices.find(office => office.officeId === normalizedOfficeId)?.name;
     return this.utilityService.trimOrNull(officeName);
+  }
+
+  applyAgentFieldLabel(): void {
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', this.officeId);
+    this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', this.officeId);
+    this.markViewForCheck();
   }
 
   markViewForCheck(): void {

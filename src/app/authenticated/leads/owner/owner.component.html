@@ -37,9 +37,9 @@
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
-          <mat-label>Agent</mat-label>
+          <mat-label>{{ agentFieldLabel }}</mat-label>
           <mat-select formControlName="agentCode" [canSelectNullableOptions]="true">
-            <mat-option [value]="null">Select Agent</mat-option>
+            <mat-option [value]="null">{{ selectAgentLabel }}</mat-option>
             @for (ag of agentOptions; track ag.agentId) {
               <mat-option [value]="ag.agentCode">{{ agentSelectLabel(ag) }}</mat-option>
             }

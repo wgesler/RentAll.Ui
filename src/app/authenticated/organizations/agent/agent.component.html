@@ -26,10 +26,10 @@
               </div>
 
               <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Agent Code</mat-label>
+                <mat-label>{{ agentCodeLabel }}</mat-label>
                 <input matInput #firstInput formControlName="agentCode" required (input)="onCodeInput($event)">
                 @if (form.get('agentCode')?.hasError('required') && form.get('agentCode')?.touched) {
-                  <mat-error>Agent Code is required</mat-error>
+                  <mat-error>{{ agentCodeRequiredText }}</mat-error>
                 }
               </mat-form-field>
 

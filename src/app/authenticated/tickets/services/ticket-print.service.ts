@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { getTicketStateType } from '../models/ticket-enum';
@@ -35,6 +36,7 @@ const COMMUNICATION_STATUS_LABELS: Record<string, string> = {
 export class TicketPrintService {
   private documentExportService = inject(DocumentExportService);
   private formatterService = inject(FormatterService);
+  private terminologyService = inject(TerminologyService);
 
   printFromTicket(ticket: TicketResponse, overrides: TicketPrintOverrides = {}): void {
     this.documentExportService.printHTML(this.buildPrintHtml(ticket, overrides));
@@ -45,6 +47,7 @@ export class TicketPrintService {
     const ticketStateTypeId = Number(overrides.ticketStateTypeId ?? ticket.ticketStateTypeId ?? 0);
     const assigneeName = String(overrides.assigneeName ?? ticket.assigneeName ?? ticket.assignee ?? '').trim() || 'Unassigned';
     const agentName = String(overrides.agentName ?? ticket.agentName ?? ticket.agent ?? '').trim() || 'None';
+    const agentLabel = this.terminologyService.labelFor('Agent', ticket.officeId ?? null);
     const propertyCode = String(ticket.propertyCode || '').trim() || 'None';
     const reservationCode = String(ticket.reservationCode || '').trim() || 'None';
     const title = String(overrides.title ?? ticket.title ?? '').trim();
@@ -95,7 +98,7 @@ export class TicketPrintService {
       <div><span class="field-label">Reservation:</span> ${this.escapeHtml(reservationCode)}</div>
       <div><span class="field-label">Status:</span> ${this.escapeHtml(getTicketStateType(ticketStateTypeId))}</div>
       <div><span class="field-label">Assignee:</span> ${this.escapeHtml(assigneeName)}</div>
-      <div><span class="field-label">Agent:</span> ${this.escapeHtml(agentName)}</div>
+      <div><span class="field-label">${this.escapeHtml(agentLabel)}:</span> ${this.escapeHtml(agentName)}</div>
       <div><span class="field-label">Last Modified:</span> ${this.escapeHtml(lastModifiedDisplay)}</div>
       <div><span class="field-label">Active:</span> ${isActive ? 'Yes' : 'No'}</div>
       <div><span class="field-label">For RentAll:</span> ${isForRentAll ? 'Yes' : 'No'}</div>

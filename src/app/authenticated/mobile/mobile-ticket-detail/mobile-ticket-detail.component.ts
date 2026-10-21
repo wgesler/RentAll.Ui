@@ -15,6 +15,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { isReceiptCompanyPropertyId } from '../../maintenance/models/receipt.model';
@@ -48,6 +49,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
   private mappingService = inject(MappingService);
   private userService = inject(UserService);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private officeService = inject(OfficeService);
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
@@ -130,6 +132,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadUsers();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyFields());
     this.loadOffices();
     this.loadPropertyCodes();
     this.loadReservationCodes();

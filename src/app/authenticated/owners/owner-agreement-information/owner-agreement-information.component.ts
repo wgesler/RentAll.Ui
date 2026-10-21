@@ -9,6 +9,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OwnerAgreementInformationRequest, OwnerAgreementInformationResponse } from '../models/owner-agreement-information.model';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OwnersService } from '../services/owners.service';
 
 type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
@@ -30,6 +31,8 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private utilityService = inject(UtilityService);
+  private terminologyService = inject(TerminologyService);
+  agentDutiesLabel = 'Section 2 - Agent Duties';
 
   form: FormGroup = this.buildForm();
   isSubmitting = false;
@@ -47,12 +50,20 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
     });
 
     this.getAgreementInformation(true);
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentDutiesLabel());
+    this.applyAgentDutiesLabel();
+  }
+
+  applyAgentDutiesLabel(): void {
+    this.agentDutiesLabel = this.terminologyService.replaceAgent('Section 2 - Agent Duties', this.officeId);
+    this.markViewForCheck();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     if (propertyIdChanged || officeIdChanged) {
+      this.applyAgentDutiesLabel();
       this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerAgreementInformation');
       this.getAgreementInformation(true);
     }

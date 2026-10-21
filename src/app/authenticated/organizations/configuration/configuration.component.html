@@ -118,7 +118,7 @@
               (closed)="onPanelClosed('agents')" 
               class="mb-4">
               <mat-expansion-panel-header>
-                <mat-panel-title>Agents</mat-panel-title>
+                <mat-panel-title>{{ agentsPanelTitle }}</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
                 @if (!(isEditingAgent && agentId)) {
@@ -186,25 +186,6 @@
                 }
                 @if (isEditingRegion && regionId) {
                   <app-region [id]="regionId" (savedEvent)="onRegionSaved()" (backEvent)="onRegionBack()"></app-region>
-                }
-              </div>
-            </mat-expansion-panel>
-          }
-
-          @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
-            <mat-expansion-panel [expanded]="expandedSections.terminology"
-              (opened)="onPanelOpened('terminology')"
-              (closed)="onPanelClosed('terminology')"
-              class="mb-4">
-              <mat-expansion-panel-header>
-                <mat-panel-title>Terminology</mat-panel-title>
-              </mat-expansion-panel-header>
-              <div class="agents-container">
-                @if (!(isEditingTerminology && terminologyId)) {
-                  <app-terminology-list [officeId]="selectedCostCodesOfficeId" (terminologySelected)="onTerminologySelected($event)"></app-terminology-list>
-                }
-                @if (isEditingTerminology && terminologyId) {
-                  <app-terminology [id]="terminologyId" [officeId]="selectedCostCodesOfficeId" (savedEvent)="onTerminologySaved()" (backEvent)="onTerminologyBack()"></app-terminology>
                 }
               </div>
             </mat-expansion-panel>
@@ -299,6 +280,25 @@
                 }
                 @if (isEditingColor && colorId) {
                   <app-color [id]="colorId" (savedEvent)="onColorSaved()" (backEvent)="onColorBack()"></app-color>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
+
+          @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
+            <mat-expansion-panel [expanded]="expandedSections.terminology"
+              (opened)="onPanelOpened('terminology')"
+              (closed)="onPanelClosed('terminology')"
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Terminology</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (!(isEditingTerminology && terminologyId)) {
+                  <app-terminology-list [officeId]="selectedCostCodesOfficeId" (terminologySelected)="onTerminologySelected($event)"></app-terminology-list>
+                }
+                @if (isEditingTerminology && terminologyId) {
+                  <app-terminology [id]="terminologyId" [officeId]="selectedCostCodesOfficeId" (savedEvent)="onTerminologySaved()" (backEvent)="onTerminologyBack()"></app-terminology>
                 }
               </div>
             </mat-expansion-panel>

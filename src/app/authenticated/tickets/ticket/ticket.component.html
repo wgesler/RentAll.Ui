@@ -80,9 +80,9 @@
 
               @if (showAssigneeAndAgentFields) {
                 <mat-form-field appearance="outline" class="ticket-slot-2">
-                  <mat-label>Agent</mat-label>
+                  <mat-label>{{ agentFieldLabel }}</mat-label>
                   <mat-select formControlName="reservationAgentId" [canSelectNullableOptions]="true">
-                    <mat-option [value]="null">Select Agent</mat-option>
+                    <mat-option [value]="null">{{ selectAgentLabel }}</mat-option>
                     @for (agent of reservationAgentOptions; track agent.agentId) {
                       <mat-option [value]="agent.agentId">{{ agent.displayName }}</mat-option>
                     }

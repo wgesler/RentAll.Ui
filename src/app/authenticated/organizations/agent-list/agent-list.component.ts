@@ -16,6 +16,7 @@ import { AgentListDisplay, agentHasOfficeAccess, normalizeAgentOffices } from '.
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
+import { TerminologyService } from '../services/terminology.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -39,6 +40,9 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
+  deleteAgentTitle = 'Delete Agent';
+  deleteAgentMessage = 'Are you sure you want to delete this agent?';
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
@@ -72,6 +76,8 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentLabels());
+    this.applyAgentLabels();
 
     if (this.useGlobalOfficeSelection) {
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -116,7 +122,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
   deleteAgent(agent: AgentListDisplay): void {
     this.agentService.deleteAgent(agent.agentId).pipe(take(1)).subscribe({
       next: () => {
-        this.toastr.success('Agent deleted successfully', CommonMessage.Success);
+        this.toastr.success(this.terminologyService.replaceAgent('Agent deleted successfully', this.agentLabelOfficeId()), CommonMessage.Success);
       },
       error: (_err: HttpErrorResponse) => {}
     });
@@ -174,6 +180,19 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     this.applyFilters();
+    this.applyAgentLabels();
+  }
+
+  agentLabelOfficeId(): number | null {
+    return this.selectedOffice?.officeId ?? this.officeId;
+  }
+
+  applyAgentLabels(): void {
+    const officeId = this.agentLabelOfficeId();
+    const label = this.terminologyService.labelFor('Agent', officeId);
+    this.deleteAgentTitle = this.terminologyService.replaceAgent('Delete Agent', officeId);
+    this.deleteAgentMessage = `Are you sure you want to delete this ${label}?`;
+    this.markViewForCheck();
   }
   //#endregion
 

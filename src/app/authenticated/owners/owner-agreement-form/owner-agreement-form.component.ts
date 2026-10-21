@@ -24,6 +24,7 @@ import { EmailType } from '../../email/models/email.enum';
 import { EmailService } from '../../email/services/email.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
@@ -82,6 +83,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   private dynamicFormDraftService = inject(DynamicFormDraftService);
   private ownerFormPlaceholderService = inject(OwnerFormPlaceholderService);
   private mappingService = inject(MappingService);
+  private terminologyService = inject(TerminologyService);
   private ownersService = inject(OwnersService);
   private ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
   private ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
@@ -882,6 +884,8 @@ tryLoadPropertyByLeadOwnerCode(): void {
       ownerSignatureDate: today,
       agentSignatureDate: today,
       agentSignerName: signerName,
+      agentInformationHeading: this.terminologyService.replaceAgent('Agent Information', this.selectedOffice?.officeId ?? this.officeId),
+      agentSignatureLabel: this.terminologyService.labelFor('Agent', this.selectedOffice?.officeId ?? this.officeId),
       officePhone: this.getOfficePhoneText(),
       officeFax: this.getOfficeFaxText(),
       organizationWebsite: this.getOrganizationWebsite(),
@@ -912,7 +916,17 @@ tryLoadPropertyByLeadOwnerCode(): void {
       );
     }
 
-    return this.ownerFormPlaceholderService.replaceTokens(content, {}, { highlightUnresolved: true });
+    return this.applyAgentTerminologyToAgreementHtml(
+      this.ownerFormPlaceholderService.replaceTokens(content, {}, { highlightUnresolved: true })
+    );
+  }
+
+  applyAgentTerminologyToAgreementHtml(html: string): string {
+    const officeId = this.selectedOffice?.officeId ?? this.officeId;
+    const agentLabel = this.terminologyService.labelFor('Agent', officeId);
+    return String(html || '')
+      .replace(/Agent Information/g, this.terminologyService.replaceAgent('Agent Information', officeId))
+      .replace(/(<p class="signature-label">)Agent(<\/p>)/g, `$1${agentLabel}$2`);
   }
 
   processAndSetHtml(html: string): void {

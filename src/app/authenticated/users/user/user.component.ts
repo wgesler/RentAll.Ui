@@ -21,7 +21,9 @@ import { AgentResponse } from '../../organizations/models/agent.model';
 import { FeatureType, OrganizationType } from '../../organizations/models/organization-enum';
 import { FeatureResponse } from '../../organizations/models/organization-feature.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OrganizationListService } from '../../organizations/services/organization-list.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OrganizationFeatureService } from '../../organizations/services/organization-feature.service';
@@ -65,6 +67,9 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   private organizationService = inject(OrganizationService);
   private organizationFeatureService = inject(OrganizationFeatureService);
   private officeService = inject(OfficeService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
+  agentFieldLabel = 'Agent';
   private agentService = inject(AgentService);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
@@ -146,6 +151,9 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.loadProperties();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
     this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(features => {
       this.allFeatures = features ?? [];
       this.initializeUserGroups();
@@ -635,6 +643,19 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     });
   }
 
+  applyAgentFieldLabel(): void {
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', this.globalSelectionService.getSelectedOfficeIdValue());
+    this.applyAgentGroupLabel();
+  }
+
+  applyAgentGroupLabel(): void {
+    const agentValue = UserGroups[UserGroups.Agent];
+    this.availableUserGroups = this.availableUserGroups.map(group =>
+      group.value === agentValue ? { ...group, label: this.agentFieldLabel } : group
+    );
+    this.markViewForCheck();
+  }
+
   loadAgents(): void {
     this.agentService.getAgents().pipe(take(1)).subscribe({
       next: (agents: AgentResponse[]) => {
@@ -1033,6 +1054,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
       const partnerRoles = new Set<string>([UserGroups[UserGroups.Admin], UserGroups[UserGroups.PartnerAdmin]]);
       this.availableUserGroups = options.filter(group => partnerRoles.has(group.value));
       this.retainAllowedUserGroups();
+      this.applyAgentGroupLabel();
       return;
     }
 
@@ -1064,6 +1086,7 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
 
     this.availableUserGroups = options.filter(group => !hiddenRoles.has(group.value));
     this.retainAllowedUserGroups();
+    this.applyAgentGroupLabel();
   }
 
   usesPartnerUserGroups(): boolean {

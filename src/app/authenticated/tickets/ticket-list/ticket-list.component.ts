@@ -13,6 +13,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
@@ -48,6 +49,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
   private router = inject(Router);
+  private terminologyService = inject(TerminologyService);
   private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -114,6 +116,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['shellOfficeId'] || changes['shellPropertyId'] || changes['shellReservationId']) {
       this.applyShellFiltersFromInputs();
+      this.applyAgentColumnLabel();
     }
   }
 
@@ -128,6 +131,17 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     this.loadOffices();
     this.loadUsers();
     this.getTickets();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentColumnLabel());
+    this.applyAgentColumnLabel();
+  }
+
+  applyAgentColumnLabel(): void {
+    const label = this.terminologyService.labelFor('Agent', this.shellOfficeId);
+    this.ticketsDisplayedColumns = {
+      ...this.ticketsDisplayedColumns,
+      agentName: { ...this.ticketsDisplayedColumns['agentName'], displayAs: label }
+    };
+    this.markViewForCheck();
   }
 
   addTicket(): void {

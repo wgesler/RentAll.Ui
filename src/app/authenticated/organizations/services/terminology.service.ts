@@ -46,8 +46,41 @@ export class TerminologyService {
     return source.pipe(switchMap(result => this.loadAllTerminologies().pipe(map(() => result))));
   }
 
-  getAllTerminologies(): Observable<TerminologyResponse[]> {
+  get terminologies$(): Observable<TerminologyResponse[]> {
     return this.allTerminologies$.asObservable();
+  }
+
+  getAllTerminologies(): Observable<TerminologyResponse[]> {
+    return this.terminologies$;
+  }
+
+  labelFor(term: string, officeId: number | null): string {
+    const normalized = term.trim().toLowerCase();
+    if (!normalized) {
+      return term;
+    }
+    const rows = this.allTerminologies$.value.filter(row => officeId == null || officeId <= 0 || row.officeId === officeId);
+    const match = rows.find(row => row.term.trim().toLowerCase() === normalized)
+      ?? (normalized.endsWith('s') ? rows.find(row => row.term.trim().toLowerCase() === normalized.slice(0, -1)) : undefined);
+    if (!match) {
+      return term;
+    }
+    const replacement = match.replacement.trim();
+    return replacement || match.term.trim() || term;
+  }
+
+  replaceAgent(text: string, officeId: number | null): string {
+    const label = this.labelFor('Agent', officeId);
+    if (!text || label === 'Agent') {
+      return text;
+    }
+    return text.replace(/\bAgent\b(?! Admin)/g, label);
+  }
+
+  clearTerminologies(): void {
+    this.terminologiesLoad$ = null;
+    this.allTerminologies$.next([]);
+    this.terminologiesLoaded$.next(false);
   }
 
   getTerminologyById(termId: number): Observable<TerminologyResponse> {

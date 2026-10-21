@@ -9,6 +9,8 @@ import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceResponse } from '../../accounting/models/invoice.model';
 import { InvoiceService } from '../../accounting/services/invoice.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { ReservationPaymentResponse } from '../../reservations/models/reservation-payment.model';
 import { ReservationHistoryRateRow } from '../../reservations/models/reservation-history-rate-row.model';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
@@ -36,6 +38,8 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   private reservationHistoryDisplayService = inject(ReservationHistoryDisplayService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private terminologyService = inject(TerminologyService);
+  private globalSelectionService = inject(GlobalSelectionService);
 
   @Input() propertyId: string | null = null;
 
@@ -83,6 +87,18 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
     });
 
     this.loadReservations();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentColumnLabel());
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentColumnLabel());
+    this.applyAgentColumnLabel();
+  }
+
+  applyAgentColumnLabel(): void {
+    const label = this.terminologyService.labelFor('Agent', this.globalSelectionService.getSelectedOfficeIdValue());
+    this.displayedColumns = {
+      ...this.displayedColumns,
+      agentCode: { ...this.displayedColumns['agentCode'], displayAs: label }
+    };
+    this.cdr.markForCheck();
   }
 
   ngOnChanges(changes: SimpleChanges): void {

@@ -14,6 +14,7 @@ import { AreaService } from './authenticated/organizations/services/area.service
 import { BuildingService } from './authenticated/organizations/services/building.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';
 import { RegionService } from './authenticated/organizations/services/region.service';
+import { TerminologyService } from './authenticated/organizations/services/terminology.service';
 import { OrganizationFeatureService } from './authenticated/organizations/services/organization-feature.service';
 import { FeatureResponse } from './authenticated/organizations/models/organization-feature.model';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
@@ -48,6 +49,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
   private regionService = inject(RegionService);
+  private terminologyService = inject(TerminologyService);
   private areaService = inject(AreaService);
   private buildingService = inject(BuildingService);
   private organizationFeatureService = inject(OrganizationFeatureService);
@@ -102,6 +104,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadPropertyCodes();
         this.loadReservationCodes();
         this.loadPropertySelectionFilterState();
+        this.loadTerminologies();
       } else {
         this.organizationId = '';
         this.securityDepositService.clearSecurityDepositsOutstanding();
@@ -120,6 +123,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.accountingOfficeService.clearAccountingOffices();
         this.chartOfAccountsService.clearChartOfAccounts();
         this.costCodesService.clearCostCodes();
+        this.terminologyService.clearTerminologies();
         this.propertySelectionFilterService.clear();
       }
     });
@@ -196,6 +200,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.organizationFeatureService.clearFeatures();
       this.accountingOfficeService.clearAccountingOffices();
       this.globalSelectionService.clearGlobalOfficeSelection();
+      this.terminologyService.clearTerminologies();
       return;
     }
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(
@@ -258,6 +263,14 @@ export class AppComponent implements OnInit, OnDestroy {
       error: () => {
       }
     });
+  }
+
+  loadTerminologies(): void {
+    if (!this.organizationId) {
+      this.terminologyService.clearTerminologies();
+      return;
+    }
+    this.terminologyService.ensureTerminologiesLoaded().pipe(take(1)).subscribe({ error: () => {} });
   }
 
   loadPropertySelectionFilterState(): void {

@@ -28,7 +28,7 @@ export class OwnerDocuSignSignersDialogService {
         );
     const slots = noSignersConfigured
       ? []
-      : this.ownerDocuSignSignerService.buildSignerSlots(roles, input.context);
+      : this.ownerDocuSignSignerService.buildSignerSlots(roles, input.context, input.officeId ?? null);
     const dialogRef = this.dialog.open<
       DocuSignSignersDialogComponent,
       DocuSignSignersDialogData,

@@ -14,6 +14,7 @@ import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
@@ -64,6 +65,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
   private ticketService = inject(TicketService);
   private dialog = inject(MatDialog);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private officeService = inject(OfficeService);
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
@@ -113,6 +115,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
   agents: AgentResponse[] = [];
   assigneeOptions: { userId: string; displayName: string }[] = [];
   reservationAgentOptions: { agentId: string; displayName: string }[] = [];
+  agentFieldLabel = 'Agent';
+  selectAgentLabel = 'Select Agent';
   selectedPropertyOfficeId: number | null = null;
   communicationStatusLabels: Record<string, string> = {
     needPermissionToEnter: 'Need Permission to Enter',
@@ -153,6 +157,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     this.loadOffices();
     this.loadUsers();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
     this.setupPropertySelectionSync();
     if (this.embeddedInSettings) {
       this.getTicket(this.id);
@@ -173,6 +179,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     }
     if (changes['selectedOfficeIdFromShell'] && !changes['selectedOfficeIdFromShell'].firstChange) {
       this.refreshReservationAgentOptions();
+      this.applyAgentFieldLabel();
     }
     if (changes['selectedReservationIdFromShell'] && !changes['selectedReservationIdFromShell'].firstChange) {
       this.syncReservationAgentFromSelectedReservation();
@@ -958,6 +965,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     const normalizedPropertyId = propertyId == null || String(propertyId).trim() === '' ? null : String(propertyId);
     const property = this.properties.find(item => item.propertyId === normalizedPropertyId) || null;
     this.selectedPropertyOfficeId = property?.officeId ?? null;
+    this.applyAgentFieldLabel();
     const officeId = this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell;
     const scopedOfficeId = officeId === 0 ? null : officeId;
     this.assigneeOptions = (this.users || [])
@@ -1773,6 +1781,14 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
   syncPageReadyFromLoadItems(): void {
     this.isPageReady = this.itemsToLoad$.value.size === 0;
     this.cdr.markForCheck();
+  }
+
+  applyAgentFieldLabel(): void {
+    const officeId = Number(this.selectedPropertyOfficeId ?? this.selectedOfficeIdFromShell ?? this.ticket?.officeId ?? 0);
+    const scopedOfficeId = officeId > 0 ? officeId : null;
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', scopedOfficeId);
+    this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', scopedOfficeId);
+    this.markViewForCheck();
   }
 
   markViewForCheck(): void {

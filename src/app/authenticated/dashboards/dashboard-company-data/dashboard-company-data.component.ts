@@ -9,6 +9,7 @@ import { AgentResponse } from '../../organizations/models/agent.model';
 import { TrackerContextType } from '../../organizations/models/tracker-enum';
 import { TrackerConfigurationDefinitionResponse, TrackerConfigurationResponse } from '../../organizations/models/tracker.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { TrackerService } from '../../organizations/services/tracker.service';
 import { PropertyLeaseType, PropertyStatus, formatPropertyBedTypesSummary } from '../../properties/models/property-enums';
 import { PropertyListResponse, PropertyTrackerResponse, PropertyTrackerResponseOption, PropertyTrackerResponseOptionRequest, PropertyTrackerResponseRequest } from '../../properties/models/property.model';
@@ -33,6 +34,7 @@ import { DashboardCompanyDataService, emptyDashboardCompanyDataSnapshot } from '
 export class DashboardCompanyDataComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
   private userService = inject(UserService);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private formatterService = inject(FormatterService);
   private trackerService = inject(TrackerService);
   private toastr = inject(ToastrService);
@@ -203,14 +205,18 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
       takeUntil(this.destroy$)
     ).subscribe(officeId => {
       this.resolveOfficeScope(officeId);
+      this.applyAgentColumnLabels();
       this.publishOfficeUiSnapshot();
       if (this.itemsToLoad$.value.size === 0) {
         this.recomputeBackendData();
       }
     });
     this.itemsToLoad$.pipe(filter(s => s.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.applyAgentColumnLabels();
       this.recomputeBackendData();
     });
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.refreshAgentColumnLabels());
+    this.applyAgentColumnLabels();
     super.ngOnInit();
   }
 
@@ -598,6 +604,21 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   //#endregion
 
   //#region Tracker Methods
+  applyAgentColumnLabels(): void {
+    const officeId = this.selectedOffice?.officeId ?? null;
+    const label = this.terminologyService.labelFor('Agent', officeId);
+    this.reservationTurnoverArrivalBaseColumns['agentCode'].displayAs = label;
+    this.reservationTurnoverDepartureBaseColumns['agentCode'].displayAs = label;
+    this.monthlyCommissionColumns['agentCode'].displayAs = label;
+  }
+
+  refreshAgentColumnLabels(): void {
+    this.applyAgentColumnLabels();
+    if (this.companyDataService.snapshot.isReady) {
+      this.publishSnapshot();
+    }
+  }
+
   applyReservationTrackerColumns(): void {
     const visibleOfficeIds = new Set<number>([
       ...this.reservationTurnoverArrivalRows.map(row => row.officeId),

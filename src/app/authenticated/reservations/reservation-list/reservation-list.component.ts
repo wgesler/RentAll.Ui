@@ -19,6 +19,7 @@ import { EmailService } from '../../email/services/email.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
@@ -54,6 +55,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   mappingService = inject(MappingService);
   private formatterService = inject(FormatterService);
   private propertyService = inject(PropertyService);
+  private terminologyService = inject(TerminologyService);
   private emailService = inject(EmailService);
   private utilityService = inject(UtilityService);
   private officeService = inject(OfficeService);
@@ -137,8 +139,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applyOfficeFromGlobal(officeId);
+      this.applyAgentColumnLabel();
       this.markViewForCheck();
     });
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.applyAgentColumnLabel();
+      this.markViewForCheck();
+    });
+    this.applyAgentColumnLabel();
     this.loadOffices();
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe(v => {
@@ -831,9 +839,19 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     this.cdr.markForCheck();
   }
 
+  applyAgentColumnLabel(): void {
+    const label = this.terminologyService.labelFor('Agent', this.pageOfficeId);
+    this.fullReservationsDisplayedColumns['agentCode'] = {
+      ...this.fullReservationsDisplayedColumns['agentCode'],
+      displayAs: label
+    };
+    this.updateDisplayedColumns();
+  }
+
   updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
-    this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+    const columns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+    this.reservationsDisplayedColumns = { ...columns };
   }
 
   @HostListener('window:resize')

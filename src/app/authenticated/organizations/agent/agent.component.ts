@@ -15,6 +15,7 @@ import { AgentRequest, AgentResponse, agentHasOfficeAccess, normalizeAgentOffice
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
+import { TerminologyService } from '../services/terminology.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -38,6 +39,9 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
+  private terminologyService = inject(TerminologyService);
+  agentCodeLabel = 'Agent Code';
+  agentCodeRequiredText = 'Agent Code is required';
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private formatterService = inject(FormatterService);
@@ -67,6 +71,8 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentLabels());
+    this.applyAgentLabels();
     this.loadOffices();
     // Use the input agentId
     if (this.agentId) {
@@ -95,6 +101,9 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         this.applyDefaultOfficeOnAdd();
         this.scheduleFocusFirstField();
       }
+    }
+    if (changes['officeId']) {
+      this.applyAgentLabels();
     }
     if (changes['officeId'] && this.isAddMode && this.form) {
       this.applyDefaultOfficeOnAdd();
@@ -141,7 +150,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isAddMode) {
       this.agentService.createAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
-          this.toastr.success('Agent created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.toastr.success(this.terminologyService.replaceAgent('Agent created successfully', this.agentLabelOfficeId()), CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();
         },
@@ -154,7 +163,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       agentRequest.organizationId = this.agent?.organizationId || user?.organizationId || '';
       this.agentService.updateAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
-          this.toastr.success('Agent updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.toastr.success(this.terminologyService.replaceAgent('Agent updated successfully', this.agentLabelOfficeId()), CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();
         },
@@ -294,6 +303,17 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  agentLabelOfficeId(): number | null {
+    return this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+  }
+
+  applyAgentLabels(): void {
+    const officeId = this.agentLabelOfficeId();
+    this.agentCodeLabel = this.terminologyService.replaceAgent('Agent Code', officeId);
+    this.agentCodeRequiredText = this.terminologyService.replaceAgent('Agent Code is required', officeId);
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

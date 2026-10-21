@@ -243,7 +243,7 @@
                 <app-searchable-select
                   class="col-span-1"
                   [renderInFormField]="true"
-                  [formFieldLabel]="'Agent'"
+                  [formFieldLabel]="agentFieldLabel"
                   [required]="!isOwnerReservationType"
                   [value]="form.get('agentId')?.value ?? null"
                   [options]="agentOptions"
@@ -251,10 +251,10 @@
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
-                  [nullOptionLabel]="'Select Agent'"
+                  [nullOptionLabel]="selectAgentLabel"
                   [noResultsText]="'No agents match your search'"
                   [showError]="!!(!isOwnerReservationType && form.get('agentId')?.invalid && form.get('agentId')?.touched)"
-                  [errorText]="'Agent is required'"
+                  [errorText]="agentRequiredText"
                   (valueChange)="onAgentDropdownChange($event)">
                 </app-searchable-select>
               }
@@ -315,7 +315,7 @@
                 <app-searchable-select
                   class="col-span-1"
                   [renderInFormField]="true"
-                  [formFieldLabel]="'Agent'"
+                  [formFieldLabel]="agentFieldLabel"
                   [required]="!isOwnerReservationType"
                   [value]="form.get('agentId')?.value ?? null"
                   [options]="agentOptions"
@@ -323,10 +323,10 @@
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
-                  [nullOptionLabel]="'Select Agent'"
+                  [nullOptionLabel]="selectAgentLabel"
                   [noResultsText]="'No agents match your search'"
                   [showError]="!!(!isOwnerReservationType && form.get('agentId')?.invalid && form.get('agentId')?.touched)"
-                  [errorText]="'Agent is required'"
+                  [errorText]="agentRequiredText"
                   (valueChange)="onAgentDropdownChange($event)">
                 </app-searchable-select>
               }

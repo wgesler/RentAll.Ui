@@ -13,6 +13,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { AgentResponse, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
@@ -45,6 +46,9 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   private authService = inject(AuthService);
   private leadsService = inject(LeadsService);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
+  agentFieldLabel = 'Agent';
+  selectAgentLabel = 'Select Agent';
   private propertyService = inject(PropertyService);
   private utilityService = inject(UtilityService);
   private formatterService = inject(FormatterService);
@@ -84,6 +88,8 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     this.loadOffices();
     this.loadActiveProperties();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
     this.getRentalLead(this.shellLeadId);
   }
 
@@ -91,6 +97,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['officeId']) {
       this.resolveOfficeScope(this.officeId);
       this.syncAgentSelectionWithOfficeScope();
+      this.applyAgentFieldLabel();
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
@@ -620,6 +627,12 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  applyAgentFieldLabel(): void {
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', this.officeId);
+    this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', this.officeId);
+    this.markViewForCheck();
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

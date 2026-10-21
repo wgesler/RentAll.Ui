@@ -16,6 +16,7 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { CheckinTimes, CheckoutTimes } from '../../properties/models/property-enums';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -42,6 +43,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   private mixedMappingService = inject(MixedMappingService);
   private mappingService = inject(MappingService);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private contactService = inject(ContactService);
   private propertyService = inject(PropertyService);
   private officeService = inject(OfficeService);
@@ -114,6 +116,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
 
   ngOnInit(): void {
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyFields());
     this.loadContacts();
   }
 

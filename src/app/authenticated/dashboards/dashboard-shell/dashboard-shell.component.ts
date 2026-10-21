@@ -13,6 +13,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { MonthlyCommissionDisplay, MonthlyCommissionTileRow } from '../models/dashboard-model';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { DashboardCompanyDataService, DashboardOfficeOption } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
 import { DashboardArrivalsComponent } from '../dashboard-arrivals/dashboard-arrivals.component';
@@ -56,6 +57,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   private utilityService = inject(UtilityService);
   private maintenanceItemsService = inject(MaintenanceItemsService);
   private companyDataService = inject(DashboardCompanyDataService);
+  private terminologyService = inject(TerminologyService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -92,6 +94,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   //#region Dashboard-Shell
   ngOnInit(): void {
     this.hasManagementAccess = this.authService.hasAccessToManagement();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.markViewForCheck());
     this.setTodayDate();
     this.user = this.authService.getUser();
     this.canViewCommissions = this.authService.canViewCommissions();
@@ -399,7 +402,7 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   getMonthlyCommissionTileRows(): MonthlyCommissionTileRow[] {
     const totalsByAgent = new Map<string, number>();
     this.monthlyCommissions.forEach(reservation => {
-      const code = (reservation.agentCode || '').trim() || 'No Agent';
+      const code = (reservation.agentCode || '').trim() || this.terminologyService.replaceAgent('No Agent', this.titleBarSelectedOfficeId);
       totalsByAgent.set(code, (totalsByAgent.get(code) || 0) + (reservation.commission || 0));
     });
 

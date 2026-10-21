@@ -11,11 +11,12 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { belongsOnOtherUsersTab, hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
+import { belongsOnOtherUsersTab, hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole, isOrgAdmin } from '../../shared/access/role-access';
 import { getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
@@ -42,6 +43,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   toastr = inject(ToastrService);
   private formatterService = inject(FormatterService);
   private utilityService = inject(UtilityService);
+  private terminologyService = inject(TerminologyService);
   private cdr = inject(ChangeDetectorRef);
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -96,6 +98,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadUsers();
     this.loadOrganizations();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.rebuildUsersDisplay());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -113,6 +116,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
         if (this.offices.length > 0) {
           this.resolveOfficeScope(newOfficeId);
         }
+        this.rebuildUsersDisplay();
         this.markViewForCheck();
       }
     }
@@ -229,6 +233,9 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     ];
     const selectedTabPredicate = tabPredicates[this.selectedTabIndex] ?? tabPredicates[0];
     filtered = filtered.filter(selectedTabPredicate);
+    if (this.selectedTabIndex === 0 && !this.isSuperAdminUser && !this.hasRole(UserGroups.Admin)) {
+      filtered = filtered.filter(user => !isOrgAdmin(user.userGroups));
+    }
 
     this.usersDisplay = filtered;
   }
@@ -420,7 +427,8 @@ applyOrganizationFromInput(): void {
         return null;
       }
       const userGroups = user.userGroups || [];
-      const userGroupsDisplay = userGroups.map(g => groupLabels[g] || g).join(', ');
+      const agentLabel = this.terminologyService.labelFor('Agent', this.officeId);
+      const userGroupsDisplay = userGroups.map(g => g === 'Agent' || g === UserGroups[UserGroups.Agent] ? agentLabel : (groupLabels[g] || g)).join(', ');
       const lastLoginOn = user.lastLoginOn ? new Date(user.lastLoginOn) : null;
       return {
         userId,

@@ -71,6 +71,7 @@ import { MobileTicketListDisplay } from '../authenticated/mobile/mobile-ticket-l
 import { MobileListField, MobileListFieldOption, MobileListRow, MobileTicketNoteDisplay } from '../authenticated/mobile/mobile-list-table/mobile-list.model';
 import { MaintenanceListDisplay, PropertyMaintenance } from '../authenticated/shared/models/mixed-models';
 import { WorkOrderAmountService } from '../authenticated/maintenance/services/work-order-amount.service';
+import { TerminologyService } from '../authenticated/organizations/services/terminology.service';
 import { FormatterService } from './formatter-service';
 import { UtilityService } from './utility.service';
 
@@ -80,6 +81,7 @@ import { UtilityService } from './utility.service';
 
 export class MappingService {
   private formatter = inject(FormatterService);
+  private terminologyService = inject(TerminologyService);
   private utility = inject(UtilityService);
   private workOrderAmountService = inject(WorkOrderAmountService);
 
@@ -1631,7 +1633,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
 
   mapMobileTicketAgentOptions(agents: AgentResponse[], officeId: number | null): MobileListFieldOption[] {
     const options = this.mapMobileReservationAgentOptions(filterAgentsByOffice(agents, officeId, { activeOnly: true }));
-    return [{ value: '', label: 'Select Agent' }, ...options];
+    return [{ value: '', label: this.terminologyService.replaceAgent('Select Agent', officeId) }, ...options];
   }
 
   mapMobileTicketOfficeOptions(offices: { officeId: number; name?: string | null }[]): MobileListFieldOption[] {
@@ -1684,7 +1686,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     const fields: MobileListField[] = [];
     const yesNo = this.mapMobileYesNoOptions();
     const assigneeOptions = this.mergeMobileIdOption(lookups.assignees || [{ value: '', label: 'Unassigned' }], ticket.assigneeId, ticket.assigneeName || ticket.assignee);
-    const agentOptions = this.mergeMobileIdOption(lookups.agents || [{ value: '', label: 'Select Agent' }], ticket.agentId, ticket.agentName || ticket.agent);
+    const agentLabel = this.terminologyService.labelFor('Agent', ticket.officeId ?? null);
+    const agentOptions = this.mergeMobileIdOption(lookups.agents || [{ value: '', label: this.terminologyService.replaceAgent('Select Agent', ticket.officeId ?? null) }], ticket.agentId, ticket.agentName || ticket.agent);
     const officeOptions = this.mergeMobileIdOption(lookups.offices || [], String(ticket.officeId || ''), ticket.officeName);
     const propertyOptions = this.mergeMobileIdOption(
       lookups.properties || [{ value: RECEIPT_COMPANY_PROPERTY_ID, label: 'Company' }],
@@ -1699,7 +1702,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     this.addMobileDetailField(fields, 'modifiedOn', 'Last Modified', this.formatter.formatDateString(ticket.modifiedOn || ''), undefined, false, true);
     this.addMobileDetailField(fields, 'ticketStateTypeId', 'Ticket Status', String(ticket.ticketStateTypeId ?? ''), this.mapNumberLabelOptions(getTicketStateTypes()));
     this.addMobileDetailField(fields, 'assigneeId', 'Assignee', ticket.assigneeId, assigneeOptions);
-    this.addMobileDetailField(fields, 'agentId', 'Agent', ticket.agentId, agentOptions);
+    this.addMobileDetailField(fields, 'agentId', agentLabel, ticket.agentId, agentOptions);
     this.addMobileDetailField(fields, 'isActive', 'Is Active', ticket.isActive ? 'true' : 'false', yesNo);
     this.addMobileDetailField(fields, 'isForRentAll', 'For RentAll', ticket.isForRentAll ? 'true' : 'false', yesNo);
     this.addMobileDetailField(fields, 'needPermissionToEnter', 'Need Permission to Enter', ticket.needPermissionToEnter ? 'true' : 'false', yesNo);
@@ -1968,7 +1971,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     this.addMobileDetailField(fields, 'reservationTypeId', 'Reservation Type', reservation.reservationTypeId == null ? '' : String(reservation.reservationTypeId), this.mapNumberLabelOptions(getReservationTypes()));
     this.addMobileDetailField(fields, 'reservationStatusId', 'Reservation Status', reservation.reservationStatusId == null ? '' : String(reservation.reservationStatusId), this.mapNumberLabelOptions(getReservationStatuses()));
     this.addMobileDetailField(fields, 'reservationNoticeId', 'Reservation Notice', reservation.reservationNoticeId == null ? '' : String(reservation.reservationNoticeId), this.mapNumberLabelOptions(getReservationNotices()));
-    this.addMobileDetailField(fields, 'agentId', 'Agent', reservation.agentId, lookups.agents || []);
+    this.addMobileDetailField(fields, 'agentId', this.terminologyService.labelFor('Agent', reservation.officeId ?? null), reservation.agentId, lookups.agents || []);
     this.addMobileDetailField(fields, 'contactId', 'Contact Name', contactId, lookups.contacts || []);
     this.addMobileDetailField(fields, 'contactPhone', 'Contact Phone', this.formatter.phoneNumber(lookups.contactPhone), undefined, false, true);
     this.addMobileDetailField(fields, 'contactEmail', 'Contact Email', this.utility.getDisplayContactEmail(lookups.contactEmail || ''), undefined, false, true);

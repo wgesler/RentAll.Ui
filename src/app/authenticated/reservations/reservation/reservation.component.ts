@@ -35,6 +35,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { CheckinTimes, CheckoutTimes, ManagementFeeType, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizeManagementFeeTypeId } from '../../properties/models/property-enums';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -158,6 +159,8 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
+  agentFieldLabel = 'Agent';
+  private terminologyService = inject(TerminologyService);
   handlersSetup: boolean = false;
   extraFeeLines: ExtraFeeLineDisplay[] = [];
   reservationPayments: ReservationPaymentDisplay[] = [];
@@ -194,6 +197,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.loadOrganization();
     this.loadPropertyCodes();
     this.loadOffices();
+
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.shellMode || this.offices.length === 0 || !this.isAddMode) {
@@ -1064,6 +1070,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
     const reservationOfficeId = this.reservation.officeId;
     this.selectedOffice = this.offices.find(o => o.officeId === reservationOfficeId) || null;
+    this.applyAgentFieldLabel();
     this.syncOfficeIdToForm();
     this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.reservation));
     if (this.selectedOffice) {
@@ -1195,8 +1202,20 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   //#endregion
 
   //#region Form Response Methods
+  selectAgentLabel = 'Select Agent';
+  agentRequiredText = 'Agent is required';
+
+  applyAgentFieldLabel(): void {
+    const officeId = this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', officeId);
+    this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', officeId);
+    this.agentRequiredText = this.terminologyService.replaceAgent('Agent is required', officeId);
+    this.markViewForCheck();
+  }
+
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.applyAgentFieldLabel();
     this.syncOfficeIdToForm();
     this.updateContactsByReservationType();
     this.syncAgentSelectionWithOfficeScope();

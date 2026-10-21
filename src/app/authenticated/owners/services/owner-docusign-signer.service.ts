@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { DocuSignSignerConfig, DocuSignSignerSlot, OwnerDocuSignSignerContext } from '../models/owner-docusign.model';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OwnerIncludedOwnersService } from './owner-included-owners.service';
 
 @Injectable({
@@ -9,6 +10,7 @@ import { OwnerIncludedOwnersService } from './owner-included-owners.service';
 })
 export class OwnerDocuSignSignerService {
   ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
+  private terminologyService = inject(TerminologyService);
 
 
   //#region Role Parsing
@@ -104,7 +106,7 @@ export class OwnerDocuSignSignerService {
   //#endregion
 
   //#region Signer Slots
-  buildSignerSlots(roles: string[], context: OwnerDocuSignSignerContext): DocuSignSignerSlot[] {
+  buildSignerSlots(roles: string[], context: OwnerDocuSignSignerContext, officeId: number | null = null): DocuSignSignerSlot[] {
     const normalizedRoles = this.collapseCompanyTenantRoles(
       (roles || []).map(role => this.normalizeRole(role))
     );
@@ -138,7 +140,7 @@ export class OwnerDocuSignSignerService {
       return {
         id: `${role}-${index}`,
         role,
-        label: this.getRoleDisplayLabel(role),
+        label: this.getRoleDisplayLabel(role, officeId),
         email: String(resolved?.email || '').trim(),
         name: String(resolved?.name || '').trim(),
         contactId,
@@ -177,7 +179,7 @@ export class OwnerDocuSignSignerService {
   //#endregion
 
   //#region Role Helpers
-  getRoleDisplayLabel(role: string): string {
+  getRoleDisplayLabel(role: string, officeId: number | null = null): string {
     const normalized = this.normalizeRole(role);
     switch (normalized) {
       case 'owner':
@@ -191,7 +193,7 @@ export class OwnerDocuSignSignerService {
         return 'Owner 2';
       case 'agent':
       case 'broker':
-        return 'Agent';
+        return this.terminologyService.labelFor('Agent', officeId);
       case 'tenant':
         return 'Tenant';
       case 'company':

@@ -7,6 +7,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AgentBreakdownRow, OfficeLeadStatusRow, UnifiedLeadRow } from '../models/lead-reports.model';
@@ -31,6 +32,8 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private agentService = inject(AgentService);
   private mappingService = inject(MappingService);
+  private terminologyService = inject(TerminologyService);
+  agentBreakdownTitle = 'Agent Breakdown';
 
   isPageReady = false;
   closedLeadsColumns: ColumnSet = {
@@ -88,10 +91,23 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     this.loadGeneralLeads();
     this.loadPartnerLeads();
     this.loadAgents();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentLabels());
+    this.applyAgentLabels();
+  }
+
+  applyAgentLabels(): void {
+    const label = this.terminologyService.labelFor('Agent', this.officeId);
+    this.agentBreakdownTitle = this.terminologyService.replaceAgent('Agent Breakdown', this.officeId);
+    this.agentBreakdownColumns = {
+      ...this.agentBreakdownColumns,
+      agent: { ...this.agentBreakdownColumns['agent'], displayAs: label }
+    };
+    this.cdr.markForCheck();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] || changes['startDate'] || changes['endDate'] || changes['offices']) {
+      this.applyAgentLabels();
       this.applyFiltersAndBuildReports();
     }
   }

@@ -22,6 +22,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { ColorService } from '../../organizations/services/color.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { TerminologyService } from '../../organizations/services/terminology.service';
 import { getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -64,6 +65,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   private globalSelectionService = inject(GlobalSelectionService);
   private officeService = inject(OfficeService);
   private agentService = inject(AgentService);
+  private terminologyService = inject(TerminologyService);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private toastr = inject(ToastrService);
   private formatterService = inject(FormatterService);
@@ -114,6 +116,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   officeScopeResolved = false;
   selectedOfficeId: number | null = null;
   selectedAgentId: string | null = null;
+  agentFieldLabel = 'Agent';
   userId: string = '';
   isOwnerScopedView: boolean = false;
   canFilterByAgent: boolean = false;
@@ -184,6 +187,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     this.loadColors();
     this.loadOfficeSettings();
     this.initializeOfficeScope();
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
+    this.applyAgentFieldLabel();
 
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), distinctUntilChanged(), takeUntil(this.destroy$)).subscribe({
@@ -512,6 +517,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       this.lastLoadedOfficeId = null;
       this.syncSelectedAgentWithOfficeScope();
     }
+    this.applyAgentFieldLabel();
+  }
+
+  applyAgentFieldLabel(): void {
+    this.agentFieldLabel = this.terminologyService.labelFor('Agent', this.selectedOfficeId);
     this.markViewForCheck();
   }
 

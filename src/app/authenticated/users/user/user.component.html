@@ -130,7 +130,7 @@
 
                 @if (showAgentCommissionFields) {
                   <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>Agent</mat-label>
+                    <mat-label>{{ agentFieldLabel }}</mat-label>
                     <mat-select formControlName="agentId">
                       <mat-option [value]="null">None</mat-option>
                       @for (agent of availableAgents; track agent.value) {

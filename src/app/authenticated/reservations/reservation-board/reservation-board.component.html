@@ -47,9 +47,9 @@
 
               @if (showAgentDropdown && !readOnly) {
                 <mat-form-field appearance="outline" class="titlebar-field-office">
-                  <mat-label>Agent</mat-label>
+                  <mat-label>{{ agentFieldLabel }}</mat-label>
                   <mat-select [(ngModel)]="selectedAgentId" (selectionChange)="onAgentDropdownChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
-                    <mat-option [value]="null">All Agents</mat-option>
+                    <mat-option [value]="null">All</mat-option>
                     @for (agent of agentOptions; track agent.agentId) {
                       <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
                     }

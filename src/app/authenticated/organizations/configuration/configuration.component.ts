@@ -34,6 +34,7 @@ import { RegionListComponent } from '../region-list/region-list.component';
 import { RegionComponent } from '../region/region.component';
 import { TerminologyListComponent } from '../terminology-list/terminology-list.component';
 import { TerminologyComponent } from '../terminology/terminology.component';
+import { TerminologyService } from '../services/terminology.service';
 import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -83,6 +84,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
   private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
 
   @ViewChild(OfficeListComponent) officeListComponent?: OfficeListComponent;
   @ViewChild(AgentListComponent) agentListComponent?: AgentListComponent;
@@ -97,6 +99,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
   expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, terminology: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
+  agentsPanelTitle = 'Agents';
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   isEditingOffice: boolean = false;
@@ -177,6 +180,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applySettingsOfficeFromGlobal(officeId);
     });
+    this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentsPanelTitle());
+    this.applyAgentsPanelTitle();
   }
   //#endregion
 
@@ -213,6 +218,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
         this.offices = (offices || []).filter(office => office.isActive && office.organizationId === organizationId);
         this.settingsOfficesInitialized = true;
         this.initializeSettingsOfficeScope();
+        this.applyAgentsPanelTitle();
       },
       error: () => {
         this.offices = [];
@@ -231,6 +237,11 @@ applySettingsOfficeFromGlobal(officeId: number | null): void {
     this.selectedCostCodesOfficeId = officeId;
     this.normalizeSettingsOfficeScope();
     queueMicrotask(() => this.refreshSettingsOfficeScopedLists());
+    this.applyAgentsPanelTitle();
+  }
+
+  applyAgentsPanelTitle(): void {
+    this.agentsPanelTitle = this.terminologyService.labelFor('Agents', this.selectedCostCodesOfficeId);
   }
 
 normalizeSettingsOfficeScope(): void {
