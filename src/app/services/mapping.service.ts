@@ -47,6 +47,7 @@ import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/
 import { UserGuideResponse } from '../authenticated/organizations/models/user-guide.model';
 import { BankCardResponse } from '../authenticated/organizations/models/bank.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
+import { TerminologyListDisplay, TerminologyResponse } from '../authenticated/organizations/models/terminology.model';
 import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
 import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
@@ -252,6 +253,15 @@ export class MappingService {
         isActive: o.isActive
       };
     });
+  }
+
+  mapTerminologies(terminologies: TerminologyResponse[]): TerminologyListDisplay[] {
+    return (terminologies || []).map(terminology => ({
+      termId: terminology.termId,
+      officeId: terminology.officeId,
+      term: terminology.term,
+      replacement: terminology.replacement
+    }));
   }
 
   mapTrackerDefinitions(trackers: (TrackerDefinitionResponse | TrackerConfigurationDefinitionResponse)[]): TrackerDefinitionListDisplay[] {

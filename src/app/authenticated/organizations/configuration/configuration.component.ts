@@ -32,6 +32,8 @@ import { OfficeListComponent, OfficeCopyPayload } from '../office-list/office-li
 import { OfficeComponent } from '../office/office.component';
 import { RegionListComponent } from '../region-list/region-list.component';
 import { RegionComponent } from '../region/region.component';
+import { TerminologyListComponent } from '../terminology-list/terminology-list.component';
+import { TerminologyComponent } from '../terminology/terminology.component';
 import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -54,6 +56,8 @@ import { StateFormComponent } from '../state-form/state-form.component';
     AccountingOfficeComponent,
     RegionListComponent,
     RegionComponent,
+    TerminologyListComponent,
+    TerminologyComponent,
     AreaListComponent,
     AreaComponent,
     BuildingListComponent,
@@ -83,6 +87,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(OfficeListComponent) officeListComponent?: OfficeListComponent;
   @ViewChild(AgentListComponent) agentListComponent?: AgentListComponent;
   @ViewChild(RegionListComponent) regionListComponent?: RegionListComponent;
+  @ViewChild(TerminologyListComponent) terminologyListComponent?: TerminologyListComponent;
   @ViewChild(AreaListComponent) areaListComponent?: AreaListComponent;
   @ViewChild(BuildingListComponent) buildingListComponent?: BuildingListComponent;
   @ViewChild(ChartOfAccountsListComponent) chartOfAccountsListComponent?: ChartOfAccountsListComponent;
@@ -91,7 +96,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
-  expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
+  expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, terminology: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   isEditingOffice: boolean = false;
@@ -105,6 +110,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isEditingRegion: boolean = false;
   regionId: string | number | null = null;
   shouldRefreshRegions: boolean = false;
+  isEditingTerminology: boolean = false;
+  terminologyId: string | number | null = null;
+  shouldRefreshTerminologies: boolean = false;
   isEditingArea: boolean = false;
   areaId: string | number | null = null;
   shouldRefreshAreas: boolean = false;
@@ -248,6 +256,11 @@ refreshSettingsOfficeScopedLists(): void {
     if (this.regionListComponent?.offices?.length) {
       this.regionListComponent.resolveOfficeScope(officeId);
       this.regionListComponent.markViewForCheck();
+    }
+    if (this.terminologyListComponent) {
+      this.terminologyListComponent.officeId = officeId;
+      this.terminologyListComponent.applyFilters();
+      this.terminologyListComponent.markViewForCheck();
     }
     if (this.areaListComponent?.offices?.length) {
       this.areaListComponent.resolveOfficeScope(officeId);
@@ -429,6 +442,27 @@ refreshSettingsOfficeScopedLists(): void {
 
   onRegionSaved(): void {
     this.shouldRefreshRegions = true;
+  }
+
+  onTerminologySelected(terminologyId: string | number | null): void {
+    this.terminologyId = terminologyId;
+    this.isEditingTerminology = terminologyId !== null;
+    if (this.isEditingTerminology) {
+      this.expandedSections.terminology = true;
+    }
+  }
+
+  onTerminologyBack(): void {
+    if (this.shouldRefreshTerminologies) {
+      this.terminologyListComponent?.getTerminologies();
+    }
+    this.shouldRefreshTerminologies = false;
+    this.terminologyId = null;
+    this.isEditingTerminology = false;
+  }
+
+  onTerminologySaved(): void {
+    this.shouldRefreshTerminologies = true;
   }
 
   onAreaSelected(areaId: string | number | null): void {

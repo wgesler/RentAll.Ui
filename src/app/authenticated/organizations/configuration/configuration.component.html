@@ -192,6 +192,25 @@
           }
 
           @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
+            <mat-expansion-panel [expanded]="expandedSections.terminology"
+              (opened)="onPanelOpened('terminology')"
+              (closed)="onPanelClosed('terminology')"
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Terminology</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (!(isEditingTerminology && terminologyId)) {
+                  <app-terminology-list [officeId]="selectedCostCodesOfficeId" (terminologySelected)="onTerminologySelected($event)"></app-terminology-list>
+                }
+                @if (isEditingTerminology && terminologyId) {
+                  <app-terminology [id]="terminologyId" [officeId]="selectedCostCodesOfficeId" (savedEvent)="onTerminologySaved()" (backEvent)="onTerminologyBack()"></app-terminology>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
+
+          @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
             <!-- Area Section -->
             <mat-expansion-panel [expanded]="expandedSections.area" 
               (opened)="onPanelOpened('area')" 
