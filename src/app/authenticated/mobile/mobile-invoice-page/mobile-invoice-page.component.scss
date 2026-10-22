@@ -1,0 +1,92 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mobile-invoice-status {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  color: #475569;
+}
+
+.mobile-invoice {
+  padding: 0.75rem 1rem 1.5rem;
+}
+
+.mobile-invoice-code {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.mobile-invoice-facts,
+.mobile-invoice-totals {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.mobile-invoice-facts div,
+.mobile-invoice-totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mobile-invoice-facts dt,
+.mobile-invoice-totals dt {
+  color: #64748b;
+}
+
+.mobile-invoice-facts dd,
+.mobile-invoice-totals dd {
+  margin: 0;
+  text-align: right;
+}
+
+.mobile-invoice-lines {
+  margin: 1rem 0;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mobile-invoice-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.mobile-invoice-line:last-child {
+  border-bottom: 0;
+}
+
+.mobile-invoice-line-text {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.mobile-invoice-line-no {
+  color: #64748b;
+  min-width: 1.5rem;
+}
+
+.mobile-invoice-line-amount,
+.mobile-invoice-totals dd {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mobile-invoice-empty,
+.mobile-invoice-notes {
+  color: #475569;
+}
+
+.mobile-invoice-notes {
+  margin: 1rem 0 0;
+  white-space: pre-wrap;
+}

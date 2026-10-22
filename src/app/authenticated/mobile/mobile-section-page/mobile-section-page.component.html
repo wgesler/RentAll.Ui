@@ -37,6 +37,12 @@
   <app-mobile-ticket-list [filterMode]="ticketFilterMode" [tabPath]="tab?.path ?? 'my-tickets'" />
 } @else if (section?.path === 'contacts' && detailId) {
   <app-mobile-contact-detail #contactDetail [contactId]="detailId" (dirtyChange)="onContactDirtyChange($event)" />
+} @else if (section?.path === 'reservations' && tab?.path === 'lease') {
+  <app-mobile-lease-page [reservationId]="detailId" />
+} @else if (section?.path === 'reservations' && tab?.path === 'invoices' && invoiceId) {
+  <app-mobile-invoice-page [invoiceId]="invoiceId" />
+} @else if (section?.path === 'reservations' && tab?.path === 'invoices') {
+  <app-mobile-invoice-list-page [reservationId]="detailId" />
 } @else if (section?.path === 'reservations' && detailId) {
   <app-mobile-reservation-detail #reservationDetail [reservationId]="detailId" (dirtyChange)="onReservationDirtyChange($event)" />
 } @else if (section?.path === 'maintenance' && tab?.path === 'inspection' && detailId) {

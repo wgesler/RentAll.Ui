@@ -1,0 +1,51 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mobile-lease-status {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  color: #475569;
+}
+
+:host ::ng-deep app-lease {
+  .property-tab-actions-band {
+    display: none;
+  }
+
+  .lease-container {
+    padding: 0.75rem;
+  }
+
+  .include-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .include-label,
+  .include-checkbox {
+    margin-left: 0;
+  }
+
+  .preview-section {
+    overflow-x: hidden;
+  }
+
+  .preview-iframe {
+    width: 100%;
+    min-height: calc(100dvh - 16rem);
+    max-height: none;
+    height: calc(100dvh - 16rem);
+  }
+}
+
+@media (orientation: landscape) {
+  :host ::ng-deep app-lease .preview-iframe {
+    min-height: calc(100dvh - 8rem);
+    height: calc(100dvh - 8rem);
+  }
+}

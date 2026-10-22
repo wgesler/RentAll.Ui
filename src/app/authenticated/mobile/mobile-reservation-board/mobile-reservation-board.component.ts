@@ -190,7 +190,7 @@ export class MobileReservationBoardComponent implements OnInit, AfterViewInit, O
     const reservation = this.mappingService.getMobileBoardReservationForDate(this.reservationsByProperty.get(property.propertyId) || [], day.date);
     const reservationId = String(reservation?.reservationId || '').trim();
     if (reservationId && !reservationId.startsWith('extcal:')) {
-      this.router.navigate(['/mobile', 'reservations', reservationId], { queryParams: { returnTo: 'board' } });
+      this.router.navigate(['/mobile', 'reservations', 'reservation', reservationId], { queryParams: { returnTo: 'board' } });
       return;
     }
     if (reservationId.startsWith('extcal:')) {
@@ -208,7 +208,7 @@ export class MobileReservationBoardComponent implements OnInit, AfterViewInit, O
       officeId: String(property.officeId ?? 0),
       startDate: this.formatBoardStartDate(selectedDate)
     };
-    this.router.navigate(['/mobile', 'reservations', 'new'], { queryParams });
+    this.router.navigate(['/mobile', 'reservations', 'reservation', 'new'], { queryParams });
   }
 
   formatBoardStartDate(date: Date): CalendarDateString {

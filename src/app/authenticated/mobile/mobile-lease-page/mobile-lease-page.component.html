@@ -1,0 +1,46 @@
+@if (reservationId) {
+  @if (!isPageReady) {
+    <div class="mobile-lease-status">
+      <mat-spinner [diameter]="36"></mat-spinner>
+    </div>
+  } @else if (loadFailed || !reservation) {
+    <p class="mobile-lease-status">Unable to load this lease.</p>
+  } @else {
+    <div class="mobile-list-actions">
+      <button mat-raised-button color="accent" type="button" (click)="emailLease()">
+        <mat-icon>email</mat-icon>
+        Email
+      </button>
+      @if (canUseDocuSign) {
+        <button mat-raised-button color="accent" type="button" (click)="docuSignLease()" [disabled]="isSendingDocuSign">
+          <mat-icon>draw</mat-icon>
+          DocuSign
+        </button>
+      }
+      <button mat-raised-button color="primary" type="button" (click)="saveLease()">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    </div>
+    <div #leaseHost class="mobile-lease-host">
+    <app-lease
+      [reservationId]="reservation.reservationId"
+      [propertyId]="reservation.propertyId"
+      [officeId]="reservation.officeId"
+      [lockOfficeSelection]="true"
+      [shellMode]="true"
+      [openInViewOnTabSelect]="true"
+      [hideEditButtonInViewMode]="true">
+    </app-lease>
+    </div>
+  }
+} @else {
+  <app-mobile-list-table
+    [rows]="rows"
+    [columns]="columns"
+    [isPageReady]="isPageReady"
+    [showFilter]="true"
+    [rowsClickable]="true"
+    rowNumberLabel="No"
+    (rowClick)="openLease($event)" />
+}

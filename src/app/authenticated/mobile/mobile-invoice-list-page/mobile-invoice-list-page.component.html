@@ -1,0 +1,8 @@
+<app-mobile-list-table
+  [rows]="rows"
+  [columns]="columns"
+  [isPageReady]="isPageReady"
+  [showFilter]="true"
+  [rowsClickable]="true"
+  rowNumberLabel="No"
+  (rowClick)="reservationId ? openInvoice($event) : openReservation($event)" />

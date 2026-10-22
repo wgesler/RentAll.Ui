@@ -9,19 +9,22 @@ import { MobilePropertyDetailComponent } from '../mobile-property-detail/mobile-
 import { MobilePropertyLetterComponent } from '../mobile-property-letter/mobile-property-letter.component';
 import { MobileReceiptDetailComponent } from '../mobile-receipt-detail/mobile-receipt-detail.component';
 import { MobileWorkOrderDetailComponent } from '../mobile-work-order-detail/mobile-work-order-detail.component';
+import { MobileInvoiceListPageComponent } from '../mobile-invoice-list-page/mobile-invoice-list-page.component';
+import { MobileInvoicePageComponent } from '../mobile-invoice-page/mobile-invoice-page.component';
+import { MobileLeasePageComponent } from '../mobile-lease-page/mobile-lease-page.component';
 import { MobileReservationDetailComponent } from '../mobile-reservation-detail/mobile-reservation-detail.component';
 import { MobileSectionListComponent } from '../mobile-section-list/mobile-section-list.component';
 import { MobileTicketDetailComponent } from '../mobile-ticket-detail/mobile-ticket-detail.component';
 import { MobileTicketListComponent } from '../mobile-ticket-list/mobile-ticket-list.component';
 import { AuthService } from '../../../services/auth.service';
-import { MOBILE_PROPERTY_DETAIL_TABS, MobileNavItem, MobileNavTab, MobileTicketFilterMode, getMobileNavItem, getMobileRouteParts, getMobileTab, getMobileTicketFilterMode, getMobileTicketTab, getMobileTicketTabs, getMobilePropertyBackUrl, getMobileReservationBackUrl, resolveMobilePropertyReturnTo, resolveMobileReservationReturnTo } from '../mobile-nav';
+import { MOBILE_PROPERTY_DETAIL_TABS, MOBILE_RESERVATION_TABS, MobileNavItem, MobileNavTab, MobileTicketFilterMode, getMobileNavItem, getMobileRouteParts, getMobileTab, getMobileTicketFilterMode, getMobileTicketTab, getMobileTicketTabs, getMobilePropertyBackUrl, getMobileReservationBackUrl, resolveMobilePropertyReturnTo, resolveMobileReservationReturnTo } from '../mobile-nav';
 import { getMobileTicketReturnRoute } from '../mobile-ticket-return.util';
 import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
 
 @Component({
   standalone: true,
   selector: 'app-mobile-section-page',
-  imports: [MaterialModule, MobileTicketListComponent, MobileTicketDetailComponent, MobileInspectionDetailComponent, MobileMaintenanceDetailComponent, MobileReceiptDetailComponent, MobileWorkOrderDetailComponent, MobileSectionListComponent, MobileContactDetailComponent, MobileReservationDetailComponent, MobilePropertyDetailComponent, MobilePropertyLetterComponent],
+  imports: [MaterialModule, MobileTicketListComponent, MobileTicketDetailComponent, MobileInspectionDetailComponent, MobileMaintenanceDetailComponent, MobileReceiptDetailComponent, MobileWorkOrderDetailComponent, MobileSectionListComponent, MobileContactDetailComponent, MobileReservationDetailComponent, MobilePropertyDetailComponent, MobilePropertyLetterComponent, MobileLeasePageComponent, MobileInvoiceListPageComponent, MobileInvoicePageComponent],
   templateUrl: './mobile-section-page.component.html',
   styleUrl: './mobile-section-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -40,6 +43,7 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
   section: MobileNavItem | null = null;
   tab: MobileNavTab | null = null;
   detailId = '';
+  invoiceId = '';
   contactDirty = false;
   reservationDirty = false;
   propertyDirty = false;
@@ -193,6 +197,10 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
       this.router.navigate(['/mobile', 'properties', this.detailId, menuTab.path], { queryParamsHandling: 'preserve' });
       return;
     }
+    if (this.section.path === 'reservations' && (menuTab.path === 'lease' || menuTab.path === 'invoices') && this.tab?.path === 'reservation' && this.detailId && this.detailId !== 'new') {
+      void this.router.navigate(['/mobile', 'reservations', menuTab.path, this.detailId]);
+      return;
+    }
     if (this.section.path === 'maintenance' && menuTab.path === 'receipts' && this.hasPendingUserReceiptDrafts) {
       void this.router.navigate(['/mobile', 'maintenance', 'receipts'], { queryParams: { draft: 'true' } });
       return;
@@ -230,7 +238,15 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
         }
       }
     }
+    if (this.section.path === 'reservations' && this.tab?.path === 'invoices' && this.invoiceId && this.detailId) {
+      void this.router.navigate(['/mobile', 'reservations', 'invoices', this.detailId]);
+      return;
+    }
     if (this.section.path === 'reservations' && this.detailId) {
+      if (this.tab?.path && this.tab.path !== 'reservation') {
+        void this.router.navigate(['/mobile', 'reservations', this.tab.path]);
+        return;
+      }
       void this.router.navigateByUrl(getMobileReservationBackUrl(this.reservationReturnTo));
       return;
     }
@@ -257,7 +273,12 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
   syncFromUrl(): void {
     const parts = getMobileRouteParts(this.router.url);
     this.section = getMobileNavItem(parts.sectionPath);
+    if (this.section?.path === 'reservations' && parts.tabPath && !MOBILE_RESERVATION_TABS.some(tab => tab.path === parts.tabPath)) {
+      void this.router.navigate(['/mobile', 'reservations', 'reservation', parts.tabPath], { queryParamsHandling: 'preserve', replaceUrl: true });
+      return;
+    }
     this.detailId = parts.id;
+    this.invoiceId = this.section?.path === 'reservations' && parts.tabPath === 'invoices' ? parts.childId : '';
     const hasTicketingAccess = this.authService.hasTicketingAccess();
     const canViewRentAllTickets = this.authService.isOrgAdmin();
     const ticketTabs = getMobileTicketTabs(canViewRentAllTickets, hasTicketingAccess);

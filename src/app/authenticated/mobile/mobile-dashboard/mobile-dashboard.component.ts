@@ -824,7 +824,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
     if (propertyId) {
       queryParams['propertyId'] = propertyId;
     }
-    void this.router.navigate(['/mobile/reservations', reservationId], { queryParams });
+    void this.router.navigate(['/mobile/reservations', 'reservation', reservationId], { queryParams });
   }
 
   markViewForCheck(): void {

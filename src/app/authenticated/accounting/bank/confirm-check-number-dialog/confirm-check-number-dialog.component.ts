@@ -7,6 +7,7 @@ import { MaterialModule } from '../../../../material.module';
 export interface ConfirmCheckNumberDialogData {
   startingCheckNumber: number;
   checkCount: number;
+  bankName?: string | null;
 }
 
 export interface ConfirmCheckNumberDialogResult {

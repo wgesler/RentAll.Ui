@@ -1,0 +1,43 @@
+@if (!isPageReady) {
+  <div class="mobile-invoice-status">
+    <mat-spinner [diameter]="36"></mat-spinner>
+  </div>
+} @else if (loadFailed || !invoice) {
+  <p class="mobile-invoice-status">Unable to load this invoice.</p>
+} @else {
+  <div class="mobile-invoice">
+    <h2 class="mobile-invoice-code">{{ invoice.invoiceCode }}</h2>
+    <dl class="mobile-invoice-facts">
+      <div><dt>Date</dt><dd>{{ formatDate(invoice.invoiceDate) }}</dd></div>
+      <div><dt>Due</dt><dd>{{ formatDate(invoice.dueDate) }}</dd></div>
+      <div><dt>Property</dt><dd>{{ invoice.propertyCode || '—' }}</dd></div>
+      <div><dt>Reservation</dt><dd>{{ invoice.reservationCode || '—' }}</dd></div>
+      <div><dt>Recipient</dt><dd>{{ invoice.responsibleParty || invoice.contactName || '—' }}</dd></div>
+      <div><dt>Period</dt><dd>{{ formatDate(invoice.startDate) }} – {{ formatDate(invoice.endDate) }}</dd></div>
+    </dl>
+
+    <div class="mobile-invoice-lines">
+      @for (line of lines; track line.ledgerLineId) {
+        <div class="mobile-invoice-line">
+          <div class="mobile-invoice-line-text">
+            <span class="mobile-invoice-line-no">{{ line.lineNumber }}</span>
+            <span>{{ line.description || 'Line' }}</span>
+          </div>
+          <span class="mobile-invoice-line-amount">{{ formatAmount(line.amount) }}</span>
+        </div>
+      } @empty {
+        <p class="mobile-invoice-empty">No lines on this invoice.</p>
+      }
+    </div>
+
+    <dl class="mobile-invoice-totals">
+      <div><dt>Total</dt><dd>{{ formatAmount(invoice.totalAmount) }}</dd></div>
+      <div><dt>Paid</dt><dd>{{ formatAmount(invoice.paidAmount) }}</dd></div>
+      <div><dt>Due</dt><dd>{{ formatAmount(dueAmount()) }}</dd></div>
+    </dl>
+
+    @if (invoice.notes) {
+      <p class="mobile-invoice-notes">{{ invoice.notes }}</p>
+    }
+  </div>
+}

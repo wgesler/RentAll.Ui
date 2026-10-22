@@ -8,7 +8,10 @@
 
   <mat-dialog-content class="confirm-check-number-dialog-content">
     <p class="confirm-check-number-dialog__intro">
-      You are about to print {{ data.checkCount }} check{{ data.checkCount === 1 ? '' : 's' }}.
+      You are about to print {{ data.checkCount }} check{{ data.checkCount === 1 ? '' : 's' }}
+      @if (data.bankName) {
+        drawn on {{ data.bankName }}
+      }.
     </p>
 
     <form [formGroup]="form" class="confirm-check-number-dialog__form form-hide-error-text">

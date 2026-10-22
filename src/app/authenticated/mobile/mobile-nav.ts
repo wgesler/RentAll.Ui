@@ -35,6 +35,12 @@ export const MOBILE_TICKET_ADMIN_TABS: MobileNavTab[] = [
   { label: 'Complete', path: 'complete' }
 ];
 
+export const MOBILE_RESERVATION_TABS: MobileNavTab[] = [
+  { label: 'Reservation', path: 'reservation' },
+  { label: 'Lease', path: 'lease' },
+  { label: 'Invoices', path: 'invoices' }
+];
+
 export const MOBILE_LEADS_TABS: MobileNavTab[] = [
   { label: 'Rental', path: 'rentals' },
   { label: 'General', path: 'general' },
@@ -203,7 +209,7 @@ export const MOBILE_NAV_ITEMS: MobileNavItem[] = [
     { label: 'Work Orders', path: 'work-orders' }
   ] },
   { icon: 'description', label: 'Documents', path: 'documents', tabs: [] },
-  { icon: 'handshake', label: 'Reservations', path: 'reservations', tabs: [] },
+  { icon: 'handshake', label: 'Reservations', path: 'reservations', tabs: MOBILE_RESERVATION_TABS },
   { icon: 'home', label: 'Properties', path: 'properties', tabs: [] },
   { icon: 'contacts', label: 'Contacts', path: 'contacts', tabs: [
     { label: 'Tenants', path: 'tenants' },
@@ -285,7 +291,10 @@ export function canUserAccessMobileUrl(
   const allowedPaths = getAllowedMobilePaths(userGroups, filterOptions);
 
   if (isPartnerOrg && section === 'reservations') {
-    return parts.length >= 3 && !!parts[2]?.trim();
+    const tab = parts[2]?.trim() ?? '';
+    const id = parts[3]?.trim() ?? '';
+    const knownTab = MOBILE_RESERVATION_TABS.some(item => item.path === tab);
+    return knownTab ? !!id : !!tab;
   }
 
   if (section === 'dashboard') {
@@ -336,7 +345,7 @@ export function toMobileUrlForDesktopPath(url: string, fallback: string): string
     return `/${RouterToken.Mobile}/properties/${id}${query}`;
   }
   if (segment === RouterToken.ReservationList && id) {
-    return `/${RouterToken.Mobile}/reservations/${id}${query}`;
+    return `/${RouterToken.Mobile}/reservations/reservation/${id}${query}`;
   }
   if (segment === RouterToken.DocumentList && id) {
     return `/${RouterToken.Mobile}/documents/${id}${query}`;
@@ -394,7 +403,7 @@ export function getMobileTab(item: MobileNavItem, tabPath: string | null | undef
   return item.tabs.find(tab => tab.path === tabPath) ?? null;
 }
 
-export function getMobileRouteParts(url: string): { sectionPath: string | null; tabPath: string | null; id: string } {
+export function getMobileRouteParts(url: string): { sectionPath: string | null; tabPath: string | null; id: string; childId: string } {
   const parts = (url || '').split('?')[0].split('/').filter(Boolean);
   const sectionPath = parts[1] ?? null;
   const section = getMobileNavItem(sectionPath);
@@ -402,13 +411,15 @@ export function getMobileRouteParts(url: string): { sectionPath: string | null; 
     return {
       sectionPath,
       tabPath: parts[3] ?? null,
-      id: parts[2]?.trim() ?? ''
+      id: parts[2]?.trim() ?? '',
+      childId: ''
     };
   }
   return {
     sectionPath,
     tabPath: parts[2] ?? null,
-    id: parts[3]?.trim() ?? ''
+    id: parts[3]?.trim() ?? '',
+    childId: parts[4]?.trim() ?? ''
   };
 }
 
@@ -430,7 +441,7 @@ export function resolveMobilePropertyReturnTo(url: string): MobilePropertyReturn
 }
 
 export function getMobileReservationBackUrl(returnTo: MobileReservationReturnTo): string {
-  return returnTo === 'board' ? '/mobile/home' : '/mobile/reservations';
+  return returnTo === 'board' ? '/mobile/home' : '/mobile/reservations/reservation';
 }
 
 export function getMobilePropertyBackUrl(returnTo: MobilePropertyReturnTo): string {

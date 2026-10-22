@@ -2869,9 +2869,13 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const previousSelectedIds = new Set(this.selectedJournalEntryLineIds);
     this.syncLineSelectionFromFlatLines(line => this.isPrintCheckLineSelectable(line));
     const rejectedDifferentVendor = this.rejectPrintCheckRowsWithDifferentVendor(previousSelectedIds);
+    const rejectedDifferentBank = this.rejectPrintCheckRowsWithDifferentBank(previousSelectedIds);
 
     if (rejectedDifferentVendor) {
       this.toastr.warning('A single check can only be sent to one vendor at a time.');
+    }
+    if (rejectedDifferentBank) {
+      this.toastr.warning('A single check can only be drawn on one bank account.');
     }
 
     this.syncPrintCheckLineSelectionInPlace();
@@ -2888,9 +2892,19 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return;
     }
 
+    if (this.selectedCheckLinesUseMultipleBanks(selectedLines)) {
+      this.toastr.warning('A single check can only be drawn on one bank account.');
+      return;
+    }
+
     const accountingOffice = this.accountingOffices.find(office => office.officeId === this.officeId) ?? null;
-    const printingBank = this.resolvePrintingBank(accountingOffice);
-    const startingCheckNumber = printingBank?.currentCheckNumber ?? accountingOffice?.currentCheckNumber ?? 1;
+    const chartOfAccountId = this.resolveSelectedCheckChartOfAccountId(selectedLines);
+    const printingBank = this.resolvePrintingBank(accountingOffice, chartOfAccountId);
+    if (!printingBank) {
+      this.toastr.warning('Link this bank account to its chart of account in Settings → Accounting Office before printing checks.');
+      return;
+    }
+    const startingCheckNumber = printingBank.currentCheckNumber;
     const dialogRef = this.dialog.open<ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult | undefined>(
       ConfirmCheckNumberDialogComponent,
       {
@@ -2898,7 +2912,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         panelClass: 'accounting-form-dialog-panel',
         data: {
           startingCheckNumber,
-          checkCount: selectedLines.length
+          checkCount: selectedLines.length,
+          bankName: printingBank.bankName
         }
       }
     );
@@ -2912,7 +2927,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       this.isLoadingCheckPreview = true;
       this.checkPrintApiService.assignCheckNumbers({
         officeId: this.officeId!,
-        bankAccountId: printingBank?.bankAccountId || null,
+        bankAccountId: printingBank.bankAccountId,
         startingCheckNumber: result.startingCheckNumber,
         journalEntryIds
       }).pipe(
@@ -2921,7 +2936,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
             assignResult.assignments.map(assignment => [assignment.journalEntryId, assignment.checkNumber])
           );
           const office = this.accountingOffices.find(item => item.officeId === this.officeId);
-          const printedBank = (office?.banks || []).find(bank => bank.bankAccountId === printingBank?.bankAccountId);
+          const printedBank = printingBank.bankAccountId
+            ? (office?.banks || []).find(bank => bank.bankAccountId === printingBank.bankAccountId)
+            : null;
           if (printedBank) {
             printedBank.currentCheckNumber = assignResult.nextCheckNumber;
           } else if (office) {
@@ -2934,8 +2951,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
             checkNumberByJournalEntryId: of(checkNumberByJournalEntryId)
           }).pipe(
             switchMap(loaded => {
-              const resolvedTemplate = this.resolveCheckTemplate(loaded.template, loaded.accountingOffice);
-              const printingStock = this.resolvePrintingBank(loaded.accountingOffice)?.checkStockFileDetails || loaded.accountingOffice?.checkStockFileDetails;
+              const loadedBank = this.resolvePrintingBank(loaded.accountingOffice, chartOfAccountId) ?? printingBank;
+              const resolvedTemplate = this.resolveCheckTemplate(loaded.template, loaded.accountingOffice, loadedBank);
+              const printingStock = loadedBank.checkStockFileDetails || loaded.accountingOffice?.checkStockFileDetails;
               const pdfDataUrl = this.resolveCheckStockPdfDataUrl(printingStock);
               if (!pdfDataUrl) {
                 return of({ ...loaded, template: resolvedTemplate, stockImageUrl: null as string | null });
@@ -3019,11 +3037,19 @@ previewSelectedChecks(
       return;
     }
 
+    if (this.selectedCheckLinesUseMultipleBanks(selectedLines)) {
+      this.toastr.warning('A single check can only be drawn on one bank account.');
+      return;
+    }
+
     const listedOffice = this.accountingOffices.find(office => office.officeId === this.officeId) ?? null;
-    const draftStartingNumber = startingCheckNumber
-      ?? this.resolvePrintingBank(listedOffice)?.currentCheckNumber
-      ?? listedOffice?.currentCheckNumber
-      ?? 1;
+    const chartOfAccountId = this.resolveSelectedCheckChartOfAccountId(selectedLines);
+    const printingBank = this.resolvePrintingBank(listedOffice, chartOfAccountId);
+    if (!printingBank) {
+      this.toastr.warning('Link this bank account to its chart of account in Settings → Accounting Office before printing checks.');
+      return;
+    }
+    const draftStartingNumber = startingCheckNumber ?? printingBank.currentCheckNumber;
 
     this.isLoadingCheckPreview = true;
     forkJoin({
@@ -3032,17 +3058,19 @@ previewSelectedChecks(
       accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId!).pipe(catchError(() => of(null)))
     }).pipe(
       switchMap(({ template, checkHtml, accountingOffice }) => {
+        const loadedBank = this.resolvePrintingBank(accountingOffice, chartOfAccountId) ?? printingBank;
         const officeOwnedStock = accountingOffice?.checkStockFileDetails
           || (checkHtml && Number(checkHtml.officeId) === Number(this.officeId) ? checkHtml.checkStockFileDetails : null);
-        const bankStock = this.resolvePrintingBank(accountingOffice)?.checkStockFileDetails;
+        const bankStock = loadedBank.checkStockFileDetails;
         const pdfDataUrl = this.resolveCheckStockPdfDataUrl(bankStock?.file || bankStock?.dataUrl ? bankStock : officeOwnedStock);
+        const resolvedTemplate = this.resolveCheckTemplate(template, accountingOffice, loadedBank);
         if (!pdfDataUrl) {
-          return of({ template: this.resolveCheckTemplate(template, accountingOffice), accountingOffice, stockImageUrl: null as string | null });
+          return of({ template: resolvedTemplate, accountingOffice, stockImageUrl: null as string | null });
         }
 
         return from(this.pdfThumbnailService.getFirstPageDataUrl(pdfDataUrl, 2550, 3)).pipe(
-          map(stockImageUrl => ({ template: this.resolveCheckTemplate(template, accountingOffice), accountingOffice, stockImageUrl })),
-          catchError(() => of({ template: this.resolveCheckTemplate(template, accountingOffice), accountingOffice, stockImageUrl: null as string | null }))
+          map(stockImageUrl => ({ template: resolvedTemplate, accountingOffice, stockImageUrl })),
+          catchError(() => of({ template: resolvedTemplate, accountingOffice, stockImageUrl: null as string | null }))
         );
       }),
       finalize(() => {
@@ -3056,24 +3084,56 @@ previewSelectedChecks(
     });
   }
 
-resolvePrintingBank(accountingOffice: AccountingOfficeResponse | null) {
-    const banks = accountingOffice?.banks || [];
-    const layouts = banks.filter(bank => this.checkHtmlService.hasMergeTokens(bank.checkHtml || ''));
-    if (layouts.length === 1) {
-      return layouts[0];
-    }
-    const stocked = banks.filter(bank => !!(bank.checkStockPath || '').trim() || !!bank.checkStockFileDetails?.file);
-    if (layouts.length === 0 && stocked.length === 1) {
-      return stocked[0];
-    }
-    return banks.length === 1 ? banks[0] : null;
+  selectedCheckLinesUseMultipleBanks(lines: JournalEntryLineListDisplay[]): boolean {
+    const accountIds = new Set(lines.map(line => Number(line.chartOfAccountId || 0)).filter(id => id > 0));
+    return accountIds.size > 1;
   }
 
-  resolveCheckTemplate(officeTemplate: string, accountingOffice: AccountingOfficeResponse | null): string {
+  resolveSelectedCheckChartOfAccountId(lines: JournalEntryLineListDisplay[]): number | null {
+    const accountIds = [...new Set(lines.map(line => Number(line.chartOfAccountId || 0)).filter(id => id > 0))];
+    return accountIds.length === 1 ? accountIds[0] : null;
+  }
+
+  resolvePrintingBank(accountingOffice: AccountingOfficeResponse | null, chartOfAccountId: number | null) {
+    if (!accountingOffice || !chartOfAccountId) {
+      return null;
+    }
+
+    if (Number(accountingOffice.accountChartOfAccountId) === chartOfAccountId) {
+      return {
+        bankAccountId: null as number | null,
+        bankName: (accountingOffice.bankName || '').trim(),
+        currentCheckNumber: accountingOffice.currentCheckNumber > 0 ? accountingOffice.currentCheckNumber : 1,
+        checkHtml: accountingOffice.checkHtml || null,
+        checkStockFileDetails: accountingOffice.checkStockFileDetails
+      };
+    }
+
+    const bank = (accountingOffice.banks || []).find(item => Number(item.accountChartOfAccountId) === chartOfAccountId);
+    if (!bank) {
+      return null;
+    }
+
+    return {
+      bankAccountId: bank.bankAccountId,
+      bankName: (bank.bankName || '').trim(),
+      currentCheckNumber: bank.currentCheckNumber > 0 ? bank.currentCheckNumber : 1,
+      checkHtml: bank.checkHtml || null,
+      checkStockFileDetails: bank.checkStockFileDetails
+    };
+  }
+
+  resolveCheckTemplate(
+    officeTemplate: string,
+    accountingOffice: AccountingOfficeResponse | null,
+    printingBank: { checkHtml?: string | null } | null
+  ): string {
+    const bankLayout = (printingBank?.checkHtml || '').trim();
+    if (this.checkHtmlService.hasMergeTokens(bankLayout)) {
+      return bankLayout;
+    }
     const officeLayout = (accountingOffice?.checkHtml || '').trim();
-    const primaryTemplate = this.checkHtmlService.hasMergeTokens(officeLayout) ? officeLayout : officeTemplate;
-    const bankLayouts = (accountingOffice?.banks || []).filter(bank => this.checkHtmlService.hasMergeTokens(bank.checkHtml || ''));
-    return bankLayouts.length === 1 ? (bankLayouts[0].checkHtml || primaryTemplate) : primaryTemplate;
+    return this.checkHtmlService.hasMergeTokens(officeLayout) ? officeLayout : officeTemplate;
   }
 
 resolveCheckStockPdfDataUrl(fileDetails: { file?: string; dataUrl?: string; contentType?: string } | null | undefined): string | null {
@@ -3223,6 +3283,45 @@ triggerCheckPrint(): void {
       }
 
       if (this.normalizePrintCheckVendorId(row.contactId) !== anchorVendorId) {
+        this.selectedJournalEntryLineIds.delete(lineId);
+        row.selected = false;
+        rejected = true;
+      }
+    }
+
+    return rejected;
+  }
+
+  rejectPrintCheckRowsWithDifferentBank(previousSelectedIds: Set<string>): boolean {
+    const newlySelectedIds = [...this.selectedJournalEntryLineIds].filter(id => !previousSelectedIds.has(id));
+    if (newlySelectedIds.length === 0) {
+      return false;
+    }
+
+    const existingSelectedRows = this.linesDisplay.filter(row =>
+      previousSelectedIds.has(row.journalEntryLineId)
+    );
+    let anchorAccountId = 0;
+
+    if (existingSelectedRows.length > 0) {
+      anchorAccountId = Number(existingSelectedRows[0].chartOfAccountId || 0);
+    } else {
+      const firstNewRow = this.linesDisplay.find(row => newlySelectedIds.includes(row.journalEntryLineId));
+      anchorAccountId = Number(firstNewRow?.chartOfAccountId || 0);
+    }
+
+    if (!anchorAccountId) {
+      return false;
+    }
+
+    let rejected = false;
+    for (const lineId of newlySelectedIds) {
+      const row = this.linesDisplay.find(line => line.journalEntryLineId === lineId);
+      if (!row) {
+        continue;
+      }
+
+      if (Number(row.chartOfAccountId || 0) !== anchorAccountId) {
         this.selectedJournalEntryLineIds.delete(lineId);
         row.selected = false;
         rejected = true;
