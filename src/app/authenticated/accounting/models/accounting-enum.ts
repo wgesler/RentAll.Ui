@@ -16,7 +16,7 @@ export const TransactionTypeLabels: { value: TransactionType, label: string }[] 
   { value: TransactionType.ChargeProrate, label: 'Charge (Prorate)' },
   { value: TransactionType.ChargeOneTime, label: 'Charge (One-Time)' },
   { value: TransactionType.Payment, label: 'Payment' },
-  { value: TransactionType.Deposit, label: 'Deposit' },
+  { value: TransactionType.Deposit, label: 'Security Deposit' },
   { value: TransactionType.SDW, label: 'SDW' },
   { value: TransactionType.Expense, label: 'Expense' },
   { value: TransactionType.CostOfGoodsSold, label: 'Cost Of Goods Sold' },
@@ -32,7 +32,7 @@ export function getTransactionType(transactionTypeId: number | undefined): strin
   const typeMap: { [key: number]: string } = {
     [TransactionType.ChargeProrate]: 'Charge (Prorate)',
     [TransactionType.Payment]: 'Payment',
-    [TransactionType.Deposit]: 'Deposit',
+    [TransactionType.Deposit]: 'Security Deposit',
     [TransactionType.SDW]: 'SDW',
     [TransactionType.Expense]: 'Expense',
     [TransactionType.CostOfGoodsSold]: 'Cost Of Goods Sold',
