@@ -7,7 +7,7 @@
     class="sidenav-collapsed">
 
     @for (navItem of navItems; track navItem.path; let i = $index) {
-      @if (navItem.tabs.length) {
+      @if (navItem.tabs.length && navItem.path !== 'reservations') {
         <a mat-list-item
           class="mat-list-item-closed"
           [disableRipple]="true"

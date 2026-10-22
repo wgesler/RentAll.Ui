@@ -1,10 +1,15 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Subject, finalize, firstValueFrom, take, takeUntil } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceResponse, LedgerLineResponse } from '../../accounting/models/invoice.model';
+import { InvoiceDocumentService } from '../../accounting/services/invoice-document.service';
 import { InvoiceService } from '../../accounting/services/invoice.service';
+import { withMobileEmailCreateRoute } from '../mobile-property-letter/mobile-property-letter-email';
 
 @Component({
   standalone: true,
@@ -17,6 +22,9 @@ import { InvoiceService } from '../../accounting/services/invoice.service';
 export class MobileInvoicePageComponent implements OnInit, OnChanges, OnDestroy {
   @Input() invoiceId = '';
   private invoiceService = inject(InvoiceService);
+  private invoiceDocumentService = inject(InvoiceDocumentService);
+  private router = inject(Router);
+  private toastr = inject(ToastrService);
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
@@ -24,6 +32,7 @@ export class MobileInvoicePageComponent implements OnInit, OnChanges, OnDestroy 
   lines: LedgerLineResponse[] = [];
   isPageReady = false;
   loadFailed = false;
+  isPreparingEmail = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice']));
   destroy$ = new Subject<void>();
 
@@ -69,6 +78,26 @@ export class MobileInvoicePageComponent implements OnInit, OnChanges, OnDestroy 
     const total = Number(this.invoice?.totalAmount) || 0;
     const paid = Number(this.invoice?.paidAmount) || 0;
     return Math.round((total - paid) * 100) / 100;
+  }
+
+  emailInvoice(): void {
+    const invoice = this.invoice;
+    if (!invoice || this.isPreparingEmail) {
+      return;
+    }
+    this.isPreparingEmail = true;
+    this.markViewForCheck();
+    void withMobileEmailCreateRoute(this.router, async () => {
+      try {
+        await firstValueFrom(this.invoiceDocumentService.openInvoiceEmailDraft(invoice));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to prepare invoice email.';
+        this.toastr.error(message, CommonMessage.Error);
+      } finally {
+        this.isPreparingEmail = false;
+        this.markViewForCheck();
+      }
+    });
   }
   //#endregion
 

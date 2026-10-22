@@ -197,7 +197,7 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
       this.router.navigate(['/mobile', 'properties', this.detailId, menuTab.path], { queryParamsHandling: 'preserve' });
       return;
     }
-    if (this.section.path === 'reservations' && (menuTab.path === 'lease' || menuTab.path === 'invoices') && this.tab?.path === 'reservation' && this.detailId && this.detailId !== 'new') {
+    if (this.section.path === 'reservations' && this.detailId && this.detailId !== 'new') {
       void this.router.navigate(['/mobile', 'reservations', menuTab.path, this.detailId]);
       return;
     }
@@ -243,8 +243,8 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
       return;
     }
     if (this.section.path === 'reservations' && this.detailId) {
-      if (this.tab?.path && this.tab.path !== 'reservation') {
-        void this.router.navigate(['/mobile', 'reservations', this.tab.path]);
+      if (this.tab?.path === 'invoices' && this.invoiceId) {
+        void this.router.navigate(['/mobile', 'reservations', 'invoices', this.detailId]);
         return;
       }
       void this.router.navigateByUrl(getMobileReservationBackUrl(this.reservationReturnTo));
@@ -290,7 +290,9 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
       ? MOBILE_PROPERTY_DETAIL_TABS
       : this.section?.path === 'tickets'
         ? ticketTabs
-        : (this.section?.tabs ?? []);
+        : this.section?.path === 'reservations'
+          ? (this.detailId && this.detailId !== 'new' ? MOBILE_RESERVATION_TABS : [])
+          : (this.section?.tabs ?? []);
     this.tab = this.section?.path === 'properties' && this.detailId
       ? (MOBILE_PROPERTY_DETAIL_TABS.find(tab => tab.path === parts.tabPath) ?? MOBILE_PROPERTY_DETAIL_TABS[0])
       : this.section?.path === 'tickets'

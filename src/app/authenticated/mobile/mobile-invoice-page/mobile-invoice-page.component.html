@@ -5,6 +5,12 @@
 } @else if (loadFailed || !invoice) {
   <p class="mobile-invoice-status">Unable to load this invoice.</p>
 } @else {
+  <div class="mobile-list-actions">
+    <button mat-raised-button color="accent" type="button" (click)="emailInvoice()" [disabled]="isPreparingEmail">
+      <mat-icon>email</mat-icon>
+      Email
+    </button>
+  </div>
   <div class="mobile-invoice">
     <h2 class="mobile-invoice-code">{{ invoice.invoiceCode }}</h2>
     <dl class="mobile-invoice-facts">
