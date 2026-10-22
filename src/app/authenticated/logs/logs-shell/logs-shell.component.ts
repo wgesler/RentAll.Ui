@@ -1,8 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { finalize, forkJoin, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AccountingErrorLogComponent } from '../accounting-error-log/accounting-error-log.component';
 import { AccountingErrorLogListComponent } from '../accounting-error-log-list/accounting-error-log-list.component';
 import { AccountingLogComponent } from '../accounting-log/accounting-log.component';
@@ -15,6 +20,7 @@ import { GeneralErrorLogComponent } from '../general-error-log/general-error-log
 import { GeneralErrorLogListComponent } from '../general-error-log-list/general-error-log-list.component';
 import { PropertyUploadLogComponent } from '../property-upload-log/property-upload-log.component';
 import { PropertyUploadLogListComponent } from '../property-upload-log-list/property-upload-log-list.component';
+import { DocumentHealthComponent } from '../document-health/document-health.component';
 import { AccountingErrorLogResponse, AccountingLogResponse, ApplicationLogResponse, DatabaseErrorLogResponse, GeneralErrorLogResponse, PropertyUploadLogResponse } from '../models/log.model';
 import { LogService } from '../services/log.service';
 
@@ -37,11 +43,18 @@ import { LogService } from '../services/log.service';
     GeneralErrorLogListComponent,
     GeneralErrorLogComponent,
     PropertyUploadLogListComponent,
-    PropertyUploadLogComponent
+    PropertyUploadLogComponent,
+    DocumentHealthComponent,
+    TitleBarSelectComponent
   ]
 })
-export class LogsShellComponent {
+export class LogsShellComponent implements OnInit {
   private logService = inject(LogService);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+
+  healthOffices: OfficeResponse[] = [];
+  selectedHealthOfficeId: number | null = null;
 
   selectedTabIndex = 0;
   reloadToken = 0;
@@ -55,8 +68,41 @@ export class LogsShellComponent {
   selectedGeneralError: GeneralErrorLogResponse | null = null;
   selectedPropertyUploadLog: PropertyUploadLogResponse | null = null;
 
+  get isHealthTab(): boolean {
+    return this.selectedTabIndex === 6;
+  }
+
+  get healthOfficeOptions(): SearchableSelectOption[] {
+    return this.healthOffices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  ngOnInit(): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
+          this.healthOffices = (offices || []).filter(office => office.isActive !== false);
+          if (this.selectedHealthOfficeId != null && !this.healthOffices.some(office => office.officeId === this.selectedHealthOfficeId)) {
+            this.selectedHealthOfficeId = null;
+          }
+        });
+      }
+    });
+  }
+
   onTabIndexChange(tabIndex: number): void {
     this.selectedTabIndex = tabIndex;
+  }
+
+  onHealthOfficeChange(value: string | number | null): void {
+    this.selectedHealthOfficeId = value == null || value === '' ? null : Number(value);
   }
 
   deleteAllLogs(): void {

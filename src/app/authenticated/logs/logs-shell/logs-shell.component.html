@@ -6,6 +6,19 @@
           <mat-icon class="flex-shrink-0">article</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Logs</span>
         </span>
+        @if (isHealthTab) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="selectedHealthOfficeId ? 'Office' : 'All Offices'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedHealthOfficeId"
+              [options]="healthOfficeOptions"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onHealthOfficeChange($event)">
+            </app-title-bar-select>
+          </div>
+        }
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
         <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isDeletingAll" (click)="deleteAllLogs()">
@@ -66,6 +79,10 @@
           @if (selectedPropertyUploadLog) {
             <app-property-upload-log [row]="selectedPropertyUploadLog" />
           }
+        </mat-tab>
+
+        <mat-tab label="Health">
+          <app-document-health [officeId]="selectedHealthOfficeId" />
         </mat-tab>
       </mat-tab-group>
     </mat-card>

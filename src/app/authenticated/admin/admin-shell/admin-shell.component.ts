@@ -12,7 +12,6 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { DocumentHealthComponent } from '../../logs/document-health/document-health.component';
 import { AdminTasksComponent } from '../admin-tasks/admin-tasks.component';
 import { AdminReceiptsComponent } from '../admin-receipts/admin-receipts.component';
 
@@ -21,7 +20,7 @@ import { AdminReceiptsComponent } from '../admin-receipts/admin-receipts.compone
   selector: 'app-admin-shell',
   templateUrl: './admin-shell.component.html',
   styleUrl: './admin-shell.component.scss',
-  imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, AdminTasksComponent, AdminReceiptsComponent, DocumentHealthComponent]
+  imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, AdminTasksComponent, AdminReceiptsComponent]
 })
 export class AdminShellComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
