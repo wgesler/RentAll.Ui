@@ -19,9 +19,9 @@ export function getTicketStateType(ticketStateTypeId: number | undefined): strin
     [TicketStateType.scheduled]: 'Scheduled',
     [TicketStateType.inProgress]: 'In Progress',
     [TicketStateType.inReview]: 'In Review',
+    [TicketStateType.hold]: 'On Hold',
     [TicketStateType.workComplete]: 'Complete',
-    [TicketStateType.closed]: 'Closed',
-    [TicketStateType.hold]: 'Hold'
+    [TicketStateType.closed]: 'Closed'
   };
 
   return stateTypeMap[ticketStateTypeId] || '';
@@ -34,8 +34,8 @@ export function getTicketStateTypes(): { value: number, label: string }[] {
     { value: TicketStateType.scheduled, label: getTicketStateType(TicketStateType.scheduled) },
     { value: TicketStateType.inProgress, label: getTicketStateType(TicketStateType.inProgress) },
     { value: TicketStateType.inReview, label: getTicketStateType(TicketStateType.inReview) },
-    { value: TicketStateType.workComplete, label: getTicketStateType(TicketStateType.workComplete) },
     { value: TicketStateType.hold, label: getTicketStateType(TicketStateType.hold) },
+    { value: TicketStateType.workComplete, label: getTicketStateType(TicketStateType.workComplete) },
     { value: TicketStateType.closed, label: getTicketStateType(TicketStateType.closed) }
   ];
 }
