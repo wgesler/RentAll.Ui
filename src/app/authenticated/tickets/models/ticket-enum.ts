@@ -6,7 +6,8 @@ export enum TicketStateType {
   inProgress = 3,
   workComplete = 4,
   closed = 5,
-  inReview = 6
+  inReview = 6,
+  hold = 7
 }
 
 export function getTicketStateType(ticketStateTypeId: number | undefined): string {
@@ -19,7 +20,8 @@ export function getTicketStateType(ticketStateTypeId: number | undefined): strin
     [TicketStateType.inProgress]: 'In Progress',
     [TicketStateType.inReview]: 'In Review',
     [TicketStateType.workComplete]: 'Complete',
-    [TicketStateType.closed]: 'Closed'
+    [TicketStateType.closed]: 'Closed',
+    [TicketStateType.hold]: 'Hold'
   };
 
   return stateTypeMap[ticketStateTypeId] || '';
@@ -33,6 +35,7 @@ export function getTicketStateTypes(): { value: number, label: string }[] {
     { value: TicketStateType.inProgress, label: getTicketStateType(TicketStateType.inProgress) },
     { value: TicketStateType.inReview, label: getTicketStateType(TicketStateType.inReview) },
     { value: TicketStateType.workComplete, label: getTicketStateType(TicketStateType.workComplete) },
+    { value: TicketStateType.hold, label: getTicketStateType(TicketStateType.hold) },
     { value: TicketStateType.closed, label: getTicketStateType(TicketStateType.closed) }
   ];
 }

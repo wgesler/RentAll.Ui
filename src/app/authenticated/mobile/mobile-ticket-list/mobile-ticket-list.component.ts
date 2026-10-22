@@ -149,7 +149,7 @@ export class MobileTicketListComponent implements OnInit, OnChanges, OnDestroy {
       return !!ticket.isForRentAll && this.isRentAllQueueState(ticket.ticketStateTypeId);
     }
     if (this.filterMode === 'review') {
-      return !!ticket.isForRentAll && ticket.ticketStateTypeId === TicketStateType.inReview;
+      return !!ticket.isForRentAll && (ticket.ticketStateTypeId === TicketStateType.inReview || ticket.ticketStateTypeId === TicketStateType.hold);
     }
     if (this.filterMode === 'complete') {
       return !!ticket.isForRentAll && (ticket.ticketStateTypeId === TicketStateType.workComplete || ticket.ticketStateTypeId === TicketStateType.closed);
