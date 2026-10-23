@@ -9,12 +9,16 @@ export enum TransactionType {
   Liability = 7,
   Equity = 8,
   Income = 9,
-  ChargeOneTime = 10
+  ChargeOneTime = 10,
+  ChargeOwnerProrate = 11,
+  ChargeOwnerOneTime = 12
  }
 
 export const TransactionTypeLabels: { value: TransactionType, label: string }[] = [
   { value: TransactionType.ChargeProrate, label: 'Charge (Prorate)' },
   { value: TransactionType.ChargeOneTime, label: 'Charge (One-Time)' },
+  { value: TransactionType.ChargeOwnerProrate, label: 'Charge Owner (Prorate)' },
+  { value: TransactionType.ChargeOwnerOneTime, label: 'Charge Owner (One-Time)' },
   { value: TransactionType.Payment, label: 'Payment' },
   { value: TransactionType.Deposit, label: 'Security Deposit' },
   { value: TransactionType.SDW, label: 'SDW' },
@@ -41,6 +45,8 @@ export function getTransactionType(transactionTypeId: number | undefined): strin
     [TransactionType.Equity]: 'Equity',
     [TransactionType.Income]: 'Income',
     [TransactionType.ChargeOneTime]: 'Charge (One-Time)',
+    [TransactionType.ChargeOwnerProrate]: 'Charge Owner (Prorate)',
+    [TransactionType.ChargeOwnerOneTime]: 'Charge Owner (One-Time)',
    };
   
   return typeMap[transactionTypeId] || '';
