@@ -17,7 +17,7 @@ import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
-import { FeatureType, OrganizationType } from '../models/organization-enum';
+import { FeatureType, IRSMethodType, OrganizationType, getIRSMethodTypes } from '../models/organization-enum';
 import { FeatureResponse } from '../models/organization-feature.model';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { getQbClassTypes, getQbNameTypes } from '../models/qb-type-enum';
@@ -83,6 +83,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   sdwCostCodeOptions: { value: number, label: string }[] = [];
   qbNameTypeOptions: { value: number; label: string }[] = getQbNameTypes();
   qbClassTypeOptions: { value: number; label: string }[] = getQbClassTypes();
+  irsMethodTypeOptions: { value: number; label: string }[] = getIRSMethodTypes();
   hasQuickBooksAccess = false;
   hasDocuSignAccess = false;
   hasLeasingAccess = false;
@@ -247,6 +248,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       afterHoursPhone: formValue.afterHoursPhone ? this.formatterService.stripPhoneFormatting(formValue.afterHoursPhone) : undefined,
       afterHoursInstructions: formValue.afterHoursInstructions || undefined,
+      irsMethodTypeId: formValue.irsMethodTypeId ?? IRSMethodType.IrsNetMethod,
       useDailyOnResBoard: formValue.useDailyOnResBoard ?? false,
       useStrictOnTickets: formValue.useStrictOnTickets ?? false,
       daysToRefundDeposit: formValue.daysToRefundDeposit || 0,
@@ -464,6 +466,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       maintenanceEmail: new FormControl<string>('', [Validators.required, Validators.email]),
       afterHoursPhone: new FormControl<string>('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       afterHoursInstructions: new FormControl<string>(''),
+      irsMethodTypeId: new FormControl<number>(IRSMethodType.IrsNetMethod, [Validators.required]),
       useDailyOnResBoard: new FormControl<boolean>(false),
       useStrictOnTickets: new FormControl<boolean>(false),
       defaultDeposit: new FormControl<string>('0.00', [Validators.required]),
@@ -553,6 +556,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           maintenanceEmail: this.office.maintenanceEmail || '',
           afterHoursPhone: this.formatterService.phoneNumber(this.office.afterHoursPhone) || '',
           afterHoursInstructions: this.office.afterHoursInstructions || '',
+          irsMethodTypeId: this.office.irsMethodTypeId ?? IRSMethodType.IrsNetMethod,
           useDailyOnResBoard: this.office.useDailyOnResBoard ?? false,
           useStrictOnTickets: this.office.useStrictOnTickets ?? false,
           defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
@@ -639,6 +643,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       maintenanceEmail: o.maintenanceEmail || '',
       afterHoursPhone: this.formatterService.phoneNumber(o.afterHoursPhone) || '',
       afterHoursInstructions: o.afterHoursInstructions || '',
+      irsMethodTypeId: o.irsMethodTypeId ?? IRSMethodType.IrsNetMethod,
       useDailyOnResBoard: o.useDailyOnResBoard ?? false,
       useStrictOnTickets: o.useStrictOnTickets ?? false,
       defaultDeposit: o.defaultDeposit != null ? o.defaultDeposit.toFixed(2) : '0.00',
@@ -732,6 +737,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     const billingControls: { name: string; validators: ValidatorFn[] }[] = [
       { name: 'maintenanceEmail', validators: [Validators.required, Validators.email] },
       { name: 'afterHoursPhone', validators: [Validators.required, Validators.pattern(phonePattern)] },
+      { name: 'irsMethodTypeId', validators: [Validators.required] },
       { name: 'defaultDeposit', validators: [Validators.required] },
       { name: 'defaultSdw', validators: [Validators.required] },
       { name: 'daysToRefundDeposit', validators: [Validators.required] },

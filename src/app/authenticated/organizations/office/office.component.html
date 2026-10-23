@@ -215,8 +215,20 @@
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
 
-                <!-- Management off: checkbox plus the six remaining fees on one line. Management on: five, then four. -->
-                <div class="grid form-standard-grid mb-4" [class.grid-cols-7]="!hasManagementAccess" [class.grid-cols-5]="hasManagementAccess">
+                <!-- Management off: IRS method, checkbox, and the six fees. Management on: five, then five. -->
+                <div class="grid form-standard-grid mb-4" [class.grid-cols-8]="!hasManagementAccess" [class.grid-cols-5]="hasManagementAccess">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-label>IRS Method Type</mat-label>
+                    <mat-select formControlName="irsMethodTypeId" required>
+                      @for (method of irsMethodTypeOptions; track method.value) {
+                        <mat-option [value]="method.value">{{ method.label }}</mat-option>
+                      }
+                    </mat-select>
+                    @if (form.get('irsMethodTypeId')?.hasError('required') && form.get('irsMethodTypeId')?.touched) {
+                      <mat-error>IRS Method Type is required</mat-error>
+                    }
+                  </mat-form-field>
+
                   <div class="col-span-1 flex items-center justify-center">
                     <mat-checkbox formControlName="useDailyOnResBoard" color="primary">
                       <span class="inline-block text-left leading-tight">

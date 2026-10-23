@@ -105,3 +105,32 @@ export function getFeatureTypeLabel(featureTypeId: number, featureTypes?: { valu
   return getFeatureType(featureTypeId) || 'Unknown';
 }
 //#endregion
+
+//#region IRSMethodType
+export enum IRSMethodType {
+  IrsNetMethod = 0,
+  IrsGrossMethod = 1
+}
+
+export function getIRSMethodType(irsMethodTypeId: number | undefined | null): string {
+  if (irsMethodTypeId === undefined || irsMethodTypeId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [IRSMethodType.IrsNetMethod]: 'IRS Net Method',
+    [IRSMethodType.IrsGrossMethod]: 'IRS Gross Method'
+  };
+
+  return typeMap[irsMethodTypeId] || '';
+}
+
+export function getIRSMethodTypes(): { value: number; label: string }[] {
+  return Object.keys(IRSMethodType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: IRSMethodType[key as keyof typeof IRSMethodType],
+      label: getIRSMethodType(IRSMethodType[key as keyof typeof IRSMethodType])
+    }));
+}
+//#endregion

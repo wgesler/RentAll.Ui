@@ -22,6 +22,7 @@ export interface OfficeRequest {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
+  irsMethodTypeId: number;
   useDailyOnResBoard: boolean
   useStrictOnTickets: boolean
   daysToRefundDeposit: number;
@@ -105,6 +106,7 @@ export interface OfficeResponse {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
+  irsMethodTypeId: number;
   useDailyOnResBoard: boolean
   useStrictOnTickets: boolean
   daysToRefundDeposit: number;
