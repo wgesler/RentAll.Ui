@@ -717,6 +717,26 @@
                         }
                       </mat-select>
                     </mat-form-field>
+                    @if (form.get('irsMethodTypeId')?.value === IRSMethodType.IrsGrossMethod) {
+                      <mat-form-field appearance="outline" class="col-span-1 w-full">
+                        <mat-label>Furnished Rental Income</mat-label>
+                        <mat-select formControlName="furnishedRentIncomeCcId">
+                          <mat-option [value]="null">None</mat-option>
+                          @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                            <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="col-span-1 w-full">
+                        <mat-label>Unfurnished Rental Income</mat-label>
+                        <mat-select formControlName="unfurnishedRentIncomeCcId">
+                          <mat-option [value]="null">None</mat-option>
+                          @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                            <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    }
                   </div>
                 </div>
 

@@ -71,6 +71,8 @@ export interface OfficeRequest {
   administrativeFeeCcId?: number | null;
   securityDepositCcId?: number | null;
   securityDepositWaiverCcId?: number | null;
+  furnishedRentIncomeCcId?: number | null;
+  unfurnishedRentIncomeCcId?: number | null;
   quotePreface?: string | null;
   quoteSuffix?: string | null;
   quoteDisclaimer?: string | null;
@@ -155,6 +157,8 @@ export interface OfficeResponse {
   administrativeFeeCcId?: number | null;
   securityDepositCcId?: number | null;
   securityDepositWaiverCcId?: number | null;
+  furnishedRentIncomeCcId?: number | null;
+  unfurnishedRentIncomeCcId?: number | null;
   quotePreface?: string | null;
   quoteSuffix?: string | null;
   quoteDisclaimer?: string | null;

@@ -662,6 +662,7 @@
                   }
                 </div>
                 }
+                @if (hasManagementAccess) {
                 <h4 class="text-base font-semibold mb-3">Departure Accounts</h4>
                 <div class="grid grid-cols-2 form-standard-grid mb-4">
                   @for (field of defaultDepartureAccountFields; track field.controlName) {
@@ -683,6 +684,7 @@
                       (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
                   }
                 </div>
+                }
                 <h4 class="text-base font-semibold mb-3">Bank &amp; Balance Sheet Accounts</h4>
                 <div class="grid grid-cols-4 form-standard-grid mb-4">
                   @for (field of defaultAccountFieldsRow2; track field.controlName) {
