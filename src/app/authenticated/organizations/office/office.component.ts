@@ -212,6 +212,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   }
 
   saveOffice(): void {
+    this.applyPartnerFieldValidators();
     if (!this.form.valid) {
       this.form.markAllAsTouched();
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
@@ -443,8 +444,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       isInternational: new FormControl(false),
       isActive: new FormControl(true),
       // Configuration fields
-      maintenanceEmail: new FormControl<string>('', [Validators.required, Validators.email]),
-      afterHoursPhone: new FormControl<string>('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
+      maintenanceEmail: new FormControl<string>(''),
+      afterHoursPhone: new FormControl<string>(''),
       afterHoursInstructions: new FormControl<string>(''),
       irsMethodTypeId: new FormControl<number>(IRSMethodType.IrsNetMethod, [Validators.required]),
       useDailyOnResBoard: new FormControl<boolean>(false),
@@ -455,18 +456,18 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       defaultKeyFee: new FormControl<string>('0.00', [Validators.required]),
       undisclosedPetFee: new FormControl<string>('0.00', [Validators.required]),
       minimumSmokingFee: new FormControl<string>('0.00', [Validators.required]),
-      utilityOneBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityTwoBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityThreeBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityFourBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityHouse: new FormControl<string>('0.00', [Validators.required]),
-      maidOneBed: new FormControl<string>('0.00', [Validators.required]),
-      maidTwoBed: new FormControl<string>('0.00', [Validators.required]),
-      maidThreeBed: new FormControl<string>('0.00', [Validators.required]),
-      maidFourBed: new FormControl<string>('0.00', [Validators.required]),
-      maidHouse: new FormControl<string>('0.00', [Validators.required]),
-      parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
-      parkingHighEnd: new FormControl<string>('0.00', [Validators.required]),
+      utilityOneBed: new FormControl<string>('0.00'),
+      utilityTwoBed: new FormControl<string>('0.00'),
+      utilityThreeBed: new FormControl<string>('0.00'),
+      utilityFourBed: new FormControl<string>('0.00'),
+      utilityHouse: new FormControl<string>('0.00'),
+      maidOneBed: new FormControl<string>('0.00'),
+      maidTwoBed: new FormControl<string>('0.00'),
+      maidThreeBed: new FormControl<string>('0.00'),
+      maidFourBed: new FormControl<string>('0.00'),
+      maidHouse: new FormControl<string>('0.00'),
+      parkingLowEnd: new FormControl<string>('0.00'),
+      parkingHighEnd: new FormControl<string>('0.00'),
       defaultMarkup: new FormControl<string>(''),
       defaultRevenueSplitOwner: new FormControl<string>(''),
       defaultRevenueSplitOffice: new FormControl<string>(''),
@@ -501,8 +502,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePetFee: new FormControl<boolean>(false),
       quoteDepartureFee: new FormControl<boolean>(false),
       quoteMaidFee: new FormControl<boolean>(false),
-      docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
-      docuSignBaseUri: new FormControl<string>('', [Validators.pattern(/^$|^https?:\/\/.+/i)]),
+      docuSignApiAccountId: new FormControl<string>(''),
+      docuSignBaseUri: new FormControl<string>(''),
       qbNameTypeId: new FormControl<number | null>(null),
       qbClassTypeId: new FormControl<number | null>(null)
     });
@@ -714,9 +715,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     }
 
     const phonePattern = /^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/;
+    const docuSignAccountPattern = /^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const docuSignUriPattern = /^$|^https?:\/\/.+/i;
     const billingControls: { name: string; validators: ValidatorFn[] }[] = [
       { name: 'maintenanceEmail', validators: [Validators.required, Validators.email] },
       { name: 'afterHoursPhone', validators: [Validators.required, Validators.pattern(phonePattern)] },
+      { name: 'docuSignApiAccountId', validators: [Validators.pattern(docuSignAccountPattern)] },
+      { name: 'docuSignBaseUri', validators: [Validators.pattern(docuSignUriPattern)] },
       { name: 'irsMethodTypeId', validators: [Validators.required] },
       { name: 'defaultDeposit', validators: [Validators.required] },
       { name: 'defaultSdw', validators: [Validators.required] },
@@ -744,6 +749,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       'maidOneBed', 'maidTwoBed', 'maidThreeBed', 'maidFourBed', 'maidHouse',
       'parkingLowEnd', 'parkingHighEnd'
     ]);
+    const docuSignControls = new Set(['docuSignApiAccountId', 'docuSignBaseUri']);
 
     billingControls.forEach(item => {
       const control = this.form.get(item.name);
@@ -751,14 +757,17 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
         return;
       }
       const hiddenByFeature = (managementControls.has(item.name) && !this.hasManagementAccess)
-        || (leasingControls.has(item.name) && !this.hasLeasingAccess);
-      if (this.isPartnerOrganization || hiddenByFeature) {
+        || (leasingControls.has(item.name) && !this.hasLeasingAccess)
+        || (docuSignControls.has(item.name) && !this.hasDocuSignAccess);
+      const hiddenByPartner = this.isPartnerOrganization && !docuSignControls.has(item.name);
+      if (hiddenByPartner || hiddenByFeature) {
         control.clearValidators();
       } else {
         control.setValidators(item.validators);
       }
       control.updateValueAndValidity({ emitEvent: false });
     });
+    this.form.updateValueAndValidity({ emitEvent: false });
   }
   //#endregion
 
