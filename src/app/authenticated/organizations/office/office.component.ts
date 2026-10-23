@@ -13,7 +13,6 @@ import { UtilityService, ImageOptimizationFailedError } from '../../../services/
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
-import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
@@ -412,36 +411,17 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       return;
     }
 
-    const officeActiveCostCodes = this.allCostCodes
-      .filter(c => c.officeId === officeId && c.isActive);
-
-    this.chargeCostCodeOptions = officeActiveCostCodes
-      .filter(c => c.transactionTypeId === TransactionType.ChargeProrate || c.transactionTypeId === TransactionType.ChargeOneTime)
+    const officeCostCodeOptions = this.allCostCodes
+      .filter(c => c.officeId === officeId && c.isActive)
       .map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
       }));
 
-    this.expenseCostCodeOptions = officeActiveCostCodes
-      .filter(c => c.transactionTypeId === TransactionType.CostOfGoodsSold || c.transactionTypeId === TransactionType.Expense)
-      .map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
-
-    this.depositCostCodeOptions = officeActiveCostCodes
-      .filter(c => c.transactionTypeId === TransactionType.Deposit)
-      .map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
-
-    this.sdwCostCodeOptions = officeActiveCostCodes
-      .filter(c => c.transactionTypeId === TransactionType.SDW)
-      .map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
+    this.chargeCostCodeOptions = officeCostCodeOptions;
+    this.expenseCostCodeOptions = officeCostCodeOptions;
+    this.depositCostCodeOptions = officeCostCodeOptions;
+    this.sdwCostCodeOptions = officeCostCodeOptions;
   }
   //#endregion
 
