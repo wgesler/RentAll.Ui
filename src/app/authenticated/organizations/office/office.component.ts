@@ -423,7 +423,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       }));
 
     this.expenseCostCodeOptions = officeActiveCostCodes
-      .filter(c => c.transactionTypeId === TransactionType.CostOfGoodsSold)
+      .filter(c => c.transactionTypeId === TransactionType.CostOfGoodsSold || c.transactionTypeId === TransactionType.Expense)
       .map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
