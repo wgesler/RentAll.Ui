@@ -215,8 +215,17 @@
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
 
-                <!-- Management off: IRS method, checkbox, and the six fees. Management on: five, then five. -->
+                <!-- Management off: checkbox, IRS method, and the six fees. Management on: five, then five. -->
                 <div class="grid form-standard-grid mb-4" [class.grid-cols-8]="!hasManagementAccess" [class.grid-cols-5]="hasManagementAccess">
+                  <div class="col-span-1 flex items-center justify-center">
+                    <mat-checkbox formControlName="useDailyOnResBoard" color="primary">
+                      <span class="inline-block text-left leading-tight">
+                        Use Daily Amount<br>
+                        on Reservation Board
+                      </span>
+                    </mat-checkbox>
+                  </div>
+
                   <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>IRS Method Type</mat-label>
                     <mat-select formControlName="irsMethodTypeId" required>
@@ -228,15 +237,6 @@
                       <mat-error>IRS Method Type is required</mat-error>
                     }
                   </mat-form-field>
-
-                  <div class="col-span-1 flex items-center justify-center">
-                    <mat-checkbox formControlName="useDailyOnResBoard" color="primary">
-                      <span class="inline-block text-left leading-tight">
-                        Use Daily Amount<br>
-                        on Reservation Board
-                      </span>
-                    </mat-checkbox>
-                  </div>
 
                   <!-- Default Rental Deposit -->
                   <mat-form-field appearance="outline" class="col-span-1 w-full">
