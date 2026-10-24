@@ -708,7 +708,6 @@
                 </div>
                 <div class="grid grid-cols-4 form-standard-grid mb-4">
                   @for (field of defaultAccountFieldsEscrow; track field.controlName) {
-                    @if (field.controlName !== 'defaultInterOfficeAccountId' || availableOffices.length > 1) {
                     <app-searchable-select
                       class="col-span-1 w-full"
                       [renderInFormField]="true"
@@ -716,6 +715,7 @@
                       [formFieldLabel]="field.label"
                       [value]="form.get(field.controlName)?.value ?? null"
                       [options]="chartOfAccountOptions"
+                      [disabled]="field.controlName === 'defaultInterOfficeAccountId' && availableOffices.length <= 1"
                       [showInstructionOption]="true"
                       [instructionOptionValue]="null"
                       nullOptionLabel="None"
@@ -725,7 +725,6 @@
                       searchPlaceholder="Type to filter accounts..."
                       noResultsText="No accounts match your search"
                       (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
-                    }
                   }
                 </div>
                 <div class="grid grid-cols-4 form-standard-grid">

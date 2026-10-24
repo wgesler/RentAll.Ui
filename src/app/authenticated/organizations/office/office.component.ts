@@ -87,7 +87,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   hasDocuSignAccess = false;
   hasLeasingAccess = false;
   hasManagementAccess = false;
-  readonly IRSMethodType = IRSMethodType;
   isPartnerOrganization = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
@@ -496,8 +495,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       administrativeFeeCcId: new FormControl<number | null>(null),
       securityDepositCcId: new FormControl<number | null>(null),
       securityDepositWaiverCcId: new FormControl<number | null>(null),
-      furnishedRentIncomeCcId: new FormControl<number | null>(null),
-      unfurnishedRentIncomeCcId: new FormControl<number | null>(null),
       quotePreface: new FormControl<string>(''),
       quoteSuffix: new FormControl<string>(''),
       quoteDisclaimer: new FormControl<string>(''),
@@ -588,8 +585,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           administrativeFeeCcId: this.office.administrativeFeeCcId ?? null,
           securityDepositCcId: this.office.securityDepositCcId ?? null,
           securityDepositWaiverCcId: this.office.securityDepositWaiverCcId ?? null,
-          furnishedRentIncomeCcId: this.office.furnishedRentIncomeCcId ?? null,
-          unfurnishedRentIncomeCcId: this.office.unfurnishedRentIncomeCcId ?? null,
           quotePreface: this.office.quotePreface || '',
           quoteSuffix: this.office.quoteSuffix || '',
           quoteDisclaimer: this.office.quoteDisclaimer || '',
@@ -677,8 +672,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       administrativeFeeCcId: o.administrativeFeeCcId ?? null,
       securityDepositCcId: o.securityDepositCcId ?? null,
       securityDepositWaiverCcId: o.securityDepositWaiverCcId ?? null,
-      furnishedRentIncomeCcId: o.furnishedRentIncomeCcId ?? null,
-      unfurnishedRentIncomeCcId: o.unfurnishedRentIncomeCcId ?? null,
       quotePreface: o.quotePreface || '',
       quoteSuffix: o.quoteSuffix || '',
       quoteDisclaimer: o.quoteDisclaimer || '',
@@ -1154,9 +1147,7 @@ quotePastePlainToHtml(plain: string): string {
       | 'applicationFeeCcId'
       | 'administrativeFeeCcId'
       | 'securityDepositCcId'
-      | 'securityDepositWaiverCcId'
-      | 'furnishedRentIncomeCcId'
-      | 'unfurnishedRentIncomeCcId';
+      | 'securityDepositWaiverCcId';
 
     const costCodeKeys: OfficeCostCodeKey[] = [
       'furnishedRentChargeCcId',
@@ -1172,9 +1163,7 @@ quotePastePlainToHtml(plain: string): string {
       'applicationFeeCcId',
       'administrativeFeeCcId',
       'securityDepositCcId',
-      'securityDepositWaiverCcId',
-      'furnishedRentIncomeCcId',
-      'unfurnishedRentIncomeCcId'
+      'securityDepositWaiverCcId'
     ];
 
     const costCodeValues: Partial<Pick<OfficeRequest, OfficeCostCodeKey>> = {};
