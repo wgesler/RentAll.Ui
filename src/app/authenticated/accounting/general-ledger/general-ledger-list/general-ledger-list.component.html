@@ -7,7 +7,8 @@
             <tr>
               @for (columnName of getDetailLineColumnNames(); track columnName) {
                 @if (activeDetailLineDisplayedColumns[columnName]) {
-                  <th [style.max-width]="getDetailLineColumnWidth(columnName)"
+                  <th [class.detail-line-contact]="columnName === 'contactName'"
+                      [style.max-width]="getDetailLineColumnWidth(columnName)"
                       [style.width]="getDetailLineColumnWidth(columnName)"
                       [style.min-width]="getDetailLineColumnMinWidth(columnName)"
                       [style.text-align]="activeDetailLineDisplayedColumns[columnName].headerAlignment || activeDetailLineDisplayedColumns[columnName].alignment || 'left'"

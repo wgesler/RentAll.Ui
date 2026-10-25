@@ -544,7 +544,7 @@
     width: 100%;
     min-width: 0 !important;
     max-width: 100%;
-    table-layout: fixed;
+    table-layout: auto;
     border-collapse: collapse;
     background-color: white;
 
@@ -580,6 +580,14 @@
     td {
       padding: 0 10px;
       box-sizing: border-box;
+    }
+
+    th.detail-line-contact,
+    td.detail-line-contact {
+      width: 30ch !important;
+      min-width: 30ch !important;
+      max-width: none !important;
+      white-space: nowrap;
     }
 
     .detail-line-no-cell {

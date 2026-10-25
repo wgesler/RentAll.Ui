@@ -1072,6 +1072,28 @@ resolveJournalEntryLineSourceDisplay(
       .filter((line): line is JournalEntryLineListDisplay => !!line);
   }
 
+  chartOfAccountOwnName(
+    account: ChartOfAccountResponse | undefined,
+    chartOfAccounts?: ChartOfAccountResponse[]
+  ): string {
+    const name = (account?.name || '').trim();
+    if (!account?.isSubaccount || !account.subAccountId) {
+      return name;
+    }
+
+    const parent = chartOfAccounts?.find(item =>
+      item.accountId === account.subAccountId &&
+      item.officeId === account.officeId
+    );
+    const parentName = (parent?.name || '').trim();
+    const parentPrefix = parentName ? `${parentName}:` : '';
+    if (parentPrefix && name.toLowerCase().startsWith(parentPrefix.toLowerCase())) {
+      return name.slice(parentPrefix.length).trim();
+    }
+
+    return name;
+  }
+
   buildJournalEntryLineListDisplayItem(
     line: JournalEntryLineSearchResponse,
     chartOfAccounts: ChartOfAccountResponse[] | undefined,
@@ -1090,9 +1112,9 @@ resolveJournalEntryLineSourceDisplay(
       item.officeId === line.officeId
     );
     const accountNo = (account?.accountNo || '').trim();
-    const accountName = (account?.name || '').trim();
+    const accountName = this.chartOfAccountOwnName(account, chartOfAccounts);
     const accountLabel = accountNo && accountName
-      ? `${accountNo}:${accountName}`
+      ? `${accountNo} ${accountName}`
       : accountNo || accountName || String(line.chartOfAccountId);
 
     return {
