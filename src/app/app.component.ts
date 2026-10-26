@@ -16,6 +16,7 @@ import { OfficeService } from './authenticated/organizations/services/office.ser
 import { RegionService } from './authenticated/organizations/services/region.service';
 import { TerminologyService } from './authenticated/organizations/services/terminology.service';
 import { OrganizationFeatureService } from './authenticated/organizations/services/organization-feature.service';
+import { EmailHtmlService } from './authenticated/email/services/email-html.service';
 import { FeatureResponse } from './authenticated/organizations/models/organization-feature.model';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
@@ -53,6 +54,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private areaService = inject(AreaService);
   private buildingService = inject(BuildingService);
   private organizationFeatureService = inject(OrganizationFeatureService);
+  private emailHtmlService = inject(EmailHtmlService);
   private globalSelectionService = inject(GlobalSelectionService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private costCodesService = inject(CostCodesService);
@@ -120,6 +122,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.propertyService.clearPropertyCodes();
         this.reservationService.clearReservationCodes();
         this.organizationFeatureService.clearFeatures();
+        this.emailHtmlService.clearEmailHtml();
         this.accountingOfficeService.clearAccountingOffices();
         this.chartOfAccountsService.clearChartOfAccounts();
         this.costCodesService.clearCostCodes();
@@ -198,6 +201,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.propertyService.clearPropertyCodes();
       this.reservationService.clearReservationCodes();
       this.organizationFeatureService.clearFeatures();
+      this.emailHtmlService.clearEmailHtml();
       this.accountingOfficeService.clearAccountingOffices();
       this.globalSelectionService.clearGlobalOfficeSelection();
       this.terminologyService.clearTerminologies();
@@ -213,6 +217,10 @@ export class AppComponent implements OnInit, OnDestroy {
         }).pipe(
           map(({ features }) => {
             this.globalSelectionService.reconcileGlobalOfficeWithAvailableOffices(activeOffices);
+            const templateOfficeId = activeOffices.length > 1
+              ? this.globalSelectionService.getSelectedOfficeIdValue()
+              : null;
+            this.emailHtmlService.ensureEmailHtmlLoaded(this.organizationId, templateOfficeId).pipe(take(1)).subscribe();
             return features || [];
           })
         );

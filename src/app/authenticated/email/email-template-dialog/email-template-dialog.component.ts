@@ -9,13 +9,11 @@ export interface EmailTemplateDialogData {
   subject: string;
   body: string;
   hasSubject: boolean;
-  canSaveForOffice: boolean;
 }
 
 export interface EmailTemplateDialogResult {
   subject: string;
   body: string;
-  scope: 'organization' | 'office';
 }
 
 @Component({
@@ -32,21 +30,21 @@ export class EmailTemplateDialogComponent {
   subject = this.data.subject || '';
   body = this.data.body || '';
 
+  get canSave(): boolean {
+    return !!this.body.trim() && (!this.data.hasSubject || !!this.subject.trim());
+  }
+
   onCancel(): void {
     this.dialogRef.close(undefined);
   }
 
-  onSave(scope: 'organization' | 'office'): void {
-    if (scope === 'office' && !this.data.canSaveForOffice) {
-      return;
-    }
-    if ((this.data.hasSubject && !this.subject.trim()) || !this.body.trim()) {
+  onSave(): void {
+    if (!this.canSave) {
       return;
     }
     this.dialogRef.close({
       subject: this.subject,
-      body: this.body,
-      scope
+      body: this.body
     });
   }
 }

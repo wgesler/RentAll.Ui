@@ -1,20 +1,30 @@
-<h2 mat-dialog-title>{{ data.name }}</h2>
-<mat-dialog-content>
-  @if (data.hasSubject) {
+<div class="email-template-dialog-wrap">
+  <div class="email-template-dialog-header">
+    <span class="email-template-dialog-title">
+      <mat-icon class="flex-shrink-0">mail</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">{{ data.name }}</span>
+    </span>
+    <span class="email-template-dialog-actions">
+      <button mat-raised-button type="button" color="accent" (click)="onCancel()" class="text-nowrap flex-shrink-0">
+        Cancel
+      </button>
+      <button mat-raised-button type="button" color="primary" (click)="onSave()" [disabled]="!canSave" class="text-nowrap flex-shrink-0">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    </span>
+  </div>
+
+  <mat-dialog-content class="email-template-dialog-content">
+    @if (data.hasSubject) {
+      <mat-form-field appearance="outline" class="email-template-field">
+        <mat-label>Subject</mat-label>
+        <input matInput [(ngModel)]="subject" maxlength="100" />
+      </mat-form-field>
+    }
     <mat-form-field appearance="outline" class="email-template-field">
-      <mat-label>Subject</mat-label>
-      <input matInput [(ngModel)]="subject" maxlength="100" />
+      <mat-label>Content</mat-label>
+      <textarea matInput [(ngModel)]="body" rows="16" maxlength="2048"></textarea>
     </mat-form-field>
-  }
-  <mat-form-field appearance="outline" class="email-template-field">
-    <mat-label>Content</mat-label>
-    <textarea matInput [(ngModel)]="body" rows="16" maxlength="2048"></textarea>
-  </mat-form-field>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button mat-button type="button" (click)="onCancel()">Cancel</button>
-  <button mat-flat-button type="button" color="primary" (click)="onSave('organization')">Save for organization</button>
-  @if (data.canSaveForOffice) {
-    <button mat-flat-button type="button" color="accent" (click)="onSave('office')">Save for this office</button>
-  }
-</mat-dialog-actions>
+  </mat-dialog-content>
+</div>

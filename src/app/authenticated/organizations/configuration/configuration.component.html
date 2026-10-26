@@ -294,12 +294,13 @@
                 <mat-panel-title>Email</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (expandedSections.email) {
-                  <app-email-template-list
-                    [organizationId]="effectiveOrganizationId"
-                    [officeId]="selectedCostCodesOfficeId">
-                  </app-email-template-list>
-                }
+                <app-email-template-list
+                  [organizationId]="effectiveOrganizationId"
+                  [organizationName]="settingsOrganizationName"
+                  [officeId]="selectedCostCodesOfficeId"
+                  [officeName]="settingsOfficeName"
+                  [officeCount]="offices.length">
+                </app-email-template-list>
               </div>
             </mat-expansion-panel>
           }

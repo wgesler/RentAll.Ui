@@ -343,6 +343,23 @@ refreshSettingsOfficeScopedLists(): void {
     return cached?.organizationId === organizationId && Number(cached.organizationTypeId) === OrganizationType.Partner;
   }
 
+  get settingsOrganizationName(): string {
+    const organizationId = this.effectiveOrganizationId;
+    const selected = (this.organizations || []).find(organization => organization.organizationId === organizationId);
+    if (selected?.name) {
+      return selected.name;
+    }
+    const cached = this.commonService.getOrganizationValue();
+    return cached?.organizationId === organizationId ? (cached.name || '') : '';
+  }
+
+  get settingsOfficeName(): string {
+    if (this.selectedCostCodesOfficeId == null || this.selectedCostCodesOfficeId <= 0) {
+      return '';
+    }
+    return this.offices.find(office => office.officeId === this.selectedCostCodesOfficeId)?.name || '';
+  }
+
   get officeTitleBarOptions(): { value: number; label: string }[] {
     return (this.offices || []).map((office) => ({
       value: office.officeId,
