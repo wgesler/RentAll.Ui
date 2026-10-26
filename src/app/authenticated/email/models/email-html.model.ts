@@ -1,5 +1,6 @@
 export interface EmailHtmlResponse {
   organizationId: string;
+  officeId: number | null;
   welcomeLetter: string;
   departureLetter: string;
   corporateLetter: string;

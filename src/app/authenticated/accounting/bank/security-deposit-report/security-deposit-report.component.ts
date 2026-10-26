@@ -160,7 +160,7 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1)).subscribe({
+    this.emailHtmlService.getEmailHtml(this.officeId ?? this.officeIdInput).pipe(take(1)).subscribe({
       next: html => this.emailHtml = html,
       error: () => this.emailHtml = null
     });

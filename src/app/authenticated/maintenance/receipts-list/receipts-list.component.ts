@@ -1170,7 +1170,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.emailHtmlService.getEmailHtml(this.officeId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: response => {
         this.emailHtml = this.mappingService.mapEmailHtml(response);
         this.markViewForCheck();

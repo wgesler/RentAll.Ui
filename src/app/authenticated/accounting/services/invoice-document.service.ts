@@ -175,7 +175,7 @@ export class InvoiceDocumentService {
 
   openInvoiceEmailDraft(invoice: InvoiceResponse): Observable<void> {
     return this.loadInvoiceDocumentData(invoice).pipe(
-      switchMap(data => this.emailHtmlService.getEmailHtml().pipe(take(1), map(emailHtml => ({ data, emailHtml })))),
+      switchMap(data => this.emailHtmlService.getEmailHtml(data.office?.officeId).pipe(take(1), map(emailHtml => ({ data, emailHtml })))),
       switchMap(({ data, emailHtml }) => {
         const reservationContactId = this.getPrimaryReservationContactId(data.reservation);
         const contact = reservationContactId

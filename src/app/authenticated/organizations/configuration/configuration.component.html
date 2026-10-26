@@ -285,6 +285,25 @@
             </mat-expansion-panel>
           }
 
+          @if (isAdminLikeSettingsUser && !isPartnerLimitedSettings) {
+            <mat-expansion-panel [expanded]="expandedSections.email"
+              (opened)="onPanelOpened('email')"
+              (closed)="onPanelClosed('email')"
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Email</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (expandedSections.email) {
+                  <app-email-template-list
+                    [organizationId]="effectiveOrganizationId"
+                    [officeId]="selectedCostCodesOfficeId">
+                  </app-email-template-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
+
           @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
             <mat-expansion-panel [expanded]="expandedSections.terminology"
               (opened)="onPanelOpened('terminology')"

@@ -216,6 +216,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     if (this.shellMode && (changes['officeId'] || changes['propertyId'] || changes['reservationId'])) {
       this.applyShellScopeFromInputs();
+      if (changes['officeId']) {
+        this.loadEmailHtml();
+      }
       if (this.openInViewOnTabSelect) {
         this.switchToViewModeFromTabSelection();
       }
@@ -250,6 +253,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
         this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
         this.loadLeaseInformation();
+        this.loadEmailHtml();
       }
     }
 
@@ -925,7 +929,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+    this.emailHtmlService.getEmailHtml(this.officeId ?? this.selectedOffice?.officeId ?? null).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
       next: (response: EmailHtmlResponse) => {
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },

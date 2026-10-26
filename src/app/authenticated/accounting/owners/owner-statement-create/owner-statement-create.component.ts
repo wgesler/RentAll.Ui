@@ -121,7 +121,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1)).subscribe({
+    this.emailHtmlService.getEmailHtml(this.line?.officeId ?? null).pipe(take(1)).subscribe({
       next: html => {
         this.emailHtml = html;
         this.cdr.markForCheck();

@@ -66,7 +66,11 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
     this.dashboardNavigation.setTabIndex(8);
     this.loadEmailHtml();
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
+      const previousOfficeId = this.snapshot.selectedOfficeId;
       this.snapshot = snapshot;
+      if (snapshot.selectedOfficeId !== previousOfficeId) {
+        this.loadEmailHtml();
+      }
       this.rebuildScheduleDisplayRows();
       this.markViewForCheck();
     });
@@ -112,7 +116,7 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1)).subscribe({
+    this.emailHtmlService.getEmailHtml(this.resolveScheduleExportOfficeId()).pipe(take(1)).subscribe({
       next: response => {
         this.emailHtml = this.mappingService.mapEmailHtml(response);
         this.markViewForCheck();

@@ -428,7 +428,7 @@ initializeInvoicePreview(): void {
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml');})).subscribe({
+    this.emailHtmlService.getEmailHtml(this.officeId).pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml');})).subscribe({
       next: (response: EmailHtmlResponse) => {
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },

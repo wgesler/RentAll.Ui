@@ -114,6 +114,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   isBranded: boolean = true;
   includeDepartureDate: boolean = true;
   reservationLoadSeq = 0;
+  private emailHtmlLoadSeq = 0;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'buildings', 'emailHtml', 'logo']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
@@ -312,6 +313,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
+        this.loadEmailHtml();
         if (response.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
           this.syncReservationDropdown();
@@ -429,8 +431,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+    const requestId = ++this.emailHtmlLoadSeq;
+    this.emailHtmlService.getEmailHtml(this.getFilterOfficeId()).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
       next: (response: EmailHtmlResponse) => {
+        if (requestId !== this.emailHtmlLoadSeq) {
+          return;
+        }
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },
       error: () => {}

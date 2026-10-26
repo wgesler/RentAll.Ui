@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
@@ -11,9 +11,20 @@ export class EmailHtmlService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
 
-  private readonly controller = this.configService.config().apiUrl + 'email/email-html/';
+  private readonly controller = this.configService.config().apiUrl + 'email/email-html';
 
-  getEmailHtml(): Observable<EmailHtmlResponse> {
-    return this.http.get<EmailHtmlResponse>(this.controller);
+  getEmailHtml(officeId?: number | null, organizationId?: string | null): Observable<EmailHtmlResponse> {
+    let params = new HttpParams();
+    if (officeId != null && officeId > 0) {
+      params = params.set('officeId', String(officeId));
+    }
+    if (organizationId) {
+      params = params.set('organizationId', organizationId);
+    }
+    return this.http.get<EmailHtmlResponse>(this.controller, { params });
+  }
+
+  saveEmailHtml(emailHtml: EmailHtmlResponse): Observable<EmailHtmlResponse> {
+    return this.http.put<EmailHtmlResponse>(this.controller, emailHtml);
   }
 }

@@ -41,6 +41,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { TrackerListComponent } from '../tracker-list/tracker-list.component';
 import { StateFormListComponent } from '../state-form-list/state-form-list.component';
 import { StateFormComponent } from '../state-form/state-form.component';
+import { EmailTemplateListComponent } from '../../email/email-template-list/email-template-list.component';
 
 @Component({
     standalone: true,
@@ -70,7 +71,8 @@ import { StateFormComponent } from '../state-form/state-form.component';
     TitleBarSelectComponent,
     TrackerListComponent,
     StateFormListComponent,
-    StateFormComponent
+    StateFormComponent,
+    EmailTemplateListComponent
 ],
     templateUrl: './configuration.component.html',
     styleUrls: ['./configuration.component.scss']
@@ -98,7 +100,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
-  expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, terminology: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
+  expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, terminology: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false, email: false };
   agentsPanelTitle = 'Agents';
   isEditingAgent: boolean = false;
   agentId: string | null = null;

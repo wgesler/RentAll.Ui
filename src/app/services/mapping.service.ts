@@ -1457,6 +1457,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
   mapEmailHtml(emailHtml: Partial<EmailHtmlResponse> | null | undefined): EmailHtmlResponse {
     return {
       organizationId: emailHtml?.organizationId ?? '',
+      officeId: emailHtml?.officeId ?? null,
       welcomeLetter: emailHtml?.welcomeLetter ?? '',
       departureLetter: emailHtml?.departureLetter ?? '',
       corporateLetter: emailHtml?.corporateLetter ?? '',

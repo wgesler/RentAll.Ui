@@ -290,7 +290,7 @@ initializeWorkOrderPreview(): void {
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+    this.emailHtmlService.getEmailHtml(this.workOrder?.officeId ?? this.property?.officeId ?? null).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
       next: html => this.emailHtml = html,
       error: () => this.emailHtml = null
     });

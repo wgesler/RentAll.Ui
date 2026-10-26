@@ -137,6 +137,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
     this.globalOfficeSubscription?.unsubscribe();
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       this.resolveOfficeScope(officeId);
+      this.loadEmailHtml();
       if (this.itemsToLoad$.value.size === 0) {
         this.recomputeScopedBackendData();
       }
@@ -159,7 +160,7 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
   }
 
   loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1)).subscribe({
+    this.emailHtmlService.getEmailHtml(this.selectedOffice?.officeId ?? null).pipe(take(1)).subscribe({
       next: response => {
         this.emailHtml = this.mappingService.mapEmailHtml(response);
         this.markViewForCheck();

@@ -1,0 +1,19 @@
+@if (sourceLabel) {
+  <p class="email-template-source">{{ sourceLabel }}</p>
+}
+@if (isPageReady) {
+  <div class="tableDiv px-4">
+    <app-data-table
+      [data]="rows"
+      [columns]="columns"
+      [hasColumnIndex]="false"
+      [hasFilter]="true"
+      [hasToggleTop]="false"
+      [hasActionsRowClick]="true"
+      [hasActionsEdit]="true"
+      [hasActionsDelete]="false"
+      [itemsPerPage]="15"
+      (editEvent)="openTemplate($event)"
+      (rowClickEvent)="openTemplate($event)" />
+  </div>
+}

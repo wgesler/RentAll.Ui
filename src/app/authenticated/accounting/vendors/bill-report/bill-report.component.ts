@@ -106,7 +106,7 @@ export class BillReportComponent extends BaseDocumentComponent implements OnChan
     const fromEmail = (currentUser?.email || '').trim();
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const emailHtml = await firstValueFrom(
-      this.emailHtmlService.getEmailHtml().pipe(
+      this.emailHtmlService.getEmailHtml(this.bills[0]?.officeId ?? null).pipe(
         take(1),
         map(response => this.mapping.mapEmailHtml(response)),
         catchError(() => of(null))
