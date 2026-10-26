@@ -127,7 +127,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
-    this.isAdmin = this.authService.isOrgAdmin();
+    this.isAdmin = this.authService.canViewRentAllTickets();
     this.loadOffices();
     this.loadUsers();
     this.getTickets();

@@ -150,7 +150,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     ).subscribe();
 
     this.buildForm();
-    this.isAdmin = this.authService.isOrgAdmin();
+    this.isAdmin = this.authService.canViewRentAllTickets();
     this.setupCommunicationStatusCommentTracking();
     this.setupIsForRentAllTracking();
     this.loadProperties();

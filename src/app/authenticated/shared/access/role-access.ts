@@ -743,8 +743,10 @@ export function canShowOwnersNav(authService: {
 export function canShowTicketsNav(authService: {
   hasTicketingAccess: () => boolean;
   isOrgAdmin: () => boolean;
+  canViewRentAllTickets?: () => boolean;
 }): boolean {
-  return authService.hasTicketingAccess() || authService.isOrgAdmin();
+  const canViewRentAllTickets = authService.canViewRentAllTickets?.() ?? authService.isOrgAdmin();
+  return authService.hasTicketingAccess() || canViewRentAllTickets;
 }
 
 export function canShowMaintenanceNav(authService: {
@@ -818,16 +820,16 @@ export function getSidebarFilterOptionsForUser(
   return {
     canShowLeads: hasLeadsRole && featureAccess.hasAccessToLeads,
     canShowOwners: groups.includes(UserGroups.OwnerAdmin) && featureAccess.hasAccessToOwners,
-    canShowTickets: featureAccess.hasTicketingAccess || hasAdminTicketAccess(userGroups),
+    canShowTickets: featureAccess.hasTicketingAccess || hasRentAllTicketAccess(userGroups),
     canShowMaintenance: featureAccess.hasAccessToManagement,
     canShowAccounting: hasAccountingNavAccess(userGroups) && featureAccess.hasAccountingAccess,
     isPartnerOrg: isPartnerOrganizationContext(organizationTypeId, isSuperAdmin)
   };
 }
 
-function hasAdminTicketAccess(userGroups: UserGroupInput): boolean {
+function hasRentAllTicketAccess(userGroups: UserGroupInput): boolean {
   const groups = getUserGroupNumbers(userGroups);
-  return groups.includes(UserGroups.Admin);
+  return groups.includes(UserGroups.Admin) || groups.includes(UserGroups.ITAdmin);
 }
 
 function isStartupPageAllowed(

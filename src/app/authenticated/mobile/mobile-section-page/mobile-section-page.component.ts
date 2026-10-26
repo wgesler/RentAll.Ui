@@ -280,7 +280,7 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
     this.detailId = parts.id;
     this.invoiceId = this.section?.path === 'reservations' && parts.tabPath === 'invoices' ? parts.childId : '';
     const hasTicketingAccess = this.authService.hasTicketingAccess();
-    const canViewRentAllTickets = this.authService.isOrgAdmin();
+    const canViewRentAllTickets = this.authService.canViewRentAllTickets();
     const ticketTabs = getMobileTicketTabs(canViewRentAllTickets, hasTicketingAccess);
     if (this.section?.path === 'tickets' && parts.tabPath && !getMobileTicketTab(parts.tabPath, canViewRentAllTickets, hasTicketingAccess)) {
       void this.router.navigate(['/mobile', 'tickets', ticketTabs[0]?.path || 'my-tickets']);

@@ -193,6 +193,11 @@ export class AuthService {
         return this.hasRole(UserGroups.Admin);
     }
 
+    /** Admin and IT Admin can open the RentAll ticket tabs without the ticketing feature. */
+    canViewRentAllTickets(): boolean {
+        return this.isOrgAdmin() || this.hasRole(UserGroups.ITAdmin);
+    }
+
     /** Admin, SuperAdmin, or OfficeAdmin. */
     isAdmin(): boolean {
         return this.isOrgAdmin()

@@ -95,7 +95,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
   }
 
   get defaultIsForRentAll(): boolean {
-    return this.authService.isOrgAdmin() && isMobileRentAllTicketTab(this.tabPath);
+    return this.authService.canViewRentAllTickets() && isMobileRentAllTicketTab(this.tabPath);
   }
 
   get canUseForRentAll(): boolean {
@@ -128,7 +128,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
   }
 
   ngOnInit(): void {
-    this.isAdmin = this.authService.isOrgAdmin();
+    this.isAdmin = this.authService.canViewRentAllTickets();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadUsers();
     this.loadAgents();

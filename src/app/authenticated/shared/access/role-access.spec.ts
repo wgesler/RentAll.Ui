@@ -9,6 +9,7 @@ import {
   filterNavItemsForPartner,
   filterSidebarNavItems,
   getAllowedStartupPages,
+  getSidebarFilterOptionsForUser,
   getVisibleNavItems,
   isOwnerOnlyUser,
   isPartnerAdminEmployeesOnlyContext,
@@ -92,6 +93,27 @@ describe('role-access owner and realtor behavior', () => {
     expect(canShowTicketsNav({ hasTicketingAccess: () => false, isOrgAdmin: () => true })).toBeTrue();
     expect(canShowTicketsNav({ hasTicketingAccess: () => false, isOrgAdmin: () => false })).toBeFalse();
     expect(canShowTicketsNav({ hasTicketingAccess: () => true, isOrgAdmin: () => false })).toBeTrue();
+  });
+
+  it('keeps RentAll tickets available to IT Admin when the ticketing feature is off', () => {
+    const featureAccess = {
+      hasAccessToLeads: false,
+      hasAccessToOwners: false,
+      hasTicketingAccess: false,
+      hasAccessToManagement: false,
+      hasAccountingAccess: false
+    };
+
+    expect(getSidebarFilterOptionsForUser(
+      [UserGroups.ITAdmin],
+      OrganizationType.PropertyManagement,
+      featureAccess
+    ).canShowTickets).toBeTrue();
+    expect(getSidebarFilterOptionsForUser(
+      [UserGroups.Agent],
+      OrganizationType.PropertyManagement,
+      featureAccess
+    ).canShowTickets).toBeFalse();
   });
 
   it('hides tickets and maintenance when feature flags are off', () => {
