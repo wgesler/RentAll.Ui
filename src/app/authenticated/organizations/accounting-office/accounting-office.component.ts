@@ -1646,10 +1646,28 @@ clearCheckStockLocal(): void {
     if (!bank) {
       return;
     }
-    if (bank.bankAccountId > 0) {
-      this.removedBankIds = [...this.removedBankIds, bank.bankAccountId];
+    if ((bank.bankAccountId || 0) <= 0) {
+      this.banks = this.banks.filter((_, bankIndex) => bankIndex !== index);
+      return;
     }
-    this.banks = this.banks.filter((_, bankIndex) => bankIndex !== index);
+    const officeId = bank.officeId || this.getBankCardOfficeId();
+    if (!officeId) {
+      this.toastr.error('Office is required before deleting a bank account.', CommonMessage.Error);
+      return;
+    }
+    this.bankService.deleteBank(officeId, bank.bankAccountId).pipe(take(1)).subscribe({
+      next: () => {
+        this.banks = this.banks.filter(item => item.bankAccountId !== bank.bankAccountId);
+        this.removedBankIds = this.removedBankIds.filter(id => id !== bank.bankAccountId);
+        if (this.accountingOffice?.banks) {
+          this.accountingOffice.banks = this.accountingOffice.banks.filter(item => item.bankAccountId !== bank.bankAccountId);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to delete bank account.', CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 
