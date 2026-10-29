@@ -323,25 +323,7 @@
           <input #agreementDocFileInput type="file" (change)="onAgreementDocFileSelected($event)" class="file-input-hidden" />
         </div>
       </div>
-      @if (!isPropertyManagementLease) {
-      <div class="property-agreement-upload-section property-agreement-notes-section">
-        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
-          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Notes</h4>
-        </div>
-        <div class="property-agreement-upload-col min-w-0">
-          <mat-form-field appearance="outline" class="w-full min-w-0 property-agreement-notes-field">
-            <mat-label>Notes</mat-label>
-            <textarea matInput formControlName="notes" rows="6"></textarea>
-          </mat-form-field>
-        </div>
-      </div>
-      }
     </div>
-    @if (isPropertyManagementLease) {
-    <mat-form-field appearance="outline" class="w-full min-w-0 mb-4">
-      <mat-label>Notes</mat-label>
-      <textarea matInput formControlName="notes" rows="3"></textarea>
-    </mat-form-field>
-    }
+    <textarea class="property-agreement-notes-input" formControlName="notes" rows="2" placeholder="Notes"></textarea>
   </div>
 }

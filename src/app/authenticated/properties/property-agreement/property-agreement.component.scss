@@ -424,14 +424,30 @@
   }
 }
 
-.property-agreement-notes-section {
-  @media (min-width: 1024px) {
-    flex: 1 1 0;
-  }
+.property-agreement-notes-input {
+  display: block;
+  width: 100%;
+  min-height: 3.25rem;
+  margin: 0 0 1rem;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--mat-form-field-outlined-outline-color, var(--mat-sys-outline, rgba(0, 0, 0, 0.38)));
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  resize: vertical;
+  overflow: auto;
 }
 
-.property-agreement-notes-field {
-  margin-bottom: 0;
+.property-agreement-notes-input::placeholder {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.property-agreement-notes-input:focus {
+  border-color: var(--mat-sys-primary, #1976d2);
+  outline: none;
 }
 
 .property-agreement-upload-col {
