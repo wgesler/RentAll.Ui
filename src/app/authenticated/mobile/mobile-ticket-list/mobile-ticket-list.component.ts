@@ -149,7 +149,7 @@ export class MobileTicketListComponent implements OnInit, OnChanges, OnDestroy {
       return !!ticket.isForRentAll && this.isRentAllQueueState(ticket.ticketStateTypeId);
     }
     if (this.filterMode === 'review') {
-      return !!ticket.isForRentAll && (ticket.ticketStateTypeId === TicketStateType.inReview || ticket.ticketStateTypeId === TicketStateType.hold);
+      return !!ticket.isForRentAll && ticket.ticketStateTypeId === TicketStateType.inReview;
     }
     if (this.filterMode === 'complete') {
       return !!ticket.isForRentAll && (ticket.ticketStateTypeId === TicketStateType.workComplete || ticket.ticketStateTypeId === TicketStateType.closed);
@@ -171,7 +171,8 @@ export class MobileTicketListComponent implements OnInit, OnChanges, OnDestroy {
     return ticketStateTypeId === TicketStateType.caseCreated
       || ticketStateTypeId === TicketStateType.assigned
       || ticketStateTypeId === TicketStateType.scheduled
-      || ticketStateTypeId === TicketStateType.inProgress;
+      || ticketStateTypeId === TicketStateType.inProgress
+      || ticketStateTypeId === TicketStateType.hold;
   }
 
   isTicketMine(ticket: TicketResponse, currentUserId: string | null, currentUserAgentId: string | null): boolean {
