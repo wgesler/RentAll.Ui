@@ -63,8 +63,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   /** When set, only work orders with this type are shown. */
   @Input() workOrderTypeId: number | null = null;
   @Input() showOwnersOnlyToggle = false;
-  /** When true, office/date search ignores shell property filter (e.g. Vendor tab work orders). */
-  @Input() ignoreSearchPropertyFilter = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
   private authService = inject(AuthService);
@@ -212,10 +210,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     const resolvedRequest = request ?? { officeIds: [] };
     return JSON.stringify({
       officeIds: [...this.resolveMaintenanceSearchOfficeIds(resolvedRequest)].sort((a, b) => a - b),
-      propertyId: this.ignoreSearchPropertyFilter ? null : this.normalizeSearchPropertyId(resolvedRequest.propertyId),
+      propertyId: this.normalizeSearchPropertyId(resolvedRequest.propertyId),
       startDate: resolvedRequest.startDate ?? null,
-      endDate: resolvedRequest.endDate ?? null,
-      ignoreSearchPropertyFilter: this.ignoreSearchPropertyFilter
+      endDate: resolvedRequest.endDate ?? null
     });
   }
 
@@ -427,9 +424,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       ...request,
       officeIds: this.resolveMaintenanceSearchOfficeIds(request),
       isActive,
-      propertyId: this.ignoreSearchPropertyFilter
-        ? null
-        : (request.propertyId ?? this.property?.propertyId ?? null)
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null
     };
   }
 
