@@ -18,8 +18,8 @@ export function getReservationStatus(reservationStatusId: number | undefined): s
   const statusMap: { [key: number]: string } = {
     [ReservationStatus.PreBooking]: 'Pre-Booking',
     [ReservationStatus.Confirmed]: 'Confirmed',
-    [ReservationStatus.CheckedIn]: 'Checked In / Month-to-Month',
-    [ReservationStatus.GaveNotice]: 'Gave Notice / NTV',
+    [ReservationStatus.CheckedIn]: 'Checked-In/Month-to-Month',
+    [ReservationStatus.GaveNotice]: 'Gave Notice',
     [ReservationStatus.FirstRightRefusal]: 'First Right of Refusal',
     [ReservationStatus.EarlyMoveOut]: 'Early Move Out',
     [ReservationStatus.Maintenance]: 'Maintenance',
