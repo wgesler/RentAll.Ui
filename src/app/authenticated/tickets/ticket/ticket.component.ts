@@ -16,7 +16,6 @@ import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { TerminologyService } from '../../organizations/services/terminology.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
-import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -561,15 +560,20 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     }
     event.preventDefault();
     event.stopPropagation();
-    this.dialog.open(ImageViewDialogComponent, {
-      data: { imageSrc: source, title: 'Image' },
-      width: '640px',
-      maxWidth: '90vw',
-      height: '70vh',
-      maxHeight: '640px',
-      autoFocus: false,
-      panelClass: 'ticket-image-dialog-panel'
-    });
+    this.openTicketImageInNewTab(source);
+  }
+
+  openTicketImageInNewTab(source: string): void {
+    if (!source.startsWith('data:')) {
+      window.open(source, '_blank');
+      return;
+    }
+    void fetch(source)
+      .then(response => response.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      });
   }
 
   noteHtml(note: string): SafeHtml {
