@@ -613,6 +613,46 @@
                 </div>
               </mat-expansion-panel>
 
+              <mat-expansion-panel [expanded]="false" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Default Credit Card Charges</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="grid grid-cols-4 form-standard-grid">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-label>Visa</mat-label>
+                    <input matInput type="text" formControlName="visaFeePercentage" placeholder="0.00"
+                      (focus)="clearCreditCardChargeOnFocus($event, 'visaFeePercentage')"
+                      (input)="onCreditCardChargeInput($event, 'visaFeePercentage')"
+                      (blur)="formatCreditCardChargeOnBlur('visaFeePercentage')"
+                      (keydown)="formatCreditCardChargeOnEnter($event, 'visaFeePercentage')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-label>Master Card</mat-label>
+                    <input matInput type="text" formControlName="mcFeePercentage" placeholder="0.00"
+                      (focus)="clearCreditCardChargeOnFocus($event, 'mcFeePercentage')"
+                      (input)="onCreditCardChargeInput($event, 'mcFeePercentage')"
+                      (blur)="formatCreditCardChargeOnBlur('mcFeePercentage')"
+                      (keydown)="formatCreditCardChargeOnEnter($event, 'mcFeePercentage')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-label>American Express</mat-label>
+                    <input matInput type="text" formControlName="amexFeePercentage" placeholder="0.00"
+                      (focus)="clearCreditCardChargeOnFocus($event, 'amexFeePercentage')"
+                      (input)="onCreditCardChargeInput($event, 'amexFeePercentage')"
+                      (blur)="formatCreditCardChargeOnBlur('amexFeePercentage')"
+                      (keydown)="formatCreditCardChargeOnEnter($event, 'amexFeePercentage')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
+                    <mat-label>Discover</mat-label>
+                    <input matInput type="text" formControlName="discoverFeePercentage" placeholder="0.00"
+                      (focus)="clearCreditCardChargeOnFocus($event, 'discoverFeePercentage')"
+                      (input)="onCreditCardChargeInput($event, 'discoverFeePercentage')"
+                      (blur)="formatCreditCardChargeOnBlur('discoverFeePercentage')"
+                      (keydown)="formatCreditCardChargeOnEnter($event, 'discoverFeePercentage')">
+                  </mat-form-field>
+                </div>
+              </mat-expansion-panel>
+
               <!-- Default Chart of Accounts -->
               <mat-expansion-panel [expanded]="false" class="mb-4">
                 <mat-expansion-panel-header>

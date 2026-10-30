@@ -34,6 +34,10 @@ export interface AccountingOfficeRequest {
   hardClosedMonth: number;
   hardClosedYear: number;
   workOrderNo: number;
+  visaFeePercentage: number;
+  mcFeePercentage: number;
+  amexFeePercentage: number;
+  discoverFeePercentage: number;
   defaultTenantIncAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
   defaultOwnerIncAccountId?: number | null;
@@ -98,6 +102,10 @@ export interface AccountingOfficeResponse {
   bankCards?: BankCardResponse[];
   banks?: BankAccountResponse[];
   workOrderNo: number;
+  visaFeePercentage: number;
+  mcFeePercentage: number;
+  amexFeePercentage: number;
+  discoverFeePercentage: number;
   defaultTenantIncAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
   defaultOwnerIncAccountId?: number | null;

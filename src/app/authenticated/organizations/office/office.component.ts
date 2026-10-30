@@ -18,10 +18,12 @@ import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { FeatureType, IRSMethodType, OrganizationType, getIRSMethodTypes } from '../models/organization-enum';
 import { FeatureResponse } from '../models/organization-feature.model';
+import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { getQbClassTypes, getQbNameTypes } from '../models/qb-type-enum';
 import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OrganizationService } from '../services/organization.service';
+import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
 import { TerminologyService } from '../services/terminology.service';
 
@@ -41,6 +43,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -301,7 +304,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
 
     if (this.isAddMode) {
-      this.officeService.createOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      this.officeService.createOffice(officeRequest).pipe(
+        switchMap((response: OfficeResponse) => this.saveCreditCardCharges(Number(response?.officeId ?? 0)).pipe(map(() => response))),
+        take(1),
+        finalize(() => this.isSubmitting = false)
+      ).subscribe({
         next: (response: OfficeResponse) => {
           const createdOfficeId = Number(response?.officeId ?? 0);
           this.syncCurrentUserOfficeAccess(createdOfficeId, true).pipe(take(1)).subscribe({
@@ -337,7 +344,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       officeRequest.organizationId = orgId;
       const transitionedToInactive = !!this.office?.isActive && !officeRequest.isActive;
       const transitionedToActive = !this.office?.isActive && !!officeRequest.isActive;
-      this.officeService.updateOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      this.officeService.updateOffice(officeRequest).pipe(
+        switchMap((response: OfficeResponse) => this.saveCreditCardCharges(officeIdNum).pipe(map(() => response))),
+        take(1),
+        finalize(() => this.isSubmitting = false)
+      ).subscribe({
         next: (_response: OfficeResponse) => {
           if (transitionedToInactive || transitionedToActive) {
             const addAccess = transitionedToActive;
@@ -461,6 +472,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       defaultKeyFee: new FormControl<string>('0.00', [Validators.required]),
       undisclosedPetFee: new FormControl<string>('0.00', [Validators.required]),
       minimumSmokingFee: new FormControl<string>('0.00', [Validators.required]),
+      defaultVisaCharge: new FormControl<string>('0.00'),
+      defaultMasterCardCharge: new FormControl<string>('0.00'),
+      defaultAmexCharge: new FormControl<string>('0.00'),
+      defaultDiscoverCharge: new FormControl<string>('0.00'),
       utilityOneBed: new FormControl<string>('0.00'),
       utilityTwoBed: new FormControl<string>('0.00'),
       utilityThreeBed: new FormControl<string>('0.00'),
@@ -605,6 +620,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           qbClassTypeId: this.office.qbClassTypeId ?? null
         });
         this.syncAllQuoteTextEditorsFromForm();
+        this.loadCreditCardCharges(Number(this.office.officeId ?? 0));
       }, 0);
     }
   }
@@ -1049,6 +1065,153 @@ quotePastePlainToHtml(plain: string): string {
 
   onDecimalInput(event: Event, fieldName: string): void {
     this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
+  }
+
+  loadCreditCardCharges(officeId: number): void {
+    if (!officeId) {
+      return;
+    }
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1)).subscribe({
+      next: (accountingOffice) => {
+        this.form.patchValue({
+          defaultVisaCharge: this.formatStoredCreditCardCharge(accountingOffice.visaFeePercentage),
+          defaultMasterCardCharge: this.formatStoredCreditCardCharge(accountingOffice.mcFeePercentage),
+          defaultAmexCharge: this.formatStoredCreditCardCharge(accountingOffice.amexFeePercentage),
+          defaultDiscoverCharge: this.formatStoredCreditCardCharge(accountingOffice.discoverFeePercentage)
+        });
+      },
+      error: () => {}
+    });
+  }
+
+  saveCreditCardCharges(officeId: number): Observable<void> {
+    if (!officeId) {
+      return of(undefined);
+    }
+    return this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(
+      switchMap((accountingOffice) => this.accountingOfficeService.updateAccountingOffice(this.withCreditCardCharges(accountingOffice))),
+      map(() => undefined),
+      catchError((err: HttpErrorResponse) => {
+        if (err.status !== 404) {
+          this.toastr.warning('Office saved, but the credit card charges were not saved.', 'Partial Update');
+        }
+        return of(undefined);
+      })
+    );
+  }
+
+  formatStoredCreditCardCharge(value: number | null | undefined): string {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+  }
+
+  parseCreditCardCharge(value: unknown): number {
+    const raw = (value ?? '').toString().replace('%', '').trim();
+    if (raw === '' || raw === '.') {
+      return 0;
+    }
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  withCreditCardCharges(accountingOffice: AccountingOfficeResponse): AccountingOfficeRequest {
+    const formValue = this.form.value;
+    return {
+      organizationId: accountingOffice.organizationId,
+      officeId: accountingOffice.officeId,
+      name: accountingOffice.name,
+      address1: accountingOffice.address1,
+      address2: accountingOffice.address2,
+      suite: accountingOffice.suite,
+      city: accountingOffice.city,
+      state: accountingOffice.state,
+      zip: accountingOffice.zip,
+      phone: accountingOffice.phone,
+      fax: accountingOffice.fax,
+      email: accountingOffice.email,
+      website: accountingOffice.website,
+      bankName: accountingOffice.bankName,
+      bankRouting: accountingOffice.bankRouting,
+      bankSwiftCode: accountingOffice.bankSwiftCode,
+      bankAddress: accountingOffice.bankAddress,
+      bankPhone: accountingOffice.bankPhone,
+      accountNo: accountingOffice.accountNo || '',
+      accountNoLastFour: accountingOffice.accountNoLastFour,
+      accountChartOfAccountId: accountingOffice.accountChartOfAccountId,
+      startMonth: accountingOffice.startMonth,
+      startYear: accountingOffice.startYear,
+      invoiceStartMonth: accountingOffice.invoiceStartMonth,
+      invoiceStartYear: accountingOffice.invoiceStartYear,
+      yearEndMonth: accountingOffice.yearEndMonth,
+      yearEndDay: accountingOffice.yearEndDay,
+      softClosedMonth: accountingOffice.softClosedMonth,
+      softClosedYear: accountingOffice.softClosedYear,
+      hardClosedMonth: accountingOffice.hardClosedMonth,
+      hardClosedYear: accountingOffice.hardClosedYear,
+      workOrderNo: accountingOffice.workOrderNo,
+      visaFeePercentage: this.parseCreditCardCharge(formValue.defaultVisaCharge),
+      mcFeePercentage: this.parseCreditCardCharge(formValue.defaultMasterCardCharge),
+      amexFeePercentage: this.parseCreditCardCharge(formValue.defaultAmexCharge),
+      discoverFeePercentage: this.parseCreditCardCharge(formValue.defaultDiscoverCharge),
+      defaultTenantIncAccountId: accountingOffice.defaultTenantIncAccountId,
+      defaultTenantExpAccountId: accountingOffice.defaultTenantExpAccountId,
+      defaultOwnerIncAccountId: accountingOffice.defaultOwnerIncAccountId,
+      defaultOwnerExpAccountId: accountingOffice.defaultOwnerExpAccountId,
+      defaultCompanyExpAccountId: accountingOffice.defaultCompanyExpAccountId,
+      defaultPmUtilityIncAccountId: accountingOffice.defaultPmUtilityIncAccountId,
+      defaultLaborIncAccountId: accountingOffice.defaultLaborIncAccountId,
+      defaultLinenTowelIncAccountId: accountingOffice.defaultLinenTowelIncAccountId,
+      defaultDepartureIncAccountId: accountingOffice.defaultDepartureIncAccountId,
+      defaultDepartureExpAccountId: accountingOffice.defaultDepartureExpAccountId,
+      defaultBankAccountId: accountingOffice.defaultBankAccountId,
+      defaultActRcvableAccountId: accountingOffice.defaultActRcvableAccountId,
+      defaultActPayableAccountId: accountingOffice.defaultActPayableAccountId,
+      defaultUndepFundsAccountId: accountingOffice.defaultUndepFundsAccountId,
+      defaultEscrowDepositAccountId: accountingOffice.defaultEscrowDepositAccountId,
+      defaultEscrowOwnersAccountId: accountingOffice.defaultEscrowOwnersAccountId,
+      defaultEscrowSecDepAccountId: accountingOffice.defaultEscrowSecDepAccountId,
+      defaultEscrowSdwAccountId: accountingOffice.defaultEscrowSdwAccountId,
+      defaultOwnActPayableAccountId: accountingOffice.defaultOwnActPayableAccountId,
+      defaultPrePayAccountId: accountingOffice.defaultPrePayAccountId,
+      defaultRetainedEarningsAccountId: accountingOffice.defaultRetainedEarningsAccountId,
+      defaultInterOfficeAccountId: accountingOffice.defaultInterOfficeAccountId,
+      logoPath: accountingOffice.logoPath,
+      currentCheckNumber: accountingOffice.currentCheckNumber,
+      checkHtml: accountingOffice.checkHtml,
+      isActive: accountingOffice.isActive
+    };
+  }
+
+  onCreditCardChargeInput(event: Event, fieldName: 'defaultVisaCharge' | 'defaultMasterCardCharge' | 'defaultAmexCharge' | 'defaultDiscoverCharge'): void {
+    this.formatterService.formatPercentageInput(event, this.form.get(fieldName));
+  }
+
+  clearCreditCardChargeOnFocus(event: FocusEvent, fieldName: 'defaultVisaCharge' | 'defaultMasterCardCharge' | 'defaultAmexCharge' | 'defaultDiscoverCharge'): void {
+    this.formatterService.clearPercentageOnFocus(event, this.form.get(fieldName));
+  }
+
+  formatCreditCardChargeOnBlur(fieldName: 'defaultVisaCharge' | 'defaultMasterCardCharge' | 'defaultAmexCharge' | 'defaultDiscoverCharge'): void {
+    const control = this.form.get(fieldName);
+    const raw = (control?.value ?? '').toString().replace('%', '').trim();
+    if (raw === '' || raw === '.') {
+      control?.setValue('0.00', { emitEvent: false });
+      return;
+    }
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed)) {
+      control?.setValue('0.00', { emitEvent: false });
+      return;
+    }
+    control?.setValue(`${parsed.toFixed(2)}%`, { emitEvent: false });
+  }
+
+  formatCreditCardChargeOnEnter(event: KeyboardEvent, fieldName: 'defaultVisaCharge' | 'defaultMasterCardCharge' | 'defaultAmexCharge' | 'defaultDiscoverCharge'): void {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    event.preventDefault();
+    this.formatCreditCardChargeOnBlur(fieldName);
+    (event.target as HTMLInputElement)?.blur();
   }
 
   onOfficePercentInput(event: Event, fieldName: 'defaultMarkup' | 'defaultRevenueSplitOwner' | 'defaultRevenueSplitOffice'): void {

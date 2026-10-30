@@ -559,6 +559,10 @@ parseOfficeId(id: string | number | null): number | null {
       hardClosedMonth: new FormControl<number>(12, [Validators.required, Validators.min(1), Validators.max(12)]),
       hardClosedYear: new FormControl<number>(this.accountingYearMax, this.accountingYearValidators()),
       workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
+      visaFeePercentage: new FormControl<string>('0.00'),
+      mcFeePercentage: new FormControl<string>('0.00'),
+      amexFeePercentage: new FormControl<string>('0.00'),
+      discoverFeePercentage: new FormControl<string>('0.00'),
       currentCheckNumber: new FormControl(1, [Validators.required, Validators.min(1)]),
       defaultTenantIncAccountId: new FormControl<number | null>(null),
       defaultTenantExpAccountId: new FormControl<number | null>(null),
@@ -825,6 +829,10 @@ parseOfficeId(id: string | number | null): number | null {
         hardClosedMonth: this.accountingOffice.hardClosedMonth ?? 12,
         hardClosedYear: this.accountingOffice.hardClosedYear ?? 2020,
         workOrderNo: this.accountingOffice.workOrderNo ?? 0,
+        visaFeePercentage: this.formatCreditCardCharge(this.accountingOffice.visaFeePercentage),
+        mcFeePercentage: this.formatCreditCardCharge(this.accountingOffice.mcFeePercentage),
+        amexFeePercentage: this.formatCreditCardCharge(this.accountingOffice.amexFeePercentage),
+        discoverFeePercentage: this.formatCreditCardCharge(this.accountingOffice.discoverFeePercentage),
         currentCheckNumber: this.accountingOffice.currentCheckNumber ?? 1,
         defaultTenantIncAccountId: this.accountingOffice.defaultTenantIncAccountId ?? null,
         defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
@@ -889,6 +897,10 @@ parseOfficeId(id: string | number | null): number | null {
       hardClosedMonth: o.hardClosedMonth ?? 12,
       hardClosedYear: o.hardClosedYear ?? 2020,
       workOrderNo: o.workOrderNo ?? 0,
+      visaFeePercentage: this.formatCreditCardCharge(o.visaFeePercentage),
+      mcFeePercentage: this.formatCreditCardCharge(o.mcFeePercentage),
+      amexFeePercentage: this.formatCreditCardCharge(o.amexFeePercentage),
+      discoverFeePercentage: this.formatCreditCardCharge(o.discoverFeePercentage),
       defaultTenantIncAccountId: o.defaultTenantIncAccountId ?? null,
       defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
       defaultOwnerIncAccountId: o.defaultOwnerIncAccountId ?? null,
@@ -993,6 +1005,48 @@ parseOfficeId(id: string | number | null): number | null {
   parseOptionalAccountId(value: unknown): number | null {
     const parsed = this.utilityService.parseOptionalIntString(value);
     return parsed == null ? null : parsed;
+  }
+
+  formatCreditCardCharge(value: number | null | undefined): string {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+  }
+
+  parseCreditCardCharge(value: unknown): number {
+    const raw = (value ?? '').toString().replace('%', '').trim();
+    if (raw === '' || raw === '.') {
+      return 0;
+    }
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  onCreditCardChargeInput(event: Event, fieldName: 'visaFeePercentage' | 'mcFeePercentage' | 'amexFeePercentage' | 'discoverFeePercentage'): void {
+    this.formatterService.formatPercentageInput(event, this.form.get(fieldName));
+  }
+
+  clearCreditCardChargeOnFocus(event: FocusEvent, fieldName: 'visaFeePercentage' | 'mcFeePercentage' | 'amexFeePercentage' | 'discoverFeePercentage'): void {
+    this.formatterService.clearPercentageOnFocus(event, this.form.get(fieldName));
+  }
+
+  formatCreditCardChargeOnBlur(fieldName: 'visaFeePercentage' | 'mcFeePercentage' | 'amexFeePercentage' | 'discoverFeePercentage'): void {
+    const control = this.form.get(fieldName);
+    const raw = (control?.value ?? '').toString().replace('%', '').trim();
+    if (raw === '' || raw === '.') {
+      control?.setValue('0.00', { emitEvent: false });
+      return;
+    }
+    const parsed = parseFloat(raw);
+    control?.setValue(Number.isFinite(parsed) ? `${parsed.toFixed(2)}%` : '0.00', { emitEvent: false });
+  }
+
+  formatCreditCardChargeOnEnter(event: KeyboardEvent, fieldName: 'visaFeePercentage' | 'mcFeePercentage' | 'amexFeePercentage' | 'discoverFeePercentage'): void {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    event.preventDefault();
+    this.formatCreditCardChargeOnBlur(fieldName);
+    (event.target as HTMLInputElement)?.blur();
   }
 
   onBankChartOfAccountChange(bank: BankAccountResponse, value: string | number | null): void {
@@ -2250,6 +2304,10 @@ clearCheckStockLocal(): void {
       hardClosedMonth: Number(formValue['hardClosedMonth']),
       hardClosedYear: Number(formValue['hardClosedYear']),
       workOrderNo: Number(formValue['workOrderNo']) || 0,
+      visaFeePercentage: this.parseCreditCardCharge(formValue['visaFeePercentage']),
+      mcFeePercentage: this.parseCreditCardCharge(formValue['mcFeePercentage']),
+      amexFeePercentage: this.parseCreditCardCharge(formValue['amexFeePercentage']),
+      discoverFeePercentage: this.parseCreditCardCharge(formValue['discoverFeePercentage']),
       currentCheckNumber: Number(formValue['currentCheckNumber']) || 1,
       checkHtml: this.primaryCheckHtml || this.accountingOffice?.checkHtml || '[]',
       defaultTenantIncAccountId: this.parseOptionalAccountId(formValue['defaultTenantIncAccountId']),
