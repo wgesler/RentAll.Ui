@@ -70,8 +70,8 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   readonly transferDisplayedColumns: ColumnSet = {
     transferDate: { displayAs: 'Transfer Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     transferCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '28ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '16ch', sortType: 'natural' },
     contactName: { displayAs: 'Contact', wrap: false, maxWidth: '20ch' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     bankAccountDisplay: { displayAs: 'Bank Account', wrap: true, maxWidth: '25ch' },
@@ -84,8 +84,8 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly transferSplitDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', wrap: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '28ch', wrap: false },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '24ch', wrap: false },
     account: { displayAs: 'Account', maxWidth: '42ch', wrap: false },
     description: { displayAs: 'Description', maxWidth: '44ch', wrap: false },

@@ -57,8 +57,8 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly transferReportDisplayedColumns: ColumnSet = {
     transferDate: { displayAs: 'Date', maxWidth: '12ch', wrap: false },
-    propertyCode: { displayAs: 'Property', maxWidth: '14ch', wrap: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '12ch', wrap: false, sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false, sortType: 'natural' },
     dateRange: { displayAs: 'Description', maxWidth: '26ch', wrap: true },
     escrowDeposit: { displayAs: 'Escrow Deposits', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
     business: { displayAs: 'Business', maxWidth: this.transferReportAmountColumnWidth, alignment: 'center', headerAlignment: 'center', sort: false, wrap: false },

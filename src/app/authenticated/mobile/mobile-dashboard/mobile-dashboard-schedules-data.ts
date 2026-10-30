@@ -365,15 +365,15 @@ function shouldIncludeScheduleRow(
 
 export function buildMobileScheduleDisplayColumns(): ColumnSet {
   return {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural', wrap: false },
     serviceDate: { displayAs: 'Service Date', maxWidth: '15ch', alignment: 'center', wrap: false }
   };
 }
 
 export function buildMobileScheduleExportColumns(): ColumnSet {
   return {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '14ch', wrap: false },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     bedTypesText: { displayAs: 'Beds', wrap: false, maxWidth: '18ch', alignment: 'center' },
     bathrooms: { displayAs: 'Baths', wrap: false, maxWidth: '10ch', alignment: 'center' },

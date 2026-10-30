@@ -133,7 +133,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly paymentOwnerAllocationDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', wrap: false, sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false, sortType: 'natural' },
     ownerName: { displayAs: 'Owner', maxWidth: '28ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }

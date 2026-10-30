@@ -8,6 +8,8 @@ export interface ColumnData {
     wrap?: boolean;
     sort?: boolean;
     maxWidth?: string;
+    /** When true, an editable date column keeps maxWidth instead of growing to fill the row. */
+    fixedWidth?: boolean;
     alignment?: string;
     headerAlignment?: string; // Separate alignment for header (defaults to alignment if not specified)
 

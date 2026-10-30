@@ -82,8 +82,8 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   ticketsDisplayedColumns: ColumnSet = {
     'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
     'ticketCode': { displayAs: 'Ticket', maxWidth: '15ch', sortType: 'natural' },
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     'created': { displayAs: 'Created', maxWidth: '18ch', alignment: 'center' },
     'modified': { displayAs: 'Modified', maxWidth: '18ch', alignment: 'center' },
     'ticketStateTypeText': { displayAs: 'State', maxWidth: '18ch' },

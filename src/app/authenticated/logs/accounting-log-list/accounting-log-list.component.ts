@@ -37,8 +37,8 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
   isDeleting = false;
   errorMessage: string | null = null;
   columns: ColumnSet = {
-    propertyCodeDisplay: { displayAs: 'Property', maxWidth: '12ch' },
-    invoiceCodeDisplay: { displayAs: 'Invoice', maxWidth: '12ch' },
+    propertyCodeDisplay: { displayAs: 'Property', maxWidth: '16ch' },
+    invoiceCodeDisplay: { displayAs: 'Invoice', maxWidth: '20ch' },
     originalAmountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'left', headerAlignment: 'left' },
     rentalLine: { displayAs: 'Rental Line', maxWidth: '20ch' },
     firstPeriodDisplay: { displayAs: 'First', maxWidth: '10ch' },

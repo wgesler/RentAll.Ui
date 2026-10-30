@@ -57,7 +57,7 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
 
   displayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '15ch' },
     tenantName: { displayAs: 'Occupant', maxWidth: '28ch' },
     contactName: { displayAs: 'Contact', maxWidth: '28ch' },
@@ -70,7 +70,7 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   };
 
   invoiceColumns: ColumnSet = {
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch' },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },

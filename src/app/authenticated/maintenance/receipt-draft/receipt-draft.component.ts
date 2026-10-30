@@ -62,7 +62,7 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
 
   override get receiptCodeDisplayValue(): string {
     const draftCode = (this.receiptDraft?.draftCode || '').trim();
-    return draftCode ? this.formatter.formatEntityCodeForDisplay(draftCode) : 'New';
+    return draftCode || 'New';
   }
 
   override get showSaveAndNewButton(): boolean {

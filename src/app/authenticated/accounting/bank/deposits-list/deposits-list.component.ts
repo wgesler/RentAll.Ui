@@ -70,8 +70,8 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   readonly depositDisplayedColumns: ColumnSet = {
     depositDate: { displayAs: 'Deposit Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     depositCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '16ch', sortType: 'natural' },
     contactName: { displayAs: 'Contact', wrap: false, maxWidth: '20ch' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     bankAccountDisplay: { displayAs: 'Bank Account', wrap: true, maxWidth: '25ch' },
@@ -84,8 +84,8 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly depositSplitDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', wrap: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', wrap: false },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
     account: { displayAs: 'Account', maxWidth: '28ch', wrap: false },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },

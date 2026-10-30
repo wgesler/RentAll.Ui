@@ -31,7 +31,7 @@ export class PropertyUploadLogListComponent implements OnInit, OnChanges, OnDest
   isDeleting = false;
   errorMessage: string | null = null;
   columns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '12ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch' },
     eventType: { displayAs: 'Event', maxWidth: '12ch' },
     status: { displayAs: 'Status', maxWidth: '10ch' },
     message: { displayAs: 'Message', maxWidth: '60ch' },

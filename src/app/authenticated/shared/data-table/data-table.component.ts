@@ -897,7 +897,10 @@ markViewForCheck(): void {
   }
 
   formatDisplayCode(value: unknown): string {
-    return this.formatter.formatEntityCodeForDisplay(value);
+    if (value == null) {
+      return '';
+    }
+    return String(value);
   }
 
   getScheduleDateCellText(cell: unknown): string {

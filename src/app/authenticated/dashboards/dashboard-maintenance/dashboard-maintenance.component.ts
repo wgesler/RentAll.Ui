@@ -56,7 +56,7 @@ export class DashboardMaintenanceComponent implements OnInit, OnDestroy {
   includeGreen = false;
 
   readonly columns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     name: { displayAs: 'Name', maxWidth: '30ch', wrap: false },
     lastServiced: { displayAs: 'Last Serviced', maxWidth: '16ch', alignment: 'center', headerAlignment: 'center', wrap: false },
     months: { displayAs: 'Months', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', wrap: false, editableType: 'text', suppressRowClick: true },

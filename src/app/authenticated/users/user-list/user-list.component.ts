@@ -71,7 +71,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     'defaultOffice': { displayAs: 'Default Office', maxWidth: '20ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '30ch'},
     'isLoggedInDisplay': { displayAs: 'Logged In', maxWidth: '12ch' },
-    'lastLoginOnDisplay': { displayAs: 'Last Login', maxWidth: '20ch' },
+    'lastLoginOnDisplay': { displayAs: 'Last Login', maxWidth: '26ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 

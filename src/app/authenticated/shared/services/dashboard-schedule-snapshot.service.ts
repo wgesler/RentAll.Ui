@@ -148,7 +148,7 @@ export class DashboardScheduleSnapshotService {
 
   buildScheduleCleaningColumns(): ColumnSet {
     return {
-      propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
+      propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural', wrap: false },
       serviceDate: { displayAs: 'Service Date', maxWidth: '15ch', alignment: 'center', wrap: false }
     };
   }

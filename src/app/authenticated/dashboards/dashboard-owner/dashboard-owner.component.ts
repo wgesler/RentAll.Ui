@@ -72,7 +72,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
 
   ownerPropertiesDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '20ch' },
     bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
     bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
@@ -83,8 +83,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
 
   ownerReservationsDisplayedColumns: ColumnSet = {
     office: { displayAs: 'Office', maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
     billingType: { displayAs: 'Billing Type', maxWidth: '15ch', alignment: 'center' },
@@ -94,8 +94,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
 
   ownerHistoricalReservationsDisplayedColumns: ColumnSet = {
     office: { displayAs: 'Office', maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
     rateStart: { displayAs: 'Rate Start', maxWidth: '20ch', alignment: 'center' },

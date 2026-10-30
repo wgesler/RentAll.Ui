@@ -46,7 +46,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false, alignment: 'center' },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
-    propertyCode: { displayAs: 'Property', maxWidth: '12ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch' },
     source: { displayAs: 'Source', maxWidth: '15ch' },
     journalEntryCode: { displayAs: 'JEntry', maxWidth: '12ch', sortType: 'natural' },
     accountingPeriod: { displayAs: 'Period', maxWidth: '8ch' },

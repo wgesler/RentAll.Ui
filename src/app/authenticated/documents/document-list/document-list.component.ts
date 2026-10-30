@@ -97,17 +97,17 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   documentTypes: { value: number, label: string }[] = [];
 
   sidebarColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     'fileName': { displayAs: 'File Name', maxWidth: '70ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
 
   tabColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     'fileName': { displayAs: 'File Name', maxWidth: '70ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };

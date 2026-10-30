@@ -147,8 +147,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     transactionDate: { displayAs: 'Date', maxWidth: '14ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '16ch', sortType: 'natural' },
     source: { displayAs: 'Source', maxWidth: '20ch' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     description: { displayAs: 'Description', maxWidth: '32ch' },
     isCleared: { displayAs: 'Clr', maxWidth: '7ch', sort: true, isCheckmark: true, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center' },
@@ -159,8 +159,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   detailLineDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch' },
     contactName: { displayAs: 'Contact', maxWidth: '30ch', wrap: false },
     account: { displayAs: 'Account', maxWidth: '35ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '32ch', wrap: true },

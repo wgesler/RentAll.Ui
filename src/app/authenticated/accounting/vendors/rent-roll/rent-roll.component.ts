@@ -58,7 +58,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   skippedRentRollKeys = new Set<string>();
 
   readonly rentRollDisplayedColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch', sortType: 'natural' },
     vendorName: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch' },
     chartOfAccountDisplay: { displayAs: 'Chart of Account', wrap: true, maxWidth: '25ch' },
     isRent: { displayAs: 'Is Rent', wrap: false, maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', isCheckbox: true, checkboxEditable: false },

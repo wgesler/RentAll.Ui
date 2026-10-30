@@ -57,9 +57,9 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly preBillingDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    invoiceCode: { displayAs: 'Invoice', maxWidth: '17ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
+    invoiceCode: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural', wrap: false },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '25ch' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },

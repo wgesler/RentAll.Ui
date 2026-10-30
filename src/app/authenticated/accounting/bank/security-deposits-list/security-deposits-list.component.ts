@@ -50,9 +50,9 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   readonly displayedColumns: ColumnSet = {
     securityDepositAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
-    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
-    invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '16ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '16ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch', sortType: 'natural' },
+    invoiceCode: { displayAs: 'Invoice', wrap: false, maxWidth: '20ch', sortType: 'natural' },
     arrivalDate: { displayAs: 'Arrival', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     departureDate: { displayAs: 'Departure', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     securityDepositReturnDate: { displayAs: 'Return By', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },

@@ -1,5 +1,4 @@
-import { Injectable, inject } from '@angular/core';
-import { FormatterService } from '../../../services/formatter-service';
+import { Injectable } from '@angular/core';
 import { QbClassType, QbNameType } from '../../organizations/models/qb-type-enum';
 import { TransactionType } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
@@ -10,7 +9,6 @@ import { InvoiceIifExportFieldContext, InvoiceIifExportOptions, InvoiceResponse,
   providedIn: 'root'
 })
 export class InvoiceIifExportService {
-  private formatter = inject(FormatterService);
   private static readonly quickBooksNameMaxLength = 41;
 
   private readonly iifHeaders: string[] = [
@@ -288,23 +286,7 @@ export class InvoiceIifExportService {
   }
 
   formatExportCode(value?: string | null): string {
-    const trimmed = String(value || '').trim();
-    const prefixed = this.formatter.formatEntityCodeForDisplay(trimmed);
-    if (prefixed !== trimmed || /^[A-Za-z]+-/.test(trimmed)) {
-      return prefixed;
-    }
-
-    const match = /^(\d+)(.*)$/.exec(trimmed);
-    if (!match) {
-      return trimmed;
-    }
-
-    const numeric = Number(match[1]);
-    if (!Number.isFinite(numeric)) {
-      return trimmed;
-    }
-
-    return `${String(numeric).padStart(this.formatter.getEntityCodeDisplayPad('R'), '0')}${match[2] ?? ''}`;
+    return this.sanitizeText(value || '');
   }
 
   formatQuickBooksDocNumber(invoiceCode: string): string {

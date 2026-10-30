@@ -43,7 +43,7 @@ export class MobileInvoiceListPageComponent implements OnInit, OnChanges, OnDest
     arrival: { displayAs: 'Arrival', maxWidth: '14ch', wrap: false }
   };
   private readonly invoiceColumns: ColumnSet = {
-    invoiceCode: { displayAs: 'Invoice Code', maxWidth: '16ch', wrap: false },
+    invoiceCode: { displayAs: 'Invoice Code', maxWidth: '20ch', wrap: false },
     date: { displayAs: 'Date', maxWidth: '12ch', wrap: false },
     amount: { displayAs: 'Amount', maxWidth: '12ch', wrap: false }
   };

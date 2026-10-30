@@ -932,18 +932,25 @@ td.mat-mdc-cell.align-center {
   background: #fff;
 }
 
-/* Date columns: fit date + picker icon; avoid ellipsis from fixed column width. */
+/* Date columns: fit date + picker icon; avoid ellipsis from fixed column width.
+   fixedWidth columns keep their maxWidth instead of absorbing leftover row space. */
 th.mat-header-cell.datatable-date-column,
 th.mat-mdc-header-cell.datatable-date-column,
 td.mat-cell.datatable-date-column,
 td.mat-mdc-cell.datatable-date-column {
   overflow: visible !important;
   text-overflow: clip !important;
+}
+
+th.mat-header-cell.datatable-date-column:not(.datatable-date-column-fixed),
+th.mat-mdc-header-cell.datatable-date-column:not(.datatable-date-column-fixed),
+td.mat-cell.datatable-date-column:not(.datatable-date-column-fixed),
+td.mat-mdc-cell.datatable-date-column:not(.datatable-date-column-fixed) {
   width: auto !important;
   max-width: none !important;
 }
 
-::ng-deep td.datatable-date-column .datatable-editable-date-field.mat-mdc-form-field {
+::ng-deep td.datatable-date-column:not(.datatable-date-column-fixed) .datatable-editable-date-field.mat-mdc-form-field {
   width: auto !important;
   max-width: none !important;
 }

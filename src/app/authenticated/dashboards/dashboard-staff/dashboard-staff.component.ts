@@ -56,7 +56,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
   isPageReady = false;
 
   readonly scheduledCleaningColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
     'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
     'departureDateDisplay': { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
@@ -73,7 +73,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
   };
 
   readonly scheduledCarpetCleaningColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
     'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
     'departureDateDisplay': { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
@@ -90,7 +90,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
   };
 
   readonly scheduledInspectionColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
     'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
     'departureDateDisplay': { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },

@@ -134,7 +134,7 @@ export class DashboardArrivalsComponent implements OnInit, OnDestroy {
     return {
       ...cols,
       // Keep Code and Arrival Date compact and adjacent.
-      propertyCode: { ...(cols['propertyCode'] || {}), maxWidth: '12ch', wrap: false },
+      propertyCode: { ...(cols['propertyCode'] || {}), maxWidth: '16ch', wrap: false },
       eventDate: { ...(cols['eventDate'] || {}), maxWidth: '12ch', wrap: false }
     };
   }

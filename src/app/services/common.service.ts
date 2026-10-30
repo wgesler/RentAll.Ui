@@ -10,8 +10,6 @@ import { DailyQuote } from '../shared/models/daily-quote';
 import { StateResponse } from '../shared/models/state-response';
 import { AuthService } from './auth.service';
 import { ConfigService } from './config.service';
-import { FormatterService } from './formatter-service';
-
 @Injectable({
   providedIn: 'root'
 })
@@ -20,7 +18,6 @@ export class CommonService {
   private configService = inject(ConfigService);
   private authService = inject(AuthService);
   private organizationService = inject(OrganizationService);
-  private formatterService = inject(FormatterService);
 
   private dailyQuote$ = new BehaviorSubject<DailyQuote>(null);
   private states$ = new BehaviorSubject<StateResponse[]>([]);
@@ -104,7 +101,6 @@ export class CommonService {
     this.organizationService.getOrganizationByGuid(user.organizationId).pipe(take(1)).subscribe({
       next: (response) => {
         this.organization$.next(this.withOrganizationType(response));
-        this.formatterService.setEntityCodeSequences(response?.codeSequences);
       },
       error: () => {}
     });

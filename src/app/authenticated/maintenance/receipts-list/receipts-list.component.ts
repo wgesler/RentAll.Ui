@@ -166,11 +166,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   readonly maintenanceReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
-    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center', editableType: 'date', suppressRowClick: true },
+    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '20ch', fixedWidth: true, alignment: 'center', headerAlignment: 'center', editableType: 'date', suppressRowClick: true },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
     bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter bank cards...' },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
@@ -182,7 +182,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly draftReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Draft', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
@@ -195,7 +195,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly accountingReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     receipt: { displayAs: 'Receipt', wrap: false, maxWidth: '12ch', alignment: 'center' },
@@ -224,7 +224,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     receipt: { displayAs: 'Receipt', wrap: false, maxWidth: '12ch', alignment: 'center' },

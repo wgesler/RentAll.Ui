@@ -43,9 +43,9 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
   isDeleting = false;
   errorMessage: string | null = null;
   columns: ColumnSet = {
-    reservationCodeDisplay: { displayAs: 'Reservation', maxWidth: '12ch' },
-    propertyCodeDisplay: { displayAs: 'Property', maxWidth: '12ch' },
-    invoiceCodeDisplay: { displayAs: 'Invoice', maxWidth: '12ch' },
+    reservationCodeDisplay: { displayAs: 'Reservation', maxWidth: '16ch' },
+    propertyCodeDisplay: { displayAs: 'Property', maxWidth: '16ch' },
+    invoiceCodeDisplay: { displayAs: 'Invoice', maxWidth: '20ch' },
     receiptCodeDisplay: { displayAs: 'Receipt', maxWidth: '12ch' },
     message: { displayAs: 'Message', maxWidth: '45ch' },
     createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }

@@ -109,10 +109,11 @@
       @for (column of tableColumns; track column.name) {
         <ng-container [matColumnDef]="column.name">
           <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort"
-            [style.max-width]="column.editableType === 'date' ? null : column.maxWidth"
-            [style.width]="column.editableType === 'date' ? null : column.maxWidth"
+            [style.max-width]="column.editableType === 'date' && !column.fixedWidth ? null : column.maxWidth"
+            [style.width]="column.editableType === 'date' && !column.fixedWidth ? null : column.maxWidth"
             [style.min-width]="column.maxWidth"
             [class.datatable-date-column]="column.editableType === 'date'"
+            [class.datatable-date-column-fixed]="column.editableType === 'date' && !!column.fixedWidth"
             [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [attr.data-alignment]="getHeaderAlignment(column)">
             @switch (column.name) {
@@ -155,10 +156,11 @@
           </th>
           <td mat-cell *matCellDef="let item, index as i"
             class="align-middle"
-            [style.max-width]="column.editableType === 'date' ? null : column.maxWidth"
-            [style.width]="column.editableType === 'date' ? null : column.maxWidth"
+            [style.max-width]="column.editableType === 'date' && !column.fixedWidth ? null : column.maxWidth"
+            [style.width]="column.editableType === 'date' && !column.fixedWidth ? null : column.maxWidth"
             [style.min-width]="column.maxWidth"
             [class.datatable-date-column]="column.editableType === 'date'"
+            [class.datatable-date-column-fixed]="column.editableType === 'date' && !!column.fixedWidth"
             [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [style.text-align]="getColumnAlignment(column) === 'center' ? 'center' : (getColumnAlignment(column) === 'right' ? 'right' : 'left')"
             (click)="onTableCellClick($event, item, column)"

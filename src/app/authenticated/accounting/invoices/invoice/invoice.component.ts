@@ -1909,9 +1909,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return 'New';
     }
 
-    return this.formatter.formatEntityCodeForDisplay(
-      (this.invoice?.invoiceCode || this.form?.get('invoiceCode')?.value || '').trim()
-    );
+    return (this.invoice?.invoiceCode || this.form?.get('invoiceCode')?.value || '').trim();
   }
 
   getInvoiceOfficeFieldClass(baseClass: string = 'titlebar-field-office'): string {

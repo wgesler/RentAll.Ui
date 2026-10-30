@@ -115,8 +115,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'contactName': { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
+    'propertyCode': { displayAs: 'Code', maxWidth: '16ch', sortType: 'natural', wrap: false },
+    'contactName': { displayAs: 'Owner/Vendor', maxWidth: '25ch', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch', alignment: 'center'},
@@ -129,7 +129,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: '', maxWidth: '20ch', sortType: 'natural', wrap: false }
+    'propertyCode': { displayAs: '', maxWidth: '16ch', sortType: 'natural', wrap: false }
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 

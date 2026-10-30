@@ -105,9 +105,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   workOrderDisplayedColumns: ColumnSet = {
     workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '20ch' },
     title: { displayAs: 'Title', wrap: false, maxWidth: '25ch' },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '16ch' },
     description: { displayAs: 'Description', wrap: false, maxWidth: '25ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
     workOrderDate: { displayAs: 'Work Order Date', wrap: false, maxWidth: '25ch', alignment: 'center' },

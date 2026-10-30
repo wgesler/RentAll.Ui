@@ -87,8 +87,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   offlineStatusPropertyColumnsByLeaseType: Partial<Record<PropertyLeaseType, ColumnSet>> = {};
 
   private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '12ch' },
     tenantName: { displayAs: 'Occupant', maxWidth: '18ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '18ch', wrap: false },
@@ -98,8 +98,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly reservationTurnoverDepartureBaseColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '12ch' },
     tenantName: { displayAs: 'Occupant', maxWidth: '18ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '18ch', wrap: false },
@@ -109,7 +109,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly propertyOnlineBaseColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     ownerName: { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
     availableAfter: { displayAs: 'Online', maxWidth: '15ch', alignment: 'center' },
@@ -119,7 +119,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly propertyOfflineBaseColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     availableUntil: { displayAs: 'Offline', maxWidth: '15ch', alignment: 'center' },
     bedrooms: { displayAs: 'Beds', wrap: false, maxWidth: '10ch', alignment: 'center' },
@@ -128,7 +128,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly vacantPropertyColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
     propertyStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false },
@@ -139,7 +139,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly occupiedPropertyColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
     propertyStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false },
@@ -148,7 +148,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly offlineStatusPropertyBaseColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     ownerName: { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
     availableUntilDisplay: { displayAs: 'Offline', maxWidth: '15ch', alignment: 'center' },
@@ -159,8 +159,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   };
 
   private readonly monthlyCommissionColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '15ch' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '20ch', alignment: 'center' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
@@ -1044,8 +1044,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
   buildScheduleCleaningColumns(): ColumnSet {
     return {
-      propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
-      reservationCode: { displayAs: 'Reservation', maxWidth: '14ch', wrap: false },
+      propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural', wrap: false },
+      reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false },
       shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
       bedTypesText: { displayAs: 'Beds', wrap: false, maxWidth: '18ch', alignment: 'center' },
       bathrooms: { displayAs: 'Baths', wrap: false, maxWidth: '10ch', alignment: 'center' },
@@ -1470,7 +1470,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
   buildMaintenanceColumns(): ColumnSet {
     return {
-      propertyCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+      propertyCode: { displayAs: 'Code', maxWidth: '16ch', sortType: 'natural', wrap: false },
       eventDate: { displayAs: 'Event Date', maxWidth: '15ch', alignment: 'center', wrap: false },
       hasPets: { displayAs: 'Pets', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '10ch' },
       cleaningDate: { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },

@@ -88,7 +88,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private customToBePaidByLineId = new Map<string, string>();
   private readonly ownerStatementBaseColumns: ColumnSet = {
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '35ch' },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '20ch', alignment: 'center' },
     startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     income: { displayAs: 'Income', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },

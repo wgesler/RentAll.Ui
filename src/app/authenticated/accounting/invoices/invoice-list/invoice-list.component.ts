@@ -202,10 +202,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '20ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '18ch', sortType: 'natural', wrap: false },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural', wrap: false },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
@@ -219,9 +219,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   billingInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-    reservationCode: { displayAs: 'Company', maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Company', maxWidth: '16ch', sortType: 'natural' },
     responsibleParty: { displayAs: 'Recipient', wrap: false, maxWidth: '20ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '18ch', sortType: 'natural', wrap: false },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural', wrap: false },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },

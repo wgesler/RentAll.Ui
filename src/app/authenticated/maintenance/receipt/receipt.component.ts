@@ -2458,9 +2458,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSplitWorkOrderDisplay(splitIndex: number): string {
-    return this.formatter.formatEntityCodeForDisplay(
-      (this.splitsFormArray.at(splitIndex)?.get('workOrder')?.value || '').toString().trim()
-    );
+    return (this.splitsFormArray.at(splitIndex)?.get('workOrder')?.value || '').toString().trim();
   }
 
   isSplitWorkOrderMissing(splitIndex: number): boolean {
@@ -3345,7 +3343,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get receiptCodeDisplayValue(): string {
-    return this.isAddMode ? '' : this.formatter.formatEntityCodeForDisplay(this.receipt?.receiptCode || '');
+    return this.isAddMode ? '' : (this.receipt?.receiptCode || '');
   }
 
   get showSaveAndNewButton(): boolean {
