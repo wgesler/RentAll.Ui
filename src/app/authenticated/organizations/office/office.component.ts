@@ -87,6 +87,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   hasDocuSignAccess = false;
   hasLeasingAccess = false;
   hasManagementAccess = false;
+  hasTicketingAccess = false;
   isPartnerOrganization = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
@@ -251,6 +252,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       irsMethodTypeId: formValue.irsMethodTypeId ?? IRSMethodType.IrsNetMethod,
       useDailyOnResBoard: formValue.useDailyOnResBoard ?? false,
       useStrictOnTickets: formValue.useStrictOnTickets ?? false,
+      useExternalRefNo: formValue.useExternalRefNo ?? false,
+      petFeeTimesNoDogs: formValue.petFeeTimesNoDogs ?? false,
       daysToRefundDeposit: formValue.daysToRefundDeposit || 0,
       defaultDeposit: formValue.defaultDeposit ? parseFloat(formValue.defaultDeposit.toString()) : 0,
       defaultSdw: formValue.defaultSdw ? parseFloat(formValue.defaultSdw.toString()) : 0,
@@ -450,6 +453,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       irsMethodTypeId: new FormControl<number>(IRSMethodType.IrsNetMethod, [Validators.required]),
       useDailyOnResBoard: new FormControl<boolean>(false),
       useStrictOnTickets: new FormControl<boolean>(false),
+      useExternalRefNo: new FormControl<boolean>(false),
+      petFeeTimesNoDogs: new FormControl<boolean>(false),
       defaultDeposit: new FormControl<string>('0.00', [Validators.required]),
       defaultSdw: new FormControl<string>('0.00', [Validators.required]),
       daysToRefundDeposit: new FormControl<string>('0', [Validators.required]),
@@ -540,6 +545,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           irsMethodTypeId: this.office.irsMethodTypeId ?? IRSMethodType.IrsNetMethod,
           useDailyOnResBoard: this.office.useDailyOnResBoard ?? false,
           useStrictOnTickets: this.office.useStrictOnTickets ?? false,
+          useExternalRefNo: this.office.useExternalRefNo ?? false,
+          petFeeTimesNoDogs: this.office.petFeeTimesNoDogs ?? false,
           defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
           defaultSdw: this.office.defaultSdw !== null && this.office.defaultSdw !== undefined ? this.office.defaultSdw.toFixed(2) : '0.00',
           daysToRefundDeposit: this.office.daysToRefundDeposit !== null && this.office.daysToRefundDeposit !== undefined ? this.office.daysToRefundDeposit.toString() : '0',
@@ -627,6 +634,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       irsMethodTypeId: o.irsMethodTypeId ?? IRSMethodType.IrsNetMethod,
       useDailyOnResBoard: o.useDailyOnResBoard ?? false,
       useStrictOnTickets: o.useStrictOnTickets ?? false,
+      useExternalRefNo: o.useExternalRefNo ?? false,
+      petFeeTimesNoDogs: o.petFeeTimesNoDogs ?? false,
       defaultDeposit: o.defaultDeposit != null ? o.defaultDeposit.toFixed(2) : '0.00',
       defaultSdw: o.defaultSdw != null ? o.defaultSdw.toFixed(2) : '0.00',
       daysToRefundDeposit: o.daysToRefundDeposit != null ? o.daysToRefundDeposit.toString() : '0',
@@ -1253,6 +1262,7 @@ quotePastePlainToHtml(plain: string): string {
       this.hasDocuSignAccess = false;
       this.hasLeasingAccess = false;
       this.hasManagementAccess = false;
+      this.hasTicketingAccess = false;
       this.applyPartnerFieldValidators();
       this.markViewForCheck();
       return;
@@ -1267,6 +1277,7 @@ quotePastePlainToHtml(plain: string): string {
       this.hasDocuSignAccess = false;
       this.hasLeasingAccess = false;
       this.hasManagementAccess = false;
+      this.hasTicketingAccess = false;
       this.applyPartnerFieldValidators();
       this.markViewForCheck();
       return;
@@ -1275,6 +1286,7 @@ quotePastePlainToHtml(plain: string): string {
     this.hasDocuSignAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.DocuSign, features);
     this.hasLeasingAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Leasing, features);
     this.hasManagementAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Management, features);
+    this.hasTicketingAccess = this.organizationFeatureService.hasFeatureAccess(organizationId, FeatureType.Ticketing, features);
     this.applyPartnerFieldValidators();
     this.markViewForCheck();
   }

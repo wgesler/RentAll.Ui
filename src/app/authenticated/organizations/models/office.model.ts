@@ -25,6 +25,8 @@ export interface OfficeRequest {
   irsMethodTypeId: number;
   useDailyOnResBoard: boolean
   useStrictOnTickets: boolean
+  useExternalRefNo: boolean
+  petFeeTimesNoDogs: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;
@@ -109,6 +111,8 @@ export interface OfficeResponse {
   irsMethodTypeId: number;
   useDailyOnResBoard: boolean
   useStrictOnTickets: boolean
+  useExternalRefNo: boolean
+  petFeeTimesNoDogs: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;

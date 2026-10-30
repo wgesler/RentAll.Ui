@@ -119,7 +119,7 @@
                     </mat-form-field>
                   }
 
-                  <div class="col-span-4 grid grid-cols-4 form-standard-grid">
+                  <div class="col-span-4 grid form-standard-grid" [class.grid-cols-6]="hasTicketingAccess" [class.grid-cols-5]="!hasTicketingAccess">
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Phone</mat-label>
                       <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
@@ -144,11 +144,31 @@
                       <input matInput formControlName="website" type="url">
                     </mat-form-field>
 
-                    <div class="col-span-1 flex items-center justify-center">
-                      <mat-checkbox formControlName="useStrictOnTickets" color="primary">
+                    @if (hasTicketingAccess) {
+                      <div class="col-span-1 flex items-center">
+                        <mat-checkbox formControlName="useStrictOnTickets" color="primary">
+                          <span class="inline-block text-left leading-tight">
+                            Use Strict Checkboxes<br>
+                            on Permission to Enter
+                          </span>
+                        </mat-checkbox>
+                      </div>
+                    }
+
+                    <div class="col-span-1 flex items-center">
+                      <mat-checkbox formControlName="useExternalRefNo" color="primary">
                         <span class="inline-block text-left leading-tight">
-                          Use Strict Checkboxes<br>
-                          on Permission to Enter
+                          Use External<br>
+                          Ref No
+                        </span>
+                      </mat-checkbox>
+                    </div>
+
+                    <div class="col-span-1 flex items-center">
+                      <mat-checkbox formControlName="petFeeTimesNoDogs" color="primary">
+                        <span class="inline-block text-left leading-tight">
+                          Pet Fee Times<br>
+                          No. of Dogs
                         </span>
                       </mat-checkbox>
                     </div>
