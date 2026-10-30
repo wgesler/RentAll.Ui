@@ -866,7 +866,7 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       const raw = formValue[field as string];
       let value = raw === '' || raw == null ? undefined : String(raw);
       if (value && (field === 'description' || field === 'amenities')) {
-        value = this.documentHtmlService.normalizePastedEditorHtml(value);
+        value = this.documentHtmlService.normalizeEditorHtmlPreservingBreaks(value);
       }
       overrides[field] = value as never;
     });

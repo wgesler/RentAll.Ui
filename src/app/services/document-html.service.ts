@@ -346,6 +346,43 @@ export class DocumentHtmlService {
   }
 
   /**
+   * Cleans description HTML the user typed. Keeps every paragraph, div, and line break.
+   * Paste still uses normalizePastedEditorHtml, which joins wrapped lines from Word.
+   */
+  normalizeEditorHtmlPreservingBreaks(html: string): string {
+    if (!html) {
+      return '';
+    }
+
+    let result = this.stripEmbeddedTypography(html);
+    result = result.replace(/<!--[\s\S]*?-->/g, '');
+    result = result.replace(/<\/?o:p\b[^>]*>/gi, '');
+    result = result.replace(/<\/?(?:w|m|v|st\d):[^>]+>/gi, '');
+    result = result.replace(/<span\b[^>]*>\s*<\/span>/gi, '');
+
+    if (typeof DOMParser === 'undefined') {
+      return result.trim();
+    }
+
+    const doc = new DOMParser().parseFromString(`<div data-editor-root="true">${result}</div>`, 'text/html');
+    const root = doc.querySelector('[data-editor-root]');
+    if (!root) {
+      return result.trim();
+    }
+
+    root.querySelectorAll('style, meta, link').forEach(node => node.remove());
+    this.convertInlineStylesToSemanticTags(root);
+    this.unwrapSpanElements(root);
+    root.querySelectorAll('*').forEach(element => {
+      element.removeAttribute('style');
+      element.removeAttribute('class');
+      element.removeAttribute('width');
+    });
+
+    return root.innerHTML;
+  }
+
+  /**
    * Word uses two list formats in one paste: MsoListParagraph <p> (often li > p with Symbol ·)
    * and native <ul>/<li>. Normalize both to the same shape before block extraction.
    */
