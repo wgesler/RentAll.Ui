@@ -147,11 +147,16 @@ export class InvoiceHtmlBuilderService {
   }
 
   applyAutomaticPaymentNote(html: string, billingMethodId: number | null | undefined): string {
-    if (billingMethodId !== BillingMethod.CreditCard && billingMethodId !== BillingMethod.AchDebit) {
+    const isAch = billingMethodId === BillingMethod.AchDebit;
+    const isCard = billingMethodId === BillingMethod.CreditCardVisa
+      || billingMethodId === BillingMethod.CreditCardMc
+      || billingMethodId === BillingMethod.CreditCardAmex
+      || billingMethodId === BillingMethod.CreditCardDiscover;
+    if (!isAch && !isCard) {
       return html;
     }
 
-    const paymentLabel = billingMethodId === BillingMethod.AchDebit ? 'An ACH debit has' : 'A credit card payment has';
+    const paymentLabel = isAch ? 'An ACH debit has' : 'A credit card payment has';
     const note = `<div class="border" style="margin-left: 0; margin-right: 0;"><p><strong>Important:</strong><br>${paymentLabel} been automatically processed for the full amount of the invoice due. No additional payment is required at this time. The transaction will be reflected in your account once processing is complete.</p></div>`;
     const tableBounds = this.findBankPaymentTableBounds(html);
     if (!tableBounds) {

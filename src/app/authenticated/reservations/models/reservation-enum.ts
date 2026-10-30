@@ -82,8 +82,12 @@ export function getReservationTypes(): { value: number, label: string }[] {
 //#region BillingMethod
 export enum BillingMethod {
   Invoice = 0,
-  CreditCard = 1,
-  AchDebit = 2
+  AchDebit = 1,
+  Realtime = 2,
+  CreditCardVisa = 3,
+  CreditCardMc = 4,
+  CreditCardAmex = 5,
+  CreditCardDiscover = 6
 }
 
 export function getBillingMethod(billingMethodId: number | undefined): string {
@@ -91,8 +95,12 @@ export function getBillingMethod(billingMethodId: number | undefined): string {
   
   const billingMap: { [key: number]: string } = {
     [BillingMethod.Invoice]: 'Invoice',
-    [BillingMethod.CreditCard]: 'Credit Card',
-    [BillingMethod.AchDebit]: 'ACH Debit'
+    [BillingMethod.AchDebit]: 'ACH Debit',
+    [BillingMethod.Realtime]: 'Realtime',
+    [BillingMethod.CreditCardVisa]: 'Credit Card (Visa)',
+    [BillingMethod.CreditCardMc]: 'Credit Card (MC)',
+    [BillingMethod.CreditCardAmex]: 'Credit Card (AmEx)',
+    [BillingMethod.CreditCardDiscover]: 'Credit Card (Discover)'
   };
   
   return billingMap[billingMethodId] || '';
@@ -102,8 +110,12 @@ export function getBillingMethod(billingMethodId: number | undefined): string {
 export function getBillingMethods(): { value: number, label: string }[] {
   return [
     { value: BillingMethod.Invoice, label: getBillingMethod(BillingMethod.Invoice) },
-    { value: BillingMethod.CreditCard, label: getBillingMethod(BillingMethod.CreditCard) },
-    { value: BillingMethod.AchDebit, label: getBillingMethod(BillingMethod.AchDebit) }
+    { value: BillingMethod.AchDebit, label: getBillingMethod(BillingMethod.AchDebit) },
+    { value: BillingMethod.Realtime, label: getBillingMethod(BillingMethod.Realtime) },
+    { value: BillingMethod.CreditCardVisa, label: getBillingMethod(BillingMethod.CreditCardVisa) },
+    { value: BillingMethod.CreditCardMc, label: getBillingMethod(BillingMethod.CreditCardMc) },
+    { value: BillingMethod.CreditCardAmex, label: getBillingMethod(BillingMethod.CreditCardAmex) },
+    { value: BillingMethod.CreditCardDiscover, label: getBillingMethod(BillingMethod.CreditCardDiscover) }
   ];
 }
 //#endregion
