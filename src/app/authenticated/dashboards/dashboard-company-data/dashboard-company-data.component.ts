@@ -88,8 +88,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
   private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
+    externalRefNo: { displayAs: 'Ref No', maxWidth: '14ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
-    externalRefNo: { displayAs: 'Ref No', maxWidth: '10ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '10ch', alignment: 'center' },
     tenantName: { displayAs: 'Occupant', maxWidth: '18ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '18ch', wrap: false },
@@ -100,8 +100,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
   private readonly reservationTurnoverDepartureBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
+    externalRefNo: { displayAs: 'Ref No', maxWidth: '14ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
-    externalRefNo: { displayAs: 'Ref No', maxWidth: '10ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '10ch', alignment: 'center' },
     tenantName: { displayAs: 'Occupant', maxWidth: '18ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '18ch', wrap: false },
