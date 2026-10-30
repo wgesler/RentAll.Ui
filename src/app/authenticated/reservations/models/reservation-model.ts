@@ -178,6 +178,7 @@ export interface ReservationLoadedContext {
 export interface ReservationListResponse {
   reservationId: string;
   reservationCode: string;
+  externalRefNo?: string | null;
   propertyId: string;
   propertyCode: string;
   noticeStatusId: number;
@@ -244,6 +245,7 @@ export interface ReservationCodeResponse {
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
+  externalRefNo?: string | null;
   propertyId: string;
   propertyCode: string;
   noticeStatusId: number;

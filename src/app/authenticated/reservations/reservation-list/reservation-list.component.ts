@@ -97,6 +97,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly compactViewportWidth = 1024;
   private readonly fullReservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
+    'externalRefNo': { displayAs: 'External Ref No', maxWidth: '20ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'tenantName': { displayAs: 'Occupant', maxWidth: '20ch' },
@@ -624,6 +625,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     });
     
     this.applyFilters();
+    this.updateDisplayedColumns();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
@@ -656,6 +658,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
       ? explicitFromParent
       : officeId;
     this.resolveOfficeScope(officeIdToUse, false);
+    this.updateDisplayedColumns();
   }
 
   reloadAllowedPropertyIds(): void {
@@ -848,10 +851,20 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     this.updateDisplayedColumns();
   }
 
+  officeUsesExternalRefNo(): boolean {
+    if (this.pageOfficeId != null && this.pageOfficeId > 0) {
+      return !!this.offices.find(office => office.officeId === this.pageOfficeId)?.useExternalRefNo;
+    }
+    return this.offices.some(office => !!office.useExternalRefNo);
+  }
+
   updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
-    const columns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
-    this.reservationsDisplayedColumns = { ...columns };
+    const columns = { ...(this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns) };
+    if (!this.officeUsesExternalRefNo()) {
+      delete columns['externalRefNo'];
+    }
+    this.reservationsDisplayedColumns = columns;
   }
 
   @HostListener('window:resize')

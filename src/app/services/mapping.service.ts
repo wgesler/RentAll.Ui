@@ -6764,6 +6764,7 @@ roundCurrency(value: number): number {
       return {
         reservationId: this.utility.normalizeId(o.reservationId),
         reservationCode: o.reservationCode,
+        externalRefNo: (o.externalRefNo || '').trim() || null,
         propertyId: this.utility.normalizeId(o.propertyId),
         propertyCode: o.propertyCode,
         noticeStatusId: Number(o.noticeStatusId ?? 0),
