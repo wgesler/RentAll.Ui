@@ -7,6 +7,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListDisplay, ReservationTurnoverEventDisplay } from '../../shared/models/mixed-models';
+import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
@@ -27,6 +28,7 @@ type DepartureTurnoverRow = ReservationTurnoverEventDisplay & {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardDeparturesComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
   private companyDataService = inject(DashboardCompanyDataService);
   private utilityService = inject(UtilityService);
   private router = inject(Router);
@@ -42,9 +44,11 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
   isAllExpandedUpcoming = false;
   isAllExpandedDeparted = false;
   loadedTrackerReservationKey = '';
+  hasManagementAccess = false;
 
   //#region Dashboard-Departures
   ngOnInit(): void {
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     this.dashboardNavigation.setTabIndex(1);
     this.companyDataService.snapshot$.pipe(takeUntil(this.destroy$)).subscribe(snapshot => {
       this.snapshot = snapshot;
@@ -78,9 +82,13 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
 
   //#region Form Response Methods
   get checklistColumns(): ColumnSet {
+    const columns = { ...this.snapshot.reservationTurnoverDepartureColumns };
+    if (!this.hasManagementAccess) {
+      return columns;
+    }
     return {
       expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-      ...this.snapshot.reservationTurnoverDepartureColumns
+      ...columns
     };
   }
 

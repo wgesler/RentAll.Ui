@@ -101,6 +101,7 @@ export class MixedMappingService {
       return {
         reservationId: reservation.reservationId,
         reservationCode: reservation.reservationCode,
+        externalRefNo: (reservation.externalRefNo || '').trim() || null,
         propertyId: reservation.propertyId,
         propertyCode: reservation.propertyCode,
         officeId: Number(property.officeId) > 0 ? Number(property.officeId) : Number(reservation.officeId) || 0,
@@ -514,6 +515,7 @@ export class MixedMappingService {
       officeId: rpm.officeId,
       reservationId: this.utilityService.normalizeId(rpm.reservationId),
       reservationCode: String(rpm.reservationCode ?? '').trim(),
+      externalRefNo: String(rpm.externalRefNo ?? '').trim() || null,
       contactId: this.utilityService.normalizeId(rpm.contactId),
       companyName: String(rpm.companyName ?? '').trim(),
       agentCode: rpm.agentCode ?? null,

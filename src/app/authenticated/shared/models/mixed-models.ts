@@ -72,6 +72,7 @@ export interface PropertyMaintenance {
 export interface ReservationPropertyMaintenance extends PropertyMaintenance {
   reservationId: string;
   reservationCode: string;
+  externalRefNo?: string | null;
   propertyId: string;
   propertyCode: string;
   officeId: number;
@@ -228,6 +229,7 @@ export interface ReservationTurnoverEventDisplay {
   officeId: number;
   reservationId: string;
   reservationCode: string;
+  externalRefNo?: string | null;
   contactId: string;
   companyName: string;
   agentCode: string | null;

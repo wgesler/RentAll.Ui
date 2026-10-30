@@ -89,7 +89,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
-    agentCode: { displayAs: 'Agent', maxWidth: '12ch' },
+    externalRefNo: { displayAs: 'Ref No', maxWidth: '10ch', sortType: 'natural' },
+    agentCode: { displayAs: 'Agent', maxWidth: '10ch', alignment: 'center' },
     tenantName: { displayAs: 'Occupant', maxWidth: '18ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '18ch', wrap: false },
     companyName: { displayAs: 'Company', maxWidth: '18ch', wrap: false },
@@ -100,7 +101,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   private readonly reservationTurnoverDepartureBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
-    agentCode: { displayAs: 'Agent', maxWidth: '12ch' },
+    externalRefNo: { displayAs: 'Ref No', maxWidth: '10ch', sortType: 'natural' },
+    agentCode: { displayAs: 'Agent', maxWidth: '10ch', alignment: 'center' },
     tenantName: { displayAs: 'Occupant', maxWidth: '18ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '18ch', wrap: false },
     companyName: { displayAs: 'Company', maxWidth: '18ch', wrap: false },
@@ -161,7 +163,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   private readonly monthlyCommissionColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
-    agentCode: { displayAs: 'Agent', maxWidth: '15ch' },
+    agentCode: { displayAs: 'Agent', maxWidth: '15ch', alignment: 'center' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '20ch', alignment: 'center' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
     daysRented: { displayAs: 'Days Rented', maxWidth: '18ch', alignment: 'center' },
@@ -632,6 +634,10 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
 
     const arrivalBase = this.cloneColumnSet(this.reservationTurnoverArrivalBaseColumns);
     const departureBase = this.cloneColumnSet(this.reservationTurnoverDepartureBaseColumns);
+    if (!this.officeUsesExternalRefNo()) {
+      delete arrivalBase['externalRefNo'];
+      delete departureBase['externalRefNo'];
+    }
     this.arrivalColumnDefinitionByOffice = this.buildColumnDefinitionByOffice(arrivalDefinitions);
     this.departureColumnDefinitionByOffice = this.buildColumnDefinitionByOffice(departureDefinitions);
 
@@ -2108,6 +2114,14 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     delete nextColumns['inspectingDate'];
     delete nextColumns['inspector'];
     return nextColumns;
+  }
+
+  officeUsesExternalRefNo(): boolean {
+    const officeId = this.selectedOffice?.officeId ?? null;
+    if (officeId != null && officeId > 0) {
+      return !!this.offices.find(office => office.officeId === officeId)?.useExternalRefNo;
+    }
+    return this.offices.some(office => !!office.useExternalRefNo);
   }
 
   cloneColumnSet(columns: ColumnSet): ColumnSet {
