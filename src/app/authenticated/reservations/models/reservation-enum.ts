@@ -8,7 +8,8 @@ export enum ReservationStatus {
   Maintenance = 5,
   OwnerBlocked = 6,
   ArrivalDeparture = 7,
-  Offline = 8
+  Offline = 8,
+  EarlyMoveOut = 9
 }
 
 export function getReservationStatus(reservationStatusId: number | undefined): string {
@@ -17,9 +18,10 @@ export function getReservationStatus(reservationStatusId: number | undefined): s
   const statusMap: { [key: number]: string } = {
     [ReservationStatus.PreBooking]: 'Pre-Booking',
     [ReservationStatus.Confirmed]: 'Confirmed',
-    [ReservationStatus.CheckedIn]: 'Checked In',
-    [ReservationStatus.GaveNotice]: 'Gave Notice',
+    [ReservationStatus.CheckedIn]: 'Checked In / Month-to-Month',
+    [ReservationStatus.GaveNotice]: 'Gave Notice / NTV',
     [ReservationStatus.FirstRightRefusal]: 'First Right of Refusal',
+    [ReservationStatus.EarlyMoveOut]: 'Early Move Out',
     [ReservationStatus.Maintenance]: 'Maintenance',
     [ReservationStatus.OwnerBlocked]: 'Owner Blocked',
     [ReservationStatus.ArrivalDeparture]: 'Arrival/Departure',
@@ -37,6 +39,7 @@ export function getReservationStatuses(): { value: number, label: string }[] {
     { value: ReservationStatus.CheckedIn, label: getReservationStatus(ReservationStatus.CheckedIn) },
     { value: ReservationStatus.GaveNotice, label: getReservationStatus(ReservationStatus.GaveNotice) },
     { value: ReservationStatus.FirstRightRefusal, label: getReservationStatus(ReservationStatus.FirstRightRefusal) },
+    { value: ReservationStatus.EarlyMoveOut, label: getReservationStatus(ReservationStatus.EarlyMoveOut) },
     { value: ReservationStatus.Maintenance, label: getReservationStatus(ReservationStatus.Maintenance) },
     { value: ReservationStatus.OwnerBlocked, label: getReservationStatus(ReservationStatus.OwnerBlocked) },
     { value: ReservationStatus.Offline, label: getReservationStatus(ReservationStatus.Offline) }

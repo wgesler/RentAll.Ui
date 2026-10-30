@@ -103,6 +103,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     ReservationStatus.CheckedIn,
     ReservationStatus.GaveNotice,
     ReservationStatus.FirstRightRefusal,
+    ReservationStatus.EarlyMoveOut,
     ReservationStatus.Maintenance,
     ReservationStatus.OwnerBlocked
   ];
@@ -126,6 +127,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   furnishedPropertyToggleChecked = false;
   furnishedSliderIndex: FiveWayToggleValue = 0;
   hasPartnerIntegration = false;
+  hasManagementAccess = false;
   partnersBoardToggleChecked = false;
   isPartnerBoardLoading = false;
   partnerContactByPropertyId = new Map<string, PartnerContactResponse>();
@@ -172,6 +174,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     this.isPartnerAdmin = this.authService.hasRole(UserGroups.PartnerAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.hasPartnerIntegration = this.authService.hasPartnerIntegrationAccess();
+    this.hasManagementAccess = this.authService.hasAccessToManagement();
     this.furnishedPropertyToggleChecked = this.globalSelectionService.getFurnishedPropertySelection() === true;
     this.partnersBoardToggleChecked = this.hasPartnerIntegration && this.globalSelectionService.getPartnersBoardSelection() === true;
     if (!this.hasPartnerIntegration && this.globalSelectionService.getPartnersBoardSelection()) {
