@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -22,12 +22,21 @@ export class PaymentService {
   }
 
   getPayments(officeId?: number | null, kind: PaymentKind = PaymentKind.Invoice): Observable<PaymentResponse[]> {
-    const kindSegment = kind === PaymentKind.Bill ? 'bill' : kind === PaymentKind.Owner ? 'owner' : 'invoice';
-    const request$ = officeId != null && Number.isFinite(officeId) && officeId > 0
+    if (kind === PaymentKind.Invoice) {
+      return forkJoin([
+        this.getPaymentsForKind(officeId, 'invoice'),
+        this.getPaymentsForKind(officeId, 'owner-inbound')
+      ]).pipe(map(([invoicePayments, ownerInboundPayments]) => [...(invoicePayments || []), ...(ownerInboundPayments || [])].map(payment => this.mappingService.mapPaymentResponse(payment))));
+    }
+
+    const kindSegment = kind === PaymentKind.Bill ? 'bill' : kind === PaymentKind.OwnerOutbound ? 'owner' : 'invoice';
+    return this.getPaymentsForKind(officeId, kindSegment).pipe(map(payments => (payments || []).map(payment => this.mappingService.mapPaymentResponse(payment))));
+  }
+
+  private getPaymentsForKind(officeId: number | null | undefined, kindSegment: string): Observable<PaymentResponse[]> {
+    return officeId != null && Number.isFinite(officeId) && officeId > 0
       ? this.http.get<PaymentResponse[]>(this.controller + kindSegment + '/office/' + officeId)
       : this.http.get<PaymentResponse[]>(this.controller + kindSegment);
-
-    return request$.pipe(map(payments => (payments || []).map(payment => this.mappingService.mapPaymentResponse(payment))));
   }
 
   getPaymentById(paymentId: string): Observable<PaymentResponse> {

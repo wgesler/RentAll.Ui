@@ -5184,7 +5184,7 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       return PaymentKind.Bill;
     }
     if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerPayments') {
-      return PaymentKind.Owner;
+      return PaymentKind.OwnerOutbound;
     }
     return PaymentKind.Invoice;
   }

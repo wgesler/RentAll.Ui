@@ -27,6 +27,8 @@ import { PaymentService } from '../../services/payment.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 import { ReportService } from '../../services/report.service';
 import { ContactService } from '../../../contacts/services/contact.service';
+import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
+import { PropertyListResponse } from '../../../properties/models/property.model';
 
 @Component({
   standalone: true,
@@ -58,6 +60,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   private costCodesService = inject(CostCodesService);
   private contactService = inject(ContactService);
   private propertyService = inject(PropertyService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
   private mappingService = inject(MappingService);
   formatter = inject(FormatterService);
@@ -74,6 +77,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   invoices: InvoiceResponse[] = [];
   bills: ReceiptResponse[] = [];
   propertyCodeLookup = new Map<string, string>();
+  readonly ownerApAllocationId = 'owner-ap';
+  ownerApAllocationLabel = 'Owner A/Payable';
+  ownerApPropertyOptions: SearchableSelectOption<string>[] = [];
+  private ownerInboundProperties: PropertyListResponse[] = [];
+  private defaultOwnerApAccountId = 0;
   owedOwners: OwnerOwedAllocationOption[] = [];
   costCodeOptions: SearchableSelectOption<number>[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
@@ -114,7 +122,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   get isOwnerPayment(): boolean {
-    return this.paymentKind === PaymentKind.Owner;
+    return this.paymentKind === PaymentKind.OwnerOutbound;
   }
 
   get isOutbound(): boolean {
@@ -123,6 +131,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
 
   get showSplitProperty(): boolean {
     return this.paymentKind === PaymentKind.Bill;
+  }
+
+  get showInvoicePropertyColumn(): boolean {
+    return this.paymentKind === PaymentKind.Invoice;
   }
 
   get allocationColumnLabel(): string {
@@ -175,6 +187,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     this.loadCostCodesForOffice();
     this.loadBankAccountsForOffice();
     this.loadPropertyCodes();
+    this.loadOwnerInboundLookups();
     if (this.isAddMode) {
       this.loadAllocationsForOffice();
       this.ensureAtLeastOneSplit();
@@ -263,6 +276,11 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     if (!Number.isFinite(costCodeId) || costCodeId <= 0) {
       this.form.get('costCodeId')?.markAsTouched();
       this.showValidationErrorToast();
+      return;
+    }
+
+    if (this.formUsesOwnerAp()) {
+      this.saveOwnerInboundPayment(paymentDateValue, paymentTypeId, amountValue, costCodeId);
       return;
     }
 
@@ -708,6 +726,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       this.replaceSplitLinesFromBillAllocations(payment.billAllocations || []);
       return;
     }
+    if (payment.paymentKindId === PaymentKind.OwnerInbound) {
+      this.replaceSplitLinesFromOwnerInbound(payment.ownerAllocations || []);
+      return;
+    }
     this.replaceSplitLinesFromLedgerLines(payment.invoiceAllocations ?? payment.ledgerLines ?? []);
   }
 
@@ -830,14 +852,71 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  createSplitGroup(split?: { invoiceId?: string; amount?: number; description?: string }): FormGroup {
+  createSplitGroup(split?: { invoiceId?: string; propertyId?: string; amount?: number; description?: string }): FormGroup {
     const amount = Number(split?.amount);
     return this.fb.group({
       splitLineKey: new FormControl(this.createSplitLineKey()),
       invoiceId: new FormControl((split?.invoiceId || '').trim(), [Validators.required, this.requireAllocationId]),
+      propertyId: new FormControl((split?.propertyId || '').trim()),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '0.00', [Validators.required, this.requirePositiveAmount]),
       description: new FormControl(split?.description || '', [Validators.required])
+    }, { validators: [this.requireOwnerApProperty] });
+  }
+
+  readonly requireOwnerApProperty = (control: AbstractControl): ValidationErrors | null => {
+    const invoiceId = (control.get('invoiceId')?.value || '').toString().trim();
+    if (invoiceId !== this.ownerApAllocationId) {
+      return null;
+    }
+    const propertyId = (control.get('propertyId')?.value || '').toString().trim();
+    return propertyId.length > 0 ? null : { propertyRequired: true };
+  };
+
+  isOwnerApSplit(splitIndex: number): boolean {
+    return (this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.value || '').toString().trim() === this.ownerApAllocationId;
+  }
+
+  getSplitPropertyOptions(splitIndex: number): SearchableSelectOption<string>[] {
+    if (this.isOwnerApSplit(splitIndex)) {
+      return this.ownerApPropertyOptions;
+    }
+
+    const propertyId = (this.splitsFormArray.at(splitIndex)?.get('propertyId')?.value || '').toString().trim();
+    if (!propertyId) {
+      return [];
+    }
+
+    const invoiceId = (this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.value || '').toString().trim();
+    const invoice = this.invoices.find(item => item.invoiceId === invoiceId);
+    const label = (invoice?.propertyCode || '').trim() || this.resolvePropertyCode(propertyId) || propertyId;
+    return [{ value: propertyId, label }];
+  }
+
+  resolveInvoicePropertyId(invoiceId: string): string {
+    const invoice = this.invoices.find(item => item.invoiceId === invoiceId);
+    return (invoice?.propertyId || '').trim();
+  }
+
+  applyInvoicePropertiesToSplits(): void {
+    if (this.paymentKind !== PaymentKind.Invoice || !this.splitsFormArray) {
+      return;
+    }
+
+    this.splitsFormArray.controls.forEach(control => {
+      const invoiceId = (control.get('invoiceId')?.value || '').toString().trim();
+      if (!invoiceId || invoiceId === this.ownerApAllocationId) {
+        return;
+      }
+
+      const propertyId = this.resolveInvoicePropertyId(invoiceId);
+      if (propertyId) {
+        control.get('propertyId')?.setValue(propertyId, { emitEvent: false });
+      }
     });
+  }
+
+  formUsesOwnerAp(): boolean {
+    return this.splitsFormArray.controls.some(control => (control.get('invoiceId')?.value || '').toString().trim() === this.ownerApAllocationId);
   }
 
   getSplitLineTrackKey(splitGroup: AbstractControl): string {
@@ -912,6 +991,13 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     const splitGroup = this.splitsFormArray.at(splitIndex) as FormGroup | undefined;
     splitGroup?.get('invoiceId')?.setValue(allocationId);
     splitGroup?.get('invoiceId')?.markAsTouched();
+    if (allocationId === this.ownerApAllocationId) {
+      splitGroup?.get('propertyId')?.setValue('');
+    } else if (this.paymentKind === PaymentKind.Invoice) {
+      splitGroup?.get('propertyId')?.setValue(this.resolveInvoicePropertyId(allocationId), { emitEvent: false });
+    } else {
+      splitGroup?.get('propertyId')?.setValue('');
+    }
     if (allocationId.length > 0) {
       const balanceDue = this.isOwnerPayment
         ? this.getOwnerOwedAmount(allocationId)
@@ -1059,7 +1145,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     if (this.paymentKind === PaymentKind.Bill) {
       return this.buildBillOptionsForSplit(splitIndex);
     }
-    return this.allocationOptions;
+    return this.withOwnerApAllocationOption(this.allocationOptions);
   }
 
   buildOwnerOptionsForSplit(splitIndex: number): SearchableSelectOption<string>[] {
@@ -1175,7 +1261,18 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       });
     }
 
-    return options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+    const sorted = options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+    return sorted;
+  }
+
+  private withOwnerApAllocationOption(options: SearchableSelectOption<string>[]): SearchableSelectOption<string>[] {
+    if (this.paymentKind !== PaymentKind.Invoice) {
+      return options;
+    }
+    return [
+      { value: this.ownerApAllocationId, label: this.ownerApAllocationLabel },
+      ...options.filter(option => option.value !== this.ownerApAllocationId)
+    ];
   }
 
   private buildInvoiceOptionLabel(invoice: InvoiceResponse): string {
@@ -1358,12 +1455,190 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
             this.form.patchValue({ chartOfAccountId: this.bankAccountOptions[0].value });
           }
           this.cdr.markForCheck();
+          this.refreshOwnerApAllocationLabel();
         },
         error: () => {
           this.bankAccountOptions = [];
           this.cdr.markForCheck();
         }
       });
+    });
+  }
+
+  loadOwnerInboundLookups(): void {
+    if (this.paymentKind !== PaymentKind.Invoice) {
+      return;
+    }
+
+    const officeId = this.getPaymentOfficeId();
+    if (!officeId) {
+      this.ownerApPropertyOptions = [];
+      return;
+    }
+
+    this.propertyService.getPropertyList().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: properties => {
+        this.ownerInboundProperties = (properties || []).filter(property =>
+          Number(property.officeId) === officeId && !!(property.propertyId || '').trim());
+        this.ownerApPropertyOptions = this.ownerInboundProperties
+          .map(property => ({
+            value: property.propertyId,
+            label: (property.propertyCode || '').trim() || property.propertyId
+          }))
+          .sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true, sensitivity: 'base' }));
+        this.cdr.markForCheck();
+      }
+    });
+
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: office => {
+        this.defaultOwnerApAccountId = Number(office?.defaultOwnActPayableAccountId ?? 0) || 0;
+        this.refreshOwnerApAllocationLabel();
+      }
+    });
+
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+        next: accounts => {
+          this.officeChartOfAccounts = (accounts || []).filter(account => Number(account.officeId) === officeId);
+          this.refreshOwnerApAllocationLabel();
+        }
+      });
+    });
+  }
+
+  refreshOwnerApAllocationLabel(): void {
+    const ownerApAccountId = Number(this.defaultOwnerApAccountId ?? 0);
+    const account = ownerApAccountId > 0
+      ? this.officeChartOfAccounts.find(item => Number(item.accountId) === ownerApAccountId)
+      : undefined;
+    this.ownerApAllocationLabel = account
+      ? this.utilityService.getChartOfAccountDropdownLabel(account)
+      : 'Owner A/Payable';
+    this.cdr.markForCheck();
+  }
+
+  onOwnerApPropertyChange(splitIndex: number, value: string | number | null | undefined): void {
+    const propertyId = (value ?? '').toString().trim();
+    const splitGroup = this.splitsFormArray.at(splitIndex);
+    splitGroup?.get('propertyId')?.setValue(propertyId);
+    splitGroup?.get('propertyId')?.markAsTouched();
+    splitGroup?.updateValueAndValidity();
+    this.cdr.markForCheck();
+  }
+
+  shouldShowOwnerApPropertyError(splitGroup: AbstractControl): boolean {
+    return !!splitGroup.errors?.['propertyRequired'] && (splitGroup.touched || this.saveValidationHighlightActive);
+  }
+
+  replaceSplitLinesFromOwnerInbound(allocations: PaymentOwnerAllocation[]): void {
+    while (this.splitsFormArray.length > 0) {
+      this.splitsFormArray.removeAt(0);
+    }
+
+    if (!allocations.length) {
+      this.splitsFormArray.push(this.createSplitGroup({ invoiceId: this.ownerApAllocationId }));
+      return;
+    }
+
+    allocations.forEach(allocation => {
+      this.splitsFormArray.push(this.createSplitGroup({
+        invoiceId: this.ownerApAllocationId,
+        propertyId: allocation.propertyId,
+        amount: allocation.amount,
+        description: allocation.description
+      }));
+    });
+  }
+
+  saveOwnerInboundPayment(paymentDate: string, paymentTypeId: number | null, amount: number, costCodeId: number): void {
+    if (!this.isAddMode && !this.payment?.paymentId) {
+      this.toastr.error('Payment is still loading.', 'Error');
+      return;
+    }
+    const lines = this.splitsFormArray.controls.map(control => ({
+      invoiceId: (control.get('invoiceId')?.value || '').toString().trim(),
+      propertyId: (control.get('propertyId')?.value || '').toString().trim(),
+      amount: parseFloat(this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '')) || 0,
+      description: (control.get('description')?.value || '').toString().trim()
+    })).filter(line => line.amount !== 0);
+
+    if (lines.length === 0 || lines.some(line => line.invoiceId !== this.ownerApAllocationId)) {
+      this.toastr.error('Owner A/Payable lines cannot be combined with an invoice on the same payment.', 'Error');
+      return;
+    }
+
+    if (lines.some(line => !line.propertyId || !line.description)) {
+      this.splitsFormArray.controls.forEach(control => control.markAllAsTouched());
+      this.showValidationErrorToast();
+      return;
+    }
+
+    const allocations = lines.map(line => {
+      const property = this.ownerInboundProperties.find(item => item.propertyId === line.propertyId);
+      const ownerId = (property?.owner1Id || '').trim();
+      return {
+        ownerId,
+        propertyId: line.propertyId,
+        amount: line.amount,
+        description: line.description
+      };
+    });
+
+    if (allocations.some(allocation => !allocation.ownerId)) {
+      this.toastr.error('The property does not have an owner.', 'Error');
+      return;
+    }
+
+    const allocationTotal = this.utilityService.sumCurrencyAmounts(allocations.map(allocation => allocation.amount));
+    if (!this.utilityService.areCurrencyAmountsEqual(allocationTotal, amount)) {
+      this.splitTotalValidationError = true;
+      this.showAllocationMismatchToast();
+      return;
+    }
+
+    const officeId = this.getPaymentOfficeId();
+    if (!officeId) {
+      this.showValidationErrorToast();
+      return;
+    }
+
+    const request = {
+      organizationId: this.organizationId,
+      officeId,
+      paymentDate,
+      amount,
+      description: (this.form.get('description')?.value || '').trim(),
+      paymentTypeId,
+      paymentKindId: PaymentKind.OwnerInbound,
+      costCodeId,
+      isActive: !!this.form.get('isActive')?.value,
+      allocations
+    };
+
+    this.splitTotalValidationError = false;
+    this.isSubmitting = true;
+    const save$ = this.isAddMode
+      ? this.paymentService.createPaymentWithOwnerAllocations(request)
+      : this.paymentService.updatePaymentWithOwnerAllocations({ ...request, paymentId: this.payment!.paymentId });
+
+    save$.pipe(take(1), finalize(() => {
+      this.isSubmitting = false;
+      this.cdr.markForCheck();
+    })).subscribe({
+      next: (saved: PaymentResponse) => {
+        this.payment = saved;
+        this.isAddMode = false;
+        this.saveValidationHighlightActive = false;
+        this.toastr.success('Payment saved successfully.', 'Success');
+        this.savedEvent.emit(saved);
+        if (this.autoBackOnSave) {
+          this.backEvent.emit();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.showPaymentSaveError(err);
+      }
     });
   }
 
@@ -1468,6 +1743,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
         this.invoices = invoices || [];
         const allocatedLedgerLines = this.isAddMode ? [] : (this.payment?.invoiceAllocations ?? this.payment?.ledgerLines ?? []);
         this.allocationOptions = this.buildInvoiceOptions(this.invoices, allocatedLedgerLines);
+        this.applyInvoicePropertiesToSplits();
         this.cdr.markForCheck();
       },
       error: () => {

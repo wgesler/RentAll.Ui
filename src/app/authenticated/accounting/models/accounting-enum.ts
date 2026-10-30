@@ -77,7 +77,8 @@ export enum SourceType {
   Transfer = 21,
   WorkOrder = 22,
   Reservation = 23,
-  LinensAndTowels = 24
+  LinensAndTowels = 24,
+  OwnerInbound = 25
 }
 
 export const SourceTypeCodes: Record<SourceType, string> = {
@@ -106,6 +107,7 @@ export const SourceTypeCodes: Record<SourceType, string> = {
   [SourceType.WorkOrder]: 'WO',
   [SourceType.Reservation]: 'RES',
   [SourceType.LinensAndTowels]: 'LIN',
+  [SourceType.OwnerInbound]: 'OIN',
 };
 
 export const SourceTypeLabels: { value: SourceType, label: string }[] = [
@@ -134,6 +136,7 @@ export const SourceTypeLabels: { value: SourceType, label: string }[] = [
   { value: SourceType.WorkOrder, label: 'Work Order' },
   { value: SourceType.Reservation, label: 'Reservation' },
   { value: SourceType.LinensAndTowels, label: 'Linens & Towels' },
+  { value: SourceType.OwnerInbound, label: 'Owner Inbound' },
 ];
 
 export function getSourceTypeCode(sourceTypeId: number | undefined | null): string {
@@ -661,13 +664,15 @@ export function getPaymentTypeLabel(
 export enum PaymentKind {
   Invoice = 0,
   Bill = 1,
-  Owner = 2
+  OwnerOutbound = 2,
+  OwnerInbound = 3
 }
 
 export const PaymentKindLabels: { value: PaymentKind; label: string }[] = [
   { value: PaymentKind.Invoice, label: 'Invoice' },
   { value: PaymentKind.Bill, label: 'Bill' },
-  { value: PaymentKind.Owner, label: 'Owner' },
+  { value: PaymentKind.OwnerOutbound, label: 'Owner Outbound' },
+  { value: PaymentKind.OwnerInbound, label: 'Owner Inbound' },
 ];
 
 export function getPaymentKind(paymentKindId: number | undefined | null): string {
@@ -678,7 +683,8 @@ export function getPaymentKind(paymentKindId: number | undefined | null): string
   const typeMap: { [key: number]: string } = {
     [PaymentKind.Invoice]: 'Invoice',
     [PaymentKind.Bill]: 'Bill',
-    [PaymentKind.Owner]: 'Owner',
+    [PaymentKind.OwnerOutbound]: 'Owner Outbound',
+    [PaymentKind.OwnerInbound]: 'Owner Inbound',
   };
 
   return typeMap[paymentKindId] || '';

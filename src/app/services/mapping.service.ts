@@ -6065,7 +6065,7 @@ buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
     return (payments || []).map((payment: PaymentResponse): PaymentDisplayList => {
       const paymentKindId = Number(payment.paymentKindId ?? 0) || 0;
       const isOutbound = paymentKindId === PaymentKind.Bill;
-      const isOwner = paymentKindId === PaymentKind.Owner;
+      const isOwner = paymentKindId === PaymentKind.OwnerOutbound || paymentKindId === PaymentKind.OwnerInbound;
       const ledgerLines = this.mapPaymentLedgerLinesFromApi(payment.invoiceAllocations ?? payment.ledgerLines);
       const billAllocations = this.mapPaymentBillAllocationsFromApi(payment.billAllocations);
       const ownerAllocations = this.mapPaymentOwnerAllocationsFromApi(payment.ownerAllocations);

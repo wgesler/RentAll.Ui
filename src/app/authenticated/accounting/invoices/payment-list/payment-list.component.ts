@@ -144,7 +144,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get isOwnerPaymentList(): boolean {
-    return this.paymentKind === PaymentKind.Owner;
+    return this.paymentKind === PaymentKind.OwnerOutbound;
   }
 
   get isBillStylePaymentList(): boolean {
@@ -1001,6 +1001,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
           : undefined,
         postingStatusId,
         deleteDisabled: !this.journalEntryService.canDeleteApplicationObject(postingStatusId)
+          || display.hasDeposit
+          || !!(display.depositCode || '').trim()
       };
     });
   }

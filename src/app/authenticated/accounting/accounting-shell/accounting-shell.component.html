@@ -1561,7 +1561,7 @@
                       [paymentId]="selectedPaymentId"
                       [prefetchedPayment]="selectedPayment"
                       [officeId]="selectedOfficeId"
-                      [paymentKind]="PaymentKind.Owner"
+                      [paymentKind]="PaymentKind.OwnerOutbound"
                       [owedStartDate]="billsSearchRequest.startDate ?? null"
                       [owedEndDate]="billsSearchRequest.endDate ?? null"
                       (backEvent)="onPaymentBack()"
@@ -1572,7 +1572,7 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="paymentSearchRequest"
                     [embeddedInAccounting]="true"
-                    [paymentKind]="PaymentKind.Owner"
+                    [paymentKind]="PaymentKind.OwnerOutbound"
                     [refreshTrigger]="paymentsRefreshTrigger"
                     (paymentSelect)="onOwnerPaymentSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">

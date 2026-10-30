@@ -188,7 +188,7 @@
                       <tr>
                         <th class="split-col-no">No</th>
                         <th class="split-col-invoice">{{ allocationColumnLabel }}</th>
-                        @if (showSplitProperty) {
+                        @if (showSplitProperty || showInvoicePropertyColumn) {
                           <th class="split-col-property">Property</th>
                         }
                         <th class="split-col-amount">Amount</th>
@@ -220,7 +220,29 @@
                               [errorText]="allocationErrorText"
                               (valueChange)="onSplitAllocationSelectionChange(splitIndex, $event)" />
                           </td>
-                          @if (showSplitProperty) {
+                          @if (showInvoicePropertyColumn) {
+                            <td class="split-col-property">
+                              <app-searchable-select
+                                class="split-invoice-select"
+                                [class.split-property-select--locked]="!isOwnerApSplit(splitIndex)"
+                                [renderInFormField]="false"
+                                [disabled]="!isOwnerApSplit(splitIndex)"
+                                [value]="splitGroup.get('propertyId')?.value ?? ''"
+                                [options]="getSplitPropertyOptions(splitIndex)"
+                                [required]="isOwnerApSplit(splitIndex)"
+                                [showInstructionOption]="isOwnerApSplit(splitIndex)"
+                                [instructionOptionValue]="''"
+                                [nullOptionLabel]="isOwnerApSplit(splitIndex) ? 'Select Property' : ''"
+                                [showSearchInput]="isOwnerApSplit(splitIndex)"
+                                [hideSearchHint]="false"
+                                [hideSearchText]="false"
+                                searchPlaceholder="Type to filter properties..."
+                                noResultsText="No properties match your search"
+                                [showError]="shouldShowOwnerApPropertyError(splitGroup)"
+                                errorText="Property is required"
+                                (valueChange)="onOwnerApPropertyChange(splitIndex, $event)" />
+                            </td>
+                          } @else if (showSplitProperty) {
                             <td class="split-col-property">
                               <input type="text" class="split-editable-input" [value]="getSplitPropertyLabel(splitIndex)" readonly>
                             </td>

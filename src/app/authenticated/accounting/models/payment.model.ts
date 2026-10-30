@@ -103,7 +103,9 @@ export interface CreatePaymentWithOwnerAllocationsRequest {
   amount: number;
   description: string;
   paymentTypeId?: number | null;
-  chartOfAccountId: number;
+  paymentKindId?: number;
+  costCodeId?: number;
+  chartOfAccountId?: number | null;
   isActive: boolean;
   allocations: PaymentOwnerAllocationRequest[];
 }

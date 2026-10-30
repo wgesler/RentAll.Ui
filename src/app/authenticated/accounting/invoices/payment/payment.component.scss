@@ -198,6 +198,19 @@
 }
 
 .split-lines-table--payment {
+  th,
+  td {
+    padding: var(--global-form-field-gap-y) var(--global-form-field-gap-x);
+  }
+
+  .split-col-invoice {
+    width: 22rem;
+  }
+
+  .split-col-property {
+    width: 14rem;
+  }
+
   .split-col-description {
     width: auto;
     min-width: 0;
@@ -226,6 +239,11 @@
   display: block;
   width: 100%;
   min-width: 0;
+}
+
+.split-invoice-select.split-property-select--locked ::ng-deep .mat-mdc-select-trigger {
+  background-color: #f3f4f6;
+  color: rgba(0, 0, 0, 0.62);
 }
 
 .split-invoice-select ::ng-deep .searchable-select-control {
