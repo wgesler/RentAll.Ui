@@ -165,7 +165,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       subject: new FormControl('', [Validators.required]),
-      plainTextContent: new FormControl('', [Validators.required])
+      plainTextContent: new FormControl('')
     });
   }
 
