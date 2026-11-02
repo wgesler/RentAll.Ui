@@ -88,6 +88,7 @@ export interface AlertListDisplay {
   subject: string;
   emailTypeId: number;
   startDate: CalendarDateString;
+  endDate: string;
   frequencyId: number;
   frequencyLabel: string;
   nextAlertDate: string;

@@ -1573,6 +1573,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       subject: alert?.subject ?? '',
       emailTypeId: Number(alert?.emailTypeId ?? 0),
       startDate: this.formatter.formatDateString(alert?.startDate) || (alert?.startDate ?? ''),
+      endDate: this.formatter.formatDateString(alert?.endDate) || (alert?.endDate ?? ''),
       nextAlertDate: this.formatter.formatDateString(alert?.nextAlertDate) || (alert?.nextAlertDate ?? ''),
       frequencyId: Number(alert?.frequencyId ?? 0),
       frequencyLabel: getFrequency(Number(alert?.frequencyId ?? 0)),
