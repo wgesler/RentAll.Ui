@@ -40,6 +40,8 @@ type AlertReservationOption = {
   officeId: number;
   propertyId: string;
   label: string;
+  arrivalDate?: string | null;
+  departureDate?: string | null;
 };
 
 @Component({
@@ -126,6 +128,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       emailTypeId: this.alertEmailTypeId,
       startDate:
         this.utilityService.toDateOnlyJsonString(value.startDate) ?? this.utilityService.todayAsCalendarDateString(),
+      endDate: this.utilityService.toDateOnlyJsonString(value.endDate),
       daysBeforeDeparture: reservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
       frequencyId: Number(value.frequencyId || 0),
       isActive: true
@@ -158,6 +161,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       ccEmails: new FormControl(''),
       bccEmails: new FormControl(''),
       startDate: new FormControl<Date | null>(new Date(), [Validators.required]),
+      endDate: new FormControl<Date | null>(null),
       daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       subject: new FormControl('', [Validators.required]),
@@ -320,6 +324,17 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     if (!selectedPropertyId || selectedPropertyId !== reservation.propertyId) {
       this.form.patchValue({ propertyId: reservation.propertyId }, { emitEvent: false });
     }
+    this.applyReservationDates(reservation.arrivalDate, reservation.departureDate);
+  }
+
+  applyReservationDates(arrivalDate: string | null | undefined, departureDate: string | null | undefined): void {
+    const arrival = this.utilityService.parseCalendarDateInput(arrivalDate);
+    const today = this.utilityService.parseCalendarDateInput(new Date());
+    const startDate = arrival && today && arrival.getTime() < today.getTime() ? today : (arrival ?? today);
+    this.form.patchValue({
+      startDate,
+      endDate: this.utilityService.parseCalendarDateInput(departureDate)
+    }, { emitEvent: false });
   }
 
   setDaysBeforeDepartureEnabled(reservationId: string | null): void {
@@ -349,6 +364,8 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       reservationId: reservation.reservationId,
       officeId: Number(reservation.officeId || 0),
       propertyId: reservation.propertyId,
+      arrivalDate: reservation.arrivalDate,
+      departureDate: reservation.departureDate,
       label: `${reservation.reservationCode || ''}${displayName ? ` - ${displayName}` : ''}`
     };
   }

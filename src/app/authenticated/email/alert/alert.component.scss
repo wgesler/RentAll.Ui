@@ -87,7 +87,7 @@
 }
 
 .alert-timing-fields-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .alert-field-span-2 {
@@ -97,7 +97,7 @@
 .alert-compact-form {
   width: 100%;
   min-width: 0;
-  max-width: 760px;
+  max-width: 960px;
   margin: 0 auto;
 }
 

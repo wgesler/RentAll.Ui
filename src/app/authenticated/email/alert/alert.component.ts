@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -52,6 +52,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);
+  private cdr = inject(ChangeDetectorRef);
 
   readonly defaultFromName = 'The RentAll Exchange';
 
@@ -62,12 +63,13 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   isSubmitting = false;
   isServiceError = false;
   isAddMode = false;
+  showLinkedSelects = true;
   readonly alertEmailTypeId = EmailType.Alert;
 
   frequencyOptions = getFrequencies().filter(option => Number(option.value) > 0);
   offices: OfficeResponse[] = [];
   propertyOptions: { value: string; officeId: number; label: string }[] = [];
-  reservationOptions: { value: string; officeId: number; propertyId: string; label: string }[] = [];
+  reservationOptions: { value: string; officeId: number; propertyId: string; label: string; arrivalDate?: string | null; departureDate?: string | null }[] = [];
   destroy$ = new Subject<void>();
 
   //#region Alert
@@ -167,6 +169,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       plainTextContent: String(value.plainTextContent || ''),
       emailTypeId: this.alertEmailTypeId,
       startDate: this.utilityService.toDateOnlyJsonString(value.startDate) ?? this.utilityService.todayAsCalendarDateString(),
+      endDate: this.utilityService.toDateOnlyJsonString(value.endDate),
       daysBeforeDeparture: selectedReservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
       frequencyId: Number(value.frequencyId || 0),
       isActive: value.isActive !== false
@@ -219,6 +222,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       bccEmails: new FormControl(''),
       plainTextContent: new FormControl(''),
       startDate: new FormControl<Date | null>(null, [Validators.required]),
+      endDate: new FormControl<Date | null>(null),
       daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       isActive: new FormControl(true)
@@ -280,11 +284,44 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       bccEmails: (response.bccRecipients || []).map(recipient => recipient.email).join(', '),
       plainTextContent: response.plainTextContent || '',
       startDate: this.utilityService.parseCalendarDateInput(response.startDate),
+      endDate: this.utilityService.parseCalendarDateInput(response.endDate),
       daysBeforeDeparture: response.daysBeforeDeparture || '',
       frequencyId: response.frequencyId ?? null,
       isActive: response.isActive ?? true
-    });
+    }, { emitEvent: false });
+    this.ensureSelectedOptions(response);
     this.setDaysBeforeDepartureEnabled(response.reservationId ?? null);
+  }
+
+  ensureSelectedOptions(response: AlertResponse): void {
+    if (response.propertyId && !this.propertyOptions.some(option => option.value === response.propertyId)) {
+      this.propertyOptions = [...this.propertyOptions, {
+        value: response.propertyId,
+        officeId: Number(response.officeId || 0),
+        label: response.propertyCode || ''
+      }];
+    }
+    if (response.reservationId && !this.reservationOptions.some(option => option.value === response.reservationId)) {
+      this.reservationOptions = [...this.reservationOptions, {
+        value: response.reservationId,
+        officeId: Number(response.officeId || 0),
+        propertyId: response.propertyId || '',
+        label: response.reservationCode || ''
+      }];
+    }
+  }
+
+  refreshFilledDropdowns(): void {
+    const propertyId = this.alert?.propertyId ?? this.form.get('propertyId')?.value ?? null;
+    const reservationId = this.alert?.reservationId ?? this.form.get('reservationId')?.value ?? null;
+    setTimeout(() => {
+      this.showLinkedSelects = false;
+      this.cdr.detectChanges();
+      this.form.patchValue({ propertyId, reservationId }, { emitEvent: false });
+      this.setDaysBeforeDepartureEnabled(reservationId);
+      this.showLinkedSelects = true;
+      this.cdr.detectChanges();
+    });
   }
 
   getCurrentUserName(): string {
@@ -316,6 +353,9 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onOfficeChanged(officeId: number | null): void {
+    if (this.propertyOptions.length === 0 && this.reservationOptions.length === 0) {
+      return;
+    }
     const selectedPropertyId = this.form.get('propertyId')?.value;
     if (selectedPropertyId) {
       const property = this.propertyOptions.find(option => option.value === selectedPropertyId) || null;
@@ -334,6 +374,9 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onPropertyChanged(propertyId: string | null): void {
+    if (this.reservationOptions.length === 0) {
+      return;
+    }
     const selectedReservationId = this.form.get('reservationId')?.value;
     if (!selectedReservationId) {
       return;
@@ -358,6 +401,19 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       officeId: reservation.officeId,
       propertyId: reservation.propertyId
     }, { emitEvent: false });
+    if (this.isAddMode) {
+      this.applyReservationDates(reservation.arrivalDate, reservation.departureDate);
+    }
+  }
+
+  applyReservationDates(arrivalDate: string | null | undefined, departureDate: string | null | undefined): void {
+    const arrival = this.utilityService.parseCalendarDateInput(arrivalDate);
+    const today = this.utilityService.parseCalendarDateInput(new Date());
+    const startDate = arrival && today && arrival.getTime() < today.getTime() ? today : (arrival ?? today);
+    this.form.patchValue({
+      startDate,
+      endDate: this.utilityService.parseCalendarDateInput(departureDate)
+    }, { emitEvent: false });
   }
 
   setDaysBeforeDepartureEnabled(reservationId: string | null): void {
@@ -371,6 +427,17 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
     }
     control.setValue('', { emitEvent: false });
     control.disable({ emitEvent: false });
+  }
+
+  restoreAlertPropertyAndReservation(): void {
+    if (!this.alert || this.isAddMode) {
+      return;
+    }
+    this.form.patchValue({
+      propertyId: this.alert.propertyId ?? null,
+      reservationId: this.alert.reservationId ?? null
+    }, { emitEvent: false });
+    this.setDaysBeforeDepartureEnabled(this.alert.reservationId ?? null);
   }
 
   loadDropdownData(): void {
@@ -407,8 +474,19 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
           value: reservation.reservationId,
           officeId: Number(reservation.officeId || 0),
           propertyId: reservation.propertyId,
+          arrivalDate: reservation.arrivalDate,
+          departureDate: reservation.departureDate,
           label: `${reservation.reservationCode || ''}${reservation.tenantName ? ` - ${reservation.tenantName}` : ''}`
         }));
+        if (this.isAddMode) {
+          const selectedReservationId = this.form.get('reservationId')?.value;
+          const selectedReservation = this.reservationOptions.find(option => option.value === selectedReservationId) || null;
+          if (selectedReservation) {
+            this.applyReservationDates(selectedReservation.arrivalDate, selectedReservation.departureDate);
+          }
+        }
+        this.restoreAlertPropertyAndReservation();
+        this.refreshFilledDropdowns();
       },
       error: () => {
         this.offices = [];

@@ -26,6 +26,7 @@ export interface AlertRequest {
   plainTextContent: string;
   emailTypeId: number;
   startDate: CalendarDateString;
+  endDate?: CalendarDateString | null;
   daysBeforeDeparture?: string | null;
   frequencyId: number;
   isActive: boolean;
@@ -55,6 +56,7 @@ export interface AlertResponse {
   plainTextContent: string;
   emailTypeId: number;
   startDate: CalendarDateString;
+  endDate?: CalendarDateString | null;
   nextAlertDate: string;
   daysBeforeDeparture?: string | null;
   frequencyId: number;

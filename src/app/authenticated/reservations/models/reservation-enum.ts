@@ -90,6 +90,13 @@ export enum BillingMethod {
   CreditCardDiscover = 6
 }
 
+export function isCreditCardBillingMethod(billingMethodId: number | null | undefined): boolean {
+  return billingMethodId === BillingMethod.CreditCardVisa
+    || billingMethodId === BillingMethod.CreditCardMc
+    || billingMethodId === BillingMethod.CreditCardAmex
+    || billingMethodId === BillingMethod.CreditCardDiscover;
+}
+
 export function getBillingMethod(billingMethodId: number | undefined): string {
   if (billingMethodId === undefined || billingMethodId === null) return '';
   

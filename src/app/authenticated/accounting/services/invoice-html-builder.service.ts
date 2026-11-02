@@ -4,7 +4,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
-import { BillingMethod, getBillingMethod } from '../../reservations/models/reservation-enum';
+import { BillingMethod, getBillingMethod, isCreditCardBillingMethod } from '../../reservations/models/reservation-enum';
 import { TransactionType } from '../models/accounting-enum';
 import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
 import { InvoicePrintContext } from '../models/invoice-print-context.model';
@@ -148,10 +148,7 @@ export class InvoiceHtmlBuilderService {
 
   applyAutomaticPaymentNote(html: string, billingMethodId: number | null | undefined): string {
     const isAch = billingMethodId === BillingMethod.AchDebit;
-    const isCard = billingMethodId === BillingMethod.CreditCardVisa
-      || billingMethodId === BillingMethod.CreditCardMc
-      || billingMethodId === BillingMethod.CreditCardAmex
-      || billingMethodId === BillingMethod.CreditCardDiscover;
+    const isCard = isCreditCardBillingMethod(billingMethodId);
     if (!isAch && !isCard) {
       return html;
     }

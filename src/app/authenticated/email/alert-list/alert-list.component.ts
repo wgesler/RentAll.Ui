@@ -400,6 +400,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
           plainTextContent: alert.plainTextContent,
           emailTypeId: alert.emailTypeId,
           startDate: alert.startDate,
+          endDate: alert.endDate ?? null,
           daysBeforeDeparture: alert.daysBeforeDeparture ?? null,
           frequencyId: alert.frequencyId,
           isActive: nextValue
