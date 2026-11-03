@@ -403,6 +403,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
           startDate: alert.startDate,
           endDate: alert.endDate ?? null,
           daysBeforeDeparture: alert.daysBeforeDeparture ?? null,
+          matchDepartureDate: alert.matchDepartureDate === true,
           frequencyId: alert.frequencyId,
           isActive: nextValue
         };

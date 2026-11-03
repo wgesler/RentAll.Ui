@@ -83,7 +83,17 @@
 }
 
 .alert-property-reservation-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  align-items: center;
+}
+
+.alert-match-departure {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
 }
 
 .alert-timing-fields-grid {

@@ -28,6 +28,7 @@ export interface AlertRequest {
   startDate: CalendarDateString;
   endDate?: CalendarDateString | null;
   daysBeforeDeparture?: string | null;
+  matchDepartureDate?: boolean;
   frequencyId: number;
   isActive: boolean;
 }
@@ -59,6 +60,7 @@ export interface AlertResponse {
   endDate?: CalendarDateString | null;
   nextAlertDate: string;
   daysBeforeDeparture?: string | null;
+  matchDepartureDate?: boolean;
   frequencyId: number;
   emailStatusId: number;
   attemptCount: number;

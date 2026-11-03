@@ -130,6 +130,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
         this.utilityService.toDateOnlyJsonString(value.startDate) ?? this.utilityService.todayAsCalendarDateString(),
       endDate: this.utilityService.toDateOnlyJsonString(value.endDate),
       daysBeforeDeparture: reservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
+      matchDepartureDate: reservationId ? value.matchDepartureDate === true : false,
       frequencyId: Number(value.frequencyId || 0),
       isActive: true
     };
@@ -163,6 +164,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       startDate: new FormControl<Date | null>(new Date(), [Validators.required]),
       endDate: new FormControl<Date | null>(null),
       daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
+      matchDepartureDate: new FormControl({ value: false, disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       subject: new FormControl('', [Validators.required]),
       plainTextContent: new FormControl('')
@@ -238,7 +240,8 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
         : '',
       plainTextContent: this.showTicketCodeField ? 'Ticket Update' : '',
       frequencyId: this.showTicketCodeField ? Frequency.OneTime : null,
-      daysBeforeDeparture: ''
+      daysBeforeDeparture: '',
+      matchDepartureDate: false
     }, { emitEvent: true });
     this.setDaysBeforeDepartureEnabled(requestedReservationId);
   }
@@ -324,30 +327,28 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     if (!selectedPropertyId || selectedPropertyId !== reservation.propertyId) {
       this.form.patchValue({ propertyId: reservation.propertyId }, { emitEvent: false });
     }
-    this.applyReservationDates(reservation.arrivalDate, reservation.departureDate);
+    this.applyReservationDates(reservation.arrivalDate);
   }
 
-  applyReservationDates(arrivalDate: string | null | undefined, departureDate: string | null | undefined): void {
+  applyReservationDates(arrivalDate: string | null | undefined): void {
     const arrival = this.utilityService.parseCalendarDateInput(arrivalDate);
     const today = this.utilityService.parseCalendarDateInput(new Date());
     const startDate = arrival && today && arrival.getTime() < today.getTime() ? today : (arrival ?? today);
-    this.form.patchValue({
-      startDate,
-      endDate: this.utilityService.parseCalendarDateInput(departureDate)
-    }, { emitEvent: false });
+    this.form.patchValue({ startDate }, { emitEvent: false });
   }
 
   setDaysBeforeDepartureEnabled(reservationId: string | null): void {
     const control = this.form.get('daysBeforeDeparture');
-    if (!control) {
-      return;
-    }
+    const matchDeparture = this.form.get('matchDepartureDate');
     if (reservationId) {
-      control.enable({ emitEvent: false });
+      control?.enable({ emitEvent: false });
+      matchDeparture?.enable({ emitEvent: false });
       return;
     }
-    control.setValue('', { emitEvent: false });
-    control.disable({ emitEvent: false });
+    control?.setValue('', { emitEvent: false });
+    control?.disable({ emitEvent: false });
+    matchDeparture?.setValue(false, { emitEvent: false });
+    matchDeparture?.disable({ emitEvent: false });
   }
 
   mapPropertyOption(property: PropertyListResponse): AlertPropertyOption {

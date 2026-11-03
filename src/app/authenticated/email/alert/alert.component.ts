@@ -171,6 +171,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       startDate: this.utilityService.toDateOnlyJsonString(value.startDate) ?? this.utilityService.todayAsCalendarDateString(),
       endDate: this.utilityService.toDateOnlyJsonString(value.endDate),
       daysBeforeDeparture: selectedReservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
+      matchDepartureDate: selectedReservationId ? value.matchDepartureDate === true : false,
       frequencyId: Number(value.frequencyId || 0),
       isActive: value.isActive !== false
     };
@@ -224,6 +225,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       startDate: new FormControl<Date | null>(null, [Validators.required]),
       endDate: new FormControl<Date | null>(null),
       daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
+      matchDepartureDate: new FormControl({ value: false, disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       isActive: new FormControl(true)
     });
@@ -240,6 +242,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: contextReservationId,
       toEmail: user?.email || '',
       daysBeforeDeparture: '',
+      matchDepartureDate: false,
       startDate: new Date(),
       isActive: true
     });
@@ -286,6 +289,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       startDate: this.utilityService.parseCalendarDateInput(response.startDate),
       endDate: this.utilityService.parseCalendarDateInput(response.endDate),
       daysBeforeDeparture: response.daysBeforeDeparture || '',
+      matchDepartureDate: response.matchDepartureDate === true,
       frequencyId: response.frequencyId ?? null,
       isActive: response.isActive ?? true
     }, { emitEvent: false });
@@ -402,31 +406,29 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: reservation.propertyId
     }, { emitEvent: false });
     if (this.isAddMode) {
-      this.applyReservationDates(reservation.arrivalDate, reservation.departureDate);
+      this.applyReservationDates(reservation.arrivalDate);
     }
   }
 
-  applyReservationDates(arrivalDate: string | null | undefined, departureDate: string | null | undefined): void {
+  applyReservationDates(arrivalDate: string | null | undefined): void {
     const arrival = this.utilityService.parseCalendarDateInput(arrivalDate);
     const today = this.utilityService.parseCalendarDateInput(new Date());
     const startDate = arrival && today && arrival.getTime() < today.getTime() ? today : (arrival ?? today);
-    this.form.patchValue({
-      startDate,
-      endDate: this.utilityService.parseCalendarDateInput(departureDate)
-    }, { emitEvent: false });
+    this.form.patchValue({ startDate }, { emitEvent: false });
   }
 
   setDaysBeforeDepartureEnabled(reservationId: string | null): void {
     const control = this.form.get('daysBeforeDeparture');
-    if (!control) {
-      return;
-    }
+    const matchDeparture = this.form.get('matchDepartureDate');
     if (reservationId) {
-      control.enable({ emitEvent: false });
+      control?.enable({ emitEvent: false });
+      matchDeparture?.enable({ emitEvent: false });
       return;
     }
-    control.setValue('', { emitEvent: false });
-    control.disable({ emitEvent: false });
+    control?.setValue('', { emitEvent: false });
+    control?.disable({ emitEvent: false });
+    matchDeparture?.setValue(false, { emitEvent: false });
+    matchDeparture?.disable({ emitEvent: false });
   }
 
   restoreAlertPropertyAndReservation(): void {
@@ -482,7 +484,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
           const selectedReservationId = this.form.get('reservationId')?.value;
           const selectedReservation = this.reservationOptions.find(option => option.value === selectedReservationId) || null;
           if (selectedReservation) {
-            this.applyReservationDates(selectedReservation.arrivalDate, selectedReservation.departureDate);
+            this.applyReservationDates(selectedReservation.arrivalDate);
           }
         }
         this.restoreAlertPropertyAndReservation();

@@ -53,7 +53,7 @@
               }
             </mat-select>
           </mat-form-field>
-          <mat-form-field appearance="outline" class="email-body-field add-alert-field-span-2">
+          <mat-form-field appearance="outline" class="email-body-field">
             <mat-label>Reservation</mat-label>
             <mat-select formControlName="reservationId">
               <mat-option [value]="null">All Reservations</mat-option>
@@ -62,6 +62,11 @@
               }
             </mat-select>
           </mat-form-field>
+          <div class="alert-match-departure">
+            <mat-checkbox formControlName="matchDepartureDate" color="primary">
+              Match Departure Date
+            </mat-checkbox>
+          </div>
         </div>
         <div class="add-alert-extra-fields-grid add-alert-timing-fields-grid">
           <mat-form-field appearance="outline" class="email-body-field">
