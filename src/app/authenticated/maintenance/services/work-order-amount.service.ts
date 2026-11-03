@@ -17,7 +17,10 @@ export class WorkOrderAmountService {
       return 0;
     }
 
-    return Math.round((numeric + Number.EPSILON) * 100) / 100;
+    // 14.42 * 1.25 is 18.024999999999998 in binary, which would round down to 18.02.
+    const scaled = numeric * 100;
+    const adjusted = scaled >= 0 ? scaled + 1e-8 : scaled - 1e-8;
+    return Math.round(adjusted) / 100;
   }
 
   parseLaborHours(value: unknown): number {
