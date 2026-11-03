@@ -20,9 +20,17 @@ export class WorkOrderAmountService {
     return Math.round((numeric + Number.EPSILON) * 100) / 100;
   }
 
+  parseLaborHours(value: unknown): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+    return this.roundCurrency(parsed);
+  }
+
   calculateLineTotal(receiptAmount: unknown, laborHours: unknown, laborCost: unknown): number {
     const receipt = Number(receiptAmount) || 0;
-    const hours = Math.floor(Number(laborHours)) || 0;
+    const hours = this.parseLaborHours(laborHours);
     const cost = Number(laborCost) || 0;
     return this.roundCurrency(receipt + hours * cost);
   }

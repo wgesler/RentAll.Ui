@@ -651,7 +651,7 @@ initializeWorkOrderPreview(): void {
       const resolvedSplit = this.resolveSplitForWorkOrderItem(item, usedSplitIndexesByReceipt);
       const itemDescription = (resolvedSplit?.description || item.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const receiptAmountValue = this.getReceiptAmountForWorkOrderItem(item);
-      const laborHours = Math.floor(Number(item.laborHours)) || 0;
+      const laborHours = this.parseLaborHours(item.laborHours);
       const laborCost = Number(item.laborCost) || 0;
 
       if (item.receiptId != null || Math.abs(receiptAmountValue) > 0.000001) {
@@ -791,7 +791,7 @@ initializeWorkOrderPreview(): void {
   }
 
   getReceiptAmountForWorkOrderItem(item: WorkOrderItemResponse): number {
-    const laborHours = Math.floor(Number(item.laborHours)) || 0;
+    const laborHours = this.parseLaborHours(item.laborHours);
     const laborCost = Number(item.laborCost) || 0;
     const itemAmount = Number(item.itemAmount) || 0;
     return this.roundCurrency(itemAmount - laborHours * laborCost);
@@ -799,6 +799,14 @@ initializeWorkOrderPreview(): void {
 
   roundCurrency(value: number): number {
     return this.utilityService.roundCurrency(value);
+  }
+
+  parseLaborHours(value: unknown): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+    return this.roundCurrency(parsed);
   }
 
   generateIncludedReceiptPagesHtml(): string {

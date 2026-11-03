@@ -125,7 +125,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   propertyAgreement: PropertyAgreementResponse | null = null;
   tenantDamagesCcId: number | null = null;
   defaultLaborCost: number = 0;
-  focusedCurrencyField: { index: number; field: 'laborCost' | 'amount'; editValue: string } | null = null;
+  focusedCurrencyField: { index: number; field: 'laborCost' | 'amount' | 'laborHours'; editValue: string } | null = null;
   initialWorkOrderItemsSnapshot: WorkOrderItemSnapshot[] = [];
   lastMarkupFactor: number = 1;
   hasUserEditedWorkOrder = false;
@@ -495,7 +495,7 @@ onWorkOrderIdChanged(): void {
         setTimeout(() => this.onWorkOrderTypeChanged(saved.workOrderTypeId, true), 0);
         this.workOrderItems = (saved.workOrderItems ?? []).map(item => {
           const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
-          const laborHours = Math.floor(Number(item.laborHours)) || 0;
+          const laborHours = this.workOrderAmountService.parseLaborHours(item.laborHours);
           const laborCost = Number(item.laborCost) || 0;
           const derivedAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
           const receiptAmount = derivedAmount;
@@ -717,7 +717,7 @@ onWorkOrderIdChanged(): void {
     this.workOrderItems = (workOrder.workOrderItems ?? []).map(item => ({
       ...(() => {
         const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
-        const laborHours = Math.floor(Number(item.laborHours)) || 0;
+        const laborHours = this.workOrderAmountService.parseLaborHours(item.laborHours);
         const laborCost = Number(item.laborCost) || 0;
         const derivedAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
         const receiptAmount = derivedAmount;
@@ -1390,6 +1390,39 @@ onWorkOrderIdChanged(): void {
     return this.formatter.currencyUsd(this.getTotalAmount());
   }
 
+  getLaborHoursDisplay(index: number, item: WorkOrderItemEditable): string {
+    if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborHours') {
+      return this.focusedCurrencyField.editValue;
+    }
+    if (item.laborHours === null || item.laborHours === undefined) {
+      return '';
+    }
+    return String(this.workOrderAmountService.parseLaborHours(item.laborHours));
+  }
+
+  onLaborHoursFocus(index: number, event: Event): void {
+    const item = this.workOrderItems[index];
+    const raw = item?.laborHours != null ? String(item.laborHours) : '';
+    this.focusedCurrencyField = { index, field: 'laborHours', editValue: raw };
+    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
+  }
+
+  onLaborHoursInput(index: number, event: Event): void {
+    this.setUserEdited('onLaborHoursInput');
+    const input = event.target as HTMLInputElement;
+    if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborHours') {
+      this.focusedCurrencyField = { ...this.focusedCurrencyField, editValue: input.value };
+    }
+    this.updateWorkOrderItemField(index, 'laborHours', this.workOrderAmountService.parseLaborHours(input.value));
+  }
+
+  onLaborHoursBlur(index: number, event: Event): void {
+    this.setUserEdited('onLaborHoursBlur');
+    const input = event.target as HTMLInputElement;
+    this.updateWorkOrderItemField(index, 'laborHours', this.workOrderAmountService.parseLaborHours(input.value));
+    this.focusedCurrencyField = null;
+  }
+
   getLaborCostDisplay(index: number, item: WorkOrderItemEditable): string {
     if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborCost') {
       return this.focusedCurrencyField.editValue;
@@ -1480,7 +1513,7 @@ onWorkOrderIdChanged(): void {
       const base: WorkOrderItemRequest = {
         description: (item.description ?? '').trim(),
         receiptId: item.itemSource === 'receipt' ? (item.receiptId ?? undefined) : undefined,
-        laborHours: Math.floor(Number(item.laborHours)) || 0,
+        laborHours: this.workOrderAmountService.parseLaborHours(item.laborHours),
         laborCost: Number(item.laborCost) || 0,
         itemAmount: this.getItemTotal(item)
       };
@@ -1509,7 +1542,7 @@ onWorkOrderIdChanged(): void {
       const currentDescription = (current.description ?? '').trim();
       const currentReceiptId = current.receiptId ?? null;
       const currentSplitKey = current.receiptSplitKey ?? null;
-      const currentLaborHours = Math.floor(Number(current.laborHours)) || 0;
+      const currentLaborHours = this.workOrderAmountService.parseLaborHours(current.laborHours);
       const currentLaborCost = Number(current.laborCost) || 0;
 
       if (currentDescription !== original.description ||
@@ -1533,7 +1566,7 @@ onWorkOrderIdChanged(): void {
       description: (item.description ?? '').trim(),
       receiptId: item.receiptId ?? null,
       receiptSplitKey: item.receiptSplitKey ?? null,
-      laborHours: Math.floor(Number(item.laborHours)) || 0,
+      laborHours: this.workOrderAmountService.parseLaborHours(item.laborHours),
       laborCost: Number(item.laborCost) || 0,
       itemAmount: this.getItemTotal(item)
     }));

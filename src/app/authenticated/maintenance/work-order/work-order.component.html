@@ -246,10 +246,12 @@
                             <input
                               type="number"
                               class="w-full work-order-item-hours wo-hours-shift wo-hours-value-shift line-item-field-box"
-                              [value]="item.laborHours ?? ''"
-                              (input)="updateWorkOrderItemField(i, 'laborHours', parseInt($any($event.target).value, 10) || 0)"
+                              [value]="getLaborHoursDisplay(i, item)"
+                              (focus)="onLaborHoursFocus(i, $event)"
+                              (blur)="onLaborHoursBlur(i, $event)"
+                              (input)="onLaborHoursInput(i, $event)"
                               min="0"
-                              step="1">
+                              step="0.01">
                           </td>
                           <td class="wo-col-cost cost-cell text-right">
                             <input
