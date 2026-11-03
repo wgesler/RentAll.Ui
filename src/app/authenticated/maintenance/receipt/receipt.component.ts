@@ -4,6 +4,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, O
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
@@ -35,6 +36,7 @@ import { WorkOrderSelection } from '../work-order-list/work-order-list.component
 import { MappingService } from '../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-overlay/receipt-reading-overlay.component';
+import { isWordDocumentFile, ReceiptWordFileDialogComponent } from './receipt-word-file-dialog.component';
 
 @Component({
   standalone: true,
@@ -76,6 +78,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   private mappingService = inject(MappingService);
   formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
   private router = inject(Router);
@@ -418,6 +421,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           const apiMessage = typeof err.error === 'string'
             ? err.error
             : err.error?.message || err.error?.title || err.message;
+          if (typeof apiMessage === 'string' && apiMessage.includes('convert this to a PDF')) {
+            this.showWordReceiptDialog();
+            return;
+          }
           this.toastr.error(apiMessage || 'Unable to save receipt.', 'Error');
         }
       });
@@ -1222,9 +1229,21 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     fileInput.click();
   }
 
+  showWordReceiptDialog(): void {
+    this.dialog.open(ReceiptWordFileDialogComponent, { width: '35rem', panelClass: 'accounting-form-dialog-panel' });
+  }
+
   async onReceiptSelected(event: Event): Promise<void> {
     const file = this.utilityService.getFirstSelectedFile(event);
     if (!file || !this.canChooseReceiptFile()) {
+      return;
+    }
+    if (isWordDocumentFile(file)) {
+      const inputElement = event.target as HTMLInputElement | null;
+      if (inputElement) {
+        inputElement.value = '';
+      }
+      this.showWordReceiptDialog();
       return;
     }
 

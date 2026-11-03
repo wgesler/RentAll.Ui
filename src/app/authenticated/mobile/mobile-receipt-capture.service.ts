@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, take } from 'rxjs';
@@ -8,6 +9,7 @@ import { ImageOptimizationFailedError, UtilityService } from '../../services/uti
 import { ReceiptExtractResponse } from '../maintenance/models/receipt.model';
 import { ReceiptService } from '../maintenance/services/receipt.service';
 import { GlobalSelectionService } from '../organizations/services/global-selection.service';
+import { isWordDocumentFile, ReceiptWordFileDialogComponent } from '../maintenance/receipt/receipt-word-file-dialog.component';
 import { MobileCaptureReceiptDraftService } from './mobile-capture-receipt-draft.service';
 
 @Injectable({
@@ -21,6 +23,7 @@ export class MobileReceiptCaptureService {
   private globalSelectionService = inject(GlobalSelectionService);
   private captureReceiptDraftService = inject(MobileCaptureReceiptDraftService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private readonly captureInProgressSubject = new BehaviorSubject<boolean>(false);
   readonly captureInProgress$ = this.captureInProgressSubject.asObservable();
 
@@ -53,6 +56,10 @@ export class MobileReceiptCaptureService {
       inputElement.value = '';
     }
     if (!file || this.isCaptureInProgress) {
+      return;
+    }
+    if (isWordDocumentFile(file)) {
+      this.dialog.open(ReceiptWordFileDialogComponent, { width: '35rem', panelClass: 'accounting-form-dialog-panel' });
       return;
     }
 
