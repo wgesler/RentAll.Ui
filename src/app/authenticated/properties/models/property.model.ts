@@ -357,7 +357,10 @@ export interface PropertyCodeResponse {
 }
 
 export function comparePropertyCodes(left: string | null | undefined, right: string | null | undefined): number {
-  return String(left || '').localeCompare(String(right || ''), undefined, { numeric: true, sensitivity: 'base' });
+  const a = String(left || '').trim();
+  const b = String(right || '').trim();
+  const numeric = /^\d/.test(a) && /^\d/.test(b);
+  return a.localeCompare(b, undefined, { numeric, sensitivity: 'base' });
 }
 
 export interface PropertyListDisplay {

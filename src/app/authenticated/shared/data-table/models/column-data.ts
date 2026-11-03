@@ -22,7 +22,7 @@ export interface ColumnData {
     checkboxEditable?: boolean;
     options?: string[];
     buttonText?: string;
-    sortType?: 'default' | 'natural'; // 'natural' for codes with numbers (e.g., "CODE1", "CODE2", "CODE10")
+    sortType?: 'default' | 'natural' | 'code'; // 'natural' pads numbers. 'code' natural-sorts a leading number, otherwise plain text.
     editableType?: 'text' | 'date';
     suppressRowClick?: boolean;
     searchableDropdown?: boolean;

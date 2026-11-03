@@ -480,6 +480,9 @@ markViewForCheck(): void {
       if (columnData?.sortType === 'natural' && typeof value === 'string') {
         return this.naturalSortKey(value);
       }
+      if (columnData?.sortType === 'code' && typeof value === 'string') {
+        return this.codeSortKey(value);
+      }
       
       // For status columns, use the numeric ID if available (e.g., reservationStatusId)
       // This ensures proper ordering by enum value rather than alphabetically
@@ -1409,6 +1412,14 @@ parseDateValue(value: unknown): Date | null {
    * by padding numeric parts with zeros.
    * Example: "CODE1" -> "CODE0000000001", "CODE10" -> "CODE0000000010"
    */
+  codeSortKey(value: string): string {
+    const text = value.trim();
+    if (/^\d/.test(text)) {
+      return this.naturalSortKey(text);
+    }
+    return text.toLocaleLowerCase();
+  }
+
   naturalSortKey(value: string): string {
     if (!value) return '';
     
