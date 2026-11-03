@@ -74,13 +74,13 @@ export class InvoiceIifExportService {
   buildQuickBooksName(qbNameTypeId: number | null | undefined, context: InvoiceIifExportFieldContext): string {
     switch (qbNameTypeId ?? QbNameType.Unselected) {
       case QbNameType.CorporationCodeName: {
-        const job = [this.formatExportCode(context.reservationCode), context.occupantName].filter(value => !!value).join(' ');
+        const job = [this.formatQuickBooksReservationNumber(context.reservationCode), context.occupantName].filter(value => !!value).join(' ');
         return job && context.recipient ? `${context.recipient}:${job}` : (context.recipient || job);
       }
       case QbNameType.CodeBoardName:
-        return [this.formatExportCode(context.reservationCode), context.reservationBoardLabel].filter(value => !!value).join(' ');
+        return [this.formatQuickBooksReservationNumber(context.reservationCode), context.reservationBoardLabel].filter(value => !!value).join(' ');
       default:
-        return this.formatExportCode(context.reservationCode);
+        return this.formatQuickBooksReservationNumber(context.reservationCode);
     }
   }
 
@@ -287,6 +287,10 @@ export class InvoiceIifExportService {
 
   formatExportCode(value?: string | null): string {
     return this.sanitizeText(value || '');
+  }
+
+  formatQuickBooksReservationNumber(reservationCode: string): string {
+    return this.formatQuickBooksDocNumber(reservationCode);
   }
 
   formatQuickBooksDocNumber(invoiceCode: string): string {
