@@ -643,7 +643,7 @@
                 [ngModelOptions]="{ standalone: true }"
                 [disabled]="isReconcileTitleBarReadonly"
                 (dateChange)="onShellStartDateChange()" />
-              <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker" [disabled]="isReconcileTitleBarReadonly"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingStartPicker" [disabled]="isReconcileTitleBarReadonly"></mat-datepicker-toggle>
               <mat-datepicker #accountingStartPicker></mat-datepicker>
             </mat-form-field>
           }
@@ -658,7 +658,7 @@
                   [ngModelOptions]="{ standalone: true }"
                   [disabled]="isReconcileTitleBarReadonly"
                   (dateChange)="onShellEndDateChange()" />
-                <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker" [disabled]="isReconcileTitleBarReadonly"></mat-datepicker-toggle>
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingEndPicker" [disabled]="isReconcileTitleBarReadonly"></mat-datepicker-toggle>
                 <mat-datepicker #accountingEndPicker></mat-datepicker>
               </mat-form-field>
               <button

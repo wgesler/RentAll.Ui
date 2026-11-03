@@ -561,11 +561,22 @@ onWorkOrderIdChanged(): void {
     });
     };
 
-    if (isCreate) {
-      saveWorkOrder();
-      return;
-    }
+    void this.formatter.confirmIfCalendarDateBeforeOneYearAgo([
+      { label: 'Work Order Date', value: this.form.get('workOrderDate')?.value }
+    ]).then(confirmed => {
+      if (!confirmed) {
+        this.pendingSaveAndNew = false;
+        return;
+      }
+      if (isCreate) {
+        saveWorkOrder();
+        return;
+      }
+      this.continueWorkOrderSave(saveWorkOrder);
+    });
+  }
 
+  continueWorkOrderSave(saveWorkOrder: () => void): void {
     this.journalEntryService.confirmUpdateIfAllowed(this.workOrder?.postingStatusId, 'Work Order').pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.workOrder?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {

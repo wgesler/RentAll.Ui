@@ -142,19 +142,19 @@
                     <mat-form-field appearance="outline" class="receipt-overall-date-field">
                       <mat-label>Receipt/Bill Date</mat-label>
                       <input matInput [matDatepicker]="accountingReceiptDatePicker" formControlName="receiptDate" required>
-                      <mat-datepicker-toggle matIconSuffix [for]="accountingReceiptDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingReceiptDatePicker"></mat-datepicker-toggle>
                       <mat-datepicker #accountingReceiptDatePicker></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="receipt-overall-date-field">
                       <mat-label>Due Date</mat-label>
                       <input matInput [matDatepicker]="accountingDueDatePicker" formControlName="dueDate" required>
-                      <mat-datepicker-toggle matIconSuffix [for]="accountingDueDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingDueDatePicker"></mat-datepicker-toggle>
                       <mat-datepicker #accountingDueDatePicker></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="receipt-overall-date-field">
                       <mat-label>Accounting Period</mat-label>
                       <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
-                      <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
                       <mat-datepicker #accountingPeriodPicker></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="receipt-overall-compact-field"
@@ -181,7 +181,7 @@
                     <mat-form-field appearance="outline" class="receipt-overall-date-field">
                       <mat-label>Receipt/Bill Date</mat-label>
                       <input matInput [matDatepicker]="accountingReceiptDatePickerCard" formControlName="receiptDate" required>
-                      <mat-datepicker-toggle matIconSuffix [for]="accountingReceiptDatePickerCard"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingReceiptDatePickerCard"></mat-datepicker-toggle>
                       <mat-datepicker #accountingReceiptDatePickerCard></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="receipt-overall-compact-field"
@@ -481,7 +481,7 @@
                   <mat-form-field appearance="outline" class="receipt-overall-date-field">
                     <mat-label>Receipt/Bill Date</mat-label>
                     <input matInput [matDatepicker]="maintenanceReceiptDatePicker" formControlName="receiptDate" required>
-                    <mat-datepicker-toggle matIconSuffix [for]="maintenanceReceiptDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="maintenanceReceiptDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #maintenanceReceiptDatePicker></mat-datepicker>
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="receipt-overall-compact-field"

@@ -12,9 +12,8 @@
         [matDatepicker]="mobileBoardStartPicker"
         [(ngModel)]="startDate"
         [ngModelOptions]="{ standalone: true }"
-        (dateChange)="onDateRangeChange()"
-        [max]="endDate">
-      <mat-datepicker-toggle matIconSuffix [for]="mobileBoardStartPicker"></mat-datepicker-toggle>
+        (dateChange)="onDateRangeChange('start')">
+      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="mobileBoardStartPicker"></mat-datepicker-toggle>
       <mat-datepicker #mobileBoardStartPicker></mat-datepicker>
     </mat-form-field>
 
@@ -25,9 +24,9 @@
         [matDatepicker]="mobileBoardEndPicker"
         [(ngModel)]="endDate"
         [ngModelOptions]="{ standalone: true }"
-        (dateChange)="onDateRangeChange()"
+        (dateChange)="onDateRangeChange('end')"
         [min]="startDate">
-      <mat-datepicker-toggle matIconSuffix [for]="mobileBoardEndPicker"></mat-datepicker-toggle>
+      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="mobileBoardEndPicker"></mat-datepicker-toggle>
       <mat-datepicker #mobileBoardEndPicker></mat-datepicker>
     </mat-form-field>
   </div>

@@ -45,6 +45,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MAT_TOOLTIP_DEFAULT_OPTIONS, MatTooltipDefaultOptions, MatTooltipModule } from '@angular/material/tooltip';
 import { MatTreeModule } from '@angular/material/tree';
+import { CalendarDateInputDirective } from './services/calendar-date-input.directive';
 
 export const customTooltipDefaults: MatTooltipDefaultOptions = {
   disableTooltipInteractivity: true,
@@ -100,7 +101,8 @@ export const customTooltipDefaults: MatTooltipDefaultOptions = {
     MatTreeModule,
     OverlayModule,
     PortalModule,
-    ScrollingModule
+    ScrollingModule,
+    CalendarDateInputDirective
   ],
   exports: [
     CommonModule,
@@ -148,7 +150,8 @@ export const customTooltipDefaults: MatTooltipDefaultOptions = {
     MatTreeModule,
     OverlayModule,
     PortalModule,
-    ScrollingModule
+    ScrollingModule,
+    CalendarDateInputDirective
   ],
   providers: [{provide: MAT_TOOLTIP_DEFAULT_OPTIONS, useValue: customTooltipDefaults}]
 })

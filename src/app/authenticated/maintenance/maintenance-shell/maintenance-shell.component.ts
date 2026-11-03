@@ -623,7 +623,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.titleBarReservationId = value == null || value === '' ? null : String(value);
   }
 
-  onDateRangeChange(): void {
+  onDateRangeChange(changedField?: 'start' | 'end'): void {
     if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
     } else if (this.startDate && !this.endDate) {
@@ -644,7 +644,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.endDate.setHours(0, 0, 0, 0);
     }
 
-    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+    if (changedField === 'start') {
+      const nextEnd = this.utilityService.endDateOneMonthAfterStart(this.startDate, this.endDate);
+      if (nextEnd) {
+        this.endDate = nextEnd;
+      }
+    } else if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
       const tmp = this.startDate;
       this.startDate = this.endDate;
       this.endDate = tmp;

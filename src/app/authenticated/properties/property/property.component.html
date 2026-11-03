@@ -81,7 +81,7 @@
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                     <mat-label>Avail-From</mat-label>
                     <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
-                    <button mat-icon-button matSuffix type="button" [disabled]="isExternalPartnerPropertyView" (click)="availableFromPicker.open()" aria-label="Open calendar">
+                    <button tabindex="-1" mat-icon-button matSuffix type="button" [disabled]="isExternalPartnerPropertyView" (click)="availableFromPicker.open()" aria-label="Open calendar">
                       <mat-icon>calendar_today</mat-icon>
                     </button>
                     <mat-datepicker #availableFromPicker></mat-datepicker>
@@ -90,7 +90,7 @@
                     <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                       <mat-label>Avail-Until</mat-label>
                       <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
-                      <button
+                      <button tabindex="-1"
                         mat-icon-button
                         matSuffix
                         type="button"
@@ -230,7 +230,7 @@
                     <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                       <mat-label>Avail-From</mat-label>
                       <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
-                      <button mat-icon-button matSuffix type="button" [disabled]="isExternalPartnerPropertyView" (click)="availableFromPicker.open()" aria-label="Open calendar">
+                      <button tabindex="-1" mat-icon-button matSuffix type="button" [disabled]="isExternalPartnerPropertyView" (click)="availableFromPicker.open()" aria-label="Open calendar">
                         <mat-icon>calendar_today</mat-icon>
                       </button>
                       <mat-datepicker #availableFromPicker></mat-datepicker>

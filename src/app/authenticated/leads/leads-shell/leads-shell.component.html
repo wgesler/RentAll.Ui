@@ -26,9 +26,8 @@
                 [matDatepicker]="reportStartPicker"
                 [(ngModel)]="reportsStartDate"
                 [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onReportsDateRangeChange()"
-                [max]="reportsEndDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="reportStartPicker"></mat-datepicker-toggle>
+                (dateChange)="onReportsDateRangeChange('start')" />
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="reportStartPicker"></mat-datepicker-toggle>
               <mat-datepicker #reportStartPicker></mat-datepicker>
             </mat-form-field>
             <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -38,9 +37,9 @@
                 [matDatepicker]="reportEndPicker"
                 [(ngModel)]="reportsEndDate"
                 [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onReportsDateRangeChange()"
+                (dateChange)="onReportsDateRangeChange('end')"
                 [min]="reportsStartDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="reportEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="reportEndPicker"></mat-datepicker-toggle>
               <mat-datepicker #reportEndPicker></mat-datepicker>
             </mat-form-field>
           }

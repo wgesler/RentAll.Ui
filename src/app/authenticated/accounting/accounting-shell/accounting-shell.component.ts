@@ -6250,7 +6250,7 @@ captureOwnerStatementReturnContext(): void {
   }
 
   normalizeDateRangeValues(changedField?: 'start' | 'end'): void {
-    if (this.dateRangePinned) {
+    if (this.dateRangePinned && changedField !== 'start') {
       if (this.startDate) {
         this.startDate.setHours(0, 0, 0, 0);
       }
@@ -6294,16 +6294,22 @@ captureOwnerStatementReturnContext(): void {
     }
 
     if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
-      if (changedField === 'end') {
+      if (changedField === 'start') {
+        const nextEnd = this.utilityService.endDateOneMonthAfterStart(this.startDate, this.endDate);
+        if (nextEnd) {
+          this.endDate = nextEnd;
+        }
+      } else if (changedField === 'end') {
         this.startDate = null;
         this.shellStartDateNeedsEntry = true;
         this.shellEndDateNeedsEntry = false;
+        return;
       } else {
         this.endDate = null;
         this.shellEndDateNeedsEntry = true;
         this.shellStartDateNeedsEntry = false;
+        return;
       }
-      return;
     }
 
     if (this.startDate) {

@@ -137,7 +137,7 @@
         <mat-form-field appearance="outline" class="mobile-receipt-field">
           <mat-label>Receipt/Bill Date</mat-label>
           <input matInput [matDatepicker]="maintenanceReceiptDatePicker" formControlName="receiptDate" required>
-          <mat-datepicker-toggle matIconSuffix [for]="maintenanceReceiptDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="maintenanceReceiptDatePicker"></mat-datepicker-toggle>
           <mat-datepicker #maintenanceReceiptDatePicker></mat-datepicker>
         </mat-form-field>
 
@@ -147,7 +147,7 @@
             [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('dueDate'))">
             <mat-label>Due Date</mat-label>
             <input matInput [matDatepicker]="mobileDueDatePicker" formControlName="dueDate" required>
-            <mat-datepicker-toggle matIconSuffix [for]="mobileDueDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="mobileDueDatePicker"></mat-datepicker-toggle>
             <mat-datepicker #mobileDueDatePicker></mat-datepicker>
           </mat-form-field>
 
@@ -156,7 +156,7 @@
             [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('accountingPeriod'))">
             <mat-label>Accounting Period</mat-label>
             <input matInput [matDatepicker]="mobileAccountingPeriodPicker" formControlName="accountingPeriod" required>
-            <mat-datepicker-toggle matIconSuffix [for]="mobileAccountingPeriodPicker"></mat-datepicker-toggle>
+            <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="mobileAccountingPeriodPicker"></mat-datepicker-toggle>
             <mat-datepicker #mobileAccountingPeriodPicker></mat-datepicker>
           </mat-form-field>
         }

@@ -683,7 +683,7 @@
                         <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                           <mat-label>Date of Birth</mat-label>
                           <input matInput [matDatepicker]="dateOfBirthPicker" formControlName="dateOfBirth" />
-                          <mat-datepicker-toggle matIconSuffix [for]="dateOfBirthPicker"></mat-datepicker-toggle>
+                          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="dateOfBirthPicker"></mat-datepicker-toggle>
                           <mat-datepicker #dateOfBirthPicker></mat-datepicker>
                         </mat-form-field>
                         <mat-form-field appearance="outline" class="field-min-0 col-span-1">
@@ -795,7 +795,7 @@
                         <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                           <mat-label>Date of Birth</mat-label>
                           <input matInput [matDatepicker]="vendorDateOfBirthPicker" formControlName="dateOfBirth" />
-                          <mat-datepicker-toggle matIconSuffix [for]="vendorDateOfBirthPicker"></mat-datepicker-toggle>
+                          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="vendorDateOfBirthPicker"></mat-datepicker-toggle>
                           <mat-datepicker #vendorDateOfBirthPicker></mat-datepicker>
                         </mat-form-field>
                         <mat-form-field appearance="outline" class="field-min-0 col-span-1">
@@ -868,7 +868,7 @@
                                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="owner-document-expiration-field">
                                   <mat-label>Expiration</mat-label>
                                   <input matInput [matDatepicker]="insuranceExpirationPicker" formControlName="insuranceExpiration" />
-                                  <mat-datepicker-toggle matIconSuffix [for]="insuranceExpirationPicker"></mat-datepicker-toggle>
+                                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="insuranceExpirationPicker"></mat-datepicker-toggle>
                                   <mat-datepicker #insuranceExpirationPicker></mat-datepicker>
                                 </mat-form-field>
                               </div>

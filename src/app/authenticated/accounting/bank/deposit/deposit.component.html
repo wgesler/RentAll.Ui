@@ -56,13 +56,13 @@
                 <mat-form-field appearance="outline" class="deposit-overall-date-field">
                   <mat-label>Deposit Date</mat-label>
                   <input matInput [matDatepicker]="depositDatePicker" formControlName="depositDate" required>
-                  <mat-datepicker-toggle matIconSuffix [for]="depositDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="depositDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #depositDatePicker></mat-datepicker>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="deposit-overall-date-field">
                   <mat-label>Accounting Period</mat-label>
                   <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
-                  <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
                   <mat-datepicker #accountingPeriodPicker></mat-datepicker>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="deposit-overall-amount-field"

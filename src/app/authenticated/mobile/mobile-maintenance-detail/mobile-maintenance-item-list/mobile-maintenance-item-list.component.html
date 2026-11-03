@@ -67,7 +67,7 @@
                 (blur)="onLastServicedOnBlur(row)"
                 [ngModelOptions]="{ standalone: true }"
                 [name]="'maintenance-item-last-serviced-' + row.rowId" />
-              <mat-datepicker-toggle matIconSuffix [for]="lastServicedPicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="lastServicedPicker"></mat-datepicker-toggle>
               <mat-datepicker #lastServicedPicker></mat-datepicker>
             </mat-form-field>
 

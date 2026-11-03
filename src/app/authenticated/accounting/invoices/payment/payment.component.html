@@ -39,14 +39,14 @@
                   <mat-form-field appearance="outline" class="payment-overall-date-field">
                     <mat-label>Payment Date</mat-label>
                     <input matInput [matDatepicker]="paymentDatePicker" formControlName="paymentDate" required>
-                    <mat-datepicker-toggle matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #paymentDatePicker></mat-datepicker>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="payment-overall-accounting-period-field">
                     <mat-label>Accounting Period</mat-label>
                     <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
-                    <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
                     <mat-datepicker #accountingPeriodPicker></mat-datepicker>
                   </mat-form-field>
 
@@ -110,7 +110,7 @@
                 <mat-form-field appearance="outline" class="payment-overall-date-field">
                   <mat-label>Payment Date</mat-label>
                   <input matInput [matDatepicker]="paymentDatePicker" formControlName="paymentDate" required>
-                  <mat-datepicker-toggle matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="paymentDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #paymentDatePicker></mat-datepicker>
                 </mat-form-field>
 

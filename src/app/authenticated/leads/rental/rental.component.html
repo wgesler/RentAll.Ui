@@ -62,7 +62,7 @@
         <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
           <mat-label>Estimated Arrival</mat-label>
           <input matInput [matDatepicker]="estimatedArrivalPicker" formControlName="estimatedArrivalDate" />
-          <button mat-icon-button matSuffix type="button" (click)="estimatedArrivalPicker.open()" aria-label="Open Calendar">
+          <button tabindex="-1" mat-icon-button matSuffix type="button" (click)="estimatedArrivalPicker.open()" aria-label="Open Calendar">
             <mat-icon>calendar_today</mat-icon>
           </button>
           <mat-datepicker #estimatedArrivalPicker></mat-datepicker>
@@ -70,7 +70,7 @@
         <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
           <mat-label>Estimated Departure</mat-label>
           <input matInput [matDatepicker]="estimatedDeparturePicker" formControlName="estimatedDepartureDate" />
-          <button mat-icon-button matSuffix type="button" (click)="estimatedDeparturePicker.open()" aria-label="Open Calendar">
+          <button tabindex="-1" mat-icon-button matSuffix type="button" (click)="estimatedDeparturePicker.open()" aria-label="Open Calendar">
             <mat-icon>calendar_today</mat-icon>
           </button>
           <mat-datepicker #estimatedDeparturePicker></mat-datepicker>
@@ -151,7 +151,7 @@
         <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
           <mat-label>Decision Date</mat-label>
           <input matInput [matDatepicker]="decisionDatePicker" formControlName="decisionDate" />
-          <button mat-icon-button matSuffix type="button" (click)="decisionDatePicker.open()" aria-label="Open Calendar">
+          <button tabindex="-1" mat-icon-button matSuffix type="button" (click)="decisionDatePicker.open()" aria-label="Open Calendar">
             <mat-icon>calendar_today</mat-icon>
           </button>
           <mat-datepicker #decisionDatePicker></mat-datepicker>

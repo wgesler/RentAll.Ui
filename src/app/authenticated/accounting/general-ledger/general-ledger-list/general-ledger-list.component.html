@@ -238,7 +238,7 @@
                         <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
                           <mat-label style="font-size: 11px !important;">Date</mat-label>
                           <input matInput [matDatepicker]="depositDatePickerEmbedded" [(ngModel)]="depositDate" style="font-size: 11px !important;">
-                          <mat-datepicker-toggle matIconSuffix [for]="depositDatePickerEmbedded"></mat-datepicker-toggle>
+                          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="depositDatePickerEmbedded"></mat-datepicker-toggle>
                           <mat-datepicker #depositDatePickerEmbedded></mat-datepicker>
                         </mat-form-field>
                         <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
@@ -318,7 +318,7 @@
                         <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
                           <mat-label style="font-size: 11px !important;">Date</mat-label>
                           <input matInput [matDatepicker]="transferDatePickerEmbedded" [(ngModel)]="transferDate" style="font-size: 11px !important;">
-                          <mat-datepicker-toggle matIconSuffix [for]="transferDatePickerEmbedded"></mat-datepicker-toggle>
+                          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="transferDatePickerEmbedded"></mat-datepicker-toggle>
                           <mat-datepicker #transferDatePickerEmbedded></mat-datepicker>
                         </mat-form-field>
                         <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">

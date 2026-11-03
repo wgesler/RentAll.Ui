@@ -73,7 +73,7 @@
         <mat-form-field appearance="outline" class="mobile-work-order-field">
           <mat-label>Work Order Date</mat-label>
           <input matInput [matDatepicker]="mobileWorkOrderDatePicker" formControlName="workOrderDate" required>
-          <mat-datepicker-toggle matIconSuffix [for]="mobileWorkOrderDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="mobileWorkOrderDatePicker"></mat-datepicker-toggle>
           <mat-datepicker #mobileWorkOrderDatePicker></mat-datepicker>
         </mat-form-field>
 

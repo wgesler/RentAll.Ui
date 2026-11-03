@@ -79,14 +79,14 @@
               <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
                 <mat-label>Start Date</mat-label>
                 <input matInput [matDatepicker]="agreementStartDatePicker" [value]="line.startDate" (dateChange)="updateAgreementLineDate(i, 'startDate', $event.value)" />
-                <mat-datepicker-toggle matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
                 <mat-datepicker #agreementStartDatePicker></mat-datepicker>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
                 <mat-label>End Date</mat-label>
                 <input matInput [matDatepicker]="agreementEndDatePicker" [value]="line.endDate" (dateChange)="updateAgreementLineDate(i, 'endDate', $event.value)" />
-                <mat-datepicker-toggle matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
                 <mat-datepicker #agreementEndDatePicker></mat-datepicker>
               </mat-form-field>
 
@@ -226,7 +226,7 @@
             <mat-form-field appearance="outline" class="mobile-maintenance-line-field">
               <mat-label>Expiration</mat-label>
               <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
-              <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
               <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
             </mat-form-field>
           } @else {

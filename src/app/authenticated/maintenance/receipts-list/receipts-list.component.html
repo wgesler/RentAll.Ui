@@ -169,7 +169,7 @@
                     <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
                       <mat-label style="font-size: 11px !important;">Date</mat-label>
                       <input matInput [matDatepicker]="paymentDatePickerEmbedded" [(ngModel)]="paymentDate" style="font-size: 11px !important;">
-                      <mat-datepicker-toggle matIconSuffix [for]="paymentDatePickerEmbedded"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="paymentDatePickerEmbedded"></mat-datepicker-toggle>
                       <mat-datepicker #paymentDatePickerEmbedded></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="payment-type-dropdown" style="font-size: 11px !important;">

@@ -56,7 +56,7 @@
         <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
           <mat-label>Target Rent-Ready Date</mat-label>
           <input matInput [matDatepicker]="targetRentReadyPicker" formControlName="targetRentReadyDate" />
-          <button mat-icon-button matSuffix type="button" (click)="targetRentReadyPicker.open()" aria-label="Open Calendar">
+          <button tabindex="-1" mat-icon-button matSuffix type="button" (click)="targetRentReadyPicker.open()" aria-label="Open Calendar">
             <mat-icon>calendar_today</mat-icon>
           </button>
           <mat-datepicker #targetRentReadyPicker></mat-datepicker>

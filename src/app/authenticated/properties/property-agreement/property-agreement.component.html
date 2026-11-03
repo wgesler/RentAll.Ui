@@ -77,14 +77,14 @@
                   <td class="agreement-col-date">
                     <mat-form-field appearance="outline" class="w-full m-0 property-agreement-line-date-field">
                       <input matInput [matDatepicker]="agreementStartDatePicker" [value]="line.startDate" (dateChange)="updateAgreementLineDate(i, 'startDate', $event.value)" />
-                      <mat-datepicker-toggle matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
                       <mat-datepicker #agreementStartDatePicker></mat-datepicker>
                     </mat-form-field>
                   </td>
                   <td class="agreement-col-date">
                     <mat-form-field appearance="outline" class="w-full m-0 property-agreement-line-date-field">
                       <input matInput [matDatepicker]="agreementEndDatePicker" [value]="line.endDate" (dateChange)="updateAgreementLineDate(i, 'endDate', $event.value)" />
-                      <mat-datepicker-toggle matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
                       <mat-datepicker #agreementEndDatePicker></mat-datepicker>
                     </mat-form-field>
                   </td>
@@ -256,7 +256,7 @@
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="property-agreement-expiration-field">
                   <mat-label>Expiration</mat-label>
                   <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
-                  <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
                   <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
                 </mat-form-field>
               } @else {

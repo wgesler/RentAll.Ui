@@ -303,7 +303,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     this.endDate = end;
   }
 
-  onDateRangeChange(): void {
+  onDateRangeChange(changedField?: 'start' | 'end'): void {
     if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
     } else if (this.startDate && !this.endDate) {
@@ -318,12 +318,15 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       this.startDate = start;
     }
 
-    // Normalize times
     if (this.startDate) this.startDate.setHours(0, 0, 0, 0);
     if (this.endDate) this.endDate.setHours(0, 0, 0, 0);
 
-    // Ensure start <= end (swap if needed)
-    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+    if (changedField === 'start') {
+      const nextEnd = this.utilityService.endDateOneMonthAfterStart(this.startDate, this.endDate);
+      if (nextEnd) {
+        this.endDate = nextEnd;
+      }
+    } else if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
       const tmp = this.startDate;
       this.startDate = this.endDate;
       this.endDate = tmp;

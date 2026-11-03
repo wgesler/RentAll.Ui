@@ -56,9 +56,8 @@
                   [matDatepicker]="emailsShellStartPicker"
                   [(ngModel)]="startDate"
                   [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onDateRangeChange()"
-                  [max]="endDate" />
-                <mat-datepicker-toggle matIconSuffix [for]="emailsShellStartPicker"></mat-datepicker-toggle>
+                  (dateChange)="onDateRangeChange('start')" />
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="emailsShellStartPicker"></mat-datepicker-toggle>
                 <mat-datepicker #emailsShellStartPicker></mat-datepicker>
               </mat-form-field>
               <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -68,9 +67,9 @@
                   [matDatepicker]="emailsShellEndPicker"
                   [(ngModel)]="endDate"
                   [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onDateRangeChange()"
+                  (dateChange)="onDateRangeChange('end')"
                   [min]="startDate" />
-                <mat-datepicker-toggle matIconSuffix [for]="emailsShellEndPicker"></mat-datepicker-toggle>
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="emailsShellEndPicker"></mat-datepicker-toggle>
                 <mat-datepicker #emailsShellEndPicker></mat-datepicker>
               </mat-form-field>
               <button

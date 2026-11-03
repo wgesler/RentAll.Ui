@@ -206,7 +206,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  onReportsDateRangeChange(): void {
+  onReportsDateRangeChange(changedField?: 'start' | 'end'): void {
     if (!this.reportsStartDate && !this.reportsEndDate) {
       this.setDefaultReportDateRange();
     } else if (this.reportsStartDate && !this.reportsEndDate) {
@@ -226,7 +226,12 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     if (this.reportsEndDate) {
       this.reportsEndDate.setHours(0, 0, 0, 0);
     }
-    if (this.reportsStartDate && this.reportsEndDate && this.reportsStartDate.getTime() > this.reportsEndDate.getTime()) {
+    if (changedField === 'start') {
+      const nextEnd = this.utilityService.endDateOneMonthAfterStart(this.reportsStartDate, this.reportsEndDate);
+      if (nextEnd) {
+        this.reportsEndDate = nextEnd;
+      }
+    } else if (this.reportsStartDate && this.reportsEndDate && this.reportsStartDate.getTime() > this.reportsEndDate.getTime()) {
       const temp = this.reportsStartDate;
       this.reportsStartDate = this.reportsEndDate;
       this.reportsEndDate = temp;

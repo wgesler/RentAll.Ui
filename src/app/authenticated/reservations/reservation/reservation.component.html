@@ -490,7 +490,7 @@
                 <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
                   <mat-label>Arrival Date</mat-label>
                   <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required [matDatepickerFilter]="arrivalDateCalendarFilter">
-                  <mat-datepicker-toggle matIconSuffix [for]="arrivalPicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="arrivalPicker"></mat-datepicker-toggle>
                   <mat-datepicker #arrivalPicker></mat-datepicker>
                   @if (form.get('arrivalDate')?.hasError('required') && form.get('arrivalDate')?.touched) {
                     <mat-error>Arrival Date is required</mat-error>
@@ -510,7 +510,7 @@
                     required
                     [min]="getMinDepartureDate()"
                     [matDatepickerFilter]="departureDateCalendarFilter">
-                  <mat-datepicker-toggle matIconSuffix [for]="departurePicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="departurePicker"></mat-datepicker-toggle>
                   <mat-datepicker #departurePicker [startAt]="departureDateStartAt"></mat-datepicker>
                   @if (form.get('departureDate')?.hasError('required') && form.get('departureDate')?.touched) {
                     <mat-error>Departure Date is required</mat-error>
@@ -523,7 +523,7 @@
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
                     <mat-label>Billing Start</mat-label>
                     <input matInput [matDatepicker]="billingStartDatePicker" formControlName="billingStartDate">
-                    <mat-datepicker-toggle matIconSuffix [for]="billingStartDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="billingStartDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #billingStartDatePicker></mat-datepicker>
                     @if (form.get('billingStartDate')?.hasError('billingStartBeforeBillingEnd') && form.get('billingStartDate')?.touched) {
                       <mat-error>Billing start must be before billing end</mat-error>
@@ -535,7 +535,7 @@
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
                     <mat-label>Billing End</mat-label>
                     <input matInput [matDatepicker]="billingEndDatePicker" formControlName="billingEndDate">
-                    <mat-datepicker-toggle matIconSuffix [for]="billingEndDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="billingEndDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #billingEndDatePicker></mat-datepicker>
                     @if (form.get('billingEndDate')?.hasError('billingEndAfterBillingStart') && form.get('billingEndDate')?.touched) {
                       <mat-error>Billing end must be after billing start</mat-error>
@@ -853,7 +853,7 @@
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Maid Start Date</mat-label>
                 <input matInput [matDatepicker]="maidStartDatePicker" formControlName="maidStartDate" [min]="form.get('arrivalDate')?.value">
-                <mat-datepicker-toggle matIconSuffix [for]="maidStartDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="maidStartDatePicker"></mat-datepicker-toggle>
                 <mat-datepicker #maidStartDatePicker></mat-datepicker>
               </mat-form-field>
 

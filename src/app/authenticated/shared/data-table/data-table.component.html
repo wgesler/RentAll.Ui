@@ -468,11 +468,10 @@
                         (ngModelChange)="onInlineDateModelChange(item, column.name ?? '', $event)"
                         (dateChange)="commitInlineDateModelChange(item, column.name ?? '', $event.value)"
                         (blur)="commitInlineDateModelChange(item, column.name ?? '', getDateCellModel(item, column.name ?? ''))"
-                        (focus)="selectDateInputText($event)"
-                        (click)="selectDateInputText($event); $event.stopPropagation()"
+                        (click)="$event.stopPropagation()"
                         (mousedown)="$event.stopPropagation()"
                         class="datatable-editable-date-input" />
-                      <mat-datepicker-toggle matIconSuffix [for]="editableDatePicker" (click)="$event.stopPropagation()"></mat-datepicker-toggle>
+                      <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="editableDatePicker" (click)="$event.stopPropagation()"></mat-datepicker-toggle>
                       <mat-datepicker #editableDatePicker></mat-datepicker>
                     </mat-form-field>
                   } @else if (column.editableType === 'date') {

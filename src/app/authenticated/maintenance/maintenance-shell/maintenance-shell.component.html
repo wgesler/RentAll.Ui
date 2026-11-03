@@ -99,9 +99,8 @@
                   [matDatepicker]="maintenanceShellStartPicker"
                   [(ngModel)]="startDate"
                   [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onDateRangeChange()"
-                  [max]="endDate" />
-                <mat-datepicker-toggle matIconSuffix [for]="maintenanceShellStartPicker"></mat-datepicker-toggle>
+                  (dateChange)="onDateRangeChange('start')" />
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="maintenanceShellStartPicker"></mat-datepicker-toggle>
                 <mat-datepicker #maintenanceShellStartPicker></mat-datepicker>
               </mat-form-field>
               <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -111,9 +110,9 @@
                   [matDatepicker]="maintenanceShellEndPicker"
                   [(ngModel)]="endDate"
                   [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onDateRangeChange()"
+                  (dateChange)="onDateRangeChange('end')"
                   [min]="startDate" />
-                <mat-datepicker-toggle matIconSuffix [for]="maintenanceShellEndPicker"></mat-datepicker-toggle>
+                <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="maintenanceShellEndPicker"></mat-datepicker-toggle>
                 <mat-datepicker #maintenanceShellEndPicker></mat-datepicker>
               </mat-form-field>
               <button

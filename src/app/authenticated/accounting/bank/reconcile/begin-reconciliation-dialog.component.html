@@ -30,7 +30,7 @@
         <mat-form-field appearance="outline" class="begin-reconciliation-dialog__balance-field">
           <mat-label>Statement Date</mat-label>
           <input matInput [matDatepicker]="statementDatePicker" formControlName="statementDate" />
-          <mat-datepicker-toggle matIconSuffix [for]="statementDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="statementDatePicker"></mat-datepicker-toggle>
           <mat-datepicker #statementDatePicker></mat-datepicker>
         </mat-form-field>
 
@@ -57,7 +57,7 @@
             <mat-form-field appearance="outline">
               <mat-label>Date</mat-label>
               <input matInput [matDatepicker]="serviceChargeDatePicker" formControlName="serviceChargeDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="serviceChargeDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="serviceChargeDatePicker"></mat-datepicker-toggle>
               <mat-datepicker #serviceChargeDatePicker></mat-datepicker>
             </mat-form-field>
             <mat-form-field appearance="outline">
@@ -79,7 +79,7 @@
             <mat-form-field appearance="outline">
               <mat-label>Date</mat-label>
               <input matInput [matDatepicker]="interestEarnedDatePicker" formControlName="interestEarnedDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="interestEarnedDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="interestEarnedDatePicker"></mat-datepicker-toggle>
               <mat-datepicker #interestEarnedDatePicker></mat-datepicker>
             </mat-form-field>
             <mat-form-field appearance="outline">

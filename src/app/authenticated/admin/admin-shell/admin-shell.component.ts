@@ -138,12 +138,19 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.runSearch();
   }
 
-  onDateRangeChange(): void {
-    this.normalizeDateRange();
+  onDateRangeChange(changedField?: 'start' | 'end'): void {
+    this.normalizeDateRange(changedField);
     this.runSearch();
   }
 
-  normalizeDateRange(): void {
+  normalizeDateRange(changedField?: 'start' | 'end'): void {
+    if (changedField === 'start') {
+      const nextEnd = this.utilityService.endDateOneMonthAfterStart(this.startDate, this.endDate);
+      if (nextEnd) {
+        this.endDate = nextEnd;
+      }
+      return;
+    }
     if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
       const swapped = this.startDate;
       this.startDate = this.endDate;

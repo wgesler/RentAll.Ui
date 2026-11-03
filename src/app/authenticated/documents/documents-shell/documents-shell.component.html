@@ -53,9 +53,8 @@
                 [matDatepicker]="documentsStartPicker"
                 [(ngModel)]="startDate"
                 [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onDateRangeChange()"
-                [max]="endDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="documentsStartPicker"></mat-datepicker-toggle>
+                (dateChange)="onDateRangeChange('start')" />
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="documentsStartPicker"></mat-datepicker-toggle>
               <mat-datepicker #documentsStartPicker></mat-datepicker>
             </mat-form-field>
             <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -65,9 +64,9 @@
                 [matDatepicker]="documentsEndPicker"
                 [(ngModel)]="endDate"
                 [ngModelOptions]="{ standalone: true }"
-                (dateChange)="onDateRangeChange()"
+                (dateChange)="onDateRangeChange('end')"
                 [min]="startDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="documentsEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="documentsEndPicker"></mat-datepicker-toggle>
               <mat-datepicker #documentsEndPicker></mat-datepicker>
             </mat-form-field>
             <button

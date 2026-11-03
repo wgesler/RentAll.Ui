@@ -1253,8 +1253,7 @@ markViewForCheck(): void {
     if (!dateInput) {
       return;
     }
-    dateInput.focus();
-    dateInput.select();
+    dateInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
   }
 
   onTableCellMouseDown(event: MouseEvent, item: PurposefulAny, column: ColumnData): void {
@@ -1303,14 +1302,6 @@ markViewForCheck(): void {
       return;
     }
     this.emitInlineEditChangeEvent(rowItem, columnName, nextDate);
-  }
-
-  selectDateInputText(event: Event): void {
-    const input = event.target as HTMLInputElement | null;
-    if (!input) {
-      return;
-    }
-    input.select();
   }
 
 parseDateValue(value: unknown): Date | null {

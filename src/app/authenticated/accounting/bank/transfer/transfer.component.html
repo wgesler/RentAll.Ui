@@ -56,13 +56,13 @@
                 <mat-form-field appearance="outline" class="transfer-overall-date-field">
                   <mat-label>Transfer Date</mat-label>
                   <input matInput [matDatepicker]="transferDatePicker" formControlName="transferDate" required>
-                  <mat-datepicker-toggle matIconSuffix [for]="transferDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="transferDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #transferDatePicker></mat-datepicker>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="transfer-overall-date-field">
                   <mat-label>Accounting Period</mat-label>
                   <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
-                  <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                  <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
                   <mat-datepicker #accountingPeriodPicker></mat-datepicker>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="transfer-overall-amount-field"

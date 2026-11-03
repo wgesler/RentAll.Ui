@@ -140,6 +140,24 @@ export class UtilityService {
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   }
 
+  /** When a new start is after the current end, return that start plus one calendar month. */
+  endDateOneMonthAfterStart(start: Date | null | undefined, end: Date | null | undefined): Date | null {
+    if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return null;
+    }
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    if (startDay.getTime() <= endDay.getTime()) {
+      return null;
+    }
+    const day = startDay.getDate();
+    const shifted = new Date(startDay.getFullYear(), startDay.getMonth() + 1, 1);
+    const maxDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+    shifted.setDate(Math.min(day, maxDay));
+    shifted.setHours(0, 0, 0, 0);
+    return shifted;
+  }
+
   /** **To API:** local `Date` → `yyyy-MM-dd` for calendar fields on the wire. */
   formatDateOnlyForApi(value: Date | null | undefined): string | null {
     if (!value || !(value instanceof Date) || isNaN(value.getTime())) {

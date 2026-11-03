@@ -57,7 +57,7 @@
                     (blur)="onLastServicedOnBlur(row)"
                     [ngModelOptions]="{ standalone: true }"
                     [name]="'maintenance-item-last-serviced-' + row.rowId" />
-                  <button type="button" class="maintenance-item-date-toggle-btn" (click)="lastServicedPicker.open()" aria-label="Open calendar">
+                  <button tabindex="-1" type="button" class="maintenance-item-date-toggle-btn" (click)="lastServicedPicker.open()" aria-label="Open calendar">
                     <mat-icon>calendar_today</mat-icon>
                   </button>
                   <mat-datepicker #lastServicedPicker></mat-datepicker>

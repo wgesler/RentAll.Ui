@@ -228,8 +228,8 @@ persistPinnedTopBarIfActive(): void {
     }
   }
 
-  onDateRangeChange(): void {
-    this.normalizeDateRangeValues();
+  onDateRangeChange(changedField?: 'start' | 'end'): void {
+    this.normalizeDateRangeValues(changedField);
     this.persistPinnedTopBarIfActive();
     this.syncEmailSearchDateRange();
     this.reloadActiveTabList();
@@ -439,7 +439,7 @@ persistPinnedTopBarIfActive(): void {
     }
   }
 
-  normalizeDateRangeValues(): void {
+  normalizeDateRangeValues(changedField?: 'start' | 'end'): void {
     if (!this.startDate && !this.endDate && !this.dateRangePinned) {
       this.setDefaultDateRange();
       return;
@@ -462,7 +462,12 @@ persistPinnedTopBarIfActive(): void {
       this.endDate.setHours(0, 0, 0, 0);
     }
 
-    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+    if (changedField === 'start') {
+      const nextEnd = this.utilityService.endDateOneMonthAfterStart(this.startDate, this.endDate);
+      if (nextEnd) {
+        this.endDate = nextEnd;
+      }
+    } else if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
       const tmp = this.startDate;
       this.startDate = this.endDate;
       this.endDate = tmp;

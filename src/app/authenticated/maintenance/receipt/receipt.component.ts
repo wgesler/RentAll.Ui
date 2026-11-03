@@ -423,12 +423,30 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       });
     };
 
-    if (!this.receipt?.receiptId) {
-      saveReceipt();
-      return;
+    const datesToConfirm: { label: string; value: unknown }[] = [
+      { label: 'Receipt/Bill Date', value: this.form.get('receiptDate')?.value }
+    ];
+    if (this.showAccountingBillFields && this.isOverallBillBankCard()) {
+      datesToConfirm.push(
+        { label: 'Due Date', value: this.form.get('dueDate')?.value },
+        { label: 'Accounting Period', value: this.form.get('accountingPeriod')?.value }
+      );
     }
+    void this.formatter.confirmIfCalendarDateBeforeOneYearAgo(datesToConfirm).then(confirmed => {
+      if (!confirmed) {
+        this.pendingSaveAndNew = false;
+        return;
+      }
+      if (!this.receipt?.receiptId) {
+        saveReceipt();
+        return;
+      }
+      this.continueReceiptSave(saveReceipt);
+    });
+  }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.receipt.postingStatusId, 'Receipt').pipe(take(1)).subscribe(canProceed => {
+  continueReceiptSave(saveReceipt: () => void): void {
+    this.journalEntryService.confirmUpdateIfAllowed(this.receipt?.postingStatusId, 'Receipt').pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.receipt?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.pendingSaveAndNew = false;

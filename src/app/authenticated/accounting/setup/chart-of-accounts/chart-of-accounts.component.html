@@ -119,7 +119,7 @@
                     <input matInput [matDatepicker]="statementDatePicker" formControlName="statementDate" />
                   }
                   @if (!isStatementDateReadonly) {
-                    <mat-datepicker-toggle matIconSuffix [for]="statementDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle tabindex="-1" matIconSuffix [for]="statementDatePicker"></mat-datepicker-toggle>
                   }
                   <mat-datepicker #statementDatePicker></mat-datepicker>
                 </mat-form-field>
