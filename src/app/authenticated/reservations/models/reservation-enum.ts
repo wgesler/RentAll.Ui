@@ -3,13 +3,14 @@ export enum ReservationStatus {
   PreBooking = 0,
   Confirmed = 1,
   CheckedIn = 2,
-  GaveNotice = 3,
-  FirstRightRefusal = 4,
-  Maintenance = 5,
-  OwnerBlocked = 6,
-  ArrivalDeparture = 7,
-  Offline = 8,
-  EarlyMoveOut = 9
+  MonthToMonth = 3,
+  GaveNotice = 4,
+  FirstRightOfRefusal = 5,
+  EarlyMoveOut = 6,
+  Maintenance = 7,
+  OwnerBlocked = 8,
+  ArrivalDeparture = 9,
+  Offline = 10
 }
 
 export function getReservationStatus(reservationStatusId: number | undefined): string {
@@ -18,9 +19,10 @@ export function getReservationStatus(reservationStatusId: number | undefined): s
   const statusMap: { [key: number]: string } = {
     [ReservationStatus.PreBooking]: 'Pre-Booking',
     [ReservationStatus.Confirmed]: 'Confirmed',
-    [ReservationStatus.CheckedIn]: 'Checked-In/Month-to-Month',
+    [ReservationStatus.CheckedIn]: 'Checked-In',
+    [ReservationStatus.MonthToMonth]: 'Month to Month',
     [ReservationStatus.GaveNotice]: 'Gave Notice',
-    [ReservationStatus.FirstRightRefusal]: 'First Right of Refusal',
+    [ReservationStatus.FirstRightOfRefusal]: 'First Right of Refusal',
     [ReservationStatus.EarlyMoveOut]: 'Early Move Out',
     [ReservationStatus.Maintenance]: 'Maintenance',
     [ReservationStatus.OwnerBlocked]: 'Owner Blocked',
@@ -37,8 +39,9 @@ export function getReservationStatuses(): { value: number, label: string }[] {
     { value: ReservationStatus.PreBooking, label: getReservationStatus(ReservationStatus.PreBooking) },
     { value: ReservationStatus.Confirmed, label: getReservationStatus(ReservationStatus.Confirmed) },
     { value: ReservationStatus.CheckedIn, label: getReservationStatus(ReservationStatus.CheckedIn) },
+    { value: ReservationStatus.MonthToMonth, label: getReservationStatus(ReservationStatus.MonthToMonth) },
     { value: ReservationStatus.GaveNotice, label: getReservationStatus(ReservationStatus.GaveNotice) },
-    { value: ReservationStatus.FirstRightRefusal, label: getReservationStatus(ReservationStatus.FirstRightRefusal) },
+    { value: ReservationStatus.FirstRightOfRefusal, label: getReservationStatus(ReservationStatus.FirstRightOfRefusal) },
     { value: ReservationStatus.EarlyMoveOut, label: getReservationStatus(ReservationStatus.EarlyMoveOut) },
     { value: ReservationStatus.Maintenance, label: getReservationStatus(ReservationStatus.Maintenance) },
     { value: ReservationStatus.OwnerBlocked, label: getReservationStatus(ReservationStatus.OwnerBlocked) },

@@ -401,7 +401,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   }
 
   shouldMaskBillingFields(reservationStatusId: number | null | undefined): boolean {
-    return Number(reservationStatusId) > ReservationStatus.FirstRightRefusal;
+    return Number(reservationStatusId) > ReservationStatus.FirstRightOfRefusal;
   }
 
   isHistoricalReservation(departureDateValue: unknown): boolean {

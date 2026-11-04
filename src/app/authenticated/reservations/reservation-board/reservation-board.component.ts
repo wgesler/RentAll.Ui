@@ -101,8 +101,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     ReservationStatus.PreBooking,
     ReservationStatus.Confirmed,
     ReservationStatus.CheckedIn,
+    ReservationStatus.MonthToMonth,
     ReservationStatus.GaveNotice,
-    ReservationStatus.FirstRightRefusal,
+    ReservationStatus.FirstRightOfRefusal,
     ReservationStatus.EarlyMoveOut,
     ReservationStatus.Maintenance,
     ReservationStatus.OwnerBlocked
@@ -1490,8 +1491,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     } else if (reservation.reservationStatusId === ReservationStatus.PreBooking ||
         reservation.reservationStatusId === ReservationStatus.Confirmed ||
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
+        reservation.reservationStatusId === ReservationStatus.MonthToMonth ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
-        reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
+        reservation.reservationStatusId === ReservationStatus.FirstRightOfRefusal) {
       if (!this.showReservationNames) {
         result = '';
         this.displayTextCache.set(cacheKey, result);

@@ -44,9 +44,9 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   isAddMode: boolean = false;
   reservationStatuses = getReservationStatuses();
   noticeDays: number | null = null;
-  readonly checkedInNotice60FallbackColorId = 10;
-  readonly checkedInNotice15FallbackColorId = 11;
-  readonly checkedInNotice14FallbackColorId = 12;
+  readonly checkedInNotice60FallbackColorId = 20;
+  readonly checkedInNotice15FallbackColorId = 21;
+  readonly checkedInNotice14FallbackColorId = 22;
   checkedInNotice14ColorId: number | null = null;
   checkedInNotice15ColorId: number | null = null;
   checkedInNotice60ColorId: number | null = null;
