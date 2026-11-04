@@ -247,11 +247,21 @@
   }
 }
 
+::ng-deep .security-deposit-payment-type-panel {
+  min-width: 200px !important;
+  width: auto !important;
+}
+
+::ng-deep .security-deposit-payment-type-panel .mat-mdc-option,
+::ng-deep .security-deposit-payment-type-panel .mat-mdc-option .mdc-list-item__primary-text {
+  white-space: nowrap !important;
+}
+
 .payment-type-field,
 .payment-type-dropdown {
-  min-width: 150px;
-  width: 150px;
-  max-width: 150px;
+  min-width: 200px;
+  width: 200px;
+  max-width: 200px;
 
   ::ng-deep {
     .mat-mdc-text-field-wrapper {
@@ -260,8 +270,16 @@
     }
 
     .mat-mdc-form-field-infix {
-      min-width: 110px !important;
-      width: 110px !important;
+      min-width: 156px !important;
+      width: 156px !important;
+    }
+
+    .mat-mdc-select-value,
+    .mat-mdc-select-value-text,
+    .mdc-select__selected-text {
+      white-space: nowrap !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
     }
 
     .mat-mdc-floating-label {

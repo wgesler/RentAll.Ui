@@ -10,7 +10,7 @@
         </mat-form-field>
         <mat-form-field appearance="outline" class="payment-type-dropdown" style="font-size: 11px !important;">
           <mat-label style="font-size: 11px !important;">Payment Type</mat-label>
-          <mat-select [(ngModel)]="selectedPaymentTypeId" (selectionChange)="onPaymentTypeChange($event.value)" style="font-size: 11px !important;">
+          <mat-select [(ngModel)]="selectedPaymentTypeId" (selectionChange)="onPaymentTypeChange($event.value)" panelClass="security-deposit-payment-type-panel" style="font-size: 11px !important;">
             @for (type of paymentTypeOptions; track type.value) {
               <mat-option [value]="type.value" style="font-size: 11px !important;">{{ type.label }}</mat-option>
             }
