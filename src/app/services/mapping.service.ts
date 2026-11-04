@@ -161,7 +161,8 @@ export class MappingService {
         reservationStatus: getReservationStatus(o.reservationStatusId),
         noticeDays: null,
         sortOrder: o.reservationStatusId,
-        color: o.color
+        color: o.color,
+        statusEnabled: o.statusEnabled !== false
       }))
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }

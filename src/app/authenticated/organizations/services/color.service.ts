@@ -34,6 +34,10 @@ export class ColorService {
   updateColor(color: ColorRequest): Observable<ColorResponse> {
     return this.http.put<ColorResponse>(this.controller, color);
   }
+
+  updateStatusEnabled(reservationStatusId: number, statusEnabled: boolean): Observable<void> {
+    return this.http.put<void>(this.controller + 'status-enabled', { reservationStatusId, statusEnabled });
+  }
 }
 
 

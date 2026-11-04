@@ -9,6 +9,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { ColorListDisplay, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
@@ -35,7 +36,8 @@ export class ColorListComponent implements OnInit, OnDestroy {
 
   colorsDisplayedColumns: ColumnSet = {
     'reservationStatus': { displayAs: 'Reservation Status', maxWidth: '40ch' },
-    'color': { displayAs: 'Color', maxWidth: '30ch' }
+    'color': { displayAs: 'Color', maxWidth: '30ch' },
+    'statusEnabled': { displayAs: 'In Use', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
   isPageReady = false;
@@ -59,7 +61,7 @@ export class ColorListComponent implements OnInit, OnDestroy {
         this.applyFilters();
         this.markViewForCheck();
       },
-      error: (err: HttpErrorResponse) => {
+      error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'colors');
         this.markViewForCheck();
@@ -70,6 +72,36 @@ export class ColorListComponent implements OnInit, OnDestroy {
   goToColor(event: ColorListDisplay): void {
     if (!event || event.colorId === null || event.colorId === undefined) return;
     this.colorSelected.emit(event.colorId);
+  }
+
+  onStatusEnabledChange(event: ColorListDisplay): void {
+    const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'statusEnabled') {
+      return;
+    }
+    const previousValue = (event as unknown as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as unknown as { __checkboxValue?: boolean }).__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.colorService.updateStatusEnabled(event.reservationStatusId, nextValue).pipe(take(1)).subscribe({
+      next: () => {
+        this.setStatusEnabled(event.reservationStatusId, nextValue);
+        this.toastr.success('Status updated successfully', CommonMessage.Success);
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.setStatusEnabled(event.reservationStatusId, previousValue);
+        this.toastr.error('Failed to update status', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  setStatusEnabled(reservationStatusId: number, isEnabled: boolean): void {
+    this.allColors = this.allColors.map(color => color.reservationStatusId === reservationStatusId ? { ...color, statusEnabled: isEnabled } : color);
+    this.applyFilters();
   }
   //#endregion
 

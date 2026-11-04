@@ -12,6 +12,7 @@ export interface ColorResponse {
   reservationStatusId: number;
   noticeDays?: number | null;
   color: string;
+  statusEnabled: boolean;
 }
 
 export interface ColorListDisplay {
@@ -21,5 +22,6 @@ export interface ColorListDisplay {
   noticeDays?: number | null;
   sortOrder: number;
   color: string;
+  statusEnabled: boolean;
 }
 

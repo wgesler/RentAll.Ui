@@ -12,7 +12,8 @@
         [hasActionsDelete]="false"
         [itemsPerPage]="10"
         (editEvent)="goToColor($event)"
-        (rowClickEvent)="goToColor($event)"/>
+        (rowClickEvent)="goToColor($event)"
+        (checkboxChangeEvent)="onStatusEnabledChange($event)"/>
     </div>
   </div>
 }
