@@ -42,7 +42,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly paymentTypeOptions = PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit);
+  readonly paymentTypeOptions = PaymentTypeLabels;
 
   selectedPaymentTypeId = PaymentType.Check;
   selectedPaymentChartOfAccountId: number | null = null;
