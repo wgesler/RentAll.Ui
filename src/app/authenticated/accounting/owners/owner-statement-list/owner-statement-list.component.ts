@@ -76,7 +76,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   selectedPaymentCreditCardId: number | null = null;
   paymentChartOfAccounts: { value: number; label: string }[] = [];
   paymentCreditCardOptions: { value: number; label: string; chartOfAccountId: number }[] = [];
-  paymentTypeOptions = PaymentTypeLabels;
+  paymentTypeOptions = PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit);
   allChartOfAccounts: ChartOfAccountResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   companyName = '';

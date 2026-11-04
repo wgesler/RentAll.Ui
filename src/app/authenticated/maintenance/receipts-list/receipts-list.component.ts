@@ -134,7 +134,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   allChartOfAccounts: ChartOfAccountResponse[] = [];
   paymentChartOfAccounts: { value: number; label: string }[] = [];
   paymentCreditCardOptions: { value: number; label: string; chartOfAccountId: number }[] = [];
-  paymentTypeOptions = PaymentTypeLabels;
+  paymentTypeOptions = PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit);
 
   showPaymentForm: boolean = false;
   showPaid = true;

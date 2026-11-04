@@ -42,7 +42,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly paymentTypeOptions = PaymentTypeLabels;
+  readonly paymentTypeOptions = PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit);
 
   selectedPaymentTypeId = PaymentType.Check;
   selectedPaymentChartOfAccountId: number | null = null;
@@ -166,7 +166,8 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
     const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
     const hasPaymentAccount = this.resolveSelectedPaymentChartOfAccountId() != null;
     const hasReservation = String(this.reservationId || '').trim().length > 0;
-    return hasReservation && hasPaymentDate && hasPaymentAccount && this.paymentAmount !== 0;
+    const amountOk = this.isTransferMode ? this.paymentAmount !== 0 : true;
+    return hasReservation && hasPaymentDate && hasPaymentAccount && amountOk;
   }
 
   get isTransferMode(): boolean {

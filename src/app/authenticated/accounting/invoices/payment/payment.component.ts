@@ -88,7 +88,10 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   private officeCostCodes: CostCodesResponse[] = [];
   private officeChartOfAccounts: ChartOfAccountResponse[] = [];
   allocationOptions: SearchableSelectOption<string>[] = [];
-  readonly paymentTypeOptions = PaymentTypeLabels;
+  get paymentTypeOptions(): { value: PaymentType; label: string }[] {
+    const selected = Number(this.form?.get('paymentTypeId')?.value);
+    return PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit || type.value === selected);
+  }
   readonly comparePaymentTypeIds = (left: number | null, right: number | null): boolean => left === right;
   amountFocused = false;
   amountEditValue = '';

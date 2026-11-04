@@ -612,7 +612,8 @@ export enum PaymentType {
   OnlineBanking = 3,
   WireTransfer = 4,
   CreditCard = 5,
-  CreditCardRefund = 6
+  CreditCardRefund = 6,
+  SecurityDeposit = 7
 }
 
 export const PaymentTypeLabels: { value: PaymentType; label: string }[] = [
@@ -623,6 +624,7 @@ export const PaymentTypeLabels: { value: PaymentType; label: string }[] = [
   { value: PaymentType.WireTransfer, label: 'Wire transfer' },
   { value: PaymentType.CreditCard, label: 'Credit Card' },
   { value: PaymentType.CreditCardRefund, label: 'Credit Card Refund' },
+  { value: PaymentType.SecurityDeposit, label: 'Security Deposit' },
 ];
 
 export function getPaymentType(paymentTypeId: number | undefined | null): string {
@@ -638,6 +640,7 @@ export function getPaymentType(paymentTypeId: number | undefined | null): string
     [PaymentType.WireTransfer]: 'Wire transfer',
     [PaymentType.CreditCard]: 'Credit Card',
     [PaymentType.CreditCardRefund]: 'Credit Card Refund',
+    [PaymentType.SecurityDeposit]: 'Security Deposit',
   };
 
   return typeMap[paymentTypeId] || '';

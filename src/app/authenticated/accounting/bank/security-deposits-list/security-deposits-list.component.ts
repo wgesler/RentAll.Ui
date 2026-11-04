@@ -400,7 +400,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return;
     }
 
-    if (payment.amount === 0) {
+    if (payment.amount === 0 && this.paymentDialogMode !== 'return') {
       this.toastr.warning('Please enter an amount');
       return;
     }
