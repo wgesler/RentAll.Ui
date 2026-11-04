@@ -1214,6 +1214,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.selectAgentLabel = this.terminologyService.replaceAgent('Select Agent', officeId);
     this.agentRequiredText = this.terminologyService.replaceAgent('Agent is required', officeId);
     this.applyDepositTypeLabels();
+    this.updateReservationStatusesByReservationType();
     this.markViewForCheck();
   }
 
@@ -2285,17 +2286,22 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const reservationTypeId = this.form.get('reservationTypeId')?.value ?? null as number | null;
    
     const currentStatusId = Number(this.form.get('reservationStatusId')?.value);
+    const officeId = this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    const withTerm = (statuses: { value: number, label: string }[]) => statuses.map(status => ({
+      value: status.value,
+      label: this.terminologyService.labelFor(getReservationStatus(status.value), officeId)
+    }));
     if (reservationTypeId === ReservationType.Owner) {
-      this.availableReservationStatuses = filterEnabledReservationStatuses([
-        { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' },
-        { value: ReservationStatus.Maintenance, label: 'Maintenance' }
-      ], this.enabledReservationStatusIds, currentStatusId);
+      this.availableReservationStatuses = withTerm(filterEnabledReservationStatuses([
+        { value: ReservationStatus.OwnerBlocked, label: getReservationStatus(ReservationStatus.OwnerBlocked) },
+        { value: ReservationStatus.Maintenance, label: getReservationStatus(ReservationStatus.Maintenance) }
+      ], this.enabledReservationStatusIds, currentStatusId));
     } else {
-      this.availableReservationStatuses = filterEnabledReservationStatuses(
+      this.availableReservationStatuses = withTerm(filterEnabledReservationStatuses(
         this.allReservationStatuses.filter(status => status.value !== ReservationStatus.Maintenance && status.value !== ReservationStatus.OwnerBlocked),
         this.enabledReservationStatusIds,
         currentStatusId
-      );
+      ));
     }
   }
 
@@ -4168,7 +4174,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const propertyCode = this.getReservationNotificationPropertyCode(response);
     const arrivalDate = this.getReservationNotificationDateText(response.arrivalDate);
     const departureDate = this.getReservationNotificationDateText(response.departureDate);
-    const reservationStatus = getReservationStatus(response.reservationStatusId);
+    const reservationStatus = this.terminologyService.labelFor(getReservationStatus(response.reservationStatusId), response.officeId ?? null);
     const reservationUrl = this.getReservationNotificationUrl(response.reservationId);
     const reason = this.getReservationNotificationReason(context);
     const subject = `Reservation Update: ${reservationLabel}`;

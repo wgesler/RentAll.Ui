@@ -586,6 +586,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
       contactPhone: contact?.phone || '',
       contactEmail: contact?.email || '',
       reservationStatuses: filterEnabledReservationStatuses(getReservationStatuses(), this.enabledReservationStatusIds, reservation.reservationStatusId)
+        .map(status => ({ value: status.value, label: this.terminologyService.labelFor(status.label, reservation.officeId ?? null) }))
     });
   }
 

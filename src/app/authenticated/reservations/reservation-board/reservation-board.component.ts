@@ -1565,7 +1565,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   }
 
   getReservationLegendLabel(statusId: number): string {
-    return getReservationStatus(statusId);
+    return this.terminologyService.labelFor(getReservationStatus(statusId), this.selectedOfficeId);
   }
 
   getReservationLegendColor(statusId: number): string {
