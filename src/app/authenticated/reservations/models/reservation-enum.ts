@@ -48,6 +48,26 @@ export function getReservationStatuses(): { value: number, label: string }[] {
     { value: ReservationStatus.Offline, label: getReservationStatus(ReservationStatus.Offline) }
   ];
 }
+
+export function enabledStatusIdsFromColors(colors: { reservationStatusId: number; noticeDays?: number | null; statusEnabled?: boolean }[]): Set<number> {
+  const enabled = new Set<number>();
+  (colors || []).forEach(color => {
+    if (color.noticeDays !== null && color.noticeDays !== undefined) {
+      return;
+    }
+    if (color.statusEnabled !== false) {
+      enabled.add(color.reservationStatusId);
+    }
+  });
+  return enabled;
+}
+
+export function filterEnabledReservationStatuses(statuses: { value: number, label: string }[], enabledStatusIds: Set<number> | null, keepStatusId?: number | null): { value: number, label: string }[] {
+  if (!enabledStatusIds) {
+    return statuses;
+  }
+  return statuses.filter(status => enabledStatusIds.has(status.value) || status.value === keepStatusId);
+}
 //#endregion
 
 //#region ReservationType

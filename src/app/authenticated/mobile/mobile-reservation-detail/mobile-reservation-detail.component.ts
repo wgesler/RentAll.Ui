@@ -15,13 +15,14 @@ import type { CalendarDateString } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { ColorService } from '../../organizations/services/color.service';
 import { AgentService } from '../../organizations/services/agent.service';
 import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { CheckinTimes, CheckoutTimes } from '../../properties/models/property-enums';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType } from '../../reservations/models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, enabledStatusIdsFromColors, filterEnabledReservationStatuses, getReservationStatuses } from '../../reservations/models/reservation-enum';
 import { ReservationRequest, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { getMobileReservationBackUrl, resolveMobileReservationReturnTo } from '../mobile-nav';
@@ -43,6 +44,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   private mixedMappingService = inject(MixedMappingService);
   private mappingService = inject(MappingService);
   private agentService = inject(AgentService);
+  private colorService = inject(ColorService);
   private terminologyService = inject(TerminologyService);
   private contactService = inject(ContactService);
   private propertyService = inject(PropertyService);
@@ -58,6 +60,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   agentOptions: MobileListFieldOption[] = [];
   contactOptions: MobileListFieldOption[] = [];
   contacts: ContactResponse[] = [];
+  enabledReservationStatusIds: Set<number> | null = null;
   propertyCode = '';
   propertyAddress = '';
   isPageReady = false;
@@ -115,6 +118,11 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   }
 
   ngOnInit(): void {
+    this.colorService.getColors().pipe(take(1), takeUntil(this.destroy$)).subscribe(colors => {
+      this.enabledReservationStatusIds = enabledStatusIdsFromColors(colors);
+      this.applyFields();
+      this.markViewForCheck();
+    });
     this.loadAgents();
     this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyFields());
     this.loadContacts();
@@ -576,7 +584,8 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
       propertyCode: this.propertyCode,
       propertyAddress: this.propertyAddress,
       contactPhone: contact?.phone || '',
-      contactEmail: contact?.email || ''
+      contactEmail: contact?.email || '',
+      reservationStatuses: filterEnabledReservationStatuses(getReservationStatuses(), this.enabledReservationStatusIds, reservation.reservationStatusId)
     });
   }
 

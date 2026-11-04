@@ -32,6 +32,7 @@ import { EmailService } from '../../email/services/email.service';
 import { AgentResponse, agentDropdownLabel, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { ColorService } from '../../organizations/services/color.service';
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -58,7 +59,7 @@ interface ReservationNotificationFormValue {
 }
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReferralMethodType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReferralMethodTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReferralMethodType, ReservationNotice, ReservationStatus, ReservationType, enabledStatusIdsFromColors, filterEnabledReservationStatuses, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReferralMethodTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
 import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
@@ -93,6 +94,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private contactService = inject(ContactService);
   private propertyService = inject(PropertyService);
   private agentService = inject(AgentService);
+  private colorService = inject(ColorService);
   private officeService = inject(OfficeService);
   private emailService = inject(EmailService);
   private commonService = inject(CommonService);
@@ -139,6 +141,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   availableDepositTypes: { value: number, label: string }[] = [];
   allReservationStatuses: { value: number, label: string }[] = [];
   availableReservationStatuses: { value: number, label: string }[] = [];
+  enabledReservationStatusIds: Set<number> | null = null;
   reservationId: string;
   reservation: ReservationResponse;
   organization: OrganizationResponse | null = null;
@@ -2151,8 +2154,14 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   initializeEnums(): void {
     this.availableClientTypes = getReservationTypes();
     this.allReservationStatuses = getReservationStatuses();
-    // Initialize with all statuses, will be filtered based on reservation type
     this.updateReservationStatusesByReservationType();
+    this.colorService.getColors().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: colors => {
+        this.enabledReservationStatusIds = enabledStatusIdsFromColors(colors);
+        this.updateReservationStatusesByReservationType();
+        this.cdr.markForCheck();
+      }
+    });
     this.checkInTimes = getCheckInTimes();
     this.checkOutTimes = getCheckOutTimes();
     this.availableBillingTypes = getBillingTypes();
@@ -2275,17 +2284,17 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
     const reservationTypeId = this.form.get('reservationTypeId')?.value ?? null as number | null;
    
+    const currentStatusId = Number(this.form.get('reservationStatusId')?.value);
     if (reservationTypeId === ReservationType.Owner) {
-      // For Owner type: show only Owner Blocked and Maintenance (in that order - Owner Blocked first)
-      this.availableReservationStatuses = [
+      this.availableReservationStatuses = filterEnabledReservationStatuses([
         { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' },
         { value: ReservationStatus.Maintenance, label: 'Maintenance' }
-      ];
+      ], this.enabledReservationStatusIds, currentStatusId);
     } else {
-      // For all other types: show everything EXCEPT Maintenance and Owner Blocked
-      this.availableReservationStatuses = this.allReservationStatuses.filter(status => 
-        status.value !== ReservationStatus.Maintenance && 
-        status.value !== ReservationStatus.OwnerBlocked
+      this.availableReservationStatuses = filterEnabledReservationStatuses(
+        this.allReservationStatuses.filter(status => status.value !== ReservationStatus.Maintenance && status.value !== ReservationStatus.OwnerBlocked),
+        this.enabledReservationStatusIds,
+        currentStatusId
       );
     }
   }

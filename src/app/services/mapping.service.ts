@@ -1981,6 +1981,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     propertyAddress?: string;
     contactPhone?: string;
     contactEmail?: string;
+    reservationStatuses?: { value: number, label: string }[];
   } = {}): MobileListField[] {
     const fields: MobileListField[] = [];
     const contactId = (reservation.contactIds || []).find(id => !!String(id || '').trim()) || '';
@@ -1994,7 +1995,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     this.addMobileDetailField(fields, 'propertyCode', 'Property Code', lookups.propertyCode, undefined, false, true);
     this.addMobileDetailField(fields, 'propertyAddress', 'Property Address', lookups.propertyAddress, undefined, false, true);
     this.addMobileDetailField(fields, 'reservationTypeId', 'Reservation Type', reservation.reservationTypeId == null ? '' : String(reservation.reservationTypeId), this.mapNumberLabelOptions(getReservationTypes()));
-    this.addMobileDetailField(fields, 'reservationStatusId', 'Reservation Status', reservation.reservationStatusId == null ? '' : String(reservation.reservationStatusId), this.mapNumberLabelOptions(getReservationStatuses()));
+    const reservationStatuses = lookups.reservationStatuses || getReservationStatuses();
+    this.addMobileDetailField(fields, 'reservationStatusId', 'Reservation Status', reservation.reservationStatusId == null ? '' : String(reservation.reservationStatusId), this.mapNumberLabelOptions(reservationStatuses));
     this.addMobileDetailField(fields, 'reservationNoticeId', 'Reservation Notice', reservation.reservationNoticeId == null ? '' : String(reservation.reservationNoticeId), this.mapNumberLabelOptions(getReservationNotices()));
     this.addMobileDetailField(fields, 'agentId', this.terminologyService.labelFor('Agent', reservation.officeId ?? null), reservation.agentId, lookups.agents || []);
     this.addMobileDetailField(fields, 'contactId', 'Contact Name', contactId, lookups.contacts || []);
@@ -2074,7 +2076,8 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       overrides.reservationTypeId = this.resolveLabeledId(text('reservationTypeId'), getReservationTypes(), reservation.reservationTypeId) ?? reservation.reservationTypeId;
     }
     if (values.has('reservationStatusId')) {
-      overrides.reservationStatusId = this.resolveLabeledId(text('reservationStatusId'), getReservationStatuses(), reservation.reservationStatusId) ?? reservation.reservationStatusId;
+      const reservationStatusOptions = fields.find(field => field.key === 'reservationStatusId')?.options?.map(option => ({ value: Number(option.value), label: option.label })) || getReservationStatuses();
+      overrides.reservationStatusId = this.resolveLabeledId(text('reservationStatusId'), reservationStatusOptions, reservation.reservationStatusId) ?? reservation.reservationStatusId;
     }
     if (values.has('reservationNoticeId')) {
       overrides.reservationNoticeId = this.resolveLabeledId(text('reservationNoticeId'), getReservationNotices(), reservation.reservationNoticeId ?? 0) ?? reservation.reservationNoticeId ?? 0;

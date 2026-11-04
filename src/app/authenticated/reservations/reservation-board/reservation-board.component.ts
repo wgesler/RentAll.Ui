@@ -32,7 +32,7 @@ import { PartnerService } from '../../partners/services/partner.service';
 import { PartnerContactResponse } from '../../partners/models/partner.model';
 import { hasRealtorRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay, PropertyHoverFieldGroups } from '../models/reservation-board-model';
-import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
+import { enabledStatusIdsFromColors, getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 import { BoardFilterIndex, FiveWayToggleValue, getBoardFilterMaxIndex, getFiveWayFilterLabel, isAllFilterIndex, isPartnersFilterIndex } from '../models/property-filter-model';
@@ -97,7 +97,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
   checkedInNoticeColorMap = new Map<number, string>();
   displayTextCache = new Map<string, string>();
-  reservationBoardLegendStatusIds: number[] = [
+  readonly reservationBoardLegendStatusIdSource: number[] = [
     ReservationStatus.PreBooking,
     ReservationStatus.Confirmed,
     ReservationStatus.CheckedIn,
@@ -108,6 +108,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
     ReservationStatus.Maintenance,
     ReservationStatus.OwnerBlocked
   ];
+  reservationBoardLegendStatusIds: number[] = [...this.reservationBoardLegendStatusIdSource];
 
   readonly externalCalendarReservationIdPrefix = 'extcal:';
   readonly stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
@@ -398,6 +399,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
         this.colors = colors;
         this.colorMap = this.mappingService.createColorMap(colors);
         this.checkedInNoticeColorMap = this.buildCheckedInNoticeColorMap(colors);
+        const enabled = enabledStatusIdsFromColors(colors);
+        this.reservationBoardLegendStatusIds = this.reservationBoardLegendStatusIdSource.filter(statusId => enabled.has(statusId));
         this.markViewForCheck();
       },
       error: () => {
