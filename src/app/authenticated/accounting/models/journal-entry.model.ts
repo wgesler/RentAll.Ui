@@ -56,6 +56,7 @@ export interface JournalEntryLineSearchResponse {
   sourceCode?: string | null;
   checkNumber?: string | null;
   journalEntryMemo?: string | null;
+  paymentTypeId?: number | null;
   paymentId?: string | null;
   paymentCode?: string | null;
   depositId?: string | null;

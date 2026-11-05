@@ -24,7 +24,7 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { AccountType, JournalEntryKind, JournalEntryPostingStatusVisual, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryPostingStatusVisual, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
+import { AccountType, JournalEntryKind, JournalEntryPostingStatusVisual, PaymentType, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryPostingStatusVisual, getPostingStatusLabel, isJournalEntryHardClosed, isJournalEntryPosted, isJournalEntrySoftClosed, isJournalEntrySourceNavigable, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { OwnerStatementActivityLinkSelection } from '../../models/owner-statement.model';
 import { JournalEntrySourceService } from '../../services/journal-entry-source.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -384,14 +384,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.utilityService.addLoadItem(this.itemsToLoad$, this.journalEntryLinesLoadKey);
     const loadUntil = merge(this.cancelJournalEntryLinesLoad$, this.destroy$);
 
-    this.generalLedgerService.searchJournalEntryLines({
+    const lineSearch = (sourceTypeId: number | null, accountId: number | null = chartOfAccountId) => this.generalLedgerService.searchJournalEntryLines({
       officeIds,
-      chartOfAccountId,
-      sourceTypeId: this.printChecksOnly
-        ? SourceType.BillPayment
-        : this.depositsOnly
-          ? SourceType.Deposit
-          : null,
+      chartOfAccountId: accountId,
+      sourceTypeId,
       propertyId: usesFixedAccountFilter ? null : (this.propertyId?.trim() || null),
       reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
       includeUnposted: true,
@@ -399,7 +395,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       showAll: this.includeAll,
       startDate: this.includeAll ? null : (this.searchDateRange?.startDate ?? null),
       endDate: this.searchDateRange?.endDate ?? null
-    }).pipe(
+    });
+    const lines$ = this.printChecksOnly
+      ? forkJoin([lineSearch(SourceType.BillPayment), lineSearch(SourceType.SecurityDeposit, null)]).pipe(
+          map(([billPayments, securityDeposits]) => [...(billPayments || []), ...(securityDeposits || [])])
+        )
+      : lineSearch(this.depositsOnly ? SourceType.Deposit : null);
+    lines$.pipe(
       takeUntil(loadUntil),
       finalize(() => {
         if (this.journalEntryLinesLoadId !== loadId || this.transferReportOnly) {
@@ -972,11 +974,13 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
     if (this.printChecksOnly) {
       const bankAccountIdSet = new Set(filteredAccountIds);
-      resolvedLines = resolvedLines.filter(line =>
+      const billPayments = resolvedLines.filter(line =>
         Number(line.sourceTypeId) === SourceType.BillPayment
+        && this.isCheckPayment(line)
         && bankAccountIdSet.has(line.chartOfAccountId)
         && Number(line.credit || 0) > 0
         && !(line.checkNumber || '').trim());
+      return [...billPayments, ...this.selectSecurityDepositCheckLines(lines || [], bankAccountIdSet)];
     }
     if (this.depositsOnly) {
       const bankAccountIdSet = new Set(filteredAccountIds);
@@ -3247,6 +3251,51 @@ triggerCheckPrint(): void {
     this.linesDisplay.forEach(row => {
       row.selected = this.selectedJournalEntryLineIds.has(row.journalEntryLineId);
     });
+  }
+
+  isCheckPayment(line: Pick<JournalEntryLineSearchResponse, 'paymentTypeId'>): boolean {
+    return line.paymentTypeId != null && Number(line.paymentTypeId) === PaymentType.Check;
+  }
+
+  selectSecurityDepositCheckLines(lines: JournalEntryLineSearchResponse[], bankAccountIdSet: Set<number>): JournalEntryLineSearchResponse[] {
+    const linesByEntry = new Map<string, JournalEntryLineSearchResponse[]>();
+    for (const line of lines) {
+      if (Number(line.sourceTypeId) !== SourceType.SecurityDeposit
+        || Number(line.journalEntryKindId) !== JournalEntryKind.SecurityDepositReturn
+        || !this.isCheckPayment(line)
+        || (line.checkNumber || '').trim()) {
+        continue;
+      }
+
+      const entryLines = linesByEntry.get(line.journalEntryId) ?? [];
+      entryLines.push(line);
+      linesByEntry.set(line.journalEntryId, entryLines);
+    }
+
+    const checks: JournalEntryLineSearchResponse[] = [];
+    for (const entryLines of linesByEntry.values()) {
+      const accountsReceivableDebit = this.roundCurrencyValue(entryLines
+        .filter(line => this.isAccountsReceivableAccount(line) && Number(line.debit || 0) > 0)
+        .reduce((sum, line) => sum + Number(line.debit || 0), 0));
+      if (accountsReceivableDebit <= 0) {
+        continue;
+      }
+
+      const bankCredit = entryLines.find(line =>
+        bankAccountIdSet.has(line.chartOfAccountId)
+        && this.roundCurrencyValue(Number(line.credit || 0)) === accountsReceivableDebit);
+      if (bankCredit) {
+        checks.push(bankCredit);
+      }
+    }
+
+    return checks;
+  }
+
+  isAccountsReceivableAccount(line: JournalEntryLineSearchResponse): boolean {
+    const account = this.chartOfAccounts.find(item =>
+      item.accountId === line.chartOfAccountId && item.officeId === line.officeId);
+    return Number(account?.accountTypeId) === AccountType.AccountsReceivable;
   }
 
   isPrintCheckLineSelectable(line: Pick<JournalEntryLineListDisplay, 'creditValue'>): boolean {

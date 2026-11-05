@@ -766,6 +766,8 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
 
   mapJournalEntryLineSearchResponse(raw: Record<string, unknown>): JournalEntryLineSearchResponse {
     const base = raw as unknown as JournalEntryLineSearchResponse;
+    const paymentTypeRaw = raw['paymentTypeId'] ?? raw['PaymentTypeId'] ?? base.paymentTypeId;
+    const paymentTypeNumber = paymentTypeRaw == null || paymentTypeRaw === '' ? null : Number(paymentTypeRaw);
     return {
       ...base,
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
@@ -774,6 +776,7 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
       contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null,
       checkNumber: String(raw['checkNumber'] ?? raw['CheckNumber'] ?? base.checkNumber ?? '').trim() || null,
+      paymentTypeId: paymentTypeNumber != null && Number.isFinite(paymentTypeNumber) ? paymentTypeNumber : null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? raw['postingDate'] ?? raw['PostingDate'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
       postingStatusId: Number(raw['postingStatusId'] ?? raw['PostingStatusId'] ?? base.postingStatusId ?? 0),
