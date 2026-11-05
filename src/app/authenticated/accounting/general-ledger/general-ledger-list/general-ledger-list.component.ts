@@ -1569,46 +1569,14 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   filterUndepositedFundsOpenLines(lines: JournalEntryLineSearchResponse[], depositedLineIds: Set<string> = new Set()): JournalEntryLineSearchResponse[] {
     const eligibleLines = lines.filter(line => !this.isExcludedUndepositedFundsSearchLine(line));
+    const stillOpen = (line: JournalEntryLineSearchResponse) => !depositedLineIds.has(line.journalEntryLineId);
 
-    const openDebits = eligibleLines
+    const openDebitLines = eligibleLines
       .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
-      .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
-    const depositCredits = eligibleLines
-      .filter(line => this.getLineNetAmountFromSearchLine(line) < 0)
-      .filter(line => Number(line.sourceTypeId) === SourceType.Deposit)
-      .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
-
-    const settledDebitIds = new Set<string>();
-
-    for (const creditLine of depositCredits) {
-      let remainingCredit = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
-
-      for (const debitLine of openDebits) {
-        if (settledDebitIds.has(debitLine.journalEntryLineId)) {
-          continue;
-        }
-
-        const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
-        if (debitAmount <= 0 || !this.undepositedFundsLinesBalance(debitLine, creditLine)) {
-          continue;
-        }
-
-        if (Math.abs(debitAmount - remainingCredit) <= 0.005) {
-          settledDebitIds.add(debitLine.journalEntryLineId);
-          remainingCredit = 0;
-          break;
-        }
-      }
-    }
-
-    const openDebitLines = openDebits.filter(line =>
-      !settledDebitIds.has(line.journalEntryLineId)
-      && !depositedLineIds.has(line.journalEntryLineId)
-    );
+      .filter(stillOpen);
     const openPaymentRefunds = eligibleLines
       .filter(line => this.isUndepositedFundsPaymentRefundSearchLine(line))
-      .filter(line => !depositedLineIds.has(line.journalEntryLineId))
-      .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
+      .filter(stillOpen);
 
     return [...openDebitLines, ...openPaymentRefunds]
       .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
@@ -1667,58 +1635,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     }
 
     return depositedLineIds;
-  }
-
-  undepositedFundsLinesBalance(
-    debitLine: JournalEntryLineSearchResponse,
-    creditLine: JournalEntryLineSearchResponse
-  ): boolean {
-    const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
-    const creditAmount = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
-    if (Math.abs(debitAmount - creditAmount) > 0.005) {
-      return false;
-    }
-
-    if (!this.undepositedFundsLinesShareProperty(debitLine, creditLine)) {
-      return false;
-    }
-
-    const debitDescription = this.normalizeUndepositedFundsDescription(debitLine);
-    const creditDescription = this.normalizeUndepositedFundsDescription(creditLine);
-    if (debitDescription && creditDescription && debitDescription !== creditDescription) {
-      return false;
-    }
-
-    const debitReservationId = this.normalizeLineContextId(debitLine.reservationId);
-    const creditReservationId = this.normalizeLineContextId(creditLine.reservationId);
-    if (debitReservationId && creditReservationId && debitReservationId !== creditReservationId) {
-      return false;
-    }
-
-    return true;
-  }
-
-  undepositedFundsLinesShareProperty(
-    debitLine: JournalEntryLineSearchResponse,
-    creditLine: JournalEntryLineSearchResponse
-  ): boolean {
-    const debitPropertyId = this.normalizeLineContextId(debitLine.propertyId);
-    const creditPropertyId = this.normalizeLineContextId(creditLine.propertyId);
-    if (debitPropertyId && creditPropertyId) {
-      return debitPropertyId === creditPropertyId;
-    }
-
-    const debitPropertyCode = this.normalizeLineContextId(debitLine.propertyCode);
-    const creditPropertyCode = this.normalizeLineContextId(creditLine.propertyCode);
-    if (debitPropertyCode && creditPropertyCode) {
-      return debitPropertyCode === creditPropertyCode;
-    }
-
-    return !debitPropertyId && !creditPropertyId && !debitPropertyCode && !creditPropertyCode;
-  }
-
-  normalizeUndepositedFundsDescription(line: JournalEntryLineSearchResponse): string {
-    return String(line.memo || line.journalEntryMemo || '').trim().toLowerCase();
   }
 
   resolveUndepositedFundsAccountIds(officeIds: number[]): number[] {
