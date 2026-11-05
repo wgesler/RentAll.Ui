@@ -327,7 +327,7 @@ export enum DepositType {
 }
 
 export const UNRETURNED_SECURITY_DEPOSIT_INACTIVATION_MESSAGE =
-  'Reservations with unreturned security deposits may not be made inactive.';
+  'Reservations with a collected security deposit may not be made inactive until the deposit is returned and payment is processed.';
 
 export const UNPAID_INVOICES_INACTIVATION_MESSAGE =
   'Reservations with unpaid invoices may not be made inactive.';

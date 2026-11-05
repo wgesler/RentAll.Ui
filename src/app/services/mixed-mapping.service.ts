@@ -882,6 +882,7 @@ export class MixedMappingService {
       deposit: reservation.deposit ?? 0,
       depositTypeId: reservation.depositTypeId ?? 0,
       depositReturned: reservation.depositReturned ?? false,
+      paymentProcessed: reservation.paymentProcessed ?? false,
       departureFee: reservation.departureFee ?? 0,
       propertyProtectionFee: reservation.propertyProtectionFee ?? 0,
       administrativeFee: reservation.administrativeFee ?? 0,

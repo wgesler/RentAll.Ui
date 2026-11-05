@@ -36,6 +36,7 @@ export interface ReservationRequest {
   deposit: number;
   depositTypeId: number;
   depositReturned: boolean;
+  paymentProcessed: boolean;
   departureFee: number;
   propertyProtectionFee: number;
   administrativeFee: number;
@@ -118,6 +119,7 @@ export interface ReservationResponse {
   deposit: number;
   depositTypeId?: number | null;
   depositReturned?: boolean | null;
+  paymentProcessed?: boolean | null;
   departureFee: number;
   propertyProtectionFee: number;
   administrativeFee: number;
@@ -439,6 +441,7 @@ export interface ReservationDepartureResponse {
   depositTypeId: number;
   deposit: number;
   depositReturned: boolean;
+  paymentProcessed: boolean;
   securityDepositReturnDate: CalendarDateString;
   collectedAmount: number;
   returnedAmount: number;
@@ -504,6 +507,7 @@ export interface UnreturnedSecurityDepositDisplay {
   returnJournalEntryId: string;
   returnJournalEntryCode: string;
   depositReturned: boolean;
+  paymentProcessed: boolean;
   depositComplete: boolean;
   payableDisabled?: boolean;
   transferDisabled?: boolean;

@@ -6906,6 +6906,7 @@ roundCurrency(value: number): number {
       depositTypeId: Number(raw['depositTypeId'] ?? raw['DepositTypeId'] ?? 0),
       deposit: Number(raw['deposit'] ?? raw['Deposit'] ?? 0),
       depositReturned: !!(raw['depositReturned'] ?? raw['DepositReturned']),
+      paymentProcessed: !!(raw['paymentProcessed'] ?? raw['PaymentProcessed']),
       securityDepositReturnDate: this.utility.coerceCalendarDateStringFromApi(raw['securityDepositReturnDate'] ?? raw['SecurityDepositReturnDate']) ?? '',
       collectedAmount: Number(raw['collectedAmount'] ?? raw['CollectedAmount'] ?? raw['paidAmount'] ?? raw['PaidAmount'] ?? 0),
       returnedAmount: Number(raw['returnedAmount'] ?? raw['ReturnedAmount'] ?? 0),
@@ -7027,6 +7028,7 @@ roundCurrency(value: number): number {
       const paidAmount = Number(row.returnedAmount ?? 0);
       const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, returnedBalanceAmount - paidAmount));
       const depositReturned = !!row.depositReturned;
+      const paymentProcessed = !!row.paymentProcessed;
       const depositComplete = Number(row.deposit ?? 0) > 0
         && collectedAmount > 0
         && this.roundFinancialReportAmount(collectedAmount) === this.roundFinancialReportAmount(paidAmount + transferredAmount);
@@ -7063,6 +7065,7 @@ roundCurrency(value: number): number {
         returnJournalEntryId: this.utility.normalizeId(row.returnJournalEntryId ?? ''),
         returnJournalEntryCode: String(row.returnJournalEntryCode ?? '').trim(),
         depositReturned,
+        paymentProcessed,
         depositComplete,
         payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0,
         transferDisabled: !depositReturned,

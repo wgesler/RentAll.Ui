@@ -37,8 +37,8 @@ export class SecurityDepositService {
   }
 
   /**
-   * Same Bank → Security Deposits list query. Blocks inactivation only when the reservation
-   * appears on that list and still has outstanding TBR (balance minus paid).
+   * Same Bank → Security Deposits list query. Blocks inactivation when a deposit was collected
+   * and Funds Returned or Payment Processed is still off.
    * Owner-type reservations skip the API call — they never carry billable security deposits.
    */
   shouldBlockReservationInactivation(
@@ -100,7 +100,11 @@ export class SecurityDepositService {
       return false;
     }
 
-    return this.getRemainingTbrAmount(row) > 0.005;
+    if (Number(row.collectedAmount ?? 0) <= 0.005) {
+      return false;
+    }
+
+    return !row.depositReturned || !row.paymentProcessed;
   }
 
   applySecurityDepositReturn(request: SecurityDepositReturnRequest): Observable<ReservationResponse> {
@@ -113,6 +117,12 @@ export class SecurityDepositService {
 
   undoSecurityDeposit(reservationId: string): Observable<ReservationResponse> {
     return this.http.put<ReservationResponse>(this.controller + reservationId + '/undo', {});
+  }
+
+  setPaymentProcessed(reservationId: string, paymentProcessed: boolean): Observable<void> {
+    return this.http.put<void>(this.controller + reservationId + '/payment-processed', { paymentProcessed }, {
+      context: new HttpContext().set(SUPPRESS_GLOBAL_ERROR_TOAST, true)
+    });
   }
 
   getSecurityDepositDetail(reservationId: string): Observable<Record<string, unknown>> {

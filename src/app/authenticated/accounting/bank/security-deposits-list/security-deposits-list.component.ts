@@ -7,8 +7,10 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
+import { AuthService } from '../../../../services/auth.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
+import { UserGroups } from '../../../users/models/user-enums';
 import { UnreturnedSecurityDepositDisplay } from '../../../reservations/models/reservation-model';
 import { SecurityDepositService } from '../../services/security-deposit.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
@@ -41,6 +43,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   @ViewChild('summaryFooter') summaryFooterRef?: ElementRef<HTMLElement>;
 
   private securityDepositService = inject(SecurityDepositService);
+  private authService = inject(AuthService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   readonly formatter = inject(FormatterService);
@@ -62,8 +65,8 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     returnedDisplay: { displayAs: 'TBR', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     transferredDisplay: { displayAs: 'Transferred', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' },
-    depositComplete: { displayAs: 'Complete', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
+    depositReturned: { displayAs: 'Funds Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '16ch' },
+    paymentProcessed: { displayAs: 'Payment Processed', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '18ch' }
   };
 
   rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
@@ -93,6 +96,9 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
 
   //#region Security Deposits List
   ngOnInit(): void {
+    this.displayedColumns['paymentProcessed'].checkboxEditable = this.authService.isAdmin()
+      || this.authService.hasRole(UserGroups.Accounting)
+      || this.authService.hasRole(UserGroups.AccountingAdmin);
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
@@ -261,6 +267,34 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   //#endregion
 
   //#region Form Response Methods
+  onPaymentProcessedChange(row: UnreturnedSecurityDepositDisplay & { __changedCheckboxColumn?: string; __previousCheckboxValue?: boolean; __checkboxValue?: boolean }): void {
+    if (row.__changedCheckboxColumn !== 'paymentProcessed') {
+      return;
+    }
+
+    const previousValue = row.__previousCheckboxValue === true;
+    const nextValue = row.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    const reservationId = String(row.reservationId || '').trim();
+    if (!reservationId) {
+      row.paymentProcessed = previousValue;
+      this.markViewForCheck();
+      return;
+    }
+
+    this.securityDepositService.setPaymentProcessed(reservationId, nextValue).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: () => this.markViewForCheck(),
+      error: () => {
+        row.paymentProcessed = previousValue;
+        this.toastr.error('Unable to update payment processed.', 'Security Deposits');
+        this.markViewForCheck();
+      }
+    });
+  }
+
   onPayable(row: UnreturnedSecurityDepositDisplay): void {
     this.openApplyPaymentDialog(row, 'return');
   }
