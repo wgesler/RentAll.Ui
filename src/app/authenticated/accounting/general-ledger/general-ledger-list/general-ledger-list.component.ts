@@ -1575,7 +1575,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
       .filter(stillOpen);
     const openPaymentRefunds = eligibleLines
-      .filter(line => this.isUndepositedFundsPaymentRefundSearchLine(line))
+      .filter(line => this.isUndepositedFundsPaymentRefundSearchLine(line) || this.isSecurityDepositReturnCreditLine(line))
       .filter(stillOpen);
 
     return [...openDebitLines, ...openPaymentRefunds]
@@ -1591,6 +1591,14 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     return !this.normalizeLineContextId(line.reservationId)
       && !this.normalizeLineContextId(line.reservationCode);
+  }
+
+  isSecurityDepositReturnCreditLine(
+    line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit' | 'sourceTypeId' | 'journalEntryKindId'>
+  ): boolean {
+    return this.getLineNetAmountFromSearchLine(line) < -0.005
+      && Number(line.sourceTypeId) === SourceType.SecurityDeposit
+      && Number(line.journalEntryKindId) === JournalEntryKind.SecurityDepositReturn;
   }
 
   isUndepositedFundsPaymentRefundSearchLine(
@@ -1619,7 +1627,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   ): boolean {
     const netAmount = this.getLineNetAmount(line);
     return netAmount > 0.005
-      || this.isUndepositedFundsPaymentRefundLine(line.sourceTypeId, line.journalEntryKindId, netAmount);
+      || this.isUndepositedFundsPaymentRefundLine(line.sourceTypeId, line.journalEntryKindId, netAmount)
+      || (netAmount < -0.005
+        && Number(line.sourceTypeId) === SourceType.SecurityDeposit
+        && Number(line.journalEntryKindId) === JournalEntryKind.SecurityDepositReturn);
   }
 
   filterDepositedJournalEntryLineIds(deposits: DepositResponse[]): Set<string> {
