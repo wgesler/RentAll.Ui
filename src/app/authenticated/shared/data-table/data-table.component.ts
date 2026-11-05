@@ -1156,7 +1156,7 @@ markViewForCheck(): void {
 
   emitCheckboxChangeEvent(event: MatCheckboxChange, rowItem: PurposefulAny, columnName: string): void {
     const column = this.getColumnByName(columnName);
-    if (!column?.checkboxEditable || column.isCheckmark) {
+    if (!column?.checkboxEditable || column.isCheckmark || (column.checkboxDisabledField && rowItem?.[column.checkboxDisabledField] === true)) {
       return;
     }
     const previousValue = !!rowItem[columnName];
@@ -1571,6 +1571,8 @@ normalizeFilterValue(value: unknown): string {
   setActions(): void {
     this.buttons = [];
     const placeInfoBeforeDelete = this.tableName === 'receipts-list';
+    const viewButton: ButtonData = {name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false};
+    if (this.hasActionsView && this.tableName === 'security-deposits-list') this.buttons.push(viewButton);
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
     if (this.hasActionsCamera)   this.buttons.push({name: 'camera', callback: (event, rowItem) => this.emitCameraEvent(event, rowItem), color: '#2196F3', tooltip: 'Open Document', tooltipPosition: 'before', icon: 'photo_camera', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
@@ -1588,7 +1590,7 @@ normalizeFilterValue(value: unknown): string {
     if (this.hasActionsUndo)    this.buttons.push({name: 'undo', callback: (event, rowItem) => this.emitUndoEvent(event, rowItem), color: '#E65100', tooltip: 'Undo', tooltipPosition: 'before', icon: 'replay_circle_filled', suspendOnUpdate: false});
     if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: this.invoiceActionColor, tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsInfo && !placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
-    if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
+    if (this.hasActionsView && this.tableName !== 'security-deposits-list') this.buttons.push(viewButton);
     if (this.hasActionsEmail)    this.buttons.push({name: 'email', callback: (event, rowItem) => this.emitEmailEvent(event, rowItem), color: '#4CAF50', tooltip: 'Email', tooltipPosition: 'before', icon: 'mail', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});

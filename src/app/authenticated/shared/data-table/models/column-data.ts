@@ -20,6 +20,8 @@ export interface ColumnData {
     isPostingStatus?: boolean;
     isMultiSelect?: boolean;
     checkboxEditable?: boolean;
+    /** Row property that disables this checkbox when true. */
+    checkboxDisabledField?: string;
     options?: string[];
     buttonText?: string;
     sortType?: 'default' | 'natural' | 'code'; // 'natural' pads numbers. 'code' natural-sorts a leading number, otherwise plain text.

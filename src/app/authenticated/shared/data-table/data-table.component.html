@@ -559,7 +559,7 @@
                     @if (item[column.name] !== 'NONE') {
                       <div class="datatable-checkbox-cell">
                         <mat-checkbox [checked]="column.name === 'needsMaintenance' ? true : item[column.name]"
-                          [disabled]="!column.checkboxEditable"
+                          [disabled]="!column.checkboxEditable || (!!column.checkboxDisabledField && item?.[column.checkboxDisabledField] === true)"
                           (change)="emitCheckboxChangeEvent($event, item, column.name || '')"
                           (click)="$event.stopPropagation()"
                           (mousedown)="$event.stopPropagation()"

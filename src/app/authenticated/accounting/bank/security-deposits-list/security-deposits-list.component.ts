@@ -65,8 +65,8 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     returnedDisplay: { displayAs: 'TBR', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     transferredDisplay: { displayAs: 'Transferred', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    depositReturned: { displayAs: 'Funds Returned', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '16ch' },
-    paymentProcessed: { displayAs: 'Payment Processed', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '18ch' }
+    depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '14ch' },
+    paymentProcessed: { displayAs: 'Complete', isCheckbox: true, checkboxEditable: false, checkboxDisabledField: 'paymentProcessedDisabled', suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
   };
 
   rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];

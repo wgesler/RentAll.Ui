@@ -7069,6 +7069,7 @@ roundCurrency(value: number): number {
         depositComplete,
         payableDisabled: depositReturned || collectedAmount <= 0 || remainingReturnAmount <= 0,
         transferDisabled: !depositReturned,
+        paymentProcessedDisabled: !depositReturned,
         undoDisabled: !depositReturned && !depositComplete
       };
     });
