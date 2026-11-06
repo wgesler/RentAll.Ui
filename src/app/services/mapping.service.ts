@@ -6539,10 +6539,11 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
     location: string
   ): TransferFlatReportRowDisplay {
     const context = group[0];
-    const businessValue = this.sumTransferSplitAmountForAccount(group, accountIds.businessAccountId);
-    const ownerEscrowValue = this.sumTransferSplitAmountForAccount(group, accountIds.ownersAccountId);
-    const secDepValue = this.sumTransferSplitAmountForAccount(group, accountIds.secDepAccountId);
-    const sdwValue = this.sumTransferSplitAmountForAccount(group, accountIds.sdwAccountId);
+    const amounts = this.sumTransferSplitsOnce(group, accountIds);
+    const businessValue = amounts.business;
+    const ownerEscrowValue = amounts.ownerEscrow;
+    const secDepValue = amounts.secDep;
+    const sdwValue = amounts.sdw;
     const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
     const sourceAmount = group
       .map(split => Number(split.sourceJournalEntryLineAmount))
@@ -6579,6 +6580,48 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       outOfBalance: this.formatFlatReportAmount(outOfBalanceValue),
       outOfBalanceValue
     };
+  }
+
+  sumTransferSplitsOnce(splits: TransferSplit[], accountIds: TransferFlatReportAccountIds): { business: number; ownerEscrow: number; secDep: number; sdw: number } {
+    const totals = { business: 0, ownerEscrow: 0, secDep: 0, sdw: 0 };
+    for (const split of splits || []) {
+      const amount = Number(split.amount) || 0;
+      const accountId = Number(split.chartOfAccountId ?? 0);
+      if (!(accountId > 0) || amount === 0) {
+        continue;
+      }
+      const isOwner = this.transferReportAccountMatches(accountId, accountIds.ownersAccountId);
+      const isSecurityDeposit = this.transferReportAccountMatches(accountId, accountIds.secDepAccountId);
+      const isSdw = this.transferReportAccountMatches(accountId, accountIds.sdwAccountId);
+      const isBusiness = this.transferReportAccountMatches(accountId, accountIds.businessAccountId);
+      const matchCount = Number(isOwner) + Number(isSecurityDeposit) + Number(isSdw) + Number(isBusiness);
+      if (matchCount !== 1) {
+        if (isBusiness) {
+          totals.business += amount;
+        }
+        continue;
+      }
+      if (isOwner) {
+        totals.ownerEscrow += amount;
+      } else if (isSecurityDeposit) {
+        totals.secDep += amount;
+      } else if (isSdw) {
+        totals.sdw += amount;
+      } else {
+        totals.business += amount;
+      }
+    }
+    return {
+      business: this.roundCurrency(totals.business),
+      ownerEscrow: this.roundCurrency(totals.ownerEscrow),
+      secDep: this.roundCurrency(totals.secDep),
+      sdw: this.roundCurrency(totals.sdw)
+    };
+  }
+
+  transferReportAccountMatches(accountId: number, configuredAccountId: number | null | undefined): boolean {
+    const configured = Number(configuredAccountId ?? 0);
+    return configured > 0 && accountId === configured;
   }
 
   sumTransferSplitAmountForAccount(splits: TransferSplit[], accountId: number | null | undefined): number {

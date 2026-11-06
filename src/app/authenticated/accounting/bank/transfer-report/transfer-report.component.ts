@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, map, of, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
@@ -13,7 +13,7 @@ import { TerminologyService } from '../../../organizations/services/terminology.
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferResponse } from '../../models/transfer.model';
+import { TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferResponse } from '../../models/transfer.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { TransferService } from '../../services/transfer.service';
 @Component({
@@ -42,6 +42,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   private terminologyService = inject(TerminologyService);
   isServiceError = false;
   rowsDisplay: TransferFlatReportRowDisplay[] = [];
+  lineAllocations: TransferReportLineAllocationResponse[] = [];
   noActivityMessage = 'No transfer detail lines for the selected transfer.';
   accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
@@ -137,15 +138,22 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
 
     this.isServiceError = false;
     this.rowsDisplay = [];
+    this.lineAllocations = [];
     const loadId = ++this.transferReportLoadId;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'transferReport');
 
-    this.transferService.getTransferById(transferId).pipe(take(1)).subscribe({
-      next: transfer => {
+    this.transferService.getTransferById(transferId).pipe(
+      take(1),
+      switchMap(transfer => this.transferService.getTransferReportLineAllocations(transferId).pipe(
+        map(allocations => ({ transfer, allocations })),
+        catchError(() => of({ transfer, allocations: [] as TransferReportLineAllocationResponse[] }))
+      ))
+    ).subscribe({
+      next: ({ transfer, allocations }) => {
         if (this.transferReportLoadId !== loadId) {
           return;
         }
-        this.applyTransfer(transfer);
+        this.applyTransfer(transfer, allocations);
       },
       error: (error: HttpErrorResponse) => {
         if (this.transferReportLoadId !== loadId) {
@@ -159,8 +167,9 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  applyTransfer(transfer: TransferResponse): void {
+  applyTransfer(transfer: TransferResponse, allocations: TransferReportLineAllocationResponse[] = []): void {
     this.currentTransfer = transfer;
+    this.lineAllocations = allocations || [];
     this.isServiceError = false;
     this.refreshReportDisplay();
     this.finishTransferReportLoad();
@@ -177,10 +186,12 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.applyColumnHeaders(this.currentTransfer);
-    this.rowsDisplay = this.mappingService.mapTransferToFlatReportRowsFromTransferSplits(
-      this.currentTransfer,
-      this.resolveAccountIds(this.currentTransfer)
-    );
+    this.rowsDisplay = this.lineAllocations.length > 0
+      ? this.mappingService.mapTransferToFlatReportRowsFromDepositAllocations(this.currentTransfer, this.lineAllocations)
+      : this.mappingService.mapTransferToFlatReportRowsFromTransferSplits(
+        this.currentTransfer,
+        this.resolveAccountIds(this.currentTransfer)
+      );
     this.markViewForCheck();
   }
 
