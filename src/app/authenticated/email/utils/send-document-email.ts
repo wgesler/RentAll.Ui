@@ -33,12 +33,13 @@ export async function sendDocumentEmail(
   emailConfig: EmailConfig
 ): Promise<void> {
   emailConfig = applySystemUserOutboundSender(emailConfig);
+  const includeDocumentAttachment = emailConfig.includeDocumentAttachment !== false;
   const attachmentFileName = emailConfig.fileDetails?.fileName || 'document.pdf';
   const preparedFile = (emailConfig.fileDetails?.file || '').trim();
   let pdfBase64 = preparedFile;
   let pdfContentType = (emailConfig.fileDetails?.contentType || '').trim() || 'application/pdf';
 
-  if (!pdfBase64) {
+  if (includeDocumentAttachment && !pdfBase64) {
     const htmlWithStyles = deps.documentHtmlService.getPdfHtmlWithStyles(
       documentConfig.previewIframeHtml,
       documentConfig.previewIframeStyles,
@@ -88,11 +89,11 @@ export async function sendDocumentEmail(
     htmlContent: emailConfig.htmlContent?.trim() || '',
     emailTypeId: Number(emailConfig.emailType),
     documentTypeId: Number(emailConfig.documentType),
-    fileDetails: {
+    fileDetails: includeDocumentAttachment ? {
       fileName: attachmentFileName,
       contentType: pdfContentType,
       file: pdfBase64
-    },
+    } : null,
     additionalFileDetails
   };
 

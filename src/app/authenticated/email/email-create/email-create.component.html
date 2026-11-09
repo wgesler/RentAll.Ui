@@ -139,10 +139,14 @@
             <input matInput type="text" formControlName="subject" />
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="email-body-field">
-            <mat-label>Email Body</mat-label>
-            <textarea matInput rows="14" formControlName="plainTextContent"></textarea>
-          </mat-form-field>
+          @if (showsHtmlBody) {
+            <div class="email-html-preview" [innerHTML]="htmlPreview"></div>
+          } @else {
+            <mat-form-field appearance="outline" class="email-body-field">
+              <mat-label>Email Body</mat-label>
+              <textarea matInput rows="14" formControlName="plainTextContent"></textarea>
+            </mat-form-field>
+          }
         </form>
       </mat-card>
     </section>

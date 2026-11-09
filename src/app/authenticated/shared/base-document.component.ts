@@ -53,6 +53,7 @@ export interface EmailConfig {
   emailType: EmailType;
   plainTextContent: string;
   htmlContent?: string;
+  includeDocumentAttachment?: boolean;
   fileDetails?: FileDetails | null;
   additionalFileDetails?: FileDetails[];
   errorMessage?: string;

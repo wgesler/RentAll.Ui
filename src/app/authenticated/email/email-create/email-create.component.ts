@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -34,6 +35,7 @@ export class EmailCreateComponent implements OnInit {
   private emailService = inject(EmailService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
+  private sanitizer = inject(DomSanitizer);
 
   draft: EmailCreateDraft | null = null;
   form: FormGroup = this.buildForm();
@@ -82,7 +84,18 @@ export class EmailCreateComponent implements OnInit {
     return this.isViewOnly ? 'View Email' : 'Create Email';
   }
 
+  get showsHtmlBody(): boolean {
+    return this.draft?.emailConfig.includeDocumentAttachment === false && !!(this.draft?.emailConfig.htmlContent || '').trim();
+  }
+
+  get htmlPreview(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.draft?.emailConfig.htmlContent || '');
+  }
+
   get autoAttachmentName(): string {
+    if (this.draft?.emailConfig.includeDocumentAttachment === false) {
+      return '';
+    }
     return this.draft?.emailConfig.fileDetails?.fileName || (this.isViewOnly ? '' : 'document.pdf');
   }
 
@@ -207,7 +220,7 @@ export class EmailCreateComponent implements OnInit {
       ccEmails: splitEmailList(formValue.ccEmails || ''),
       bccEmails: splitEmailList(formValue.bccEmails || ''),
       plainTextContent: plainTextBody,
-      htmlContent: isBodyModified ? '' : (this.draft.emailConfig.htmlContent || '').trim(),
+      htmlContent: this.showsHtmlBody || !isBodyModified ? (this.draft.emailConfig.htmlContent || '').trim() : '',
       additionalFileDetails: [...this.additionalAttachments]
     };
 
@@ -342,7 +355,7 @@ export class EmailCreateComponent implements OnInit {
   }
 
   isValidDraft(draft: EmailCreateDraft, emailConfig: EmailConfig): boolean {
-    if (!draft.documentConfig.previewIframeHtml) {
+    if (emailConfig.includeDocumentAttachment !== false && !draft.documentConfig.previewIframeHtml) {
       this.toastr.warning('No preview available to email.', 'No Preview');
       return false;
     }

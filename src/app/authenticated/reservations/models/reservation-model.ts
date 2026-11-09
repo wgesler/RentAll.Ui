@@ -91,6 +91,7 @@ export interface ReservationResponse {
   propertyId: string;
   noticeStatusId?: number | null;
   reservationCode: string;
+  externalRefNo?: string | null;
   reservationTypeId: number;
   reservationStatusId: number;
   reservationNoticeId?: number | null;
