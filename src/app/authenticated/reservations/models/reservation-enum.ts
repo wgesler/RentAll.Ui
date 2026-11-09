@@ -120,6 +120,10 @@ export function isCreditCardBillingMethod(billingMethodId: number | null | undef
     || billingMethodId === BillingMethod.CreditCardDiscover;
 }
 
+export function isClientPaymentBillingMethod(billingMethodId: number | null | undefined): boolean {
+  return billingMethodId === BillingMethod.AchDebit || isCreditCardBillingMethod(billingMethodId);
+}
+
 export function getBillingMethod(billingMethodId: number | undefined): string {
   if (billingMethodId === undefined || billingMethodId === null) return '';
   

@@ -59,8 +59,8 @@ interface ReservationNotificationFormValue {
 }
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReferralMethodType, ReservationNotice, ReservationStatus, ReservationType, enabledStatusIdsFromColors, filterEnabledReservationStatuses, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReferralMethodTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
-import { InvoiceMethod, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReferralMethodType, ReservationNotice, ReservationStatus, ReservationType, enabledStatusIdsFromColors, filterEnabledReservationStatuses, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReferralMethodTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, isClientPaymentBillingMethod, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
+import { InvoiceMethod, PaymentIntegrationType, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
 import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
@@ -68,6 +68,8 @@ import { ReservationPaymentDisplay, ReservationPaymentResponse } from '../models
 import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 
 @Component({
     standalone: true,
@@ -96,6 +98,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private agentService = inject(AgentService);
   private colorService = inject(ColorService);
   private officeService = inject(OfficeService);
+  private accountingOfficeService = inject(AccountingOfficeService);
   private emailService = inject(EmailService);
   private commonService = inject(CommonService);
   private authService = inject(AuthService);
@@ -134,6 +137,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   availableBillingTypes: { value: number, label: string }[] = [];
   availableInvoiceMethods: { value: number, label: string }[] = [];
   availableBillingMethods: { value: number, label: string }[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   availableProrateTypes: { value: number, label: string }[] = [];
   availableFrequencies: { value: number, label: string }[] = [];
   availableReferralMethodTypes: { value: number, label: string }[] = [];
@@ -200,6 +204,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.loadOrganization();
     this.loadPropertyCodes();
     this.loadOffices();
+    this.loadAccountingOffices();
 
     this.terminologyService.terminologies$.pipe(takeUntil(this.destroy$)).subscribe(() => this.applyAgentFieldLabel());
     this.applyAgentFieldLabel();
@@ -782,6 +787,37 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         });
       }
     });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices;
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  showSendPaymentEmail(): boolean {
+    const billingMethodId = this.form?.get('billingMethodId')?.value as number | null;
+    if (!isClientPaymentBillingMethod(billingMethodId)) {
+      return false;
+    }
+    const officeId = this.selectedOffice?.officeId ?? this.form?.get('officeId')?.value;
+    if (!officeId) {
+      return false;
+    }
+    const accountingOffice = this.accountingOffices.find(office => office.officeId === officeId);
+    return accountingOffice?.paymentIntegrationTypeId === PaymentIntegrationType.Number;
+  }
+
+  sendPaymentEmail(): void {
   }
 
   loadOffices(): void {

@@ -38,7 +38,8 @@ const EMAIL_TEMPLATES: Array<Pick<EmailTemplateRow, 'key' | 'name' | 'subjectFie
   { key: 'schedules', name: 'Schedules', subjectField: 'scheduleSubject', bodyField: 'schedules' },
   { key: 'missingReceipts', name: 'Missing Receipts', subjectField: 'missingReceiptsSubject', bodyField: 'missingReceipts' },
   { key: 'billReport', name: 'Bill Report', subjectField: 'billReportSubject', bodyField: 'billReport' },
-  { key: 'billing', name: 'Billing', subjectField: null, bodyField: 'billing' }
+  { key: 'billing', name: 'Billing', subjectField: null, bodyField: 'billing' },
+  { key: 'paymentInformationRequest', name: 'Payment Information Request', subjectField: 'paymentInformationRequestSubject', bodyField: 'paymentInformationRequest' }
 ];
 
 const SYSTEM_ORGANIZATION_ID = '99999999-9999-9999-9999-999999999999';

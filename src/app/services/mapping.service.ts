@@ -1474,6 +1474,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       missingReceipts: emailHtml?.missingReceipts ?? '',
       billReport: emailHtml?.billReport ?? '',
       billing: emailHtml?.billing ?? '',
+      paymentInformationRequest: emailHtml?.paymentInformationRequest ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
       departureSubject: emailHtml?.departureSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
@@ -1482,6 +1483,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       scheduleSubject: emailHtml?.scheduleSubject ?? '',
       missingReceiptsSubject: emailHtml?.missingReceiptsSubject ?? '',
       billReportSubject: emailHtml?.billReportSubject ?? '',
+      paymentInformationRequestSubject: emailHtml?.paymentInformationRequestSubject ?? '',
       createdOn: emailHtml?.createdOn ?? '',
       modifiedOn: emailHtml?.modifiedOn
     };

@@ -1,3 +1,4 @@
+//#region TransactionType
 export enum TransactionType {
   ChargeProrate = 0,
   Payment = 1,
@@ -52,6 +53,16 @@ export function getTransactionType(transactionTypeId: number | undefined): strin
   return typeMap[transactionTypeId] || '';
 }
 
+export function getTransactionTypeLabel(transactionType: number, transactionTypes?: { value: number, label: string }[]): string {
+  if (transactionTypes && transactionTypes.length > 0) {
+    const found = transactionTypes.find(t => t.value === transactionType);
+    return found?.label || getTransactionType(transactionType);
+  }
+  return getTransactionType(transactionType) || 'Unknown';
+}
+//#endregion
+
+//#region SourceType
 export enum SourceType {
   Check = 0,
   Deposit = 1,
@@ -169,15 +180,7 @@ export function getSourceTypeLabel(sourceTypeId: number | undefined | null, sour
   const options = sourceTypes?.length ? sourceTypes : SourceTypeLabels;
   return options.find(type => type.value === sourceTypeId)?.label ?? '';
 }
-
-export function getTransactionTypeLabel(transactionType: number, transactionTypes?: { value: number, label: string }[]): string {
-  if (transactionTypes && transactionTypes.length > 0) {
-    const found = transactionTypes.find(t => t.value === transactionType);
-    return found?.label || getTransactionType(transactionType);
-  }
-  // Fallback to getTransactionType function
-  return getTransactionType(transactionType) || 'Unknown';
-}
+//#endregion
 
 //#region AccountType
 export enum AccountType {
@@ -281,7 +284,7 @@ export enum PaymentIntegrationType {
 
 export const PaymentIntegrationTypeLabels: { value: PaymentIntegrationType; label: string }[] = [
   { value: PaymentIntegrationType.None, label: 'None' },
-  { value: PaymentIntegrationType.Number, label: 'EasyPay' },
+  { value: PaymentIntegrationType.Number, label: 'Number (EasyPay)' },
   { value: PaymentIntegrationType.Stripe, label: 'Stripe' }
 ];
 //#endregion
