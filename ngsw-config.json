@@ -10,7 +10,6 @@
           "/favicon-32x32.png",
           "/index.html",
           "/manifest.webmanifest",
-          "/assets/fonts/MaterialIcons-Regular.woff2",
           "/*.css",
           "/*.js"
         ]
