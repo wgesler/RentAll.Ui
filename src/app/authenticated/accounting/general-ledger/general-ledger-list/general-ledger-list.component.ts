@@ -397,8 +397,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       endDate: this.searchDateRange?.endDate ?? null
     });
     const lines$ = this.printChecksOnly
-      ? forkJoin([lineSearch(SourceType.BillPayment), lineSearch(SourceType.SecurityDeposit, null)]).pipe(
-          map(([billPayments, securityDeposits]) => [...(billPayments || []), ...(securityDeposits || [])])
+      ? forkJoin([
+          lineSearch(SourceType.BillPayment),
+          lineSearch(SourceType.SecurityDeposit, null),
+          lineSearch(SourceType.InvoicePayment)
+        ]).pipe(
+          map(([billPayments, securityDeposits, invoicePayments]) => [
+            ...(billPayments || []),
+            ...(securityDeposits || []),
+            ...(invoicePayments || [])
+          ])
         )
       : lineSearch(this.depositsOnly ? SourceType.Deposit : null);
     lines$.pipe(
