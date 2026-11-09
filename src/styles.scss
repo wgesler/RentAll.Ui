@@ -13,6 +13,20 @@
   font-family: "Poppins", "Helvetica Neue", sans-serif;
 }
 
+.mat-icon,
+.material-icons {
+  font-family: "Material Icons";
+  font-weight: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+}
+
 :root {
   --global-page-inner-padding: 15px;
   /* Slate list/shell title row (.property-titlebar + dbg-band-actions). */
