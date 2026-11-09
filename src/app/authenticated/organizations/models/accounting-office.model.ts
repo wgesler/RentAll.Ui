@@ -34,6 +34,7 @@ export interface AccountingOfficeRequest {
   hardClosedMonth: number;
   hardClosedYear: number;
   workOrderNo: number;
+  paymentIntegrationTypeId: number;
   visaFeePercentage: number;
   mcFeePercentage: number;
   amexFeePercentage: number;
@@ -102,6 +103,7 @@ export interface AccountingOfficeResponse {
   bankCards?: BankCardResponse[];
   banks?: BankAccountResponse[];
   workOrderNo: number;
+  paymentIntegrationTypeId: number;
   visaFeePercentage: number;
   mcFeePercentage: number;
   amexFeePercentage: number;

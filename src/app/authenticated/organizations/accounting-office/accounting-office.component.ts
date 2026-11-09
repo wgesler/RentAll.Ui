@@ -21,7 +21,7 @@ import { OrganizationFeatureService } from '../services/organization-feature.ser
 import { OrganizationService } from '../services/organization.service';
 import { BankAccountRequest, BankAccountResponse, BankCardRequest, BankCardResponse } from '../models/bank.model';
 import { getCardTypes } from '../models/card-type-enum';
-import { AccountType } from '../../accounting/models/accounting-enum';
+import { AccountType, PaymentIntegrationType, PaymentIntegrationTypeLabels } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from '../services/accounting-office.service';
@@ -91,6 +91,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   
   isServiceError: boolean = false;
   form: FormGroup;
+  paymentIntegrationTypes = PaymentIntegrationTypeLabels;
   fileName: string = null;
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
@@ -559,6 +560,7 @@ parseOfficeId(id: string | number | null): number | null {
       hardClosedMonth: new FormControl<number>(12, [Validators.required, Validators.min(1), Validators.max(12)]),
       hardClosedYear: new FormControl<number>(this.accountingYearMax, this.accountingYearValidators()),
       workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
+      paymentIntegrationTypeId: new FormControl<number>(PaymentIntegrationType.None, [Validators.required]),
       visaFeePercentage: new FormControl<string>('0.00'),
       mcFeePercentage: new FormControl<string>('0.00'),
       amexFeePercentage: new FormControl<string>('0.00'),
@@ -829,6 +831,7 @@ parseOfficeId(id: string | number | null): number | null {
         hardClosedMonth: this.accountingOffice.hardClosedMonth ?? 12,
         hardClosedYear: this.accountingOffice.hardClosedYear ?? 2020,
         workOrderNo: this.accountingOffice.workOrderNo ?? 0,
+        paymentIntegrationTypeId: this.accountingOffice.paymentIntegrationTypeId ?? PaymentIntegrationType.None,
         visaFeePercentage: this.formatCreditCardCharge(this.accountingOffice.visaFeePercentage),
         mcFeePercentage: this.formatCreditCardCharge(this.accountingOffice.mcFeePercentage),
         amexFeePercentage: this.formatCreditCardCharge(this.accountingOffice.amexFeePercentage),
@@ -897,6 +900,7 @@ parseOfficeId(id: string | number | null): number | null {
       hardClosedMonth: o.hardClosedMonth ?? 12,
       hardClosedYear: o.hardClosedYear ?? 2020,
       workOrderNo: o.workOrderNo ?? 0,
+      paymentIntegrationTypeId: o.paymentIntegrationTypeId ?? PaymentIntegrationType.None,
       visaFeePercentage: this.formatCreditCardCharge(o.visaFeePercentage),
       mcFeePercentage: this.formatCreditCardCharge(o.mcFeePercentage),
       amexFeePercentage: this.formatCreditCardCharge(o.amexFeePercentage),
@@ -2304,6 +2308,7 @@ clearCheckStockLocal(): void {
       hardClosedMonth: Number(formValue['hardClosedMonth']),
       hardClosedYear: Number(formValue['hardClosedYear']),
       workOrderNo: Number(formValue['workOrderNo']) || 0,
+      paymentIntegrationTypeId: Number(formValue['paymentIntegrationTypeId'] ?? PaymentIntegrationType.None),
       visaFeePercentage: this.parseCreditCardCharge(formValue['visaFeePercentage']),
       mcFeePercentage: this.parseCreditCardCharge(formValue['mcFeePercentage']),
       amexFeePercentage: this.parseCreditCardCharge(formValue['amexFeePercentage']),

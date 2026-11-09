@@ -615,8 +615,15 @@
 
               <mat-expansion-panel [expanded]="false" class="mb-4">
                 <mat-expansion-panel-header>
-                  <mat-panel-title>Default Credit Card Charges</mat-panel-title>
+                  <mat-panel-title>Client Billing Methods</mat-panel-title>
                 </mat-expansion-panel-header>
+                <h4 class="text-base font-semibold mb-3 mt-1">Payment Integration</h4>
+                <mat-radio-group formControlName="paymentIntegrationTypeId" color="primary" class="flex items-center gap-4 mb-4">
+                  @for (option of paymentIntegrationTypes; track option.value) {
+                    <mat-radio-button [value]="option.value">{{ option.label }}</mat-radio-button>
+                  }
+                </mat-radio-group>
+                <h4 class="text-base font-semibold mb-3 mt-1">Credit Card Fees:</h4>
                 <div class="grid grid-cols-4 form-standard-grid">
                   <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Visa</mat-label>

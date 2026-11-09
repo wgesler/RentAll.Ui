@@ -272,6 +272,20 @@ export function getAccountTypeLabel(accountTypeId: number, accountTypes?: { valu
 }
 //#endregion
 
+//#region PaymentIntegrationType
+export enum PaymentIntegrationType {
+  None = 0,
+  Number = 1,
+  Stripe = 2
+}
+
+export const PaymentIntegrationTypeLabels: { value: PaymentIntegrationType; label: string }[] = [
+  { value: PaymentIntegrationType.None, label: 'None' },
+  { value: PaymentIntegrationType.Number, label: 'EasyPay' },
+  { value: PaymentIntegrationType.Stripe, label: 'Stripe' }
+];
+//#endregion
+
 //#region InvoiceMethod
 export enum InvoiceMethod {
   Create = 0,
