@@ -980,7 +980,11 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         && bankAccountIdSet.has(line.chartOfAccountId)
         && Number(line.credit || 0) > 0
         && !(line.checkNumber || '').trim());
-      return [...billPayments, ...this.selectSecurityDepositCheckLines(lines || [], bankAccountIdSet)];
+      return [
+        ...billPayments,
+        ...this.selectSecurityDepositCheckLines(lines || [], bankAccountIdSet),
+        ...this.selectSecurityDepositRefundCheckLines(lines || [], bankAccountIdSet)
+      ];
     }
     if (this.depositsOnly) {
       const bankAccountIdSet = new Set(filteredAccountIds);
@@ -3217,6 +3221,16 @@ triggerCheckPrint(): void {
     }
 
     return checks;
+  }
+
+  selectSecurityDepositRefundCheckLines(lines: JournalEntryLineSearchResponse[], bankAccountIdSet: Set<number>): JournalEntryLineSearchResponse[] {
+    return (lines || []).filter(line =>
+      Number(line.sourceTypeId) === SourceType.InvoicePayment
+      && this.isCheckPayment(line)
+      && bankAccountIdSet.has(line.chartOfAccountId)
+      && Number(line.credit || 0) > 0
+      && !(line.checkNumber || '').trim()
+      && `${line.memo || ''} ${line.journalEntryMemo || ''}`.includes('Security Deposit Refund'));
   }
 
   isAccountsReceivableAccount(line: JournalEntryLineSearchResponse): boolean {

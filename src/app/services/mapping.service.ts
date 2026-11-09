@@ -7072,7 +7072,10 @@ roundCurrency(value: number): number {
       const transferredAmount = Number(row.transferredAmount ?? 0);
       const returnedBalanceAmount = this.roundFinancialReportAmount(Math.max(0, collectedAmount - owedAmount));
       const paidAmount = Number(row.returnedAmount ?? 0);
-      const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, returnedBalanceAmount - paidAmount));
+      const settledAmount = this.roundFinancialReportAmount(paidAmount + transferredAmount);
+      const remainingReturnAmount = settledAmount > 0
+        ? this.roundFinancialReportAmount(Math.max(0, collectedAmount - settledAmount))
+        : returnedBalanceAmount;
       const depositReturned = !!row.depositReturned;
       const paymentProcessed = !!row.paymentProcessed;
       const depositComplete = Number(row.deposit ?? 0) > 0
@@ -7098,8 +7101,8 @@ roundCurrency(value: number): number {
         collectedAmount,
         owedDisplay: this.formatter.currencyUsd(owedAmount),
         owedAmount,
-        returnedBalanceAmount,
-        returnedDisplay: this.formatter.currencyUsd(returnedBalanceAmount),
+        returnedBalanceAmount: remainingReturnAmount,
+        returnedDisplay: this.formatter.currencyUsd(remainingReturnAmount),
         paidDisplay: this.formatter.currencyUsd(paidAmount),
         paidAmount,
         transferredDisplay: this.formatter.currencyUsd(transferredAmount),

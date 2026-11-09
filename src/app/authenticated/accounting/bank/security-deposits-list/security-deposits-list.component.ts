@@ -404,9 +404,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       this.paymentInitialAmount = this.roundCurrencyValue(Math.max(0, owedAmount - transferredAmount));
     } else {
       this.paymentInitialDescription = `${row.reservationCode} Security Deposit Return`.trim();
-      const tbrAmount = this.roundCurrencyValue(Number(row.returnedBalanceAmount ?? 0));
-      const paidToTenant = this.roundCurrencyValue(Number(row.paidAmount ?? 0));
-      this.paymentInitialAmount = this.roundCurrencyValue(Math.max(0, tbrAmount - paidToTenant));
+      this.paymentInitialAmount = this.roundCurrencyValue(Math.max(0, Number(row.returnedBalanceAmount ?? 0)));
     }
     this.showPaymentForm = true;
     this.markViewForCheck();
