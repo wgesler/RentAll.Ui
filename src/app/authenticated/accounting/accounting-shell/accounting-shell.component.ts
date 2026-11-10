@@ -97,7 +97,7 @@ import { JournalEntryLineSelection, JournalEntryResponse, JournalEntrySyncResult
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owners/owner-report-details/owner-report-details.component';
 import { SecurityDepositService } from '../services/security-deposit.service';
-import { SecurityDepositsListComponent } from '../bank/security-deposits-list/security-deposits-list.component';
+import { SecurityDepositJournalSelection, SecurityDepositsListComponent } from '../bank/security-deposits-list/security-deposits-list.component';
 import { SecurityDepositReportComponent } from '../bank/security-deposit-report/security-deposit-report.component';
 import { SecurityDepositReportSelection } from '../models/security-deposit-report.model';
 import { OwnerReportsCacheService, EscrowReportCacheService } from '../services/owner-reports-cache.service';
@@ -461,6 +461,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   securityDepositsRefreshTrigger = 0;
   showSecurityDepositReport = false;
   securityDepositReportContext: SecurityDepositReportSelection | null = null;
+  securityDepositJournalContext: SecurityDepositJournalSelection | null = null;
   securityDepositReportInstance = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
@@ -745,9 +746,9 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.onInvoiceSelect(selection);
   }
 
-  onSecurityDepositTransferJournalEntry(journalEntryId: string): void {
-    const id = (journalEntryId || '').trim();
-    if (!id) {
+  onSecurityDepositTransferJournalEntry(selection: SecurityDepositJournalSelection): void {
+    const reservationId = (selection?.reservationId || '').trim();
+    if (!reservationId) {
       return;
     }
 
@@ -756,8 +757,21 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.showGeneralLedgerOfficeValidationError = false;
     this.copyFromJournalEntry = null;
     this.selectedJournalEntryLineId = null;
-    this.activeJournalEntryId = id;
-    this.showGeneralLedgerDetail = true;
+    this.activeJournalEntryId = null;
+    this.showGeneralLedgerDetail = false;
+    this.securityDepositJournalContext = {
+      reservationId,
+      reservationCode: (selection.reservationCode || '').trim(),
+      officeId: Number(selection.officeId || 0)
+    };
+    this.cdr.markForCheck();
+  }
+
+  onSecurityDepositJournalBack(): void {
+    this.securityDepositJournalContext = null;
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
     this.cdr.markForCheck();
   }
 
@@ -2954,6 +2968,7 @@ openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyI
       this.onTransferBack();
       this.onTransferReportBack();
       this.onSecurityDepositReportBack();
+      this.onSecurityDepositJournalBack();
     }
     if (event.index !== this.tabReports) {
       this.isFinancialReportDrillDownActive = false;
@@ -3163,6 +3178,7 @@ activateBankActivity(kind: AccountingShellBankActivityKind): void {
       this.onTransferBack();
       this.onTransferReportBack();
       this.onSecurityDepositReportBack();
+      this.onSecurityDepositJournalBack();
     }
 
     this.selectedBankActivityKind = kind;
@@ -5373,6 +5389,13 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     return this.selectedTabIndex === this.tabOwners
       && this.selectedOwnerKind === 'ownerStatements'
       && !!this.selectedOwnerStatementMonthLine;
+  }
+
+  get isSecurityDepositJournalActive(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'securityDeposits'
+      && !!this.securityDepositJournalContext
+      && !this.showGeneralLedgerDetail;
   }
 
   get isSecurityDepositReportActive(): boolean {

@@ -62,6 +62,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() transferReportOnly = false;
   @Input() depositsOnly = false;
   @Input() printChecksOnly = false;
+  @Input() securityDepositStepsOnly = false;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<JournalEntryLineSelection>();
@@ -96,6 +97,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   private terminologyService = inject(TerminologyService);
 
   selectedJournalEntryLineIds = new Set<string>();
+  securityDepositTransferIds = new Set<string>();
+  securityDepositEntryColors = new Map<string, string>();
   selectedJournalEntryIds = new Set<string>();
   isPostingJournalEntries = false;
   isCreatingRetainedEarningsJournalEntry = false;
@@ -217,6 +220,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       || (changes['transferReportOnly'] && !changes['transferReportOnly'].firstChange)
       || (changes['depositsOnly'] && !changes['depositsOnly'].firstChange)
       || (changes['printChecksOnly'] && !changes['printChecksOnly'].firstChange)
+      || (changes['securityDepositStepsOnly'] && !changes['securityDepositStepsOnly'].firstChange)
       || (changes['propertyId'] && !changes['propertyId'].firstChange)
       || (changes['reservationId'] && !changes['reservationId'].firstChange)
       || (changes['searchDateRange'] && !changes['searchDateRange'].firstChange)
@@ -388,13 +392,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       officeIds,
       chartOfAccountId: accountId,
       sourceTypeId,
-      propertyId: usesFixedAccountFilter ? null : (this.propertyId?.trim() || null),
+      propertyId: usesFixedAccountFilter || this.securityDepositStepsOnly ? null : (this.propertyId?.trim() || null),
       reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
       includeUnposted: true,
-      includeCashOnly: this.includeCashOnly,
-      showAll: this.includeAll,
-      startDate: this.includeAll ? null : (this.searchDateRange?.startDate ?? null),
-      endDate: this.searchDateRange?.endDate ?? null
+      includeCashOnly: this.securityDepositStepsOnly ? true : this.includeCashOnly,
+      showAll: this.securityDepositStepsOnly ? true : this.includeAll,
+      startDate: this.securityDepositStepsOnly || this.includeAll ? null : (this.searchDateRange?.startDate ?? null),
+      endDate: this.securityDepositStepsOnly ? null : (this.searchDateRange?.endDate ?? null)
     });
     const lines$ = this.printChecksOnly
       ? forkJoin([
@@ -459,6 +463,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
               this.applyLoadedJournalEntryLines(refinedLines, loadId);
             }
           });
+          return;
+        }
+
+        if (this.securityDepositStepsOnly) {
+          this.loadSecurityDepositStepLines(lines || [], filteredAccountIds, usesFixedAccountFilter, loadId, loadUntil);
           return;
         }
 
@@ -969,6 +978,190 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return this.undepositedFundsOnly || this.usesUntransferredOpenLinesFilter() || this.depositsOnly || this.printChecksOnly;
   }
 
+  securityDepositStepColor(line: { memo?: string | null; journalEntryMemo?: string | null; transferId?: string | null; paymentTypeId?: number | null }): string | null {
+    const transferId = String(line.transferId || '').trim();
+    if (transferId && this.securityDepositTransferIds.has(transferId)) {
+      return '#BDD7EE';
+    }
+
+    const value = `${line.memo || ''} ${line.journalEntryMemo || ''}`.toLowerCase();
+    if (value.includes('fees actual') || value.includes('security deposit actual') || value.includes('security deposit waiver')) {
+      return null;
+    }
+    if (value.includes('security deposit refund')) {
+      return '#F4CCCC';
+    }
+    if (value.includes('security deposit transfer') || value.includes('security deposit allocation')) {
+      return '#BDD7EE';
+    }
+    if (value.includes('security deposit re-payment') || Number(line.paymentTypeId) === PaymentType.SecurityDeposit || value.includes('security deposit payment') || /: payment:\s+\S+:\s+security deposit\b/.test(value)) {
+      return '#C6EFCE';
+    }
+    return null;
+  }
+
+  loadSecurityDepositStepLines(
+    lines: JournalEntryLineSearchResponse[],
+    filteredAccountIds: number[],
+    usesFixedAccountFilter: boolean,
+    loadId: number,
+    loadUntil: import('rxjs').Observable<unknown>
+  ): void {
+    const reservationId = (this.reservationId || '').trim();
+    const reservationCode = (lines.find(line => (line.reservationCode || '').trim())?.reservationCode || '').trim();
+    this.transferService.searchTransfers({ officeIds: this.resolveOfficeIds(), includeInactive: true, startDate: null, endDate: null }).pipe(take(1), takeUntil(loadUntil)).subscribe({
+      next: transfers => {
+        if (this.journalEntryLinesLoadId !== loadId) {
+          return;
+        }
+        this.securityDepositTransferIds = this.findSecurityDepositTransferIds(transfers || [], reservationId, reservationCode);
+        this.finishSecurityDepositStepLines(lines, filteredAccountIds, usesFixedAccountFilter, loadId, loadUntil);
+      },
+      error: () => {
+        if (this.journalEntryLinesLoadId !== loadId) {
+          return;
+        }
+        this.securityDepositTransferIds = new Set<string>();
+        this.finishSecurityDepositStepLines(lines, filteredAccountIds, usesFixedAccountFilter, loadId, loadUntil);
+      }
+    });
+  }
+
+  finishSecurityDepositStepLines(
+    lines: JournalEntryLineSearchResponse[],
+    filteredAccountIds: number[],
+    usesFixedAccountFilter: boolean,
+    loadId: number,
+    loadUntil: import('rxjs').Observable<unknown>
+  ): void {
+    const presentTransferIds = new Set(lines.map(line => String(line.transferId || line.sourceId || '').trim()).filter(id => id.length > 0));
+    const missingTransferIds = [...this.securityDepositTransferIds].filter(id => !presentTransferIds.has(id));
+    if (missingTransferIds.length === 0) {
+      this.loadFullSecurityDepositEntries(lines, loadId, loadUntil);
+      return;
+    }
+
+    const officeIds = this.resolveOfficeIds();
+    forkJoin(missingTransferIds.map(transferId => this.generalLedgerService.searchJournalEntryLines({
+      officeIds,
+      sourceTypeId: SourceType.Transfer,
+      sourceId: transferId,
+      includeUnposted: true,
+      includeCashOnly: true,
+      showAll: true,
+      startDate: null,
+      endDate: null
+    }).pipe(catchError(() => of([] as JournalEntryLineSearchResponse[]))))).pipe(take(1), takeUntil(loadUntil)).subscribe(transferLineGroups => {
+      if (this.journalEntryLinesLoadId !== loadId) {
+        return;
+      }
+      this.loadFullSecurityDepositEntries([...lines, ...transferLineGroups.flat()], loadId, loadUntil);
+    });
+  }
+
+  loadFullSecurityDepositEntries(lines: JournalEntryLineSearchResponse[], loadId: number, loadUntil: import('rxjs').Observable<unknown>): void {
+    this.rememberSecurityDepositEntryColors(lines);
+    const entryIds = [...this.securityDepositEntryColors.keys()];
+    if (entryIds.length === 0) {
+      this.applyLoadedJournalEntryLines([], loadId);
+      return;
+    }
+
+    forkJoin(entryIds.map(journalEntryId => this.generalLedgerService.getJournalEntryById(journalEntryId).pipe(
+      map(entry => this.securityDepositLinesFromJournalEntry(entry, lines)),
+      catchError(() => of(lines.filter(line => (line.journalEntryId || '').trim() === journalEntryId)))
+    ))).pipe(take(1), takeUntil(loadUntil)).subscribe(groups => {
+      if (this.journalEntryLinesLoadId !== loadId) {
+        return;
+      }
+      this.applyLoadedJournalEntryLines(groups.flat(), loadId);
+    });
+  }
+
+  rememberSecurityDepositEntryColors(lines: JournalEntryLineSearchResponse[]): void {
+    this.securityDepositEntryColors = new Map<string, string>();
+    for (const line of lines) {
+      const color = this.securityDepositStepColor(line);
+      const entryId = (line.journalEntryId || '').trim();
+      if (!color || !entryId) {
+        continue;
+      }
+      const current = this.securityDepositEntryColors.get(entryId);
+      if (!current || color === '#BDD7EE' || (color === '#F4CCCC' && current !== '#BDD7EE')) {
+        this.securityDepositEntryColors.set(entryId, color);
+      }
+    }
+  }
+
+  securityDepositLinesFromJournalEntry(entry: JournalEntryResponse, knownLines: JournalEntryLineSearchResponse[]): JournalEntryLineSearchResponse[] {
+    const entryId = (entry.journalEntryId || '').trim();
+    const known = knownLines.find(line => (line.journalEntryId || '').trim() === entryId);
+    const sourceLines = entry.journalEntryLines || [];
+    if (sourceLines.length === 0) {
+      return knownLines.filter(line => (line.journalEntryId || '').trim() === entryId);
+    }
+
+    return sourceLines.map(line => ({
+      journalEntryLineId: line.journalEntryLineId,
+      journalEntryId: entry.journalEntryId,
+      journalEntryCode: entry.journalEntryCode,
+      chartOfAccountId: line.chartOfAccountId,
+      costCodeId: line.costCodeId ?? null,
+      propertyId: line.propertyId ?? null,
+      propertyCode: line.propertyCode ?? null,
+      reservationId: line.reservationId ?? null,
+      reservationCode: line.reservationCode ?? null,
+      contactId: line.contactId ?? null,
+      contactName: line.contactName ?? null,
+      debit: Number(line.debit) || 0,
+      credit: Number(line.credit) || 0,
+      memo: line.memo ?? null,
+      isCleared: known?.isCleared,
+      clearedOn: known?.clearedOn ?? null,
+      officeId: entry.officeId,
+      transactionDate: entry.transactionDate,
+      accountingPeriod: entry.accountingPeriod,
+      sourceTypeId: entry.sourceTypeId ?? null,
+      sourceId: entry.sourceId ?? null,
+      sourceCode: entry.sourceCode ?? null,
+      checkNumber: known?.checkNumber ?? null,
+      journalEntryMemo: entry.memo ?? null,
+      paymentTypeId: known?.paymentTypeId ?? null,
+      paymentId: entry.paymentId ?? null,
+      paymentCode: entry.paymentCode ?? null,
+      depositId: entry.depositId ?? null,
+      depositCode: entry.depositCode ?? null,
+      transferId: entry.transferId || known?.transferId || null,
+      transferCode: entry.transferCode ?? null,
+      postingStatusId: entry.postingStatusId,
+      journalEntryKindId: entry.journalEntryKindId ?? null,
+      perspectiveId: line.perspectiveId ?? null,
+      journalEntryCreatedOn: entry.createdOn,
+      createdOn: line.createdOn,
+      createdBy: line.createdBy,
+      modifiedOn: line.modifiedOn,
+      modifiedBy: line.modifiedBy
+    }));
+  }
+
+  findSecurityDepositTransferIds(transfers: TransferResponse[], reservationId: string, reservationCode: string): Set<string> {
+    const ids = new Set<string>();
+    const code = reservationCode.toLowerCase();
+    for (const transfer of transfers || []) {
+      const texts = [transfer.description, ...(transfer.splits || []).map(split => split.description)];
+      const isSecurityDepositTransfer = texts.some(text => {
+        const value = (text || '').toLowerCase();
+        return value.includes('security deposit transfer') || value.includes('security deposit allocation');
+      });
+      const matchesReservation = (transfer.splits || []).some(split => String(split.reservationId || '').trim() === reservationId)
+        || (code.length > 0 && texts.some(text => (text || '').toLowerCase().includes(code)));
+      if (isSecurityDepositTransfer && matchesReservation && transfer.transferId) {
+        ids.add(transfer.transferId);
+      }
+    }
+    return ids;
+  }
+
   filterJournalEntryLinesByMode(
     lines: JournalEntryLineSearchResponse[],
     filteredAccountIds: number[],
@@ -976,6 +1169,21 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     deposits: DepositResponse[] | null
   ): JournalEntryLineSearchResponse[] {
     let resolvedLines = lines || [];
+    if (this.securityDepositStepsOnly) {
+      this.securityDepositEntryColors = new Map<string, string>();
+      for (const line of resolvedLines) {
+        const color = this.securityDepositStepColor(line);
+        const entryId = (line.journalEntryId || '').trim();
+        if (!color || !entryId) {
+          continue;
+        }
+        const current = this.securityDepositEntryColors.get(entryId);
+        if (!current || color === '#BDD7EE' || (color === '#F4CCCC' && current !== '#BDD7EE')) {
+          this.securityDepositEntryColors.set(entryId, color);
+        }
+      }
+      return resolvedLines.filter(line => this.securityDepositEntryColors.has((line.journalEntryId || '').trim()));
+    }
     if (usesFixedAccountFilter && filteredAccountIds.length > 1) {
       const accountIdSet = new Set(filteredAccountIds);
       resolvedLines = resolvedLines.filter(line => accountIdSet.has(line.chartOfAccountId));
@@ -1036,7 +1244,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         ? 'No bank deposit activity for the selected office and date range.'
         : this.printChecksOnly
           ? 'No bill payment bank credits for the selected office and date range.'
-          : 'No general ledger activity for the selected filters and date range.';
+          : this.securityDepositStepsOnly
+            ? 'No security deposit journal entries for this reservation.'
+            : 'No general ledger activity for the selected filters and date range.';
 
     if (this.transferReportOnly) {
       this.loadTransferDepositAllocationsForPreview(loadId);
@@ -1122,7 +1332,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const mappedLines = this.mappingService.mapJournalEntryLineListDisplay(
       this.allLines,
       this.chartOfAccounts,
-      SourceTypeLabels
+      SourceTypeLabels,
+      false,
+      this.securityDepositStepsOnly
     );
 
     if (this.transferReportOnly) {
@@ -1169,7 +1381,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       groupedLines.set(journalEntryId, existing);
     }
 
-    return Array.from(groupedLines.entries()).map(([journalEntryId, entryLines]) => {
+    const groups = Array.from(groupedLines.entries()).map(([journalEntryId, entryLines]) => {
       const firstLine = entryLines[0];
       const actionFlags = this.resolveJournalEntryActionFlags(firstLine);
       const totalDebit = entryLines.reduce((sum, line) => sum + Number(line.debitValue || 0), 0);
@@ -1210,7 +1422,8 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           : this.showJournalEntryPostSelections && this.selectedJournalEntryIds.has(journalEntryId),
         journalEntryLines: entryLines,
         expand: journalEntryId,
-        expanded: this.expandedJournalEntries.has(journalEntryId),
+        expanded: this.securityDepositStepsOnly || this.expandedJournalEntries.has(journalEntryId),
+        rowColor: this.securityDepositStepsOnly ? this.securityDepositEntryColors.get(journalEntryId) : undefined,
         expandClick: (event: Event, item: GeneralLedgerEntryDisplay) => {
           event.stopPropagation();
           if (this.expandedJournalEntries.has(item.journalEntryId)) {
@@ -1222,6 +1435,35 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         }
       };
     });
+
+    if (this.securityDepositStepsOnly) {
+      groups.sort((left, right) => {
+        const dateCompare = (left.transactionDateSortKey || '').localeCompare(right.transactionDateSortKey || '');
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+        const rankCompare = this.securityDepositStepRank(left.rowColor) - this.securityDepositStepRank(right.rowColor);
+        if (rankCompare !== 0) {
+          return rankCompare;
+        }
+        return (left.journalEntryCode || '').localeCompare(right.journalEntryCode || '', undefined, { numeric: true });
+      });
+    }
+
+    return groups;
+  }
+
+  securityDepositStepRank(color?: string): number {
+    if (color === '#C6EFCE') {
+      return 0;
+    }
+    if (color === '#BDD7EE') {
+      return 1;
+    }
+    if (color === '#F4CCCC') {
+      return 2;
+    }
+    return 3;
   }
 
   summarizeGroupedField(values: string[]): string {
@@ -3406,7 +3648,8 @@ triggerCheckPrint(): void {
       && !this.untransferredFundsOnly
       && !this.transferReportOnly
       && !this.depositsOnly
-      && !this.printChecksOnly;
+      && !this.printChecksOnly
+      && !this.securityDepositStepsOnly;
   }
 
   get showGeneralLedgerRowActions(): boolean {

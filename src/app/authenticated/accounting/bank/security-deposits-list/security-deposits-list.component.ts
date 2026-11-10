@@ -23,6 +23,12 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { InvoiceSelection } from '../../models/invoice.model';
 import { SecurityDepositReportSelection } from '../../models/security-deposit-report.model';
 
+export interface SecurityDepositJournalSelection {
+  reservationId: string;
+  reservationCode: string;
+  officeId: number;
+}
+
 @Component({
   selector: 'app-security-deposits-list',
   standalone: true,
@@ -37,7 +43,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   @Input() refreshTrigger = 0;
   @Output() invoiceSelectEvent = new EventEmitter<InvoiceSelection>();
   @Output() securityDepositReportEvent = new EventEmitter<SecurityDepositReportSelection>();
-  @Output() transferJournalEntryEvent = new EventEmitter<string>();
+  @Output() transferJournalEntryEvent = new EventEmitter<SecurityDepositJournalSelection>();
 
   @ViewChild('tableWrap') tableWrapRef?: ElementRef<HTMLElement>;
   @ViewChild('summaryFooter') summaryFooterRef?: ElementRef<HTMLElement>;
@@ -305,38 +311,16 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       return;
     }
 
-    const journalEntryId = String(row.returnJournalEntryId || '').trim();
-    if (journalEntryId) {
-      this.transferJournalEntryEvent.emit(journalEntryId);
-      return;
-    }
-
     const reservationId = String(row.reservationId || '').trim();
     if (!reservationId) {
-      this.toastr.warning('No refund journal entry is available for this security deposit.');
+      this.toastr.warning('No security deposit journal entries are available.');
       return;
     }
 
-    this.securityDepositService.getSecurityDepositDetail(reservationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: raw => {
-        const detail = this.mappingService.mapSecurityDepositDetailResponse(raw);
-        const returnEntry = (detail.returnPayments || [])
-          .filter(line => String(line.journalEntryId || '').trim())
-          .sort((left, right) => String(right.transactionDate || '').localeCompare(String(left.transactionDate || '')))[0];
-        const id = String(returnEntry?.journalEntryId || '').trim();
-        if (!id) {
-          this.toastr.warning('No refund journal entry is available for this security deposit.');
-          this.markViewForCheck();
-          return;
-        }
-        row.returnJournalEntryId = id;
-        this.transferJournalEntryEvent.emit(id);
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.toastr.warning('No refund journal entry is available for this security deposit.');
-        this.markViewForCheck();
-      }
+    this.transferJournalEntryEvent.emit({
+      reservationId,
+      reservationCode: String(row.reservationCode || '').trim(),
+      officeId: Number(row.officeId || 0)
     });
   }
 

@@ -260,6 +260,7 @@ export interface GeneralLedgerEntryDisplay {
   journalEntryCreatedOnSortKey?: string;
   expand: string;
   expanded: boolean;
+  rowColor?: string;
   expandClick: (event: Event, item: GeneralLedgerEntryDisplay) => void;
 }
 

@@ -798,6 +798,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isSecurityDepositJournalActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onSecurityDepositJournalBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isOwnersUtilityReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -1420,6 +1425,13 @@
                     (backEvent)="onGeneralLedgerBack()"
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
+                } @else if (securityDepositJournalContext) {
+                  <app-general-ledger-list
+                    [officeId]="securityDepositJournalContext.officeId"
+                    [reservationId]="securityDepositJournalContext.reservationId"
+                    [securityDepositStepsOnly]="true"
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+                  </app-general-ledger-list>
                 } @else {
                   <app-security-deposits-list
                     [officeId]="selectedOfficeId"
