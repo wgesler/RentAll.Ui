@@ -6961,6 +6961,7 @@ roundCurrency(value: number): number {
       transferredAmount: Number(raw['transferredAmount'] ?? raw['TransferredAmount'] ?? 0),
       owedAmount: Number(raw['owedAmount'] ?? raw['OwedAmount'] ?? 0),
       balanceAmount: Number(raw['balanceAmount'] ?? raw['BalanceAmount'] ?? 0),
+      toBeTransferredAmount: Number(raw['toBeTransferredAmount'] ?? raw['ToBeTransferredAmount'] ?? 0),
       journalEntryId: this.utility.normalizeIdOrNull(String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '')),
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? '').trim(),
       paidJournalEntryId: this.utility.normalizeIdOrNull(String(raw['paidJournalEntryId'] ?? raw['PaidJournalEntryId'] ?? '')),
@@ -7072,12 +7073,10 @@ roundCurrency(value: number): number {
       const collectedAmount = Number(row.collectedAmount ?? 0);
       const owedAmount = Number(row.owedAmount ?? 0);
       const transferredAmount = Number(row.transferredAmount ?? 0);
-      const returnedBalanceAmount = this.roundFinancialReportAmount(Math.max(0, collectedAmount - owedAmount));
       const paidAmount = Number(row.returnedAmount ?? 0);
-      const settledAmount = this.roundFinancialReportAmount(paidAmount + transferredAmount);
-      const remainingReturnAmount = settledAmount > 0
-        ? this.roundFinancialReportAmount(Math.max(0, collectedAmount - settledAmount))
-        : returnedBalanceAmount;
+      const balanceAmount = Number(row.balanceAmount ?? 0);
+      const toBeTransferredAmount = this.roundFinancialReportAmount(Math.max(0, Number(row.toBeTransferredAmount ?? 0)));
+      const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, balanceAmount - paidAmount));
       const depositReturned = !!row.depositReturned;
       const paymentProcessed = !!row.paymentProcessed;
       const depositComplete = Number(row.deposit ?? 0) > 0
@@ -7103,6 +7102,8 @@ roundCurrency(value: number): number {
         collectedAmount,
         owedDisplay: this.formatter.currencyUsd(owedAmount),
         owedAmount,
+        tbtDisplay: this.formatter.currencyUsd(toBeTransferredAmount),
+        toBeTransferredAmount,
         returnedBalanceAmount: remainingReturnAmount,
         returnedDisplay: this.formatter.currencyUsd(remainingReturnAmount),
         paidDisplay: this.formatter.currencyUsd(paidAmount),

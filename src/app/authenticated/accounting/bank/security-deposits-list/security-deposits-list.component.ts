@@ -69,8 +69,9 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     collectedDisplay: { displayAs: 'Collected', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     owedDisplay: { displayAs: 'Owed', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     returnedDisplay: { displayAs: 'TBR', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    tbtDisplay: { displayAs: 'TBT', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     paidDisplay: { displayAs: 'Paid', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    transferredDisplay: { displayAs: 'Transferred', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    transferredDisplay: { displayAs: 'Trans', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     depositReturned: { displayAs: 'Returned', isCheckbox: true, checkboxEditable: false, suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '14ch' },
     paymentProcessed: { displayAs: 'Complete', isCheckbox: true, checkboxEditable: false, checkboxDisabledField: 'paymentProcessedDisabled', suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
   };
@@ -558,6 +559,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
       depositDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('deposit')),
       collectedDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('collectedAmount')),
       owedDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('owedAmount')),
+      tbtDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('toBeTransferredAmount')),
       returnedDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('returnedBalanceAmount')),
       transferredDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('transferredAmount')),
       paidDisplay: this.formatter.currencyUsd(this.sumSecurityDepositColumn('paidAmount'))
@@ -565,7 +567,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   }
 
   sumSecurityDepositColumn(
-    column: 'deposit' | 'collectedAmount' | 'owedAmount' | 'returnedBalanceAmount' | 'transferredAmount' | 'paidAmount'
+    column: 'deposit' | 'collectedAmount' | 'owedAmount' | 'toBeTransferredAmount' | 'returnedBalanceAmount' | 'transferredAmount' | 'paidAmount'
   ): number {
     return this.roundCurrencyValue(
       this.rowsDisplay.reduce((sum, row) => sum + Number(row[column] ?? 0), 0)

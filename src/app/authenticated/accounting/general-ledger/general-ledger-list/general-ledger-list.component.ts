@@ -30,6 +30,7 @@ import { JournalEntrySourceService } from '../../services/journal-entry-source.s
 import { JournalEntryService } from '../../services/journal-entry.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { GeneralLedgerEntryDisplay, JournalEntryLineListDisplay, JournalEntryLineSearchResponse, JournalEntryLineSelection, JournalEntryPostingAction, JournalEntryPostingDialogEntry, JournalEntryPostingDialogResult, JournalEntryResponse } from '../../models/journal-entry.model';
+import { ReservationDepartureResponse } from '../../../reservations/models/reservation-model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../../services/check-html.service';
 import { CheckPrintService } from '../../services/check-print.service';
@@ -37,6 +38,7 @@ import { CheckPrintApiService } from '../../services/check-print-api.service';
 import { ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult } from '../../bank/confirm-check-number-dialog/confirm-check-number-dialog.component';
 import { DepositRequest, DepositResponse, DepositSplit } from '../../models/deposit.model';
 import { DepositService } from '../../services/deposit.service';
+import { SecurityDepositService } from '../../services/security-deposit.service';
 import { TransferDepositAllocationItemRequest, TransferDepositAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../../models/transfer.model';
 import { TransferService } from '../../services/transfer.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
@@ -87,6 +89,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   private sanitizer = inject(DomSanitizer);
   private authService = inject(AuthService);
   private depositService = inject(DepositService);
+  private securityDepositService = inject(SecurityDepositService);
   private transferService = inject(TransferService);
   private journalEntrySourceService = inject(JournalEntrySourceService);
   private journalEntryService = inject(JournalEntryService);
@@ -1253,6 +1256,28 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return;
     }
 
+    if (this.untransferredFundsOnly) {
+      this.securityDepositService.getUnreturnedSecurityDeposits(this.officeId).pipe(
+        take(1),
+        catchError(() => of(null)),
+        takeUntil(merge(this.cancelJournalEntryLinesLoad$, this.destroy$))
+      ).subscribe(response => {
+        if (this.journalEntryLinesLoadId !== loadId) {
+          return;
+        }
+
+        this.allLines = [
+          ...resolvedLines,
+          ...this.buildSecurityDepositTbtUntransferredLines(response?.rows || [])
+        ];
+        this.transferDepositAllocations = [];
+        this.applyLinesDisplay();
+        this.finishJournalEntryLinesLoad(loadId);
+        this.markViewForCheck();
+      });
+      return;
+    }
+
     this.transferDepositAllocations = [];
     this.applyLinesDisplay();
     this.finishJournalEntryLinesLoad(loadId);
@@ -1457,10 +1482,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     if (color === '#C6EFCE') {
       return 0;
     }
-    if (color === '#BDD7EE') {
+    if (color === '#F4CCCC') {
       return 1;
     }
-    if (color === '#F4CCCC') {
+    if (color === '#BDD7EE') {
       return 2;
     }
     return 3;
@@ -1813,7 +1838,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         }
 
         if (this.getLineNetAmountFromSearchLine(line) > 0.005) {
-          settledLineIds.add(line.journalEntryLineId);
+          settledLineIds.add(this.normalizeJournalEntryLineId(line.journalEntryLineId));
         }
       }
     }
@@ -1823,7 +1848,9 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   filterUndepositedFundsOpenLines(lines: JournalEntryLineSearchResponse[], depositedLineIds: Set<string> = new Set()): JournalEntryLineSearchResponse[] {
     const eligibleLines = lines.filter(line => !this.isExcludedUndepositedFundsSearchLine(line));
-    const stillOpen = (line: JournalEntryLineSearchResponse) => !depositedLineIds.has(line.journalEntryLineId);
+    const stillOpen = (line: JournalEntryLineSearchResponse) =>
+      !depositedLineIds.has(this.normalizeJournalEntryLineId(line.journalEntryLineId))
+      && !this.normalizeLineContextId(line.depositId);
 
     const openDebitLines = eligibleLines
       .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
@@ -1892,7 +1919,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     for (const deposit of deposits || []) {
       for (const split of deposit.splits || []) {
-        const journalEntryLineId = String(split.journalEntryLineId || '').trim();
+        const journalEntryLineId = this.normalizeJournalEntryLineId(split.journalEntryLineId);
         if (journalEntryLineId) {
           depositedLineIds.add(journalEntryLineId);
         }
@@ -2284,8 +2311,53 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   //#endregion
 
   //#region Transfer Dialog Methods
-  isUntransferredFundsLineSelectable(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): boolean {
+  isUntransferredFundsLineSelectable(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue' | 'sourceTypeId'>): boolean {
+    if (Number(line.sourceTypeId) === SourceType.SecurityDeposit) {
+      return false;
+    }
+
     return Math.abs(this.getLineNetAmount(line)) > 0.005;
+  }
+
+  buildSecurityDepositTbtUntransferredLines(rows: ReservationDepartureResponse[]): JournalEntryLineSearchResponse[] {
+    const today = this.utilityService.todayAsCalendarDateString();
+    return (rows || [])
+      .filter(row => Number(row.toBeTransferredAmount || 0) > 0.005)
+      .map(row => {
+        const reservationId = String(row.reservationId || '').trim();
+        const reservationCode = String(row.reservationCode || '').trim();
+        const lineId = `sd-tbt-${reservationId}`;
+        const escrowAccountId = this.getUntransferredFundsEscrowAccountId(Number(row.officeId || 0)) ?? 0;
+        const transactionDate = row.departureDate || today;
+        return {
+          journalEntryLineId: lineId,
+          journalEntryId: lineId,
+          journalEntryCode: reservationCode,
+          chartOfAccountId: escrowAccountId,
+          propertyId: row.propertyId,
+          propertyCode: row.propertyCode,
+          reservationId,
+          reservationCode,
+          contactId: row.contactId,
+          contactName: row.contactName,
+          debit: Number(row.toBeTransferredAmount || 0),
+          credit: 0,
+          memo: `${reservationCode}: Security Deposit TBT`,
+          journalEntryMemo: `${reservationCode}: Security Deposit TBT`,
+          officeId: Number(row.officeId || 0),
+          transactionDate,
+          accountingPeriod: transactionDate,
+          sourceTypeId: SourceType.SecurityDeposit,
+          sourceId: reservationId,
+          sourceCode: reservationCode,
+          postingStatusId: PostingStatus.Open,
+          journalEntryCreatedOn: new Date().toISOString(),
+          createdOn: new Date().toISOString(),
+          createdBy: '',
+          modifiedOn: new Date().toISOString(),
+          modifiedBy: ''
+        };
+      });
   }
 
   clearUntransferredFundsLineSelection(): void {

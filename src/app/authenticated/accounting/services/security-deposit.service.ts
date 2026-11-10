@@ -80,9 +80,7 @@ export class SecurityDepositService {
 
   /** Balance shown in Bank → Security Deposits TBR column. */
   getTbrBalanceAmount(row: ReservationDepartureResponse): number {
-    const collectedAmount = Number(row.collectedAmount ?? 0);
-    const owedAmount = Number(row.owedAmount ?? 0);
-    return Math.max(0, collectedAmount - owedAmount);
+    return Math.max(0, Number(row.balanceAmount ?? 0));
   }
 
   /** Remaining tenant return after the Paid column. */
@@ -227,13 +225,10 @@ export class SecurityDepositService {
       return false;
     }
 
-    const collected = Number(row.collectedAmount ?? 0);
-    const owed = Number(row.owedAmount ?? 0);
     const paid = Number(row.returnedAmount ?? 0);
-    const transferred = Number(row.transferredAmount ?? 0);
-    const balance = Math.max(0, collected - owed);
+    const balance = Math.max(0, this.getTbrBalanceAmount(row));
     const remainingReturn = Math.max(0, balance - paid);
-    const remainingTransfer = Math.max(0, owed - transferred);
+    const remainingTransfer = Math.max(0, Number(row.toBeTransferredAmount ?? 0));
     return remainingReturn > 0.005 || remainingTransfer > 0.005;
   }
 
