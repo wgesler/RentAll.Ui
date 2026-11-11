@@ -995,6 +995,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const user = this.authService.getUser();
+    this.moveFeeLinesBeforePayments();
     this.recomputeLedgerLineNumbers();
 
     const invoiceDateString = this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? this.utilityService.todayAsCalendarDateString();
@@ -2173,6 +2174,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     newLine.transactionTypeId = undefined;
     this.ledgerLines.push(newLine);
     this.syncLedgerLineDatesFormArray();
+    this.moveFeeLinesBeforePayments();
     this.updateTotalAmount();
   }
 
@@ -2201,6 +2203,38 @@ recomputeLedgerLineNumbers(): void {
     this.ledgerLines.forEach((line, index) => {
       line.lineNumber = index + 1;
     });
+  }
+
+  moveFeeLinesBeforePayments(): void {
+    if (this.isPaymentMode || !this.ledgerLines?.length) {
+      return;
+    }
+
+    const firstPaymentIndex = this.ledgerLines.findIndex(line => this.isPaymentLine(line));
+    if (firstPaymentIndex < 0) {
+      return;
+    }
+
+    const feeAfterPayment = this.ledgerLines.some((line, index) => index > firstPaymentIndex && !this.isPaymentLine(line));
+    if (!feeAfterPayment) {
+      return;
+    }
+
+    if (this.ledgerLineDatesFormArray) {
+      this.ledgerLines.forEach((line, index) => {
+        const dateString = this.utilityService.toDateOnlyJsonString(this.ledgerLineDatesFormArray.at(index)?.value);
+        if (dateString) {
+          line.ledgerLineDate = dateString;
+        }
+      });
+    }
+
+    const fees = this.ledgerLines.filter(line => !this.isPaymentLine(line));
+    const payments = this.ledgerLines.filter(line => this.isPaymentLine(line));
+    this.ledgerLines = [...fees, ...payments];
+    this.recomputeLedgerLineNumbers();
+    this.syncLedgerLineDatesFormArray();
+    this.cdr.markForCheck();
   }
   //#endregion
 

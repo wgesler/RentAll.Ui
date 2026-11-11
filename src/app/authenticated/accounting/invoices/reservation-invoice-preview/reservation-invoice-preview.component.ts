@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
-import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, take, takeUntil, tap } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -82,6 +82,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservationInvoicePreview']));
   destroy$ = new Subject<void>();
+  private destroyed = false;
 
   //#region Reservation Invoice Preview
   ngOnInit(): void {
@@ -325,50 +326,17 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     }
 
     this.isCreatingInvoices = true;
-    let createdCount = 0;
-    let billCount = 0;
-    let vendorCreated = false;
-
-    from(previews).pipe(
-      concatMap(preview => {
-        const request = this.mappingService.mapPreBillingInvoiceToCreateRequest(preview, organizationId);
-        return this.invoiceService.createInvoice(request).pipe(
-          tap(created => {
-            createdCount++;
-            if (created.referralBillCreated) {
-              billCount++;
-            }
-            if (created.referralVendorCreated) {
-              vendorCreated = true;
-            }
-          }),
-          catchError((error: HttpErrorResponse) => {
-            const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
-            const message = closedPeriodMessage
-              || (typeof error?.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message)
-              || 'Unable to create invoice.';
-            this.toastr.error(message, 'Preview All');
-            return EMPTY;
-          })
-        );
-      }),
-      finalize(() => {
-        this.isCreatingInvoices = false;
-        if (createdCount > 0) {
-          this.toastr.success(
-            this.invoiceService.formatCreatedDocumentsMessage(createdCount, billCount),
-            CommonMessage.Success
-          );
-          if (vendorCreated) {
-            this.invoiceService.promptReferralVendorCreated();
-          }
-          this.selectedRowKeys.clear();
-          this.loadReport({ afterCreate: true });
-        }
-        this.markViewForCheck();
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe();
+    this.invoiceService.createSelectedInvoices(previews, organizationId, 'Preview All', createdCount => {
+      this.isCreatingInvoices = false;
+      if (this.destroyed) {
+        return;
+      }
+      if (createdCount > 0) {
+        this.selectedRowKeys.clear();
+        this.loadReport({ afterCreate: true });
+      }
+      this.markViewForCheck();
+    });
   }
 
   getSelectedInvoicePreviews(): InvoiceResponse[] {
@@ -502,6 +470,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservationInvoicePreview');
     this.destroy$.next();
     this.destroy$.complete();

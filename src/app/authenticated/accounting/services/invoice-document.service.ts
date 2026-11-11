@@ -173,7 +173,29 @@ export class InvoiceDocumentService {
     }
   }
 
-  openInvoiceEmailDraft(invoice: InvoiceResponse): Observable<void> {
+  deliverCreatedInvoice(invoice: InvoiceResponse): Observable<void> {
+    const reservationId = (invoice.reservationId || '').trim();
+    if (!invoice.invoiceId || !reservationId) {
+      return of(undefined);
+    }
+
+    return this.reservationService.getReservationByGuid(reservationId).pipe(
+      take(1),
+      switchMap(reservation => {
+        if (normalizeInvoiceMethodId(reservation.invoiceMethodId) === InvoiceMethod.Email) {
+          return this.openInvoiceEmailDraft(invoice, true);
+        }
+
+        return this.executeInvoiceMethodForReservation(invoice, reservation).pipe(map(() => undefined));
+      }),
+      catchError((err: Error) => {
+        this.toastr.error(err?.message || 'Failed to prepare invoice email.', CommonMessage.Error);
+        return of(undefined);
+      })
+    );
+  }
+
+  openInvoiceEmailDraft(invoice: InvoiceResponse, waitForClose = false): Observable<void> {
     return this.loadInvoiceDocumentData(invoice).pipe(
       switchMap(data => this.emailHtmlService.getEmailHtml(data.office?.officeId).pipe(take(1), map(emailHtml => ({ data, emailHtml })))),
       switchMap(({ data, emailHtml }) => {
@@ -243,13 +265,14 @@ export class InvoiceDocumentService {
           isDownloading: false
         };
 
+        const closed = waitForClose ? this.emailCreateDraftService.beginWaitForClose() : null;
         this.emailCreateDraftService.setDraft({
           emailConfig,
           documentConfig,
           returnUrl: this.router.url
         });
         void this.router.navigateByUrl(RouterUrl.EmailCreate);
-        return of(undefined);
+        return closed ?? of(undefined);
       })
     );
   }

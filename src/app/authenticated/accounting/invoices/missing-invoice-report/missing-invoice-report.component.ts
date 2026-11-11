@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../../app.routes';
-import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, from, of, switchMap, take, takeUntil, tap } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -87,6 +87,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['missingInvoiceReport']));
   destroy$ = new Subject<void>();
+  private destroyed = false;
 
   readonly invoiceReportDisplayedColumns = this.invoiceReportBaseColumns;
 
@@ -356,51 +357,18 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
     }
 
     this.isCreatingInvoices = true;
-    let createdCount = 0;
-    let billCount = 0;
-    let vendorCreated = false;
-
-    from(previews).pipe(
-      concatMap(preview => {
-        const request = this.mappingService.mapPreBillingInvoiceToCreateRequest(preview, organizationId);
-        return this.invoiceService.createInvoice(request).pipe(
-          tap(created => {
-            createdCount++;
-            if (created.referralBillCreated) {
-              billCount++;
-            }
-            if (created.referralVendorCreated) {
-              vendorCreated = true;
-            }
-          }),
-          catchError((error: HttpErrorResponse) => {
-            const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
-            const message = closedPeriodMessage
-              || (typeof error?.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message)
-              || 'Unable to create invoice.';
-            this.toastr.error(message, 'Missing Invoice Report');
-            return EMPTY;
-          })
-        );
-      }),
-      finalize(() => {
-        this.isCreatingInvoices = false;
-        if (createdCount > 0) {
-          this.toastr.success(
-            this.invoiceService.formatCreatedDocumentsMessage(createdCount, billCount),
-            CommonMessage.Success
-          );
-          if (vendorCreated) {
-            this.invoiceService.promptReferralVendorCreated();
-          }
-          this.selectedRowKeys.clear();
-          this.loadReport();
-          this.invoicesCreated.emit();
-        }
-        this.markViewForCheck();
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe();
+    this.invoiceService.createSelectedInvoices(previews, organizationId, 'Missing Invoice Report', createdCount => {
+      this.isCreatingInvoices = false;
+      if (this.destroyed) {
+        return;
+      }
+      if (createdCount > 0) {
+        this.selectedRowKeys.clear();
+        this.loadReport();
+        this.invoicesCreated.emit();
+      }
+      this.markViewForCheck();
+    });
   }
 
   getSelectedInvoicePreviews(): InvoiceResponse[] {
@@ -612,6 +580,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'missingInvoiceReport');
     this.destroy$.next();
     this.destroy$.complete();

@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, Injector, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, map, Observable, of, switchMap, take, tap } from 'rxjs';
+import { catchError, concatMap, EMPTY, finalize, from, map, Observable, of, switchMap, take, tap } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -25,8 +25,8 @@ export class InvoiceService {
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
   private injector = inject(Injector);
+  private selectedCreateInProgress = false;
 
-  
   private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
   // GET: Get invoice by ID
@@ -87,10 +87,64 @@ export class InvoiceService {
 
   // POST: Create a new invoice
   createInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
+    return this.postInvoice(invoice).pipe(
+      switchMap(savedInvoice => this.injector.get(InvoiceDocumentService).applyReservationInvoiceMethodAfterCreate(savedInvoice))
+    );
+  }
+
+  createSelectedInvoices(
+    previews: InvoiceResponse[],
+    organizationId: string,
+    errorTitle: string,
+    onFinished: (createdCount: number) => void
+  ): void {
+    if (this.selectedCreateInProgress || previews.length === 0) {
+      return;
+    }
+
+    this.selectedCreateInProgress = true;
+    const totals = { createdCount: 0, billCount: 0, vendorCreated: false };
+    from(previews).pipe(
+      concatMap(preview => {
+        const request = this.mappingService.mapPreBillingInvoiceToCreateRequest(preview, organizationId);
+        return this.postInvoice(request).pipe(
+          switchMap(created => this.injector.get(InvoiceDocumentService).deliverCreatedInvoice(created).pipe(map(() => created))),
+          tap(created => {
+            totals.createdCount++;
+            if (created.referralBillCreated) {
+              totals.billCount++;
+            }
+            if (created.referralVendorCreated) {
+              totals.vendorCreated = true;
+            }
+          }),
+          catchError((error: HttpErrorResponse) => {
+            const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
+            const message = closedPeriodMessage
+              || (typeof error?.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message)
+              || 'Unable to create invoice.';
+            this.toastr.error(message, errorTitle);
+            return EMPTY;
+          })
+        );
+      }),
+      finalize(() => {
+        this.selectedCreateInProgress = false;
+        if (totals.createdCount > 0) {
+          this.toastr.success(this.formatCreatedDocumentsMessage(totals.createdCount, totals.billCount), CommonMessage.Success);
+          if (totals.vendorCreated) {
+            this.promptReferralVendorCreated();
+          }
+        }
+        onFinished(totals.createdCount);
+      })
+    ).subscribe();
+  }
+
+  private postInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
     const normalized = this.normalizeInvoiceRequest(invoice);
     return this.http.post<InvoiceResponse>(this.controller + 'invoice', normalized).pipe(
-      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>)),
-      switchMap(savedInvoice => this.injector.get(InvoiceDocumentService).applyReservationInvoiceMethodAfterCreate(savedInvoice))
+      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>))
     );
   }
 

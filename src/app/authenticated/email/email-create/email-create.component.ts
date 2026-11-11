@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -25,7 +25,7 @@ import { applySystemUserOutboundSender, isSystemUserAccountSender } from '../uti
   templateUrl: './email-create.component.html',
   styleUrl: './email-create.component.scss'
 })
-export class EmailCreateComponent implements OnInit {
+export class EmailCreateComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private toastr = inject(ToastrService);
@@ -47,6 +47,8 @@ export class EmailCreateComponent implements OnInit {
   private readonly maxAdditionalAttachments = 5;
   private readonly maxAdditionalAttachmentBytes = 10 * 1024 * 1024;
   private initialPlainTextContent = '';
+  private handedOff = false;
+  private keepWait = false;
 
   ngOnInit(): void {
     const draft = this.draftService.getDraft();
@@ -261,13 +263,26 @@ export class EmailCreateComponent implements OnInit {
       return;
     }
 
+    this.keepWait = true;
     this.router.navigate([RouterUrl.replaceTokens(RouterUrl.DocumentView, [documentId])], { queryParams: { returnTo: 'emailCreate' } });
+  }
+
+  ngOnDestroy(): void {
+    if (!this.handedOff && !this.keepWait && this.draftService.hasPendingWait()) {
+      this.draftService.finishWait();
+    }
   }
 
   navigateBackAndClear(): void {
     const returnUrl = this.draft?.returnUrl || RouterUrl.EmailList;
+    const waiting = this.draftService.hasPendingWait();
+    this.handedOff = true;
     this.draftService.clearDraft();
-    this.router.navigateByUrl(returnUrl);
+    void this.router.navigateByUrl(returnUrl).then(() => {
+      if (waiting) {
+        this.draftService.finishWait();
+      }
+    });
   }
 
   buildForm(): FormGroup {
