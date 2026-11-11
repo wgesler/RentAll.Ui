@@ -7076,7 +7076,8 @@ roundCurrency(value: number): number {
       const paidAmount = Number(row.returnedAmount ?? 0);
       const balanceAmount = Number(row.balanceAmount ?? 0);
       const toBeTransferredAmount = this.roundFinancialReportAmount(Math.max(0, Number(row.toBeTransferredAmount ?? 0)));
-      const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, balanceAmount - paidAmount));
+      const tbrAmount = this.roundFinancialReportAmount(Math.max(0, balanceAmount));
+      const remainingReturnAmount = this.roundFinancialReportAmount(Math.max(0, tbrAmount - paidAmount));
       const depositReturned = !!row.depositReturned;
       const paymentProcessed = !!row.paymentProcessed;
       const depositComplete = Number(row.deposit ?? 0) > 0

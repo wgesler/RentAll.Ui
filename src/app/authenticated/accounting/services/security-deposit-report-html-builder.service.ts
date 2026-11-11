@@ -228,12 +228,8 @@ export class SecurityDepositReportHtmlBuilderService {
     }
 
     const baseBlock = this.invoiceHtmlBuilder.getPropertySideBlock(invoiceContext, false);
-    const reservation = ctx.reservation;
     const securityDepositLine = `<span style="font-weight: bold">Security Deposit:</span> ${this.formatterService.currencyUsd(Number(ctx.detail.depositAmount ?? 0))}`;
-    const returnedByLine = this.formatLabeledDateLine('Return By', this.resolveSecurityDepositReturnDate(ctx));
-    const extraLines = returnedByLine
-      ? [securityDepositLine, returnedByLine]
-      : [securityDepositLine];
+    const extraLines = [securityDepositLine];
 
     return [baseBlock, ...extraLines].filter(Boolean).join('<br>');
   }
@@ -256,20 +252,6 @@ export class SecurityDepositReportHtmlBuilderService {
       orgLogo: '',
       paymentCostCodeIds: new Set<number>()
     };
-  }
-
-  private resolveSecurityDepositReturnDate(ctx: SecurityDepositReportPrintContext): string | null {
-    const fromListRow = String(ctx.securityDepositReturnDate || '').trim();
-    if (fromListRow && fromListRow !== '01/01/1901' && fromListRow !== '1901-01-01') {
-      return fromListRow;
-    }
-
-    const fromDetail = String(ctx.detail.reservation.securityDepositReturnDate || '').trim();
-    if (fromDetail && fromDetail !== '01/01/1901' && fromDetail !== '1901-01-01') {
-      return fromDetail;
-    }
-
-    return null;
   }
 
   private formatLabeledDateLine(label: string, dateValue: string | null | undefined): string | null {
