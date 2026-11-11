@@ -5105,18 +5105,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     return this.reservationPayments
       .map((row, index) => ({ index, row }))
       .sort((a, b) => {
+        const aHasId = a.row.reservationPaymentId != null;
+        const bHasId = b.row.reservationPaymentId != null;
+        if (aHasId !== bHasId) {
+          return aHasId ? -1 : 1;
+        }
+
         const startDiff = (a.row.startDate?.getTime() ?? 0) - (b.row.startDate?.getTime() ?? 0);
         if (startDiff !== 0) {
           return startDiff;
-        }
-
-        const aHasId = a.row.reservationPaymentId != null;
-        const bHasId = b.row.reservationPaymentId != null;
-        if (aHasId && !bHasId) {
-          return -1;
-        }
-        if (!aHasId && bHasId) {
-          return 1;
         }
 
         return a.index - b.index;
