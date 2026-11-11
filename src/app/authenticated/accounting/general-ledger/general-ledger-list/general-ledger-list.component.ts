@@ -1337,7 +1337,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       this.allLines,
       this.chartOfAccounts,
       SourceTypeLabels,
-      false,
+      this.undepositedFundsOnly,
       this.securityDepositStepsOnly
     );
 
@@ -1842,7 +1842,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       .filter(stillOpen);
 
     return [...openDebitLines, ...openPaymentRefunds]
-      .sort((left, right) => this.compareJournalEntryLinesByTransaction(left, right));
+      .sort((left, right) => this.mappingService.compareJournalEntryLinesForListDisplay(left, right, true));
   }
 
   isExcludedUndepositedFundsSearchLine(
