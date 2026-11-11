@@ -6655,14 +6655,14 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
 
     return (lineAllocations || [])
       .filter(allocation => {
-        const escrowDepositValue = this.roundCurrency(Number(allocation.escrowAmount) || 0);
-        const rowTotalValue = this.roundCurrency(
-          (Number(allocation.business) || 0)
-          + (Number(allocation.ownerEscrow) || 0)
-          + (Number(allocation.secDep) || 0)
-          + (Number(allocation.sdw) || 0)
-        );
-        return escrowDepositValue !== 0 || rowTotalValue !== 0;
+        const amounts = [
+          Number(allocation.escrowAmount) || 0,
+          Number(allocation.business) || 0,
+          Number(allocation.ownerEscrow) || 0,
+          Number(allocation.secDep) || 0,
+          Number(allocation.sdw) || 0
+        ];
+        return amounts.some(amount => Math.abs(this.roundCurrency(amount)) > 0.005);
       })
       .map(allocation => {
         const lineId = (allocation.journalEntryLineId || '').trim();

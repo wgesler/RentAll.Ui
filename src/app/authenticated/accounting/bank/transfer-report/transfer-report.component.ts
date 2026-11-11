@@ -212,9 +212,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     const officeId = transfer?.officeId ?? this.officeId ?? 0;
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     return {
-      escrowDepositAccountId: transfer?.bankAccountId
-        ?? accountingOffice?.defaultEscrowDepositAccountId
-        ?? null,
+      escrowDepositAccountId: accountingOffice?.defaultEscrowDepositAccountId ?? null,
       businessAccountId: accountingOffice?.defaultBankAccountId ?? null,
       ownersAccountId: accountingOffice?.defaultEscrowOwnersAccountId ?? null,
       secDepAccountId: accountingOffice?.defaultEscrowSecDepAccountId ?? null,

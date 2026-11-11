@@ -126,6 +126,12 @@ export interface TransferDepositAllocationResponse {
   secDep: number;
   sdw: number;
   business: number;
+  securityDepositCardRefund?: boolean;
+  sourceBankAccountId?: number | null;
+  chargeAmount?: number;
+  refundAmount?: number;
+  refundBankAccountId?: number | null;
+  refundDescription?: string;
   propertyId?: string | null;
   reservationId?: string | null;
   contactId?: string | null;
