@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
@@ -44,7 +44,7 @@ import { TicketWorkOrderDialogComponent } from './ticket-work-order-dialog.compo
   templateUrl: './ticket.component.html',
   styleUrl: './ticket.component.scss'
 })
-export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
+export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
 
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
@@ -186,8 +186,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
   }
 
   ngAfterViewInit(): void {
-    this.syncDescriptionEditorFromForm();
-    this.syncStepsToReproduceEditorFromForm();
+    this.showTicketContentBeforePictures();
   }
 
   getTicket(id: string | number | null): void {
@@ -411,12 +410,8 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     this.applyPropertySelection(ticket.propertyId ?? null);
     this.emitPropertySelection();
     this.syncStepsToReproduceRequired();
-    this.syncDescriptionEditorFromForm();
-    this.syncStepsToReproduceEditorFromForm();
-    setTimeout(() => {
-      this.syncDescriptionEditorFromForm();
-      this.syncStepsToReproduceEditorFromForm();
-    });
+    this.showTicketContentBeforePictures();
+    setTimeout(() => this.showTicketContentBeforePictures());
   }
 
   resetForm(): void {
@@ -749,8 +744,26 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, AfterV
     return doc.body.innerHTML;
   }
 
-  ngAfterViewChecked(): void {
-    void this.hydrateVisibleTicketImages();
+  showTicketContentBeforePictures(): void {
+    const descriptionReady = this.writeEditorHtmlWithoutPictures(this.descriptionEditor, 'description');
+    const stepsReady = this.writeEditorHtmlWithoutPictures(this.stepsToReproduceEditor, 'stepsToReproduce');
+    if (!descriptionReady && !stepsReady) {
+      return;
+    }
+    setTimeout(() => void this.hydrateVisibleTicketImages());
+  }
+
+  writeEditorHtmlWithoutPictures(editorRef: ElementRef<HTMLDivElement> | undefined, controlName: string): boolean {
+    const editor = editorRef?.nativeElement;
+    if (!editor) {
+      return false;
+    }
+    const value = String(this.form?.get(controlName)?.value ?? '');
+    const nextHtml = this.stripTicketImageSources(value);
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
+    return true;
   }
 
   async hydrateVisibleTicketImages(): Promise<void> {

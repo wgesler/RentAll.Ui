@@ -114,7 +114,7 @@
                 (ticketUpdated)="onTicketListUpdated()"
                 (ticketSelected)="onTicketSelectedFromTab($event, 0)">
               </app-ticket-list>
-            } @else {
+            } @else if (selectedTabIndex === 0) {
               <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
             }
           </mat-tab>
@@ -131,7 +131,7 @@
                 (ticketUpdated)="onTicketListUpdated()"
                 (ticketSelected)="onTicketSelectedFromTab($event, 1)">
               </app-ticket-list>
-            } @else {
+            } @else if (selectedTabIndex === 1) {
               <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
             }
           </mat-tab>
@@ -148,7 +148,7 @@
                 (ticketUpdated)="onTicketListUpdated()"
                 (ticketSelected)="onTicketSelectedFromTab($event, getClosedTabIndex())">
               </app-ticket-list>
-            } @else {
+            } @else if (selectedTabIndex === getClosedTabIndex()) {
               <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
             }
           </mat-tab>
@@ -176,7 +176,7 @@
                   (ticketUpdated)="onTicketListUpdated()"
                   (ticketSelected)="onTicketSelectedFromTab($event, getRentAllTabIndex())">
                 </app-ticket-list>
-              } @else {
+              } @else if (selectedTabIndex === getRentAllTabIndex()) {
                 <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
               }
             </mat-tab>
@@ -202,7 +202,7 @@
                   (ticketUpdated)="onTicketListUpdated()"
                   (ticketSelected)="onTicketSelectedFromTab($event, getReviewTabIndex())">
                 </app-ticket-list>
-              } @else {
+              } @else if (selectedTabIndex === getReviewTabIndex()) {
                 <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
               }
             </mat-tab>
@@ -220,7 +220,7 @@
                   (ticketUpdated)="onTicketListUpdated()"
                   (ticketSelected)="onTicketSelectedFromTab($event, getCompleteTabIndex())">
                 </app-ticket-list>
-              } @else {
+              } @else if (selectedTabIndex === getCompleteTabIndex()) {
                 <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
               }
             </mat-tab>
