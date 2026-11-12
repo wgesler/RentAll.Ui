@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
@@ -1735,16 +1735,37 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.invoiceService.searchInvoices({
-      officeIds: [officeId],
-      includeInactive: false,
-      includePaid: false,
-      startDate: null,
-      endDate: null
+    const allocatedLedgerLines = this.isAddMode ? [] : (this.payment?.invoiceAllocations ?? this.payment?.ledgerLines ?? []);
+    const reservationIds = [...new Set(
+      allocatedLedgerLines
+        .map(line => (line.reservationId || '').trim())
+        .filter(reservationId => reservationId.length > 0)
+    )];
+    const paymentInvoices$ = reservationIds.length === 0
+      ? of([] as InvoiceResponse[])
+      : forkJoin(reservationIds.map(reservationId =>
+          this.invoiceService.getInvoicesByReservationId(reservationId, [officeId])
+        )).pipe(map(groups => groups.flat()));
+
+    forkJoin({
+      openInvoices: this.invoiceService.searchInvoices({
+        officeIds: [officeId],
+        includeInactive: false,
+        includePaid: false,
+        startDate: null,
+        endDate: null
+      }),
+      paymentInvoices: paymentInvoices$
     }).pipe(take(1)).subscribe({
-      next: (invoices: InvoiceResponse[]) => {
-        this.invoices = invoices || [];
-        const allocatedLedgerLines = this.isAddMode ? [] : (this.payment?.invoiceAllocations ?? this.payment?.ledgerLines ?? []);
+      next: ({ openInvoices, paymentInvoices }) => {
+        const invoicesById = new Map<string, InvoiceResponse>();
+        for (const invoice of [...(openInvoices || []), ...(paymentInvoices || [])]) {
+          const invoiceId = (invoice.invoiceId || '').trim();
+          if (invoiceId.length > 0) {
+            invoicesById.set(invoiceId, invoice);
+          }
+        }
+        this.invoices = [...invoicesById.values()];
         this.allocationOptions = this.buildInvoiceOptions(this.invoices, allocatedLedgerLines);
         this.applyInvoicePropertiesToSplits();
         this.cdr.markForCheck();
