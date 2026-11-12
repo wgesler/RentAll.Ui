@@ -316,44 +316,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       isActive: this.form.get('isActive')?.value
     };
 
-    if (this.receipt?.receiptId) {
-      const savedReceiptPath = (this.originalReceiptPath || '').trim() || null;
-      const hasReceiptChange = this.hasNewReceiptUpload ||
-        (payload.receiptPath !== savedReceiptPath) ||
-        (!!payload.fileDetails !== !!(this.receipt.fileDetails?.file));
-      const hasReceiptUpdates = this.receipt
-        ? (payload.description !== (this.receipt.description ?? '').trim()) ||
-          (this.normalizeReceiptDate(payload.receiptDate) !== this.normalizeReceiptDate(this.receipt.receiptDate)) ||
-          (this.normalizeReceiptDate(payload.dueDate) !== this.normalizeReceiptDate(this.receipt.dueDate)) ||
-          (this.normalizeReceiptDate(payload.accountingPeriod) !== this.normalizeReceiptDate(this.receipt.accountingPeriod)) ||
-          ((payload.billNumber || '').toString().trim() || null) !== ((this.receipt.billNumber || '').toString().trim() || null) ||
-          payload.amount !== (this.receipt.amount ?? 0) ||
-          (payload.bankCardId ?? null) !== (this.receipt.bankCardId ?? null) ||
-          ((payload.vendorId || '').toString().trim() || null) !== ((this.receipt.vendorId || '').toString().trim() || null) ||
-          ((payload.vendorName || '').toString().trim() || null) !== ((this.receipt.vendorName || '').toString().trim() || null) ||
-          this.havePropertyIdsChanged(payload.propertyIds, this.receipt.propertyIds || []) ||
-          this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
-          payload.isUtility !== (this.receipt.isUtility ?? false) ||
-          payload.businessPrivate !== (this.receipt.businessPrivate ?? false) ||
-          payload.isActive !== this.receipt.isActive ||
-          (payload.noReceiptAvailable === true) !== (this.receipt.noReceiptAvailable === true) ||
-          hasReceiptChange
-        : true;
-      if (!hasReceiptUpdates) {
-        const andNew = this.pendingSaveAndNew;
-        this.pendingSaveAndNew = false;
-        if (andNew) {
-          this.savedAndNewEvent.emit(this.receipt);
-          this.prepareFormForNewEntry();
-          return;
-        }
-        if (this.autoBackOnSave && (this.selectedPropertyId || this.isEmbeddedInShell)) {
-          this.back();
-        }
-        return;
-      }
-    }
-
     const saveReceipt = () => {
       this.isSubmitting = true;
 
