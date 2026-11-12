@@ -1989,6 +1989,22 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return;
     }
 
+    const latePaymentLines = selectedLines
+      .map(line => ({
+        line,
+        lineDate: this.resolveSelectedLineDateOnly(line)
+      }))
+      .filter(item => item.lineDate !== null && item.lineDate > depositDate);
+    if (latePaymentLines.length > 0) {
+      const detail = latePaymentLines
+        .map(item => `${(item.line.paymentCode || item.line.journalEntryCode || 'Payment').trim()} dated ${item.lineDate}`)
+        .join(', ');
+      this.toastr.error(
+        `Deposit date ${depositDate} is before ${detail}. Increase the deposit date or unselect that payment.`,
+        CommonMessage.Error);
+      return;
+    }
+
     if (!this.organizationId) {
       this.toastr.warning('Organization is required.');
       return;
@@ -2052,6 +2068,15 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         this.toastr.error(apiMessage || 'Unable to create deposit.', CommonMessage.Error);
       }
     });
+  }
+
+  resolveSelectedLineDateOnly(line: JournalEntryLineListDisplay): string | null {
+    const sortKey = (line.transactionDateSortKey || '').trim().substring(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(sortKey)) {
+      return sortKey;
+    }
+
+    return this.utilityService.toDateOnlyJsonString(line.transactionDate);
   }
 
   formatDepositAmountDisplay(amount: number): string {
