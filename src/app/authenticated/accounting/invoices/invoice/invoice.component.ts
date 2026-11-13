@@ -95,10 +95,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   
   allCostCodes: CostCodesResponse[] = [];
   officeCostCodes:CostCodesResponse[] = [];
-  debitCostCodes: CostCodesResponse[] = [];
-  creditCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
-  officeAvailableCostCodes: { value: number, label: string }[] = [];
   isPaymentMode: boolean = false;
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
@@ -1145,60 +1142,34 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   filterCostCodes(): void {
     if (!this.selectedOffice) {
       this.officeCostCodes = [];
-      this.debitCostCodes = [];
-      this.creditCostCodes = [];
       this.availableCostCodes = [];
       return;
     }
     
     this.officeCostCodes = this.allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
-    this.debitCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId !== TransactionType.Payment);
-    this.creditCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId === TransactionType.Payment);
     
     this.availableCostCodes = this.allCostCodes.filter(c => c.isActive).map(c => ({
-        value: c.costCodeId,
-        label: this.utilityService.getCostCodeDropdownLabel(c)
-      }));
-    
-    this.officeAvailableCostCodes = this.officeCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
         label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
   }
   
   getCostCodesForLine(line: LedgerLineListDisplay): { value: number, label: string }[] {
-    if (line.isNew !== true) {
-      return this.officeAvailableCostCodes;
-    }
+    const allowedTypes = this.isPaymentLine(line)
+      ? [TransactionType.Payment]
+      : [
+          TransactionType.ChargeProrate,
+          TransactionType.ChargeOneTime,
+          TransactionType.Deposit,
+          TransactionType.SDW
+        ];
 
-    if (!this.isAddMode && !this.isPaymentMode) {
-      const chargePaymentDepositAndSdw = this.officeCostCodes.filter(
-        c => c.isActive
-          && (c.transactionTypeId === TransactionType.ChargeProrate
-            || c.transactionTypeId === TransactionType.ChargeOneTime
-            || c.transactionTypeId === TransactionType.Payment
-            || c.transactionTypeId === TransactionType.Deposit
-            || c.transactionTypeId === TransactionType.SDW)
-      );
-      return chargePaymentDepositAndSdw.map(c => ({
+    return this.officeCostCodes
+      .filter(c => c.isActive && allowedTypes.includes(c.transactionTypeId))
+      .map(c => ({
         value: c.costCodeId,
         label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
-    }
-
-    const transactionTypeId = line.transactionTypeId;
-
-    if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
-      return this.creditCostCodes.filter(c => c.isActive).map(c => ({
-        value: c.costCodeId,
-        label: this.utilityService.getCostCodeDropdownLabel(c)
-      }));
-    }
-
-    return this.debitCostCodes.filter(c => c.isActive).map(c => ({
-      value: c.costCodeId,
-      label: this.utilityService.getCostCodeDropdownLabel(c)
-    }));
   }
 
   isPaymentLine(line: LedgerLineListDisplay): boolean {
