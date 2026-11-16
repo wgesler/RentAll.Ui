@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
-import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, throwError, toArray } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, finalize, forkJoin, from, map, merge, of, switchMap, take, takeUntil, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -2384,61 +2384,31 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     const allocationAccountIds = this.resolveTransferAllocationAccountIds(officeId);
 
+    let createdCount = 0;
     this.isSubmittingTransfer = true;
     this.transferService.resolveTransferDepositAllocations({
       officeId,
       items: this.buildTransferDepositAllocationItems(selectedLines)
     }).pipe(
       switchMap(allocations => {
-        const resolvedAllocations = allocations || [];
-        const cardRefunds = resolvedAllocations.filter(item => item.securityDepositCardRefund);
-        if (cardRefunds.length > 0 && cardRefunds.length !== resolvedAllocations.length) {
-          return throwError(() => new Error('Transfer the security deposit card refund by itself.'));
-        }
-        if (cardRefunds.length === 0 && (!allocationAccountIds.owners || !allocationAccountIds.bank)) {
-          return throwError(() => new Error('Owner escrow and bank accounts must be configured for this office.'));
-        }
-        const cardRefundSourceBankId = cardRefunds.length > 0
-          ? Number(cardRefunds[0].sourceBankAccountId || 0)
-          : 0;
-        if (cardRefunds.length > 0 && (cardRefundSourceBankId <= 0 || cardRefunds.some(item => Number(item.sourceBankAccountId || 0) !== cardRefundSourceBankId))) {
-          return throwError(() => new Error('Security deposit escrow is not configured for this office.'));
-        }
-        if (cardRefunds.some(item => Math.abs(Number(item.chargeAmount || 0)) > 0.005) && !allocationAccountIds.bank) {
-          return throwError(() => new Error('Business bank account is not configured for this office.'));
-        }
-
-        const splits = this.buildTransferSplitsFromDepositAllocations(
+        const requests = this.buildTransferRequestsFromSelection(
           selectedLines,
-          resolvedAllocations,
-          officeId
-        );
-        const validationMessage = this.validateBuiltTransferSplits(splits, allocationAccountIds);
-        if (validationMessage) {
-          return throwError(() => new Error(validationMessage));
-        }
-
-        const splitTotal = splits.reduce(
-          (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
-          0
-        );
-
-        const payload: TransferRequest = {
-          organizationId: this.organizationId,
+          allocations || [],
           officeId,
+          this.organizationId,
           transferDate,
-          accountingPeriod: transferDate,
-          amount: splitTotal,
-          description: cardRefunds.length > 0
-            ? (cardRefunds[0].description || 'Transfer to Escrow Accounts')
-            : 'Transfer to Escrow Accounts',
-          bankAccountId: cardRefunds.length > 0 ? cardRefundSourceBankId : escrowDepositAccountId,
-          propertyId: splits.find(split => (split.propertyId || '').trim().length > 0)?.propertyId ?? null,
-          splits,
-          isActive: true
-        };
-
-        return this.transferService.createTransfer(payload);
+          escrowDepositAccountId,
+          allocationAccountIds
+        );
+        return from(requests).pipe(
+          concatMap(payload => this.transferService.createTransfer(payload).pipe(
+            map(created => {
+              createdCount += 1;
+              return created;
+            })
+          )),
+          toArray()
+        );
       }),
       finalize(() => {
         this.isSubmittingTransfer = false;
@@ -2446,13 +2416,22 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       }),
       takeUntil(this.destroy$)
     ).subscribe({
-      next: () => {
-        this.toastr.success('Transfer created and funds moved to destination accounts.', CommonMessage.Success);
+      next: created => {
+        const count = Array.isArray(created) ? created.length : 1;
+        this.toastr.success(
+          count > 1
+            ? `${count} transfers created and funds moved to destination accounts.`
+            : 'Transfer created and funds moved to destination accounts.',
+          CommonMessage.Success);
         this.cancelTransferForm();
         this.loadJournalEntryLines();
         this.transferCompletedEvent.emit();
       },
       error: (error: HttpErrorResponse | Error) => {
+        if (createdCount > 0) {
+          this.loadJournalEntryLines();
+          this.toastr.warning(`${createdCount} transfer${createdCount === 1 ? '' : 's'} created before the next one failed.`);
+        }
         const closedPeriodMessage = this.utilityService.getAccountingPeriodClosedErrorMessage(error);
         if (closedPeriodMessage) {
           this.toastr.error(closedPeriodMessage, CommonMessage.Error);
@@ -2540,6 +2519,141 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
   onTransferAmountEnter(event: Event): void {
     const input = event.target as HTMLInputElement;
     input.blur();
+  }
+
+  buildTransferRequestsFromSelection(
+    selectedLines: JournalEntryLineListDisplay[],
+    allocations: TransferDepositAllocationResponse[],
+    officeId: number,
+    organizationId: string,
+    transferDate: string,
+    escrowDepositAccountId: number,
+    allocationAccountIds: { owners: number | null; secDep: number | null; sdw: number | null; bank: number | null }
+  ): TransferRequest[] {
+    const allocationByKey = new Map(
+      (allocations || []).map(item => [this.buildTransferAllocationMatchKey(item.depositId, item.escrowAmount, item.journalEntryLineId), item] as const)
+    );
+    const normalSplits: TransferSplit[] = [];
+    const cardRefundSplits: TransferSplit[] = [];
+    let cardRefundBankAccountId = 0;
+    let cardRefundDescription = '';
+    const processedKeys = new Set<string>();
+
+    for (const workItem of this.buildTransferAllocationWorkItems(selectedLines)) {
+      const depositId = this.resolveDepositIdFromLine(workItem.contextLine);
+      if (!depositId) {
+        throw new Error('Each selected line must belong to a journal entry linked to a deposit.');
+      }
+
+      const resolvedAllocations = this.resolveTransferDepositAllocationsForWorkItem(
+        workItem,
+        depositId,
+        allocationByKey,
+        allocations || []
+      );
+      if (resolvedAllocations.length === 0) {
+        throw new Error('Unable to resolve deposit allocation for the selected line.');
+      }
+
+      for (const resolved of resolvedAllocations) {
+        const matchKey = this.buildTransferAllocationMatchKey(
+          depositId,
+          resolved.escrowAmount,
+          resolved.allocation.journalEntryLineId
+        );
+        const contextKey = `${String(workItem.contextLine.journalEntryLineId || '').trim()}|${matchKey}`;
+        if (!matchKey || processedKeys.has(contextKey)) {
+          continue;
+        }
+        processedKeys.add(contextKey);
+
+        const cardRefund = !!resolved.allocation.securityDepositCardRefund;
+        if (cardRefund && Number(resolved.allocation.sourceBankAccountId || allocationAccountIds.secDep || 0) <= 0) {
+          throw new Error('Security deposit escrow is not configured for this office.');
+        }
+        if (!cardRefund && (!allocationAccountIds.owners || !allocationAccountIds.bank)) {
+          throw new Error('Owner escrow and bank accounts must be configured for this office.');
+        }
+        if (cardRefund && Math.abs(Number(resolved.allocation.chargeAmount || 0)) > 0.005 && !allocationAccountIds.bank) {
+          throw new Error('Business bank account is not configured for this office.');
+        }
+
+        const built = this.buildTransferSplitsFromAllocation(
+          resolved.allocation,
+          resolved.escrowAmount,
+          workItem.contextLine,
+          allocationAccountIds,
+          resolved.depositSplit
+        );
+        if (built.length === 0) {
+          continue;
+        }
+
+        if (cardRefund) {
+          cardRefundBankAccountId = Number(resolved.allocation.sourceBankAccountId || allocationAccountIds.secDep || 0);
+          cardRefundDescription = cardRefundDescription || ((resolved.allocation.description || '').trim());
+          cardRefundSplits.push(...built);
+        } else {
+          normalSplits.push(...built);
+        }
+      }
+    }
+
+    const requests: TransferRequest[] = [];
+    if (normalSplits.length > 0) {
+      const validationMessage = this.validateBuiltTransferSplits(normalSplits, allocationAccountIds);
+      if (validationMessage) {
+        throw new Error(validationMessage);
+      }
+      requests.push(this.buildTransferRequestFromSplits(
+        organizationId,
+        officeId,
+        transferDate,
+        escrowDepositAccountId,
+        'Transfer to Escrow Accounts',
+        normalSplits
+      ));
+    }
+    if (cardRefundSplits.length > 0) {
+      requests.push(this.buildTransferRequestFromSplits(
+        organizationId,
+        officeId,
+        transferDate,
+        cardRefundBankAccountId,
+        cardRefundDescription || 'Transfer to Escrow Accounts',
+        cardRefundSplits
+      ));
+    }
+    if (requests.length === 0) {
+      throw new Error('Unable to resolve transfer allocations for the selected lines.');
+    }
+    return requests;
+  }
+
+  buildTransferRequestFromSplits(
+    organizationId: string,
+    officeId: number,
+    transferDate: string,
+    bankAccountId: number,
+    description: string,
+    splits: TransferSplit[]
+  ): TransferRequest {
+    const splitTotal = splits.reduce(
+      (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
+      0
+    );
+    return {
+      organizationId,
+      officeId,
+      transferDate,
+      accountingPeriod: transferDate,
+      amount: splitTotal,
+      description,
+      bankAccountId,
+      propertyId: null,
+      splits,
+      isActive: true
+    };
   }
 
   buildTransferSplitsFromDepositAllocations(selectedLines: JournalEntryLineListDisplay[], allocations: TransferDepositAllocationResponse[], officeId: number): TransferSplit[] {
@@ -2659,10 +2773,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
     return depositAllocations.map(allocation => {
       const escrowAmount = this.roundCurrencyValue(Number(allocation.escrowAmount || 0));
-      const depositSplit = (deposit?.splits || []).find(split =>
-        Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - escrowAmount) <= 0.005
-        || String(split.journalEntryLineId || '').trim().toLowerCase() === String(allocation.journalEntryLineId || '').trim().toLowerCase()
-      );
+      const depositSplit = this.findDepositSplitForTransferLine(
+        deposit?.splits || [],
+        escrowAmount,
+        allocation.journalEntryLineId,
+        allocation.propertyId,
+        allocation.reservationId);
 
       return {
         allocation,
@@ -2670,6 +2786,43 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         escrowAmount
       };
     });
+  }
+
+  findDepositSplitForTransferLine(
+    splits: DepositSplit[],
+    amount: number,
+    journalEntryLineId?: string | null,
+    propertyId?: string | null,
+    reservationId?: string | null
+  ): DepositSplit | undefined {
+    const lineId = String(journalEntryLineId || '').trim().toLowerCase();
+    if (lineId) {
+      const byLine = splits.find(split => String(split.journalEntryLineId || '').trim().toLowerCase() === lineId);
+      if (byLine) {
+        return byLine;
+      }
+    }
+
+    const amountMatches = splits.filter(split =>
+      Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - amount) <= 0.005);
+    if (amountMatches.length <= 1) {
+      return amountMatches[0];
+    }
+
+    const property = String(propertyId || '').trim().toLowerCase();
+    const reservation = String(reservationId || '').trim().toLowerCase();
+    const contextMatches = amountMatches.filter(split => {
+      const splitProperty = String(split.propertyId || '').trim().toLowerCase();
+      const splitReservation = String(split.reservationId || '').trim().toLowerCase();
+      if (property && splitProperty !== property) {
+        return false;
+      }
+      if (reservation && splitReservation !== reservation) {
+        return false;
+      }
+      return !!(property || reservation);
+    });
+    return contextMatches.length === 1 ? contextMatches[0] : undefined;
   }
 
   buildTransferAllocationMatchKey(depositId: string, escrowAmount: number, journalEntryLineId?: string | null): string {
@@ -2746,7 +2899,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
           workItems.push({
             contextLine: line,
-            allocationJournalEntryLineId: String(line.journalEntryLineId || '').trim(),
+            allocationJournalEntryLineId: String(split.journalEntryLineId || line.journalEntryLineId || '').trim(),
             escrowAmount,
             depositSplit: split
           });
@@ -2760,9 +2913,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
         continue;
       }
 
-      const matchingSplit = paymentSplits.find(split =>
-        Math.abs(this.roundCurrencyValue(Number(split.amount || 0)) - lineAmount) <= 0.005
-        || String(split.journalEntryLineId || '').trim() === allocationJournalEntryLineId);
+      const matchingSplit = this.findDepositSplitForTransferLine(
+        paymentSplits,
+        lineAmount,
+        allocationJournalEntryLineId,
+        line.propertyId,
+        line.reservationId);
 
       workItems.push({
         contextLine: line,
@@ -2813,11 +2969,33 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     return String(sourceLine?.depositId || '').trim();
   }
 
+  resolveTransferSplitJournalEntryLineId(
+    contextLine: JournalEntryLineListDisplay,
+    allocation: TransferDepositAllocationResponse,
+    depositSplit: DepositSplit | undefined,
+    splitAmount: number
+  ): string | null {
+    const contextLineId = String(contextLine.journalEntryLineId || '').trim();
+    const splitLineId = String(depositSplit?.journalEntryLineId || '').trim();
+    const allocationLineId = String(allocation.journalEntryLineId || '').trim();
+    const contextAmount = this.getTransferEscrowAmount(contextLine);
+    if (splitLineId && Math.abs(contextAmount - this.roundCurrencyValue(splitAmount)) > 0.005) {
+      return splitLineId;
+    }
+
+    return contextLineId || allocationLineId || splitLineId || null;
+  }
+
   buildSecurityDepositCardRefundTransferSplits(allocation: TransferDepositAllocationResponse, contextLine: JournalEntryLineListDisplay, accountIds: { owners: number | null; secDep: number | null; sdw: number | null; bank: number | null }, depositSplit?: DepositSplit): TransferSplit[] {
     const propertyId = (depositSplit?.propertyId || allocation.propertyId || '').trim() || null;
     const reservationId = (depositSplit?.reservationId || allocation.reservationId || '').trim() || null;
     const contactId = (depositSplit?.contactId || allocation.contactId || '').trim() || null;
-    const journalEntryLineId = (contextLine.journalEntryLineId || allocation.journalEntryLineId || '').trim() || null;
+    const journalEntryLineId = this.resolveTransferSplitJournalEntryLineId(
+      contextLine,
+      allocation,
+      depositSplit,
+      Number(depositSplit?.amount ?? allocation.escrowAmount ?? 0)
+    );
     const chargeAmount = this.roundCurrencyValue(Number(allocation.chargeAmount || 0));
     const refundAmount = this.roundCurrencyValue(Number(allocation.refundAmount || 0));
     const chargeDescription = (allocation.description || '').trim();
@@ -2865,11 +3043,12 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const propertyId = (depositSplit?.propertyId || allocation.propertyId || '').trim() || null;
     const reservationId = (depositSplit?.reservationId || allocation.reservationId || '').trim() || null;
     const contactId = (depositSplit?.contactId || allocation.contactId || '').trim() || null;
-    const journalEntryLineId = (
-      contextLine.journalEntryLineId
-      || allocation.journalEntryLineId
-      || ''
-    ).trim() || null;
+    const journalEntryLineId = this.resolveTransferSplitJournalEntryLineId(
+      contextLine,
+      allocation,
+      depositSplit,
+      baseAmount
+    );
     const source = (allocation.description || this.extractTransferSourceLabel(depositSplit?.description) || contextLine.source || contextLine.description || '').trim();
     const description = source ? `Transfer to Escrow Accounts - ${source}` : 'Transfer to Escrow Accounts';
 

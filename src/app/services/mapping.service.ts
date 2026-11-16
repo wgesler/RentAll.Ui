@@ -6667,7 +6667,25 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       .map(allocation => {
         const lineId = (allocation.journalEntryLineId || '').trim();
         const hasLineId = !!lineId && lineId !== emptyGuid;
-        let context = hasLineId ? splitsByLineId.get(lineId) : undefined;
+        const allocationDescription = (allocation.description || '').trim().toLowerCase();
+        const allocationPropertyId = (allocation.propertyId || '').trim().toLowerCase();
+        const allocationReservationId = (allocation.reservationId || '').trim().toLowerCase();
+        const describedSplit = splits.find(split => {
+          const splitDescription = (split.description || '').trim().toLowerCase();
+          return !!allocationDescription && !!splitDescription && splitDescription === allocationDescription;
+        });
+        const ownedSplit = describedSplit || splits.find(split => {
+          const splitPropertyId = (split.propertyId || '').trim().toLowerCase();
+          const splitReservationId = (split.reservationId || '').trim().toLowerCase();
+          if (allocationPropertyId && splitPropertyId && splitPropertyId !== allocationPropertyId) {
+            return false;
+          }
+          if (allocationReservationId && splitReservationId && splitReservationId !== allocationReservationId) {
+            return false;
+          }
+          return !!(allocationPropertyId || allocationReservationId);
+        });
+        let context = ownedSplit || (hasLineId ? splitsByLineId.get(lineId) : undefined);
         if (!context) {
           const allocationDescription = (allocation.description || '').trim().toLowerCase();
           const allocationPropertyId = (allocation.propertyId || '').trim();
