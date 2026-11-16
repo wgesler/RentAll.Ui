@@ -2533,10 +2533,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const allocationByKey = new Map(
       (allocations || []).map(item => [this.buildTransferAllocationMatchKey(item.depositId, item.escrowAmount, item.journalEntryLineId), item] as const)
     );
-    const normalSplits: TransferSplit[] = [];
-    const cardRefundSplits: TransferSplit[] = [];
-    let cardRefundBankAccountId = 0;
-    let cardRefundDescription = '';
+    const splits: TransferSplit[] = [];
     const processedKeys = new Set<string>();
 
     for (const workItem of this.buildTransferAllocationWorkItems(selectedLines)) {
@@ -2589,45 +2586,25 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           continue;
         }
 
-        if (cardRefund) {
-          cardRefundBankAccountId = Number(resolved.allocation.sourceBankAccountId || allocationAccountIds.secDep || 0);
-          cardRefundDescription = cardRefundDescription || ((resolved.allocation.description || '').trim());
-          cardRefundSplits.push(...built);
-        } else {
-          normalSplits.push(...built);
-        }
+        splits.push(...built);
       }
     }
 
-    const requests: TransferRequest[] = [];
-    if (normalSplits.length > 0) {
-      const validationMessage = this.validateBuiltTransferSplits(normalSplits, allocationAccountIds);
-      if (validationMessage) {
-        throw new Error(validationMessage);
-      }
-      requests.push(this.buildTransferRequestFromSplits(
-        organizationId,
-        officeId,
-        transferDate,
-        escrowDepositAccountId,
-        'Transfer to Escrow Accounts',
-        normalSplits
-      ));
-    }
-    if (cardRefundSplits.length > 0) {
-      requests.push(this.buildTransferRequestFromSplits(
-        organizationId,
-        officeId,
-        transferDate,
-        cardRefundBankAccountId,
-        cardRefundDescription || 'Transfer to Escrow Accounts',
-        cardRefundSplits
-      ));
-    }
-    if (requests.length === 0) {
+    if (splits.length === 0) {
       throw new Error('Unable to resolve transfer allocations for the selected lines.');
     }
-    return requests;
+    const validationMessage = this.validateBuiltTransferSplits(splits, allocationAccountIds);
+    if (validationMessage) {
+      throw new Error(validationMessage);
+    }
+    return [this.buildTransferRequestFromSplits(
+      organizationId,
+      officeId,
+      transferDate,
+      escrowDepositAccountId,
+      'Transfer to Escrow Accounts',
+      splits
+    )];
   }
 
   buildTransferRequestFromSplits(
@@ -3001,6 +2978,20 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     const chargeDescription = (allocation.description || '').trim();
     const refundDescription = (allocation.refundDescription || '').trim() || (chargeDescription ? `${chargeDescription} TBR` : '');
     const splits: TransferSplit[] = [];
+
+    const sourceBankAccountId = Number(allocation.sourceBankAccountId || accountIds.secDep || 0);
+    const sourceAmount = this.roundCurrencyValue(-(chargeAmount + refundAmount));
+    if (sourceAmount !== 0 && sourceBankAccountId > 0) {
+      splits.push({
+        amount: sourceAmount,
+        description: chargeDescription,
+        propertyId,
+        reservationId,
+        contactId,
+        journalEntryLineId,
+        chartOfAccountId: sourceBankAccountId
+      });
+    }
 
     if (chargeAmount !== 0 && accountIds.bank) {
       splits.push({
