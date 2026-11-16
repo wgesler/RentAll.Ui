@@ -10,7 +10,8 @@ export enum ReservationStatus {
   Maintenance = 7,
   OwnerBlocked = 8,
   ArrivalDeparture = 9,
-  Offline = 10
+  Offline = 10,
+  Completed = 11
 }
 
 export function getReservationStatus(reservationStatusId: number | undefined): string {
@@ -28,6 +29,7 @@ export function getReservationStatus(reservationStatusId: number | undefined): s
     [ReservationStatus.OwnerBlocked]: 'Owner Blocked',
     [ReservationStatus.ArrivalDeparture]: 'Arrival/Departure',
     [ReservationStatus.Offline]: 'Offline',
+    [ReservationStatus.Completed]: 'Completed',
   };
   
   return statusMap[reservationStatusId] || '';
@@ -45,7 +47,8 @@ export function getReservationStatuses(): { value: number, label: string }[] {
     { value: ReservationStatus.EarlyMoveOut, label: getReservationStatus(ReservationStatus.EarlyMoveOut) },
     { value: ReservationStatus.Maintenance, label: getReservationStatus(ReservationStatus.Maintenance) },
     { value: ReservationStatus.OwnerBlocked, label: getReservationStatus(ReservationStatus.OwnerBlocked) },
-    { value: ReservationStatus.Offline, label: getReservationStatus(ReservationStatus.Offline) }
+    { value: ReservationStatus.Offline, label: getReservationStatus(ReservationStatus.Offline) },
+    { value: ReservationStatus.Completed, label: getReservationStatus(ReservationStatus.Completed) }
   ];
 }
 
